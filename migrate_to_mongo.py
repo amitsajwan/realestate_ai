@@ -8,7 +8,7 @@ Instructions:
 2. Set the MONGO_URI environment variable.
    Example (PowerShell): $env:MONGO_URI="mongodb://localhost:27017/"
 3. Run this script from your terminal:
-   .\env\Scripts\python.exe .\migrate_to_mongo.py
+   .\\env\\Scripts\\python.exe .\\migrate_to_mongo.py
 """
 
 import os
