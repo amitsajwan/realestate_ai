@@ -34,6 +34,17 @@ load_dotenv()
 # Initialize FastAPI app
 app = FastAPI(title="Real Estate CRM", description="Production-ready CRM for real estate agents")
 
+# Include API routers
+from api.endpoints import ai_localization, listing_posts, crm, leads, india_market, auth, dashboard, facebook_oauth
+app.include_router(ai_localization.router)
+app.include_router(listing_posts.router, prefix="/api/listings")
+app.include_router(crm.router)
+app.include_router(leads.router)
+app.include_router(india_market.router)
+app.include_router(auth.router, prefix="/api/auth")
+app.include_router(dashboard.router, prefix="/api/dashboard")
+app.include_router(facebook_oauth.router, prefix="/api/facebook")
+
 # Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "real_estate_crm_secret_key_2025")
 FB_APP_ID = os.getenv("FB_APP_ID")
