@@ -19,8 +19,7 @@ jobs:
       - name: Install dev deps + Playwright
         run: |
           pip install -r requirements-dev.txt
-          python -m playwright install chromium
-          sudo python -m playwright install-deps chromium
+          python -m playwright install chromium --with-deps
       - name: Lint import
         run: |
           python -c "
