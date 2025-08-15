@@ -18,7 +18,7 @@ from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse, JSON
 from fastapi.staticfiles import StaticFiles
 import sqlite3
 import hashlib
-import jwt
+from jose import jwt
 from datetime import datetime, timedelta
 from typing import Optional
 import uvicorn
