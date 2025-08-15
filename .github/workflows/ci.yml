@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Install dev deps + Playwright
+        run: |
+          pip install -r requirements-dev.txt
+          python -m playwright install chromium
+          sudo python -m playwright install-deps chromium
+      - name: Lint import
+        run: python - <<'PY'
+import compileall, sys
+ok = compileall.compile_dir('.', force=True, quiet=1)
+sys.exit(0 if ok else 1)
+PY
+      - name: Build and start services (docker compose)
+        run: |
+          docker compose -f docker-compose.crm.yml up -d --build
+      - name: Wait for app to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -sSf http://127.0.0.1:8004/ > /dev/null; then echo "App ready"; break; fi; sleep 2; done
+      - name: Run tests (unit/integration)
+        run: |
+          pytest -q tests/unit tests/integration
+      - name: UI e2e (Playwright)
+        env:
+          BASE_URL: http://127.0.0.1:8004
+        run: |
+          pytest -q tests/ui
+      - name: Smoke test
+        run: |
+          python tests/smoke_check.py
+      - name: Docker logs (on failure)
+        if: failure()
+        run: |
+          docker compose -f docker-compose.crm.yml logs --no-color | tail -n 500
+      - name: Shutdown services
+        if: always()
+        run: |
+          docker compose -f docker-compose.crm.yml down -v

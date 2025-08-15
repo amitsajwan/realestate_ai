@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dashboard - Real Estate CRM</title>
+    <link rel="stylesheet" href="/static/css/app.css" />
+  </head>
+  <body>
+    <header class="header">
+      <h1>Dashboard</h1>
+      <nav>
+        <a href="#" id="logout">Logout</a>
+      </nav>
+    </header>
+    <main>
+      <section id="stats">
+        <div class="card">Leads: <span id="leadsCount">-</span></div>
+        <div class="card">Properties: <span id="propsCount">-</span></div>
+      </section>
+      <section id="lists">
+        <h2>Recent Leads</h2>
+        <ul id="leads"></ul>
+        <h2>Recent Properties</h2>
+        <ul id="properties"></ul>
+      </section>
+    </main>
+    <script src="/static/js/dashboard.js"></script>
+  </body>
+</html>

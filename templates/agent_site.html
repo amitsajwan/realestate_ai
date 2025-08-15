@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ profile.brand_name or profile.username }} — Real Estate</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 0; color: #111; }
+    header { padding: 32px 16px; background: #0f172a; color: white; }
+    .container { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+    h1 { margin: 0 0 8px 0; font-size: 28px; }
+    h2 { font-size: 18px; color: #475569; margin-top: 0; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 16px 0; }
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    a.button { display: inline-block; padding: 10px 14px; background: #2563eb; color: white; border-radius: 8px; text-decoration: none; }
+    .muted { color: #475569; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1>{{ profile.brand_name or profile.username }}</h1>
+      {% if profile.tagline %}<h2>{{ profile.tagline }}</h2>{% endif %}
+      {% if profile.website %}<a class="button" href="{{ profile.website }}" target="_blank" rel="noopener">Visit Website</a>{% endif %}
+    </div>
+  </header>
+  <main class="container">
+    <div class="card">
+      <h3>About</h3>
+      <p class="muted">{{ profile.bio or 'Your trusted partner for buying and selling properties.' }}</p>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <h3>Contact</h3>
+        <p>
+          {% if profile.email %}📧 {{ profile.email }}<br/>{% endif %}
+          {% if profile.phone %}📞 {{ profile.phone }}<br/>{% endif %}
+          {% if profile.location %}📍 {{ profile.location }}<br/>{% endif %}
+        </p>
+      </div>
+      <div class="card">
+        <h3>Links</h3>
+        <p>
+          {% if profile.facebook_url %}<a href="{{ profile.facebook_url }}" target="_blank">Facebook</a><br/>{% endif %}
+          {% if profile.instagram_url %}<a href="{{ profile.instagram_url }}" target="_blank">Instagram</a><br/>{% endif %}
+          {% if profile.linkedin_url %}<a href="{{ profile.linkedin_url }}" target="_blank">LinkedIn</a><br/>{% endif %}
+        </p>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

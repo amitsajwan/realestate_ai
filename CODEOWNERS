@@ -1,0 +1,14 @@
+# Code owners map
+# Pattern  -> Owners (GitHub usernames or team aliases)
+
+* @product-manager @project-manager @tech-lead
+core/** @backend-team
+api/** @backend-team
+models/** @backend-team
+repositories/** @backend-team
+services/** @backend-team
+frontend/** @frontend-team
+playwright.config.ts @frontend-team
+
+# Docs
+*.md @tech-writer @product-manager

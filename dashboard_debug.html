@@ -1,0 +1,812 @@
+﻿
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Dashboard - Real Estate CRM</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: #f5f5f5;
+                min-height: 100vh;
+            }
+            .header {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 1rem 2rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            .header h1 {
+                font-size: 1.5rem;
+            }
+            .user-info {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+            }
+            .logout-btn {
+                background: rgba(255,255,255,0.2);
+                color: white;
+                border: none;
+                padding: 0.5rem 1rem;
+                border-radius: 5px;
+                cursor: pointer;
+                transition: background 0.3s;
+            }
+            .logout-btn:hover {
+                background: rgba(255,255,255,0.3);
+            }
+            .main-content {
+                display: grid;
+                grid-template-columns: 250px 1fr;
+                min-height: calc(100vh - 80px);
+            }
+            .sidebar {
+                background: white;
+                padding: 2rem 1rem;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            }
+            .nav-item {
+                display: block;
+                padding: 1rem;
+                color: #333;
+                text-decoration: none;
+                border-radius: 5px;
+                margin-bottom: 0.5rem;
+                transition: background 0.3s;
+            }
+            .nav-item:hover, .nav-item.active {
+                background: #667eea;
+                color: white;
+            }
+            .content {
+                padding: 2rem;
+            }
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 1.5rem;
+                margin-bottom: 2rem;
+            }
+            .stat-card {
+                background: white;
+                padding: 1.5rem;
+                border-radius: 10px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                text-align: center;
+            }
+            .stat-value {
+                font-size: 2rem;
+                font-weight: bold;
+                color: #667eea;
+                margin-bottom: 0.5rem;
+            }
+            .stat-label {
+                color: #666;
+                font-size: 0.9rem;
+            }
+            .section {
+                background: white;
+                padding: 2rem;
+                border-radius: 10px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                margin-bottom: 2rem;
+            }
+            .section h2 {
+                margin-bottom: 1rem;
+                color: #333;
+            }
+            .btn {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border: none;
+                padding: 0.8rem 1.5rem;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 1rem;
+                transition: transform 0.2s;
+                margin-right: 1rem;
+                margin-bottom: 1rem;
+            }
+            .btn:hover {
+                transform: translateY(-2px);
+            }
+            .btn-success {
+                background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            }
+            .btn-warning {
+                background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+            }
+            .table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 1rem;
+            }
+            .table th, .table td {
+                padding: 1rem;
+                text-align: left;
+                border-bottom: 1px solid #ddd;
+            }
+            .table th {
+                background: #f8f9fa;
+                font-weight: 600;
+            }
+            .table tr:hover {
+                background: #f8f9fa;
+            }
+            .status-hot { color: #dc3545; font-weight: bold; }
+            .status-warm { color: #fd7e14; font-weight: bold; }
+            .status-cold { color: #6c757d; }
+            .quick-actions {
+                display: flex;
+                gap: 1rem;
+                margin-bottom: 2rem;
+                flex-wrap: wrap;
+            }
+            .modal {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                z-index: 1000;
+            }
+            .modal-content {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                padding: 2rem;
+                border-radius: 10px;
+                width: 90%;
+                max-width: 500px;
+                max-height: 80vh;
+                overflow-y: auto;
+            }
+            .close {
+                float: right;
+                font-size: 1.5rem;
+                cursor: pointer;
+                color: #999;
+            }
+            .form-group {
+                margin-bottom: 1rem;
+            }
+            .form-group label {
+                display: block;
+                margin-bottom: 0.5rem;
+                font-weight: 500;
+            }
+            .form-group input, .form-group select, .form-group textarea {
+                width: 100%;
+                padding: 0.8rem;
+                border: 2px solid #ddd;
+                border-radius: 5px;
+                font-size: 1rem;
+            }
+            @media (max-width: 768px) {
+                .main-content {
+                    grid-template-columns: 1fr;
+                }
+                .sidebar {
+                    display: none;
+                }
+                .stats-grid {
+                    grid-template-columns: 1fr;
+                }
+                .header {
+                    padding: 1rem;
+                }
+                .content {
+                    padding: 1rem;
+                }
+            }
+        </style>
+        <script>
+            // Safe, standalone nav handler to avoid inline onclick errors
+            window.showSection = function(section, evt) {
+                try {
+                    if (evt && evt.preventDefault) evt.preventDefault();
+                    var sections = ['dashboardSection','leadsSection','propertiesSection','settingsSection'];
+                    sections.forEach(function(id){ var el = document.getElementById(id); if (el) el.style.display='none'; });
+                    var map = { dashboard:'dashboardSection', leads:'leadsSection', properties:'propertiesSection', settings:'settingsSection' };
+                    var target = document.getElementById(map[section]); if (target) target.style.display='block';
+                    if (evt && evt.target && evt.target.classList) {
+                        document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+                        evt.target.classList.add('active');
+                    }
+                } catch(e) { /* no-op */ }
+            }
+        </script>
+    </head>
+    <body>
+        <div class="header">
+            <h1>🏠 Real Estate CRM Dashboard</h1>
+            <div class="user-info">
+                <span id="userName">Welcome, Agent</span>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <a href="#" class="nav-item active" onclick="showSection('dashboard', event)">📊 Dashboard</a>
+                <a href="#" class="nav-item" onclick="showSection('leads', event)">👥 Leads</a>
+                <a href="#" class="nav-item" onclick="showSection('properties', event)">🏠 Properties</a>
+                <a href="#" class="nav-item" onclick="showSection('settings', event)">⚙️ Settings</a>
+            </div>
+            
+            <div class="content">
+                <div id="dashboardSection">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="totalLeads">0</div>
+                            <div class="stat-label">Total Leads</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="hotLeads">0</div>
+                            <div class="stat-label">Hot Leads</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="totalProperties">0</div>
+                            <div class="stat-label">Active Properties</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">₹2.5 Cr</div>
+                            <div class="stat-label">Avg Deal Value</div>
+                        </div>
+                    </div>
+                    
+                    <div class="quick-actions">
+                        <button class="btn" onclick="openModal('addLeadModal')">➕ Add Lead</button>
+                        <button class="btn" onclick="openModal('addPropertyModal')">🏠 Add Property</button>
+                        <button class="btn btn-success" onclick="callLead()">📞 Call Lead</button>
+                        <button class="btn btn-warning" onclick="sendWhatsApp()">💬 WhatsApp</button>
+                    </div>
+                    
+                    <div class="section">
+                        <h2>Recent Leads</h2>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Phone</th>
+                                    <th>Budget</th>
+                                    <th>Status</th>
+                                    <th>Score</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leadsTable">
+                                <tr>
+                                    <td colspan="6" style="text-align: center; padding: 2rem; color: #666;">
+                                        Loading leads...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div id="leadsSection" style="display: none;">
+                    <div class="section">
+                        <h2>Lead Management</h2>
+                        <button class="btn" onclick="openModal('addLeadModal')">➕ Add New Lead</button>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Contact</th>
+                                    <th>Location</th>
+                                    <th>Budget</th>
+                                    <th>Property Type</th>
+                                    <th>Source</th>
+                                    <th>Status</th>
+                                    <th>Score</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="allLeadsTable">
+                                <tr>
+                                    <td colspan="9" style="text-align: center; padding: 2rem; color: #666;">
+                                        Loading all leads...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div id="propertiesSection" style="display: none;">
+                    <div class="section">
+                        <h2>Property Management</h2>
+                        <button class="btn" onclick="openModal('addPropertyModal')">🏠 Add New Property</button>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Type</th>
+                                    <th>Location</th>
+                                    <th>Price</th>
+                                    <th>Bedrooms</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="propertiesTable">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; padding: 2rem; color: #666;">
+                                        Loading properties...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div id="settingsSection" style="display: none;">
+                    <div class="section">
+                        <h2>Account Settings</h2>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                            <div>
+                                <h3>Profile Information</h3>
+                                <p><strong>Email:</strong> <span id="userEmail">Loading...</span></p>
+                                <p><strong>Phone:</strong> <span id="userPhone">Loading...</span></p>
+                                <p><strong>Experience:</strong> <span id="userExperience">Loading...</span></p>
+                                <p><strong>Areas:</strong> <span id="userAreas">Loading...</span></p>
+                                <p><strong>Languages:</strong> <span id="userLanguages">Loading...</span></p>
+                            </div>
+                            <div>
+                                <h3>Social Media Integration</h3>
+                                <button class="btn" onclick="connectFacebook()">📘 Connect Facebook</button>
+                                <button class="btn" onclick="connectWhatsApp()">💬 Connect WhatsApp</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Add Lead Modal -->
+        <div id="addLeadModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal('addLeadModal')">&times;</span>
+                <h2>Add New Lead</h2>
+                <form id="addLeadForm">
+                    <div class="form-group">
+                        <label for="leadName">Full Name</label>
+                        <input type="text" id="leadName" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="leadPhone">Phone Number</label>
+                        <input type="tel" id="leadPhone" name="phone" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="leadEmail">Email (Optional)</label>
+                        <input type="email" id="leadEmail" name="email">
+                    </div>
+                    <div class="form-group">
+                        <label for="leadLocation">Location</label>
+                        <input type="text" id="leadLocation" name="location" placeholder="e.g., Bandra West">
+                    </div>
+                    <div class="form-group">
+                        <label for="leadBudget">Budget</label>
+                        <input type="text" id="leadBudget" name="budget" placeholder="e.g., ₹2.5 Cr">
+                    </div>
+                    <div class="form-group">
+                        <label for="leadPropertyType">Property Type</label>
+                        <select id="leadPropertyType" name="property_type">
+                            <option value="">Select Type</option>
+                            <option value="1 BHK Apartment">1 BHK Apartment</option>
+                            <option value="2 BHK Apartment">2 BHK Apartment</option>
+                            <option value="3 BHK Apartment">3 BHK Apartment</option>
+                            <option value="4 BHK Apartment">4 BHK Apartment</option>
+                            <option value="Villa">Villa</option>
+                            <option value="Penthouse">Penthouse</option>
+                            <option value="Commercial Office">Commercial Office</option>
+                            <option value="Shop">Shop</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="leadSource">Source</label>
+                        <select id="leadSource" name="source">
+                            <option value="manual">Manual Entry</option>
+                            <option value="facebook">Facebook</option>
+                            <option value="whatsapp">WhatsApp</option>
+                            <option value="website">Website</option>
+                            <option value="referral">Referral</option>
+                            <option value="walk-in">Walk-in</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="leadNotes">Notes</label>
+                        <textarea id="leadNotes" name="notes" rows="3" placeholder="Additional information about the lead"></textarea>
+                    </div>
+                    <button type="submit" class="btn">Add Lead</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Add Property Modal -->
+        <div id="addPropertyModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal('addPropertyModal')">&times;</span>
+                <h2>Add New Property</h2>
+                <form id="addPropertyForm">
+                    <div class="form-group">
+                        <label for="propertyTitle">Property Title</label>
+                        <input type="text" id="propertyTitle" name="title" required placeholder="e.g., Luxury 3 BHK in Bandra">
+                    </div>
+                    <div class="form-group">
+                        <label for="propertyType">Property Type</label>
+                        <select id="propertyType" name="property_type" required>
+                            <option value="">Select Type</option>
+                            <option value="Residential">Residential</option>
+                            <option value="Commercial">Commercial</option>
+                            <option value="Industrial">Industrial</option>
+                            <option value="Land">Land</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="propertyLocation">Location</label>
+                        <input type="text" id="propertyLocation" name="location" required placeholder="e.g., Bandra West, Mumbai">
+                    </div>
+                    <div class="form-group">
+                        <label for="propertyPrice">Price</label>
+                        <input type="text" id="propertyPrice" name="price" required placeholder="e.g., ₹2.8 Cr">
+                    </div>
+                    <div class="form-group">
+                        <label for="propertyBedrooms">Bedrooms</label>
+                        <input type="number" id="propertyBedrooms" name="bedrooms" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="propertyBathrooms">Bathrooms</label>
+                        <input type="number" id="propertyBathrooms" name="bathrooms" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="propertyArea">Area (Sq Ft)</label>
+                        <input type="number" id="propertyArea" name="area_sqft" min="0" placeholder="e.g., 1250">
+                    </div>
+                    <div class="form-group">
+                        <label for="propertyAmenities">Amenities</label>
+                        <input type="text" id="propertyAmenities" name="amenities" placeholder="e.g., Gym, Pool, Security, Parking">
+                    </div>
+                    <div class="form-group">
+                        <label for="propertyDescription">Description</label>
+                        <textarea id="propertyDescription" name="description" rows="3" placeholder="Detailed description of the property"></textarea>
+                    </div>
+                    <button type="submit" class="btn">Add Property</button>
+                </form>
+            </div>
+        </div>
+        
+        <script>
+            // Authentication check
+            const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            
+            if (!token) {
+                window.location.href = '/';
+            }
+            
+            // Display user info
+            document.getElementById('userName').textContent = `Welcome, ${user.firstName} ${user.lastName}`;
+            
+            // API headers
+            const apiHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+            
+            // Load data on page load
+            loadDashboardData();
+            
+            window.showSection = function(section, evt) {
+                if (evt && evt.preventDefault) evt.preventDefault();
+                // Hide all sections
+                document.getElementById('dashboardSection').style.display = 'none';
+                document.getElementById('leadsSection').style.display = 'none';
+                document.getElementById('propertiesSection').style.display = 'none';
+                document.getElementById('settingsSection').style.display = 'none';
+                
+                // Remove active class from all nav items
+                document.querySelectorAll('.nav-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                
+                // Show selected section
+                if (section === 'dashboard') {
+                    document.getElementById('dashboardSection').style.display = 'block';
+                    loadDashboardData();
+                } else if (section === 'leads') {
+                    document.getElementById('leadsSection').style.display = 'block';
+                    loadAllLeads();
+                } else if (section === 'properties') {
+                    document.getElementById('propertiesSection').style.display = 'block';
+                    loadProperties();
+                } else if (section === 'settings') {
+                    document.getElementById('settingsSection').style.display = 'block';
+                    loadUserSettings();
+                }
+                
+                // Add active class to clicked nav item
+                if (evt && evt.target && evt.target.classList) {
+                    evt.target.classList.add('active');
+                }
+            }
+            
+            async function loadDashboardData() {
+                try {
+                    // Load leads
+                    const leadsResponse = await fetch('/api/leads', { headers: apiHeaders });
+                    const leads = await leadsResponse.json();
+                    
+                    // Load properties
+                    const propertiesResponse = await fetch('/api/properties', { headers: apiHeaders });
+                    const properties = await propertiesResponse.json();
+                    
+                    // Update stats
+                    document.getElementById('totalLeads').textContent = leads.length;
+                    document.getElementById('hotLeads').textContent = leads.filter(l => l.status === 'hot').length;
+                    document.getElementById('totalProperties').textContent = properties.length;
+                    
+                    // Update leads table
+                    const leadsTableHtml = leads.slice(0, 5).map(lead => `
+                        <tr>
+                            <td>${lead.name}</td>
+                            <td>${lead.phone}</td>
+                            <td>${lead.budget || 'Not specified'}</td>
+                            <td><span class="status-${lead.status}">${lead.status.toUpperCase()}</span></td>
+                            <td>${lead.score}%</td>
+                            <td>
+                                <button class="btn" style="padding: 0.3rem 0.8rem; margin: 0;" onclick="callLead('${lead.phone}')">📞</button>
+                                <button class="btn" style="padding: 0.3rem 0.8rem; margin: 0;" onclick="sendWhatsApp('${lead.phone}')">💬</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                    
+                    document.getElementById('leadsTable').innerHTML = leadsTableHtml || '<tr><td colspan="6" style="text-align: center; padding: 2rem; color: #666;">No leads found</td></tr>';
+                    
+                } catch (error) {
+                    console.error('Error loading dashboard data:', error);
+                }
+            }
+            
+            async function loadAllLeads() {
+                try {
+                    const response = await fetch('/api/leads', { headers: apiHeaders });
+                    const leads = await response.json();
+                    
+                    const tableHtml = leads.map(lead => `
+                        <tr>
+                            <td>${lead.name}</td>
+                            <td>${lead.phone}<br><small>${lead.email || ''}</small></td>
+                            <td>${lead.location || 'Not specified'}</td>
+                            <td>${lead.budget || 'Not specified'}</td>
+                            <td>${lead.property_type || 'Not specified'}</td>
+                            <td>${lead.source}</td>
+                            <td><span class="status-${lead.status}">${lead.status.toUpperCase()}</span></td>
+                            <td>${lead.score}%</td>
+                            <td>
+                                <button class="btn" style="padding: 0.3rem 0.8rem; margin: 0.2rem;" onclick="callLead('${lead.phone}')">📞</button>
+                                <button class="btn" style="padding: 0.3rem 0.8rem; margin: 0.2rem;" onclick="sendWhatsApp('${lead.phone}')">💬</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                    
+                    document.getElementById('allLeadsTable').innerHTML = tableHtml || '<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #666;">No leads found</td></tr>';
+                    
+                } catch (error) {
+                    console.error('Error loading leads:', error);
+                }
+            }
+            
+            async function loadProperties() {
+                try {
+                    const response = await fetch('/api/properties', { headers: apiHeaders });
+                    const properties = await response.json();
+                    
+                    const tableHtml = properties.map(property => `
+                        <tr>
+                            <td>${property.title}</td>
+                            <td>${property.property_type}</td>
+                            <td>${property.location}</td>
+                            <td>${property.price}</td>
+                            <td>${property.bedrooms}</td>
+                            <td>${property.status}</td>
+                            <td>
+                                <button class="btn" style="padding: 0.3rem 0.8rem; margin: 0.2rem;" onclick="shareProperty('${property.id}')">📤 Share</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                    
+                    document.getElementById('propertiesTable').innerHTML = tableHtml || '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #666;">No properties found</td></tr>';
+                    
+                } catch (error) {
+                    console.error('Error loading properties:', error);
+                }
+            }
+            
+            // loadUserSettings is defined later with Facebook status wiring
+            
+            // Modal functions
+            function openModal(modalId) {
+                document.getElementById(modalId).style.display = 'block';
+            }
+            
+            function closeModal(modalId) {
+                document.getElementById(modalId).style.display = 'none';
+            }
+            
+            // Action functions
+            function callLead(phone) {
+                if (phone) {
+                    alert(`Calling ${phone}...\n\nThis would normally trigger your phone/VoIP system.`);
+                    // In a real system, this would integrate with phone systems
+                } else {
+                    alert('Calling lead...\n\nThis would normally open your calling interface.');
+                }
+            }
+            
+            function sendWhatsApp(phone) {
+                if (phone) {
+                    const message = encodeURIComponent('Hi! I am reaching out regarding your property inquiry. How can I help you today?');
+                    window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${message}`, '_blank');
+                } else {
+                    alert('Opening WhatsApp...\n\nThis would normally open WhatsApp with the lead.');
+                }
+            }
+            
+            function shareProperty(propertyId) {
+                postToFacebook(propertyId);
+            }
+            
+            function connectFacebook() {
+                const token = localStorage.getItem('token');
+                if (!token) { alert('Please login again.'); window.location.href='/'; return; }
+                window.location.href = `/auth/facebook/login?token=${encodeURIComponent(token)}`;
+            }
+            
+            function connectWhatsApp() {
+                alert('WhatsApp Business Integration\n\nThis would connect WhatsApp Business API for automated messaging.');
+            }
+            
+            function logout() {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.href = '/';
+            }
+            
+            function loadUserSettings() {
+                document.getElementById('userEmail').textContent = user.email;
+                document.getElementById('userPhone').textContent = user.phone || 'Not provided';
+                document.getElementById('userExperience').textContent = user.experience || 'Not provided';
+                document.getElementById('userAreas').textContent = user.areas || 'Not provided';
+                document.getElementById('userLanguages').textContent = user.languages || 'Not provided';
+                fetch('/api/facebook/config', { headers: apiHeaders })
+                    .then(r => r.json())
+                    .then(cfg => {
+                        const buttons = Array.from(document.querySelectorAll('#settingsSection .btn'));
+                        const fbBtn = buttons.find(b => b.textContent.includes('Facebook')) || buttons[0];
+                        if (cfg.connected) {
+                            fbBtn.textContent = cfg.page_name ? `📘 Connected: ${cfg.page_name}` : '📘 Connected (select page)';
+                            fbBtn.onclick = selectFacebookPage;
+                        }
+                    }).catch(() => {});
+            }
+            
+            // Form submissions
+            document.getElementById('addLeadForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const formData = new FormData(e.target);
+                const data = Object.fromEntries(formData);
+                
+                try {
+                    const response = await fetch('/api/leads', {
+                        method: 'POST',
+                        headers: apiHeaders,
+                        body: JSON.stringify(data)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        alert('Lead added successfully!');
+                        closeModal('addLeadModal');
+                        e.target.reset();
+                        loadDashboardData();
+                        if (document.getElementById('leadsSection').style.display !== 'none') {
+                            loadAllLeads();
+                        }
+                    } else {
+                        alert(result.detail || 'Failed to add lead');
+                    }
+                } catch (error) {
+                    alert('Network error. Please try again.');
+                }
+            });
+            
+            document.getElementById('addPropertyForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const formData = new FormData(e.target);
+                const data = Object.fromEntries(formData);
+                
+                try {
+                    const response = await fetch('/api/properties', {
+                        method: 'POST',
+                        headers: apiHeaders,
+                        body: JSON.stringify(data)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        alert('Property added successfully!');
+                        closeModal('addPropertyModal');
+                        e.target.reset();
+                        loadDashboardData();
+                        if (document.getElementById('propertiesSection').style.display !== 'none') {
+                            loadProperties();
+                        }
+                    } else {
+                        alert(result.detail || 'Failed to add property');
+                    }
+                } catch (error) {
+                    alert('Network error. Please try again.');
+                }
+            });
+            
+            // Close modals when clicking outside
+            window.onclick = function(event) {
+                if (event.target.classList && event.target.classList.contains('modal')) {
+                    event.target.style.display = 'none';
+                }
+            }
+
+            async function postToFacebook(propertyId) {
+                try {
+                    const res = await fetch(`/api/facebook/post_property/${propertyId}`, { method: 'POST', headers: apiHeaders });
+                    const out = await res.json();
+                    if (res.ok) {
+                        alert('Posted to Facebook successfully');
+                    } else {
+                        alert(out.detail || 'Failed to post to Facebook');
+                    }
+                } catch (e) { alert('Network error while posting to Facebook'); }
+            }
+
+            async function selectFacebookPage() {
+                try {
+                    const res = await fetch('/api/facebook/pages', { headers: apiHeaders });
+                    const out = await res.json();
+                    if (!Array.isArray(out) || out.length === 0) { alert('No pages available on your account.'); return; }
+                    const list = out.map(p => `${p.name} (${p.id})`).join('
+');
+                    const chosen = prompt(`Select a Page by typing its ID:
+
+${list}`);
+                    if (!chosen) return;
+                    const selRes = await fetch('/api/facebook/select_page', { method: 'POST', headers: apiHeaders, body: JSON.stringify({ page_id: chosen }) });
+                    const selOut = await selRes.json();
+                    if (selRes.ok) {
+                        alert('Facebook Page connected: ' + selOut.page_name);
+                        loadUserSettings();
+                    } else {
+                        alert(selOut.detail || 'Failed to select page');
+                    }
+                } catch (e) { alert('Failed to load pages'); }
+            }
+        </script>
+    </body>
+    </html>
+    

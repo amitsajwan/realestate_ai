@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:6
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  crm:
+    build:
+      context: .
+      dockerfile: Dockerfile.crm
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/
+      - SECRET_KEY=real_estate_crm_secret_key_2025
+    ports:
+      - "8004:8004"
+    depends_on:
+      - mongo
+
+volumes:
+  mongo_data:

@@ -1,0 +1,18 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# System deps
+RUN apt-get update && apt-get install -y build-essential && rm -rf /var/lib/apt/lists/*
+
+# Python deps
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# App code
+COPY . .
+
+EXPOSE 8004
+
+# Run production CRM directly
+CMD ["python", "-c", "import uvicorn; uvicorn.run('complete_production_crm:app', host='0.0.0.0', port=8004, reload=False)"]
