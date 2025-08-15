@@ -16,6 +16,9 @@ services:
     environment:
       - MONGO_URI=mongodb://mongo:27017/
       - SECRET_KEY=real_estate_crm_secret_key_2025
+      - GROQ_API_KEY=${GROQ_API_KEY:-fake_groq_key_for_testing}
+      - FB_PAGE_ID=${FB_PAGE_ID:-fake_fb_page_id}
+      - FB_PAGE_TOKEN=${FB_PAGE_TOKEN:-fake_fb_page_token}
     ports:
       - "8004:8004"
     depends_on:
