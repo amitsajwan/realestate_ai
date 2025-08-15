@@ -7,12 +7,18 @@ __pycache__/
 .envrc
 .venv/
 env/
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
 
 # Node
 node_modules/
 frontend/node_modules/
 frontend/.next/
 frontend/dist/
+playwright-report/
+test-results/
 
 # OS / Editor
 .DS_Store
@@ -21,3 +27,7 @@ frontend/dist/
 
 # Archives / backups
 archive/
+
+# Generated & local data
+generated_images/
+*.db
