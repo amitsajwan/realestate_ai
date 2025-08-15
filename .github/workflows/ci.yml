@@ -28,6 +28,10 @@ jobs:
           sys.exit(0 if ok else 1)
           "
       - name: Build and start services (docker compose)
+        env:
+          GROQ_API_KEY: "fake_groq_key_for_testing"
+          FB_PAGE_ID: "fake_fb_page_id"
+          FB_PAGE_TOKEN: "fake_fb_page_token"
         run: |
           docker compose -f docker-compose.crm.yml up -d --build
       - name: Wait for app to be ready
