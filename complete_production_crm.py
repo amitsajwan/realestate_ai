@@ -16,9 +16,8 @@ Date: January 2025
 from fastapi import FastAPI, Request, HTTPException, Depends, Header, Query
 from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-import sqlite3
 import hashlib
-import jwt
+from jose import jwt, JWTError, ExpiredSignatureError
 from datetime import datetime, timedelta
 from typing import Optional
 import uvicorn
@@ -27,6 +26,7 @@ import urllib.parse
 import requests
 from dotenv import load_dotenv
 from db_adapter import get_db_connection, UserRepository, DB_MODE
+from bson.objectid import ObjectId
 
 # Load environment variables
 load_dotenv()
@@ -36,7 +36,6 @@ app = FastAPI(title="Real Estate CRM", description="Production-ready CRM for rea
 
 # Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "real_estate_crm_secret_key_2025")
-DB_PATH = "production_crm.db"
 FB_APP_ID = os.getenv("FB_APP_ID")
 FB_APP_SECRET = os.getenv("FB_APP_SECRET")
 FB_REDIRECT_URI = os.getenv("FB_REDIRECT_URI", "http://localhost:8004/auth/facebook/callback")
@@ -44,125 +43,22 @@ FB_REDIRECT_URI = os.getenv("FB_REDIRECT_URI", "http://localhost:8004/auth/faceb
 # Initialize user repository
 user_repo = UserRepository(get_db_connection())
 
-# Database setup - using adapter
+# Database setup - using adapter (Mongo only)
 def get_db():
-    """Get database connection through adapter."""
+    """Get MongoDB connection through adapter."""
     return get_db_connection()
 
 def init_database():
-    """Initialize database schema - MongoDB collections are created automatically."""
-    if DB_MODE == "sqlite":
-        # Original SQLite initialization
-        conn = get_db()
-        cursor = conn.cursor()
-        
-        # Users table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                first_name TEXT NOT NULL,
-                last_name TEXT NOT NULL,
-                phone TEXT,
-                experience TEXT,
-                areas TEXT,
-                property_types TEXT,
-                languages TEXT,
-                facebook_connected INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        # Leads table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS leads (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                agent_id INTEGER NOT NULL,
-                name TEXT NOT NULL,
-                email TEXT,
-                phone TEXT NOT NULL,
-                location TEXT,
-                budget TEXT,
-                property_type TEXT,
-                source TEXT DEFAULT 'manual',
-                status TEXT DEFAULT 'new',
-                score INTEGER DEFAULT 75,
-                notes TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (agent_id) REFERENCES users (id)
-            )
-        ''')
-        
-        # Properties table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS properties (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                agent_id INTEGER NOT NULL,
-                title TEXT NOT NULL,
-                description TEXT,
-                property_type TEXT NOT NULL,
-                location TEXT NOT NULL,
-                price TEXT NOT NULL,
-                bedrooms INTEGER DEFAULT 0,
-                bathrooms INTEGER DEFAULT 0,
-                area_sqft INTEGER DEFAULT 0,
-                amenities TEXT,
-                status TEXT DEFAULT 'available',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (agent_id) REFERENCES users (id)
-            )
-        ''')
-        
-        # Interactions table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS interactions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                lead_id INTEGER NOT NULL,
-                agent_id INTEGER NOT NULL,
-                type TEXT NOT NULL,
-                content TEXT,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (lead_id) REFERENCES leads (id),
-                FOREIGN KEY (agent_id) REFERENCES users (id)
-            )
-        ''')
-        
-        conn.commit()
-        conn.close()
-    else:
-        # MongoDB - collections are created automatically
-        print("✅ MongoDB mode - collections will be created automatically")
+    """MongoDB - collections are created automatically"""
+    print("✅ MongoDB mode - collections will be created automatically")
 
 # Initialize database on startup
 init_database()
 
 # Lightweight migration for Facebook columns
 def migrate_database():
-    if DB_MODE == "sqlite":
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA table_info(users)")
-        cols = [row[1] for row in cursor.fetchall()]
-        to_add = []
-        if "fb_user_token" not in cols:
-            to_add.append(("fb_user_token", "TEXT"))
-        if "fb_page_id" not in cols:
-            to_add.append(("fb_page_id", "TEXT"))
-        if "fb_page_name" not in cols:
-            to_add.append(("fb_page_name", "TEXT"))
-        if "fb_page_token" not in cols:
-            to_add.append(("fb_page_token", "TEXT"))
-        for name, typ in to_add:
-            try:
-                cursor.execute(f"ALTER TABLE users ADD COLUMN {name} {typ}")
-            except sqlite3.OperationalError:
-                pass
-        conn.commit()
-        conn.close()
-    else:
-        # MongoDB - fields are added dynamically, no migration needed
-        print("✅ MongoDB mode - no schema migration needed")
+    # MongoDB - fields are added dynamically, no migration needed
+    print("✅ MongoDB mode - no schema migration needed")
 
 migrate_database()
 
@@ -186,42 +82,11 @@ def ensure_demo_seed():
                 'facebook_connected': 0
             }
             user_id = user_repo.create_user(user_data)
-            
-            if DB_MODE == "sqlite":
-                # Seed demo data for SQLite
-                conn = get_db()
-                cur = conn.cursor()
-                # Seed a few leads
-                demo_leads = [
-                    (user_id, 'Rajesh Patel', 'rajesh@email.com', '+91 98765 12345', 'Bandra West', '₹2.5 Cr', '3 BHK Apartment', 'facebook', 'hot', 94, 'Very interested in 3 BHK'),
-                    (user_id, 'Kavita Joshi', 'kavita@email.com', '+91 98765 22222', 'Juhu', '₹5.0 Cr', 'Penthouse', 'referral', 'warm', 87, 'Looking for luxury penthouse'),
-                ]
-                for lead in demo_leads:
-                    cur.execute('''
-                        INSERT INTO leads (agent_id, name, email, phone, location, budget, property_type, source, status, score, notes)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', lead)
-                # Seed a couple properties
-                demo_properties = [
-                    (user_id, 'Luxury 3 BHK in Bandra West', 'Premium apartment with sea view, modern amenities', 'Residential', 'Bandra West', '₹2.8 Cr', 3, 3, 1250, 'Gym, Pool, Security, Parking', 'available'),
-                    (user_id, 'Commercial Office Space Lower Parel', 'Prime location office space for businesses', 'Commercial', 'Lower Parel', '₹1.5 Cr', 0, 2, 800, 'Reception, Parking, AC', 'available')
-                ]
-                for prop in demo_properties:
-                    cur.execute('''
-                        INSERT INTO properties (agent_id, title, description, property_type, location, price, bedrooms, bathrooms, area_sqft, amenities, status)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', prop)
-                conn.commit()
-                conn.close()
-            else:
-                # For MongoDB, demo data was already migrated
-                print("✅ Demo user created. Demo data available via migration.")
+            # For MongoDB, demo data can be added here in future if needed
+            print("✅ Demo user created in MongoDB")
     except Exception:
         # Do not block app startup if seeding fails
-        try:
-            conn.close()
-        except Exception:
-            pass
+        pass
 
 ensure_demo_seed()
 
@@ -235,9 +100,9 @@ def verify_token(authorization: Optional[str] = Header(None)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         return payload
-    except jwt.ExpiredSignatureError:
+    except ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
+    except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 # Routes
@@ -1403,28 +1268,23 @@ async def dashboard():
 async def register_user(request: Request):
     """Register new agent."""
     data = await request.json()
-    
-    # Hash password
-    password_hash = hashlib.sha256(data['password'].encode()).hexdigest()
-    
-    conn = get_db()
-    cursor = conn.cursor()
-    
+    # Create via repository (bcrypt hashed)
     try:
-        cursor.execute('''
-            INSERT INTO users (email, password_hash, first_name, last_name, phone, experience, areas, property_types, languages)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            data['email'], password_hash, data['firstName'], data['lastName'],
-            data['phone'], data['experience'], data['areas'], data['propertyTypes'], data['languages']
-        ))
-        
-        conn.commit()
+        user_repo.create_user({
+            'email': data['email'],
+            'password': data['password'],
+            'first_name': data.get('firstName'),
+            'last_name': data.get('lastName'),
+            'phone': data.get('phone'),
+            'experience': data.get('experience'),
+            'areas': data.get('areas'),
+            'property_types': data.get('propertyTypes'),
+            'languages': data.get('languages'),
+            'facebook_connected': 0,
+        })
         return {"message": "Registration successful"}
-    except sqlite3.IntegrityError:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    finally:
-        conn.close()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/login")
 async def login_user(request: Request):
@@ -1438,10 +1298,11 @@ async def login_user(request: Request):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     # Create JWT token
+    exp_ts = int((datetime.utcnow() + timedelta(days=7)).timestamp())
     token_data = {
         "user_id": str(user.get('_id', user.get('id'))),  # Handle both MongoDB ObjectId and SQLite id
         "email": user['email'],
-        "exp": datetime.utcnow() + timedelta(days=7)
+        "exp": exp_ts
     }
     token = jwt.encode(token_data, SECRET_KEY, algorithm="HS256")
     
@@ -1464,191 +1325,128 @@ async def login_user(request: Request):
 @app.get("/api/leads")
 async def get_leads(payload: dict = Depends(verify_token)):
     """Get all leads for agent."""
-    if DB_MODE == "mongo":
-        db = get_db()
-        # For MongoDB, convert user_id to ObjectId if needed
-        agent_id = payload['user_id']
-        try:
-            # Try as ObjectId first
-            from bson.objectid import ObjectId
-            if len(str(agent_id)) == 24:
-                agent_id = ObjectId(agent_id)
-        except:
-            # Keep as string if conversion fails
-            pass
-        
-        leads = list(db.leads.find({"agent_id": agent_id}).sort("created_at", -1))
-        # Convert MongoDB documents to dict format
-        for lead in leads:
-            if "_id" in lead:
-                lead["id"] = str(lead["_id"])
-                del lead["_id"]
-            if "agent_id" in lead and hasattr(lead["agent_id"], "__str__"):
-                lead["agent_id"] = str(lead["agent_id"])
-        return leads
-    else:
-        conn = get_db()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT id, name, email, phone, location, budget, property_type, source, status, score, notes, created_at
-            FROM leads WHERE agent_id = ? ORDER BY created_at DESC
-        ''', (payload['user_id'],))
-        
-        leads = cursor.fetchall()
-        conn.close()
-        
-        return [dict(lead) for lead in leads]
+    db = get_db()
+    # For MongoDB, convert user_id to ObjectId if needed
+    agent_id = payload['user_id']
+    try:
+        if len(str(agent_id)) == 24:
+            agent_id = ObjectId(agent_id)
+    except Exception:
+        pass
+    leads = list(db.leads.find({"agent_id": agent_id}).sort("created_at", -1))
+    for lead in leads:
+        if "_id" in lead:
+            lead["id"] = str(lead["_id"])
+            del lead["_id"]
+        if "agent_id" in lead and hasattr(lead["agent_id"], "__str__"):
+            lead["agent_id"] = str(lead["agent_id"])
+    return leads
 
 @app.post("/api/leads")
 async def create_lead(request: Request, payload: dict = Depends(verify_token)):
     """Create new lead."""
     data = await request.json()
-    if DB_MODE == "mongo":
-        db = get_db()
-        agent_id = payload['user_id']
-        try:
-            from bson.objectid import ObjectId
-            if len(str(agent_id)) == 24:
-                agent_id = ObjectId(agent_id)
-        except Exception:
-            pass
-        doc = {
-            "agent_id": agent_id,
-            "name": data.get("name"),
-            "email": data.get("email"),
-            "phone": data.get("phone"),
-            "location": data.get("location"),
-            "budget": data.get("budget"),
-            "property_type": data.get("property_type"),
-            "source": data.get("source", "manual"),
-            "status": data.get("status", "new"),
-            "score": data.get("score", 75),
-            "notes": data.get("notes", ""),
-            "created_at": datetime.utcnow(),
-        }
-        result = db.leads.insert_one(doc)
-        return {"id": str(result.inserted_id), "message": "Lead created successfully"}
-    else:
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO leads (agent_id, name, email, phone, location, budget, property_type, source, status, score, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            payload['user_id'], data['name'], data.get('email'), data['phone'],
-            data.get('location'), data.get('budget'), data.get('property_type'),
-            data.get('source', 'manual'), data.get('status', 'new'),
-            data.get('score', 75), data.get('notes', '')
-        ))
-        conn.commit()
-        lead_id = cursor.lastrowid
-        conn.close()
-        return {"id": lead_id, "message": "Lead created successfully"}
+    db = get_db()
+    agent_id = payload['user_id']
+    try:
+        if len(str(agent_id)) == 24:
+            agent_id = ObjectId(agent_id)
+    except Exception:
+        pass
+    doc = {
+        "agent_id": agent_id,
+        "name": data.get("name"),
+        "email": data.get("email"),
+        "phone": data.get("phone"),
+        "location": data.get("location"),
+        "budget": data.get("budget"),
+        "property_type": data.get("property_type"),
+        "source": data.get("source", "manual"),
+        "status": data.get("status", "new"),
+        "score": data.get("score", 75),
+        "notes": data.get("notes", ""),
+        "created_at": datetime.utcnow(),
+    }
+    result = db.leads.insert_one(doc)
+    return {"id": str(result.inserted_id), "message": "Lead created successfully"}
 
 @app.get("/api/properties")
 async def get_properties(payload: dict = Depends(verify_token)):
     """Get all properties for agent."""
-    if DB_MODE == "mongo":
-        db = get_db()
-        # For MongoDB, convert user_id to ObjectId if needed
-        agent_id = payload['user_id']
-        try:
-            # Try as ObjectId first
-            from bson.objectid import ObjectId
-            if len(str(agent_id)) == 24:
-                agent_id = ObjectId(agent_id)
-        except:
-            # Keep as string if conversion fails
-            pass
-        
-        properties = list(db.properties.find({"agent_id": agent_id}).sort("created_at", -1))
-        # Convert MongoDB documents to dict format
-        for prop in properties:
-            if "_id" in prop:
-                prop["id"] = str(prop["_id"])
-                del prop["_id"]
-            if "agent_id" in prop and hasattr(prop["agent_id"], "__str__"):
-                prop["agent_id"] = str(prop["agent_id"])
-        return properties
-    else:
-        conn = get_db()
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT id, title, description, property_type, location, price, bedrooms, bathrooms, area_sqft, amenities, status, created_at
-            FROM properties WHERE agent_id = ? ORDER BY created_at DESC
-        ''', (payload['user_id'],))
-        
-        properties = cursor.fetchall()
-        conn.close()
-        
-        return [dict(prop) for prop in properties]
+    db = get_db()
+    agent_id = payload['user_id']
+    try:
+        if len(str(agent_id)) == 24:
+            agent_id = ObjectId(agent_id)
+    except Exception:
+        pass
+    properties = list(db.properties.find({"agent_id": agent_id}).sort("created_at", -1))
+    for prop in properties:
+        if "_id" in prop:
+            prop["id"] = str(prop["_id"])
+            del prop["_id"]
+        if "agent_id" in prop and hasattr(prop["agent_id"], "__str__"):
+            prop["agent_id"] = str(prop["agent_id"])
+    return properties
 
 @app.post("/api/properties")
 async def create_property(request: Request, payload: dict = Depends(verify_token)):
     """Create new property listing."""
     data = await request.json()
-    if DB_MODE == "mongo":
-        db = get_db()
-        agent_id = payload['user_id']
-        try:
-            from bson.objectid import ObjectId
-            if len(str(agent_id)) == 24:
-                agent_id = ObjectId(agent_id)
-        except Exception:
-            pass
-        doc = {
-            "agent_id": agent_id,
-            "title": data.get("title"),
-            "description": data.get("description"),
-            "property_type": data.get("property_type"),
-            "location": data.get("location"),
-            "price": data.get("price"),
-            "bedrooms": int(data.get("bedrooms", 0) or 0),
-            "bathrooms": int(data.get("bathrooms", 0) or 0),
-            "area_sqft": int(data.get("area_sqft", 0) or 0),
-            "amenities": data.get("amenities", ""),
-            "status": data.get("status", "available"),
-            "created_at": datetime.utcnow(),
-        }
-        result = db.properties.insert_one(doc)
-        return {"id": str(result.inserted_id), "message": "Property created successfully"}
-    else:
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO properties (agent_id, title, description, property_type, location, price, bedrooms, bathrooms, area_sqft, amenities, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            payload['user_id'], data['title'], data.get('description'),
-            data['property_type'], data['location'], data['price'],
-            data.get('bedrooms', 0), data.get('bathrooms', 0),
-            data.get('area_sqft', 0), data.get('amenities', ''),
-            data.get('status', 'available')
-        ))
-        conn.commit()
-        property_id = cursor.lastrowid
-        conn.close()
-        return {"id": property_id, "message": "Property created successfully"}
+    db = get_db()
+    agent_id = payload['user_id']
+    try:
+        if len(str(agent_id)) == 24:
+            agent_id = ObjectId(agent_id)
+    except Exception:
+        pass
+    doc = {
+        "agent_id": agent_id,
+        "title": data.get("title"),
+        "description": data.get("description"),
+        "property_type": data.get("property_type"),
+        "location": data.get("location"),
+        "price": data.get("price"),
+        "bedrooms": int(data.get("bedrooms", 0) or 0),
+        "bathrooms": int(data.get("bathrooms", 0) or 0),
+        "area_sqft": int(data.get("area_sqft", 0) or 0),
+        "amenities": data.get("amenities", ""),
+        "status": data.get("status", "available"),
+        "created_at": datetime.utcnow(),
+    }
+    result = db.properties.insert_one(doc)
+    return {"id": str(result.inserted_id), "message": "Property created successfully"}
 
 # -------------------------
 # Facebook Integration APIs
 # -------------------------
 
-def _get_user(conn, user_id: int):
-    cur = conn.cursor()
-    cur.execute("SELECT id, email, first_name, last_name, fb_user_token, fb_page_id, fb_page_name, fb_page_token FROM users WHERE id=?", (user_id,))
-    row = cur.fetchone()
-    return row
+def _get_user_dict(user_id: str):
+    """Fetch user document from Mongo by id (string)."""
+    try:
+        return user_repo.get_user_by_id(user_id)
+    except Exception:
+        return None
 
 @app.get("/api/facebook/config")
 async def facebook_config(payload: dict = Depends(verify_token)):
-    conn = get_db()
-    row = _get_user(conn, payload['user_id'])
-    conn.close()
-    connected = bool(row[4]) if row else False
-    return {"connected": connected, "page_id": row[5] if row else None, "page_name": row[6] if row else None}
+    try:
+        user = _get_user_dict(payload.get('user_id'))
+        if not user and payload.get('email'):
+            try:
+                user = user_repo.get_user_by_email(payload.get('email'))
+            except Exception:
+                user = None
+        if not user:
+            return {"connected": False, "page_id": None, "page_name": None}
+        connected = bool(user.get('fb_user_token')) or bool(user.get('facebook_connected'))
+        return {
+            "connected": bool(connected),
+            "page_id": user.get('fb_page_id'),
+            "page_name": user.get('fb_page_name')
+        }
+    except Exception:
+        return {"connected": False, "page_id": None, "page_name": None}
 
 @app.get("/auth/facebook/login")
 async def facebook_login(token: str = Query(...)):
@@ -1693,27 +1491,37 @@ async def facebook_callback(code: str = Query(None), state: str = Query(None), e
     if not access_token:
         return HTMLResponse("<p>No access token</p>", status_code=400)
 
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("UPDATE users SET facebook_connected=1, fb_user_token=? WHERE id=?", (access_token, user_id))
-    conn.commit()
-    conn.close()
+    # Update Mongo user document
+    try:
+        user_repo.update_user_fields(str(user_id), {
+            'facebook_connected': True,
+            'fb_user_token': access_token
+        })
+    except Exception:
+        return HTMLResponse("<p>Failed to update user</p>", status_code=500)
     return HTMLResponse("<script>window.close();window.location='/dashboard';</script>")
 
 @app.get("/api/facebook/pages")
 async def facebook_pages(payload: dict = Depends(verify_token)):
-    conn = get_db()
-    row = _get_user(conn, payload['user_id'])
-    conn.close()
-    if not row or not row[4]:
+    try:
+        user = _get_user_dict(payload.get('user_id'))
+        if not user and payload.get('email'):
+            try:
+                user = user_repo.get_user_by_email(payload.get('email'))
+            except Exception:
+                user = None
+        if not user or not user.get('fb_user_token'):
+            raise HTTPException(status_code=400, detail="Facebook not connected")
+        user_token = user.get('fb_user_token')
+        r = requests.get("https://graph.facebook.com/v20.0/me/accounts", params={"access_token": user_token}, timeout=20)
+        if r.status_code != 200:
+            raise HTTPException(status_code=400, detail="Failed to fetch pages")
+        data = r.json().get("data", [])
+        return [{"id": p.get("id"), "name": p.get("name")} for p in data]
+    except HTTPException:
+        raise
+    except Exception:
         raise HTTPException(status_code=400, detail="Facebook not connected")
-    user_token = row[4]
-    r = requests.get("https://graph.facebook.com/v20.0/me/accounts", params={"access_token": user_token}, timeout=20)
-    if r.status_code != 200:
-        raise HTTPException(status_code=400, detail="Failed to fetch pages")
-    data = r.json().get("data", [])
-    # Return id, name only; page token is kept client-side only after selection
-    return [{"id": p.get("id"), "name": p.get("name")} for p in data]
 
 @app.post("/api/facebook/select_page")
 async def facebook_select_page(request: Request, payload: dict = Depends(verify_token)):
@@ -1721,45 +1529,62 @@ async def facebook_select_page(request: Request, payload: dict = Depends(verify_
     page_id = body.get("page_id")
     if not page_id:
         raise HTTPException(status_code=400, detail="Missing page_id")
-    conn = get_db()
-    row = _get_user(conn, payload['user_id'])
-    if not row or not row[4]:
-        conn.close()
+    user = _get_user_dict(payload.get('user_id'))
+    if not user and payload.get('email'):
+        try:
+            user = user_repo.get_user_by_email(payload.get('email'))
+        except Exception:
+            user = None
+    if not user or not user.get('fb_user_token'):
         raise HTTPException(status_code=400, detail="Facebook not connected")
-    user_token = row[4]
+    user_token = user.get('fb_user_token')
     # Retrieve page access token for the selected page
     r = requests.get(f"https://graph.facebook.com/v20.0/{page_id}", params={"fields": "access_token,name", "access_token": user_token}, timeout=20)
     if r.status_code != 200:
-        conn.close()
         raise HTTPException(status_code=400, detail="Failed to get page token")
     data = r.json()
     page_token = data.get("access_token")
     page_name = data.get("name")
     if not page_token:
-        conn.close()
         raise HTTPException(status_code=400, detail="No page token returned")
-    cur = conn.cursor()
-    cur.execute("UPDATE users SET fb_page_id=?, fb_page_name=?, fb_page_token=? WHERE id=?", (page_id, page_name, page_token, payload['user_id']))
-    conn.commit()
-    conn.close()
+    # Update user document with page details
+    user_repo.update_user_fields(payload['user_id'], {
+        'fb_page_id': page_id,
+        'fb_page_name': page_name,
+        'fb_page_token': page_token,
+        'facebook_connected': True
+    })
     return {"page_id": page_id, "page_name": page_name}
 
 @app.post("/api/facebook/post_property/{property_id}")
-async def facebook_post_property(property_id: int, payload: dict = Depends(verify_token)):
-    conn = get_db()
-    cur = conn.cursor()
-    user = _get_user(conn, payload['user_id'])
-    if not user or not user[7] or not user[5]:  # fb_page_token at index 7, fb_page_id at index 5
-        conn.close()
+async def facebook_post_property(property_id: str, payload: dict = Depends(verify_token)):
+    db = get_db()
+    user = _get_user_dict(payload['user_id'])
+    if not user or not user.get('fb_page_token') or not user.get('fb_page_id'):
         raise HTTPException(status_code=400, detail="Facebook page not connected")
-    page_id = user[5]
-    page_token = user[7]
-    cur.execute("SELECT title, description, property_type, location, price, bedrooms, bathrooms, area_sqft, amenities FROM properties WHERE id=? AND agent_id=?", (property_id, payload['user_id']))
-    row = cur.fetchone()
-    conn.close()
-    if not row:
+    page_id = user.get('fb_page_id')
+    page_token = user.get('fb_page_token')
+    # Fetch property document (stored in Mongo when DB_MODE == mongo)
+    # Try various id formats (ObjectId, string id, numeric id field)
+    prop = None
+    try:
+        prop = db.properties.find_one({"_id": ObjectId(str(property_id)), "agent_id": payload['user_id']})
+    except Exception:
+        prop = db.properties.find_one({"_id": str(property_id), "agent_id": payload['user_id']})
+    if not prop:
+        # Fallback by numeric id field if present
+        prop = db.properties.find_one({"id": property_id, "agent_id": payload['user_id']})
+    if not prop:
         raise HTTPException(status_code=404, detail="Property not found")
-    title, description, ptype, location, price, beds, baths, area, amenities = row
+    title = prop.get("title")
+    description = prop.get("description")
+    ptype = prop.get("property_type")
+    location = prop.get("location")
+    price = prop.get("price")
+    beds = prop.get("bedrooms")
+    baths = prop.get("bathrooms")
+    area = prop.get("area_sqft")
+    amenities = prop.get("amenities")
     message = f"{title}\nType: {ptype}\nLocation: {location}\nPrice: {price}\nBedrooms: {beds}, Bathrooms: {baths}, Area: {area} sq ft\nAmenities: {amenities or '-'}\n\nContact me for details!"
     # Post to page feed
     r = requests.post(f"https://graph.facebook.com/v20.0/{page_id}/feed", data={
@@ -1771,53 +1596,9 @@ async def facebook_post_property(property_id: int, payload: dict = Depends(verif
     return {"status": "ok", "post_id": r.json().get("id")}
 
 if __name__ == "__main__":
-    # Create demo user and sample data on startup
-    if DB_MODE == "sqlite":
-        conn = get_db()
-        cursor = conn.cursor()
-        
-        demo_password = hashlib.sha256('demo123'.encode()).hexdigest()
-        cursor.execute('''
-            INSERT OR REPLACE INTO users (id, email, password_hash, first_name, last_name, phone, experience, areas, property_types, languages, facebook_connected)
-            VALUES (1, 'demo@mumbai.com', ?, 'Priya', 'Sharma', '+91 98765 43210', '4-5 years', 
-                    'Bandra, Andheri, Juhu, Powai', 'Residential, Luxury', 'English, Hindi, Marathi', 0)
-        ''', (demo_password,))
-        
-        # Add demo leads
-        demo_leads = [
-            (1, 'Rajesh Patel', 'rajesh@email.com', '+91 98765 12345', 'Bandra West', '₹2.5 Cr', '3 BHK Apartment', 'facebook', 'hot', 94, 'Very interested in 3 BHK'),
-            (1, 'Kavita Joshi', 'kavita@email.com', '+91 98765 22222', 'Juhu', '₹5.0 Cr', 'Penthouse', 'referral', 'warm', 87, 'Looking for luxury penthouse'),
-            (1, 'Vikram Singh', 'vikram@email.com', '+91 98765 11111', 'Powai', '₹3.2 Cr', '4 BHK Villa', 'website', 'contacted', 92, 'Interested in villa with garden'),
-            (1, 'Anjali Mehta', 'anjali@email.com', '+91 98765 67890', 'Andheri East', '₹1.8 Cr', '2 BHK Apartment', 'whatsapp', 'new', 79, 'First time buyer'),
-            (1, 'Arjun Reddy', 'arjun@email.com', '+91 98765 33333', 'Lower Parel', '₹2.0 Cr', 'Commercial Office', 'facebook', 'warm', 82, 'Business expansion')
-        ]
-        
-        for lead in demo_leads:
-            cursor.execute('''
-                INSERT OR REPLACE INTO leads (agent_id, name, email, phone, location, budget, property_type, source, status, score, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', lead)
-        
-        # Add demo properties
-        demo_properties = [
-            (1, 'Luxury 3 BHK in Bandra West', 'Premium apartment with sea view, modern amenities', 'Residential', 'Bandra West', '₹2.8 Cr', 3, 3, 1250, 'Gym, Pool, Security, Parking', 'available'),
-            (1, 'Spacious 4 BHK Villa in Powai', 'Independent villa with garden and parking', 'Residential', 'Powai', '₹3.5 Cr', 4, 4, 2500, 'Garden, Parking, Security', 'available'),
-            (1, 'Commercial Office Space Lower Parel', 'Prime location office space for businesses', 'Commercial', 'Lower Parel', '₹1.5 Cr', 0, 2, 800, 'Reception, Parking, AC', 'available')
-        ]
-        
-        for prop in demo_properties:
-            cursor.execute('''
-                INSERT OR REPLACE INTO properties (agent_id, title, description, property_type, location, price, bedrooms, bathrooms, area_sqft, amenities, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', prop)
-        
-        conn.commit()
-        conn.close()
-    else:
-        # MongoDB - demo data was migrated, just ensure it exists
-        print("✅ MongoDB mode - using migrated demo data")
-    
-    database_type = "MongoDB" if DB_MODE == "mongo" else "SQLite"
+    # MongoDB - demo data was migrated, just ensure it exists
+    print("✅ MongoDB mode - using migrated demo data")
+    database_type = "MongoDB"
     print("🚀 PRODUCTION REAL ESTATE CRM SYSTEM STARTING...")
     print("=" * 60)
     print("📍 URL: http://localhost:8004")

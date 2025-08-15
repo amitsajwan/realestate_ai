@@ -1,12 +1,11 @@
 """
-Database Adapter
-================
-Handles connections to either MongoDB or SQLite based on environment settings.
-Provides a consistent repository interface for the application.
+Database Adapter (Mongo Only)
+=============================
+MongoDB-backed repository utilities for the production CRM.
+SQLite support has been removed.
 """
 
 import os
-import sqlite3
 from datetime import datetime
 from pymongo import MongoClient, errors
 from pymongo.server_api import ServerApi
@@ -17,8 +16,7 @@ from core.config import settings
 
 # --- Configuration ---
 MONGO_URI = settings.MONGO_URI  # Use from settings
-DB_PATH = "production_crm.db"
-DB_MODE = "mongo" if MONGO_URI else "sqlite"
+DB_MODE = "mongo"
 
 # --- Password Hashing ---
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -27,33 +25,25 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 mongo_client = None
 db = None
 
-if DB_MODE == "mongo":
-    try:
-        mongo_client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
-        db = mongo_client.realestate_crm
-        # Send a ping to confirm a successful connection
-        mongo_client.admin.command('ping')
-        print("✅ MongoDB connection successful.")
-    except errors.ConnectionFailure as e:
-        print(f"❌ MongoDB connection failed: {e}")
-        mongo_client = None
-        db = None
-        DB_MODE = "sqlite" # Fallback to SQLite if Mongo connection fails
+try:
+    if not MONGO_URI:
+        raise RuntimeError("MONGO_URI is not configured. Set it in environment variables.")
+    mongo_client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
+    db = mongo_client.realestate_crm
+    # Send a ping to confirm a successful connection
+    mongo_client.admin.command('ping')
+    print("✅ MongoDB connection successful.")
+except Exception as e:
+    raise RuntimeError(f"MongoDB initialization failed: {e}")
 
 # --- Database Utilities ---
 def get_db_connection():
-    """Returns the active database connection/client."""
-    if DB_MODE == "mongo":
-        return db
-    else:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        return conn
+    """Returns the active Mongo database client."""
+    return db
 
 def close_db_connection(conn):
-    """Closes a database connection if it's SQLite."""
-    if DB_MODE == "sqlite":
-        conn.close()
+    """No-op for Mongo."""
+    return None
 
 def hash_password(password: str) -> str:
     """Hashes a password using bcrypt."""
@@ -84,10 +74,8 @@ def mongo_to_dict(item):
     return item
 
 def sqlite_to_dict(row):
-    """Converts a SQLite row to a dict."""
-    if not row:
-        return None
-    return dict(row)
+    """Deprecated (SQLite removed)."""
+    raise NotImplementedError("SQLite support removed")
 
 # --- Repository Interface ---
 # This is a simplified example. A more robust implementation might use classes.
@@ -97,40 +85,30 @@ class UserRepository:
         self.db = db_conn
 
     def find_by_email(self, email):
-        if DB_MODE == "mongo":
-            user = self.db.users.find_one({"email": email})
-            return mongo_to_dict(user)
-        else:
-            cur = self.db.cursor()
-            cur.execute("SELECT * FROM users WHERE email = ?", (email,))
-            row = cur.fetchone()
-            return sqlite_to_dict(row)
+        user = self.db.users.find_one({"email": email})
+        return mongo_to_dict(user)
 
     def get_user_by_email(self, email):
         """Get user by email address - alias for find_by_email"""
         return self.find_by_email(email)
 
+    def get_user_by_id(self, user_id: str):
+        try:
+            obj_id = ObjectId(user_id)
+        except Exception:
+            # Support legacy/non-ObjectId ids if any
+            doc = self.db.users.find_one({"id": user_id})
+            return mongo_to_dict(doc)
+        doc = self.db.users.find_one({"_id": obj_id})
+        return mongo_to_dict(doc)
+
     def create_user(self, user_data):
         """Create a new user with hashed password."""
         # Hash the password
         user_data['password_hash'] = pwd_context.hash(user_data.pop('password'))
-        
-        if DB_MODE == "mongo":
-            user_data['created_at'] = datetime.now()
-            result = self.db.users.insert_one(user_data)
-            return str(result.inserted_id)
-        else:
-            # SQLite implementation
-            cur = self.db.cursor()
-            cur.execute('''
-                INSERT INTO users (email, password_hash, first_name, last_name, phone, experience, areas, property_types, languages, facebook_connected)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (user_data['email'], user_data['password_hash'], user_data['first_name'], 
-                  user_data['last_name'], user_data.get('phone'), user_data.get('experience'),
-                  user_data.get('areas'), user_data.get('property_types'), user_data.get('languages'),
-                  user_data.get('facebook_connected', 0)))
-            self.db.commit()
-            return cur.lastrowid
+        user_data['created_at'] = datetime.now()
+        result = self.db.users.insert_one(user_data)
+        return str(result.inserted_id)
 
     def authenticate_user(self, email, password):
         """Authenticate user with email and password."""
@@ -139,33 +117,45 @@ class UserRepository:
             # If using legacy hash, upgrade to bcrypt for better security
             if needs_rehash(user['password_hash']):
                 new_hash = pwd_context.hash(password)
-                self.update_password(str(user.get('_id', user.get('id'))), new_hash)
+                self.update_password(str(user.get('id')), new_hash)
                 user['password_hash'] = new_hash
             return user
         return None
 
     def create(self, user_data):
-        if DB_MODE == "mongo":
-            # Convert agent_id to ObjectId if it exists
-            if 'agent_id' in user_data and isinstance(user_data['agent_id'], str):
+        # Convert agent_id to ObjectId if it exists
+        if 'agent_id' in user_data and isinstance(user_data['agent_id'], str):
+            try:
                 user_data['agent_id'] = ObjectId(user_data['agent_id'])
-            result = self.db.users.insert_one(user_data)
-            return str(result.inserted_id)
-        else:
-            # SQLite implementation for user creation
-            # This part needs to be adapted from the original script
-            pass
+            except Exception:
+                pass
+        result = self.db.users.insert_one(user_data)
+        return str(result.inserted_id)
 
     def update_password(self, user_id, new_hash):
-        if DB_MODE == "mongo":
-            self.db.users.update_one(
-                {"_id": ObjectId(user_id)},
-                {"$set": {"password_hash": new_hash}}
-            )
-        else:
-            cur = self.db.cursor()
-            cur.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user_id))
-            self.db.commit()
+        self.db.users.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$set": {"password_hash": new_hash}}
+        )
+
+    # --- Facebook Fields Helpers ---
+    def update_user_fields(self, user_id: str, fields: dict):
+        """Generic setter for user document fields (e.g., fb tokens/page info)."""
+        try:
+            oid = ObjectId(user_id)
+        except Exception:
+            raise ValueError("Invalid user_id for Mongo")
+        update = {"$set": {**fields, "updated_at": datetime.now()}}
+        self.db.users.update_one({"_id": oid}, update)
+
+    def get_user_fields(self, user_id: str, fields: list[str]):
+        try:
+            oid = ObjectId(user_id)
+        except Exception:
+            raise ValueError("Invalid user_id for Mongo")
+        proj = {k: 1 for k in fields}
+        doc = self.db.users.find_one({"_id": oid}, proj)
+        return mongo_to_dict(doc)
 
 # You would create similar repository classes for Leads, Properties, etc.
 # For this migration, we will keep the logic more direct in the main script

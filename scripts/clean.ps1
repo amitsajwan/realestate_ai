@@ -9,6 +9,11 @@ foreach ($p in $paths) {
   if (Test-Path $p) { Remove-Item -Recurse -Force $p; Write-Host "Removed $p" } else { Write-Host "Not found $p" }
 }
 
+# Remove any legacy SQLite .db files
+Get-ChildItem -Path . -Recurse -Filter '*.db' -ErrorAction SilentlyContinue | ForEach-Object {
+  try { Remove-Item -Force $_.FullName; Write-Host "Removed DB $($_.FullName)" } catch { Write-Host "Could not remove $($_.FullName): $_" }
+}
+
 # Remove all __pycache__ folders recursively
 $pycaches = Get-ChildItem -Recurse -Directory -Filter '__pycache__' -ErrorAction SilentlyContinue
 if ($pycaches) {
