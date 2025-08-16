@@ -1,0 +1,32 @@
+name: Project Board Setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: 'Project title'
+        required: false
+        default: 'CRM Roadmap'
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Create/Update Project Board
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          python scripts/setup_project_board.py --title "${{ github.event.inputs.title }}"
