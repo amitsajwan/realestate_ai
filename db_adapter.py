@@ -73,10 +73,6 @@ def mongo_to_dict(item):
         item["agent_id"] = str(item["agent_id"])
     return item
 
-def sqlite_to_dict(row):
-    """Deprecated (SQLite removed)."""
-    raise NotImplementedError("SQLite support removed")
-
 # --- Repository Interface ---
 # This is a simplified example. A more robust implementation might use classes.
 

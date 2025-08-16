@@ -22,7 +22,7 @@ def get_user_by_email(self, email):
 
 ### **Server Status:** ✅ RUNNING
 - **URL**: http://localhost:8004
-- **Database**: MongoDB (with SQLite fallback)
+- **Database**: MongoDB
 - **Demo Login**: demo@mumbai.com / demo123
 
 ### **Core Functionality:** ✅ WORKING
@@ -40,7 +40,7 @@ def get_user_by_email(self, email):
 
 ### **Architecture:** ✅ PRODUCTION-READY
 - ✅ Database abstraction layer
-- ✅ MongoDB primary with SQLite fallback
+- ✅ MongoDB primary database
 - ✅ Scalable design for concurrent users
 - ✅ Mobile-responsive interface
 

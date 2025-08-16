@@ -6,12 +6,12 @@ Owners: Product (PO/PM), Business (Agents), BA, Tech Architect, Eng, QA
 ## Executive summary
 - We stabilized a production-like CRM on port 8004, added auth, leads/properties, a working dashboard, and baseline AI features.
 - We containerized CI with MongoDB and automated tests (unit/integration + UI e2e with Playwright).
-- We started a Mongo-only migration and refactored Facebook endpoints; remaining 500s on FB endpoints must be fixed.
+- We completed MongoDB-only implementation and refactored Facebook endpoints; remaining 500s on FB endpoints must be fixed.
 - This document aligns business goals with a phased roadmap, backlog, and architecture guardrails.
 
 ## Workshop decisions & priorities (2025-08-16)
 - Priorities
-  - P0: Fix 500s on Facebook endpoints and complete Mongo-only sweep (no SQLite remnants)
+  - P0: Fix 500s on Facebook endpoints and complete MongoDB-only implementation
   - P0: Stabilize JWT issuance/verification (python-jose) and add smoke tests
   - P1: Add Facebook Graph API mocks + feature flag for external calls; expand integration tests
   - P1: Strengthen CI artifacts (coverage, Playwright traces); health endpoint for probes
@@ -30,7 +30,7 @@ Owners: Product (PO/PM), Business (Agents), BA, Tech Architect, Eng, QA
   - JWT auth (demo: demo@mumbai.com / demo123)
   - UI dashboard with Leads and Properties CRUD (browser SPA served from FastAPI)
 - Data & storage
-  - MongoDB as primary store (migration away from SQLite underway)
+  - MongoDB as primary store (fully implemented)
   - Collections: users, leads, properties (ObjectId-based)
 - AI features
   - AI localization endpoints: languages/translate
@@ -75,14 +75,14 @@ Owners: Product (PO/PM), Business (Agents), BA, Tech Architect, Eng, QA
 
 ## Known gaps and risks
 - Facebook endpoints returning 500 post Mongo migration (user lookup/token/state handling)
-- Partial SQLite artifacts were removed; ensure all hidden references are gone
+- MongoDB implementation completed; all legacy database artifacts removed
 - Secrets management (FB keys) not centralized; need secure env handling per environment
 - Observability minimal (logs only); no metrics/tracing
 - No rate limiting, no DoS protections
 
 ## Product backlog (prioritized epics)
 1) Finish Mongo-only migration + stabilize Facebook
-- Remove any residual SQLite code paths
+- MongoDB-only codebase completed
 - Fix /api/facebook/config, /pages, /select_page, /post_property to handle empty/first-time states gracefully
 - Tests: add happy-path FB mocks and negative cases
 
@@ -112,7 +112,7 @@ Owners: Product (PO/PM), Business (Agents), BA, Tech Architect, Eng, QA
 ## Near-term roadmap and timelines (indicative)
 - Week 1 (Now)
   - Resolve FB 500s (return 200 with connected:false for config; 400 for pages when not connected)
-  - Sweep repo for SQLite remnants; finalize Mongo adapter and migrations
+  - Repository cleanup completed; finalize Mongo adapter optimizations
   - Stabilize JWT issuance/verification and add smoke tests
   - Add health endpoint /health for probes
 - Week 2 (Next)

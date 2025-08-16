@@ -62,7 +62,7 @@ def authenticate_user(self, email, password):
 1. **MongoDB Scaling**: Horizontal scaling capability
 2. **Connection Pooling**: Efficient database connections
 3. **Automatic Upgrades**: Password hashes upgraded transparently
-4. **Fallback Support**: SQLite fallback if MongoDB unavailable
+4. **MongoDB Support**: MongoDB as primary database system
 
 ### **Testing Results:**
 - ✅ MongoDB Connection: Successful

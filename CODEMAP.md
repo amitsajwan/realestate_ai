@@ -5,12 +5,11 @@ This document maps major features to files and endpoints.
 ## Apps
 - complete_production_crm.py: Production CRM (HTML UI + API) on port 8004
 - main.py: Assistant backend / API-only
-- production_crm.py: Alternative CRM (SQLite)
 
 ## Core
 - core/config.py: Settings (MONGO_URI, SECRET_KEY, URLs)
 - core/security.py: Password hashing and JWT helpers
-- db_adapter.py: DB_MODE (mongo/sqlite), Mongo client, UserRepository
+- db_adapter.py: MongoDB client, UserRepository
 
 ## UI/Routes (complete_production_crm.py)
 - GET /           -> Login page
