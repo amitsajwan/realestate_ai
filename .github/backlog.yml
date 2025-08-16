@@ -89,7 +89,7 @@ issues:
     milestone: Week 1
 
   # Epic 2: Agent productivity
-  - title: Epic: Agent productivity (scoring, reminders, templates)
+  - title: "Epic: Agent productivity (scoring, reminders, templates)"
     body: |
       Improve agent velocity: smart lead scoring, reminders/follow-ups, tagging and templates.
       See docs/product_discovery_and_roadmap.md (Epic 2).
@@ -122,7 +122,7 @@ issues:
     milestone: Week 2
 
   # Epic 3: Marketing/social
-  - title: Epic: Marketing & social suite
+  - title: "Epic: Marketing & social suite"
     body: |
       FB posting history, Instagram via FB Graph, WhatsApp helpers, UTM tracking.
       See docs/product_discovery_and_roadmap.md (Epic 3).
@@ -154,7 +154,7 @@ issues:
     milestone: Weeks 3-4
 
   # Epic 4: Collaboration & permissions
-  - title: Epic: RBAC and audit trail
+  - title: "Epic: RBAC and audit trail"
     body: |
       Roles (Agent/Manager/Admin), sharing, approvals, and basic audit log.
     labels: [epic, area:ops]
@@ -173,7 +173,7 @@ issues:
     milestone: Weeks 3-4
 
   # Epic 5: Analytics & dashboards
-  - title: Epic: Analytics & dashboards
+  - title: "Epic: Analytics & dashboards"
     body: |
       Team dashboards, funnel metrics, property performance.
     labels: [epic, area:ui]
@@ -192,7 +192,7 @@ issues:
     milestone: Weeks 3-4
 
   # Epic 6: Reliability & ops
-  - title: Epic: Reliability & ops hardening
+  - title: "Epic: Reliability & ops hardening"
     body: |
       Structured logs, metrics, rate limiting, security headers, backups/DR.
     labels: [epic, area:ops]
