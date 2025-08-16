@@ -5,7 +5,7 @@
 The 500 Internal Server Error was caused by **data structure mismatch** in the login endpoint. Here's what happened:
 
 ### **Problem 1: Password Hash Format**
-- ✅ **FIXED**: Legacy SHA-256 hashes from SQLite migration not compatible with bcrypt
+- ✅ **FIXED**: Legacy SHA-256 hashes from database migration not compatible with bcrypt
 - ✅ **Solution**: Updated `authenticate_user` to handle both hash formats
 
 ### **Problem 2: Data Access Pattern** (CURRENT ISSUE)

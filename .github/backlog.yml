@@ -42,16 +42,16 @@ issues:
   # Epic 1: Mongo-only migration + Facebook stabilization
   - title: "Epic: Complete Mongo-only migration and stabilize Facebook integration"
     body: |
-      Track and deliver end-to-end migration from SQLite to Mongo and stabilize Facebook endpoints.
+      Track and deliver end-to-end MongoDB implementation and stabilize Facebook endpoints.
 
       See docs/product_discovery_and_roadmap.md (Epic 1).
     labels: [epic, priority:high, area:data, area:fb]
     milestone: Week 1
 
-  - title: Remove all residual SQLite references and code paths
+  - title: Remove all residual legacy database references and code paths
     body: |
-      Sweep repository and remove any SQLite branches, helpers, or migrations. Ensure Mongo-only.
-      - Verify no .db usage
+      Sweep repository and remove any legacy database branches, helpers, or migrations. Ensure Mongo-only.
+      - Verify no legacy .db usage
       - Verify adapter paths
       - Update docs
     labels: [tech-debt, area:data, priority:high]

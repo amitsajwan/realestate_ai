@@ -7,7 +7,7 @@ Complete production-ready CRM system for real estate agents with:
 - Property listing management
 - Real-time dashboard with working features
 - Mobile-responsive design
-- SQLite database with proper schema
+- MongoDB database with proper schema
 
 Author: GitHub Copilot
 Date: January 2025
@@ -1314,7 +1314,7 @@ async def login_user(request: Request):
     exp_ts = int((datetime.utcnow() + timedelta(days=7)).timestamp())
     token_data = {
         "sub": user['email'],  # Standard JWT subject field
-        "user_id": str(user.get('_id', user.get('id'))),  # Handle both MongoDB ObjectId and SQLite id
+        "user_id": str(user.get('_id', user.get('id'))),  # Handle MongoDB ObjectId
         "email": user['email'],
         "exp": exp_ts
     }

@@ -4,8 +4,8 @@ Date: 2025-08-15
 
 ## Scope Delivered
 - Login and Dashboard (HTML UI)
-- Leads list/create (Mongo & SQLite)
-- Properties list/create (Mongo & SQLite)
+- Leads list/create (MongoDB)
+- Properties list/create (MongoDB)
 - Facebook actions (mocked)
 
 ## Fixes Today

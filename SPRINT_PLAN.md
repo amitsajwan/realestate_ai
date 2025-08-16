@@ -24,7 +24,7 @@
   - Add server-side auth guard for HTML routes
 - Testing
   - Finalize tests/ layout; migrate root tests gradually
-  - Add API unit tests for leads/properties Mongo+SQLite paths
+  - Add API unit tests for leads/properties MongoDB paths
   - Expand Playwright E2E smoke; wire into CI (phase 2)
 - Quality gates
   - Add ruff/black/isort configs; optional CI checks (non-blocking at first)

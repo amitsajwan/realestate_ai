@@ -9,7 +9,7 @@ foreach ($p in $paths) {
   if (Test-Path $p) { Remove-Item -Recurse -Force $p; Write-Host "Removed $p" } else { Write-Host "Not found $p" }
 }
 
-# Remove any legacy SQLite .db files
+# Remove any legacy database .db files
 Get-ChildItem -Path . -Recurse -Filter '*.db' -ErrorAction SilentlyContinue | ForEach-Object {
   try { Remove-Item -Force $_.FullName; Write-Host "Removed DB $($_.FullName)" } catch { Write-Host "Could not remove $($_.FullName): $_" }
 }

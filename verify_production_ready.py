@@ -82,8 +82,6 @@ def check_mongodb_config():
         
         if DB_MODE == "mongo" and mongo_client:
             print("✅ MongoDB connection successful")
-        elif DB_MODE == "sqlite":
-            print("⚠️  Running in SQLite fallback mode")
         else:
             print("❌ MongoDB connection failed")
             return False
