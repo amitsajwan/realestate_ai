@@ -38,9 +38,9 @@ async def get_supported_languages():
 
 @router.post("/translate")
 async def translate_text(
-    text: str,
-    target_language: Language = Language.HINDI,
-    context: str = "real estate",
+    text: str = Query(...),
+    target_language: Language = Query(Language.HINDI),
+    context: str = Query("real estate"),
     current_user: User = Depends(get_current_user)
 ):
     """Translate text using AI with real estate context."""
