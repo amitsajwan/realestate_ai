@@ -7,6 +7,14 @@ on:
         description: 'Project title'
         required: false
         default: 'CRM Roadmap'
+      project_number:
+        description: 'Existing Project (v2) number (optional)'
+        required: false
+        default: ''
+      project_id:
+        description: 'Existing Project (v2) node id (optional)'
+        required: false
+        default: ''
 
 jobs:
   setup:
@@ -26,7 +34,9 @@ jobs:
 
       - name: Create/Update Project Board
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PROJECTS_TOKEN || secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_PROJECT_NUMBER: ${{ github.event.inputs.project_number }}
+          GH_PROJECT_ID: ${{ github.event.inputs.project_id }}
         run: |
           python scripts/setup_project_board.py --title "${{ github.event.inputs.title }}"
