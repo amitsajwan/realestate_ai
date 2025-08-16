@@ -84,7 +84,7 @@ issues:
 
   - title: Add /health endpoint for probes
     body: |
-      Provide a lightweight health check returning 200 {status:"ok"} for readiness/liveness.
+      Provide a lightweight health check returning 200 {status: "ok"} for readiness/liveness.
     labels: [feature, area:ops, priority:medium]
     milestone: Week 1
 
