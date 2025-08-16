@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     FB_PAGE_ID: str
     FB_PAGE_TOKEN: str
     AI_DISABLE_IMAGE_GENERATION: bool = True
+    # Feature flags
+    FEATURE_FACEBOOK_PERSIST: bool = False
     
     # Optional external API keys
     STABILITY_API_KEY: str = ""

@@ -23,8 +23,96 @@
         <ul id="leads"></ul>
         <h2>Recent Properties</h2>
         <ul id="properties"></ul>
+        <h2>Facebook</h2>
+        <div id="fbPanel" class="card">
+          <div id="fbStatus">Loading...</div>
+          <div id="fbActions" style="margin-top:8px; display:none; gap:6px;">
+            <div id="fbPageSelectWrap" style="display:none; margin-bottom:8px;">
+              <label for="fbPageSelect">Select Page:</label>
+              <select id="fbPageSelect"></select>
+              <button id="fbSelectBtn">Use this Page</button>
+            </div>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <input id="fbMessage" type="text" placeholder="Write a test post..." style="flex:1; padding:6px;"/>
+              <button id="fbPostBtn">Post to Page</button>
+            </div>
+            <div id="fbErr" style="color:#b91c1c; font-size:12px; margin-top:6px; display:none;"></div>
+          </div>
+        </div>
       </section>
     </main>
     <script src="/static/js/dashboard.js"></script>
+    <script>
+      (async function(){
+        const token = localStorage.getItem('token');
+        if(!token) return;
+        const headers = { 'Authorization': `Bearer ${token}` };
+        try{
+          const r = await fetch('/api/facebook/config', { headers });
+          if(!r.ok){ throw new Error('fb config failed'); }
+          const cfg = await r.json();
+          const statusEl = document.getElementById('fbStatus');
+          const actionsEl = document.getElementById('fbActions');
+          const pageWrap = document.getElementById('fbPageSelectWrap');
+          const pageSel = document.getElementById('fbPageSelect');
+          const errEl = document.getElementById('fbErr');
+          if(cfg.connected){
+            statusEl.textContent = `Connected to: ${cfg.page_name || cfg.page_id}`;
+            actionsEl.style.display = 'block';
+            // Load pages and show selector when multiple
+            try{
+              const pr = await fetch('/api/facebook/pages', { headers });
+              if(pr.ok){
+                const pdata = await pr.json();
+                const pages = Array.isArray(pdata.pages) ? pdata.pages : [];
+                if(pages.length > 1){
+                  pageSel.innerHTML = pages.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+                  pageWrap.style.display = 'block';
+                }
+              }
+            }catch(e){ /* ignore listing errors */ }
+          }else{
+            statusEl.innerHTML = 'Not connected. <a href="/api/facebook/connect">Connect Facebook</a>';
+          }
+
+          document.getElementById('fbPostBtn').onclick = async ()=>{
+            const msg = (document.getElementById('fbMessage').value || '').trim();
+            if(!msg){ alert('Enter a message'); return; }
+            const pr = await fetch('/api/facebook/post', {
+              method:'POST',
+              headers: { ...headers, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: msg })
+            });
+            const data = await pr.json();
+            if(pr.ok){
+              errEl.style.display = 'none';
+              alert('Posted!');
+            }else{
+              errEl.textContent = 'Post failed: ' + (data.detail || 'Unknown error');
+              errEl.style.display = 'block';
+            }
+          };
+
+          document.getElementById('fbSelectBtn').onclick = async ()=>{
+            const page_id = pageSel.value;
+            if(!page_id) return;
+            errEl.style.display = 'none';
+            const sr = await fetch('/api/facebook/select_page', {
+              method:'POST', headers: { ...headers, 'Content-Type':'application/json' },
+              body: JSON.stringify({ page_id })
+            });
+            const sdata = await sr.json().catch(()=>({}));
+            if(sr.ok){
+              document.getElementById('fbStatus').textContent = `Connected to: ${sdata.page_name || page_id}`;
+            }else{
+              errEl.textContent = 'Select page failed: ' + (sdata.detail || 'Unknown error');
+              errEl.style.display = 'block';
+            }
+          };
+        }catch(e){
+          console.warn('FB status load failed', e);
+        }
+      })();
+    </script>
   </body>
 </html>

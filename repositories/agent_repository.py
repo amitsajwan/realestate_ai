@@ -5,7 +5,7 @@ This is a simplified version that doesn't rely on Redis.
 
 import json
 from typing import Optional, List, Dict
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import uuid
 from cryptography.fernet import Fernet
 import base64
@@ -25,35 +25,33 @@ class AgentRepository:
         
         # Add a demo agent
         demo_id = "demo-user-1"
-        demo_agent = AgentProfile(
-            user_id=demo_id,
-            username="demo",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-            profile_image_url="https://randomuser.me/api/portraits/men/1.jpg",
-            bio="I'm a demo real estate agent in Mumbai with 5 years of experience.",
-            specialization="Luxury Apartments",
-            areas_served=["Mumbai", "Pune"],
-            languages=["English", "Hindi", "Marathi"],
-            facebook_connected=True
-        )
-        self.agent_profiles[demo_id] = demo_agent
-        
-        # Add a demo Facebook page
         demo_page = FacebookPage(
             page_id="demo-page-1",
             user_id=demo_id,
             name="Mumbai Luxury Properties",
             access_token="fake-token",
             category="Real Estate",
-            connected_at=datetime.utcnow(),
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            connected_at=datetime.now(timezone.utc)
         )
+
+        demo_agent = AgentProfile(
+            user_id=demo_id,
+            username="demo",
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+            profile_image_url="https://randomuser.me/api/portraits/men/1.jpg",
+            bio="I'm a demo real estate agent in Mumbai with 5 years of experience.",
+            specialization="Luxury Apartments",
+            areas_served=["Mumbai", "Pune"],
+            languages=["English", "Hindi", "Marathi"],
+            facebook_connected=True,
+            connected_page=demo_page
+        )
+        self.agent_profiles[demo_id] = demo_agent
         self.facebook_pages["demo-page-1"] = demo_page
     
     async def create_agent_profile(self, user_id: str, username: str) -> AgentProfile:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         profile = AgentProfile(
             user_id=user_id,
@@ -79,7 +77,7 @@ class AgentRepository:
             if hasattr(profile, key):
                 setattr(profile, key, value)
         
-        profile.updated_at = datetime.utcnow()
+        profile.updated_at = datetime.now(timezone.utc)
         
         # Update in memory
         self.agent_profiles[user_id] = profile
@@ -91,30 +89,31 @@ class AgentRepository:
         profile = await self.get_agent_profile(user_id)
         if not profile:
             return None
-        
+
         # Encrypt the page access token
-        encrypted_token = self.cipher_suite.encrypt(page_data['access_token'].encode()).decode()
-        
+        encrypted_token = self.cipher_suite.encrypt(page_data["access_token"].encode()).decode()
+
         facebook_page = FacebookPage(
-            page_id=page_data['id'],
+            page_id=page_data["id"],
             user_id=user_id,
-            name=page_data['name'],
+            name=page_data["name"],
             access_token=encrypted_token,
-            category=page_data.get('category'),
-            connected_at=datetime.utcnow()
+            category=page_data.get("category"),
+            connected_at=datetime.now(timezone.utc),
         )
-        
+
         # Store page
-        self.facebook_pages[page_data['id']] = facebook_page
-        
+        self.facebook_pages[page_data["id"]] = facebook_page
+
         # Update profile
         profile.facebook_connected = True
-        profile.facebook_url = f"https://facebook.com/{page_data['id']}"
-        profile.updated_at = datetime.utcnow()
-        
+        profile.facebook_url = f"https://facebook.com/{page_data['id']}" 
+        profile.connected_page = facebook_page
+        profile.updated_at = datetime.now(timezone.utc)
+
         # Update in memory
         self.agent_profiles[user_id] = profile
-        
+
         return profile
     
     async def get_page_access_token(self, user_id: str) -> Optional[str]:
@@ -128,14 +127,18 @@ class AgentRepository:
                 except Exception:
                     return None
         return None
+
+    async def get_connected_page(self, user_id: str) -> Optional[FacebookPage]:
+        profile = await self.get_agent_profile(user_id)
+        return getattr(profile, "connected_page", None) if profile else None
     
     async def store_oauth_state(self, state: str, user_id: str) -> FacebookOAuthState:
         """Store OAuth state for CSRF protection"""
         oauth_state = FacebookOAuthState(
             state=state,
             user_id=user_id,
-            created_at=datetime.utcnow(),
-            expires_at=datetime.utcnow().replace(minute=datetime.utcnow().minute + 10)  # 10 min expiry
+            created_at=datetime.now(timezone.utc),
+            expires_at=(datetime.now(timezone.utc) + timedelta(minutes=10))  # 10 min expiry
         )
         
         # Store in memory
@@ -154,7 +157,7 @@ class AgentRepository:
         del self.oauth_states[state]
         
         # Check if expired
-        if oauth_state.expires_at < datetime.utcnow():
+        if oauth_state.expires_at < datetime.now(timezone.utc):
             return None
         
         return oauth_state
@@ -172,4 +175,8 @@ class AgentRepository:
 
 # Dependency to get agent repository
 async def get_agent_repository() -> AgentRepository:
+    # Switchable provider: use Mongo-backed repo when feature is enabled
+    if getattr(settings, "FEATURE_FACEBOOK_PERSIST", False):
+        from .agent_repository_mongo import AgentRepositoryMongo  # lazy import
+        return AgentRepositoryMongo()  # type: ignore
     return AgentRepository()

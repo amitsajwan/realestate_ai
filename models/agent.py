@@ -4,6 +4,7 @@ from datetime import datetime
 
 class FacebookPage(BaseModel):
     page_id: str
+    user_id: str
     name: str
     access_token: str  # Will be encrypted in storage
     category: Optional[str] = None
@@ -20,7 +21,12 @@ class AgentProfile(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     location: Optional[str] = None
+    profile_image_url: Optional[str] = None
+    specialization: Optional[str] = None
+    areas_served: Optional[List[str]] = None
+    languages: Optional[List[str]] = None
     facebook_url: Optional[str] = None
+    facebook_connected: bool = False
     instagram_url: Optional[str] = None
     linkedin_url: Optional[str] = None
     connected_page: Optional[FacebookPage] = None

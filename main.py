@@ -39,6 +39,8 @@ app.include_router(auth_router, prefix="/auth", tags=["authentication"])
 # Include Facebook OAuth router
 from api.endpoints.facebook_oauth import router as facebook_oauth_router
 app.include_router(facebook_oauth_router, prefix="/api/facebook", tags=["facebook"])
+from api.endpoints.facebook_pages import router as facebook_pages_router
+app.include_router(facebook_pages_router, prefix="/api/facebook", tags=["facebook"])
 
 # Include listing posts router
 from api.endpoints.listing_posts import router as listing_posts_router

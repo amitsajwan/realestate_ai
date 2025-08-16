@@ -31,13 +31,15 @@ async def initiate_facebook_connect(
         "redirect_uri": f"{settings.BASE_URL}/api/facebook/callback",
         "scope": "pages_show_list,pages_read_engagement,pages_manage_posts",
         "response_type": "code",
-        "state": state
+        "state": state,
     }
-    
-    oauth_url = f"https://www.facebook.com/v{settings.FB_GRAPH_API_VERSION}/dialog/oauth?" + \
-                urllib.parse.urlencode(params)
-    
-    return {"oauth_url": oauth_url, "state": state}
+
+    oauth_url = (
+        f"https://www.facebook.com/{settings.FB_GRAPH_API_VERSION}/dialog/oauth?"
+        + urllib.parse.urlencode(params)
+    )
+    # Redirect the browser to Facebook directly for a smoother UX
+    return RedirectResponse(url=oauth_url, status_code=302)
 
 @router.get("/callback")
 async def facebook_oauth_callback(
@@ -60,47 +62,51 @@ async def facebook_oauth_callback(
     
     try:
         # Exchange code for access token
-        token_response = requests.post("https://graph.facebook.com/v18.0/oauth/access_token", data={
-            "client_id": settings.FB_APP_ID,
-            "client_secret": settings.FB_APP_SECRET,
-            "redirect_uri": f"{settings.BASE_URL}/api/facebook/callback",
-            "code": code,
-        }, timeout=30)
-        
+        token_response = requests.post(
+            f"https://graph.facebook.com/{settings.FB_GRAPH_API_VERSION}/oauth/access_token",
+            data={
+                "client_id": settings.FB_APP_ID,
+                "client_secret": settings.FB_APP_SECRET,
+                "redirect_uri": f"{settings.BASE_URL}/api/facebook/callback",
+                "code": code,
+            },
+            timeout=30,
+        )
+
         token_data = token_response.json()
         if "access_token" not in token_data:
             raise HTTPException(status_code=400, detail="Failed to get access token")
-        
+
         user_access_token = token_data["access_token"]
-        
+
         # Get user's Pages
         pages_response = requests.get(
-            f"https://graph.facebook.com/v{settings.FB_GRAPH_API_VERSION}/me/accounts",
+            f"https://graph.facebook.com/{settings.FB_GRAPH_API_VERSION}/me/accounts",
             params={
                 "access_token": user_access_token,
-                "fields": "id,name,access_token,category"
+                "fields": "id,name,access_token,category",
             },
-            timeout=30
+            timeout=30,
         )
-        
+
         pages_data = pages_response.json()
         if "data" not in pages_data or not pages_data["data"]:
             raise HTTPException(status_code=400, detail="No Pages found for this account")
-        
+
         # For now, connect the first Page (in production, let user choose)
         first_page = pages_data["data"][0]
-        
+
         # Create or update agent profile
         profile = await agent_repo.get_agent_profile(user.id)
         if not profile:
             profile = await agent_repo.create_agent_profile(user.id, user.username)
-        
+
         # Connect the Page
         await agent_repo.connect_facebook_page(user.id, first_page)
-        
+
         return RedirectResponse(
             url=f"{settings.FRONTEND_URL}/dashboard?connected=true",
-            status_code=302
+            status_code=302,
         )
         
     except Exception as e:

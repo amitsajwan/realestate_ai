@@ -5,7 +5,7 @@ This is a simplified version that doesn't rely on Redis.
 
 import json
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 from models.user import UserCreate, UserInDB
@@ -25,8 +25,8 @@ class UserRepository:
             full_name="Demo User",
             hashed_password="$2b$12$QZ8KBNlTRDVPQdxMVdqjNu3L7qZT1fX60mQtJO6Mdk72nUfHIHFxu",  # demo123
             is_active=True,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
         )
         self.users_by_username["demo"] = demo_user
         self.users_by_id[demo_id] = demo_user
@@ -37,8 +37,8 @@ class UserRepository:
     
     async def create_user(self, user: UserCreate) -> UserInDB:
         user_id = str(uuid.uuid4())
-        now = datetime.utcnow()
-        
+        now = datetime.now(timezone.utc)
+
         user_data = UserInDB(
             id=user_id,
             username=user.username,
@@ -47,13 +47,13 @@ class UserRepository:
             hashed_password=get_password_hash(user.password),
             is_active=user.is_active,
             created_at=now,
-            updated_at=now
+            updated_at=now,
         )
-        
+
         # Store in memory
         self.users_by_username[user.username] = user_data
         self.users_by_id[user_id] = user_data
-        
+
         return user_data
     
     async def get_user(self, username: str) -> Optional[UserInDB]:
@@ -73,18 +73,18 @@ class UserRepository:
         user = await self.get_user(username)
         if not user:
             return None
-        
+
         # Update user data
         for key, value in user_data.items():
             if hasattr(user, key):
                 setattr(user, key, value)
-        
-        user.updated_at = datetime.utcnow()
-        
+
+        user.updated_at = datetime.now(timezone.utc)
+
         # Update in storage
         self.users_by_username[username] = user
         self.users_by_id[user.id] = user
-        
+
         return user
 
 # Dependency to get user repository

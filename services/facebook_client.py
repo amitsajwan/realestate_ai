@@ -8,11 +8,18 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+from core.config import settings
+
+
 class FacebookClient:
     """Client for Facebook Graph API operations."""
     
     def __init__(self):
-        self.base_url = "https://graph.facebook.com/v18.0"
+        version = settings.FB_GRAPH_API_VERSION or "v18.0"
+        # Accept both 'v18.0' and '18.0' forms
+        if not version.startswith("v"):
+            version = "v" + version
+        self.base_url = f"https://graph.facebook.com/{version}"
         self.timeout = 30.0
     
     async def post_to_page(self, access_token: str, page_id: str, message: str, 
