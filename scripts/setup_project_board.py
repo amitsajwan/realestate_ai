@@ -19,7 +19,7 @@ import sys
 import requests
 
 GQL = "https://api.github.com/graphql"
-TOKEN = os.getenv("GITHUB_TOKEN")
+TOKEN = os.getenv("GH_PROJECTS_TOKEN") or os.getenv("GITHUB_TOKEN")
 REPO_FULL = os.getenv("GITHUB_REPOSITORY")  # owner/repo
 
 if not TOKEN or not REPO_FULL:
@@ -67,10 +67,29 @@ def find_project(owner_login: str, title: str):
     """
     d = gql(q, {"login": owner_login, "first": 50})
     nodes = d["repositoryOwner"]["projectsV2"]["nodes"] or []
+    titles = ", ".join(sorted(p["title"] for p in nodes))
+    print(f"Found projects for {owner_login}: {titles}")
     for p in nodes:
         if p["title"].strip().lower() == title.strip().lower():
             return p["id"]
     return None
+
+def get_project_by_number(owner_login: str, number: int):
+        q = """
+        query($login:String!, $number:Int!) {
+            repositoryOwner(login:$login) {
+                __typename
+                ... on User { projectV2(number:$number) { id title } }
+                ... on Organization { projectV2(number:$number) { id title } }
+            }
+        }
+        """
+        d = gql(q, {"login": owner_login, "number": number})
+        node = d["repositoryOwner"].get("projectV2")
+        if node:
+                print(f"Using project #{number}: {node['title']}")
+                return node["id"]
+        return None
 
 
 def create_project(owner_id: str, title: str):
@@ -176,10 +195,35 @@ def main():
     owner, repo = REPO_FULL.split("/", 1)
     owner_id = get_owner_id(owner)
 
-    project_id = find_project(owner, args.title)
+    # Allow explicit selection via env
+    env_project_id = os.getenv("GH_PROJECT_ID")
+    env_project_number = os.getenv("GH_PROJECT_NUMBER")
+    project_id = None
+    if env_project_id:
+        project_id = env_project_id
+        print("Using project from GH_PROJECT_ID env var")
+    elif env_project_number and env_project_number.isdigit():
+        project_id = get_project_by_number(owner, int(env_project_number))
     if not project_id:
-        project_id = create_project(owner_id, args.title)
-        print(f"Created project: {args.title}")
+        project_id = find_project(owner, args.title)
+    if not project_id:
+        try:
+            project_id = create_project(owner_id, args.title)
+            print(f"Created project: {args.title}")
+        except RuntimeError as e:
+            msg = str(e)
+            if "FORBIDDEN" in msg or "does not have permission" in msg:
+                print(
+                    "Insufficient permissions to create a Project (v2).\n"
+                    "Options:\n"
+                    "  1) Create the project manually in GitHub UI under your user account and name it exactly as provided (default: 'CRM Roadmap').\n"
+                    "  2) Add a Personal Access Token (classic) with 'repo' and 'project' scopes as GH_PROJECTS_TOKEN secret and rerun.\n"
+                    "  3) Set GH_PROJECT_ID or GH_PROJECT_NUMBER as env to target an existing project.\n",
+                    file=sys.stderr,
+                )
+                raise
+            else:
+                raise
     else:
         print(f"Using existing project: {args.title}")
 
