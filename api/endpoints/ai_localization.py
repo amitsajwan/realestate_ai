@@ -80,7 +80,7 @@ async def generate_localized_listing(
     except Exception as e:
         logger.error(f"Listing generation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Listing generation failed: {str(e)}")
-
+ 
 
 @router.post("/generate-and-post")
 async def generate_and_post_localized_listing(
