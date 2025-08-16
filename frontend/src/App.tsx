@@ -1,3 +1,37 @@
+// --- Helper: Generate Listing Post ---
+function generateListingPost() {
+  const token = localStorage.getItem('jwt_token');
+  const payload = {
+    template: 'just_listed',
+    address: '123 Main St',
+    city: 'Pune',
+    state: 'MH',
+    price: '₹1,00,00,000',
+    bedrooms: 3,
+    bathrooms: 2.0,
+    features: ['Sea view', 'Gym', 'Pool']
+    // Optional fields can be added if needed, but only those defined in ListingDetails
+  };
+  fetch('http://localhost:8003/api/listings/generate', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': token ? `Bearer ${token}` : ''
+    },
+    body: JSON.stringify(payload)
+  })
+    .then(async res => {
+      const data = await res.json();
+      if (!res.ok) {
+        alert('Error: ' + (data.detail || JSON.stringify(data)));
+      } else {
+        alert('Listing Post Generated: ' + JSON.stringify(data));
+      }
+    })
+    .catch(err => {
+      alert('Error generating listing post: ' + err);
+    });
+}
 import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { marked } from 'marked';
@@ -186,12 +220,41 @@ const App = () => {
   };
 
   const handleDetailsSubmit = (details: Details) => {
-    ws.current?.send(JSON.stringify({ type: "details_input", details }));
+    // --- NEW: Send details to backend Smart Properties API ---
+    const payload = {
+      address: details.location,
+      price: details.price,
+      property_type: 'apartment', // or let user select
+      bedrooms: details.bedrooms,
+      bathrooms: '',
+      features: details.features,
+      template: 'just_listed',
+      language: 'en',
+      auto_generate: true
+    };
     setShowDetailsForm(false);
     setMessages(prev => [...prev, { from: 'user', text: `Here are the property details.` }]);
-    
-    // Set loading states for the posting stages
     setLoadingStates((prev: Record<string, boolean>) => ({ ...prev, generate_post: true, post_to_facebook: !!details.should_post }));
+
+    // Get JWT from localStorage or other source
+    const token = localStorage.getItem('jwt_token');
+    fetch('http://localhost:8003/api/smart-properties', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      body: JSON.stringify(payload)
+    })
+      .then(res => res.json())
+      .then(data => {
+        setMessages(prev => [...prev, { from: 'assistant', text: `Smart Property Created: ${JSON.stringify(data)}` }]);
+        setLoadingStates((prev: Record<string, boolean>) => ({ ...prev, generate_post: false }));
+      })
+      .catch(err => {
+        setMessages(prev => [...prev, { from: 'assistant', text: `Error creating Smart Property: ${err}` }]);
+        setLoadingStates((prev: Record<string, boolean>) => ({ ...prev, generate_post: false }));
+      });
   };
 
   return (
@@ -216,6 +279,13 @@ const App = () => {
             Start
           </button>
         </div>
+        {/* Button to test Listing Post Generation */}
+        <button
+          className="mt-4 bg-green-600 text-white px-4 py-2 rounded font-semibold"
+          onClick={generateListingPost}
+        >
+          Generate Listing Post (Test)
+        </button>
       </div>
 
       {/* Right Panel: Workflow Status & Form */}

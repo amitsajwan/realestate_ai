@@ -1,152 +1,129 @@
-# � Real Estate AI CRM Application
+# 🏠 Real Estate AI CRM
 
-A comprehensive Real Estate Customer Relationship Management system with AI-powered features for modern real estate agents.
+AI-powered Real Estate CRM with Facebook integration, automated content generation, and comprehensive lead management for modern real estate agents.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.8 or higher
-- pip (Python package manager)
-- Optional: MongoDB (for persistent storage)
-- Optional: Redis (for session management)
+- Python 3.8+
+- MongoDB (for data storage)
+- Optional: Docker (for containerized deployment)
 
-### Installation & Setup
+### Option 1: Production CRM (Recommended)
 
-1. **Navigate to the project directory:**
-   ```bash
-   cd realestate_ai
-   ```
-
-2. **Create a virtual environment (recommended):**
-   ```bash
-   python -m venv .venv
-   
-   # On Windows:
-   .venv\Scripts\activate
-   
-   # On macOS/Linux:
-   source .venv/bin/activate
-   ```
-
-3. **Run the application launcher:**
-   ```bash
-   python run_app.py
-   ```
-
-   This will automatically:
-   - Install all required dependencies
-   - Create a default `.env` file if needed
-   - Start the assistant backend (API) on http://localhost:8003 (optional)
-
-### Production CRM (Recommended)
-
-Run the full CRM with MongoDB via Docker:
-
+**Full-featured CRM with MongoDB:**
 ```bash
 docker compose -f docker-compose.crm.yml up -d --build
 ```
-
-CRM UI: http://localhost:8004
+- 🌐 **CRM Interface**: http://localhost:8004
+- 📊 **Complete Dashboard**: Leads, Properties, AI Tools
+- 🗄️ **Persistent Storage**: MongoDB
 
 Stop:
-
 ```bash
 docker compose -f docker-compose.crm.yml down -v
 ```
 
-### Manual Setup (Alternative)
+### Option 2: Development Server
 
-1. **Install dependencies:**
+**Lightweight development with in-memory storage:**
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Start development server  
+uvicorn app.main:app --reload --port 8003
+```
+- 🌐 **Dashboard**: http://localhost:8003/dashboard
+- 🧪 **Development Mode**: In-memory data storage
+
+### Option 3: Manual Setup
+
+1. **Clone and setup:**
    ```bash
+   git clone <repository>
+   cd realestate_ai
+   python -m venv .venv
+   .venv\Scripts\activate  # Windows
+   # source .venv/bin/activate  # macOS/Linux
    pip install -r requirements.txt
    ```
 
-2. **Start the assistant backend (optional):**
+2. **Configure environment:**
    ```bash
-   uvicorn main:app --host 0.0.0.0 --port 8003 --reload
+   # Copy .env.example to .env and configure:
+   MONGO_URI=mongodb://localhost:27017/realestate_crm
+   GROQ_API_KEY=your_groq_api_key
+   FB_APP_ID=your_facebook_app_id
+   FB_APP_SECRET=your_facebook_app_secret
    ```
 
-## 🎯 Application URLs
+3. **Start application:**
+   ```bash
+   # Development mode (port 8003)
+   uvicorn app.main:app --reload --port 8003
+   
+   # OR Production mode (port 8004)  
+   python complete_production_crm.py
+   ```
 
-- **CRM UI (Production):** http://localhost:8004
-- **Assistant Backend (Optional):** http://localhost:8003
-- **API Documentation (assistant backend):** http://localhost:8003/docs
-- **Interactive API:** http://localhost:8003/redoc
-- **Health Check:** http://localhost:8003/
+## 🎯 Available Applications
 
-## � Documentation
+| Application | URL | Purpose | Database |
+|-------------|-----|---------|----------|
+| **Production CRM** | http://localhost:8004 | Full-featured CRM with persistent storage | MongoDB |
+| **Development Server** | http://localhost:8003 | Lightweight development and testing | In-memory |
+| **API Documentation** | http://localhost:8003/docs | Interactive API documentation | - |
+| **Health Check** | http://localhost:8003/ | Server status verification | - |
 
-- Start here: USER_MANUAL.md — end‑user steps to use the CRM on port 8004
-- CODEMAP.md — high‑level map of files and features
-- PRODUCTION_READINESS_REPORT.md — status and evidence for production
-- DASHBOARD_INTEGRATION_COMPLETE.md — dashboard wiring notes
-- HOW_TO_USE_DEMO.md — demo flows and scenarios
-- DEMO_RUNBOOK.md — quick demo script
-- LAUNCH_CHECKLIST.md — pre‑launch verification
-- PRODUCTION_GUIDE.md — deployment guidance
-- FEATURE_OVERVIEW.md — feature list and scope
-- PROGRESS_OWNER.md — product owner updates and next steps
-- SPRINT_PLAN.md — two-week tech-debt sprint plan, roles, and acceptance criteria
-- CONTRIBUTING.md — branching, PRs, code style, tests, docs
+## 🔑 Demo Credentials
 
-## 🧪 Tests
+**Login:** demo@mumbai.com  
+**Password:** demo123
 
-- Test layout is organized under `tests/`:
-   - `tests/unit/` — fast model/logic tests
-   - `tests/integration/` — API/DB/end-to-end tests
-   - `tests/helpers/` — shared fixtures/utilities
-- Root-level legacy `test_*.py` files remain for backward compatibility and are referenced by wrappers in `tests/`.
-- CI runs a smoke check via `tests/smoke_check.py` after starting the CRM on port 8004.
+## 🏗️ Core Features
 
-### Modular app (incremental migration)
-- App entry: `app/main.py` (templates in `templates/`, static in `static/`)
-- Unit tests: `tests/unit/test_modular_app.py`
-- To run locally (example):
-   - Use uvicorn to run `app.main:app` on another port (e.g., 8005) for side-by-side testing.
+### 📊 Dashboard
+- **5-Tab Interface**: Dashboard, Leads, Properties, AI Tools, Settings
+- **Real-time Updates**: Connection status, lead metrics, activity feed
+- **Responsive Design**: Mobile-friendly interface
 
-## �👤 Demo Credentials
+### 📘 Facebook Integration
+- **OAuth Authentication**: Secure Facebook account connection
+- **Multi-page Support**: Manage multiple Facebook business pages
+- **Direct Posting**: Post content directly to Facebook from dashboard
+- **Encrypted Storage**: Secure token storage with Fernet encryption
 
-For testing purposes, use these demo credentials:
-- **Email:** demo@mumbai.com
-- **Password:** demo123
-├── images/
-│   └── building.png               # Placeholder image to post
-└── requirements.txt               # Dependencies
-```
+### 🤖 AI Content Generation
+- **LangChain + Groq**: Advanced AI content creation
+- **Professional Templates**: Just Listed, Open House, Price Drop, Sold
+- **Multi-language**: 7 languages including English, Spanish, French
+- **Copy to Facebook**: Seamless integration with posting workflow
 
----
+### 👥 Lead Management
+- **CRUD Operations**: Create, view, update, delete leads
+- **Status Tracking**: Lead lifecycle management
+- **Search & Filter**: Find leads by various criteria
+- **Agent Assignment**: Multi-agent lead distribution
 
-## ⚒️ Setup
+## �️ Technical Stack
 
-### 1. Clone the repo
+### Backend
+- **Framework**: FastAPI with async/await
+- **Database**: MongoDB (production) / In-memory (development)
+- **Authentication**: JWT tokens with bcrypt password hashing
+- **AI Integration**: LangChain with Groq LLM API
 
-```bash
-git clone https://github.com/yourusername/real_estate_assistant.git
-cd real_estate_assistant
-```
+### APIs
+- **Facebook Graph API**: v19.0 for social media integration
+- **Groq API**: AI content generation and localization
+- **RESTful Endpoints**: Standard HTTP API design
 
-### 2. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Set up your `.env`
-
-```env
-FB_PAGE_ID=699986296533656
-FB_PAGE_ACCESS_TOKEN=EAAXXXXXXXX... (from me/accounts?access_token=...)
-```
-
-### 4. Run the server
-
-```bash
-uvicorn main:app --reload
-```
-
-### 5. Connect WebSocket
-
-Use a browser frontend or tools like Postman / browser client to connect:
+### Security
+- **Encryption**: Fernet encryption for sensitive tokens
+- **CSRF Protection**: OAuth state verification
+- **Password Hashing**: bcrypt with salt
+- **Environment Variables**: Secure configuration management
 
 ```
 ws://localhost:8000/chat
@@ -200,6 +177,110 @@ Ensure your Page has:
 * [ ] Save user projects to database
 
 ---
+
+## 📁 Documentation
+
+### Essential Guides
+- **[CURRENT_STATUS.md](CURRENT_STATUS.md)** - Current implementation overview
+- **[FACEBOOK_SETUP_GUIDE.md](FACEBOOK_SETUP_GUIDE.md)** - Facebook integration setup
+- **[USER_MANUAL.md](USER_MANUAL.md)** - End user guide for CRM features
+- **[PRODUCTION_GUIDE.md](PRODUCTION_GUIDE.md)** - Deployment and production setup
+
+### Development
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Developer guidelines and workflow
+- **[CODEMAP.md](CODEMAP.md)** - Code structure and architecture
+- **[tests/](tests/)** - Comprehensive test plans and setup guides
+
+### Architecture
+- **[docs/architecture/](docs/architecture/)** - Technical design documents
+- **[specs/](specs/)** - Feature specifications and requirements
+
+## 🧪 Testing
+
+### Test Organization
+```
+tests/
+├── unit/           # Unit tests for core functionality
+├── integration/    # API and service integration tests  
+├── e2e/           # End-to-end Playwright tests
+└── docs/          # Test documentation and plans
+```
+
+### Running Tests
+```bash
+# Unit tests
+pytest tests/unit/
+
+# Integration tests (requires running server)
+pytest tests/integration/
+
+# E2E tests (requires Playwright setup)
+npm run test:e2e
+```
+
+## 🚀 Deployment
+
+### Docker (Recommended)
+```bash
+# Start production CRM with MongoDB
+docker compose -f docker-compose.crm.yml up -d
+
+# Access at http://localhost:8004
+```
+
+### Manual Deployment
+```bash
+# Set environment variables
+export MONGO_URI=mongodb://localhost:27017/realestate_crm
+export GROQ_API_KEY=your_groq_key
+export FB_APP_ID=your_fb_app_id
+export FB_APP_SECRET=your_fb_app_secret
+
+# Start production server
+python complete_production_crm.py
+```
+
+## 🔧 Configuration
+
+### Required Environment Variables
+```env
+# Database
+MONGO_URI=mongodb://localhost:27017/realestate_crm
+
+# AI Services  
+GROQ_API_KEY=your_groq_api_key
+
+# Facebook Integration
+FB_APP_ID=your_facebook_app_id
+FB_APP_SECRET=your_facebook_app_secret
+
+# Security
+SECRET_KEY=your_secret_key_here
+JWT_SECRET_KEY=your_jwt_secret_key
+```
+
+### Optional Configuration
+```env
+# Feature Flags
+FEATURE_FACEBOOK_PERSIST=true
+AI_DISABLE_IMAGE_GENERATION=false
+
+# External Services
+STABILITY_API_KEY=your_stability_key
+HUGGINGFACE_API_TOKEN=your_hf_token
+```
+
+## 📞 Support
+
+For issues, questions, or contributions:
+1. Check existing documentation in this repository
+2. Review test plans in `tests/` directory
+3. Consult `CURRENT_STATUS.md` for implementation details
+4. Follow contribution guidelines in `CONTRIBUTING.md`
+
+---
+
+**Status**: Production-ready Real Estate AI CRM with MongoDB backend, Facebook integration, and AI-powered content generation. ✅
 
 ## 🧑‍💻 Author
 

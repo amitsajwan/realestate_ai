@@ -80,7 +80,7 @@ FAIR_HOUSING_DISCLAIMER = """Equal Housing Opportunity. All real estate advertis
 
 async def generate_listing_post(details: ListingDetails, agent_brand: str = None) -> GeneratedListingPost:
     """Generate a branded listing post using the specified template"""
-    
+    print(" =======  ==== =  === ")
     template_config = TEMPLATE_PROMPTS[details.template]
     
     # Build property description
@@ -117,13 +117,28 @@ Create an engaging social media post for this property.
     
     chain = prompt | llm | StrOutputParser()
     
+    import logging
+    logger = logging.getLogger("listing_post_generation")
+    logger.setLevel(logging.INFO)
+    if not logger.hasHandlers():
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+
+    logger.info(f"Generating listing post for template: {details.template}, address: {details.address}, city: {details.city}, state: {details.state}")
+    logger.info(f"Prompt to LLM: {user_message}")
+    print(" =======  ==== =  === " + llm)
     try:
         if llm:
+            logger.info("Calling Groq LLM for listing post generation...")
             caption = await chain.ainvoke({})
+            logger.info(f"LLM response: {caption}")
         else:
-            # Use fallback if LLM not available
+            logger.warning("GROQ_API_KEY not set or LLM unavailable. Using fallback caption generator.")
             caption = _generate_fallback_caption(details)
-        
+            logger.info(f"Fallback caption: {caption}")
+
         return GeneratedListingPost(
             template_used=details.template,
             caption=caption.strip(),
@@ -131,11 +146,12 @@ Create an engaging social media post for this property.
             suggested_cta=template_config["cta"],
             fair_housing_disclaimer=FAIR_HOUSING_DISCLAIMER
         )
-        
+
     except Exception as e:
-        # Fallback template if LLM fails
+        logger.error(f"Error during LLM generation: {e}. Using fallback caption.")
         fallback_caption = _generate_fallback_caption(details)
-        
+        logger.info(f"Fallback caption: {fallback_caption}")
+
         return GeneratedListingPost(
             template_used=details.template,
             caption=fallback_caption,

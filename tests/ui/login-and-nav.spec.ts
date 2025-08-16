@@ -25,18 +25,18 @@ test.describe('Login and basic navigation', () => {
     await page.fill('input[type=password]', DEMO_USER.password);
     await page.click('button:has-text("Login to Dashboard")');
 
-    // Expect dashboard to show after login
-    await expect(page.getByText('Dashboard')).toBeVisible({ timeout: 10000 });
+  // Expect dashboard to show after login (prefer unique heading)
+  await expect(page.locator('h1:has-text("Dashboard")')).toBeVisible({ timeout: 10000 });
 
     // Switch sections via nav (calls showSection)
-  await page.click('a:has-text("Leads")');
-    await expect(page.getByText('Leads')).toBeVisible();
+  await page.click('a.nav-item:has-text("👥 Leads")');
+  await expect(page.locator('#leadsSection')).toBeVisible();
 
-  await page.click('a:has-text("Properties")');
-    await expect(page.getByText('Properties')).toBeVisible();
+  await page.click('a.nav-item:has-text("🤖 Smart Properties")');
+  await expect(page.locator('#smart-propertiesSection')).toBeVisible();
 
-  await page.click('a:has-text("Settings")');
-    await expect(page.getByText('Settings')).toBeVisible();
+  await page.click('a.nav-item:has-text("⚙️ Settings")');
+  await expect(page.locator('#settingsSection')).toBeVisible();
   });
 
   test('can open/close Add Lead and Add Property modals', async ({ page }) => {
@@ -46,17 +46,25 @@ test.describe('Login and basic navigation', () => {
   await page.fill('input[type=password]', DEMO_USER.password);
   await page.click('button:has-text("Login to Dashboard")');
 
-    // Leads modal
-  await page.click('button:has-text("Add Lead")');
+  // Leads modal (button text can be "Add Lead" or "Add New Lead")
+  await page.click('a.nav-item:has-text("👥 Leads")');
+  await expect(page.locator('#leadsSection')).toBeVisible();
+  const addLeadBtn = page.locator('#leadsSection button:has-text("Add New Lead"), #leadsSection button:has-text("Add Lead")').first();
+  await addLeadBtn.waitFor({ state: 'visible', timeout: 10000 });
+  await addLeadBtn.scrollIntoViewIfNeeded();
+  await addLeadBtn.click();
   await expect(page.locator('#addLeadModal')).toBeVisible();
   await page.click('#addLeadModal .close');
   await expect(page.locator('#addLeadModal')).toBeHidden();
 
-    // Properties modal
-    await page.click('a:has-text("Properties")');
-  await page.click('button:has-text("Add Property")');
-  await expect(page.locator('#addPropertyModal')).toBeVisible();
-  await page.click('#addPropertyModal .close');
-  await expect(page.locator('#addPropertyModal')).toBeHidden();
+  // Smart Property modal (new flow)
+  await page.click('a.nav-item:has-text("🤖 Smart Properties")');
+  await expect(page.locator('#smart-propertiesSection')).toBeVisible();
+  const addSmartBtn = page.locator('#smart-propertiesSection button:has-text("Add Smart Property"), #smart-propertiesSection button:has-text("Create First Property")').first();
+  await addSmartBtn.waitFor({ state: 'visible', timeout: 10000 });
+  await addSmartBtn.click();
+  await expect(page.locator('#smartPropertyModal')).toBeVisible();
+  await page.click('#smartPropertyModal .close');
+  await expect(page.locator('#smartPropertyModal')).toBeHidden();
   });
 });

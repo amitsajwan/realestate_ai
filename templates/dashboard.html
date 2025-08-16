@@ -1,118 +1,1391 @@
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Real Estate CRM</title>
-    <link rel="stylesheet" href="/static/css/app.css" />
-  </head>
-  <body>
-    <header class="header">
-      <h1>Dashboard</h1>
-      <nav>
-        <a href="#" id="logout">Logout</a>
-      </nav>
-    </header>
-    <main>
-      <section id="stats">
-        <div class="card">Leads: <span id="leadsCount">-</span></div>
-        <div class="card">Properties: <span id="propsCount">-</span></div>
-      </section>
-      <section id="lists">
-        <h2>Recent Leads</h2>
-        <ul id="leads"></ul>
-        <h2>Recent Properties</h2>
-        <ul id="properties"></ul>
-        <h2>Facebook</h2>
-        <div id="fbPanel" class="card">
-          <div id="fbStatus">Loading...</div>
-          <div id="fbActions" style="margin-top:8px; display:none; gap:6px;">
-            <div id="fbPageSelectWrap" style="display:none; margin-bottom:8px;">
-              <label for="fbPageSelect">Select Page:</label>
-              <select id="fbPageSelect"></select>
-              <button id="fbSelectBtn">Use this Page</button>
-            </div>
-            <div style="display:flex; gap:6px; align-items:center;">
-              <input id="fbMessage" type="text" placeholder="Write a test post..." style="flex:1; padding:6px;"/>
-              <button id="fbPostBtn">Post to Page</button>
-            </div>
-            <div id="fbErr" style="color:#b91c1c; font-size:12px; margin-top:6px; display:none;"></div>
-          </div>
-        </div>
-      </section>
-    </main>
-    <script src="/static/js/dashboard.js"></script>
-    <script>
-      (async function(){
-        const token = localStorage.getItem('token');
-        if(!token) return;
-        const headers = { 'Authorization': `Bearer ${token}` };
-        try{
-          const r = await fetch('/api/facebook/config', { headers });
-          if(!r.ok){ throw new Error('fb config failed'); }
-          const cfg = await r.json();
-          const statusEl = document.getElementById('fbStatus');
-          const actionsEl = document.getElementById('fbActions');
-          const pageWrap = document.getElementById('fbPageSelectWrap');
-          const pageSel = document.getElementById('fbPageSelect');
-          const errEl = document.getElementById('fbErr');
-          if(cfg.connected){
-            statusEl.textContent = `Connected to: ${cfg.page_name || cfg.page_id}`;
-            actionsEl.style.display = 'block';
-            // Load pages and show selector when multiple
-            try{
-              const pr = await fetch('/api/facebook/pages', { headers });
-              if(pr.ok){
-                const pdata = await pr.json();
-                const pages = Array.isArray(pdata.pages) ? pdata.pages : [];
-                if(pages.length > 1){
-                  pageSel.innerHTML = pages.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-                  pageWrap.style.display = 'block';
-                }
-              }
-            }catch(e){ /* ignore listing errors */ }
-          }else{
-            statusEl.innerHTML = 'Not connected. <a href="/api/facebook/connect">Connect Facebook</a>';
-          }
-
-          document.getElementById('fbPostBtn').onclick = async ()=>{
-            const msg = (document.getElementById('fbMessage').value || '').trim();
-            if(!msg){ alert('Enter a message'); return; }
-            const pr = await fetch('/api/facebook/post', {
-              method:'POST',
-              headers: { ...headers, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ message: msg })
-            });
-            const data = await pr.json();
-            if(pr.ok){
-              errEl.style.display = 'none';
-              alert('Posted!');
-            }else{
-              errEl.textContent = 'Post failed: ' + (data.detail || 'Unknown error');
-              errEl.style.display = 'block';
-            }
-          };
-
-          document.getElementById('fbSelectBtn').onclick = async ()=>{
-            const page_id = pageSel.value;
-            if(!page_id) return;
-            errEl.style.display = 'none';
-            const sr = await fetch('/api/facebook/select_page', {
-              method:'POST', headers: { ...headers, 'Content-Type':'application/json' },
-              body: JSON.stringify({ page_id })
-            });
-            const sdata = await sr.json().catch(()=>({}));
-            if(sr.ok){
-              document.getElementById('fbStatus').textContent = `Connected to: ${sdata.page_name || page_id}`;
-            }else{
-              errEl.textContent = 'Select page failed: ' + (sdata.detail || 'Unknown error');
-              errEl.style.display = 'block';
-            }
-          };
-        }catch(e){
-          console.warn('FB status load failed', e);
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
         }
-      })();
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            font-size: 1.5rem;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .main-content {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            min-height: calc(100vh - 80px);
+        }
+        .sidebar {
+            background: white;
+            padding: 2rem 1rem;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+        .nav-item {
+            display: block;
+            padding: 1rem;
+            color: #333;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-bottom: 0.5rem;
+            transition: background 0.3s;
+        }
+        .nav-item:hover, .nav-item.active {
+            background: #667eea;
+            color: white;
+        }
+        .content {
+            padding: 2rem;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .section h2 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: transform 0.2s;
+            margin-right: 1rem;
+            margin-bottom: 1rem;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+        .btn-warning {
+            background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+        }
+        .btn-ai {
+            background: linear-gradient(135deg, #ff6b35 0%, #ff8c42 100%);
+        }
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        .table th, .table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        .table tr:hover {
+            background: #f8f9fa;
+        }
+        .status-hot { color: #dc3545; font-weight: bold; }
+        .status-warm { color: #fd7e14; font-weight: bold; }
+        .status-cold { color: #6c757d; }
+        .quick-actions {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .close {
+            float: right;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #999;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+        .ai-section {
+            background: linear-gradient(135deg, #ff6b35 5%, #ff8c42 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+        }
+        .facebook-section {
+            background: linear-gradient(135deg, #1877f2 0%, #42a5f5 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+        }
+        
+        /* Smart Properties Component Styles */
+        .smart-properties-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding: 1rem 0;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .section-header h2 {
+            margin: 0;
+            color: #667eea;
+        }
+        .properties-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        .smart-property-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+            border: 1px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+        .smart-property-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        .property-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+        .property-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0;
+        }
+        .property-price {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #059669;
+            margin: 0;
+        }
+        .property-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+        .ai-content-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            color: white;
+        }
+        .ai-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .generated-content {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.8rem;
+            border-radius: 6px;
+            margin: 0.8rem 0;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        .content-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        .btn-small {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-ai {
+            background: #667eea;
+            color: white;
+        }
+        .btn-ai:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+        .btn-facebook {
+            background: #1877f2;
+            color: white;
+        }
+        .btn-facebook:hover {
+            background: #166fe5;
+        }
+        .btn-regenerate {
+            background: #f59e0b;
+            color: white;
+        }
+        .btn-regenerate:hover {
+            background: #d97706;
+        }
+        .loading-card {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 3rem;
+            color: #6b7280;
+        }
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #e5e7eb;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                display: none;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .header {
+                padding: 1rem;
+            }
+            .content {
+                padding: 1rem;
+            }
+            .properties-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏠 Real Estate CRM Dashboard</h1>
+        <div class="user-info">
+            <span id="userName">Welcome, Agent</span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <div class="sidebar">
+            <a href="#" class="nav-item active" onclick="showSection('dashboard', event)">📊 Dashboard</a>
+            <a href="#" class="nav-item" onclick="showSection('leads', event)">👥 Leads</a>
+            <a href="#" class="nav-item" onclick="showSection('smart-properties', event)">🤖 Smart Properties</a>
+            <a href="#" class="nav-item" onclick="showSection('settings', event)">⚙️ Settings</a>
+        </div>
+        
+        <div class="content">
+            <div id="dashboardSection">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalLeads">0</div>
+                        <div class="stat-label">Total Leads</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="hotLeads">0</div>
+                        <div class="stat-label">Hot Leads</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalProperties">0</div>
+                        <div class="stat-label">Active Properties</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">₹2.5 Cr</div>
+                        <div class="stat-label">Avg Deal Value</div>
+                    </div>
+                </div>
+                
+                <div class="quick-actions">
+                    <button class="btn" onclick="openModal('addLeadModal')">➕ Add Lead</button>
+                    <button class="btn" onclick="openModal('addPropertyModal')">🏠 Add Property</button>
+                    <button class="btn btn-success" onclick="callLead()">📞 Call Lead</button>
+                    <button class="btn btn-warning" onclick="sendWhatsApp()">💬 WhatsApp</button>
+                    <button class="btn btn-ai" onclick="showSection('ai', event)">🤖 Generate AI Post</button>
+                </div>
+                
+                <!-- Facebook Integration Section -->
+                <div class="facebook-section">
+                    <h2>📘 Facebook Integration</h2>
+                    <div id="fbStatus">Loading...</div>
+                    <div id="fbActions" style="margin-top:1rem; display:none;">
+                        <div id="fbPageSelectWrap" style="display:none; margin-bottom:1rem;">
+                            <label for="fbPageSelect">Select Page:</label>
+                            <select id="fbPageSelect" style="color: black; margin: 0.5rem 0;"></select>
+                            <button id="fbSelectBtn" class="btn">Use this Page</button>
+                        </div>
+                        <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+                            <textarea id="fbMessage" placeholder="Write your Facebook post here..." 
+                                style="flex:1; padding:0.8rem; border-radius:5px; border:none; color:black; min-height:80px;"></textarea>
+                            <button id="fbPostBtn" class="btn">Post to Facebook</button>
+                        </div>
+                        <div id="fbErr" style="color:#ffcdd2; background: rgba(255,255,255,0.1); padding:0.5rem; border-radius:5px; margin-top:0.5rem; display:none;"></div>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>Recent Leads</h2>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Budget</th>
+                                <th>Status</th>
+                                <th>Score</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leadsTable">
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 2rem; color: #666;">
+                                    Loading leads...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- END Dashboard Section -->
+            
+            <div id="leadsSection" style="display: none;">
+                <div class="section">
+                    <h2>Lead Management</h2>
+                    <button class="btn" onclick="openModal('addLeadModal')">➕ Add New Lead</button>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Contact</th>
+                                <th>Location</th>
+                                <th>Budget</th>
+                                <th>Property Type</th>
+                                <th>Source</th>
+                                <th>Status</th>
+                                <th>Score</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="allLeadsTable">
+                            <tr>
+                                <td colspan="9" style="text-align: center; padding: 2rem; color: #666;">
+                                    Loading all leads...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="propertiesSection" style="display: none;">
+                <!-- Legacy Properties section - hidden -->
+            </div>
+
+            <!-- NEW: Smart Properties Component (AI-First) -->
+            <div id="smart-propertiesSection" style="display: none;">
+                <div class="smart-properties-container">
+                    <div class="section-header">
+                        <h2>🤖 Smart Properties</h2>
+                        <p>AI-powered property management with instant content generation</p>
+                        <button class="btn btn-primary" onclick="openSmartPropertyModal()">+ Add Smart Property</button>
+                    </div>
+                    
+                    <!-- Properties Grid -->
+                    <div id="smartPropertiesGrid" class="properties-grid">
+                        <div class="loading-card">
+                            <div class="spinner"></div>
+                            <p>Loading smart properties...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="aiSection" style="display: none;">
+                <!-- Legacy AI section - hidden -->
+            </div>
+            
+            <div id="settingsSection" style="display: none;">
+                <div class="section">
+                    <h2>Account Settings</h2>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                        <div>
+                            <h3>Profile Information</h3>
+                            <p><strong>Email:</strong> <span id="userEmail">Loading...</span></p>
+                            <p><strong>Phone:</strong> <span id="userPhone">Loading...</span></p>
+                            <p><strong>Experience:</strong> <span id="userExperience">Loading...</span></p>
+                            <p><strong>Areas:</strong> <span id="userAreas">Loading...</span></p>
+                            <p><strong>Languages:</strong> <span id="userLanguages">Loading...</span></p>
+                        </div>
+                        <div>
+                            <h3>Social Media Integration</h3>
+                            <button class="btn" onclick="connectFacebook()">📘 Connect Facebook</button>
+                            <button class="btn" onclick="connectWhatsApp()">💬 Connect WhatsApp</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Lead Modal -->
+    <div id="addLeadModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('addLeadModal')">&times;</span>
+            <h2>Add New Lead</h2>
+            <form id="addLeadForm">
+                <div class="form-group">
+                    <label for="leadName">Full Name</label>
+                    <input type="text" id="leadName" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="leadPhone">Phone Number</label>
+                    <input type="tel" id="leadPhone" name="phone" required>
+                </div>
+                <div class="form-group">
+                    <label for="leadEmail">Email (Optional)</label>
+                    <input type="email" id="leadEmail" name="email">
+                </div>
+                <div class="form-group">
+                    <label for="leadLocation">Location</label>
+                    <input type="text" id="leadLocation" name="location" placeholder="e.g., Bandra West">
+                </div>
+                <div class="form-group">
+                    <label for="leadBudget">Budget</label>
+                    <input type="text" id="leadBudget" name="budget" placeholder="e.g., ₹2.5 Cr">
+                </div>
+                <div class="form-group">
+                    <label for="leadPropertyType">Property Type</label>
+                    <select id="leadPropertyType" name="property_type">
+                        <option value="">Select Type</option>
+                        <option value="1 BHK Apartment">1 BHK Apartment</option>
+                        <option value="2 BHK Apartment">2 BHK Apartment</option>
+                        <option value="3 BHK Apartment">3 BHK Apartment</option>
+                        <option value="4 BHK Apartment">4 BHK Apartment</option>
+                        <option value="Villa">Villa</option>
+                        <option value="Penthouse">Penthouse</option>
+                        <option value="Commercial Office">Commercial Office</option>
+                        <option value="Shop">Shop</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="leadSource">Source</label>
+                    <select id="leadSource" name="source">
+                        <option value="manual">Manual Entry</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="website">Website</option>
+                        <option value="referral">Referral</option>
+                        <option value="walk-in">Walk-in</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="leadNotes">Notes</label>
+                    <textarea id="leadNotes" name="notes" rows="3" placeholder="Additional information about the lead"></textarea>
+                </div>
+                <button type="submit" class="btn">Add Lead</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Smart Property Modal (AI-First) -->
+    <div id="smartPropertyModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <span class="close" onclick="closeModal('smartPropertyModal')">&times;</span>
+            <div class="smart-modal-header">
+                <h2>🤖 Create Smart Property</h2>
+                <p>Add property details and get AI-generated content instantly!</p>
+            </div>
+            
+            <form id="smartPropertyForm">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <!-- Property Details Panel -->
+                    <div>
+                        <h3>📍 Property Information</h3>
+                        <div class="form-group">
+                            <label for="smartPropertyAddress">Property Address *</label>
+                            <input type="text" id="smartPropertyAddress" name="address" required placeholder="123 Main Street, City, State" oninput="onPropertyInputChange()">
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                <label for="smartPropertyPrice">Price *</label>
+                                <input type="text" id="smartPropertyPrice" name="price" required placeholder="$500,000" oninput="onPropertyInputChange()">
+                            </div>
+                            <div class="form-group">
+                                <label for="smartPropertyType">Type *</label>
+                                <select id="smartPropertyType" name="property_type" required onchange="onPropertyInputChange()">
+                                    <option value="">Select Type</option>
+                                    <option value="single_family">🏠 Single Family</option>
+                                    <option value="condo">🏢 Condo</option>
+                                    <option value="townhouse">🏘️ Townhouse</option>
+                                    <option value="apartment">🏬 Apartment</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                <label for="smartPropertyBedrooms">Bedrooms</label>
+                                <select id="smartPropertyBedrooms" name="bedrooms" onchange="onPropertyInputChange()">
+                                    <option value="">Select</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5+">5+</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="smartPropertyBathrooms">Bathrooms</label>
+                                <select id="smartPropertyBathrooms" name="bathrooms" onchange="onPropertyInputChange()">
+                                    <option value="">Select</option>
+                                    <option value="1">1</option>
+                                    <option value="1.5">1.5</option>
+                                    <option value="2">2</option>
+                                    <option value="2.5">2.5</option>
+                                    <option value="3+">3+</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="smartPropertyFeatures">Key Features</label>
+                            <textarea id="smartPropertyFeatures" name="features" rows="3" placeholder="e.g., Updated kitchen, hardwood floors, large backyard..." oninput="onPropertyInputChange()"></textarea>
+                        </div>
+                        
+                        <!-- AI Settings -->
+                        <div class="ai-settings" style="background: #f3f4f6; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                            <h4 style="margin: 0 0 0.5rem 0;">🤖 AI Settings</h4>
+                            <div class="form-group" style="margin-bottom: 0.5rem;">
+                                <label>
+                                    <input type="checkbox" id="autoGenerateAI" checked onchange="toggleAIGeneration()"> 
+                                    Auto-generate AI content
+                                </label>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                                <select id="aiTemplate" name="template">
+                                    <option value="just_listed">🏠 Just Listed</option>
+                                    <option value="open_house">🚪 Open House</option>
+                                    <option value="price_drop">💰 Price Drop</option>
+                                </select>
+                                <select id="aiLanguage" name="language">
+                                    <option value="en">🇺🇸 English</option>
+                                    <option value="es">🇪🇸 Spanish</option>
+                                    <option value="fr">🇫🇷 French</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- AI Content Preview Panel -->
+                    <div>
+                        <h3>🤖 AI Generated Content</h3>
+                        <div id="aiContentPreview" class="ai-content-section" style="min-height: 300px;">
+                            <div id="aiLoadingState">
+                                <div class="ai-badge">🤖 AI Ready</div>
+                                <p style="margin: 1rem 0; opacity: 0.8;">Fill in property details to generate professional content automatically</p>
+                                <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 6px; font-style: italic;">
+                                    AI content will appear here as you type...
+                                </div>
+                            </div>
+                            
+                            <div id="aiGeneratedContent" style="display: none;">
+                                <div class="ai-badge">✨ AI Generated</div>
+                                <div class="generated-content" contenteditable="true" id="editableContent">
+                                    <!-- AI content will be populated here -->
+                                </div>
+                                <div class="content-actions">
+                                    <button type="button" class="btn-small btn-regenerate" onclick="regenerateSmartContent()">🔄 Regenerate</button>
+                                    <button type="button" class="btn-small btn-ai" onclick="editAISettings()">⚙️ Settings</button>
+                                </div>
+                            </div>
+                            
+                            <div id="aiErrorState" style="display: none;">
+                                <div style="color: #fca5a5;">⚠️ Unable to generate content</div>
+                                <button type="button" class="btn-small btn-ai" onclick="retryAIGeneration()">🔄 Retry</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" class="btn" onclick="saveDraftProperty()" style="background: #6b7280;">💾 Save Draft</button>
+                    <button type="submit" class="btn btn-primary">🚀 Create & Publish</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // Authentication check
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        
+        if (!token) {
+            window.location.href = '/';
+        }
+        
+        // Display user info
+        document.getElementById('userName').textContent = `Welcome, ${user.firstName || user.name || 'Agent'}`;
+        
+        // API headers
+        const apiHeaders = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        };
+        
+        // Load data on page load
+        loadDashboardData();
+        loadFacebookStatus();
+        
+        function showSection(section, evt) {
+            if (evt && evt.preventDefault) evt.preventDefault();
+            
+            // Hide all sections
+            document.getElementById('dashboardSection').style.display = 'none';
+            document.getElementById('leadsSection').style.display = 'none';
+            document.getElementById('propertiesSection').style.display = 'none';
+            document.getElementById('smart-propertiesSection').style.display = 'none';
+            document.getElementById('aiSection').style.display = 'none';
+            document.getElementById('settingsSection').style.display = 'none';
+            
+            // Remove active class from all nav items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Show selected section
+            if (section === 'dashboard') {
+                document.getElementById('dashboardSection').style.display = 'block';
+                loadDashboardData();
+            } else if (section === 'leads') {
+                document.getElementById('leadsSection').style.display = 'block';
+                loadAllLeads();
+            } else if (section === 'smart-properties') {
+                document.getElementById('smart-propertiesSection').style.display = 'block';
+                loadSmartProperties();
+            } else if (section === 'settings') {
+                document.getElementById('settingsSection').style.display = 'block';
+                loadUserSettings();
+            }
+            
+            // Add active class to clicked nav item
+            if (evt && evt.target && evt.target.classList) {
+                evt.target.classList.add('active');
+            }
+        }
+        
+        async function loadDashboardData() {
+            try {
+                // Load leads
+                const leadsResponse = await fetch('/api/leads', { headers: apiHeaders });
+                if (leadsResponse.ok) {
+                    const leads = await leadsResponse.json();
+                    
+                    // Update stats
+                    document.getElementById('totalLeads').textContent = leads.length;
+                    document.getElementById('hotLeads').textContent = leads.filter(l => l.status === 'hot').length;
+                    
+                    // Update leads table
+                    const leadsTableHtml = leads.slice(0, 5).map(lead => `
+                        <tr>
+                            <td>${lead.name}</td>
+                            <td>${lead.phone}</td>
+                            <td>${lead.budget || 'Not specified'}</td>
+                            <td><span class="status-${lead.status}">${lead.status.toUpperCase()}</span></td>
+                            <td>${lead.score || 0}%</td>
+                            <td>
+                                <button class="btn" style="padding: 0.3rem 0.8rem; margin: 0;" onclick="callLead('${lead.phone}')">📞</button>
+                                <button class="btn" style="padding: 0.3rem 0.8rem; margin: 0;" onclick="sendWhatsApp('${lead.phone}')">💬</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                    
+                    document.getElementById('leadsTable').innerHTML = leadsTableHtml || '<tr><td colspan="6" style="text-align: center; padding: 2rem; color: #666;">No leads found</td></tr>';
+                }
+                
+                // Load properties
+                const propertiesResponse = await fetch('/api/properties', { headers: apiHeaders });
+                if (propertiesResponse.ok) {
+                    const properties = await propertiesResponse.json();
+                    document.getElementById('totalProperties').textContent = properties.length;
+                }
+                
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+            }
+        }
+        
+        async function loadFacebookStatus() {
+            try {
+                const response = await fetch('/api/facebook/config', { headers: apiHeaders });
+                if (response.ok) {
+                    const config = await response.json();
+                    const statusEl = document.getElementById('fbStatus');
+                    const actionsEl = document.getElementById('fbActions');
+                    const pageWrap = document.getElementById('fbPageSelectWrap');
+                    const pageSel = document.getElementById('fbPageSelect');
+                    
+                    if (config.connected) {
+                        statusEl.innerHTML = `✅ Connected to: ${config.page_name || config.page_id}`;
+                        actionsEl.style.display = 'block';
+                        
+                        // Load pages for selection
+                        try {
+                            const pagesResponse = await fetch('/api/facebook/pages', { headers: apiHeaders });
+                            if (pagesResponse.ok) {
+                                const pagesData = await pagesResponse.json();
+                                const pages = Array.isArray(pagesData.pages) ? pagesData.pages : pagesData;
+                                if (Array.isArray(pages) && pages.length > 1) {
+                                    pageSel.innerHTML = pages.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+                                    pageWrap.style.display = 'block';
+                                }
+                            }
+                        } catch (e) {
+                            console.log('Pages loading error:', e);
+                        }
+                    } else {
+                        statusEl.innerHTML = '❌ Not connected. <a href="/api/facebook/connect" style="color: white; text-decoration: underline;">Connect Facebook</a>';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading Facebook status:', error);
+                document.getElementById('fbStatus').innerHTML = '❌ Error loading Facebook status';
+            }
+        }
+        
+        // Facebook posting
+        document.getElementById('fbPostBtn').onclick = async () => {
+            const message = document.getElementById('fbMessage').value.trim();
+            if (!message) {
+                alert('Please enter a message to post');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/facebook/post', {
+                    method: 'POST',
+                    headers: apiHeaders,
+                    body: JSON.stringify({ message })
+                });
+                
+                const result = await response.json();
+                const errEl = document.getElementById('fbErr');
+                
+                if (response.ok) {
+                    alert('Posted to Facebook successfully!');
+                    document.getElementById('fbMessage').value = '';
+                    errEl.style.display = 'none';
+                } else {
+                    errEl.textContent = 'Post failed: ' + (result.detail || 'Unknown error');
+                    errEl.style.display = 'block';
+                }
+            } catch (error) {
+                const errEl = document.getElementById('fbErr');
+                errEl.textContent = 'Network error while posting';
+                errEl.style.display = 'block';
+            }
+        };
+        
+        // Facebook page selection
+        document.getElementById('fbSelectBtn').onclick = async () => {
+            const pageId = document.getElementById('fbPageSelect').value;
+            if (!pageId) return;
+            
+            try {
+                const response = await fetch('/api/facebook/select_page', {
+                    method: 'POST',
+                    headers: apiHeaders,
+                    body: JSON.stringify({ page_id: pageId })
+                });
+                
+                const result = await response.json();
+                const errEl = document.getElementById('fbErr');
+                
+                if (response.ok) {
+                    document.getElementById('fbStatus').innerHTML = `✅ Connected to: ${result.page_name || pageId}`;
+                    errEl.style.display = 'none';
+                } else {
+                    errEl.textContent = 'Page selection failed: ' + (result.detail || 'Unknown error');
+                    errEl.style.display = 'block';
+                }
+            } catch (error) {
+                const errEl = document.getElementById('fbErr');
+                errEl.textContent = 'Network error while selecting page';
+                errEl.style.display = 'block';
+            }
+        };
+        
+        // AI Content Generation
+        async function generateAIPost() {
+            const details = document.getElementById('aiPropertyDetails').value.trim();
+            const postType = document.getElementById('aiPostType').value;
+            const language = document.getElementById('aiLanguage').value;
+            
+            if (!details) {
+                alert('Please enter property details');
+                return;
+            }
+            
+            try {
+                // Show loading state
+                const resultSection = document.getElementById('aiResultSection');
+                const generatedPost = document.getElementById('aiGeneratedPost');
+                generatedPost.value = 'Generating AI content...';
+                resultSection.style.display = 'block';
+                
+                const response = await fetch('/api/listings/generate', {
+                    method: 'POST',
+                    headers: apiHeaders,
+                    body: JSON.stringify({
+                        property_details: details,
+                        post_type: postType,
+                        language: language
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    generatedPost.value = result.generated_content || result.content || 'Generated post content here';
+                } else {
+                    generatedPost.value = 'Error generating content. Please try again.';
+                }
+            } catch (error) {
+                console.error('AI generation error:', error);
+                document.getElementById('aiGeneratedPost').value = 'Network error. Please try again.';
+            }
+        }
+        
+        function copyToFacebook() {
+            const content = document.getElementById('aiGeneratedPost').value;
+            document.getElementById('fbMessage').value = content;
+            showSection('dashboard');
+            alert('Content copied to Facebook post area!');
+        }
+        
+        function copyToClipboard() {
+            const content = document.getElementById('aiGeneratedPost').value;
+            navigator.clipboard.writeText(content).then(() => {
+                alert('Content copied to clipboard!');
+            });
+        }
+        
+        function regeneratePost() {
+            generateAIPost();
+        }
+        
+        // Load other sections
+        async function loadAllLeads() {
+            try {
+                const response = await fetch('/api/leads', { headers: apiHeaders });
+                if (response.ok) {
+                    const leads = await response.json();
+                    
+                    const tableHtml = leads.map(lead => `
+                        <tr>
+                            <td>${lead.name}</td>
+                            <td>${lead.phone}<br><small>${lead.email || ''}</small></td>
+                            <td>${lead.location || 'Not specified'}</td>
+                            <td>${lead.budget || 'Not specified'}</td>
+                            <td>${lead.property_type || 'Not specified'}</td>
+                            <td>${lead.source}</td>
+                            <td><span class="status-${lead.status}">${lead.status.toUpperCase()}</span></td>
+                            <td>${lead.score || 0}%</td>
+                            <td>
+                                <button class="btn" style="padding: 0.3rem 0.8rem; margin: 0.2rem;" onclick="callLead('${lead.phone}')">📞</button>
+                                <button class="btn" style="padding: 0.3rem 0.8rem; margin: 0.2rem;" onclick="sendWhatsApp('${lead.phone}')">💬</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                    
+                    document.getElementById('allLeadsTable').innerHTML = tableHtml || '<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #666;">No leads found</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading leads:', error);
+            }
+        }
+        
+        async function loadProperties() {
+            try {
+                const response = await fetch('/api/properties', { headers: apiHeaders });
+                if (response.ok) {
+                    const properties = await response.json();
+                    
+                    const tableHtml = properties.map(property => `
+                        <tr>
+                            <td>${property.title}</td>
+                            <td>${property.property_type}</td>
+                            <td>${property.location}</td>
+                            <td>${property.price}</td>
+                            <td>${property.bedrooms || 'N/A'}</td>
+                            <td>${property.status || 'Active'}</td>
+                            <td>
+                                <button class="btn" style="padding: 0.3rem 0.8rem; margin: 0.2rem;" onclick="editProperty('${property.id}')">✏️</button>
+                                <button class="btn btn-ai" style="padding: 0.3rem 0.8rem; margin: 0.2rem;" onclick="postToFacebook('${property.id}')">📘</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                    
+                    document.getElementById('propertiesTable').innerHTML = tableHtml || '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #666;">No properties found</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading properties:', error);
+            }
+        }
+        
+        async function loadUserSettings() {
+            try {
+                // Try to get user profile from API
+                const response = await fetch('/api/user/profile', { headers: apiHeaders });
+                if (response.ok) {
+                    const data = await response.json();
+                    const userData = data.user;
+                    
+                    document.getElementById('userEmail').textContent = userData.email || 'Not available';
+                    document.getElementById('userPhone').textContent = userData.phone || 'Not available';
+                    document.getElementById('userExperience').textContent = userData.experience || 'Not specified';
+                    document.getElementById('userAreas').textContent = userData.areas || 'Not specified';
+                    document.getElementById('userLanguages').textContent = userData.languages || 'English';
+                } else {
+                    // Fallback to localStorage user data
+                    document.getElementById('userEmail').textContent = user.email || 'Not available';
+                    document.getElementById('userPhone').textContent = user.phone || 'Not available';
+                    document.getElementById('userExperience').textContent = user.experience || 'Not specified';
+                    document.getElementById('userAreas').textContent = user.areas || 'Not specified';
+                    document.getElementById('userLanguages').textContent = user.languages || 'English';
+                }
+            } catch (error) {
+                console.error('Error loading user settings:', error);
+                // Show fallback data
+                document.getElementById('userEmail').textContent = user.email || 'Not available';
+                document.getElementById('userPhone').textContent = user.phone || 'Not available';
+                document.getElementById('userExperience').textContent = user.experience || 'Not specified';
+                document.getElementById('userAreas').textContent = user.areas || 'Not specified';
+                document.getElementById('userLanguages').textContent = user.languages || 'English';
+            }
+        }
+        
+        // Modal functions
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'block';
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        
+        // Utility functions
+        function callLead(phone) {
+            window.open(`tel:${phone}`, '_self');
+        }
+        
+        function sendWhatsApp(phone) {
+            window.open(`https://wa.me/91${phone.replace(/\D/g, '')}`, '_blank');
+        }
+        
+        function connectFacebook() {
+            window.open('/api/facebook/connect', '_blank');
+        }
+        
+        function connectWhatsApp() {
+            alert('WhatsApp integration coming soon!');
+        }
+        
+        function postToFacebook(propertyId) {
+            alert(`Facebook posting for property ${propertyId} - Feature coming soon!`);
+        }
+        
+        function editProperty(propertyId) {
+            alert(`Edit property ${propertyId} - Feature coming soon!`);
+        }
+        
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/';
+        }
+        
+        document.getElementById('addLeadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            
+            try {
+                const response = await fetch('/api/leads', {
+                    method: 'POST',
+                    headers: apiHeaders,
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    alert('Lead added successfully!');
+                    closeModal('addLeadModal');
+                    e.target.reset();
+                    loadDashboardData();
+                    if (document.getElementById('leadsSection').style.display !== 'none') {
+                        loadAllLeads();
+                    }
+                } else {
+                    const result = await response.json();
+                    alert(result.detail || 'Failed to add lead');
+                }
+            } catch (error) {
+                alert('Network error. Please try again.');
+            }
+        });
+        
+        // Smart Property Functions (AI-First)
+        let aiGenerationTimeout;
+        let currentPropertyData = {};
+        
+        async function loadSmartProperties() {
+            const grid = document.getElementById('smartPropertiesGrid');
+            grid.innerHTML = '<div class="loading-card"><div class="spinner"></div><p>Loading smart properties...</p></div>';
+            
+            console.log('Loading Smart Properties...');
+            console.log('API Headers:', apiHeaders);
+            
+            try {
+                const response = await fetch('/api/smart-properties/', { headers: apiHeaders });
+                console.log('Smart Properties API Response:', response.status, response.statusText);
+                
+                if (response.ok) {
+                    const properties = await response.json();
+                    console.log('Smart Properties Data:', properties);
+                    displaySmartProperties(properties);
+                } else {
+                    const errorText = await response.text();
+                    console.error('Smart Properties API Error:', errorText);
+                    grid.innerHTML = `<div class="loading-card"><p>Failed to load properties (${response.status})</p></div>`;
+                }
+            } catch (error) {
+                console.error('Smart Properties Network Error:', error);
+                grid.innerHTML = '<div class="loading-card"><p>Network error loading properties</p></div>';
+            }
+        }
+        
+        function displaySmartProperties(properties) {
+            const grid = document.getElementById('smartPropertiesGrid');
+            
+            if (properties.length === 0) {
+                grid.innerHTML = `
+                    <div class="loading-card">
+                        <h3>🤖 Ready to Create Smart Properties!</h3>
+                        <p>Add your first property with AI-powered content generation</p>
+                        <button class="btn btn-primary" onclick="openSmartPropertyModal()">+ Create First Property</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = properties.map(property => createSmartPropertyCard(property)).join('');
+        }
+        
+        function createSmartPropertyCard(property) {
+            const hasAIContent = property.ai_content && property.ai_content.length > 50;
+            
+            return `
+                <div class="smart-property-card">
+                    <div class="property-header">
+                        <div>
+                            <h3 class="property-title">${property.address || property.title || 'Property'}</h3>
+                            <div class="property-details">
+                                <span>🏠 ${property.property_type || 'N/A'}</span>
+                                <span>🛏️ ${property.bedrooms || 'N/A'} bed</span>
+                                <span>🚿 ${property.bathrooms || 'N/A'} bath</span>
+                                <span>📍 ${property.location || 'N/A'}</span>
+                            </div>
+                        </div>
+                        <div class="property-price">${property.price || 'Price TBD'}</div>
+                    </div>
+                    
+                    ${hasAIContent ? `
+                        <div class="ai-content-section">
+                            <div class="ai-badge">🤖 AI Generated</div>
+                            <div class="generated-content">${property.ai_content.substring(0, 150)}${property.ai_content.length > 150 ? '...' : ''}</div>
+                            <div class="content-actions">
+                                <button class="btn-small btn-facebook" onclick="postToFacebook('${property.id}')">📘 Post to Facebook</button>
+                                <button class="btn-small btn-ai" onclick="editProperty('${property.id}')">✏️ Edit</button>
+                                <button class="btn-small btn-regenerate" onclick="regeneratePropertyAI('${property.id}')">🔄 Regenerate</button>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="ai-content-section" style="background: #f59e0b;">
+                            <div class="ai-badge">⚠️ No AI Content</div>
+                            <div class="generated-content">Generate professional marketing content for this property</div>
+                            <div class="content-actions">
+                                <button class="btn-small btn-ai" onclick="generatePropertyAI('${property.id}')" style="background: white; color: #f59e0b;">🤖 Generate AI Content</button>
+                            </div>
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+        
+        function openSmartPropertyModal() {
+            document.getElementById('smartPropertyModal').style.display = 'flex';
+            resetPropertyForm();
+        }
+        
+        function resetPropertyForm() {
+            document.getElementById('smartPropertyForm').reset();
+            document.getElementById('autoGenerateAI').checked = true;
+            document.getElementById('aiGeneratedContent').style.display = 'none';
+            document.getElementById('aiLoadingState').style.display = 'block';
+            currentPropertyData = {};
+        }
+        
+        function onPropertyInputChange() {
+            if (!document.getElementById('autoGenerateAI').checked) return;
+            
+            clearTimeout(aiGenerationTimeout);
+            aiGenerationTimeout = setTimeout(generatePreviewContent, 800);
+        }
+        
+        async function generatePreviewContent() {
+            const address = document.getElementById('smartPropertyAddress').value;
+            const price = document.getElementById('smartPropertyPrice').value;
+            const type = document.getElementById('smartPropertyType').value;
+            const bedrooms = document.getElementById('smartPropertyBedrooms').value;
+            const bathrooms = document.getElementById('smartPropertyBathrooms').value;
+            const features = document.getElementById('smartPropertyFeatures').value;
+            
+            if (!address || !price || !type) {
+                return; // Need minimum info
+            }
+            
+            const propertyData = { address, price, type, bedrooms, bathrooms, features };
+            const template = document.getElementById('aiTemplate').value;
+            const language = document.getElementById('aiLanguage').value;
+            
+            // Show loading
+            document.getElementById('aiLoadingState').style.display = 'none';
+            document.getElementById('aiGeneratedContent').style.display = 'block';
+            document.getElementById('editableContent').innerHTML = '<div class="spinner" style="margin: 1rem auto;"></div>';
+            
+            try {
+                const response = await fetch('/api/listings/generate', {
+                    method: 'POST',
+                    headers: apiHeaders,
+                    body: JSON.stringify({
+                        property_data: propertyData,
+                        template: template,
+                        language: language
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    document.getElementById('editableContent').textContent = result.content || result.generated_content;
+                    currentPropertyData = { ...propertyData, ai_content: result.content || result.generated_content };
+                } else {
+                    document.getElementById('editableContent').innerHTML = '<div style="color: #fca5a5;">Failed to generate content. Try again.</div>';
+                }
+            } catch (error) {
+                document.getElementById('editableContent').innerHTML = '<div style="color: #fca5a5;">Network error. Please try again.</div>';
+            }
+        }
+        
+        document.getElementById('smartPropertyForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            
+            // Add AI content if available
+            const aiContent = document.getElementById('editableContent').textContent;
+            if (aiContent && !aiContent.includes('Failed') && !aiContent.includes('Network error')) {
+                data.ai_content = aiContent;
+            }
+            
+            // Set auto_generate flag
+            data.auto_generate = document.getElementById('autoGenerateAI').checked;
+            data.template = document.getElementById('aiTemplate').value;
+            data.language = document.getElementById('aiLanguage').value;
+            
+            try {
+                const response = await fetch('/api/smart-properties', {
+                    method: 'POST',
+                    headers: apiHeaders,
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    alert('🚀 Smart Property created successfully!');
+                    closeModal('smartPropertyModal');
+                    e.target.reset();
+                    loadDashboardData();
+                    if (document.getElementById('smart-propertiesSection').style.display !== 'none') {
+                        loadSmartProperties();
+                    }
+                } else {
+                    const result = await response.json();
+                    alert(result.detail || 'Failed to create property');
+                }
+            } catch (error) {
+                alert('Network error. Please try again.');
+            }
+        });
+        
+        async function regeneratePropertyAI(propertyId) {
+            try {
+                const response = await fetch(`/api/smart-properties/${propertyId}/regenerate-ai`, {
+                    method: 'POST',
+                    headers: apiHeaders,
+                    body: JSON.stringify({
+                        template: 'just_listed',
+                        language: 'en'
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    alert('🔄 AI content regenerated successfully!');
+                    loadSmartProperties(); // Reload the properties grid
+                } else {
+                    alert('Failed to regenerate AI content');
+                }
+            } catch (error) {
+                alert('Network error. Please try again.');
+            }
+        }
+        
+        async function postToFacebook(propertyId) {
+            // Implementation for posting to Facebook
+            alert('📘 Posting to Facebook...');
+        }
+        
+        function toggleAIGeneration() {
+            const isEnabled = document.getElementById('autoGenerateAI').checked;
+            if (isEnabled && document.getElementById('smartPropertyAddress').value) {
+                onPropertyInputChange();
+            } else if (!isEnabled) {
+                document.getElementById('aiGeneratedContent').style.display = 'none';
+                document.getElementById('aiLoadingState').style.display = 'block';
+            }
+        }
+        
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            if (event.target.classList && event.target.classList.contains('modal')) {
+                event.target.style.display = 'none';
+            }
+        };
     </script>
-  </body>
+</body>
 </html>

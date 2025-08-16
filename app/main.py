@@ -38,6 +38,15 @@ async def login_page(request: Request):
 async def dashboard_page(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
+# Add Simple Authentication Routes FIRST (before proxy)
+try:
+    from api.endpoints import simple_auth  # type: ignore
+    app.include_router(simple_auth.router, tags=["auth"])
+    print("✅ Authentication routes loaded successfully!")
+except Exception as auth_error:
+    print(f"⚠️ Authentication routes not available: {auth_error}")
+    pass
+
 # Routers
 try:
     from .routes import system as system_routes  # type: ignore
@@ -59,7 +68,27 @@ try:
     app.include_router(facebook_oauth.router, prefix="/api/facebook", tags=["facebook"])
     app.include_router(facebook_pages.router, prefix="/api/facebook", tags=["facebook"])
     print("✅ Facebook API routes loaded successfully!")
+    
 except Exception as e:
     # Routes optional during early modularization
     print(f"⚠️ Some routes not available: {e}")
+    pass
+
+# Add AI/GenAI Content Generation Routes (separate try block)
+try:
+    from api.endpoints import listing_posts, ai_localization  # type: ignore
+    app.include_router(listing_posts.router, prefix="/api/listings", tags=["ai-listing"])
+    app.include_router(ai_localization.router, tags=["ai-localization"])
+    print("✅ AI Content Generation routes loaded successfully!")
+except Exception as ai_error:
+    print(f"⚠️ AI routes not available: {ai_error}")
+    pass
+
+# Add Smart Properties (AI-First) Routes
+try:
+    from api.endpoints import smart_properties  # type: ignore
+    app.include_router(smart_properties.router, prefix="/api", tags=["smart-properties"])
+    print("✅ Smart Properties (AI-First) routes loaded successfully!")
+except Exception as smart_error:
+    print(f"⚠️ Smart Properties routes not available: {smart_error}")
     pass

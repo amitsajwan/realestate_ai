@@ -13,6 +13,7 @@
       if(!res.ok){ throw new Error('Login failed'); }
       const data = await res.json();
       localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
       window.location.href = '/dashboard';
     }catch(err){
       alert('Login failed');

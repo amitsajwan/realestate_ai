@@ -105,7 +105,7 @@ async def facebook_oauth_callback(
         await agent_repo.connect_facebook_page(user.id, first_page)
 
         return RedirectResponse(
-            url=f"{settings.FRONTEND_URL}/dashboard?connected=true",
+            url=f"{settings.BASE_URL}/dashboard?connected=true",
             status_code=302,
         )
         

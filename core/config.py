@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     STABILITY_API_KEY: str = ""
     HUGGINGFACE_API_TOKEN: str = ""
 
+    # OpenAI and Playwright config
+    OPENAI_API_KEY: str = ""
+    OPENAI_BASE_URL: str = ""
+    PW_NO_SERVER: str = "0"
+
     class Config:
         env_file = ".env"
         env_file_encoding = 'utf-8'

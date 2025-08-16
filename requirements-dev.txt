@@ -1,6 +1,9 @@
 pytest==8.3.2
 pytest-order==1.3.0
-playwright==1.46.0
 black==24.8.0
 isort==5.13.2
 ruff==0.5.6
+
+# Optional: Agent-driven browser control via Playwright MCP
+openai>=1.40.0
+openai-agents>=0.2.0
