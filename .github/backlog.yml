@@ -79,7 +79,13 @@ issues:
     body: |
       Use python-jose consistently; ensure exp validation and friendly errors.
       - Add smoke tests for token expiry/invalid signatures
-    labels: [tech-debt, area:auth]
+    labels: [tech-debt, area:auth, priority:high]
+    milestone: Week 1
+
+  - title: Add /health endpoint for probes
+    body: |
+      Provide a lightweight health check returning 200 {status:"ok"} for readiness/liveness.
+    labels: [feature, area:ops, priority:medium]
     milestone: Week 1
 
   # Epic 2: Agent productivity
@@ -94,13 +100,13 @@ issues:
     body: |
       Simple heuristic (rules-based) scoring; show on dashboard and lists.
       Acceptance: score appears; configurable weights.
-    labels: [feature, area:ai]
+    labels: [feature, area:ai, priority:medium]
     milestone: Week 2
 
   - title: Follow-up reminders and simple queue
     body: |
       Allow scheduling and viewing upcoming follow-ups; basic notifications in UI.
-    labels: [feature, area:ui]
+    labels: [feature, area:ui, priority:high]
     milestone: Week 2
 
   - title: Tagging/segments and saved filters

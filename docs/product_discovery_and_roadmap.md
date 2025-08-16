@@ -9,6 +9,21 @@ Owners: Product (PO/PM), Business (Agents), BA, Tech Architect, Eng, QA
 - We started a Mongo-only migration and refactored Facebook endpoints; remaining 500s on FB endpoints must be fixed.
 - This document aligns business goals with a phased roadmap, backlog, and architecture guardrails.
 
+## Workshop decisions & priorities (2025-08-16)
+- Priorities
+  - P0: Fix 500s on Facebook endpoints and complete Mongo-only sweep (no SQLite remnants)
+  - P0: Stabilize JWT issuance/verification (python-jose) and add smoke tests
+  - P1: Add Facebook Graph API mocks + feature flag for external calls; expand integration tests
+  - P1: Strengthen CI artifacts (coverage, Playwright traces); health endpoint for probes
+  - P2: Lead reminders/queue MVP; tags/saved filters; templates
+- Environment baseline
+  - Ensure MONGO_URI configured for local, CI, and container runtime; unify config via core/settings
+  - Keep app bound to port 8004; docker-compose provides Mongo 6
+- Delivery approach
+  - Feature-flag external integrations (default: mock in CI)
+  - Treat “Now / Next / Later” as board columns; map Week 1→Now, Week 2→Next, Weeks 3–4→Later
+  - Update this doc and backlog on every review
+
 ## What’s live in the repo today
 - Application runtime
   - FastAPI app `complete_production_crm:app` (port 8004)
@@ -95,15 +110,16 @@ Owners: Product (PO/PM), Business (Agents), BA, Tech Architect, Eng, QA
 - Backups and restore playbooks; DR drills
 
 ## Near-term roadmap and timelines (indicative)
-- Week 1
-  - Resolve FB 500s; add integration tests for FB config/pages/select/post with mocks
+- Week 1 (Now)
+  - Resolve FB 500s (return 200 with connected:false for config; 400 for pages when not connected)
   - Sweep repo for SQLite remnants; finalize Mongo adapter and migrations
-  - Stabilize JWT and auth edge cases; add smoke tests
-- Week 2
-  - FB happy-path demo (mocked Graph API); feature-flag external calls
-  - Add lead reminders + simple follow-up queue (in-app only)
+  - Stabilize JWT issuance/verification and add smoke tests
+  - Add health endpoint /health for probes
+- Week 2 (Next)
+  - FB happy-path demo (mocked Graph API; feature flag live calls)
+  - Lead reminders + simple follow-up queue (in-app only)
   - CI artifacts for coverage and Playwright video traces
-- Weeks 3-4
+- Weeks 3–4 (Later)
   - Roles & permissions (RBAC) and basic audit trail
   - Analytics MVP (per-agent dashboard cards)
   - Observability: structured logs + minimal metrics
@@ -118,6 +134,10 @@ Owners: Product (PO/PM), Business (Agents), BA, Tech Architect, Eng, QA
 - Facebook config
   - Given a logged-in agent without FB, GET /api/facebook/config returns 200 {connected:false}
   - When FB is connected (mock), pages list returns 200 with page ids/names
+- JWT/auth
+  - Invalid token → 401 with {detail:"Invalid token"}; expired → 401 with {detail:"Token expired"}
+- Health
+  - GET /health returns 200 {status:"ok"}
 - Leads
   - Create, list, and dashboard stats update within a second under test conditions
 
