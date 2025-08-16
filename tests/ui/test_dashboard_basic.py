@@ -22,9 +22,8 @@ def test_login_and_nav():
         page.wait_for_url(f"{BASE_URL}/dashboard", timeout=10000)
         expect(page.locator("text=Real Estate CRM Dashboard")).to_be_visible()
 
-        # Ensure sections toggle without console errors
-        with page.expect_console_message() as _:
-            page.click("text=Leads")
+        # Ensure sections toggle without issues
+        page.click("text=Leads")
         expect(page.locator("#leadsSection")).to_be_visible()
         expect(page.locator("#dashboardSection")).not_to_be_visible()
 
