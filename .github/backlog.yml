@@ -40,7 +40,7 @@ milestones:
 
 issues:
   # Epic 1: Mongo-only migration + Facebook stabilization
-  - title: Epic: Complete Mongo-only migration and stabilize Facebook integration
+  - title: "Epic: Complete Mongo-only migration and stabilize Facebook integration"
     body: |
       Track and deliver end-to-end migration from SQLite to Mongo and stabilize Facebook endpoints.
 
