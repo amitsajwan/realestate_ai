@@ -18,6 +18,7 @@ from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse, JSON
 from fastapi.staticfiles import StaticFiles
 import hashlib
 from jose import jwt, JWTError, ExpiredSignatureError
+from core.config import settings
 from datetime import datetime, timedelta
 from typing import Optional
 import uvicorn
@@ -46,7 +47,8 @@ app.include_router(dashboard.router, prefix="/api/dashboard")
 app.include_router(facebook_oauth.router, prefix="/api/facebook")
 
 # Configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "real_estate_crm_secret_key_2025")
+# Comment out the local SECRET_KEY since we're using the one from settings
+# SECRET_KEY = os.getenv("SECRET_KEY", "real_estate_crm_secret_key_2025")
 FB_APP_ID = os.getenv("FB_APP_ID")
 FB_APP_SECRET = os.getenv("FB_APP_SECRET")
 FB_REDIRECT_URI = os.getenv("FB_REDIRECT_URI", "http://localhost:8004/auth/facebook/callback")
@@ -109,7 +111,7 @@ def verify_token(authorization: Optional[str] = Header(None)):
     
     token = authorization.split(" ")[1]
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
         return payload
     except ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
@@ -1311,11 +1313,12 @@ async def login_user(request: Request):
     # Create JWT token
     exp_ts = int((datetime.utcnow() + timedelta(days=7)).timestamp())
     token_data = {
+        "sub": user['email'],  # Standard JWT subject field
         "user_id": str(user.get('_id', user.get('id'))),  # Handle both MongoDB ObjectId and SQLite id
         "email": user['email'],
         "exp": exp_ts
     }
-    token = jwt.encode(token_data, SECRET_KEY, algorithm="HS256")
+    token = jwt.encode(token_data, settings.SECRET_KEY, algorithm="HS256")
     
     return {
         "token": token,
@@ -1480,7 +1483,7 @@ async def facebook_callback(code: str = Query(None), state: str = Query(None), e
         return HTMLResponse(f"<p>Facebook auth failed: {error}</p>")
     # state contains JWT; validate to find user
     try:
-        payload = jwt.decode(state, SECRET_KEY, algorithms=["HS256"])
+        payload = jwt.decode(state, settings.SECRET_KEY, algorithms=["HS256"])
     except Exception:
         return HTMLResponse("<p>Invalid session</p>", status_code=400)
     user_id = payload.get("user_id")
