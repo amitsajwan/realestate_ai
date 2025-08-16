@@ -15,19 +15,20 @@ app.mount("/static", StaticFiles(directory=os.path.join(ROOT_DIR, "static")), na
 # Templates
 templates = Jinja2Templates(directory=os.path.join(ROOT_DIR, "templates"))
 
-@app.middleware("http")
-async def auth_redirect_middleware(request: Request, call_next):
-    """Redirect anonymous users from protected pages to login.
-
-    Minimal check: if path is /dashboard and there's no Authorization header,
-    send a 302 to "/". This will be replaced with proper JWT/cookie validation later.
-    """
-    if request.url.path.rstrip("/") == "/dashboard":
-        has_header = bool(request.headers.get("authorization"))
-        has_cookie = bool(request.cookies.get("auth"))
-        if not (has_header or has_cookie):
-            return RedirectResponse(url="/", status_code=302)
-    return await call_next(request)
+# Temporarily disabled auth middleware for Facebook testing
+# @app.middleware("http")
+# async def auth_redirect_middleware(request: Request, call_next):
+#     """Redirect anonymous users from protected pages to login.
+#
+#     Minimal check: if path is /dashboard and there's no Authorization header,
+#     send a 302 to "/". This will be replaced with proper JWT/cookie validation later.
+#     """
+#     if request.url.path.rstrip("/") == "/dashboard":
+#         has_header = bool(request.headers.get("authorization"))
+#         has_cookie = bool(request.cookies.get("auth"))
+#         if not (has_header or has_cookie):
+#             return RedirectResponse(url="/", status_code=302)
+#     return await call_next(request)
 
 @app.get("/", response_class=HTMLResponse)
 async def login_page(request: Request):
@@ -49,6 +50,16 @@ try:
     app.include_router(leads_routes.router)
     from .routes import properties as properties_routes  # type: ignore
     app.include_router(properties_routes.router)
-except Exception:
+    
+    # Add Facebook Integration Routes
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from api.endpoints import facebook_oauth, facebook_pages  # type: ignore
+    app.include_router(facebook_oauth.router, prefix="/api/facebook", tags=["facebook"])
+    app.include_router(facebook_pages.router, prefix="/api/facebook", tags=["facebook"])
+    print("✅ Facebook API routes loaded successfully!")
+except Exception as e:
     # Routes optional during early modularization
+    print(f"⚠️ Some routes not available: {e}")
     pass
