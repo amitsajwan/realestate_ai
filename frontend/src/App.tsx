@@ -1,15 +1,19 @@
 // --- Helper: Generate Listing Post ---
 function generateListingPost() {
+  print("ddddddddddddddddddddddddddd")
   const token = localStorage.getItem('jwt_token');
+  // Example user input (replace with actual form values if needed)
+  const rawPrice = '₹1,00,00,000';
+  const rawFeatures = 'Sea view, Gym, Pool';
   const payload = {
     template: 'just_listed',
     address: '123 Main St',
     city: 'Pune',
     state: 'MH',
-    price: '₹1,00,00,000',
+    price: String(rawPrice), // always string
     bedrooms: 3,
     bathrooms: 2.0,
-    features: ['Sea view', 'Gym', 'Pool']
+    features: rawFeatures.split(',').map(f => f.trim()).filter(f => f.length > 0), // always array of strings
     // Optional fields can be added if needed, but only those defined in ListingDetails
   };
   fetch('http://localhost:8003/api/listings/generate', {

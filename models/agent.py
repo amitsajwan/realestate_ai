@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import Optional, List
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict
 from datetime import datetime
 
 class FacebookPage(BaseModel):
@@ -38,3 +38,36 @@ class FacebookOAuthState(BaseModel):
     user_id: str
     created_at: datetime
     expires_at: datetime
+
+class Agent(BaseModel):
+    agent_id: str = Field(...)
+    business_name: str
+    contact_email: str
+    phone: str
+
+    # Facebook Configuration
+    facebook_app_id: Optional[str]
+    facebook_app_secret: Optional[str]
+    facebook_page_id: Optional[str]
+    facebook_access_token: Optional[str]
+
+    # Subscription Management
+    subscription_tier: str = "trial"
+    subscription_status: str = "active"
+    trial_end_date: Optional[datetime]
+    billing_cycle: str = "monthly"
+
+    # AI Preferences
+    ai_preferences: Dict = {
+        "default_template": "just_listed",
+        "tone": "professional",
+        "include_emojis": True,
+        "language": "english"
+    }
+
+    # Branding
+    brand_colors: Dict = {"primary": "#007bff", "secondary": "#6c757d"}
+    logo_url: Optional[str]
+
+    created_at: datetime
+    updated_at: datetime

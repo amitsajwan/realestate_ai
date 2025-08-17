@@ -32,7 +32,7 @@ try:
     db = mongo_client.realestate_crm
     # Send a ping to confirm a successful connection
     mongo_client.admin.command('ping')
-    print("✅ MongoDB connection successful.")
+    print("✅ MongoDB connection successful......")
 except Exception as e:
     raise RuntimeError(f"MongoDB initialization failed: {e}")
 

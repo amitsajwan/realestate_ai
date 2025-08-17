@@ -50,8 +50,8 @@ class LocationDetails(BaseModel):
 
 class IndianListingDetails(BaseModel):
     """Listing details specific to Indian real estate market."""
-    property_type: PropertyType = Field(..., description="Type of property")
-    price: float = Field(..., description="Price in INR")
+    property_type: Optional[PropertyType] = Field(..., description="Type of property")
+    price: Optional[float] = Field(..., description="Price in INR")
     price_per_sqft: Optional[float] = Field(None, description="Price per square foot")
     carpet_area: Optional[float] = Field(None, description="Carpet area in sq ft")
     built_up_area: Optional[float] = Field(None, description="Built-up area in sq ft")
@@ -78,10 +78,10 @@ class IndianListingDetails(BaseModel):
     rera_id: Optional[str] = Field(None, description="RERA registration ID")
     
     # Location
-    location: LocationDetails = Field(..., description="Property location details")
+    location: Optional[LocationDetails] = Field(..., description="Property location details")
     
     # Description
-    description: str = Field(..., description="Property description")
+    description: Optional[str] = Field(..., description="Property description")
     description_mr: Optional[str] = Field(None, description="Property description in Marathi")
     
     # Agent contact

@@ -61,7 +61,7 @@ async def generate_india_listing_post(
     current_user: User = Depends(get_current_user)
 ):
     """Generate a listing post for India market in specified language."""
-    
+    print("ddddddddddddddddddddddddddd")
     try:
         # Generate the post
         result = india_service.generate_listing_post(

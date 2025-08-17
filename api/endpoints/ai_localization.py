@@ -67,6 +67,7 @@ async def generate_localized_listing(
     current_user: User = Depends(get_current_user)
 ):
     """Generate AI-powered localized listing post."""
+    print("ddddddddddddddddddddddddddd")
     
     try:
         result = await ai_localization.generate_localized_listing(

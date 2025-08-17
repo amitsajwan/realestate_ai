@@ -101,6 +101,8 @@ async def create_smart_property(
             "agent_id": current_user["user_id"]
         }
         
+
+        print("dsfsfdsg ")
         # Generate AI content if not provided and auto_generate is True
         if property_data.auto_generate and not property_data.ai_content:
             try:
@@ -209,6 +211,7 @@ async def regenerate_ai_content(
             "features": property_data.get("description", "")
         }
         
+        print("xcsd asf")
         new_ai_content = generate_simple_ai_content(
             property_data=ai_property_data,
             template=template,
