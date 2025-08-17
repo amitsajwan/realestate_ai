@@ -446,6 +446,43 @@ async def facebook_callback(
             </body></html>
         """)
 
+@app.post("/api/smart-properties", response_model=SmartPropertyResponse)
+async def create_smart_property(
+    prop: SmartPropertyCreate,
+    current_user: dict = Depends(get_current_user_simple)
+):
+    """Create a smart property with MongoDB persistence"""
+    try:
+        user_email = current_user.get("email", "demo@mumbai.com")
+        logger.info(f"Creating smart property for user: {user_email}")
+        
+        prop_dict = prop.model_dump()
+        ai_content = None
+        
+        if prop.ai_generate:
+            ai_content = generate_ai_content(prop_dict)
+        
+        property_data = {
+            **prop_dict,
+            "ai_content": ai_content,
+            "status": "active"
+        }
+        
+        property_id = await storage.create_smart_property(property_data, user_email)
+        logger.info(f"Smart property created: {property_id}")
+        
+        return SmartPropertyResponse(
+            id=property_id,
+            **prop_dict,
+            ai_content=ai_content,
+            status="active",
+            created_at=datetime.utcnow().isoformat()
+        )
+        
+    except Exception as e:
+        logger.error(f"Error creating smart property: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create smart property: {str(e)}")
+
 
 @app.get("/api/smart-properties", response_model=List[SmartPropertyResponse])
 async def list_smart_properties(current_user: dict = Depends(get_current_user_simple)):

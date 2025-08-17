@@ -256,14 +256,26 @@ class SmartPropertiesComponent {
     }
     }
 
-    // Listen to form inputs and features selection
     setupEventListeners() {
     const form = document.getElementById('smart-property-form');
     if (form) {
         form.addEventListener('input', () => this.updateLivePreview());
         form.addEventListener('change', () => this.updateLivePreview());
     }
-    document.getElementById('add-custom-feature-btn').addEventListener('click', () => this.addCustomFeature());
+    const addCustomFeatureBtn = document.getElementById('add-custom-feature-btn');
+    if (addCustomFeatureBtn) {
+        addCustomFeatureBtn.addEventListener('click', () => this.addCustomFeature());
+    }
+
+    const createAndPostBtn = document.getElementById('create-and-post-btn');
+    if (createAndPostBtn) {
+        createAndPostBtn.addEventListener('click', () => this.createAndPost());
+    }
+
+    const createOnlyBtn = document.getElementById('create-only-btn');
+    if (createOnlyBtn) {
+        createOnlyBtn.addEventListener('click', () => this.createProperty());
+    }
     this.setupFeatureCheckboxListeners();
     }
 
@@ -277,6 +289,7 @@ class SmartPropertiesComponent {
     // Update selected features tags UI
     updateSelectedFeatures() {
     const container = document.getElementById('selected-features');
+    if (!container) return; // Safeguard: only update if element exists
     const features = this.getSelectedFeatures();
     container.innerHTML = features.map(f => `<span class="badge bg-primary me-1">${f} <i class="fas fa-times" onclick="smartProperties.removeFeature('${f}')"></i></span>`).join('');
     this.updateLivePreview();
@@ -364,6 +377,7 @@ class SmartPropertiesComponent {
         this.currentGeneratedContent = await response.json();
 
         const preview = document.getElementById('live-preview');
+        if (!preview) return;  // Prevent setting innerHTML if element is missing
         preview.innerHTML = `
             <div class="preview-content">
             <div class="d-flex align-items-center mb-2">
@@ -378,11 +392,14 @@ class SmartPropertiesComponent {
         `;
 
         // Show posting options to post to Facebook etc
-        document.getElementById('posting-options').style.display = 'block';
+        const postingOptions = document.getElementById('posting-options');
+        if (postingOptions) postingOptions.style.display = 'block';
+
 
         } catch (error) {
         console.error('Preview generation error:', error);
         const preview = document.getElementById('live-preview');
+        if (!preview) return; // Safeguard: only update if element exists
         preview.innerHTML = `<div class="text-danger">Error generating preview...</div>`;
         }
     }
@@ -663,6 +680,40 @@ class SmartPropertiesComponent {
         // Optionally, load Facebook status or reset form here if needed
         this.loadFacebookStatus();
     }
+
+    async createProperty() {
+    try {
+        const propertyData = this.getPropertyFormData();
+        
+        const response = await fetch('/api/smart-properties', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${dashboardCore.getAuthToken()}`
+            },
+            body: JSON.stringify(propertyData)
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            
+            dashboardCore.showToast('success', 'Property Created!', `Property at ${result.address} created successfully.`);
+            
+            this.closeModal();
+            await this.loadProperties();
+            
+            return result; // Return the created property for use in createAndPost
+        } else {
+            const error = await response.json();
+            dashboardCore.showToast('error', 'Creation Failed', error.detail || 'Failed to create property');
+            return null;
+        }
+    } catch (error) {
+        console.error('Error creating property:', error);
+        dashboardCore.showToast('error', 'Network Error', 'Unable to create property. Please try again.');
+        return null;
+    }
+}
 
 }
 

@@ -13,12 +13,15 @@ logger = logging.getLogger(__name__)
 # Simple in-memory storage for testing
 smart_properties_db = []
 
+from pydantic import BaseModel, Field
+from typing import Optional
+
 class SmartPropertyCreate(BaseModel):
     address: str
     price: str
     property_type: str
     bedrooms: int = Field(default=0)
-    bathrooms: int = Field(default=0) 
+    bathrooms: float = Field(default=0)
     features: Optional[str] = None
     ai_generate: bool = True
     template: Optional[str] = "just_listed"
@@ -30,7 +33,7 @@ class SmartPropertyResponse(BaseModel):
     price: str
     property_type: str
     bedrooms: int
-    bathrooms: int
+    bathrooms: float
     features: Optional[str]
     ai_content: Optional[str]
     status: str = "active"
