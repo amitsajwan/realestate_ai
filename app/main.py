@@ -801,51 +801,61 @@ async def facebook_pages(current_user: dict = Depends(get_current_user_simple)):
 
 @app.post("/api/facebook/post")
 async def facebook_post(request: Request, current_user: dict = Depends(get_current_user_simple)):
-    """Post content to Facebook page"""
     try:
         data = await request.json()
-        message = data.get("message", "")
+        property_id = data.get("property_id")
+        tone = data.get("tone", "Professional")
+        language = data.get("language", "English")
         image_url = data.get("image_url")
-        
-        if not message:
-            raise HTTPException(status_code=400, detail="Message is required")
-        
+
+        # 1. Fetch property data (from DB, replace as needed)
+        # Example for Mongo/in-memory:
+        property_data = None
         user_email = current_user.get("email", "demo@mumbai.com")
-        
-        global facebook_connections
-        if 'facebook_connections' not in globals():
-            facebook_connections = {}
-        
-        connection = facebook_connections.get(user_email)
-        
+
+        # If using storage manager for Mongo
+        user_properties = await storage.get_smart_properties(user_email)
+        for prop in user_properties:
+            if prop.get("id") == property_id:
+                property_data = prop
+                break
+
+        if not property_data:
+            raise HTTPException(status_code=404, detail="Property not found")
+
+        # 2. Build agent info
+        agent_data = {
+            "name": current_user.get("name", "Agent"),
+            "phone": current_user.get("phone", "+91 98765 43210"),
+        }
+
+        # 3. Generate the post text!
+        message = generate_facebook_property_post(property_data, agent_data, tone, language)
+
+        # (4. Post to Facebook -- keep your existing logic)
+        connection = await storage.get_facebook_connection(user_email)
         if not connection or not connection.get("connected"):
             raise HTTPException(status_code=400, detail="Facebook page not connected")
-        
         page_id = connection.get("page_id")
         page_token = connection.get("page_token")
         page_name = connection.get("page_name")
-        
         if not page_id or not page_token:
             raise HTTPException(status_code=400, detail="Invalid Facebook page configuration")
-        
-        # Post to Facebook
+
         post_url = f"https://graph.facebook.com/v20.0/{page_id}/feed"
         post_data = {
             "message": message,
             "access_token": page_token
         }
-        
         if image_url:
             post_data["link"] = image_url
-        
+
+        import requests
         response = requests.post(post_url, data=post_data, timeout=30)
-        
+
         if response.status_code == 200:
             result = response.json()
             post_id = result.get("id")
-            
-            logger.info(f"Successfully posted to Facebook page {page_name}: {post_id}")
-            
             return {
                 "status": "success",
                 "message": f"✅ Posted successfully to {page_name}!",
@@ -856,15 +866,15 @@ async def facebook_post(request: Request, current_user: dict = Depends(get_curre
         else:
             error_data = response.json() if response.headers.get('content-type') == 'application/json' else {}
             error_message = error_data.get("error", {}).get("message", f"HTTP {response.status_code}")
-            
-            logger.error(f"Facebook posting failed: {error_message}")
             raise HTTPException(status_code=400, detail=f"Facebook posting failed: {error_message}")
-            
+
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Facebook post error: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to post to Facebook: {str(e)}")
+
 
 @app.post("/api/facebook/disconnect")
 async def facebook_disconnect(current_user: dict = Depends(get_current_user_simple)):
@@ -898,6 +908,56 @@ async def debug_facebook_config():
         "redirect_uri": f"{os.getenv('BASE_URL', 'http://localhost:8003')}/auth/facebook/callback",
         "oauth_url_template": f"https://www.facebook.com/v20.0/dialog/oauth?client_id={os.getenv('FB_APP_ID')}&redirect_uri={os.getenv('BASE_URL', 'http://localhost:8003')}/auth/facebook/callback&scope=pages_show_list,pages_manage_posts,pages_read_engagement,pages_manage_metadata,public_profile,email&response_type=code"
     }
+
+
+def generate_facebook_property_post(
+    property_data: dict, 
+    agent_data: dict, 
+    tone: str = "Professional", 
+    language: str = "English"
+) -> str:
+    """
+    Generate a Facebook post text for a property including agent details.
+    tone: Professional, Friendly, Luxurious, Urgent (default Professional)
+    language: English, Hindi, Marathi (default English)
+    """
+
+    # For simplicity, we'll just simulate tone/language variation in sample text
+    # In production you would pass this prompt to your AI model for generation
+
+    base_post = (
+        f"🏠 NEW LISTING: {property_data.get('property_type', 'Property')} at {property_data.get('address', '')}!\n\n"
+        f"✨ Features: {property_data.get('features', '-')}\n"
+        f"💰 Price: {property_data.get('price', '-')}\n"
+        f"🛏 Bedrooms: {property_data.get('bedrooms', 0)} 🚿 Bathrooms: {property_data.get('bathrooms', 0)}\n"
+        f"📍 Location: {property_data.get('location', '-')}\n\n"
+    )
+
+    # Tone simulation
+    tone_phrases = {
+        "Friendly": "Don't miss out on this lovely home!",
+        "Luxurious": "Experience luxury living like never before.",
+        "Urgent": "Act fast! This won't last long.",
+        "Professional": "Contact us today to schedule a viewing."
+    }
+    tone_text = tone_phrases.get(tone, tone_phrases["Professional"])
+
+    # Language fallback (demo only, English only for now)
+    if language != "English":
+        base_post += f"[Note: This post is in {language}. Translation coming soon.]\n\n"
+
+    agent_contact = (
+        f"---\n"
+        f"👤 Agent: {agent_data.get('name', 'Your Agent')}\n"
+        f"📞 Phone: {agent_data.get('phone', 'N/A')}\n"
+    )
+
+    hashtags = "#RealEstate #JustListed #PropertyForSale"
+
+    full_post = f"{base_post}{tone_text}\n\n{agent_contact}\n{hashtags}"
+
+    return full_post
+
 
 
 if __name__ == "__main__":
