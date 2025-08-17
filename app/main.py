@@ -592,22 +592,17 @@ import requests
 # FACEBOOK INTEGRATION ENDPOINTS
 # ===============================
 
+
 @app.get("/auth/facebook/login")
 async def facebook_login(token: str = Query(...)):
     """Initiate Facebook OAuth flow"""
-    # Get Facebook app credentials
+    # Get Facebook app credentials - FIXED to read BASE_URL from env
     FB_APP_ID = os.getenv("FB_APP_ID")
-    FB_REDIRECT_URI = "http://localhost:8003/auth/facebook/callback"
+    BASE_URL = os.getenv("BASE_URL", "http://localhost:8003")  # Read BASE_URL from environment
+    FB_REDIRECT_URI = f"{BASE_URL}/auth/facebook/callback"
     
-    # Try to get from settings if available
-    try:
-        from core.config import settings
-        if hasattr(settings, 'FB_APP_ID') and settings.FB_APP_ID:
-            FB_APP_ID = settings.FB_APP_ID
-        if hasattr(settings, 'BASE_URL') and settings.BASE_URL:
-            FB_REDIRECT_URI = f"{settings.BASE_URL}/auth/facebook/callback"
-    except ImportError:
-        pass
+    logger.info(f"Using BASE_URL: {BASE_URL}")
+    logger.info(f"FB_REDIRECT_URI: {FB_REDIRECT_URI}")
     
     if not FB_APP_ID:
         return JSONResponse(
@@ -628,7 +623,6 @@ async def facebook_login(token: str = Query(...)):
     logger.info(f"Redirecting to Facebook OAuth: {oauth_url}")
     
     return RedirectResponse(oauth_url)
-
 
 @app.get("/auth/facebook/callback")
 async def facebook_callback(
@@ -656,26 +650,15 @@ async def facebook_callback(
         """)
     
     try:
-        # Get Facebook app credentials - FIXED settings access
+        # Get Facebook app credentials - FIXED to read BASE_URL from env
         FB_APP_ID = os.getenv("FB_APP_ID")
         FB_APP_SECRET = os.getenv("FB_APP_SECRET")
-        FB_REDIRECT_URI = "http://localhost:8003/auth/facebook/callback"
+        BASE_URL = os.getenv("BASE_URL", "http://localhost:8003")  # Read BASE_URL from environment
+        FB_REDIRECT_URI = f"{BASE_URL}/auth/facebook/callback"
+        SECRET_KEY = os.getenv("SECRET_KEY", "demo_secret_key_change_in_production")
         
-        # Try to get from settings if available
-        try:
-            from core.config import settings
-            if hasattr(settings, 'FB_APP_ID') and settings.FB_APP_ID:
-                FB_APP_ID = settings.FB_APP_ID
-            if hasattr(settings, 'FB_APP_SECRET') and settings.FB_APP_SECRET:
-                FB_APP_SECRET = settings.FB_APP_SECRET
-            if hasattr(settings, 'BASE_URL') and settings.BASE_URL:
-                FB_REDIRECT_URI = f"{settings.BASE_URL}/auth/facebook/callback"
-            if hasattr(settings, 'SECRET_KEY'):
-                SECRET_KEY = settings.SECRET_KEY
-            else:
-                SECRET_KEY = os.getenv("SECRET_KEY", "demo_secret_key_change_in_production")
-        except ImportError:
-            SECRET_KEY = os.getenv("SECRET_KEY", "demo_secret_key_change_in_production")
+        logger.info(f"Callback using BASE_URL: {BASE_URL}")
+        logger.info(f"Callback FB_REDIRECT_URI: {FB_REDIRECT_URI}")
         
         if not FB_APP_ID or not FB_APP_SECRET:
             return HTMLResponse("""
@@ -686,7 +669,7 @@ async def facebook_callback(
                 </body></html>
             """)
 
-        # Validate JWT state to find user - FIXED settings access
+        # Validate JWT state to find user
         try:
             payload = jwt.decode(state, SECRET_KEY, algorithms=["HS256"])
         except Exception as jwt_error:
