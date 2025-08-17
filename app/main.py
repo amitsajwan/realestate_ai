@@ -3,6 +3,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.security import HTTPBearer
+from app.db_integration import storage
+
 from fastapi import (
     FastAPI, 
     Request, 
@@ -200,53 +202,7 @@ async def create_property(request: Request, current_user: dict = Depends(get_cur
         logger.error(f"Error creating property: {e}")
         raise HTTPException(status_code=500, detail="Failed to create property")
 
-
-@app.get("/api/facebook/config")
-async def facebook_config(current_user: dict = Depends(get_current_user_simple)):
-    """Get Facebook configuration status"""
-    try:
-        user_email = current_user.get("email", "demo@mumbai.com")
-        logger.info(f"🔍 Checking Facebook config for user: {user_email}")
-        
-        # Check if user has Facebook connection
-        global facebook_connections
-        if 'facebook_connections' not in globals():
-            facebook_connections = {}
-            logger.info("📝 Initializing empty facebook_connections")
-        
-        logger.info(f"🔗 Current facebook_connections keys: {list(facebook_connections.keys())}")
-        
-        connection = facebook_connections.get(user_email)
-        logger.info(f"🔍 Connection found for {user_email}: {connection}")
-        
-        if connection and connection.get("connected"):
-            logger.info(f"✅ Facebook connected: {connection.get('page_name')}")
-            return {
-                "connected": True,
-                "page_id": connection.get("page_id"),
-                "page_name": connection.get("page_name"),
-                "app_id": os.getenv("FB_APP_ID", ""),
-                "connected_at": connection.get("connected_at")
-            }
-        else:
-            logger.info(f"❌ Facebook not connected for {user_email}")
-            return {
-                "connected": False,
-                "page_id": None,
-                "page_name": None,
-                "app_id": os.getenv("FB_APP_ID", "")
-            }
-    except Exception as e:
-        logger.error(f"Facebook config error: {e}")
-        return {
-            "connected": False,
-            "page_id": None,
-            "page_name": None,
-            "app_id": os.getenv("FB_APP_ID", ""),
-            "error": str(e)
-        }
-
-
+ 
 # SMART PROPERTIES API
 from pydantic import BaseModel, Field
 from typing import List
@@ -295,59 +251,216 @@ def generate_ai_content(prop_data: dict) -> str:
         content += f"✨ Features: {features}\n"
     content += "\n📞 Contact us for viewing! #RealEstate #JustListed #PropertyForSale"
     
-    return content
+    return content 
 
-@app.post("/api/smart-properties", response_model=SmartPropertyResponse)
-async def create_smart_property(
-    prop: SmartPropertyCreate,
-    current_user: dict = Depends(get_current_user_simple)
-):
-    """Create a smart property with AI-generated content"""
+@app.get("/api/facebook/config")
+async def facebook_config(current_user: dict = Depends(get_current_user_simple)):
+    """Get Facebook configuration status"""
     try:
-        logger.info(f"Creating smart property for user: {current_user.get('username')}")
+        user_email = current_user.get("email", "demo@mumbai.com")
+        logger.info(f"🔍 Checking Facebook config for user: {user_email}")
         
-        prop_dict = prop.model_dump()
-        ai_content = None
+        connection = await storage.get_facebook_connection(user_email)
+        logger.info(f"🔗 Connection found: {bool(connection)}")
         
-        if prop.ai_generate:
-            ai_content = generate_ai_content(prop_dict)
-        
-        property_id = str(len(smart_properties_db) + 1)
-        property_record = {
-            "id": property_id,
-            **prop_dict,
-            "ai_content": ai_content,
-            "status": "active",
-            "created_at": datetime.utcnow().isoformat(),
-            "user_id": current_user.get("username")
-        }
-        
-        smart_properties_db.append(property_record)
-        logger.info(f"Smart property created: {property_id}")
-        
-        return SmartPropertyResponse(
-            id=property_id,
-            **prop_dict,
-            ai_content=ai_content,
-            status="active",
-            created_at=property_record["created_at"]
-        )
-        
+        if connection and connection.get("connected"):
+            logger.info(f"✅ Facebook connected: {connection.get('page_name')}")
+            return {
+                "connected": True,
+                "page_id": connection.get("page_id"),
+                "page_name": connection.get("page_name"),
+                "app_id": os.getenv("FB_APP_ID", ""),
+                "connected_at": connection.get("connected_at")
+            }
+        else:
+            logger.info(f"❌ Facebook not connected for {user_email}")
+            return {
+                "connected": False,
+                "page_id": None,
+                "page_name": None,
+                "app_id": os.getenv("FB_APP_ID", "")
+            }
     except Exception as e:
-        logger.error(f"Error creating smart property: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to create smart property: {str(e)}")
+        logger.error(f"Facebook config error: {e}")
+        return {
+            "connected": False,
+            "page_id": None,
+            "page_name": None,
+            "app_id": os.getenv("FB_APP_ID", ""),
+            "error": str(e)
+        }
+
+@app.get("/auth/facebook/callback")
+async def facebook_callback(
+    code: str = Query(None),
+    state: str = Query(None),
+    error: str = Query(None)
+):
+    import requests
+
+    if error:
+        return HTMLResponse(f"""
+            <html><body>
+                <h2>Facebook Authentication Failed</h2>
+                <p>Error: {error}</p>
+                <p><a href="/dashboard">Return to Dashboard</a></p>
+            </body></html>
+        """)
+
+    if not code or not state:
+        return HTMLResponse("""
+            <html><body>
+                <h2>Facebook Authentication Failed</h2>
+                <p>Missing authorization code or state</p>
+                <p><a href="/dashboard">Return to Dashboard</a></p>
+            </body></html>
+        """)
+
+    try:
+        # Load environment/config vars
+        FB_APP_ID = os.getenv("FB_APP_ID")
+        FB_APP_SECRET = os.getenv("FB_APP_SECRET")
+        BASE_URL = os.getenv("BASE_URL", "http://localhost:8003")
+        FB_REDIRECT_URI = f"{BASE_URL}/auth/facebook/callback"
+        SECRET_KEY = os.getenv("SECRET_KEY", "demo_secret_key_change_in_production")
+
+        # Validate JWT in state to get user
+        try:
+            payload = jwt.decode(state, SECRET_KEY, algorithms=["HS256"])
+            user_id = payload.get("user_id")
+            user_email = payload.get("email")
+        except Exception:
+            return HTMLResponse("""
+                <html><body>
+                    <h2>Invalid Session</h2>
+                    <p>User session expired or invalid</p>
+                    <p><a href="/dashboard">Return to Dashboard</a></p>
+                </body></html>
+            """)
+
+        if not user_id or not user_email:
+            return HTMLResponse("""
+                <html><body>
+                    <h2>Invalid Session</h2>
+                    <p>User information not found in session</p>
+                    <p><a href="/dashboard">Return to Dashboard</a></p>
+                </body></html>
+            """)
+
+        # Exchange code for user access token
+        token_url = "https://graph.facebook.com/v20.0/oauth/access_token"
+        token_params = {
+            "client_id": FB_APP_ID,
+            "client_secret": FB_APP_SECRET,
+            "redirect_uri": FB_REDIRECT_URI,
+            "code": code
+        }
+        token_response = requests.get(token_url, params=token_params, timeout=20)
+        if token_response.status_code != 200:
+            return HTMLResponse("""
+                <html><body>
+                    <h2>Facebook Token Exchange Failed</h2>
+                    <p>Unable to get access token from Facebook</p>
+                    <p><a href="/dashboard">Return to Dashboard</a></p>
+                </body></html>
+            """)
+        token_data = token_response.json()
+        user_access_token = token_data.get("access_token")
+        if not user_access_token:
+            return HTMLResponse("""
+                <html><body>
+                    <h2>No Access Token</h2>
+                    <p>Facebook did not provide access token</p>
+                    <p><a href="/dashboard">Return to Dashboard</a></p>
+                </body></html>
+            """)
+
+        # Get user's Facebook pages
+        pages_response = requests.get(
+            "https://graph.facebook.com/v20.0/me/accounts",
+            params={
+                "access_token": user_access_token,
+                "fields": "id,name,access_token,category"
+            },
+            timeout=20
+        )
+        if pages_response.status_code != 200:
+            return HTMLResponse("""
+                <html><body>
+                    <h2>Failed to Fetch Pages</h2>
+                    <p>Unable to get your Facebook pages</p>
+                    <p><a href="/dashboard">Return to Dashboard</a></p>
+                </body></html>
+            """)
+        pages_data = pages_response.json()
+        pages = pages_data.get("data", [])
+        if not pages:
+            return HTMLResponse("""
+                <html><body>
+                    <h2>No Facebook Pages Found</h2>
+                    <p>No Facebook pages found for your account. You need to be an admin of a Facebook page to use this feature.</p>
+                    <p><a href="/dashboard">Return to Dashboard</a></p>
+                </body></html>
+            """)
+
+        # Automatically connect the first page
+        first_page = pages[0]
+        page_id = first_page.get("id")
+        page_name = first_page.get("name")
+        page_access_token = first_page.get("access_token")
+
+        # Save to DB/integration
+        connection_data = {
+            "connected": True,
+            "page_id": page_id,
+            "page_name": page_name,
+            "page_token": page_access_token,
+            "user_token": user_access_token,
+            "connected_at": datetime.utcnow().isoformat()
+        }
+        await storage.save_facebook_connection(user_email, connection_data)
+
+        return HTMLResponse(f"""
+            <html><body>
+                <h2>✅ Facebook Connected Successfully!</h2>
+                <p>Connected to Facebook Page: <strong>{page_name}</strong></p>
+                <script>
+                    setTimeout(function() {{
+                        window.location.href = '/dashboard';
+                    }}, 1500);
+                </script>
+                <p>You can now post properties directly to Facebook.</p>
+                <p><a href="/dashboard">Return to Dashboard</a></p>
+            </body></html>
+        """)
+    except Exception as e:
+        import traceback
+        logger.error(f"Facebook callback error: {str(e)}")
+        traceback.print_exc()
+        return HTMLResponse(f"""
+            <html><body>
+                <h2>Facebook Connection Failed</h2>
+                <p>Error: {str(e)}</p>
+                <p>Please check your Facebook app configuration and try again.</p>
+                <p><a href="/dashboard">Return to Dashboard</a></p>
+            </body></html>
+        """)
+
 
 @app.get("/api/smart-properties", response_model=List[SmartPropertyResponse])
 async def list_smart_properties(current_user: dict = Depends(get_current_user_simple)):
-    """Get all smart properties"""
+    """Get all smart properties from MongoDB"""
     try:
-        logger.info(f"Fetching smart properties for user: {current_user.get('username')}")
+        user_email = current_user.get("email", "demo@mumbai.com")
+        logger.info(f"Fetching smart properties for user: {user_email}")
         
-        properties = []
-        for prop in smart_properties_db:
-            properties.append(
+        properties = await storage.get_smart_properties(user_email)
+        
+        response_properties = []
+        for prop in properties:
+            response_properties.append(
                 SmartPropertyResponse(
-                    id=prop["id"],
+                    id=prop.get("id", ""),
                     address=prop.get("address", ""),
                     price=prop.get("price", ""),
                     property_type=prop.get("property_type", ""),
@@ -360,8 +473,8 @@ async def list_smart_properties(current_user: dict = Depends(get_current_user_si
                 )
             )
         
-        logger.info(f"Found {len(properties)} smart properties")
-        return properties
+        logger.info(f"Found {len(response_properties)} smart properties")
+        return response_properties
         
     except Exception as e:
         logger.error(f"Error fetching smart properties: {e}")
@@ -624,12 +737,13 @@ import requests
 # ===============================
 
 
+from fastapi.responses import RedirectResponse, JSONResponse
+
 @app.get("/auth/facebook/login")
 async def facebook_login(token: str = Query(...)):
     """Initiate Facebook OAuth flow"""
-    # Get Facebook app credentials - FIXED to read BASE_URL from env
     FB_APP_ID = os.getenv("FB_APP_ID")
-    BASE_URL = os.getenv("BASE_URL", "http://localhost:8003")  # Read BASE_URL from environment
+    BASE_URL = os.getenv("BASE_URL", "http://localhost:8003")
     FB_REDIRECT_URI = f"{BASE_URL}/auth/facebook/callback"
     
     logger.info(f"Using BASE_URL: {BASE_URL}")
@@ -637,11 +751,10 @@ async def facebook_login(token: str = Query(...)):
     
     if not FB_APP_ID:
         return JSONResponse(
-            status_code=500, 
+            status_code=500,
             content={"detail": "Facebook App not configured. Set FB_APP_ID environment variable."}
         )
     
-    # Use state to carry JWT so we can map back to user after callback
     params = {
         "client_id": FB_APP_ID,
         "redirect_uri": FB_REDIRECT_URI,
@@ -653,206 +766,8 @@ async def facebook_login(token: str = Query(...)):
     oauth_url = "https://www.facebook.com/v20.0/dialog/oauth?" + urllib.parse.urlencode(params)
     logger.info(f"Redirecting to Facebook OAuth: {oauth_url}")
     
+    # 🚨 THIS LINE IS REQUIRED!
     return RedirectResponse(oauth_url)
-
-@app.get("/auth/facebook/callback")
-async def facebook_callback(
-    code: str = Query(None), 
-    state: str = Query(None), 
-    error: str = Query(None)
-):
-    """Handle Facebook OAuth callback"""
-    if error:
-        return HTMLResponse(f"""
-            <html><body>
-                <h2>Facebook Authentication Failed</h2>
-                <p>Error: {error}</p>
-                <p><a href="/dashboard">Return to Dashboard</a></p>
-            </body></html>
-        """)
-    
-    if not code or not state:
-        return HTMLResponse("""
-            <html><body>
-                <h2>Facebook Authentication Failed</h2>
-                <p>Missing authorization code or state</p>
-                <p><a href="/dashboard">Return to Dashboard</a></p>
-            </body></html>
-        """)
-    
-    try:
-        # Get Facebook app credentials - FIXED to read BASE_URL from env
-        FB_APP_ID = os.getenv("FB_APP_ID")
-        FB_APP_SECRET = os.getenv("FB_APP_SECRET")
-        BASE_URL = os.getenv("BASE_URL", "http://localhost:8003")  # Read BASE_URL from environment
-        FB_REDIRECT_URI = f"{BASE_URL}/auth/facebook/callback"
-        SECRET_KEY = os.getenv("SECRET_KEY", "demo_secret_key_change_in_production")
-        
-        logger.info(f"Callback using BASE_URL: {BASE_URL}")
-        logger.info(f"Callback FB_REDIRECT_URI: {FB_REDIRECT_URI}")
-        
-        if not FB_APP_ID or not FB_APP_SECRET:
-            return HTMLResponse("""
-                <html><body>
-                    <h2>Facebook Configuration Error</h2>
-                    <p>Facebook app credentials not configured. Please set FB_APP_ID and FB_APP_SECRET environment variables.</p>
-                    <p><a href="/dashboard">Return to Dashboard</a></p>
-                </body></html>
-            """)
-
-        # Validate JWT state to find user
-        try:
-            payload = jwt.decode(state, SECRET_KEY, algorithms=["HS256"])
-        except Exception as jwt_error:
-            logger.error(f"JWT decode error: {jwt_error}")
-            return HTMLResponse(f"""
-                <html><body>
-                    <h2>Invalid Session</h2>
-                    <p>User session expired or invalid: {str(jwt_error)}</p>
-                    <p><a href="/dashboard">Return to Dashboard</a></p>
-                </body></html>
-            """)
-        
-        user_id = payload.get("user_id")
-        user_email = payload.get("email")
-        
-        if not user_id or not user_email:
-            return HTMLResponse("""
-                <html><body>
-                    <h2>Invalid Session</h2>
-                    <p>User information not found in session</p>
-                    <p><a href="/dashboard">Return to Dashboard</a></p>
-                </body></html>
-            """)
-
-        logger.info(f"Processing Facebook callback for user: {user_email}")
-
-        # Exchange code for user access token
-        token_url = "https://graph.facebook.com/v20.0/oauth/access_token"
-        token_params = {
-            "client_id": FB_APP_ID,
-            "client_secret": FB_APP_SECRET,
-            "redirect_uri": FB_REDIRECT_URI,
-            "code": code
-        }
-        
-        logger.info("Exchanging code for Facebook access token")
-        token_response = requests.get(token_url, params=token_params, timeout=20)
-        
-        if token_response.status_code != 200:
-            logger.error(f"Facebook token exchange failed: {token_response.status_code} - {token_response.text}")
-            return HTMLResponse(f"""
-                <html><body>
-                    <h2>Facebook Token Exchange Failed</h2>
-                    <p>Status: {token_response.status_code}</p>
-                    <p>Unable to get access token from Facebook</p>
-                    <p><a href="/dashboard">Return to Dashboard</a></p>
-                </body></html>
-            """)
-        
-        token_data = token_response.json()
-        user_access_token = token_data.get("access_token")
-        
-        if not user_access_token:
-            logger.error(f"No access token in response: {token_data}")
-            return HTMLResponse("""
-                <html><body>
-                    <h2>No Access Token</h2>
-                    <p>Facebook did not provide access token</p>
-                    <p><a href="/dashboard">Return to Dashboard</a></p>
-                </body></html>
-            """)
-
-        logger.info("Successfully got Facebook access token, fetching pages")
-
-        # Get user's Facebook pages
-        pages_response = requests.get(
-            "https://graph.facebook.com/v20.0/me/accounts",
-            params={
-                "access_token": user_access_token,
-                "fields": "id,name,access_token,category"
-            },
-            timeout=20
-        )
-
-        if pages_response.status_code != 200:
-            logger.error(f"Facebook pages fetch failed: {pages_response.status_code} - {pages_response.text}")
-            return HTMLResponse(f"""
-                <html><body>
-                    <h2>Failed to Fetch Pages</h2>
-                    <p>Status: {pages_response.status_code}</p>
-                    <p>Unable to get your Facebook pages</p>
-                    <p><a href="/dashboard">Return to Dashboard</a></p>
-                </body></html>
-            """)
-
-        pages_data = pages_response.json()
-        pages = pages_data.get("data", [])
-
-        logger.info(f"Found {len(pages)} Facebook pages")
-
-        if not pages:
-            return HTMLResponse("""
-                <html><body>
-                    <h2>No Facebook Pages Found</h2>
-                    <p>No Facebook pages found for your account. You need to be an admin of a Facebook page to use this feature.</p>
-                    <p><a href="/dashboard">Return to Dashboard</a></p>
-                </body></html>
-            """)
-
-        # For now, automatically connect the first page
-        first_page = pages[0]
-        page_id = first_page.get("id")
-        page_name = first_page.get("name")
-        page_access_token = first_page.get("access_token")
-
-        logger.info(f"Connecting to Facebook page: {page_name} ({page_id})")
-
-        # Store Facebook connection info for demo user
-        global facebook_connections
-        if 'facebook_connections' not in globals():
-            facebook_connections = {}
-        
-        facebook_connections[user_email] = {
-            "connected": True,
-            "page_id": page_id,
-            "page_name": page_name,
-            "page_token": page_access_token,
-            "user_token": user_access_token,
-            "connected_at": datetime.utcnow().isoformat()
-        }
-
-        logger.info(f"Facebook connected successfully for {user_email}: {page_name}")
-
-        # Redirect back to dashboard with success message
-        return HTMLResponse(f"""
-            <html><body>
-                <h2>✅ Facebook Connected Successfully!</h2>
-                <p>Connected to Facebook Page: <strong>{page_name}</strong></p>
-                <p>You can now post properties directly to Facebook.</p>
-                <br>
-                <script>
-                    setTimeout(function() {{
-                        window.location.href = '/dashboard';
-                    }}, 2000);
-                </script>
-                <p><a href="/dashboard">Return to Dashboard</a></p>
-            </body></html>
-        """)
-
-    except Exception as e:
-        logger.error(f"Facebook callback error: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return HTMLResponse(f"""
-            <html><body>
-                <h2>Facebook Connection Failed</h2>
-                <p>Error: {str(e)}</p>
-                <p>Please check your Facebook app configuration and try again.</p>
-                <p><a href="/dashboard">Return to Dashboard</a></p>
-            </body></html>
-        """)
-
 
 
 @app.get("/api/facebook/pages")
@@ -974,7 +889,17 @@ async def facebook_disconnect(current_user: dict = Depends(get_current_user_simp
         logger.error(f"Facebook disconnect error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to disconnect Facebook: {str(e)}")
 
-    
+@app.get("/debug/facebook-config")
+async def debug_facebook_config():
+    """Debug Facebook configuration"""
+    return {
+        "fb_app_id": os.getenv("FB_APP_ID"),
+        "base_url": os.getenv("BASE_URL"),
+        "redirect_uri": f"{os.getenv('BASE_URL', 'http://localhost:8003')}/auth/facebook/callback",
+        "oauth_url_template": f"https://www.facebook.com/v20.0/dialog/oauth?client_id={os.getenv('FB_APP_ID')}&redirect_uri={os.getenv('BASE_URL', 'http://localhost:8003')}/auth/facebook/callback&scope=pages_show_list,pages_manage_posts,pages_read_engagement,pages_manage_metadata,public_profile,email&response_type=code"
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     logger.info("🚀 Starting Real Estate CRM...")
