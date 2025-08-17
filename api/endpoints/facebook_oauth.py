@@ -12,6 +12,31 @@ from repositories.user_repository import UserRepository, get_user_repository
 
 router = APIRouter()
 
+@router.get("/config")
+async def facebook_config(
+    current_user: dict = Depends(get_current_user),
+    agent_repo: AgentRepository = Depends(get_agent_repository),
+    user_repo: UserRepository = Depends(get_user_repository)
+):
+    """Get Facebook configuration status for current user"""
+    try:
+        user = await user_repo.get_user(current_user["username"])
+        if not user:
+            return {"connected": False, "page_id": None, "page_name": None}
+        
+        profile = await agent_repo.get_agent_profile(user.id)
+        if not profile or not profile.connected_page:
+            return {"connected": False, "page_id": None, "page_name": None}
+        
+        return {
+            "connected": True,
+            "page_id": profile.connected_page.page_id,
+            "page_name": profile.connected_page.name,
+            "app_id": settings.FB_APP_ID
+        }
+    except Exception as e:
+        return {"connected": False, "page_id": None, "page_name": None, "error": str(e)}
+
 @router.get("/connect")
 async def initiate_facebook_connect(
     current_user: dict = Depends(get_current_user),
@@ -108,7 +133,7 @@ async def facebook_oauth_callback(
             url=f"{settings.BASE_URL}/dashboard?connected=true",
             status_code=302,
         )
-        
+    
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OAuth failed: {str(e)}")
 
