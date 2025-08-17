@@ -265,37 +265,55 @@ class SmartPropertiesComponent {
         `;
     }
 
-    async load() {
-        document.getElementById('component-container').innerHTML = this.render();
-        await this.loadProperties();
-        await this.loadFacebookStatus();
-        this.setupEventListeners();
+    
+async load() {
+    document.getElementById('component-container').innerHTML = this.render();
+    
+    // Auto-refresh Facebook status on load (especially after OAuth return)
+    await this.loadFacebookStatus();
+    
+    // If we just returned from Facebook OAuth, force a refresh after a short delay
+    if (window.location.search.includes('facebook') || document.referrer.includes('facebook.com')) {
+        console.log('🔄 Detected return from Facebook OAuth, refreshing status...');
+        setTimeout(async () => {
+            await this.loadFacebookStatus();
+        }, 1000);
     }
+    
+    await this.loadProperties();
+    this.setupEventListeners();
+}
 
-    async loadFacebookStatus() {
-        try {
-            console.log('Loading Facebook integration status...');
-            
-            const response = await fetch('/api/facebook/config', {
-                headers: {
-                    'Authorization': `Bearer ${dashboardCore.getAuthToken()}`
-                }
-            });
-
-            if (response.ok) {
-                this.facebookConfig = await response.json();
-                this.updateFacebookUI();
-            } else {
-                console.warn('Facebook config failed:', response.status);
-                this.facebookConfig = { connected: false };
-                this.updateFacebookUI();
+async loadFacebookStatus() {
+    try {
+        console.log('🔍 Loading Facebook integration status...');
+        
+        const response = await fetch('/api/facebook/config', {
+            headers: {
+                'Authorization': `Bearer ${dashboardCore.getAuthToken()}`
             }
-        } catch (error) {
-            console.error('Error loading Facebook status:', error);
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            console.log('📘 Facebook config response:', data);
+            
+            this.facebookConfig = data;
+            this.updateFacebookUI();
+        } else {
+            console.warn('❌ Facebook config failed:', response.status);
+            const errorData = await response.text();
+            console.warn('Error details:', errorData);
+            
             this.facebookConfig = { connected: false };
             this.updateFacebookUI();
         }
+    } catch (error) {
+        console.error('❌ Error loading Facebook status:', error);
+        this.facebookConfig = { connected: false };
+        this.updateFacebookUI();
     }
+}
 
     updateFacebookUI() {
         const statusBar = document.getElementById('facebook-status-bar');
@@ -315,9 +333,14 @@ class SmartPropertiesComponent {
                     <i class="fab fa-facebook fa-2x text-primary mb-2"></i>
                     <h6 class="text-success">Connected!</h6>
                     <p class="small text-muted">${this.facebookConfig.page_name}</p>
-                    <button class="btn btn-outline-danger btn-sm" onclick="smartProperties.disconnectFacebook()">
-                        Disconnect
-                    </button>
+                    <div class="d-flex gap-2 justify-content-center">
+                        <button class="btn btn-outline-info btn-sm" onclick="smartProperties.refreshFacebookStatus()">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="smartProperties.disconnectFacebook()">
+                            <i class="fas fa-unlink"></i> Disconnect
+                        </button>
+                    </div>
                 </div>
             `;
 
@@ -341,9 +364,14 @@ class SmartPropertiesComponent {
                     <i class="fab fa-facebook fa-2x text-muted mb-2"></i>
                     <h6 class="text-muted">Not Connected</h6>
                     <p class="small text-muted">Connect your Facebook page to post properties directly</p>
-                    <button class="btn btn-primary btn-sm" onclick="smartProperties.connectFacebook()">
-                        <i class="fab fa-facebook me-1"></i> Connect Facebook
-                    </button>
+                    <div class="d-flex gap-2 justify-content-center">
+                        <button class="btn btn-primary btn-sm" onclick="smartProperties.connectFacebook()">
+                            <i class="fab fa-facebook me-1"></i> Connect Facebook
+                        </button>
+                        <button class="btn btn-outline-info btn-sm" onclick="smartProperties.refreshFacebookStatus()">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
                 </div>
             `;
 
@@ -359,6 +387,14 @@ class SmartPropertiesComponent {
         
         statusBar.style.display = 'block';
     }
+
+    // Add this method to SmartPropertiesComponent
+    async refreshFacebookStatus() {
+        console.log('🔄 Manually refreshing Facebook status...');
+        dashboardCore.showToast('info', 'Refreshing...', 'Checking Facebook connection status');
+        await this.loadFacebookStatus();
+    }
+
 
     async connectFacebook() {
         try {

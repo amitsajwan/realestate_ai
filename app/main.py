@@ -200,21 +200,52 @@ async def create_property(request: Request, current_user: dict = Depends(get_cur
         logger.error(f"Error creating property: {e}")
         raise HTTPException(status_code=500, detail="Failed to create property")
 
-# FACEBOOK CONFIG API
+
 @app.get("/api/facebook/config")
 async def facebook_config(current_user: dict = Depends(get_current_user_simple)):
     """Get Facebook configuration status"""
     try:
-        # Return mock Facebook status
+        user_email = current_user.get("email", "demo@mumbai.com")
+        logger.info(f"🔍 Checking Facebook config for user: {user_email}")
+        
+        # Check if user has Facebook connection
+        global facebook_connections
+        if 'facebook_connections' not in globals():
+            facebook_connections = {}
+            logger.info("📝 Initializing empty facebook_connections")
+        
+        logger.info(f"🔗 Current facebook_connections keys: {list(facebook_connections.keys())}")
+        
+        connection = facebook_connections.get(user_email)
+        logger.info(f"🔍 Connection found for {user_email}: {connection}")
+        
+        if connection and connection.get("connected"):
+            logger.info(f"✅ Facebook connected: {connection.get('page_name')}")
+            return {
+                "connected": True,
+                "page_id": connection.get("page_id"),
+                "page_name": connection.get("page_name"),
+                "app_id": os.getenv("FB_APP_ID", ""),
+                "connected_at": connection.get("connected_at")
+            }
+        else:
+            logger.info(f"❌ Facebook not connected for {user_email}")
+            return {
+                "connected": False,
+                "page_id": None,
+                "page_name": None,
+                "app_id": os.getenv("FB_APP_ID", "")
+            }
+    except Exception as e:
+        logger.error(f"Facebook config error: {e}")
         return {
             "connected": False,
             "page_id": None,
             "page_name": None,
-            "app_id": "your_fb_app_id"
+            "app_id": os.getenv("FB_APP_ID", ""),
+            "error": str(e)
         }
-    except Exception as e:
-        logger.error(f"Error getting Facebook config: {e}")
-        return {"connected": False, "page_id": None, "page_name": None, "error": str(e)}
+
 
 # SMART PROPERTIES API
 from pydantic import BaseModel, Field
@@ -823,45 +854,6 @@ async def facebook_callback(
         """)
 
 
-
-# Updated Facebook config endpoint
-@app.get("/api/facebook/config")
-async def facebook_config(current_user: dict = Depends(get_current_user_simple)):
-    """Get Facebook configuration status"""
-    try:
-        user_email = current_user.get("email", "demo@mumbai.com")
-        
-        # Check if user has Facebook connection
-        global facebook_connections
-        if 'facebook_connections' not in globals():
-            facebook_connections = {}
-        
-        connection = facebook_connections.get(user_email)
-        
-        if connection and connection.get("connected"):
-            return {
-                "connected": True,
-                "page_id": connection.get("page_id"),
-                "page_name": connection.get("page_name"),
-                "app_id": os.getenv("FB_APP_ID", ""),
-                "connected_at": connection.get("connected_at")
-            }
-        else:
-            return {
-                "connected": False,
-                "page_id": None,
-                "page_name": None,
-                "app_id": os.getenv("FB_APP_ID", "")
-            }
-    except Exception as e:
-        logger.error(f"Facebook config error: {e}")
-        return {
-            "connected": False,
-            "page_id": None,
-            "page_name": None,
-            "app_id": os.getenv("FB_APP_ID", ""),
-            "error": str(e)
-        }
 
 @app.get("/api/facebook/pages")
 async def facebook_pages(current_user: dict = Depends(get_current_user_simple)):
