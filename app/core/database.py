@@ -7,6 +7,7 @@ Consolidates scattered database logic from multiple files.
 import motor.motor_asyncio
 from typing import Optional
 import logging
+from datetime import datetime
 
 from app.config import settings
 
@@ -109,5 +110,6 @@ def get_db_connection(mode: str = None):
     except RuntimeError:
         # If no event loop is running, create a new one
         loop = asyncio.new_event_loop()
+        import asyncio
         asyncio.set_event_loop(loop)
         return loop.run_until_complete(get_database())
