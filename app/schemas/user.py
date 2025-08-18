@@ -51,3 +51,11 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+
+
+class FacebookLogin(BaseModel):
+    access_token: str
+    facebook_user_id: str
+    email: str = None
+    name: str = None

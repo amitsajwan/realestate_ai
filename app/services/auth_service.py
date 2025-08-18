@@ -325,3 +325,4 @@ class AuthService:
             raise AuthenticationError("Reset token expired")
         except jwt.JWTError:
             raise AuthenticationError("Invalid reset token")
+

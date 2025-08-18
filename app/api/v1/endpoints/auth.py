@@ -10,7 +10,7 @@ from app.schemas.user import UserCreate, UserLogin, UserResponse, Token
 from app.services.auth_service import AuthService
 from app.repositories.user_repository import UserRepository
 from app.core.exceptions import AuthenticationError, ValidationError
-
+from app.schemas.user import FacebookLogin
 router = APIRouter()
 security = HTTPBearer()
 
@@ -73,3 +73,11 @@ async def get_profile(
 async def logout():
     """Logout endpoint (token blacklisting can be added here)."""
     return {"message": "Logged out successfully"}
+
+
+@router.post("/auth/facebook/login")
+async def facebook_login(facebook_data: FacebookLogin):
+    result = await authenticate_facebook_user(facebook_data.access_token)
+    if not result:
+        raise HTTPException(status_code=401, detail="Invalid Facebook token")
+    return {"access_token": result.token, "user_id": result.user_id}

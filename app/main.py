@@ -5,6 +5,7 @@ Unified entry point for the Real Estate CRM system.
 Consolidates functionality from multiple duplicate files.
 """
 import os
+import app
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
@@ -12,11 +13,13 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from contextlib import asynccontextmanager
 
+from app.api.v1.endpoints.auth import router as auth_router
+    
 from app.config import settings
 from app.core.database import init_database
 from app.core.exceptions import setup_exception_handlers
 from app.api.v1.router import api_router
-
+from app.routes.proxy import router as proxy_router 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -47,6 +50,9 @@ def create_app() -> FastAPI:
     
     # Include API router
     app.include_router(api_router, prefix="/api/v1")
+    app.include_router(proxy_router)
+
+    app.include_router(auth_router)
     
     # Static files and templates
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
