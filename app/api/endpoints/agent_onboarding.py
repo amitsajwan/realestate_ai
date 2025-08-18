@@ -1,14 +1,17 @@
 from fastapi import APIRouter, Form, Depends
 
-from services.agent_onboarding_service import AgentOnboardingData, AgentOnboardingService
-from utils.db_client import get_db_client
+
+from app.utils.db_client import get_db_client
+
+from app.services.agent_onboarding_service import AgentOnboardingData, AgentOnboardingService
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 router = APIRouter()
 
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory="app/templates")
+Agent 
 
 @router.get("/onboarding", response_class=HTMLResponse)
 async def onboarding_get(request: Request):

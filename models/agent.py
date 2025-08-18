@@ -38,36 +38,37 @@ class FacebookOAuthState(BaseModel):
     user_id: str
     created_at: datetime
     expires_at: datetime
-
+ 
+ 
 class Agent(BaseModel):
-    agent_id: str = Field(...)
-    business_name: str
-    contact_email: str
-    phone: str
+    agent_id: Optional[str] = None
+    business_name: Optional[str] = None
+    contact_email: Optional[str] = None
+    phone: Optional[str] = None
 
     # Facebook Configuration
-    facebook_app_id: Optional[str]
-    facebook_app_secret: Optional[str]
-    facebook_page_id: Optional[str]
-    facebook_access_token: Optional[str]
+    facebook_app_id: Optional[str] = None
+    facebook_app_secret: Optional[str] = None
+    facebook_page_id: Optional[str] = None
+    facebook_access_token: Optional[str] = None
 
     # Subscription Management
     subscription_tier: str = "trial"
     subscription_status: str = "active"
-    trial_end_date: Optional[datetime]
+    trial_end_date: Optional[datetime] = None
     billing_cycle: str = "monthly"
 
     # AI Preferences
-    ai_preferences: Dict = {
+    ai_preferences: Dict = Field(default_factory=lambda: {
         "default_template": "just_listed",
         "tone": "professional",
         "include_emojis": True,
         "language": "english"
-    }
+    })
 
     # Branding
-    brand_colors: Dict = {"primary": "#007bff", "secondary": "#6c757d"}
-    logo_url: Optional[str]
+    brand_colors: Dict = Field(default_factory=lambda: {"primary": "#007bff", "secondary": "#6c757d"})
+    logo_url: Optional[str] = None
 
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None

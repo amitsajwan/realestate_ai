@@ -39,7 +39,7 @@ load_dotenv()
 app = FastAPI(title="Real Estate CRM (Unified)", version="1.0.0")
 
 app.include_router(dashboard_router)
-# app.include_router(onboarding_router)
+app.include_router(onboarding_router)
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

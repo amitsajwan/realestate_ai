@@ -39,3 +39,5 @@ websockets==12.0
 # Background tasks
 arq==0.25.0
  
+
+pydantic[email]

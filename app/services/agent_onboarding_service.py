@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from models.agent import Agent
-from utils.ai import generate_branding
-from utils.whatsapp import connect_whatsapp
+from app.utils.ai import generate_branding
+from app.utils.whatsapp import connect_whatsapp
 from typing import Optional
 
 class AgentOnboardingData(BaseModel):
