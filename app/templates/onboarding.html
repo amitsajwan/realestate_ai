@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Agent Onboarding</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <h2>Agent Onboarding</h2>
+    <form method="POST" action="/agent-onboard">
+        <label>Name:</label>
+        <input name="name" required>
+        <label>Email:</label>
+        <input name="email" required type="email">
+        <label>WhatsApp:</label>
+        <input name="whatsapp" required>
+        <label>Photo URL (optional):</label>
+        <input name="profile_photo_url">
+        <label>Tagline (optional):</label>
+        <input name="tagline">
+        <label>About (optional):</label>
+        <textarea name="about"></textarea>
+        <button type="submit">Get Started</button>
+    </form>
+</body>
+</html>

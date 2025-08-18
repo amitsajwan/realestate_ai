@@ -1,0 +1,12 @@
+body { font-family: 'Montserrat', Arial, sans-serif; margin: 0; background: #f8fafc; }
+.dashboard-tabs { display: flex; list-style: none; padding: 0; margin: 0; background: #232946; }
+.dashboard-tabs li { color: #fff; padding: 1em 2em; cursor: pointer; }
+.dashboard-tabs li.active { background: #eebbc3; color: #232946; }
+.metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1em; margin: 2em 0; }
+.card.metric { background: #fff; border-radius: .5em; box-shadow: 0 2px 8px #bbbbbb22; padding: 1.5em; text-align: center; }
+.stat { font-size: 2em; font-weight: bold; }
+form { max-width: 400px; margin: 2em auto; display: flex; flex-direction: column; }
+form label { margin: 1em 0 .5em; }
+form input, form textarea { padding: .5em; font-size: 1em; border-radius: .3em; border: 1px solid #ccc; }
+form button { margin-top: 1.5em; background: #eebbc3; color: #232946; border: none; padding: 1em; border-radius: .3em; cursor: pointer; font-weight: bold;}
+form button:hover { background: #f6d2d0; }

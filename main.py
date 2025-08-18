@@ -7,9 +7,20 @@ from fastapi.templating import Jinja2Templates
 from core.config import settings
 from db_adapter import get_db_connection
 
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
+from api.endpoints.dashboard import router as dashboard_router
+from api.endpoints.agent_onboarding import router as onboarding_router
+
 MODE = settings.MODE  # 'production' or 'development'
 
 app = FastAPI(title="Real Estate AI CRM Unified")
+app.include_router(dashboard_router)
+app.include_router(onboarding_router)
+
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)

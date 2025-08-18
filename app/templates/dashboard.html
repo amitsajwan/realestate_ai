@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CRM Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav>
+        <ul class="dashboard-tabs">
+            <li class="active">Dashboard</li>
+            <li>Leads</li>
+            <li>Properties</li>
+            <li>AI Tools</li>
+            <li>Settings</li>
+        </ul>
+    </nav>
+    <section class="metrics-grid">
+        <div class="card metric">
+            <div class="stat">{{ metrics.active_listings }}</div>
+            <div>Active Listings</div>
+        </div>
+        <div class="card metric">
+            <div class="stat">{{ metrics.total_leads }}</div>
+            <div>Total Leads</div>
+        </div>
+        <div class="card metric">
+            <div class="stat">{{ metrics.ai_pages }}</div>
+            <div>AI Pages Generated</div>
+        </div>
+        <div class="card metric">
+            <div class="stat">{{ metrics.whatsapp_engagement }}</div>
+            <div>WhatsApp Engagements</div>
+        </div>
+    </section>
+    <section>
+        <h3>Quick Actions</h3>
+        <button onclick="location.href='/create-listing'">Create Listing</button>
+        <button onclick="location.href='/invite-agent'">Invite Agent</button>
+        <button onclick="location.href='/ai-tools/branding'">Generate Branding</button>
+    </section>
+</body>
+</html>
