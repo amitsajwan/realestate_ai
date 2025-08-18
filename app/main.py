@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 
 from app.api.v1.endpoints.auth import router as auth_router
     
-from app.config import settings
+from core.config import settings
 from app.core.database import init_database
 from app.core.exceptions import setup_exception_handlers
 from app.api.v1.router import api_router

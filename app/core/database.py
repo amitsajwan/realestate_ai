@@ -9,7 +9,7 @@ from typing import Optional
 import logging
 from datetime import datetime
 
-from app.config import settings
+from core.config import settings
 
 logger = logging.getLogger(__name__)
 

@@ -7,7 +7,7 @@ import logging
 from typing import Dict, Any
 from app.repositories.user_repository import UserRepository
 from app.core.exceptions import FacebookError
-from app.config import settings
+from core.config import settings
 import httpx
 from datetime import datetime
 

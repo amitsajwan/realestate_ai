@@ -10,7 +10,7 @@ from jose import jwt, JWTError
 from passlib.context import CryptContext
 import logging
 
-from app.config import settings
+from core.config import settings
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate, UserResponse
 from app.core.exceptions import (

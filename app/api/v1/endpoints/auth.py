@@ -74,10 +74,4 @@ async def logout():
     """Logout endpoint (token blacklisting can be added here)."""
     return {"message": "Logged out successfully"}
 
-
-@router.post("/auth/facebook/login")
-async def facebook_login(facebook_data: FacebookLogin):
-    result = await authenticate_facebook_user(facebook_data.access_token)
-    if not result:
-        raise HTTPException(status_code=401, detail="Invalid Facebook token")
-    return {"access_token": result.token, "user_id": result.user_id}
+ 
