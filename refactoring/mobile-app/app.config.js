@@ -40,7 +40,20 @@ export default {
           photosPermission: "The app accesses your photos to let you upload profile pictures and property images.",
           cameraPermission: "The app accesses your camera to let you take photos for profiles and properties."
         }
-      ]
+      ],
+      [
+        "expo-local-authentication",
+        {
+          faceIDPermission: "Use Face ID to authenticate and secure your real estate data."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          cameraPermission: "The app uses the camera to capture property photos and documents."
+        }
+      ],
+      "expo-haptics"
     ]
   }
 };

@@ -7,6 +7,7 @@ import { useBranding } from '../contexts/BrandingContext';
 // Screens
 import DashboardScreen from '../screens/DashboardScreen';
 import PropertiesScreen from '../screens/PropertiesScreen';
+import PostingScreen from '../screens/PostingScreen';
 import LeadsScreen from '../screens/LeadsScreen';
 import ClientsScreen from '../screens/ClientsScreen';
 import AIAssistantScreen from '../screens/AIAssistantScreen';
@@ -27,6 +28,8 @@ export default function MainTabNavigator() {
             iconName = focused ? 'view-dashboard' : 'view-dashboard-outline';
           } else if (route.name === 'Properties') {
             iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Post') {
+            iconName = focused ? 'plus-circle' : 'plus-circle-outline';
           } else if (route.name === 'Leads') {
             iconName = focused ? 'account-multiple' : 'account-multiple-outline';
           } else if (route.name === 'Clients') {
@@ -70,6 +73,17 @@ export default function MainTabNavigator() {
         component={PropertiesScreen}
         options={{
           title: 'Properties',
+        }}
+      />
+      <Tab.Screen 
+        name="Post" 
+        component={PostingScreen}
+        options={{
+          title: 'Post',
+          headerStyle: {
+            backgroundColor: branding.primaryColor,
+          },
+          headerTintColor: 'white',
         }}
       />
       <Tab.Screen 
