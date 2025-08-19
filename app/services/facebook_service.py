@@ -18,13 +18,23 @@ class FacebookService:
         self.user_repository = user_repository
 
     async def get_facebook_config(self, user_id: str) -> Dict[str, Any]:
-        user = await self.user_repository.get_by_id(user_id)
-        return {
-            "connected": user.get("facebook_connected", False),
-            "page_id": user.get("fb_page_id"),
-            "page_name": user.get("fb_page_name"),
-            "app_id": settings.FB_APP_ID
-        }
+        logger.debug(f"Getting Facebook config for user {user_id}")
+        try:
+            user = await self.user_repository.get_by_id(user_id)
+            if not user:
+                logger.warning(f"User {user_id} not found in database")
+                return {"connected": False, "page_id": None, "page_name": None, "app_id": settings.FB_APP_ID}
+                
+            logger.debug(f"Retrieved user data for Facebook config: {user.get('email')}")
+            return {
+                "connected": user.get("facebook_connected", False),
+                "page_id": user.get("fb_page_id"),
+                "page_name": user.get("fb_page_name"),
+                "app_id": settings.FB_APP_ID
+            }
+        except Exception as e:
+            logger.error(f"Error getting Facebook config for user {user_id}: {str(e)}", exc_info=True)
+            raise
 
     async def handle_callback(self, code: str, state: str):
         """

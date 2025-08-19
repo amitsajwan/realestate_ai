@@ -17,5 +17,5 @@ class AgentOut(BaseModel):
 class FacebookConfigUpdate(BaseModel):
     facebook_app_id: str = Field(..., example="1101030388754848")
     facebook_app_secret: str = Field(..., example="secret_string")
-    facebook_page_id: Optional[str] = Field(None, example="1122334455667788")
+    facebook_page_id: Optional[str] = Field(None, example="699986296533656")
     access_token: Optional[str] = None

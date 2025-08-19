@@ -3,13 +3,17 @@ from fastapi import APIRouter, Request
 from fastapi.responses import Response
 from starlette.concurrency import run_in_threadpool
 import requests
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-TARGET = os.getenv("MODULAR_PROXY_TARGET", "http://127.0.0.1:8004")
+TARGET = os.getenv("MODULAR_PROXY_TARGET", "https://rabbit-engaging-endlessly.ngrok-free.app")
 
 async def _forward(method: str, path: str, request: Request) -> Response:
+    
     url = f"{TARGET}{path}"
+    print(f"Forwarding {method} request to {url}")
     headers = {}
     # Forward selected headers
     auth = request.headers.get("authorization")
@@ -47,14 +51,28 @@ async def proxy_login(request: Request):
 
 @router.get("/auth/facebook/login")
 async def proxy_facebook_login_get(request: Request):
-    return await _forward("GET", "/auth/facebook/login", request)
+    print((f"Request headers: {dict(request.headers)}"))
+    logger.info("Received GET /auth/facebook/login request")
+    logger.info(f"Request headers: {dict(request.headers)}")
+    response = await _forward("GET", "/auth/facebook/login", request)
+    logger.info(f"Response status code: {response.status_code}")
+    return response
 
 @router.post("/auth/facebook/login")
 async def proxy_facebook_login_post(request: Request):
-    return await _forward("POST", "/auth/facebook/login", request)
+    print(" ###############      ")
+    logger.info("Received POST /auth/facebook/login request")
+    logger.info(f"Request headers: {dict(request.headers)}")
+    response = await _forward("POST", "/auth/facebook/login", request)
+    logger.info(f"Response status code: {response.status_code}")
+    return response
 
 @router.get("/api/facebook/config")
 async def proxy_facebook_config(request: Request):
+    print("=============== Facebook Config GET ===============")
+    # Avoid infinite loop by checking if we're already proxying
+    if "X-Forwarded-For" in request.headers:
+        return Response(content=b'{"error":"recursive proxy call detected"}', status_code=400, media_type="application/json")
     return await _forward("GET", "/api/facebook/config", request)
 
 @router.post("/api/facebook/config")

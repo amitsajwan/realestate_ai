@@ -106,8 +106,10 @@ class BaseRepository(ABC):
             
             # Try ObjectId first
             try:
+                print("Trying ObjectId format" , doc_id)
                 object_id = self._prepare_id(doc_id)
                 document = await collection.find_one({"_id": object_id})
+                print("Trying ObjectId format" , document)
             except:
                 pass
             

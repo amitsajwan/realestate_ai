@@ -33,19 +33,23 @@ def get_facebook_service() -> FacebookService:
 @router.get("/config")
 async def facebook_config(current_user=Depends(get_current_user)):
     """Get Facebook connection status and config."""
+    logger.info(f"Starting Facebook config request for user {current_user.id}")
     try:
         facebook_service = get_facebook_service()
+        logger.debug(f"Retrieving Facebook config for user {current_user.id}")
         config = await facebook_service.get_facebook_config(current_user.id)
+        logger.debug(f"Facebook config retrieved: {config}")
         return config
     except Exception as e:
-        logger.error(f"Facebook config error: {e}")
+        logger.error(f"Facebook config error for user {current_user.id}: {str(e)}", exc_info=True)
         return {"connected": False, "page_id": None, "page_name": None, "app_id": FB_APP_ID}
-
 
 @router.get("/login")
 async def facebook_login(token: str = Query(...)):
     """Initiate Facebook OAuth login flow."""
+    print(f"Facebook Login called with FB_APP_ID={FB_APP_ID} and FB_REDIRECT_URI={FB_REDIRECT_URI}")
     if not FB_APP_ID or not FB_REDIRECT_URI:
+        logger.error("Facebook App ID or Redirect URI is not configured.")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Facebook App not configured."
@@ -57,7 +61,9 @@ async def facebook_login(token: str = Query(...)):
         "scope": "pages_show_list,pages_manage_posts,pages_read_engagement,pages_manage_metadata,public_profile,email",
         "response_type": "code"
     }
+    logger.debug(f"OAuth parameters: {params}")
     oauth_url = "https://www.facebook.com/v20.0/dialog/oauth?" + "&".join([f"{k}={v}" for k, v in params.items()])
+    logger.info(f"Redirecting to OAuth URL: {oauth_url}")
     return RedirectResponse(oauth_url)
 
 
@@ -125,5 +131,3 @@ async def facebook_disconnect(current_user=Depends(get_current_user)):
     except Exception as e:
         logger.error(f"Facebook disconnect error: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to disconnect Facebook.")
-
-
