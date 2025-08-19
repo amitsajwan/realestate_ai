@@ -8,234 +8,154 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import logging
-from fastapi.templating import Jinja2Templates
-from pathlib import Path as SysPath
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
+from app.routes import agent_routes
+from app.dependencies import init_db
+from app.config import settings
+import logging
 
-# Import your existing config (now fixed)
-from core.config import settings
-
-# Try to import database connection (if it exists)
-try:
-	from app.core.database import connect_to_mongo, close_mongo_connection
-	HAS_DATABASE = True
-except ImportError:
-	# Fallback for existing database setup
-	HAS_DATABASE = False
-	print("⚠️  Using legacy database setup")
-
-# Allow skipping DB in test/dev environments
-if os.getenv("SKIP_DB") == "1":
-	HAS_DATABASE = False
-
-# Import routers that exist
-routers_to_include = []
-
-# Prefer local simple auth first (provides /api/login)
-try:
-	from api.endpoints.simple_auth import router as simple_auth_router
-	routers_to_include.append(("SimpleAuth", simple_auth_router, ""))
-except ImportError:
-	print("⚠️  SimpleAuth router not found")
-
-# Check for existing API routers
-try:
-	from app.api.v1.router import api_router
-	routers_to_include.append(("API v1", api_router, "/api/v1"))
-except ImportError:
-	print("⚠️  API v1 router not found")
-
-# Mount additional standalone endpoints (agent onboarding, ai localization)
-try:
-	from app.api.endpoints.agent_onboarding import router as onboarding_router
-	routers_to_include.append(("AgentOnboarding", onboarding_router, ""))
-except ImportError:
-	print("⚠️  AgentOnboarding router not found")
-
-try:
-	from app.api.endpoints.ai_localization import router as ai_localization_router
-	routers_to_include.append(("AILocalization", ai_localization_router, ""))
-except ImportError:
-	print("⚠️  AILocalization router not found")
-
-# Check for legacy routes
-try:
-	from app.routes.proxy import router as proxy_router
-	routers_to_include.append(("Proxy", proxy_router, ""))
-except ImportError:
-	print("⚠️  Proxy router not found")
-
-try:
-	from app.routes.auth import router as auth_router
-	routers_to_include.append(("Auth", auth_router, ""))
-except ImportError:
-	print("⚠️  Auth router not found")
-
-try:
-	from app.routes.leads import router as leads_router
-	routers_to_include.append(("Leads", leads_router, ""))
-except ImportError:
-	print("⚠️  Leads router not found")
-
-try:
-	from app.routes.properties import router as properties_router  
-	routers_to_include.append(("Properties", properties_router, ""))
-except ImportError:
-	print("⚠️  Properties router not found")
-
-try:
-	from app.routes.system import router as system_router
-	routers_to_include.append(("System", system_router, ""))
-except ImportError:
-	print("⚠️  System router not found")
-
-# Setup logging
-logging.basicConfig(
-	level=logging.DEBUG if settings.DEBUG else logging.INFO,
-	format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-	# Startup
-	logger.info("Starting Real Estate AI CRM...")
-	
-	if HAS_DATABASE:
-		try:
-			await connect_to_mongo()
-			logger.info("✅ Database connected")
-		except Exception as e:
-			logger.error(f"❌ Database connection failed: {e}")
-	else:
-		logger.info("📊 Using existing database setup")
-	
-	logger.info("🚀 Application started successfully")
-	
-	yield
-	
-	# Shutdown
-	if HAS_DATABASE:
-		try:
-			await close_mongo_connection()
-			logger.info("📊 Database connection closed")
-		except Exception as e:
-			logger.error(f"Database shutdown error: {e}")
-	
-	logger.info("👋 Application shutdown complete")
 
 # Create FastAPI app
 app = FastAPI(
-	title="Real Estate AI CRM",
-	version="2.0.0",
-	description="AI-Powered Real Estate CRM System",
-	lifespan=lifespan
+    title=settings.APP_NAME,
+    version=settings.APP_VERSION,
+    description="World Glass Gen AI Property CRM Solution",
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
-# Templates: support both root and app-level templates
-_app_templates = SysPath(__file__).parent / "templates"
-_root_templates = SysPath(__file__).parent.parent / "templates"
-
-# Default templates for general pages (login/dashboard)
-templates_root = Jinja2Templates(directory=str(_root_templates))
-
-# App templates for onboarding and other app-scoped pages
-templates_app = Jinja2Templates(
-	directory=str(_app_templates if (_app_templates / "onboarding.html").exists() else _root_templates)
-)
-
-# Mount static files (CSS/JS) - ensure served under /static
-static_path = SysPath(__file__).parent.parent / "static"
-if static_path.exists():
-	app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
-
-# WebSocket endpoint for chat
-@app.websocket("/chat/{client_id}")
-async def websocket_endpoint(websocket: WebSocket, client_id: str):
-	await websocket.accept()
-	try:
-		while True:
-			data = await websocket.receive_text()
-			await websocket.send_text(f"Message text was: {data}")
-	except WebSocketDisconnect:
-		logger.info(f"Client {client_id} disconnected")
-
-# CORS middleware
+# Add CORS middleware
 app.add_middleware(
-	CORSMiddleware,
-	allow_origins=[settings.FRONTEND_URL, "http://localhost:3000", "http://localhost:8080", "http://localhost:5173"],
-	allow_credentials=True,
-	allow_methods=["*"],
-	allow_headers=["*"],
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure appropriately for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Global exception handler
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-	logger.error(f"Global exception: {str(exc)}", exc_info=True)
-	return JSONResponse(
-		status_code=500,
-		content={
-			"error": "Internal server error",
-			"detail": str(exc) if settings.DEBUG else "An error occurred"
-		}
-	)
+# Include API routes
+app.include_router(agent_routes.router, prefix="/api")
 
-# Include all available routers
-for name, router, prefix in routers_to_include:
-	app.include_router(router, prefix=prefix)
-	logger.info(f"✅ Included {name} router at {prefix}")
+# Mount static files
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# Public UI routes
+@app.on_event("startup")
+async def startup_event():
+    """Initialize application on startup."""
+    try:
+        # Initialize database
+        init_db()
+        logger.info("Application started successfully")
+    except Exception as e:
+        logger.error(f"Error during startup: {e}")
+        raise
+
 @app.get("/", response_class=HTMLResponse)
-async def login_page(request: Request):
-	return templates_root.TemplateResponse("login.html", {"request": request})
+async def root():
+    """Root endpoint with basic information."""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>World Glass Gen AI Property CRM</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            body { 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                margin: 0; padding: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white; min-height: 100vh;
+            }
+            .container { max-width: 800px; margin: 0 auto; text-align: center; }
+            h1 { font-size: 3rem; margin-bottom: 20px; font-weight: 300; }
+            .subtitle { font-size: 1.5rem; margin-bottom: 40px; opacity: 0.9; }
+            .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 30px; margin: 40px 0; }
+            .feature { background: rgba(255,255,255,0.1); padding: 30px; border-radius: 15px; backdrop-filter: blur(10px); }
+            .feature h3 { margin-bottom: 15px; color: #fff; }
+            .feature p { opacity: 0.8; line-height: 1.6; }
+            .cta { margin-top: 40px; }
+            .btn { display: inline-block; padding: 15px 30px; background: rgba(255,255,255,0.2); 
+                   color: white; text-decoration: none; border-radius: 25px; transition: all 0.3s; }
+            .btn:hover { background: rgba(255,255,255,0.3); transform: translateY(-2px); }
+            .api-links { margin-top: 40px; }
+            .api-links a { color: #fff; margin: 0 15px; text-decoration: none; opacity: 0.8; }
+            .api-links a:hover { opacity: 1; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🌍 World Glass Gen AI</h1>
+            <div class="subtitle">Property CRM Solution</div>
+            
+            <div class="features">
+                <div class="feature">
+                    <h3>🤖 AI-Powered Onboarding</h3>
+                    <p>Intelligent agent onboarding with GROQ AI for personalized branding and CRM optimization</p>
+                </div>
+                <div class="feature">
+                    <h3>🎨 Dynamic Branding</h3>
+                    <p>Customizable visual identity that reflects in every UI component and page</p>
+                </div>
+                <div class="feature">
+                    <h3>📱 Mobile-First Design</h3>
+                    <p>Responsive, modern interface optimized for mobile devices and excellent UX</p>
+                </div>
+                <div class="feature">
+                    <h3>📊 Smart CRM</h3>
+                    <p>AI-driven customer relationship management with automated insights and strategies</p>
+                </div>
+            </div>
+            
+            <div class="cta">
+                <a href="/docs" class="btn">View API Documentation</a>
+            </div>
+            
+            <div class="api-links">
+                <a href="/docs">API Docs</a>
+                <a href="/redoc">ReDoc</a>
+                <a href="/api/agents/onboarding/start">Start Onboarding</a>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
 
-@app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard_page(request: Request):
-	return templates_root.TemplateResponse("dashboard.html", {"request": request})
-
-@app.get("/onboarding", response_class=HTMLResponse)
-async def onboarding_page(request: Request):
-	return templates_app.TemplateResponse("onboarding.html", {"request": request})
-
-# Health check endpoint
 @app.get("/health")
 async def health_check():
-	return {
-		"status": "healthy", 
-		"service": "real-estate-ai-crm",
-		"version": "2.0.0",
-		"debug": settings.DEBUG
-	}
+    """Health check endpoint."""
+    return {
+        "status": "healthy",
+        "app": settings.APP_NAME,
+        "version": settings.APP_VERSION
+    }
 
-# API root endpoint
-@app.get("/api")
-async def api_root():
-	return {
-		"message": "Real Estate AI CRM API",
-		"version": "2.0.0", 
-		"docs": "/docs",
-		"health": "/health",
-		"frontend": settings.FRONTEND_URL,
-		"available_routes": [
-			{"name": name, "prefix": prefix} 
-			for name, _, prefix in routers_to_include
-		]
-	}
+@app.get("/api/health")
+async def api_health_check():
+    """API health check endpoint."""
+    return {
+        "status": "healthy",
+        "api": "World Glass Gen AI Property CRM API",
+        "version": settings.APP_VERSION,
+        "features": [
+            "Agent Onboarding",
+            "AI-Powered Branding",
+            "Dynamic CRM",
+            "Mobile-First Design"
+        ]
+    }
 
 if __name__ == "__main__":
-	import uvicorn
-	logger.info(f"Starting server on {settings.BASE_URL}")
-	uvicorn.run(
-		"app.main:app",
-		host="0.0.0.0",
-		port=8080,  # Using your port
-		reload=settings.DEBUG,
-		log_level="debug" if settings.DEBUG else "info"
-	)
+    import uvicorn
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        log_level="info"
+    )

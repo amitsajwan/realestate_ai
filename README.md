@@ -1,287 +1,345 @@
-# 🏠 Real Estate AI CRM
+# 🌍 World Glass Gen AI Property CRM
 
-AI-powered Real Estate CRM with Facebook integration, automated content generation, and comprehensive lead management for modern real estate agents.
+A world-class, AI-powered Property CRM solution with intelligent agent onboarding, dynamic branding, and mobile-first design.
+
+## ✨ Features
+
+### 🤖 AI-Powered Onboarding
+- **GROQ AI Integration**: Uses GROQ API for intelligent branding suggestions
+- **Personalized CRM Strategy**: AI-generated recommendations based on agent profile
+- **Smart Content Suggestions**: Automated marketing content ideas
+- **Property Insights**: AI-powered market analysis and recommendations
+
+### 🎨 Dynamic Branding System
+- **Custom Color Schemes**: Primary, secondary, accent, text, and background colors
+- **Logo Management**: Upload and manage brand logos
+- **Brand Guidelines**: Customizable branding rules and preferences
+- **Real-time UI Updates**: Branding changes reflect immediately in the interface
+
+### 📱 Mobile-First Design
+- **Responsive Interface**: Optimized for all device sizes
+- **Touch-Friendly**: Designed for mobile and tablet use
+- **Modern UX**: Smooth animations and intuitive navigation
+- **Progressive Web App**: Fast loading and offline capabilities
+
+### 📊 Smart CRM Features
+- **Lead Management**: Intelligent lead scoring and nurturing
+- **Client Segmentation**: AI-powered client categorization
+- **Automation**: Automated follow-up sequences and notifications
+- **Performance Analytics**: Comprehensive reporting and insights
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Python 3.8+
-- MongoDB (for data storage)
-- Optional: Docker (for containerized deployment)
+- Node.js 16+
+- GROQ API Key
 
-### Option 1: Production CRM (Recommended)
+### Backend Setup
 
-**Full-featured CRM with MongoDB:**
-```bash
-docker compose -f docker-compose.crm.yml up -d --build
-```
-- 🌐 **CRM Interface**: http://localhost:8004
-- 📊 **Complete Dashboard**: Leads, Properties, AI Tools
-- 🗄️ **Persistent Storage**: MongoDB
-
-Stop:
-```bash
-docker compose -f docker-compose.crm.yml down -v
-```
-
-### Option 2: Development Server
-
-**Lightweight development with in-memory storage:**
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Start development server  
-uvicorn app.main:app --reload --port 8003
-```
-- 🌐 **Dashboard**: http://localhost:8003/dashboard
-- 🧪 **Development Mode**: In-memory data storage
-
-### Option 3: Manual Setup
-
-1. **Clone and setup:**
+1. **Clone the repository**
    ```bash
-   git clone <repository>
-   cd realestate_ai
-   python -m venv .venv
-   .venv\Scripts\activate  # Windows
-   # source .venv/bin/activate  # macOS/Linux
+   git clone <repository-url>
+   cd world-glass-gen-ai-property-crm
+   ```
+
+2. **Set up Python environment**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
    pip install -r requirements.txt
    ```
 
-2. **Configure environment:**
+3. **Configure environment variables**
    ```bash
-   # Copy .env.example to .env and configure:
-   MONGO_URI=mongodb://localhost:27017/realestate_crm
-   GROQ_API_KEY=your_groq_api_key
-   FB_APP_ID=your_facebook_app_id
-   FB_APP_SECRET=your_facebook_app_secret
+   cp .env.example .env
+   # Edit .env and add your GROQ_API_KEY
    ```
 
-3. **Start application:**
+4. **Initialize database**
    ```bash
-   # Development mode (port 8003)
-   uvicorn app.main:app --reload --port 8003
-   
-   # OR Production mode (port 8004)  
-   python complete_production_crm.py
+   python -c "from app.dependencies import init_db; init_db()"
    ```
 
-## 🎯 Available Applications
+5. **Run the backend**
+   ```bash
+   python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   ```
 
-| Application | URL | Purpose | Database |
-|-------------|-----|---------|----------|
-| **Production CRM** | http://localhost:8004 | Full-featured CRM with persistent storage | MongoDB |
-| **Development Server** | http://localhost:8003 | Lightweight development and testing | In-memory |
-| **API Documentation** | http://localhost:8003/docs | Interactive API documentation | - |
-| **Health Check** | http://localhost:8003/ | Server status verification | - |
+### Frontend Setup
 
-## 🔑 Demo Credentials
+1. **Navigate to frontend directory**
+   ```bash
+   cd frontend
+   ```
 
-**Login:** demo@mumbai.com  
-**Password:** demo123
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-## 🏗️ Core Features
+3. **Start development server**
+   ```bash
+   npm run dev
+   ```
 
-### 📊 Dashboard
-- **5-Tab Interface**: Dashboard, Leads, Properties, AI Tools, Settings
-- **Real-time Updates**: Connection status, lead metrics, activity feed
-- **Responsive Design**: Mobile-friendly interface
+4. **Open in browser**
+   ```
+   http://localhost:5173
+   ```
 
-### 📘 Facebook Integration
-- **OAuth Authentication**: Secure Facebook account connection
-- **Multi-page Support**: Manage multiple Facebook business pages
-- **Direct Posting**: Post content directly to Facebook from dashboard
-- **Encrypted Storage**: Secure token storage with Fernet encryption
+## 🏗️ Architecture
 
-### 🤖 AI Content Generation
-- **LangChain + Groq**: Advanced AI content creation
-- **Professional Templates**: Just Listed, Open House, Price Drop, Sold
-- **Multi-language**: 7 languages including English, Spanish, French
-- **Copy to Facebook**: Seamless integration with posting workflow
-
-### 👥 Lead Management
-- **CRUD Operations**: Create, view, update, delete leads
-- **Status Tracking**: Lead lifecycle management
-- **Search & Filter**: Find leads by various criteria
-- **Agent Assignment**: Multi-agent lead distribution
-
-## �️ Technical Stack
-
-### Backend
-- **Framework**: FastAPI with async/await
-- **Database**: MongoDB (production) / In-memory (development)
-- **Authentication**: JWT tokens with bcrypt password hashing
-- **AI Integration**: LangChain with Groq LLM API
-
-### APIs
-- **Facebook Graph API**: v19.0 for social media integration
-- **Groq API**: AI content generation and localization
-- **RESTful Endpoints**: Standard HTTP API design
-
-### Security
-- **Encryption**: Fernet encryption for sensitive tokens
-- **CSRF Protection**: OAuth state verification
-- **Password Hashing**: bcrypt with salt
-- **Environment Variables**: Secure configuration management
-
+### Backend Structure
 ```
-ws://localhost:8000/chat
+app/
+├── config.py              # Configuration and settings
+├── main.py               # FastAPI application entry point
+├── dependencies.py       # Database and service dependencies
+├── models/
+│   └── agent.py         # Agent data model
+├── services/
+│   ├── ai_service.py    # GROQ AI integration
+│   └── agent_service.py # Agent business logic
+└── routes/
+    └── agent_routes.py  # API endpoints
 ```
 
-Then type `start` to begin the assistant flow.
-
----
-
-## 🚀 Example Flow
-
-1. Assistant asks branding questions.
-2. You reply with branding preferences.
-3. Assistant generates:
-
-   * Brand name + tagline
-   * Logo and cover image prompts
-   * About section
-4. You enter property details (location, price, etc.)
-5. Assistant generates:
-
-   * Base post + 3 variants
-6. You confirm posting to Facebook Page.
-7. Assistant posts using image `images/building.png`.
-
----
-
-## 📸 Facebook Requirements
-
-Ensure your Page has:
-
-* ✅ `pages_manage_posts` & `pages_read_engagement`
-* ✅ App has correct permissions and is live
-* ✅ You are an admin of the Page
-
----
-
-## 🧠 Powered by
-
-* [LangGraph](https://github.com/langchain-ai/langgraph)
-* [FastAPI](https://fastapi.tiangolo.com/)
-* [Groq LLM via LangChain](https://python.langchain.com/docs/integrations/llms/groq)
-
----
-
-## 📌 TODO
-
-* [ ] Auto-generate and upload logo/cover images
-* [ ] Schedule Facebook posts
-* [ ] Add Instagram integration
-* [ ] Save user projects to database
-
----
-
-## 📁 Documentation
-
-### Essential Guides
-- **[CURRENT_STATUS.md](CURRENT_STATUS.md)** - Current implementation overview
-- **[FACEBOOK_SETUP_GUIDE.md](FACEBOOK_SETUP_GUIDE.md)** - Facebook integration setup
-- **[USER_MANUAL.md](USER_MANUAL.md)** - End user guide for CRM features
-- **[PRODUCTION_GUIDE.md](PRODUCTION_GUIDE.md)** - Deployment and production setup
-
-### Development
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Developer guidelines and workflow
-- **[CODEMAP.md](CODEMAP.md)** - Code structure and architecture
-- **[tests/](tests/)** - Comprehensive test plans and setup guides
-
-### Architecture
-- **[docs/architecture/](docs/architecture/)** - Technical design documents
-- **[specs/](specs/)** - Feature specifications and requirements
-
-## 🧪 Testing
-
-### Test Organization
+### Frontend Structure
 ```
-tests/
-├── unit/           # Unit tests for core functionality
-├── integration/    # API and service integration tests  
-├── e2e/           # End-to-end Playwright tests
-└── docs/          # Test documentation and plans
-```
-
-### Running Tests
-```bash
-# Unit tests
-pytest tests/unit/
-
-# Integration tests (requires running server)
-pytest tests/integration/
-
-# E2E tests (requires Playwright setup)
-npm run test:e2e
-```
-
-## 🚀 Deployment
-
-### Docker (Recommended)
-```bash
-# Start production CRM with MongoDB
-docker compose -f docker-compose.crm.yml up -d
-
-# Access at http://localhost:8004
-```
-
-### Manual Deployment
-```bash
-# Set environment variables
-export MONGO_URI=mongodb://localhost:27017/realestate_crm
-export GROQ_API_KEY=your_groq_key
-export FB_APP_ID=your_fb_app_id
-export FB_APP_SECRET=your_fb_app_secret
-
-# Start production server
-python complete_production_crm.py
+frontend/
+├── src/
+│   ├── components/
+│   │   └── AgentOnboarding.jsx  # Main onboarding component
+│   ├── App.jsx                   # Root application component
+│   └── main.jsx                  # Application entry point
+├── package.json                  # Dependencies and scripts
+└── tailwind.config.js           # Tailwind CSS configuration
 ```
 
 ## 🔧 Configuration
 
-### Required Environment Variables
-```env
-# Database
-MONGO_URI=mongodb://localhost:27017/realestate_crm
+### Environment Variables
+```bash
+# Required
+GROQ_API_KEY=your_groq_api_key_here
 
-# AI Services  
-GROQ_API_KEY=your_groq_api_key
-
-# Facebook Integration
-FB_APP_ID=your_facebook_app_id
-FB_APP_SECRET=your_facebook_app_secret
-
-# Security
+# Optional
+DATABASE_URL=sqlite:///./property_crm.db
 SECRET_KEY=your_secret_key_here
-JWT_SECRET_KEY=your_jwt_secret_key
+DEBUG=false
 ```
 
-### Optional Configuration
-```env
-# Feature Flags
-FEATURE_FACEBOOK_PERSIST=true
-AI_DISABLE_IMAGE_GENERATION=false
-
-# External Services
-STABILITY_API_KEY=your_stability_key
-HUGGINGFACE_API_TOKEN=your_hf_token
+### AI Settings
+```python
+# app/config.py
+GROQ_MODEL = "llama3-8b-8192"  # GROQ model to use
+MAX_TOKENS = 4096               # Maximum tokens per request
+TEMPERATURE = 0.7               # AI creativity level
 ```
 
-## 📞 Support
+## 📱 Agent Onboarding Flow
 
-For issues, questions, or contributions:
-1. Check existing documentation in this repository
-2. Review test plans in `tests/` directory
-3. Consult `CURRENT_STATUS.md` for implementation details
-4. Follow contribution guidelines in `CONTRIBUTING.md`
+### 1. Profile Setup
+- Basic information (name, email, phone)
+- Company details and license information
+- Experience and bio
+
+### 2. Branding Configuration
+- Brand name and tagline
+- Logo upload and management
+- Custom color scheme selection
+- AI-powered branding suggestions
+
+### 3. Specialties Definition
+- Property type specializations
+- Service area selection
+- Price range preferences
+- Target market identification
+
+### 4. CRM Setup
+- AI communication preferences
+- Notification settings
+- Automation preferences
+- Lead management strategy
+
+### 5. Verification
+- Document upload (license, ID)
+- Account verification process
+- Compliance checks
+
+## 🎨 Branding System
+
+### Color Scheme
+- **Primary Color**: Main brand color for buttons and highlights
+- **Secondary Color**: Supporting color for secondary elements
+- **Accent Color**: Attention-grabbing color for CTAs
+- **Text Color**: Primary text color for readability
+- **Background Color**: Main background color
+
+### Dynamic UI Updates
+The branding system automatically applies colors to:
+- Buttons and interactive elements
+- Headers and navigation
+- Forms and input fields
+- Progress indicators
+- Success/error messages
+
+## 🔌 API Endpoints
+
+### Agent Management
+- `POST /api/agents/onboarding/start` - Start onboarding process
+- `POST /api/agents/onboarding/{agent_id}/step/{step}` - Complete onboarding step
+- `GET /api/agents/onboarding/{agent_id}/progress` - Get onboarding progress
+- `PUT /api/agents/{agent_id}/branding` - Update agent branding
+- `GET /api/agents/{agent_id}/branding` - Get agent branding
+- `POST /api/agents/{agent_id}/upload-logo` - Upload agent logo
+- `POST /api/agents/{agent_id}/upload-documents` - Upload verification documents
+- `GET /api/agents/{agent_id}/ai-suggestions` - Get AI-powered suggestions
+- `GET /api/agents/{agent_id}/dashboard` - Get agent dashboard
+
+## 🤖 AI Integration
+
+### GROQ AI Features
+- **Branding Suggestions**: Intelligent brand name and tagline recommendations
+- **CRM Strategy**: Personalized customer relationship management strategies
+- **Content Generation**: Marketing content ideas and suggestions
+- **Property Insights**: Market analysis and pricing recommendations
+
+### AI Prompts
+The system uses carefully crafted prompts to:
+- Analyze agent profiles and preferences
+- Generate relevant branding suggestions
+- Create personalized CRM strategies
+- Provide market insights and recommendations
+
+## 📱 Mobile-First Design
+
+### Responsive Features
+- **Grid Layouts**: Adaptive grid systems for different screen sizes
+- **Touch Targets**: Appropriately sized buttons and interactive elements
+- **Gesture Support**: Swipe and touch-friendly navigation
+- **Performance**: Optimized for mobile network conditions
+
+### Design Principles
+- **Accessibility**: WCAG compliant design
+- **Usability**: Intuitive navigation and clear visual hierarchy
+- **Performance**: Fast loading and smooth animations
+- **Consistency**: Unified design language across all components
+
+## 🧪 Testing
+
+### Backend Testing
+```bash
+# Run all tests
+python -m pytest
+
+# Run specific test file
+python -m pytest tests/test_agent_service.py
+
+# Run with coverage
+python -m pytest --cov=app
+```
+
+### Frontend Testing
+```bash
+cd frontend
+
+# Run tests
+npm test
+
+# Run tests with coverage
+npm test -- --coverage
+```
+
+## 🚀 Deployment
+
+### Backend Deployment
+```bash
+# Production build
+pip install -r requirements.txt
+
+# Run with production server
+gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker
+```
+
+### Frontend Deployment
+```bash
+cd frontend
+
+# Build for production
+npm run build
+
+# Deploy dist/ folder to your hosting service
+```
+
+## 🔒 Security
+
+### Authentication & Authorization
+- JWT-based authentication
+- Role-based access control
+- Secure password handling
+- API rate limiting
+
+### Data Protection
+- Input validation and sanitization
+- SQL injection prevention
+- XSS protection
+- CSRF protection
+
+## 📈 Performance
+
+### Backend Optimization
+- Database query optimization
+- Caching strategies
+- Async/await patterns
+- Connection pooling
+
+### Frontend Optimization
+- Code splitting and lazy loading
+- Image optimization
+- Bundle size optimization
+- Progressive enhancement
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+For support and questions:
+- Create an issue in the repository
+- Contact the development team
+- Check the documentation
+
+## 🔮 Roadmap
+
+### Phase 1: Core Platform ✅
+- [x] Agent onboarding system
+- [x] Dynamic branding
+- [x] Basic CRM functionality
+- [x] AI integration
+
+### Phase 2: Advanced Features 🚧
+- [ ] Property management system
+- [ ] Lead scoring and automation
+- [ ] Advanced analytics dashboard
+- [ ] Mobile app development
+
+### Phase 3: Enterprise Features 📋
+- [ ] Multi-tenant architecture
+- [ ] Advanced reporting
+- [ ] Integration APIs
+- [ ] White-label solutions
 
 ---
 
-**Status**: Production-ready Real Estate AI CRM with MongoDB backend, Facebook integration, and AI-powered content generation. ✅
-
-## 🧑‍💻 Author
-
-**Amit Sajwan** — powered by Python, GenAI & LangGraph
+**Built with ❤️ by the World Glass Gen AI Team**
