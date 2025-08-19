@@ -3,9 +3,10 @@
 <head>
     <title>Agent Onboarding</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 <body>
-    <h2>Agent Onboarding</h2>
+    <h2 style="text-align:center;margin:16px 0;">Agent Onboarding</h2>
     <form method="POST" action="/agent/onboard">
         <fieldset>
             <legend>Step 1: Basics</legend>
@@ -26,6 +27,27 @@
             <input id="tagline" name="tagline">
             <label>About (optional):</label>
             <textarea id="about" name="about"></textarea>
+            <label>Brand tags (comma separated, optional):</label>
+            <input id="tags" name="tags" placeholder="luxury, rentals, gurgaon">
+            <label>Logo URL (optional):</label>
+            <input id="logo_url" name="logo_url" placeholder="https://...">
+            <div id="brandPreview" style="margin-top:12px;border:1px solid #ddd;border-radius:8px;overflow:hidden;">
+                <div id="brandHeader" style="padding:16px;color:#fff;display:flex;align-items:center;gap:12px;">
+                    <img id="brandLogo" src="" alt="logo" style="width:40px;height:40px;border-radius:6px;display:none;">
+                    <div>
+                        <div id="brandName" style="font-weight:700;">Brand Name</div>
+                        <div id="brandTagline" style="opacity:.9;font-size:.9em;">Tagline will appear here</div>
+                    </div>
+                </div>
+                <div id="brandBody" style="padding:12px;background:#fff;">
+                    <div id="brandAbout" style="color:#333;font-size:.95em;">About summary will appear here</div>
+                    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                        <span class="chip" id="chip1">#realestate</span>
+                        <span class="chip" id="chip2">#trust</span>
+                        <span class="chip" id="chip3">#local</span>
+                    </div>
+                </div>
+            </div>
         </fieldset>
 
         <fieldset>
@@ -40,12 +62,30 @@
     </form>
 
     <script>
+        // Persist brand variables to localStorage to theme public pages
+        function setBrandVars(colors) {
+            try {
+                if (!colors) return;
+                localStorage.setItem('brand_colors', JSON.stringify(colors));
+                document.documentElement.style.setProperty('--brand-primary', colors.primary || '#232946');
+                document.documentElement.style.setProperty('--brand-secondary', colors.secondary || '#eebbc3');
+                document.documentElement.style.setProperty('--brand-accent', colors.accent || '#b8c1ec');
+            } catch (e) {}
+        }
+        (function hydrateFromStorage(){
+            try {
+                var saved = localStorage.getItem('brand_colors');
+                if (saved) setBrandVars(JSON.parse(saved));
+            } catch (e) {}
+        })();
         document.getElementById('suggestBranding') && document.getElementById('suggestBranding').addEventListener('click', async function () {
             var nameInput = document.getElementById('name');
             var name = nameInput && nameInput.value || '';
+            var tags = (document.getElementById('tags') && document.getElementById('tags').value) || '';
             if (!name) return;
             var form = new FormData();
             form.append('name', name);
+            if (tags) form.append('tags', tags);
             var resp = await fetch('/agent/branding-suggest', { method: 'POST', body: form });
             if (resp.ok) {
                 var data = await resp.json();
@@ -53,8 +93,49 @@
                 var aboutInput = document.getElementById('about');
                 if (tagInput) tagInput.value = data.tagline || '';
                 if (aboutInput) aboutInput.value = data.about || '';
+
+                // Live preview
+                try {
+                    var primary = (data.colors && data.colors.primary) || '#232946';
+                    var secondary = (data.colors && data.colors.secondary) || '#eebbc3';
+                    var accent = (data.colors && data.colors.accent) || '#b8c1ec';
+                    var header = document.getElementById('brandHeader');
+                    var body = document.getElementById('brandBody');
+                    var logo = document.getElementById('brandLogo');
+                    var nameEl = document.getElementById('brandName');
+                    var tagEl = document.getElementById('brandTagline');
+                    var aboutEl = document.getElementById('brandAbout');
+
+                    if (header) header.style.background = primary;
+                    if (body) body.style.borderTop = '4px solid ' + secondary;
+                    if (nameEl) nameEl.textContent = name;
+                    if (tagEl) tagEl.textContent = data.tagline || '';
+                    if (aboutEl) aboutEl.textContent = data.about || '';
+
+                    var logoUrl = document.getElementById('logo_url') && document.getElementById('logo_url').value;
+                    if (logo && logoUrl) { logo.src = logoUrl; logo.style.display = 'block'; }
+                    var chips = [document.getElementById('chip1'), document.getElementById('chip2'), document.getElementById('chip3')];
+                    chips.forEach(function(c){ if (c){ c.style.background = accent; c.style.color = '#1b1b1b'; c.style.padding='4px 8px'; c.style.borderRadius='999px'; }});
+                    setBrandVars({ primary: primary, secondary: secondary, accent: accent });
+                } catch (e) {}
             }
         });
+        // Intercept submit to persist colors before navigation
+        (function(){
+            var form = document.querySelector('form[action="/agent/onboard"]');
+            if (!form) return;
+            form.addEventListener('submit', function(){
+                try {
+                    var header = document.getElementById('brandHeader');
+                    var styles = getComputedStyle(document.documentElement);
+                    setBrandVars({
+                        primary: styles.getPropertyValue('--brand-primary').trim() || '#232946',
+                        secondary: styles.getPropertyValue('--brand-secondary').trim() || '#eebbc3',
+                        accent: styles.getPropertyValue('--brand-accent').trim() || '#b8c1ec'
+                    });
+                } catch (e) {}
+            });
+        })();
     </script>
 </body>
 </html>
