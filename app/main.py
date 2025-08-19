@@ -15,6 +15,7 @@ from contextlib import asynccontextmanager
 import logging
 from fastapi.templating import Jinja2Templates
 from pathlib import Path as SysPath
+from fastapi.staticfiles import StaticFiles
 
 # Import your existing config (now fixed)
 from core.config import settings
@@ -145,8 +146,13 @@ templates_root = Jinja2Templates(directory=str(_root_templates))
 
 # App templates for onboarding and other app-scoped pages
 templates_app = Jinja2Templates(
-    directory=str(_app_templates if (_app_templates / "onboarding.html").exists() else _root_templates)
+	directory=str(_app_templates if (_app_templates / "onboarding.html").exists() else _root_templates)
 )
+
+# Mount static files (CSS/JS) - ensure served under /static
+static_path = SysPath(__file__).parent.parent / "static"
+if static_path.exists():
+	app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
 
 # WebSocket endpoint for chat
 @app.websocket("/chat/{client_id}")
