@@ -1,4 +1,4 @@
-# app/main.py - Fixed imports to work with your existing structure
+# app/main.py - FastAPI application entrypoint
 
 import sys
 import os
@@ -17,95 +17,90 @@ from fastapi.templating import Jinja2Templates
 from pathlib import Path as SysPath
 from fastapi.staticfiles import StaticFiles
 
-# Import your existing config (now fixed)
 from core.config import settings
 
-# Try to import database connection (if it exists)
+# Optional database integration
 try:
 	from app.core.database import connect_to_mongo, close_mongo_connection
 	HAS_DATABASE = True
-except ImportError:
-	# Fallback for existing database setup
+except Exception:
 	HAS_DATABASE = False
-	print("⚠️  Using legacy database setup")
+	print("⚠️  Using legacy/no database setup")
 
-# Allow skipping DB in test/dev environments
 if os.getenv("SKIP_DB") == "1":
 	HAS_DATABASE = False
 
-# Import routers that exist
+# Collect routers to include
 routers_to_include = []
 
-# Prefer local simple auth first (provides /api/login)
+# Simple auth (provides /api/login)
 try:
 	from api.endpoints.simple_auth import router as simple_auth_router
 	routers_to_include.append(("SimpleAuth", simple_auth_router, ""))
-except ImportError:
+except Exception:
 	print("⚠️  SimpleAuth router not found")
 
-# Check for existing API routers
+# API v1 (if present)
 try:
 	from app.api.v1.router import api_router
 	routers_to_include.append(("API v1", api_router, "/api/v1"))
-except ImportError:
+except Exception:
 	print("⚠️  API v1 router not found")
 
-# Mount additional standalone endpoints (agent onboarding, ai localization)
+# Agent Onboarding (HTML + APIs)
 try:
 	from app.api.endpoints.agent_onboarding import router as onboarding_router
 	routers_to_include.append(("AgentOnboarding", onboarding_router, ""))
-except ImportError:
+except Exception:
 	print("⚠️  AgentOnboarding router not found")
 
+# AI Localization (try both module paths)
+_ai_loc_added = False
 try:
 	from app.api.endpoints.ai_localization import router as ai_localization_router
 	routers_to_include.append(("AILocalization", ai_localization_router, ""))
-except ImportError:
-	print("⚠️  AILocalization router not found")
+	_ai_loc_added = True
+except Exception:
+	pass
+if not _ai_loc_added:
+	try:
+		from api.endpoints.ai_localization import router as ai_localization_router
+		routers_to_include.append(("AILocalization", ai_localization_router, ""))
+	except Exception:
+		print("⚠️  AILocalization router not found")
 
-# Check for legacy routes
+# Branding suggestions API (LLM-powered)
 try:
-	from app.routes.proxy import router as proxy_router
-	routers_to_include.append(("Proxy", proxy_router, ""))
-except ImportError:
-	print("⚠️  Proxy router not found")
+	from api.endpoints.branding import router as branding_router
+	routers_to_include.append(("Branding", branding_router, ""))
+except Exception:
+	print("⚠️  Branding router not found")
 
-try:
-	from app.routes.auth import router as auth_router
-	routers_to_include.append(("Auth", auth_router, ""))
-except ImportError:
-	print("⚠️  Auth router not found")
+# Legacy route groups if present
+for name, module_path in [
+	("Proxy", "app.routes.proxy"),
+	("Auth", "app.routes.auth"),
+	("Leads", "app.routes.leads"),
+	("Properties", "app.routes.properties"),
+	("System", "app.routes.system"),
+]:
+	try:
+		module = __import__(module_path, fromlist=["router"])
+		routers_to_include.append((name, getattr(module, "router"), ""))
+	except Exception:
+		print(f"⚠️  {name} router not found")
 
-try:
-	from app.routes.leads import router as leads_router
-	routers_to_include.append(("Leads", leads_router, ""))
-except ImportError:
-	print("⚠️  Leads router not found")
-
-try:
-	from app.routes.properties import router as properties_router  
-	routers_to_include.append(("Properties", properties_router, ""))
-except ImportError:
-	print("⚠️  Properties router not found")
-
-try:
-	from app.routes.system import router as system_router
-	routers_to_include.append(("System", system_router, ""))
-except ImportError:
-	print("⚠️  System router not found")
-
-# Setup logging
+# Logging
 logging.basicConfig(
 	level=logging.DEBUG if settings.DEBUG else logging.INFO,
 	format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-	# Startup
 	logger.info("Starting Real Estate AI CRM...")
-	
 	if HAS_DATABASE:
 		try:
 			await connect_to_mongo()
@@ -113,48 +108,42 @@ async def lifespan(app: FastAPI):
 		except Exception as e:
 			logger.error(f"❌ Database connection failed: {e}")
 	else:
-		logger.info("📊 Using existing database setup")
-	
-	logger.info("🚀 Application started successfully")
-	
+		logger.info("📊 Running without database integration")
+
 	yield
-	
-	# Shutdown
+
 	if HAS_DATABASE:
 		try:
 			await close_mongo_connection()
 			logger.info("📊 Database connection closed")
 		except Exception as e:
 			logger.error(f"Database shutdown error: {e}")
-	
 	logger.info("👋 Application shutdown complete")
 
-# Create FastAPI app
+
+# FastAPI app
 app = FastAPI(
 	title="Real Estate AI CRM",
 	version="2.0.0",
 	description="AI-Powered Real Estate CRM System",
-	lifespan=lifespan
+	lifespan=lifespan,
 )
 
-# Templates: support both root and app-level templates
+# Templates
 _app_templates = SysPath(__file__).parent / "templates"
 _root_templates = SysPath(__file__).parent.parent / "templates"
-
-# Default templates for general pages (login/dashboard)
 templates_root = Jinja2Templates(directory=str(_root_templates))
-
-# App templates for onboarding and other app-scoped pages
 templates_app = Jinja2Templates(
 	directory=str(_app_templates if (_app_templates / "onboarding.html").exists() else _root_templates)
 )
 
-# Mount static files (CSS/JS) - ensure served under /static
+# Static files
 static_path = SysPath(__file__).parent.parent / "static"
 if static_path.exists():
 	app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
 
-# WebSocket endpoint for chat
+
+# WebSocket endpoint
 @app.websocket("/chat/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
 	await websocket.accept()
@@ -165,7 +154,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
 	except WebSocketDisconnect:
 		logger.info(f"Client {client_id} disconnected")
 
-# CORS middleware
+
+# CORS
 app.add_middleware(
 	CORSMiddleware,
 	allow_origins=[settings.FRONTEND_URL, "http://localhost:3000", "http://localhost:8080", "http://localhost:5173"],
@@ -173,6 +163,7 @@ app.add_middleware(
 	allow_methods=["*"],
 	allow_headers=["*"],
 )
+
 
 # Global exception handler
 @app.exception_handler(Exception)
@@ -182,52 +173,57 @@ async def global_exception_handler(request: Request, exc: Exception):
 		status_code=500,
 		content={
 			"error": "Internal server error",
-			"detail": str(exc) if settings.DEBUG else "An error occurred"
-		}
+			"detail": str(exc) if settings.DEBUG else "An error occurred",
+		},
 	)
 
-# Include all available routers
+
+# Include routers
 for name, router, prefix in routers_to_include:
 	app.include_router(router, prefix=prefix)
 	logger.info(f"✅ Included {name} router at {prefix}")
 
-# Public UI routes
+
+# Public pages
 @app.get("/", response_class=HTMLResponse)
 async def login_page(request: Request):
 	return templates_root.TemplateResponse("login.html", {"request": request})
+
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_page(request: Request):
 	return templates_root.TemplateResponse("dashboard.html", {"request": request})
 
+
 @app.get("/onboarding", response_class=HTMLResponse)
 async def onboarding_page(request: Request):
 	return templates_app.TemplateResponse("onboarding.html", {"request": request})
 
-# Health check endpoint
+
+# Health and API root
 @app.get("/health")
 async def health_check():
 	return {
-		"status": "healthy", 
+		"status": "healthy",
 		"service": "real-estate-ai-crm",
 		"version": "2.0.0",
-		"debug": settings.DEBUG
+		"debug": settings.DEBUG,
 	}
 
-# API root endpoint
+
 @app.get("/api")
 async def api_root():
 	return {
 		"message": "Real Estate AI CRM API",
-		"version": "2.0.0", 
+		"version": "2.0.0",
 		"docs": "/docs",
 		"health": "/health",
 		"frontend": settings.FRONTEND_URL,
 		"available_routes": [
-			{"name": name, "prefix": prefix} 
-			for name, _, prefix in routers_to_include
-		]
+			{"name": name, "prefix": prefix} for name, _, prefix in routers_to_include
+		],
 	}
+
 
 if __name__ == "__main__":
 	import uvicorn
@@ -235,7 +231,8 @@ if __name__ == "__main__":
 	uvicorn.run(
 		"app.main:app",
 		host="0.0.0.0",
-		port=8080,  # Using your port
+		port=8080,
 		reload=settings.DEBUG,
-		log_level="debug" if settings.DEBUG else "info"
+		log_level="debug" if settings.DEBUG else "info",
 	)
+
