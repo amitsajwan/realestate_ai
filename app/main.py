@@ -28,6 +28,10 @@ except ImportError:
 	HAS_DATABASE = False
 	print("⚠️  Using legacy database setup")
 
+# Allow skipping DB in test/dev environments
+if os.getenv("SKIP_DB") == "1":
+	HAS_DATABASE = False
+
 # Import routers that exist
 routers_to_include = []
 
@@ -132,8 +136,11 @@ app = FastAPI(
 	lifespan=lifespan
 )
 
-# Templates (serve agent login UI and dashboard)
-templates = Jinja2Templates(directory=str(SysPath(__file__).parent / "templates"))
+# Templates (serve agent login UI and dashboard). Prefer app/templates, fallback to project/templates
+_app_templates = SysPath(__file__).parent / "templates"
+_root_templates = SysPath(__file__).parent.parent / "templates"
+_templates_dir = _app_templates if (_app_templates / "login.html").exists() else _root_templates
+templates = Jinja2Templates(directory=str(_templates_dir))
 
 # WebSocket endpoint for chat
 @app.websocket("/chat/{client_id}")
