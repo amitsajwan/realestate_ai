@@ -28,4 +28,4 @@ async def get_current_user(
 
 async def get_current_user_id(current_user = Depends(get_current_user)) -> str:
     """Get current user ID"""
-    return current_user.idauth_service
+    return current_user.id  # FIXED: was current_user.idauth_service
