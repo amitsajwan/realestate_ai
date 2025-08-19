@@ -25,18 +25,26 @@ async def agent_onboard(
     profile_photo_url: str = Form(None),
     tagline: str = Form(None),
     about: str = Form(None),
+    logo_url: str = Form(None),
+    tags: str = Form(None),
     db=Depends(get_db_client)
 ):
     svc = AgentOnboardingService(db)
     onboarding_data = AgentOnboardingData(
-        email=email, name=name, whatsapp=whatsapp,
-        profile_photo_url=profile_photo_url, tagline=tagline, about=about
+        email=email,
+        name=name,
+        whatsapp=whatsapp,
+        profile_photo_url=profile_photo_url,
+        tagline=tagline,
+        about=about,
+        logo_url=logo_url,
+        brand_tags=tags,
     )
     agent = svc.onboard(onboarding_data)
     return {"success": True, "agent": agent.dict()}
 
 @router.post("/branding-suggest")
-async def branding_suggest(name: str = Form(...)):
-    """Return AI branding suggestions for a given name."""
-    return generate_branding(name)
+async def branding_suggest(name: str = Form(...), tags: str = Form(None)):
+    """Return AI branding suggestions for a given name, including color scheme."""
+    return generate_branding(name=name, tags=tags)
  
