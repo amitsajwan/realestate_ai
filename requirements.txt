@@ -69,4 +69,12 @@ email-validator==2.1.0
 # Production server
 # ----------------------------
 # Only needed on Linux servers. Comment out on Windows.
-gunicorn==21.2.0
+# gunicorn==21.2.0
+
+# ----------------------------
+# Windows Compatibility
+# ----------------------------
+# Additional packages for Windows development
+colorama==0.4.6
+# Ensure pydantic-settings is available
+pydantic-settings==2.1.0
