@@ -40,16 +40,19 @@
     </form>
 
     <script>
-        document.getElementById('suggestBranding')?.addEventListener('click', async () => {
-            const name = (document.getElementById('name') as HTMLInputElement).value;
+        document.getElementById('suggestBranding') && document.getElementById('suggestBranding').addEventListener('click', async function () {
+            var nameInput = document.getElementById('name');
+            var name = nameInput && nameInput.value || '';
             if (!name) return;
-            const form = new FormData();
+            var form = new FormData();
             form.append('name', name);
-            const resp = await fetch('/agent/branding-suggest', { method: 'POST', body: form });
+            var resp = await fetch('/agent/branding-suggest', { method: 'POST', body: form });
             if (resp.ok) {
-                const data = await resp.json();
-                (document.getElementById('tagline') as HTMLInputElement).value = data.tagline || '';
-                (document.getElementById('about') as HTMLTextAreaElement).value = data.about || '';
+                var data = await resp.json();
+                var tagInput = document.getElementById('tagline');
+                var aboutInput = document.getElementById('about');
+                if (tagInput) tagInput.value = data.tagline || '';
+                if (aboutInput) aboutInput.value = data.about || '';
             }
         });
     </script>
