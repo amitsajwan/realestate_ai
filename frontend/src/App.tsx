@@ -1,335 +1,103 @@
-// --- Helper: Generate Listing Post ---
-function generateListingPost() {
-  print("ddddddddddddddddddddddddddd")
-  const token = localStorage.getItem('jwt_token');
-  // Example user input (replace with actual form values if needed)
-  const rawPrice = '₹1,00,00,000';
-  const rawFeatures = 'Sea view, Gym, Pool';
-  const payload = {
-    template: 'just_listed',
-    address: '123 Main St',
-    city: 'Pune',
-    state: 'MH',
-    price: String(rawPrice), // always string
-    bedrooms: 3,
-    bathrooms: 2.0,
-    features: rawFeatures.split(',').map(f => f.trim()).filter(f => f.length > 0), // always array of strings
-    // Optional fields can be added if needed, but only those defined in ListingDetails
-  };
-  fetch('http://localhost:8003/api/listings/generate', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': token ? `Bearer ${token}` : ''
-    },
-    body: JSON.stringify(payload)
-  })
-    .then(async res => {
-      const data = await res.json();
-      if (!res.ok) {
-        alert('Error: ' + (data.detail || JSON.stringify(data)));
-      } else {
-        alert('Listing Post Generated: ' + JSON.stringify(data));
-      }
-    })
-    .catch(err => {
-      alert('Error generating listing post: ' + err);
-    });
-}
-import React, { useState, useEffect, useRef } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import { marked } from 'marked';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { AgentProvider } from './contexts/AgentContext';
+import { BrandingProvider } from './contexts/BrandingContext';
+import { AuthProvider } from './contexts/AuthContext';
 
-// --- UI Components ---
+// Components
+import Navbar from './components/layout/Navbar';
+import MobileNav from './components/layout/MobileNav';
+import LoadingSpinner from './components/common/LoadingSpinner';
+import ToastContainer from './components/common/ToastContainer';
 
-const Spinner = () => (
-  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-);
+// Pages
+import LandingPage from './pages/LandingPage';
+import AgentOnboarding from './pages/AgentOnboarding';
+import AgentDashboard from './pages/AgentDashboard';
+import AgentProfile from './pages/AgentProfile';
+import BrandingCustomization from './pages/BrandingCustomization';
+import PropertyManagement from './pages/PropertyManagement';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 
-type ChatBubbleProps = { message: string; from: 'user' | 'assistant' };
-const ChatBubble = ({ message, from }: ChatBubbleProps) => (
-  <div className={`flex w-full ${from === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
-    <div
-      className={`rounded-lg px-4 py-2 max-w-lg shadow-md ${
-        from === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'
-      }`}
-      // Use dangerouslySetInnerHTML because `marked` returns HTML
-      dangerouslySetInnerHTML={{ __html: marked.parse(message || '') as string }}
-    ></div>
-  </div>
-);
+// Styles
+import './styles/globals.css';
+import './styles/components.css';
+import './styles/responsive.css';
 
-type StageDisplayProps = { title: string; data?: string; isLoading?: boolean };
-const StageDisplay = ({ title, data, isLoading }: StageDisplayProps) => {
-  if (!data && !isLoading) return null;
-  return (
-    <div className="bg-white p-4 rounded-lg shadow-lg mb-4 border border-gray-200 animate-fade-in">
-      <h3 className="font-bold text-lg mb-2 text-gray-800">{title}</h3>
-      {isLoading && !data && <div className="text-gray-500 italic">Generating...</div>}
-      {data && (
-        <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: marked.parse(data) as string }} />
-      )}
-    </div>
-  );
-};
-
-type ImageDisplayProps = { title: string; imageUrl?: string | null; isLoading?: boolean };
-const ImageDisplay = ({ title, imageUrl, isLoading }: ImageDisplayProps) => {
-  if (!imageUrl && !isLoading) return null;
-  return (
-    <div className="bg-white p-4 rounded-lg shadow-lg mb-4 border border-gray-200 animate-fade-in">
-      <h3 className="font-bold text-lg mb-2 text-gray-800">{title}</h3>
-      <div className="w-full aspect-square bg-gray-100 rounded-md flex items-center justify-center overflow-hidden">
-        {isLoading && <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>}
-        {imageUrl && (
-          <img
-            // Add a timestamp to prevent browser caching issues
-            src={`http://localhost:8000${imageUrl}?t=${new Date().getTime()}`}
-            alt="Generated property visual"
-            className="rounded-md object-cover w-full h-full"
-          />
-        )}
-      </div>
-    </div>
-  );
-};
-
-type Details = { location: string; price: string; bedrooms: string; features: string; should_post?: boolean };
-type DetailsFormProps = { onSubmit: (details: Details) => void; isLoading?: boolean };
-const DetailsForm = ({ onSubmit, isLoading }: DetailsFormProps) => {
-  const [details, setDetails] = useState<Details>({ location: '', price: '', bedrooms: '', features: '', should_post: false });
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setDetails({ ...details, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(details);
-  };
-
-  return (
-    <div className="bg-white p-4 rounded-lg shadow-xl mb-4 border-2 border-indigo-500 animate-fade-in">
-      <h3 className="font-bold text-lg mb-3 text-indigo-600">Action Required: Provide Property Details</h3>
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <input name="location" value={details.location} onChange={handleChange} placeholder="Location (e.g., Kharadi, Pune)" className="w-full p-2 border rounded-md focus:ring-2 focus:ring-indigo-400" required />
-        <input name="price" value={details.price} onChange={handleChange} placeholder="Price (e.g., 1.5 Cr)" className="w-full p-2 border rounded-md focus:ring-2 focus:ring-indigo-400" required />
-        <input name="bedrooms" value={details.bedrooms} onChange={handleChange} placeholder="Bedrooms (e.g., 2 BHK)" className="w-full p-2 border rounded-md focus:ring-2 focus:ring-indigo-400" required />
-        <input name="features" value={details.features} onChange={handleChange} placeholder="Key Features (comma-separated)" className="w-full p-2 border rounded-md focus:ring-2 focus:ring-indigo-400" required />
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={!!details.should_post}
-            onChange={(e) => setDetails(prev => ({ ...prev, should_post: e.target.checked }))}
-          />
-          Post to Facebook
-        </label>
-        <button type="submit" className="w-full bg-indigo-600 text-white p-2 rounded-md hover:bg-indigo-700 font-semibold flex items-center justify-center" disabled={isLoading}>
-          {isLoading ? <Spinner /> : (details.should_post ? 'Generate & Post' : 'Generate (Preview Only)')}
-        </button>
-      </form>
-    </div>
-  );
-};
-
-
-// --- Main App Component ---
-
-type Msg = { from: 'user' | 'assistant'; text: string };
-type WorkflowState = {
-  brand_suggestions?: string;
-  image_path?: string | null;
-  base_post?: string;
-  post_result?: { message?: string };
-  [key: string]: any;
-};
-
-const App = () => {
-  const [clientId] = useState<string>(uuidv4());
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [input, setInput] = useState('');
-  const [isSending, setIsSending] = useState(false);
-  const [showDetailsForm, setShowDetailsForm] = useState(false);
-  
-  // A single state object to hold all workflow results
-  const [workflowState, setWorkflowState] = useState<WorkflowState>({});
-  // A single loading object to track active steps
-  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
-
-  const ws = useRef<WebSocket | null>(null);
+function App() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    ws.current = new WebSocket(`ws://localhost:8000/chat/${clientId}`);
-
-    ws.current.onopen = () => {
-      console.log('WebSocket Connected');
-      setMessages([{ from: 'assistant', text: 'Hi! What\'s the core idea for your new project or brand? For example, "luxury villas in Goa".' }]);
-    };
-    
-    // Add connection retry logic
-    ws.current.onclose = () => {
-      console.log('WebSocket Disconnected');
-      setMessages(prev => [...prev, { 
-        from: 'assistant', 
-        text: 'Connection lost. Trying to reconnect...' 
-      }]);
-      
-      // Attempt to reconnect after 3 seconds
-      setTimeout(() => {
-        if (ws.current?.readyState === WebSocket.CLOSED) {
-          ws.current = new WebSocket(`ws://localhost:8000/chat/${clientId}`);
-        }
-      }, 3000);
+    // Check if device is mobile
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
     };
 
-    ws.current.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        console.log("Received WS Message:", msg);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
 
-        switch (msg.type) {
-          case 'update':
-            // Stop loading for the completed step
-            setLoadingStates((prev: Record<string, boolean>) => ({ ...prev, [msg.step as string]: false }));
-            // Add new data to the workflow state
-            setWorkflowState((prev: WorkflowState) => ({ ...prev, ...(msg.data as Record<string, any>) }));
-            break;
-          case 'request_input':
-            setShowDetailsForm(true);
-            setMessages(prev => [...prev, { from: 'assistant', text: 'Branding complete! Now I need a few more details to create the post. Please fill out the form on the right.' }]);
-            break;
-          case 'error':
-            setMessages(prev => [...prev, { from: 'assistant', text: `**Error:** ${msg.message}` }]);
-            // Clear all loading states on error
-            setLoadingStates({});
-            break;
-          case 'final':
-            setMessages(prev => [...prev, { from: 'assistant', text: msg.message || '✅ All done!' }]);
-            setLoadingStates((prev: Record<string, boolean>) => ({ ...prev, post_to_facebook: false }));
-            break;
-          default:
-            console.warn("Unhandled WebSocket message type:", msg.type);
-            break;
-        }
-      } catch (e) {
-        console.error("Invalid JSON received:", event.data, e);
-      }
-    };
-
-    ws.current.onclose = () => console.log('WebSocket Disconnected');
-    ws.current.onerror = (error) => console.error('WebSocket Error:', error);
+    // Simulate loading time
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1500);
 
     return () => {
-      if(ws.current) ws.current.close();
+      window.removeEventListener('resize', checkMobile);
+      clearTimeout(timer);
     };
-  }, [clientId]);
+  }, []);
 
-  const handleSendInitialInput = () => {
-    if (input.trim() === '') return;
-    
-    // Reset state for a new run
-    setWorkflowState({});
-    setShowDetailsForm(false);
-    setMessages(prev => [...prev, { from: 'user', text: input }]);
-    
-    // Check WebSocket connection state before sending
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify({ type: "initial_input", user_input: input }));
-      setInput('');
-      setLoadingStates({ create_branding: true, create_visuals: true, generate_image: true });
-    } else {
-      setMessages(prev => [...prev, { 
-        from: 'assistant', 
-        text: 'Connection not ready. Please wait and try again.' 
-      }]);
-    }
-  };
-
-  const handleDetailsSubmit = (details: Details) => {
-    // --- NEW: Send details to backend Smart Properties API ---
-    const payload = {
-      address: details.location,
-      price: details.price,
-      property_type: 'apartment', // or let user select
-      bedrooms: details.bedrooms,
-      bathrooms: '',
-      features: details.features,
-      template: 'just_listed',
-      language: 'en',
-      auto_generate: true
-    };
-    setShowDetailsForm(false);
-    setMessages(prev => [...prev, { from: 'user', text: `Here are the property details.` }]);
-    setLoadingStates((prev: Record<string, boolean>) => ({ ...prev, generate_post: true, post_to_facebook: !!details.should_post }));
-
-    // Get JWT from localStorage or other source
-    const token = localStorage.getItem('jwt_token');
-    fetch('http://localhost:8003/api/smart-properties', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : ''
-      },
-      body: JSON.stringify(payload)
-    })
-      .then(res => res.json())
-      .then(data => {
-        setMessages(prev => [...prev, { from: 'assistant', text: `Smart Property Created: ${JSON.stringify(data)}` }]);
-        setLoadingStates((prev: Record<string, boolean>) => ({ ...prev, generate_post: false }));
-      })
-      .catch(err => {
-        setMessages(prev => [...prev, { from: 'assistant', text: `Error creating Smart Property: ${err}` }]);
-        setLoadingStates((prev: Record<string, boolean>) => ({ ...prev, generate_post: false }));
-      });
-  };
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
 
   return (
-    <div className="flex h-screen font-sans bg-gray-100">
-      {/* Left Panel: Chat */}
-      <div className="w-1/2 bg-white flex flex-col p-4 border-r">
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">AI Assistant</h2>
-        <div className="flex-grow overflow-y-auto pr-2 space-y-4">
-          {messages.map((msg, i) => <ChatBubble key={i} message={msg.text} from={msg.from} />)}
-        </div>
-        <div className="mt-4 flex border-t pt-4">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSendInitialInput()}
-            className="flex-grow p-3 border rounded-l-md focus:ring-2 focus:ring-indigo-500"
-            placeholder="Type your business idea..."
-            disabled={Object.keys(workflowState).length > 0} // Disable after first message
-          />
-          <button onClick={handleSendInitialInput} className="bg-indigo-600 text-white px-6 py-3 rounded-r-md font-semibold" disabled={Object.keys(workflowState).length > 0}>
-            Start
-          </button>
-        </div>
-        {/* Button to test Listing Post Generation */}
-        <button
-          className="mt-4 bg-green-600 text-white px-4 py-2 rounded font-semibold"
-          onClick={generateListingPost}
-        >
-          Generate Listing Post (Test)
-        </button>
-      </div>
+    <ThemeProvider>
+      <BrandingProvider>
+        <AuthProvider>
+          <AgentProvider>
+            <Router>
+              <div className="app">
+                {/* Desktop Navigation */}
+                <div className="hidden md:block">
+                  <Navbar />
+                </div>
 
-      {/* Right Panel: Workflow Status & Form */}
-      <div className="w-1/2 p-6 overflow-y-auto bg-gray-50">
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">Workflow Status</h2>
-        {Object.keys(workflowState).length === 0 && Object.keys(loadingStates).length === 0 && (
-          <div className="text-center text-gray-500 mt-16 p-8 bg-white rounded-lg shadow-inner">
-            <p>Your generated content will appear here step-by-step.</p>
-          </div>
-        )}
-        <StageDisplay title="1. Branding Suggestions" data={workflowState.brand_suggestions} isLoading={loadingStates.create_branding} />
-        <ImageDisplay title="2. Visual Concept" imageUrl={workflowState.image_path} isLoading={loadingStates.generate_image} />
-        {showDetailsForm && <DetailsForm onSubmit={handleDetailsSubmit} isLoading={loadingStates.generate_post} />}
-        <StageDisplay title="3. Final Post Content" data={workflowState.base_post} isLoading={loadingStates.generate_post} />
-        <StageDisplay title="4. Publishing Status" data={workflowState.post_result?.message} isLoading={loadingStates.post_to_facebook} />
-      </div>
-    </div>
+                {/* Mobile Navigation */}
+                {isMobile && <MobileNav />}
+
+                {/* Main Content */}
+                <main className="main-content">
+                  <Routes>
+                    {/* Public Routes */}
+                    <Route path="/" element={<LandingPage />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
+                    
+                    {/* Protected Routes */}
+                    <Route path="/onboarding" element={<AgentOnboarding />} />
+                    <Route path="/dashboard" element={<AgentDashboard />} />
+                    <Route path="/profile" element={<AgentProfile />} />
+                    <Route path="/branding" element={<BrandingCustomization />} />
+                    <Route path="/properties" element={<PropertyManagement />} />
+                    
+                    {/* Fallback */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </main>
+
+                {/* Toast Notifications */}
+                <ToastContainer />
+              </div>
+            </Router>
+          </AgentProvider>
+        </AuthProvider>
+      </BrandingProvider>
+    </ThemeProvider>
   );
-};
+}
 
 export default App;
