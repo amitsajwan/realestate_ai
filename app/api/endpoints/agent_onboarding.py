@@ -4,20 +4,20 @@ from fastapi import APIRouter, Form, Depends
 from app.utils.db_client import get_db_client
 
 from app.services.agent_onboarding_service import AgentOnboardingData, AgentOnboardingService
+from app.utils.ai import generate_branding
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-router = APIRouter()
+router = APIRouter(prefix="/agent", tags=["agent-onboarding"])
 
 templates = Jinja2Templates(directory="app/templates")
-Agent 
 
 @router.get("/onboarding", response_class=HTMLResponse)
 async def onboarding_get(request: Request):
     return templates.TemplateResponse("onboarding.html", {"request": request})
 
-@router.post("/agent-onboard")
+@router.post("/onboard")
 async def agent_onboard(
     email: str = Form(...),
     name: str = Form(...),
@@ -34,4 +34,9 @@ async def agent_onboard(
     )
     agent = svc.onboard(onboarding_data)
     return {"success": True, "agent": agent.dict()}
+
+@router.post("/branding-suggest")
+async def branding_suggest(name: str = Form(...)):
+    """Return AI branding suggestions for a given name."""
+    return generate_branding(name)
  

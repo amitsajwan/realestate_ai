@@ -1,4 +1,4 @@
-# app/main.py - Fixed imports to work with your existing structure
+# app/main.py - FastAPI application entrypoint with premium mobile support
 
 import sys
 import os
@@ -9,15 +9,17 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 import logging
 
-# Import your existing config (now fixed)
+# Import your existing config
 from core.config import settings
 
-# Try to import database connection (if it exists)
+# Try to import database connection
 try:
     from app.core.database import connect_to_mongo, close_mongo_connection
     HAS_DATABASE = True
@@ -67,6 +69,20 @@ try:
 except ImportError:
     print("⚠️  System router not found")
 
+# Check for agent onboarding routes
+try:
+    from app.api.endpoints.agent_onboarding import router as agent_onboarding_router
+    routers_to_include.append(("Agent Onboarding", agent_onboarding_router, "/api"))
+except ImportError:
+    print("⚠️  Agent onboarding router not found")
+
+# Check for mobile-specific routes
+try:
+    from app.api.endpoints.mobile import router as mobile_router
+    routers_to_include.append(("Mobile API", mobile_router, "/api/mobile"))
+except ImportError:
+    print("⚠️  Mobile API router not found")
+
 # Setup logging
 logging.basicConfig(
     level=logging.DEBUG if settings.DEBUG else logging.INFO,
@@ -77,7 +93,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("Starting Real Estate AI CRM...")
+    logger.info("Starting Real Estate AI CRM with Premium Mobile UX...")
     
     if HAS_DATABASE:
         try:
@@ -88,7 +104,7 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("📊 Using existing database setup")
     
-    logger.info("🚀 Application started successfully")
+    logger.info("🚀 Premium Mobile CRM Application started successfully")
     
     yield
     
@@ -104,11 +120,14 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title="Real Estate AI CRM",
+    title="PropertyAI - Premium Mobile CRM",
     version="2.0.0",
-    description="AI-Powered Real Estate CRM System",
+    description="World's First Gen AI Property Solution with Premium Mobile UX",
     lifespan=lifespan
 )
+
+# Setup templates
+templates = Jinja2Templates(directory="templates")
 
 # WebSocket endpoint for chat
 @app.websocket("/chat/{client_id}")
@@ -121,10 +140,18 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     except WebSocketDisconnect:
         logger.info(f"Client {client_id} disconnected")
 
-# CORS middleware
+# CORS middleware - Enhanced for mobile
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL, "http://localhost:3000", "http://localhost:8080", "http://localhost:5173"],
+    allow_origins=[
+        settings.FRONTEND_URL, 
+        "http://localhost:3000", 
+        "http://localhost:8080", 
+        "http://localhost:5173",
+        "http://localhost:19006",  # Expo dev server
+        "exp://localhost:19000",   # Expo mobile
+        "*"  # Allow all origins for mobile development
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -151,34 +178,74 @@ for name, router, prefix in routers_to_include:
 @app.get("/health")
 async def health_check():
     return {
-        "status": "healthy", 
-        "service": "real-estate-ai-crm",
+        "status": "healthy",
         "version": "2.0.0",
-        "debug": settings.DEBUG
+        "features": {
+            "premium_mobile_ux": True,
+            "dynamic_branding": True,
+            "groq_ai_integration": True,
+            "agent_onboarding": True,
+            "biometric_auth": True
+        }
     }
 
-# Root endpoint
-@app.get("/")
-async def root():
+# Mobile app manifest endpoint
+@app.get("/manifest.json")
+async def mobile_manifest():
     return {
-        "message": "Real Estate AI CRM API",
-        "version": "2.0.0", 
-        "docs": "/docs",
-        "health": "/health",
-        "frontend": settings.FRONTEND_URL,
-        "available_routes": [
-            {"name": name, "prefix": prefix} 
-            for name, _, prefix in routers_to_include
+        "name": "PropertyAI - Premium Mobile CRM",
+        "short_name": "PropertyAI",
+        "description": "World's First Gen AI Property Solution",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#2E86AB",
+        "theme_color": "#2E86AB",
+        "icons": [
+            {
+                "src": "/static/icons/icon-192.png",
+                "sizes": "192x192",
+                "type": "image/png"
+            },
+            {
+                "src": "/static/icons/icon-512.png", 
+                "sizes": "512x512",
+                "type": "image/png"
+            }
         ]
     }
 
+# Serve static files
+try:
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+    logger.info("✅ Static files mounted")
+except Exception as e:
+    logger.warning(f"⚠️  Could not mount static files: {e}")
+
+# Root endpoint
+@app.get("/", response_class=HTMLResponse)
+async def root(request: Request):
+    try:
+        return templates.TemplateResponse("index.html", {"request": request})
+    except Exception as e:
+        return HTMLResponse("""
+        <html>
+            <head><title>PropertyAI - Premium Mobile CRM</title></head>
+            <body>
+                <h1>🏠 PropertyAI - Premium Mobile CRM</h1>
+                <p>World's First Gen AI Property Solution</p>
+                <p>✨ Premium Mobile UX Ready</p>
+                <p>🤖 AI-Powered Features</p>
+                <p>🎨 Dynamic Branding System</p>
+            </body>
+        </html>
+        """)
+
 if __name__ == "__main__":
     import uvicorn
-    logger.info(f"Starting server on {settings.BASE_URL}")
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8080,  # Using your port
+        port=8003,  # Using standard port
         reload=settings.DEBUG,
         log_level="debug" if settings.DEBUG else "info"
     )

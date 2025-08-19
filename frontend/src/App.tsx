@@ -1,8 +1,12 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { marked } from 'marked';
+import Onboarding from './components/Onboarding';
+
 // --- Helper: Generate Listing Post ---
 function generateListingPost() {
-  print("ddddddddddddddddddddddddddd")
+  console.log("Generate listing post")
   const token = localStorage.getItem('jwt_token');
-  // Example user input (replace with actual form values if needed)
   const rawPrice = '₹1,00,00,000';
   const rawFeatures = 'Sea view, Gym, Pool';
   const payload = {
@@ -10,13 +14,12 @@ function generateListingPost() {
     address: '123 Main St',
     city: 'Pune',
     state: 'MH',
-    price: String(rawPrice), // always string
+    price: String(rawPrice),
     bedrooms: 3,
     bathrooms: 2.0,
-    features: rawFeatures.split(',').map(f => f.trim()).filter(f => f.length > 0), // always array of strings
-    // Optional fields can be added if needed, but only those defined in ListingDetails
+    features: rawFeatures.split(',').map(f => f.trim()).filter(f => f.length > 0),
   };
-  fetch('http://localhost:8003/api/listings/generate', {
+  fetch('/api/listings/generate', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -36,9 +39,6 @@ function generateListingPost() {
       alert('Error generating listing post: ' + err);
     });
 }
-import React, { useState, useEffect, useRef } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import { marked } from 'marked';
 
 // --- UI Components ---
 
@@ -53,7 +53,6 @@ const ChatBubble = ({ message, from }: ChatBubbleProps) => (
       className={`rounded-lg px-4 py-2 max-w-lg shadow-md ${
         from === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'
       }`}
-      // Use dangerouslySetInnerHTML because `marked` returns HTML
       dangerouslySetInnerHTML={{ __html: marked.parse(message || '') as string }}
     ></div>
   </div>
@@ -83,7 +82,6 @@ const ImageDisplay = ({ title, imageUrl, isLoading }: ImageDisplayProps) => {
         {isLoading && <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>}
         {imageUrl && (
           <img
-            // Add a timestamp to prevent browser caching issues
             src={`http://localhost:8000${imageUrl}?t=${new Date().getTime()}`}
             alt="Generated property visual"
             className="rounded-md object-cover w-full h-full"
@@ -132,7 +130,6 @@ const DetailsForm = ({ onSubmit, isLoading }: DetailsFormProps) => {
   );
 };
 
-
 // --- Main App Component ---
 
 type Msg = { from: 'user' | 'assistant'; text: string };
@@ -150,23 +147,22 @@ const App = () => {
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [showDetailsForm, setShowDetailsForm] = useState(false);
-  
-  // A single state object to hold all workflow results
   const [workflowState, setWorkflowState] = useState<WorkflowState>({});
-  // A single loading object to track active steps
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
 
   const ws = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    ws.current = new WebSocket(`ws://localhost:8000/chat/${clientId}`);
+    const wsBase = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+      ? `ws://localhost:3000`
+      : `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
+    ws.current = new WebSocket(`${wsBase}/chat/${clientId}`);
 
     ws.current.onopen = () => {
       console.log('WebSocket Connected');
       setMessages([{ from: 'assistant', text: 'Hi! What\'s the core idea for your new project or brand? For example, "luxury villas in Goa".' }]);
     };
     
-    // Add connection retry logic
     ws.current.onclose = () => {
       console.log('WebSocket Disconnected');
       setMessages(prev => [...prev, { 
@@ -174,10 +170,13 @@ const App = () => {
         text: 'Connection lost. Trying to reconnect...' 
       }]);
       
-      // Attempt to reconnect after 3 seconds
+      // Attempt to reconnect after 3 seconds with smart URL detection
       setTimeout(() => {
         if (ws.current?.readyState === WebSocket.CLOSED) {
-          ws.current = new WebSocket(`ws://localhost:8000/chat/${clientId}`);
+          const retryBase = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+            ? `ws://localhost:8003`  // Use our main backend port
+            : `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
+          ws.current = new WebSocket(`${retryBase}/chat/${clientId}`);
         }
       }, 3000);
     };
@@ -189,9 +188,7 @@ const App = () => {
 
         switch (msg.type) {
           case 'update':
-            // Stop loading for the completed step
             setLoadingStates((prev: Record<string, boolean>) => ({ ...prev, [msg.step as string]: false }));
-            // Add new data to the workflow state
             setWorkflowState((prev: WorkflowState) => ({ ...prev, ...(msg.data as Record<string, any>) }));
             break;
           case 'request_input':
@@ -200,7 +197,6 @@ const App = () => {
             break;
           case 'error':
             setMessages(prev => [...prev, { from: 'assistant', text: `**Error:** ${msg.message}` }]);
-            // Clear all loading states on error
             setLoadingStates({});
             break;
           case 'final':
@@ -226,12 +222,9 @@ const App = () => {
 
   const handleSendInitialInput = () => {
     if (input.trim() === '') return;
-    
-    // Reset state for a new run
     setWorkflowState({});
     setShowDetailsForm(false);
     setMessages(prev => [...prev, { from: 'user', text: input }]);
-    
     // Check WebSocket connection state before sending
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify({ type: "initial_input", user_input: input }));
@@ -246,11 +239,10 @@ const App = () => {
   };
 
   const handleDetailsSubmit = (details: Details) => {
-    // --- NEW: Send details to backend Smart Properties API ---
     const payload = {
       address: details.location,
       price: details.price,
-      property_type: 'apartment', // or let user select
+      property_type: 'apartment',
       bedrooms: details.bedrooms,
       bathrooms: '',
       features: details.features,
@@ -262,9 +254,8 @@ const App = () => {
     setMessages(prev => [...prev, { from: 'user', text: `Here are the property details.` }]);
     setLoadingStates((prev: Record<string, boolean>) => ({ ...prev, generate_post: true, post_to_facebook: !!details.should_post }));
 
-    // Get JWT from localStorage or other source
     const token = localStorage.getItem('jwt_token');
-    fetch('http://localhost:8003/api/smart-properties', {
+    fetch('/api/smart-properties', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -299,13 +290,12 @@ const App = () => {
             onKeyDown={(e) => e.key === 'Enter' && handleSendInitialInput()}
             className="flex-grow p-3 border rounded-l-md focus:ring-2 focus:ring-indigo-500"
             placeholder="Type your business idea..."
-            disabled={Object.keys(workflowState).length > 0} // Disable after first message
+            disabled={Object.keys(workflowState).length > 0}
           />
           <button onClick={handleSendInitialInput} className="bg-indigo-600 text-white px-6 py-3 rounded-r-md font-semibold" disabled={Object.keys(workflowState).length > 0}>
             Start
           </button>
         </div>
-        {/* Button to test Listing Post Generation */}
         <button
           className="mt-4 bg-green-600 text-white px-4 py-2 rounded font-semibold"
           onClick={generateListingPost}
@@ -327,6 +317,9 @@ const App = () => {
         {showDetailsForm && <DetailsForm onSubmit={handleDetailsSubmit} isLoading={loadingStates.generate_post} />}
         <StageDisplay title="3. Final Post Content" data={workflowState.base_post} isLoading={loadingStates.generate_post} />
         <StageDisplay title="4. Publishing Status" data={workflowState.post_result?.message} isLoading={loadingStates.post_to_facebook} />
+        <div className="mt-8">
+          <Onboarding />
+        </div>
       </div>
     </div>
   );
