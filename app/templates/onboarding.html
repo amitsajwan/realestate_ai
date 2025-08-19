@@ -7,19 +7,51 @@
 <body>
     <h2>Agent Onboarding</h2>
     <form method="POST" action="/agent/onboard">
-        <label>Name:</label>
-        <input name="name" required>
-        <label>Email:</label>
-        <input name="email" required type="email">
-        <label>WhatsApp:</label>
-        <input name="whatsapp" required>
-        <label>Photo URL (optional):</label>
-        <input name="profile_photo_url">
-        <label>Tagline (optional):</label>
-        <input name="tagline">
-        <label>About (optional):</label>
-        <textarea name="about"></textarea>
-        <button type="submit">Get Started</button>
+        <fieldset>
+            <legend>Step 1: Basics</legend>
+            <label>Name:</label>
+            <input id="name" name="name" required>
+            <label>Email:</label>
+            <input name="email" required type="email">
+            <label>WhatsApp:</label>
+            <input name="whatsapp" required>
+        </fieldset>
+
+        <fieldset>
+            <legend>Step 2: Branding</legend>
+            <div style="margin: 8px 0;">
+                <button type="button" id="suggestBranding">Suggest branding</button>
+            </div>
+            <label>Tagline (optional):</label>
+            <input id="tagline" name="tagline">
+            <label>About (optional):</label>
+            <textarea id="about" name="about"></textarea>
+        </fieldset>
+
+        <fieldset>
+            <legend>Step 3: Profile</legend>
+            <label>Photo URL (optional):</label>
+            <input name="profile_photo_url">
+        </fieldset>
+
+        <div style="margin-top: 12px;">
+            <button type="submit">Finish Onboarding</button>
+        </div>
     </form>
+
+    <script>
+        document.getElementById('suggestBranding')?.addEventListener('click', async () => {
+            const name = (document.getElementById('name') as HTMLInputElement).value;
+            if (!name) return;
+            const form = new FormData();
+            form.append('name', name);
+            const resp = await fetch('/agent/branding-suggest', { method: 'POST', body: form });
+            if (resp.ok) {
+                const data = await resp.json();
+                (document.getElementById('tagline') as HTMLInputElement).value = data.tagline || '';
+                (document.getElementById('about') as HTMLTextAreaElement).value = data.about || '';
+            }
+        });
+    </script>
 </body>
 </html>

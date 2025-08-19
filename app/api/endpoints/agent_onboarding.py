@@ -4,6 +4,7 @@ from fastapi import APIRouter, Form, Depends
 from app.utils.db_client import get_db_client
 
 from app.services.agent_onboarding_service import AgentOnboardingData, AgentOnboardingService
+from app.utils.ai import generate_branding
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
@@ -34,4 +35,9 @@ async def agent_onboard(
     )
     agent = svc.onboard(onboarding_data)
     return {"success": True, "agent": agent.dict()}
+
+@router.post("/branding-suggest")
+async def branding_suggest(name: str = Form(...)):
+    """Return AI branding suggestions for a given name."""
+    return generate_branding(name)
  
