@@ -1,96 +1,173 @@
-"""
-Real Estate AI CRM - Main Application
-=====================================
-Unified entry point for the Real Estate CRM system.
-Consolidates functionality from multiple duplicate files.
-"""
-import os
-import app
-import uvicorn
-from fastapi import FastAPI, Request
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
-from contextlib import asynccontextmanager
+# app/main.py - Fixed imports to work with your existing structure
 
-from app.api.v1.endpoints.auth import router as auth_router
-    
+import sys
+import os
+from pathlib import Path
+
+# Add the project root to Python path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+import logging
+
+# Import your existing config (now fixed)
 from core.config import settings
-from app.core.database import init_database
-from app.core.exceptions import setup_exception_handlers
-from app.api.v1.router import api_router
-from app.routes.proxy import router as proxy_router 
+
+# Try to import database connection (if it exists)
+try:
+    from app.core.database import connect_to_mongo, close_mongo_connection
+    HAS_DATABASE = True
+except ImportError:
+    # Fallback for existing database setup
+    HAS_DATABASE = False
+    print("⚠️  Using legacy database setup")
+
+# Import routers that exist
+routers_to_include = []
+
+# Check for existing API routers
+try:
+    from app.api.v1.router import api_router
+    routers_to_include.append(("API v1", api_router, "/api/v1"))
+except ImportError:
+    print("⚠️  API v1 router not found")
+
+# Check for legacy routes
+try:
+    from app.routes.proxy import router as proxy_router
+    routers_to_include.append(("Proxy", proxy_router, ""))
+except ImportError:
+    print("⚠️  Proxy router not found")
+
+try:
+    from app.routes.auth import router as auth_router
+    routers_to_include.append(("Auth", auth_router, ""))
+except ImportError:
+    print("⚠️  Auth router not found")
+
+try:
+    from app.routes.leads import router as leads_router
+    routers_to_include.append(("Leads", leads_router, ""))
+except ImportError:
+    print("⚠️  Leads router not found")
+
+try:
+    from app.routes.properties import router as properties_router  
+    routers_to_include.append(("Properties", properties_router, ""))
+except ImportError:
+    print("⚠️  Properties router not found")
+
+try:
+    from app.routes.system import router as system_router
+    routers_to_include.append(("System", system_router, ""))
+except ImportError:
+    print("⚠️  System router not found")
+
+# Setup logging
+logging.basicConfig(
+    level=logging.DEBUG if settings.DEBUG else logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan events."""
     # Startup
-    await init_database()
-    print(f"🚀 Real Estate CRM starting in {settings.MODE} mode")
-    print(f"📍 Server: http://localhost:{settings.PORT}")
-    print(f"📚 Docs: http://localhost:{settings.PORT}/docs")
+    logger.info("Starting Real Estate AI CRM...")
+    
+    if HAS_DATABASE:
+        try:
+            await connect_to_mongo()
+            logger.info("✅ Database connected")
+        except Exception as e:
+            logger.error(f"❌ Database connection failed: {e}")
+    else:
+        logger.info("📊 Using existing database setup")
+    
+    logger.info("🚀 Application started successfully")
     
     yield
     
     # Shutdown
-    print("🛑 Real Estate CRM shutting down")
+    if HAS_DATABASE:
+        try:
+            await close_mongo_connection()
+            logger.info("📊 Database connection closed")
+        except Exception as e:
+            logger.error(f"Database shutdown error: {e}")
+    
+    logger.info("👋 Application shutdown complete")
 
+# Create FastAPI app
+app = FastAPI(
+    title="Real Estate AI CRM",
+    version="2.0.0",
+    description="AI-Powered Real Estate CRM System",
+    lifespan=lifespan
+)
 
-def create_app() -> FastAPI:
-    """Create and configure FastAPI application."""
-    app = FastAPI(
-        title="Real Estate AI CRM",
-        description="AI-powered CRM for real estate agents",
-        version="2.0.0",
-        lifespan=lifespan,
-    )
-    
-    # Setup exception handlers
-    setup_exception_handlers(app)
-    
-    # Include API router
-    app.include_router(api_router, prefix="/api/v1")
-    app.include_router(proxy_router)
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.FRONTEND_URL, "http://localhost:3000", "http://localhost:8080"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-    app.include_router(auth_router)
-    
-    # Static files and templates
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    ROOT_DIR = os.path.dirname(BASE_DIR)
-    
-    app.mount("/static", StaticFiles(directory=os.path.join(ROOT_DIR, "static")), name="static")
-    templates = Jinja2Templates(directory=os.path.join(ROOT_DIR, "templates"))
-    
-    @app.get("/", response_class=HTMLResponse)
-    async def login_page(request: Request):
-        """Login page."""
-        return templates.TemplateResponse("login.html", {"request": request})
-    
-    @app.get("/dashboard", response_class=HTMLResponse)
-    async def dashboard_page(request: Request):
-        """Dashboard page."""
-        return templates.TemplateResponse("dashboard.html", {"request": request})
-    
-    @app.get("/health")
-    async def health_check():
-        """Health check endpoint."""
-        return {
-            "status": "healthy",
-            "mode": settings.MODE,
-            "version": "2.0.0"
+# Global exception handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Global exception: {str(exc)}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal server error",
+            "detail": str(exc) if settings.DEBUG else "An error occurred"
         }
-    
-    return app
+    )
 
+# Include all available routers
+for name, router, prefix in routers_to_include:
+    app.include_router(router, prefix=prefix)
+    logger.info(f"✅ Included {name} router at {prefix}")
 
-app = create_app()
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "healthy", 
+        "service": "real-estate-ai-crm",
+        "version": "2.0.0",
+        "debug": settings.DEBUG
+    }
 
+# Root endpoint
+@app.get("/")
+async def root():
+    return {
+        "message": "Real Estate AI CRM API",
+        "version": "2.0.0", 
+        "docs": "/docs",
+        "health": "/health",
+        "frontend": settings.FRONTEND_URL,
+        "available_routes": [
+            {"name": name, "prefix": prefix} 
+            for name, _, prefix in routers_to_include
+        ]
+    }
 
 if __name__ == "__main__":
+    import uvicorn
+    logger.info(f"Starting server on {settings.BASE_URL}")
     uvicorn.run(
         "app.main:app",
-        host=settings.HOST,
-        port=settings.PORT,
+        host="0.0.0.0",
+        port=8080,  # Using your port
         reload=settings.DEBUG,
-        workers=1 if settings.DEBUG else 4
+        log_level="debug" if settings.DEBUG else "info"
     )

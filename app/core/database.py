@@ -1,115 +1,90 @@
-"""
-Database Connection
-===================
-Centralized database connection management.
-Consolidates scattered database logic from multiple files.
-"""
+# app/core/database.py - Compatibility with existing database setup
+
 import motor.motor_asyncio
 from typing import Optional
 import logging
-from datetime import datetime
-
 from core.config import settings
 
 logger = logging.getLogger(__name__)
 
-_database: Optional[motor.motor_asyncio.AsyncIOMotorDatabase] = None
+class Database:
+    client: Optional[motor.motor_asyncio.AsyncIOMotorClient] = None
+    database: Optional[motor.motor_asyncio.AsyncIOMotorDatabase] = None
 
+db = Database()
 
-async def get_database() -> motor.motor_asyncio.AsyncIOMotorDatabase:
-    """Get database connection."""
-    global _database
-    
-    if _database is None:
-        try:
-            client = motor.motor_asyncio.AsyncIOMotorClient(settings.get_database_url())
-            _database = client[settings.DATABASE_NAME]
-            
-            # Test connection
-            await _database.command("ping")
-            logger.info(f"✅ Connected to MongoDB: {settings.DATABASE_NAME}")
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to connect to MongoDB: {e}")
-            raise
-    
-    return _database
-
-
-async def init_database():
-    """Initialize database with indexes and collections."""
+async def connect_to_mongo():
+    """Create database connection"""
     try:
-        db = await get_database()
+        # Use your existing MongoDB URI
+        mongodb_url = settings.mongodb_url
+        logger.info(f"Connecting to MongoDB: {mongodb_url}")
         
-        # Create indexes for better performance
-        await db.users.create_index("email", unique=True)
-        await db.leads.create_index([("agent_id", 1), ("created_at", -1)])
-        await db.properties.create_index([("agent_id", 1), ("created_at", -1)])
+        db.client = motor.motor_asyncio.AsyncIOMotorClient(mongodb_url)
         
-        # Ensure demo user exists (idempotent)
-        await ensure_demo_user(db)
+        # Extract database name from URI or use default
+        if "/" in mongodb_url:
+            db_name = mongodb_url.split("/")[-1].split("?")[0]
+        else:
+            db_name = settings.DATABASE_NAME
+            
+        db.database = db.client[db_name]
         
-        logger.info("✅ Database initialized with indexes")
+        # Test connection
+        await db.client.admin.command('ping')
+        logger.info(f"✅ Successfully connected to MongoDB database: {db_name}")
         
     except Exception as e:
-        logger.error(f"❌ Database initialization failed: {e}")
+        logger.error(f"❌ Failed to connect to MongoDB: {e}")
         raise
 
+async def close_mongo_connection():
+    """Close database connection"""
+    if db.client:
+        db.client.close()
+        logger.info("📊 MongoDB connection closed")
 
-async def ensure_demo_user(db):
-    """Ensure demo user exists (idempotent operation)."""
-    try:
-        from passlib.context import CryptContext
-        
-        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-        
-        # Check if demo user exists
-        existing_user = await db.users.find_one({"email": "demo@mumbai.com"})
-        
-        if not existing_user:
-            # Create demo user
-            demo_user = {
-                "email": "demo@mumbai.com",
-                "password": pwd_context.hash("demo123"),
-                "first_name": "Priya",
-                "last_name": "Sharma", 
-                "phone": "+91 98765 43210",
-                "experience": "4-5 years",
-                "areas": "Bandra, Andheri, Juhu, Powai",
-                "property_types": "Residential, Luxury",
-                "languages": "English, Hindi, Marathi",
-                "facebook_connected": False
-            }
-            
-            await db.users.insert_one(demo_user)
-            logger.info("✅ Demo user created: demo@mumbai.com / demo123")
-        else:
-            logger.info("✅ Demo user already exists")
-            
-    except Exception as e:
-        logger.warning(f"⚠️ Could not create demo user: {e}")
+def get_database():
+    """Get database instance"""
+    if db.database is None:
+        raise RuntimeError("Database not initialized. Call connect_to_mongo() first.")
+    return db.database
 
+# Legacy compatibility - some of your existing code might expect this
+def get_db_client():
+    """Legacy compatibility function"""
+    return get_database()
 
-async def close_database():
-    """Close database connection."""
-    global _database
-    if _database:
-        _database.client.close()
-        _database = None
-        logger.info("✅ Database connection closed")
-
-
-# Legacy compatibility function (for existing code)
-def get_db_connection(mode: str = None):
-    """Legacy function for backward compatibility."""
-    import asyncio
+# Simple collections access for backward compatibility
+class DatabaseClient:
+    def __init__(self):
+        self._db = None
     
-    try:
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(get_database())
-    except RuntimeError:
-        # If no event loop is running, create a new one
-        loop = asyncio.new_event_loop()
-        import asyncio
-        asyncio.set_event_loop(loop)
-        return loop.run_until_complete(get_database())
+    @property
+    def db(self):
+        if self._db is None:
+            self._db = get_database()
+        return self._db
+    
+    @property
+    def users(self):
+        return self.db.users
+    
+    @property 
+    def leads(self):
+        return self.db.leads
+    
+    @property
+    def properties(self):
+        return self.db.properties
+    
+    @property
+    def agents(self):
+        return self.db.agents
+    
+    @property
+    def whatsapp_logs(self):
+        return self.db.whatsapp_logs
+
+# Global instance for backward compatibility
+db_client = DatabaseClient()
