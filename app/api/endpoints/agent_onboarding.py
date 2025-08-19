@@ -8,7 +8,7 @@ from app.services.agent_onboarding_service import AgentOnboardingData, AgentOnbo
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-router = APIRouter()
+router = APIRouter(prefix="/agent", tags=["agent-onboarding"])
 
 templates = Jinja2Templates(directory="app/templates")
 Agent 
@@ -17,7 +17,7 @@ Agent
 async def onboarding_get(request: Request):
     return templates.TemplateResponse("onboarding.html", {"request": request})
 
-@router.post("/agent-onboard")
+@router.post("/onboard")
 async def agent_onboard(
     email: str = Form(...),
     name: str = Form(...),

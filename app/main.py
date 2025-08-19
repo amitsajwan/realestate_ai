@@ -181,6 +181,10 @@ async def login_page(request: Request):
 async def dashboard_page(request: Request):
 	return templates.TemplateResponse("dashboard.html", {"request": request})
 
+@app.get("/onboarding", response_class=HTMLResponse)
+async def onboarding_page(request: Request):
+	return templates.TemplateResponse("onboarding.html", {"request": request})
+
 # Health check endpoint
 @app.get("/health")
 async def health_check():
