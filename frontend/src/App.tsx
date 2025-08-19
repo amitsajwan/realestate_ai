@@ -165,6 +165,22 @@ const App = () => {
       console.log('WebSocket Connected');
       setMessages([{ from: 'assistant', text: 'Hi! What\'s the core idea for your new project or brand? For example, "luxury villas in Goa".' }]);
     };
+    
+    // Add connection retry logic
+    ws.current.onclose = () => {
+      console.log('WebSocket Disconnected');
+      setMessages(prev => [...prev, { 
+        from: 'assistant', 
+        text: 'Connection lost. Trying to reconnect...' 
+      }]);
+      
+      // Attempt to reconnect after 3 seconds
+      setTimeout(() => {
+        if (ws.current?.readyState === WebSocket.CLOSED) {
+          ws.current = new WebSocket(`ws://localhost:8000/chat/${clientId}`);
+        }
+      }, 3000);
+    };
 
     ws.current.onmessage = (event) => {
       try {
@@ -216,11 +232,17 @@ const App = () => {
     setShowDetailsForm(false);
     setMessages(prev => [...prev, { from: 'user', text: input }]);
     
-    ws.current?.send(JSON.stringify({ type: "initial_input", user_input: input }));
-    setInput('');
-    
-    // Set loading states for the initial branding stages
-  setLoadingStates({ create_branding: true, create_visuals: true, generate_image: true });
+    // Check WebSocket connection state before sending
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify({ type: "initial_input", user_input: input }));
+      setInput('');
+      setLoadingStates({ create_branding: true, create_visuals: true, generate_image: true });
+    } else {
+      setMessages(prev => [...prev, { 
+        from: 'assistant', 
+        text: 'Connection not ready. Please wait and try again.' 
+      }]);
+    }
   };
 
   const handleDetailsSubmit = (details: Details) => {

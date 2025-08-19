@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from models.agent import Agent
-from schemas.agent import AgentCreate, AgentOut, FacebookConfigUpdate
+from app.schemas.agent import AgentCreate, AgentOut, FacebookConfigUpdate
 from core.auth import get_current_agent
 from core.database import get_database
 from datetime import datetime, timedelta
+import logging
 
 router = APIRouter()
 
@@ -47,5 +48,6 @@ async def update_facebook_config(
             "facebook_app_secret": facebook_config.app_secret,
             "facebook_page_id": facebook_config.page_id
         }}
-    )
+        )
+        logging.info(f"Facebook page ID set for agent {current_agent.agent_id}: {facebook_config.page_id}")
     return {"status": "Facebook configuration updated"}

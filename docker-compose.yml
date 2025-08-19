@@ -1,36 +1,41 @@
+version: '3.8'
+
 services:
-  redis:
-    image: redis:7-alpine
+  mongodb:
+    image: mongo:7.0
+    container_name: crm_mongodb
+    restart: always
     ports:
-      - "6379:6379"
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: real_estate_crm
     volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
+      - mongodb_data:/data/db
+    networks:
+      - crm_network
 
   app:
     build: .
+    container_name: crm_app
+    restart: always
     ports:
       - "8000:8000"
     environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    env_file:
-      - .env
+      MONGODB_URL: mongodb://admin:password123@mongodb:27017/real_estate_crm?authSource=admin
+      DATABASE_NAME: real_estate_crm
+      DEBUG: "true"
     depends_on:
-      - redis
+      - mongodb
     volumes:
-      - ./generated_images:/app/generated_images
-
-  worker:
-    build: .
-    command: python worker.py
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    env_file:
-      - .env
-    depends_on:
-      - redis
+      - ./logs:/app/logs
+    networks:
+      - crm_network
 
 volumes:
-  redis_data:
+  mongodb_data:
+
+networks:
+  crm_network:
+    driver: bridge
