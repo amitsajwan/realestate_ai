@@ -52,13 +52,13 @@ except ImportError:
 
 # Mount additional standalone endpoints (agent onboarding, ai localization)
 try:
-	from api.endpoints.agent_onboarding import router as onboarding_router
+	from app.api.endpoints.agent_onboarding import router as onboarding_router
 	routers_to_include.append(("AgentOnboarding", onboarding_router, ""))
 except ImportError:
 	print("⚠️  AgentOnboarding router not found")
 
 try:
-	from api.endpoints.ai_localization import router as ai_localization_router
+	from app.api.endpoints.ai_localization import router as ai_localization_router
 	routers_to_include.append(("AILocalization", ai_localization_router, ""))
 except ImportError:
 	print("⚠️  AILocalization router not found")
