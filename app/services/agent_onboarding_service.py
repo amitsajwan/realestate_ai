@@ -21,10 +21,12 @@ class AgentOnboardingService:
         if agent:
             return Agent(**agent)
         tagline, about = data.tagline, data.about
+        brand_colors = None
         if not tagline or not about:
             branding = generate_branding(name=data.name)
             tagline = branding.get("tagline")
             about = branding.get("about")
+            brand_colors = branding.get("colors")
         agent_doc = Agent(
             email=data.email,
             name=data.name,
@@ -32,6 +34,7 @@ class AgentOnboardingService:
             photo_url=data.profile_photo_url,
             tagline=tagline,
             about=about,
+            brand_colors=brand_colors or {"primary": "#007bff", "secondary": "#6c757d", "accent": "#28a745"},
             status="active",
             onboarding_completed=True,
         )
