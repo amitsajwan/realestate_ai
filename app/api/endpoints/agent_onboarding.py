@@ -12,7 +12,6 @@ from fastapi.templating import Jinja2Templates
 router = APIRouter(prefix="/agent", tags=["agent-onboarding"])
 
 templates = Jinja2Templates(directory="app/templates")
-Agent 
 
 @router.get("/onboarding", response_class=HTMLResponse)
 async def onboarding_get(request: Request):
