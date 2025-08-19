@@ -136,11 +136,17 @@ app = FastAPI(
 	lifespan=lifespan
 )
 
-# Templates (serve agent login UI and dashboard). Prefer app/templates, fallback to project/templates
+# Templates: support both root and app-level templates
 _app_templates = SysPath(__file__).parent / "templates"
 _root_templates = SysPath(__file__).parent.parent / "templates"
-_templates_dir = _app_templates if (_app_templates / "login.html").exists() else _root_templates
-templates = Jinja2Templates(directory=str(_templates_dir))
+
+# Default templates for general pages (login/dashboard)
+templates_root = Jinja2Templates(directory=str(_root_templates))
+
+# App templates for onboarding and other app-scoped pages
+templates_app = Jinja2Templates(
+    directory=str(_app_templates if (_app_templates / "onboarding.html").exists() else _root_templates)
+)
 
 # WebSocket endpoint for chat
 @app.websocket("/chat/{client_id}")
@@ -182,15 +188,15 @@ for name, router, prefix in routers_to_include:
 # Public UI routes
 @app.get("/", response_class=HTMLResponse)
 async def login_page(request: Request):
-	return templates.TemplateResponse("login.html", {"request": request})
+	return templates_root.TemplateResponse("login.html", {"request": request})
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_page(request: Request):
-	return templates.TemplateResponse("dashboard.html", {"request": request})
+	return templates_root.TemplateResponse("dashboard.html", {"request": request})
 
 @app.get("/onboarding", response_class=HTMLResponse)
 async def onboarding_page(request: Request):
-	return templates.TemplateResponse("onboarding.html", {"request": request})
+	return templates_app.TemplateResponse("onboarding.html", {"request": request})
 
 # Health check endpoint
 @app.get("/health")
