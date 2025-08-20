@@ -1,5 +1,6 @@
 // MetricCard.jsx - Simple metric display component
 import React from 'react';
+import { formatTrend } from './utils/formatUtils';
 
 const MetricCard = ({ 
   title, 
@@ -8,7 +9,8 @@ const MetricCard = ({
   trendDirection = 'up',
   icon, 
   color = 'blue',
-  subtitle 
+  subtitle,
+  onClick
 }) => {
   const colorClasses = {
     blue: 'border-blue-500 bg-blue-50',
@@ -25,7 +27,10 @@ const MetricCard = ({
   };
 
   return (
-    <div className={`bg-white rounded-lg shadow-sm border-l-4 p-6 ${colorClasses[color]}`}>
+    <div 
+      className={`bg-white rounded-lg shadow-sm border-l-4 p-6 ${colorClasses[color]} ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+      onClick={onClick}
+    >
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <p className="text-sm font-medium text-gray-600 uppercase tracking-wide">
@@ -42,7 +47,7 @@ const MetricCard = ({
           {trend && (
             <div className={`flex items-center mt-2 ${trendColors[trendDirection]}`}>
               <span className="text-sm font-medium">
-                {trendDirection === 'up' ? '↗' : trendDirection === 'down' ? '↘' : '→'} {trend}
+                {formatTrend(trend, trendDirection)}
               </span>
             </div>
           )}

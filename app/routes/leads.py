@@ -4,10 +4,6 @@ from .proxy import _forward
 
 router = APIRouter()
 
-@router.get("/mod/leads")
-async def mod_get_leads(request: Request) -> Response:
-    return await _forward("GET", "/api/leads", request)
-
-@router.post("/mod/leads")
-async def mod_create_lead(request: Request) -> Response:
-    return await _forward("POST", "/api/leads", request)
+@router.api_route("/mod/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def mod_proxy(request: Request, path: str) -> Response:
+    return await _forward(request.method, f"/api/{path}", request)

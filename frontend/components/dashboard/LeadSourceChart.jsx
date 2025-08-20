@@ -7,6 +7,9 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
+import ChartContainer from './common/ChartContainer';
+import { chartColors, tooltipConfig } from './utils/chartUtils';
+import { formatPercentage } from './utils/formatUtils';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -22,24 +25,17 @@ const LeadSourceChart = ({ data }) => {
 
   const sourceData = data || defaultData;
   
-  // Source-specific colors matching Indian social media preferences
-  const sourceColors = {
-    facebook: '#1877F2',
-    whatsapp: '#25D366', 
-    website: '#2563EB',
-    referral: '#8B5CF6',
-    phone: '#F59E0B'
-  };
+  // Use source colors from chartUtils
 
   const chartData = {
     labels: Object.keys(sourceData).map(key => key.charAt(0).toUpperCase() + key.slice(1)),
     datasets: [
       {
         data: Object.values(sourceData),
-        backgroundColor: Object.keys(sourceData).map(key => sourceColors[key]),
+        backgroundColor: Object.keys(sourceData).map(key => chartColors[key] || chartColors.blue),
         borderColor: '#ffffff',
         borderWidth: 2,
-        hoverBackgroundColor: Object.keys(sourceData).map(key => sourceColors[key] + 'CC'),
+        hoverBackgroundColor: Object.keys(sourceData).map(key => (chartColors[key] || chartColors.blue) + 'CC'),
         hoverBorderWidth: 3
       }
     ]
@@ -60,11 +56,12 @@ const LeadSourceChart = ({ data }) => {
         }
       },
       tooltip: {
+        ...tooltipConfig,
         callbacks: {
           label: function(context) {
             const total = context.dataset.data.reduce((a, b) => a + b, 0);
-            const percentage = ((context.raw / total) * 100).toFixed(1);
-            return `${context.label}: ${context.raw} leads (${percentage}%)`;
+            const percentage = formatPercentage(context.raw, total);
+            return `${context.label}: ${context.raw} leads (${percentage})`;
           }
         }
       }
@@ -74,13 +71,30 @@ const LeadSourceChart = ({ data }) => {
 
   const totalLeads = Object.values(sourceData).reduce((a, b) => a + b, 0);
 
-  return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Lead Sources</h3>
-        <span className="text-sm text-gray-500">{totalLeads} total leads</span>
+  // Create footer content for the chart container
+  const footerContent = (
+    <div className="grid grid-cols-2 gap-4">
+      <div className="text-center">
+        <div className="text-lg font-semibold text-green-600">
+          {sourceData.whatsapp || 0}
+        </div>
+        <div className="text-xs text-gray-500">WhatsApp Leads</div>
       </div>
-      
+      <div className="text-center">
+        <div className="text-lg font-semibold text-blue-600">
+          {sourceData.facebook || 0}
+        </div>
+        <div className="text-xs text-gray-500">Facebook Leads</div>
+      </div>
+    </div>
+  );
+
+  return (
+    <ChartContainer 
+      title="Lead Sources" 
+      subtitle={`${totalLeads} total leads`}
+      footerContent={footerContent}
+    >
       <div className="relative h-64">
         <Doughnut data={chartData} options={options} />
         
@@ -92,23 +106,7 @@ const LeadSourceChart = ({ data }) => {
           </div>
         </div>
       </div>
-
-      {/* Quick stats below chart */}
-      <div className="mt-4 grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">
-        <div className="text-center">
-          <div className="text-lg font-semibold text-green-600">
-            {sourceData.whatsapp || 0}
-          </div>
-          <div className="text-xs text-gray-500">WhatsApp Leads</div>
-        </div>
-        <div className="text-center">
-          <div className="text-lg font-semibold text-blue-600">
-            {sourceData.facebook || 0}
-          </div>
-          <div className="text-xs text-gray-500">Facebook Leads</div>
-        </div>
-      </div>
-    </div>
+    </ChartContainer>
   );
 };
 

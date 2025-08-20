@@ -92,7 +92,7 @@ def run_application():
     print("🚀 Starting Real Estate AI CRM...")
     try:
         subprocess.run([
-            sys.executable, "-m", "uvicorn", "main:app",
+            sys.executable, "-m", "uvicorn", "app.main:app",
             "--host", "0.0.0.0",
             "--port", "8003",
             "--reload",

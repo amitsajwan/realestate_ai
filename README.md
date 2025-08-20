@@ -1,102 +1,71 @@
-# 🏠 Real Estate AI CRM
-
-AI-powered Real Estate CRM with Facebook integration, automated content generation, and comprehensive lead management for modern real estate agents.
+# Smart Properties AI-First Real Estate CRM
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- Python 3.8+
-- MongoDB (for data storage)
-- Optional: Docker (for containerized deployment)
-
 ### Option 1: Production CRM (Recommended)
-
-**Full-featured CRM with MongoDB:**
 ```bash
-docker compose -f docker-compose.crm.yml up -d --build
-```
-- 🌐 **CRM Interface**: http://localhost:8004
-- 📊 **Complete Dashboard**: Leads, Properties, AI Tools
-- 🗄️ **Persistent Storage**: MongoDB
+# Start production CRM with MongoDB
+docker compose -f docker-compose.crm.yml up -d
 
-Stop:
-```bash
-docker compose -f docker-compose.crm.yml down -v
+# Access at http://localhost:8004
 ```
 
 ### Option 2: Development Server
-
-**Lightweight development with in-memory storage:**
 ```bash
+# Start development server
+uvicorn main:app --reload --port 8003
+
+# Access at http://localhost:8003
+```
+
+### Option 3: Manual Setup
+```bash
+# Set up virtual environment
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+source .venv/bin/activate  # Linux/Mac
+
 # Install dependencies
 pip install -r requirements.txt
 
-# Start development server  
-uvicorn app.main:app --reload --port 8003
+# Set environment variables
+# See Configuration section below
+
+# Start server
+python complete_production_crm.py
 ```
-- 🌐 **Dashboard**: http://localhost:8003/dashboard
-- 🧪 **Development Mode**: In-memory data storage
 
-### Option 3: Manual Setup
+## 📱 Available Applications
 
-1. **Clone and setup:**
-   ```bash
-   git clone <repository>
-   cd realestate_ai
-   python -m venv .venv
-   .venv\Scripts\activate  # Windows
-   # source .venv/bin/activate  # macOS/Linux
-   pip install -r requirements.txt
-   ```
+### 1. Production CRM
+- **URL**: http://localhost:8004
+- **Features**: Full dashboard, lead management, property listings, AI content generation
+- **Backend**: MongoDB database, FastAPI
 
-2. **Configure environment:**
-   ```bash
-   # Copy .env.example to .env and configure:
-   MONGO_URI=mongodb://localhost:27017/realestate_crm
-   GROQ_API_KEY=your_groq_api_key
-   FB_APP_ID=your_facebook_app_id
-   FB_APP_SECRET=your_facebook_app_secret
-   ```
+### 2. Development Server
+- **URL**: http://localhost:8003
+- **Features**: API endpoints, Facebook integration testing
+- **Backend**: In-memory database (development), FastAPI
 
-3. **Start application:**
-   ```bash
-   # Development mode (port 8003)
-   uvicorn app.main:app --reload --port 8003
-   
-   # OR Production mode (port 8004)  
-   python complete_production_crm.py
-   ```
-
-## 🎯 Available Applications
-
-| Application | URL | Purpose | Database |
-|-------------|-----|---------|----------|
-| **Production CRM** | http://localhost:8004 | Full-featured CRM with persistent storage | MongoDB |
-| **Development Server** | http://localhost:8003 | Lightweight development and testing | In-memory |
-| **API Documentation** | http://localhost:8003/docs | Interactive API documentation | - |
-| **Health Check** | http://localhost:8003/ | Server status verification | - |
+### 3. Chat Assistant
+- **URL**: http://localhost:8000/chat
+- **Usage**: Type `start` to begin the assistant flow
 
 ## 🔑 Demo Credentials
+- **Email**: demo@mumbai.com
+- **Password**: demo123
 
-**Login:** demo@mumbai.com  
-**Password:** demo123
-
-## 🏗️ Core Features
+## 🌟 Core Features
 
 ### 📊 Dashboard
-- **5-Tab Interface**: Dashboard, Leads, Properties, AI Tools, Settings
-- **Real-time Updates**: Connection status, lead metrics, activity feed
-- **Responsive Design**: Mobile-friendly interface
-
-### 📘 Facebook Integration
-- **OAuth Authentication**: Secure Facebook account connection
-- **Multi-page Support**: Manage multiple Facebook business pages
-- **Direct Posting**: Post content directly to Facebook from dashboard
-- **Encrypted Storage**: Secure token storage with Fernet encryption
+- **Quick Stats**: Leads, properties, conversion rates
+- **Weekly Trends**: Lead generation analytics
+- **Pipeline Visualization**: Sales funnel stages
+- **Lead Sources**: Distribution by channel
 
 ### 🤖 AI Content Generation
-- **LangChain + Groq**: Advanced AI content creation
-- **Professional Templates**: Just Listed, Open House, Price Drop, Sold
+- **Property Descriptions**: AI-generated compelling listings
+- **Social Media Posts**: Facebook-ready content
 - **Multi-language**: 7 languages including English, Spanish, French
 - **Copy to Facebook**: Seamless integration with posting workflow
 
@@ -105,6 +74,31 @@ uvicorn app.main:app --reload --port 8003
 - **Status Tracking**: Lead lifecycle management
 - **Search & Filter**: Find leads by various criteria
 - **Agent Assignment**: Multi-agent lead distribution
+
+## 📱 Mobile App
+
+### Core Features Implemented
+
+#### 1. **Agent Onboarding Flow**
+- 6-Step Comprehensive Onboarding
+- Dynamic Branding System (Logo, Colors, Tags)
+- Preferences & Workflow Settings
+
+#### 2. **Dynamic Branding System**
+- Real-time Brand Customization
+- Custom Color Schemes
+- Logo Integration
+
+#### 3. **GROQ AI Integration**
+- Lightning-fast AI Responses
+- Smart Property Descriptions
+- Market Analysis
+
+#### 4. **Complete CRM System**
+- Dashboard with real-time metrics
+- Properties management
+- Leads tracking with scoring
+- AI Assistant with interactive chat
 
 ## �️ Technical Stack
 
@@ -125,75 +119,26 @@ uvicorn app.main:app --reload --port 8003
 - **Password Hashing**: bcrypt with salt
 - **Environment Variables**: Secure configuration management
 
-```
-ws://localhost:8000/chat
-```
-
-Then type `start` to begin the assistant flow.
-
----
-
 ## 🚀 Example Flow
 
 1. Assistant asks branding questions.
 2. You reply with branding preferences.
 3. Assistant generates:
-
    * Brand name + tagline
    * Logo and cover image prompts
    * About section
 4. You enter property details (location, price, etc.)
 5. Assistant generates:
-
    * Base post + 3 variants
 6. You confirm posting to Facebook Page.
 7. Assistant posts using image `images/building.png`.
 
----
-
 ## 📸 Facebook Requirements
 
 Ensure your Page has:
-
 * ✅ `pages_manage_posts` & `pages_read_engagement`
 * ✅ App has correct permissions and is live
 * ✅ You are an admin of the Page
-
----
-
-## 🧠 Powered by
-
-* [LangGraph](https://github.com/langchain-ai/langgraph)
-* [FastAPI](https://fastapi.tiangolo.com/)
-* [Groq LLM via LangChain](https://python.langchain.com/docs/integrations/llms/groq)
-
----
-
-## 📌 TODO
-
-* [ ] Auto-generate and upload logo/cover images
-* [ ] Schedule Facebook posts
-* [ ] Add Instagram integration
-* [ ] Save user projects to database
-
----
-
-## 📁 Documentation
-
-### Essential Guides
-- **[CURRENT_STATUS.md](CURRENT_STATUS.md)** - Current implementation overview
-- **[FACEBOOK_SETUP_GUIDE.md](FACEBOOK_SETUP_GUIDE.md)** - Facebook integration setup
-- **[USER_MANUAL.md](USER_MANUAL.md)** - End user guide for CRM features
-- **[PRODUCTION_GUIDE.md](PRODUCTION_GUIDE.md)** - Deployment and production setup
-
-### Development
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Developer guidelines and workflow
-- **[CODEMAP.md](CODEMAP.md)** - Code structure and architecture
-- **[tests/](tests/)** - Comprehensive test plans and setup guides
-
-### Architecture
-- **[docs/architecture/](docs/architecture/)** - Technical design documents
-- **[specs/](specs/)** - Feature specifications and requirements
 
 ## 🧪 Testing
 
@@ -270,13 +215,39 @@ STABILITY_API_KEY=your_stability_key
 HUGGINGFACE_API_TOKEN=your_hf_token
 ```
 
+## 🧠 Architecture Notes
+
+### Application Entrypoints
+- **main.py** — Primary FastAPI backend for the modular AI assistant and APIs. Use this in development (uvicorn main:app --reload) and connect the React/Vite frontend to it.
+- **app/main.py** — A separate lightweight modular web app for classic templates (login.html, dashboard.html). Do not run alongside main.py on the same port.
+- **complete_production_crm.py** — A monolithic, all-in-one legacy app kept for reference and migration. Not recommended to run alongside the modular apps.
+
+### Facebook Integration
+- OAuth endpoints: /api/facebook/connect (redirects to Facebook) and /api/facebook/callback
+- Page endpoints: /api/facebook/config, /pages, /select_page, /post
+- In-memory AgentRepository stores connected_page and encrypted page tokens for demo only. Move to DB for production.
+
+## 📌 TODO
+
+* [ ] Auto-generate and upload logo/cover images
+* [ ] Schedule Facebook posts
+* [ ] Add Instagram integration
+* [ ] Save user projects to database
+
 ## 📞 Support
 
 For issues, questions, or contributions:
 1. Check existing documentation in this repository
 2. Review test plans in `tests/` directory
-3. Consult `CURRENT_STATUS.md` for implementation details
-4. Follow contribution guidelines in `CONTRIBUTING.md`
+3. Follow contribution guidelines below
+
+## 🧑‍💻 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests
+5. Submit a pull request
 
 ---
 
