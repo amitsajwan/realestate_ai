@@ -66,22 +66,10 @@ logging.basicConfig(level=logging.INFO)
 # In facebook_service.py:
 import logging
 logger = logging.getLogger(__name__)
-logger.error(f"Facebook config error: {e}")
+# logger.error(f"Facebook config error: {e}")
 
 # In auth_service.py:
 import logging  
 logger = logging.getLogger(__name__)
-logger.info(f"Access token created for user: {email}")
-
-# In dashboard.py:
-from services.dashboard_service import DashboardService
-# No proper logging setup
-
-# --- Problems Found in Original Code ---
-
-# 1. Multiple logging.getLogger(__name__) calls without centralized config
-# 2. Some files had logging, others didn't
-# 3. Inconsistent log message formats
-# 4. No proper error tracking
-# 5. Debug vs production logging not handled properly
-# 6. No log file rotation or management
+# logger.info(f"Access token created for user: {email}")
+ 

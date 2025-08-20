@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 export default {
   expo: {
     name: "PropertyAI - Real Estate CRM",
@@ -31,6 +33,7 @@ export default {
     },
     extra: {
       GROQ_API_KEY: process.env.GROQ_API_KEY,
+      API_BASE_URL: process.env.API_BASE_URL || "http://127.0.0.1:8003",
     },
     plugins: [
       "expo-secure-store",
@@ -40,20 +43,7 @@ export default {
           photosPermission: "The app accesses your photos to let you upload profile pictures and property images.",
           cameraPermission: "The app accesses your camera to let you take photos for profiles and properties."
         }
-      ],
-      [
-        "expo-local-authentication",
-        {
-          faceIDPermission: "Use Face ID to authenticate and secure your real estate data."
-        }
-      ],
-      [
-        "expo-camera",
-        {
-          cameraPermission: "The app uses the camera to capture property photos and documents."
-        }
-      ],
-      "expo-haptics"
+      ]
     ]
   }
 };
