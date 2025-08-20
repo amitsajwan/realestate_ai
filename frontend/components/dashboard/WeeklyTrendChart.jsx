@@ -12,6 +12,8 @@ import {
   Legend,
   Filler
 } from 'chart.js';
+import ChartContainer from './common/ChartContainer';
+import { chartColors, tooltipConfig, gridConfig } from './utils/chartUtils';
 
 ChartJS.register(
   CategoryScale,
@@ -44,9 +46,9 @@ const WeeklyTrendChart = ({ data }) => {
       {
         label: 'New Leads',
         data: weekData.map(d => d.count),
-        borderColor: '#3B82F6',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        pointBackgroundColor: '#3B82F6',
+        borderColor: chartColors.blue,
+        backgroundColor: `${chartColors.blue}1A`, // 10% opacity
+        pointBackgroundColor: chartColors.blue,
         pointBorderColor: '#ffffff',
         pointBorderWidth: 2,
         pointRadius: 6,
@@ -65,13 +67,10 @@ const WeeklyTrendChart = ({ data }) => {
         display: false
       },
       tooltip: {
+        ...tooltipConfig,
         mode: 'index',
         intersect: false,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleColor: '#ffffff',
-        bodyColor: '#ffffff',
-        borderColor: '#3B82F6',
-        borderWidth: 1,
+        borderColor: chartColors.blue,
         callbacks: {
           title: function(context) {
             const dataPoint = weekData[context[0].dataIndex];
@@ -90,21 +89,13 @@ const WeeklyTrendChart = ({ data }) => {
     },
     scales: {
       x: {
+        ...gridConfig.x,
         grid: {
-          display: false
-        },
-        border: {
           display: false
         }
       },
       y: {
-        beginAtZero: true,
-        grid: {
-          color: 'rgba(0, 0, 0, 0.1)'
-        },
-        border: {
-          display: false
-        },
+        ...gridConfig.y,
         ticks: {
           stepSize: 1,
           callback: function(value) {
@@ -120,33 +111,34 @@ const WeeklyTrendChart = ({ data }) => {
   const avgDailyLeads = (totalWeekLeads / weekData.length).toFixed(1);
   const bestDay = weekData.reduce((max, day) => day.count > max.count ? day : max);
   
-  return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Weekly Lead Trend</h3>
-        <span className="text-sm text-gray-500">Last 7 days</span>
+  // Create footer content for the chart container
+  const footerContent = (
+    <div className="grid grid-cols-3 gap-4">
+      <div className="text-center">
+        <div className="text-lg font-semibold text-blue-600">{totalWeekLeads}</div>
+        <div className="text-xs text-gray-500">This Week</div>
       </div>
-      
+      <div className="text-center">
+        <div className="text-lg font-semibold text-green-600">{avgDailyLeads}</div>
+        <div className="text-xs text-gray-500">Daily Avg</div>
+      </div>
+      <div className="text-center">
+        <div className="text-lg font-semibold text-purple-600">{bestDay.day}</div>
+        <div className="text-xs text-gray-500">Best Day</div>
+      </div>
+    </div>
+  );
+
+  return (
+    <ChartContainer 
+      title="Weekly Lead Trend" 
+      subtitle="Last 7 days"
+      footerContent={footerContent}
+    >
       <div className="h-48 mb-4">
         <Line data={chartData} options={options} />
       </div>
-
-      {/* Quick stats */}
-      <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-200">
-        <div className="text-center">
-          <div className="text-lg font-semibold text-blue-600">{totalWeekLeads}</div>
-          <div className="text-xs text-gray-500">This Week</div>
-        </div>
-        <div className="text-center">
-          <div className="text-lg font-semibold text-green-600">{avgDailyLeads}</div>
-          <div className="text-xs text-gray-500">Daily Avg</div>
-        </div>
-        <div className="text-center">
-          <div className="text-lg font-semibold text-purple-600">{bestDay.day}</div>
-          <div className="text-xs text-gray-500">Best Day</div>
-        </div>
-      </div>
-    </div>
+    </ChartContainer>
   );
 };
 

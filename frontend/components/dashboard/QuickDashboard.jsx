@@ -4,6 +4,7 @@ import MetricCard from './MetricCard';
 import LeadSourceChart from './LeadSourceChart';
 import WeeklyTrendChart from './WeeklyTrendChart';
 import PipelineChart from './PipelineChart';
+import LoadingState from './common/LoadingState';
 
 const QuickDashboard = ({ agentId = 'agent_rajesh_kumar' }) => {
   const [dashboardData, setDashboardData] = useState(null);
@@ -133,15 +134,9 @@ const QuickDashboard = ({ agentId = 'agent_rajesh_kumar' }) => {
     }
   };
 
+  // Import LoadingState at the top of the file
   if (loading && !dashboardData) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading dashboard...</p>
-        </div>
-      </div>
-    );
+    return <LoadingState message="Loading dashboard..." fullScreen={true} />;
   }
 
   const metrics = dashboardData?.basic_metrics || {};
@@ -168,9 +163,14 @@ const QuickDashboard = ({ agentId = 'agent_rajesh_kumar' }) => {
               <button
                 onClick={handleRefresh}
                 disabled={loading}
-                className="px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors disabled:opacity-50"
+                className="px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors disabled:opacity-50 relative"
               >
-                {loading ? 'Refreshing...' : 'Refresh'}
+                {loading ? (
+                  <>
+                    <span className="opacity-0">Refresh</span>
+                    <LoadingState size="sm" className="absolute inset-0" />
+                  </>
+                ) : 'Refresh'}
               </button>
             </div>
           </div>

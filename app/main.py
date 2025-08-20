@@ -45,11 +45,12 @@ try:
 except ImportError:
     print("⚠️  Proxy router not found")
 
-try:
-    from app.routes.auth import router as auth_router
-    routers_to_include.append(("Auth", auth_router, ""))
-except ImportError:
-    print("⚠️  Auth router not found")
+# Auth router removed due to consolidation with proxy router
+# try:
+#     from app.routes.auth import router as auth_router
+#     routers_to_include.append(("Auth", auth_router, ""))
+# except ImportError:
+#     print("⚠️  Auth router not found")
 
 try:
     from app.routes.leads import router as leads_router
