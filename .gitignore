@@ -8,6 +8,7 @@ __pycache__/
 .env.local
 .envrc
 .venv/
+venv/
 env/
 .pytest_cache/
 htmlcov/

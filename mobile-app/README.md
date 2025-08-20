@@ -47,7 +47,122 @@ A revolutionary mobile-first real estate CRM solution powered by AI, designed sp
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+ 
+- Node.js 18+
+- npm or yarn
+- Expo CLI
+- iOS Simulator (for Mac users) or Android Emulator
+- Physical device for testing (optional)
+
+### Setup
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/realestate_ai.git
+   cd realestate_ai/mobile-app
+   ```
+
+2. Run the setup script:
+   ```bash
+   # For Windows
+   node scripts/setup.js
+   
+   # For macOS/Linux
+   ./start-app.sh
+   ```
+
+3. Configure environment variables:
+   - Copy `.env.example` to `.env`
+   - Update the variables as needed
+
+4. Start the development server:
+   ```bash
+   npm start
+   ```
+
+5. Run on your preferred platform:
+   ```bash
+   # iOS
+   npm run ios
+   
+   # Android
+   npm run android
+   
+   # Web
+   npm run web
+   ```
+
+### Clean Installation
+
+If you encounter any issues with dependencies or cached files:
+
+```bash
+# Clean the project and reinstall dependencies
+npm run clean
+npm install
+```
+
+## Project Structure
+
+```
+mobile-app/
+├── assets/              # Static assets (images, fonts)
+├── scripts/             # Setup and utility scripts
+├── src/
+│   ├── components/      # Reusable UI components
+│   ├── config/          # Configuration files
+│   ├── contexts/        # React contexts (Auth, Branding, Network)
+│   ├── screens/         # Application screens
+│   ├── services/        # API and utility services
+│   └── utils/           # Helper functions
+├── .env.example         # Example environment variables
+├── app.config.js        # Expo configuration
+├── App.js               # Main application component
+└── package.json         # Dependencies and scripts
+```
+
+## Environment Variables
+
+Create a `.env` file in the root directory with the following variables:
+
+```
+API_URL=http://localhost:8003
+GROQ_API_KEY=your-groq-api-key
+ENABLE_PUSH_NOTIFICATIONS=true
+ENABLE_OFFLINE_MODE=true
+```
+
+## Available Scripts
+
+- `npm start`: Start the Expo development server
+- `npm run ios`: Run on iOS simulator
+- `npm run android`: Run on Android emulator/device
+- `npm run web`: Run in web browser
+- `npm run clean`: Clean project dependencies and cache
+- `npm run setup`: Run the setup script
+- `npm run start:clean`: Clean and restart the project
+
+## Troubleshooting
+
+### Metro Bundler Issues
+
+If you encounter Metro bundler errors:
+
+```bash
+# Clear Metro cache
+npm start -- --reset-cache
+```
+
+### Dependency Issues
+
+```bash
+# Clean node_modules and reinstall
+npm run clean
+npm install
+```
+
+### Connection to Backend
+
+Ensure the backend server is running and accessible at the URL specified in your `.env` file.
 - Expo CLI
 - React Native development environment
 - GROQ API key

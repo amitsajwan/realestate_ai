@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
-import axios from 'axios';
+// Removed expo-secure-store due to config plugin error
+import { Alert } from 'react-native';
+import config from '../config/config';
+import apiService, { setAuthToken } from '../services/apiService';
+import { useNetwork } from './NetworkContext';
 
 const AuthContext = createContext();
 
@@ -13,12 +16,13 @@ export const useAuth = () => {
   return context;
 };
 
-const API_BASE_URL = 'http://127.0.0.1:8003'; // Update with your backend URL
+
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isConnected, isServerReachable } = useNetwork();
 
   useEffect(() => {
     checkAuthStatus();
@@ -26,14 +30,14 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
-      const token = await SecureStore.getItemAsync('authToken');
-      const userData = await AsyncStorage.getItem('userData');
+      const token = await SecureStore.getItemAsync(config.authTokenKey);
+      const userData = await AsyncStorage.getItem(config.userDataKey);
       
       if (token && userData) {
         setUser(JSON.parse(userData));
         setIsAuthenticated(true);
-        // Set axios default header
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        // Set auth token for API requests
+        setAuthToken(token);
       }
     } catch (error) {
       console.error('Error checking auth status:', error);
@@ -45,29 +49,34 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       setIsLoading(true);
-      const response = await axios.post(`${API_BASE_URL}/auth/login`, {
-        email,
-        password,
-      });
-
-      const { token, user: userData } = response.data;
       
-      // Store token securely
-      await SecureStore.setItemAsync('authToken', token);
-      await AsyncStorage.setItem('userData', JSON.stringify(userData));
+      const result = await apiService.auth.login(email, password);
       
-      // Set axios default header
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
-      setUser(userData);
-      setIsAuthenticated(true);
-      
-      return { success: true, user: userData };
+      if (result.success) {
+        const { token, user: userData } = result.data;
+        
+        // Store token securely
+        await SecureStore.setItemAsync(config.authTokenKey, token);
+        await AsyncStorage.setItem(config.userDataKey, JSON.stringify(userData));
+        
+        // Set auth token for API requests
+        setAuthToken(token);
+        
+        setUser(userData);
+        setIsAuthenticated(true);
+        
+        return { success: true, user: userData };
+      } else {
+        return { 
+          success: false, 
+          error: result.message || 'Login failed' 
+        };
+      }
     } catch (error) {
       console.error('Login error:', error);
       return { 
         success: false, 
-        error: error.response?.data?.message || 'Login failed' 
+        error: 'Login failed. Please try again.' 
       };
     } finally {
       setIsLoading(false);
@@ -77,26 +86,34 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       setIsLoading(true);
-      const response = await axios.post(`${API_BASE_URL}/auth/register`, userData);
       
-      const { token, user: newUser } = response.data;
+      const result = await apiService.auth.register(userData);
       
-      // Store token securely
-      await SecureStore.setItemAsync('authToken', token);
-      await AsyncStorage.setItem('userData', JSON.stringify(newUser));
-      
-      // Set axios default header
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
-      setUser(newUser);
-      setIsAuthenticated(true);
-      
-      return { success: true, user: newUser };
+      if (result.success) {
+        const { token, user: newUser } = result.data;
+        
+        // Store token securely
+        await SecureStore.setItemAsync(config.authTokenKey, token);
+        await AsyncStorage.setItem(config.userDataKey, JSON.stringify(newUser));
+        
+        // Set auth token for API requests
+        setAuthToken(token);
+        
+        setUser(newUser);
+        setIsAuthenticated(true);
+        
+        return { success: true, user: newUser };
+      } else {
+        return { 
+          success: false, 
+          error: result.message || 'Registration failed' 
+        };
+      }
     } catch (error) {
       console.error('Registration error:', error);
       return { 
         success: false, 
-        error: error.response?.data?.message || 'Registration failed' 
+        error: 'Registration failed. Please try again.' 
       };
     } finally {
       setIsLoading(false);
@@ -106,11 +123,11 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       // Clear stored data
-      await SecureStore.deleteItemAsync('authToken');
-      await AsyncStorage.removeItem('userData');
+      await SecureStore.deleteItemAsync(config.authTokenKey);
+      await AsyncStorage.removeItem(config.userDataKey);
       
-      // Clear axios default header
-      delete axios.defaults.headers.common['Authorization'];
+      // Clear auth token
+      setAuthToken(null);
       
       setUser(null);
       setIsAuthenticated(false);
@@ -121,18 +138,26 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (profileData) => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/auth/profile`, profileData);
-      const updatedUser = response.data;
+      const result = await apiService.auth.updateProfile(profileData);
       
-      await AsyncStorage.setItem('userData', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-      
-      return { success: true, user: updatedUser };
+      if (result.success) {
+        const updatedUser = result.data;
+        
+        await AsyncStorage.setItem(config.userDataKey, JSON.stringify(updatedUser));
+        setUser(updatedUser);
+        
+        return { success: true, user: updatedUser };
+      } else {
+        return { 
+          success: false, 
+          error: result.message || 'Profile update failed' 
+        };
+      }
     } catch (error) {
       console.error('Profile update error:', error);
       return { 
         success: false, 
-        error: error.response?.data?.message || 'Profile update failed' 
+        error: 'Profile update failed. Please try again.' 
       };
     }
   };
@@ -141,6 +166,8 @@ export const AuthProvider = ({ children }) => {
     user,
     isLoading,
     isAuthenticated,
+    isConnected,
+    isServerReachable,
     login,
     register,
     logout,

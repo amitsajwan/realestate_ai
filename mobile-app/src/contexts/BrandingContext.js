@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import config from '../config/config';
 
 const BrandingContext = createContext();
 
@@ -14,65 +15,130 @@ export const useBranding = () => {
 export const BrandingProvider = ({ children }) => {
   const [branding, setBranding] = useState({
     logo: null,
-    primaryColor: '#2E86AB',
-    secondaryColor: '#A23B72',
-    accentColor: '#F18F01',
-    backgroundColor: '#FFFFFF',
-    textColor: '#2D3748',
-    agentName: '',
-    companyName: '',
-    tagline: '',
-    tags: [],
-    theme: 'light', // 'light' | 'dark'
+    colors: {
+      primaryColor: config.defaultBranding.primaryColor,
+      secondaryColor: config.defaultBranding.secondaryColor,
+      accentColor: config.defaultBranding.accentColor,
+      backgroundColor: config.defaultBranding.backgroundColor,
+      textColor: config.defaultBranding.textColor,
+    },
+    agent: {
+      name: '',
+      title: '',
+      phone: '',
+      email: '',
+      photo: null,
+    },
+    company: {
+      name: '',
+      logo: null,
+      website: '',
+      address: '',
+    },
+    theme: 'light',
   });
-
+  const { isConnected, isServerReachable } = useNetwork();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadBrandingFromStorage();
-  }, []);
+    if (isConnected && isServerReachable) {
+      loadBrandingFromServer();
+    }
+  }, [isConnected, isServerReachable]);
 
   const loadBrandingFromStorage = async () => {
     try {
-      const storedBranding = await AsyncStorage.getItem('agentBranding');
+      const storedBranding = await AsyncStorage.getItem(config.brandingKey);
       if (storedBranding) {
         setBranding(JSON.parse(storedBranding));
       }
     } catch (error) {
-      console.error('Error loading branding:', error);
+      console.error('Error loading branding from storage:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  const loadBrandingFromServer = async () => {
+    try {
+      const result = await apiService.branding.getBranding();
+      if (result.success) {
+        const serverBranding = result.data;
+        await updateBranding(serverBranding);
+      }
+    } catch (error) {
+      console.error('Error loading branding from server:', error);
     }
   };
 
   const updateBranding = async (newBranding) => {
     try {
       const updatedBranding = { ...branding, ...newBranding };
+      await AsyncStorage.setItem(config.brandingKey, JSON.stringify(updatedBranding));
       setBranding(updatedBranding);
-      await AsyncStorage.setItem('agentBranding', JSON.stringify(updatedBranding));
+      
+      // If connected, sync with server
+      if (isConnected && isServerReachable) {
+        try {
+          await apiService.branding.updateBranding(updatedBranding);
+        } catch (error) {
+          console.error('Error syncing branding with server:', error);
+          // Continue anyway as we've already updated local storage
+        }
+      }
+      
+      return true;
     } catch (error) {
-      console.error('Error saving branding:', error);
+      console.error('Error updating branding:', error);
+      return false;
     }
   };
 
   const resetBranding = async () => {
     try {
-      await AsyncStorage.removeItem('agentBranding');
-      setBranding({
+      const defaultBranding = {
         logo: null,
-        primaryColor: '#2E86AB',
-        secondaryColor: '#A23B72',
-        accentColor: '#F18F01',
-        backgroundColor: '#FFFFFF',
-        textColor: '#2D3748',
-        agentName: '',
-        companyName: '',
-        tagline: '',
-        tags: [],
+        colors: {
+          primaryColor: config.defaultBranding.primaryColor,
+          secondaryColor: config.defaultBranding.secondaryColor,
+          accentColor: config.defaultBranding.accentColor,
+          backgroundColor: config.defaultBranding.backgroundColor,
+          textColor: config.defaultBranding.textColor,
+        },
+        agent: {
+          name: '',
+          title: '',
+          phone: '',
+          email: '',
+          photo: null,
+        },
+        company: {
+          name: '',
+          logo: null,
+          website: '',
+          address: '',
+        },
         theme: 'light',
-      });
+      };
+      
+      await AsyncStorage.setItem(config.brandingKey, JSON.stringify(defaultBranding));
+      setBranding(defaultBranding);
+      
+      // If connected, sync with server
+      if (isConnected && isServerReachable) {
+        try {
+          await apiService.branding.resetBranding();
+        } catch (error) {
+          console.error('Error syncing branding reset with server:', error);
+          // Continue anyway as we've already reset local storage
+        }
+      }
+      
+      return true;
     } catch (error) {
       console.error('Error resetting branding:', error);
+      return false;
     }
   };
 

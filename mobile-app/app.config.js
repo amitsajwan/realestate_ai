@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 export default {
   expo: {
     name: "PropertyAI - Real Estate CRM",
@@ -30,10 +32,12 @@ export default {
       bundler: "metro"
     },
     extra: {
+      API_URL: process.env.API_URL,
       GROQ_API_KEY: process.env.GROQ_API_KEY,
+      ENABLE_PUSH_NOTIFICATIONS: process.env.ENABLE_PUSH_NOTIFICATIONS === 'true',
+      ENABLE_OFFLINE_MODE: process.env.ENABLE_OFFLINE_MODE === 'true',
     },
     plugins: [
-      "expo-secure-store",
       [
         "expo-image-picker",
         {
