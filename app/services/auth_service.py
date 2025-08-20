@@ -1,8 +1,7 @@
 
 from datetime import datetime, timedelta
 from typing import Optional
-from jose import jwt, JWTError
-from passlib.context import CryptContext
+ 
 import logging
 
 from core.config import settings
@@ -17,7 +16,7 @@ class AuthService:
     
     def __init__(self, user_repository: UserRepository):
         self.user_repository = user_repository
-        self.pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        # self.pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """Verify password against hash"""

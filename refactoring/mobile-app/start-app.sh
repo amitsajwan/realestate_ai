@@ -23,7 +23,7 @@ fi
 
 # Start the backend server if not running
 echo "🔧 Checking backend server..."
-if ! curl -s http://127.0.0.1:8003/health > /dev/null; then
+if ! curl -s http://127.0.0.1:8000/health > /dev/null; then
     echo "🚨 Backend server not running. Please start the backend first:"
     echo "   cd ../backend && python start.py"
     exit 1

@@ -1,44 +1,82 @@
 #!/bin/bash
 
-# PropertyAI Mobile App Startup Script
-echo "🚀 Starting PropertyAI Mobile App..."
+# PropertyAI Mobile App Setup Script
+echo "🚀 Setting up PropertyAI Mobile App..."
 
-# Check if .env file exists
+# Check if Node.js is installed
+if ! command -v node &> /dev/null; then
+    echo "❌ Node.js is not installed. Please install Node.js 18+ first."
+    echo "   Download from: https://nodejs.org/"
+    exit 1
+fi
+
+# Check Node.js version
+NODE_VERSION=$(node --version | cut -d'.' -f1 | cut -d'v' -f2)
+if [ "$NODE_VERSION" -lt 18 ]; then
+    echo "❌ Node.js version 18+ is required. Current version: $(node --version)"
+    exit 1
+fi
+
+echo "✅ Node.js $(node --version) detected"
+
+# Install Expo CLI globally if not already installed
+if ! command -v expo &> /dev/null; then
+    echo "📦 Installing Expo CLI..."
+    npm install -g @expo/cli
+else
+    echo "✅ Expo CLI already installed"
+fi
+
+# Clear npm cache and node_modules
+echo "🧹 Cleaning up existing installation..."
+rm -rf node_modules
+rm -f package-lock.json
+npm cache clean --force
+
+# Install dependencies
+echo "📦 Installing dependencies..."
+npm install
+
+# Create .env file if it doesn't exist
 if [ ! -f .env ]; then
     echo "📝 Creating .env file from template..."
     cp .env.example .env
-    echo "⚠️  Please edit .env file and add your GROQ_API_KEY before running the app"
-    echo "   You can get your GROQ API key from: https://console.groq.com"
-    exit 1
+    echo ""
+    echo "⚠️  IMPORTANT: Edit .env file and add your GROQ_API_KEY"
+    echo "   1. Get your API key from: https://console.groq.com"
+    echo "   2. Replace 'your_groq_api_key_here' with your actual key"
+    echo ""
 fi
 
-# Check if GROQ_API_KEY is set
-if ! grep -q "GROQ_API_KEY=your_groq_api_key_here" .env; then
-    echo "✅ GROQ API key configured"
-else
-    echo "⚠️  Please set your GROQ_API_KEY in the .env file"
-    echo "   You can get your GROQ API key from: https://console.groq.com"
-    exit 1
+# Create necessary directories
+mkdir -p assets
+mkdir -p src/screens
+mkdir -p src/components
+mkdir -p src/utils
+
+# Create placeholder assets if they don't exist
+if [ ! -f assets/icon.png ]; then
+    echo "📱 Creating placeholder app icon..."
+    # Create a simple colored square as placeholder
+    # You should replace this with your actual app icon
+    echo "Placeholder icon needed at assets/icon.png (1024x1024 px)"
 fi
 
-# Start the backend server if not running
-echo "🔧 Checking backend server..."
-if ! curl -s http://127.0.0.1:8003/health > /dev/null; then
-    echo "🚨 Backend server not running. Please start the backend first:"
-    echo "   cd ../backend && python start.py"
-    exit 1
-else
-    echo "✅ Backend server is running"
+if [ ! -f assets/splash.png ]; then
+    echo "🎨 Creating placeholder splash screen..."
+    echo "Placeholder splash needed at assets/splash.png (1242x2436 px)"
 fi
 
-# Start the mobile app
-echo "📱 Starting Expo development server..."
-npx expo start
-
-echo "🎉 PropertyAI Mobile App is ready!"
+echo ""
+echo "✅ Setup complete!"
 echo ""
 echo "📖 Next steps:"
-echo "   1. Scan the QR code with Expo Go app (iOS/Android)"
-echo "   2. Or press 'w' to open in web browser"
-echo "   3. Or press 'i' for iOS Simulator"
-echo "   4. Or press 'a' for Android Emulator"
+echo "   1. Edit .env file and add your GROQ_API_KEY"
+echo "   2. Make sure backend server is running on port 8003"
+echo "   3. Run 'npm start' to start the development server"
+echo ""
+echo "🔧 Troubleshooting:"
+echo "   • If you get Metro bundler errors, try: npx expo start --clear"
+echo "   • For iOS simulator: npx expo start --ios"
+echo "   • For Android emulator: npx expo start --android"
+echo "   • For web browser: npx expo start --web"
