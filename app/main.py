@@ -175,6 +175,83 @@ for name, router, prefix in routers_to_include:
     app.include_router(router, prefix=prefix)
     logger.info(f"✅ Included {name} router at {prefix}")
 
+# Add authentication endpoints directly to main app
+from datetime import datetime, timedelta
+import jwt
+from fastapi import HTTPException
+
+# Demo user data
+DEMO_USERS = {
+    "demo@mumbai.com": {
+        "email": "demo@mumbai.com", 
+        "password": "demo123",
+        "name": "Demo User",
+        "firstName": "Demo",
+        "lastName": "User",
+        "phone": "+91-9876543210",
+        "experience": "5 years",
+        "areas": "Mumbai, Bandra, Powai",
+        "languages": "English, Hindi, Marathi"
+    }
+}
+
+@app.post("/auth/login")
+async def login(request: Request):
+    """Login endpoint for web interface"""
+    try:
+        body = await request.json()
+        email = body.get("email", "").lower().strip()
+        password = body.get("password", "")
+        
+        if not email or not password:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "error": "Email and password required"}
+            )
+        
+        # Check demo user
+        if email in DEMO_USERS:
+            user_data = DEMO_USERS[email]
+            
+            if user_data["password"] == password:
+                # Create JWT token
+                payload = {
+                    "sub": email,
+                    "user_id": f"user_{abs(hash(email)) % 10000}",
+                    "email": email,
+                    "name": user_data["name"],
+                    "exp": int((datetime.utcnow() + timedelta(hours=24)).timestamp())
+                }
+                token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+                
+                return JSONResponse(content={
+                    "success": True,
+                    "token": token,
+                    "user": {
+                        "email": user_data["email"],
+                        "name": user_data["name"],
+                        "firstName": user_data["firstName"],
+                        "lastName": user_data["lastName"],
+                        "phone": user_data["phone"],
+                        "experience": user_data["experience"],
+                        "areas": user_data["areas"],
+                        "languages": user_data["languages"]
+                    }
+                })
+        
+        # Invalid credentials
+        return JSONResponse(
+            status_code=401,
+            content={"success": False, "error": "Invalid credentials"}
+        )
+        
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": "Internal server error"}
+        )
+
 # Health check endpoint
 @app.get("/health")
 async def health_check():
@@ -222,12 +299,13 @@ try:
 except Exception as e:
     logger.warning(f"⚠️  Could not mount static files: {e}")
 
-# Root endpoint
+# Root endpoint - Login page
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     try:
-        return templates.TemplateResponse("index.html", {"request": request})
+        return templates.TemplateResponse("login.html", {"request": request})
     except Exception as e:
+        logger.error(f"Error serving login page: {e}")
         return HTMLResponse("""
         <html>
             <head><title>PropertyAI - Premium Mobile CRM</title></head>
@@ -237,6 +315,66 @@ async def root(request: Request):
                 <p>✨ Premium Mobile UX Ready</p>
                 <p>🤖 AI-Powered Features</p>
                 <p>🎨 Dynamic Branding System</p>
+            </body>
+        </html>
+        """)
+
+# Onboarding endpoint
+@app.get("/onboarding", response_class=HTMLResponse)
+async def onboarding(request: Request):
+    try:
+        return templates.TemplateResponse("onboarding.html", {"request": request})
+    except Exception as e:
+        logger.error(f"Error serving onboarding page: {e}")
+        return HTMLResponse("""
+        <html>
+            <head><title>PropertyAI - Agent Onboarding</title></head>
+            <body>
+                <h1>🏠 PropertyAI - Agent Onboarding</h1>
+                <p>Complete your agent profile setup</p>
+                <p>✨ AI-Powered Branding</p>
+                <p>🎨 Professional Setup</p>
+                <p>📱 Mobile Optimized</p>
+            </body>
+        </html>
+        """)
+
+# Dashboard endpoint
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request):
+    try:
+        return templates.TemplateResponse("dashboard.html", {"request": request})
+    except Exception as e:
+        logger.error(f"Error serving dashboard: {e}")
+        return HTMLResponse("""
+        <html>
+            <head><title>PropertyAI - Dashboard</title></head>
+            <body>
+                <h1>🏠 PropertyAI - Dashboard</h1>
+                <p>Real Estate CRM Dashboard</p>
+                <p>✨ AI-Powered Features</p>
+                <p>🎨 Modern Interface</p>
+                <p>📱 Responsive Design</p>
+            </body>
+        </html>
+        """)
+
+# Enhanced Dashboard endpoint
+@app.get("/dashboard-enhanced", response_class=HTMLResponse)
+async def enhanced_dashboard(request: Request):
+    try:
+        return templates.TemplateResponse("dashboard_enhanced.html", {"request": request})
+    except Exception as e:
+        logger.error(f"Error serving enhanced dashboard: {e}")
+        return HTMLResponse("""
+        <html>
+            <head><title>PropertyAI - Enhanced Dashboard</title></head>
+            <body>
+                <h1>🏠 PropertyAI - Enhanced Dashboard</h1>
+                <p>Modern UI/UX Dashboard</p>
+                <p>✨ Enhanced Design System</p>
+                <p>🎨 Modern Components</p>
+                <p>📱 Responsive Design</p>
             </body>
         </html>
         """)

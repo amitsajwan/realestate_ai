@@ -1,258 +1,202 @@
-# Smart Properties AI-First Real Estate CRM
+# PropertyAI - Next-Generation Real Estate CRM
+*AI-Powered Real Estate Management with Facebook Integration*
+
+[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![React Native](https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactnative.dev/)
+[![GROQ](https://img.shields.io/badge/AI-GROQ%20LLM-orange?style=for-the-badge)](https://groq.com/)
+[![Facebook](https://img.shields.io/badge/Facebook-1877F2?style=for-the-badge&logo=facebook&logoColor=white)](https://developers.facebook.com/)
+
+## 🏠 Overview
+
+PropertyAI is a comprehensive, AI-powered real estate CRM solution designed specifically for Indian real estate agents. It combines modern web technologies with advanced AI capabilities to streamline property management, automate social media posting, and enhance agent productivity.
+
+### ✨ Key Features
+
+- **🤖 AI Content Generation**: Real LLM integration using GROQ for property descriptions and branding
+- **📱 Modern Onboarding**: 7-step AI-powered agent onboarding with Facebook integration
+- **🔗 Facebook Automation**: Complete OAuth flow, page management, and automated posting
+- **🏠 Smart Properties**: AI-generated property listings with multi-language support
+- **🌏 Localization**: Support for English, Hindi, Marathi, and Gujarati
+- **📱 Mobile-Responsive**: Works seamlessly across all devices
+- **🔐 Secure Authentication**: JWT-based auth with bcrypt password hashing
 
 ## 🚀 Quick Start
 
-### Option 1: Production CRM (Recommended)
-```bash
-# Start production CRM with MongoDB
-docker compose -f docker-compose.crm.yml up -d
+### Prerequisites
+- Python 3.8+
+- Node.js 16+ (for testing)
+- Facebook Developer Account (optional, for social media features)
 
-# Access at http://localhost:8004
-```
+### Installation
 
-### Option 2: Development Server
-```bash
-# Start development server
-uvicorn main:app --reload --port 8003
+1. **Clone Repository**
+   ```bash
+   git clone <repository-url>
+   cd realestate_ai
+   ```
 
-# Access at http://localhost:8003
-```
+2. **Setup Environment**
+   ```bash
+   python -m venv .venv
+   .venv\Scripts\activate  # Windows
+   source .venv/bin/activate  # Linux/Mac
+   pip install -r requirements.txt
+   ```
 
-### Option 3: Manual Setup
-```bash
-# Set up virtual environment
-python -m venv .venv
-.venv\Scripts\activate  # Windows
-source .venv/bin/activate  # Linux/Mac
+3. **Initialize Database**
+   ```bash
+   python database_setup.py
+   ```
 
-# Install dependencies
-pip install -r requirements.txt
+4. **Start Application**
+   ```bash
+   python simple_backend.py
+   ```
 
-# Set environment variables
-# See Configuration section below
+5. **Access Application**
+   - Open http://localhost:8003
+   - Login with demo@mumbai.com / password123
 
-# Start server
-python complete_production_crm.py
-```
+## 📖 Documentation
 
-## 📱 Available Applications
+### 📚 **[Complete Guide](PROPERTYAI_COMPLETE_GUIDE.md)**
+Comprehensive overview including features, installation, API documentation, and business value.
 
-### 1. Production CRM
-- **URL**: http://localhost:8004
-- **Features**: Full dashboard, lead management, property listings, AI content generation
-- **Backend**: MongoDB database, FastAPI
+### 🔧 **[Technical Documentation](TECHNICAL_DOCUMENTATION.md)**
+Detailed architecture, database schema, API specifications, and security implementation.
 
-### 2. Development Server
-- **URL**: http://localhost:8003
-- **Features**: API endpoints, Facebook integration testing
-- **Backend**: In-memory database (development), FastAPI
-
-### 3. Chat Assistant
-- **URL**: http://localhost:8000/chat
-- **Usage**: Type `start` to begin the assistant flow
-
-## 🔑 Demo Credentials
-- **Email**: demo@mumbai.com
-- **Password**: demo123
-
-## 🌟 Core Features
-
-### 📊 Dashboard
-- **Quick Stats**: Leads, properties, conversion rates
-- **Weekly Trends**: Lead generation analytics
-- **Pipeline Visualization**: Sales funnel stages
-- **Lead Sources**: Distribution by channel
-
-### 🤖 AI Content Generation
-- **Property Descriptions**: AI-generated compelling listings
-- **Social Media Posts**: Facebook-ready content
-- **Multi-language**: 7 languages including English, Spanish, French
-- **Copy to Facebook**: Seamless integration with posting workflow
-
-### 👥 Lead Management
-- **CRUD Operations**: Create, view, update, delete leads
-- **Status Tracking**: Lead lifecycle management
-- **Search & Filter**: Find leads by various criteria
-- **Agent Assignment**: Multi-agent lead distribution
-
-## 📱 Mobile App
-
-### Core Features Implemented
-
-#### 1. **Agent Onboarding Flow**
-- 6-Step Comprehensive Onboarding
-- Dynamic Branding System (Logo, Colors, Tags)
-- Preferences & Workflow Settings
-
-#### 2. **Dynamic Branding System**
-- Real-time Brand Customization
-- Custom Color Schemes
-- Logo Integration
-
-#### 3. **GROQ AI Integration**
-- Lightning-fast AI Responses
-- Smart Property Descriptions
-- Market Analysis
-
-#### 4. **Complete CRM System**
-- Dashboard with real-time metrics
-- Properties management
-- Leads tracking with scoring
-- AI Assistant with interactive chat
-
-## �️ Technical Stack
-
-### Backend
-- **Framework**: FastAPI with async/await
-- **Database**: MongoDB (production) / In-memory (development)
-- **Authentication**: JWT tokens with bcrypt password hashing
-- **AI Integration**: LangChain with Groq LLM API
-
-### APIs
-- **Facebook Graph API**: v19.0 for social media integration
-- **Groq API**: AI content generation and localization
-- **RESTful Endpoints**: Standard HTTP API design
-
-### Security
-- **Encryption**: Fernet encryption for sensitive tokens
-- **CSRF Protection**: OAuth state verification
-- **Password Hashing**: bcrypt with salt
-- **Environment Variables**: Secure configuration management
-
-## 🚀 Example Flow
-
-1. Assistant asks branding questions.
-2. You reply with branding preferences.
-3. Assistant generates:
-   * Brand name + tagline
-   * Logo and cover image prompts
-   * About section
-4. You enter property details (location, price, etc.)
-5. Assistant generates:
-   * Base post + 3 variants
-6. You confirm posting to Facebook Page.
-7. Assistant posts using image `images/building.png`.
-
-## 📸 Facebook Requirements
-
-Ensure your Page has:
-* ✅ `pages_manage_posts` & `pages_read_engagement`
-* ✅ App has correct permissions and is live
-* ✅ You are an admin of the Page
+### 🚀 **[Deployment Guide](DEPLOYMENT_GUIDE.md)**
+Production deployment, Docker configuration, cloud setup, and monitoring.
 
 ## 🧪 Testing
 
-### Test Organization
-```
-tests/
-├── unit/           # Unit tests for core functionality
-├── integration/    # API and service integration tests  
-├── e2e/           # End-to-end Playwright tests
-└── docs/          # Test documentation and plans
-```
-
-### Running Tests
+### Automated Testing with Playwright
 ```bash
-# Unit tests
-pytest tests/unit/
+# Install test dependencies
+npm install
+npx playwright install
 
-# Integration tests (requires running server)
-pytest tests/integration/
+# Run all tests
+npx playwright test
 
-# E2E tests (requires Playwright setup)
-npm run test:e2e
+# Run specific test suites
+npx playwright test tests/auth.spec.ts
+npx playwright test tests/modern-onboarding-flow.spec.ts
+npx playwright test tests/facebook-connect-demo.spec.ts
 ```
 
-## 🚀 Deployment
+### Test Coverage
+- ✅ Authentication and login flow
+- ✅ Complete 7-step onboarding process
+- ✅ Facebook integration and OAuth
+- ✅ Property management and AI content generation
+- ✅ Mobile responsiveness
+- ✅ API endpoint validation
 
-### Docker (Recommended)
-```bash
-# Start production CRM with MongoDB
-docker compose -f docker-compose.crm.yml up -d
+## 🏗️ Architecture
 
-# Access at http://localhost:8004
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Web Frontend  │    │  Mobile App     │    │  External APIs  │
+│   (Bootstrap)   │    │ (React Native)  │    │ (Facebook, AI)  │
+└─────────┬───────┘    └─────────┬───────┘    └─────────┬───────┘
+          │                      │                      │
+          └──────────────────────┼──────────────────────┘
+                                 │
+                    ┌─────────────┴───────────┐
+                    │    FastAPI Backend      │
+                    │   (simple_backend.py)   │
+                    └─────────────┬───────────┘
+                                  │
+                    ┌─────────────┴───────────┐
+                    │   SQLite Database       │
+                    │   (propertyai.db)       │
+                    └─────────────────────────┘
 ```
 
-### Manual Deployment
-```bash
-# Set environment variables
-export MONGO_URI=mongodb://localhost:27017/realestate_crm
-export GROQ_API_KEY=your_groq_key
-export FB_APP_ID=your_fb_app_id
-export FB_APP_SECRET=your_fb_app_secret
+## 🔧 Tech Stack
 
-# Start production server
-python complete_production_crm.py
-```
+### Backend
+- **FastAPI**: Modern, fast web framework for Python
+- **SQLite**: Lightweight database (PostgreSQL for production)
+- **JWT**: Secure authentication tokens
+- **bcrypt**: Password hashing
 
-## 🔧 Configuration
+### Frontend
+- **Bootstrap 5**: Responsive UI framework
+- **Font Awesome**: Icon library
+- **Modern JavaScript**: ES6+ features
 
-### Required Environment Variables
-```env
-# Database
-MONGO_URI=mongodb://localhost:27017/realestate_crm
+### AI Integration
+- **GROQ**: Real LLM for content generation
+- **Multi-language**: Localized content support
 
-# AI Services  
-GROQ_API_KEY=your_groq_api_key
+### Social Media
+- **Facebook Graph API**: Complete integration
+- **OAuth 2.0**: Secure authentication
+- **Token Encryption**: Secure credential storage
 
-# Facebook Integration
-FB_APP_ID=your_facebook_app_id
-FB_APP_SECRET=your_facebook_app_secret
+### Testing
+- **Playwright**: End-to-end testing framework
+- **TypeScript**: Type-safe test development
 
-# Security
-SECRET_KEY=your_secret_key_here
-JWT_SECRET_KEY=your_jwt_secret_key
-```
+## 📱 Mobile Application
 
-### Optional Configuration
-```env
-# Feature Flags
-FEATURE_FACEBOOK_PERSIST=true
-AI_DISABLE_IMAGE_GENERATION=false
+The project includes a React Native mobile application located in the `mobile-app/` directory. See the [mobile app README](mobile-app/README.md) for setup instructions.
 
-# External Services
-STABILITY_API_KEY=your_stability_key
-HUGGINGFACE_API_TOKEN=your_hf_token
-```
+## 🔐 Security Features
 
-## 🧠 Architecture Notes
+- **JWT Authentication**: Secure token-based authentication
+- **Password Hashing**: bcrypt for secure password storage
+- **Token Encryption**: Fernet encryption for Facebook tokens
+- **Input Validation**: Comprehensive data validation
+- **CORS Protection**: Configurable cross-origin policies
+- **Rate Limiting**: API endpoint protection
 
-### Application Entrypoints
-- **main.py** — Primary FastAPI backend for the modular AI assistant and APIs. Use this in development (uvicorn main:app --reload) and connect the React/Vite frontend to it.
-- **app/main.py** — A separate lightweight modular web app for classic templates (login.html, dashboard.html). Do not run alongside main.py on the same port.
-- **complete_production_crm.py** — A monolithic, all-in-one legacy app kept for reference and migration. Not recommended to run alongside the modular apps.
+## 🌍 Localization
 
-### Facebook Integration
-- OAuth endpoints: /api/facebook/connect (redirects to Facebook) and /api/facebook/callback
-- Page endpoints: /api/facebook/config, /pages, /select_page, /post
-- In-memory AgentRepository stores connected_page and encrypted page tokens for demo only. Move to DB for production.
+PropertyAI supports multiple Indian languages:
+- **English**: Default language
+- **Hindi (हिंदी)**: Full UI and content support
+- **Marathi (मराठी)**: Regional language support
+- **Gujarati (ગુજરાતી)**: Western India market focus
 
-## 📌 TODO
-
-* [ ] Auto-generate and upload logo/cover images
-* [ ] Schedule Facebook posts
-* [ ] Add Instagram integration
-* [ ] Save user projects to database
-
-## 📞 Support
-
-For issues, questions, or contributions:
-1. Check existing documentation in this repository
-2. Review test plans in `tests/` directory
-3. Follow contribution guidelines below
-
-## 🧑‍💻 Contributing
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+For support and questions:
+- Check the [Technical Documentation](TECHNICAL_DOCUMENTATION.md)
+- Review the [Deployment Guide](DEPLOYMENT_GUIDE.md)
+- Create an issue in the repository
+
+## 🚀 Roadmap
+
+### Upcoming Features
+- **WhatsApp Integration**: Automated messaging and lead management
+- **Instagram Integration**: Multi-platform social media posting
+- **Advanced Analytics**: Detailed performance insights
+- **Lead Scoring**: AI-powered prospect qualification
+- **Voice Commands**: AI assistant for hands-free operation
+
+### Technical Improvements
+- **Real-time Notifications**: WebSocket implementation
+- **Advanced Search**: Elasticsearch integration
+- **Image Recognition**: Property photo analysis
+- **Performance Monitoring**: Advanced observability
 
 ---
 
-**Status**: Production-ready Real Estate AI CRM with MongoDB backend, Facebook integration, and AI-powered content generation. ✅
+**PropertyAI** - Empowering Real Estate Professionals with Next-Generation AI Technology
 
-## 🧑‍💻 Author
-
-**Amit Sajwan** — powered by Python, GenAI & LangGraph
+*Built with ❤️ for the Indian Real Estate Market*

@@ -1,36 +1,224 @@
+# Environment and Configuration
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# Database Files
+*.db
+*.sqlite
+*.sqlite3
+propertyai.db
+production_crm.db
+ai_crm.db
+
 # Python
 __pycache__/
-*.pyc
-.env
-.env*
-.venv312/
-.env.*
-.env.local
-.envrc
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
 .venv/
 venv/
 env/
-.pytest_cache/
-htmlcov/
-.coverage
-coverage.xml
+venv312/
+ENV/
+env.bak/
+venv.bak/
 
-# Node
+# Node.js and npm
 node_modules/
-frontend/node_modules/
-frontend/.next/
-frontend/dist/
-playwright-report/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Logs
+logs
+*.log
+log/
+logs/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# ESLint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Playwright
 test-results/
+playwright-report/
+/playwright/.cache/
 
-# OS / Editor
-.DS_Store
-*.swp
-.vscode/
-
-# Archives / backups
-archive/
-
-# Generated & local data
+# Generated images and media
 generated_images/
-*.db
+uploads/
+temp/
+tmp/
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Archive files
+archive/
+backups/
+
+# Temporary files
+*.tmp
+*.temp
+temp_*
+tmp_*
+
+# Testing and Development
+test_screenshots/
+debug_*
+temp_test_*
+*.debug
+
+# Build artifacts
+dist/
+build/
+out/
+
+# Package files
+*.tgz
+*.tar.gz
+
+# Local development
+local_*
+dev_*
+
+# API Keys and Secrets (additional patterns)
+*secret*
+*key*
+*token*
+*password*
+credentials.*
+
+# Facebook and Social Media temp files
+fb_temp_*
+social_temp_*
+
+# AI Generated content temp files
+ai_temp_*
+generated_temp_*
+
+# Windows specific
+*.exe
+*.msi
+*.msm
+*.msp
+
+# macOS specific
+.fseventsd
+.VolumeIcon.icns
+
+# Linux specific
+*~
+.nfs*
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# profiling data
+.prof
