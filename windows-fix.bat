@@ -28,9 +28,9 @@ pip install groq==0.4.1
 
 echo.
 echo 🚀 Step 3: Starting PropertyAI Simple Backend...
-echo ✅ No compilation required
-echo 📱 Premium Mobile UX features enabled
-echo 🎯 Perfect for testing mobile app
+echo ✅ Core functionality ready
+echo 📱 Login, Dashboard, Facebook Integration
+echo 🎯 AI Content Generation & Property Management
 echo.
 
 python simple_backend.py

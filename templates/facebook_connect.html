@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facebook Integration - PropertyAI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .facebook-card {
+            background: linear-gradient(135deg, #1877f2 0%, #42a5f5 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 1rem 0;
+            box-shadow: 0 10px 30px rgba(24, 119, 242, 0.3);
+        }
+        
+        .page-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-left: 4px solid #1877f2;
+        }
+        
+        .connect-btn {
+            background: #1877f2;
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .connect-btn:hover {
+            background: #166fe5;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(24, 119, 242, 0.4);
+        }
+        
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .status-connected {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .status-disconnected {
+            background: #f44336;
+            color: white;
+        }
+        
+        .loading-spinner {
+            display: none;
+        }
+        
+        .post-preview {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-left: 4px solid #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <!-- Facebook Integration Header -->
+                <div class="facebook-card text-center">
+                    <i class="fab fa-facebook fa-3x mb-3"></i>
+                    <h2>Facebook Integration</h2>
+                    <p class="mb-0">Connect your Facebook pages to automatically post properties</p>
+                </div>
+
+                <!-- Connection Status -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-link"></i> Connection Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="connectionStatus">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>Facebook Account</span>
+                                <span id="statusBadge" class="status-badge status-disconnected">Not Connected</span>
+                            </div>
+                            <div id="connectionDetails" class="mt-3" style="display: none;">
+                                <small class="text-muted">
+                                    Connected as: <span id="fbUserName"></span><br>
+                                    Connected page: <span id="fbPageName"></span>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Connect Button -->
+                <div class="card mt-3">
+                    <div class="card-body text-center">
+                        <button id="connectBtn" class="connect-btn" onclick="connectFacebook()">
+                            <i class="fab fa-facebook"></i> Connect Facebook Account
+                        </button>
+                        <div class="loading-spinner mt-2">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Facebook Pages -->
+                <div id="pagesSection" class="card mt-3" style="display: none;">
+                    <div class="card-header">
+                        <h5><i class="fas fa-list"></i> Your Facebook Pages</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="pagesList">
+                            <!-- Pages will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Property Posting -->
+                <div id="postingSection" class="card mt-3" style="display: none;">
+                    <div class="card-header">
+                        <h5><i class="fas fa-paper-plane"></i> Post Property to Facebook</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="postForm">
+                            <div class="mb-3">
+                                <label for="propertyTitle" class="form-label">Property Title</label>
+                                <input type="text" class="form-control" id="propertyTitle" placeholder="Luxury Apartment in Bandra">
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="propertyPrice" class="form-label">Price</label>
+                                    <input type="text" class="form-control" id="propertyPrice" placeholder="₹2.5 Cr">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="propertyLocation" class="form-label">Location</label>
+                                    <input type="text" class="form-control" id="propertyLocation" placeholder="Bandra West, Mumbai">
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-4">
+                                    <label for="propertyBedrooms" class="form-label">Bedrooms</label>
+                                    <input type="number" class="form-control" id="propertyBedrooms" value="3">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="propertyBathrooms" class="form-label">Bathrooms</label>
+                                    <input type="number" class="form-control" id="propertyBathrooms" value="2">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="propertyArea" class="form-label">Area</label>
+                                    <input type="text" class="form-control" id="propertyArea" placeholder="1500 sq ft">
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <button type="button" class="btn btn-outline-primary" onclick="previewPost()">
+                                    <i class="fas fa-eye"></i> Preview Post
+                                </button>
+                                <button type="button" class="btn btn-success" onclick="postToFacebook()">
+                                    <i class="fab fa-facebook"></i> Post to Facebook
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <!-- Post Preview -->
+                        <div id="postPreview" class="post-preview" style="display: none;">
+                            <h6>Post Preview:</h6>
+                            <div id="previewContent"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Load connection status on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFacebookStatus();
+        });
+
+        async function loadFacebookStatus() {
+            try {
+                const response = await fetch('/api/facebook/status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateConnectionStatus(data.status);
+                }
+            } catch (error) {
+                console.error('Error loading Facebook status:', error);
+            }
+        }
+
+        function updateConnectionStatus(status) {
+            const statusBadge = document.getElementById('statusBadge');
+            const connectionDetails = document.getElementById('connectionDetails');
+            const pagesSection = document.getElementById('pagesSection');
+            const postingSection = document.getElementById('postingSection');
+            
+            if (status.connected) {
+                statusBadge.textContent = 'Connected';
+                statusBadge.className = 'status-badge status-connected';
+                connectionDetails.style.display = 'block';
+                document.getElementById('fbUserName').textContent = status.fb_user_name || 'Unknown';
+                document.getElementById('fbPageName').textContent = status.fb_page_name || 'No page selected';
+                
+                // Show additional sections
+                pagesSection.style.display = 'block';
+                postingSection.style.display = 'block';
+                
+                // Load pages
+                loadFacebookPages();
+            } else {
+                statusBadge.textContent = 'Not Connected';
+                statusBadge.className = 'status-badge status-disconnected';
+                connectionDetails.style.display = 'none';
+                pagesSection.style.display = 'none';
+                postingSection.style.display = 'none';
+            }
+        }
+
+        async function connectFacebook() {
+            const connectBtn = document.getElementById('connectBtn');
+            const loadingSpinner = document.querySelector('.loading-spinner');
+            
+            connectBtn.disabled = true;
+            loadingSpinner.style.display = 'block';
+            
+            try {
+                const response = await fetch('/api/facebook/connect');
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Open Facebook OAuth in new window
+                    window.open(data.oauth_url, 'facebook_oauth', 'width=600,height=600');
+                    
+                    // Poll for connection status
+                    const checkInterval = setInterval(async () => {
+                        const statusResponse = await fetch('/api/facebook/status');
+                        const statusData = await statusResponse.json();
+                        
+                        if (statusData.success && statusData.status.connected) {
+                            clearInterval(checkInterval);
+                            updateConnectionStatus(statusData.status);
+                            connectBtn.disabled = false;
+                            loadingSpinner.style.display = 'none';
+                        }
+                    }, 2000);
+                } else {
+                    alert('Failed to generate Facebook OAuth URL: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error connecting to Facebook:', error);
+                alert('Error connecting to Facebook: ' + error.message);
+            } finally {
+                connectBtn.disabled = false;
+                loadingSpinner.style.display = 'none';
+            }
+        }
+
+        async function loadFacebookPages() {
+            try {
+                const response = await fetch('/api/facebook/pages');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayPages(data.pages);
+                }
+            } catch (error) {
+                console.error('Error loading Facebook pages:', error);
+            }
+        }
+
+        function displayPages(pages) {
+            const pagesList = document.getElementById('pagesList');
+            
+            if (pages.length === 0) {
+                pagesList.innerHTML = '<p class="text-muted">No Facebook pages found.</p>';
+                return;
+            }
+            
+            pagesList.innerHTML = pages.map(page => `
+                <div class="page-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">${page.name}</h6>
+                            <small class="text-muted">ID: ${page.id}</small>
+                            ${page.category ? `<br><small class="text-muted">Category: ${page.category}</small>` : ''}
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary" onclick="connectPage('${page.id}', '${page.name}')">
+                            <i class="fas fa-link"></i> Connect
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function connectPage(pageId, pageName) {
+            try {
+                const response = await fetch('/api/facebook/connect-page', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        id: pageId,
+                        name: pageName
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`Successfully connected to ${pageName}!`);
+                    loadFacebookStatus(); // Refresh status
+                } else {
+                    alert('Failed to connect page: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error connecting page:', error);
+                alert('Error connecting page: ' + error.message);
+            }
+        }
+
+        function previewPost() {
+            const title = document.getElementById('propertyTitle').value;
+            const price = document.getElementById('propertyPrice').value;
+            const location = document.getElementById('propertyLocation').value;
+            const bedrooms = document.getElementById('propertyBedrooms').value;
+            const bathrooms = document.getElementById('propertyBathrooms').value;
+            const area = document.getElementById('propertyArea').value;
+            
+            const previewContent = `🏠 ${title}
+
+💰 Price: ${price}
+📍 Location: ${location}
+🛏️ ${bedrooms} Bedrooms | 🚿 ${bathrooms} Bathrooms
+📏 Area: ${area}
+
+✨ Discover your dream home! This stunning property offers the perfect blend of comfort and luxury.
+
+#RealEstate #Property #Mumbai #Home #Investment #LuxuryLiving`;
+            
+            document.getElementById('previewContent').textContent = previewContent;
+            document.getElementById('postPreview').style.display = 'block';
+        }
+
+        async function postToFacebook() {
+            const propertyData = {
+                title: document.getElementById('propertyTitle').value,
+                price: document.getElementById('propertyPrice').value,
+                location: document.getElementById('propertyLocation').value,
+                bedrooms: parseInt(document.getElementById('propertyBedrooms').value),
+                bathrooms: parseInt(document.getElementById('propertyBathrooms').value),
+                area: document.getElementById('propertyArea').value
+            };
+            
+            try {
+                const response = await fetch('/api/facebook/post-property', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(propertyData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Property posted successfully to Facebook!');
+                    // Clear form
+                    document.getElementById('postForm').reset();
+                    document.getElementById('postPreview').style.display = 'none';
+                } else {
+                    alert('Failed to post property: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error posting to Facebook:', error);
+                alert('Error posting to Facebook: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

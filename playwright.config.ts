@@ -1,41 +1,82 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// Allow env-driven baseURL and optional webServer (so we can target a real running app)
-const baseURL = process.env.BASE_URL || 'http://127.0.0.1:8004';
-const disableWebServer = process.env.PW_NO_SERVER === '1';
-
-// Default local server command (kept for compatibility). Can be overridden by setting PW_NO_SERVER=1
-const defaultWebServer = {
-  command: `C:\\Users\\code\\realestate_ai\\.venv\\Scripts\\python.exe complete_production_crm.py`,
-  url: 'http://127.0.0.1:8004',
-  timeout: 120_000,
-  reuseExistingServer: true,
-  cwd: 'C:\\Users\\code\\realestate_ai',
-} as const;
-
+/**
+ * @see https://playwright.dev/docs/test-configuration
+ */
 export default defineConfig({
-  testDir: './tests/ui',
-  timeout: 60_000,
-  retries: 0,
+  testDir: './tests',
+  /* Run tests in files in parallel */
+  fullyParallel: true,
+  /* Fail the build on CI if you accidentally left test.only in the source code. */
+  forbidOnly: !!process.env.CI,
+  /* Retry on CI only */
+  retries: process.env.CI ? 2 : 0,
+  /* Opt out of parallel tests on CI. */
+  workers: process.env.CI ? 1 : undefined,
+  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
-    ['list'],
-    [require.resolve('./tests/ui/reporters/telemetry-reporter')],
+    ['html'],
+    ['json', { outputFile: 'test-results/results.json' }],
+    ['junit', { outputFile: 'test-results/results.xml' }]
   ],
+  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
-    baseURL,
-    headless: true,
+    /* Base URL to use in actions like `await page.goto('/')`. */
+    baseURL: 'http://localhost:8003',
+
+    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
-    // Inject Authorization header automatically when AUTH_TOKEN is provided
-    extraHTTPHeaders: process.env.AUTH_TOKEN
-      ? { Authorization: `Bearer ${process.env.AUTH_TOKEN}` }
-      : undefined,
+    
+    /* Take screenshot on failure */
+    screenshot: 'only-on-failure',
+    
+    /* Record video on failure */
+    video: 'retain-on-failure',
   },
-  // If PW_NO_SERVER=1, Playwright won't try to start any server (assumes real app is already running)
-  webServer: disableWebServer ? undefined : defaultWebServer,
+
+  /* Configure projects for major browsers */
   projects: [
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
+
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+    },
+
+    /* Test against mobile viewports. */
+    {
+      name: 'Mobile Chrome',
+      use: { ...devices['Pixel 5'] },
+    },
+    {
+      name: 'Mobile Safari',
+      use: { ...devices['iPhone 12'] },
+    },
+
+    /* Test against branded browsers. */
+    // {
+    //   name: 'Microsoft Edge',
+    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
+    // },
+    // {
+    //   name: 'Google Chrome',
+    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
+    // },
   ],
+
+  /* Run your local dev server before starting the tests */
+  // webServer: {
+  //   command: 'python simple_backend.py',
+  //   url: 'http://localhost:8003/health',
+  //   reuseExistingServer: !process.env.CI,
+  //   timeout: 120 * 1000,
+  // },
 });
