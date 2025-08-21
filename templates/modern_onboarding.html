@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PropertyAI - Modern Agent Onboarding</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2E86AB;
+            --secondary-color: #A23B72;
+            --accent-color: #F18F01;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --light-bg: #f8f9fa;
+            --dark-bg: #343a40;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .onboarding-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .onboarding-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 2rem;
+        }
+        
+        .header-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+        
+        .back-to-home {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .back-to-home:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .header-title-center {
+            text-align: center;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+        }
+
+        .onboarding-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .onboarding-header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .progress-container {
+            background: var(--light-b`g);
+            padding: 1rem 2rem;
+        }
+
+        .progress-bar {
+            height: 8px;
+            border-radius: 4px;
+            background: #e9ecef;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+            transition: width 0.5s ease;
+            border-radius: 4px;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 1rem;
+        }
+
+        .step-dot {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #6c757d;
+            transition: all 0.3s ease;
+        }
+
+        .step-dot.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .step-dot.completed {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .onboarding-content {
+            padding: 2rem;
+        }
+
+        .step {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .step.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: var(--dark-bg);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control {
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(46, 134, 171, 0.25);
+        }
+
+        .btn {
+            border-radius: 10px;
+            padding: 0.75rem 2rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border: none;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn-secondary {
+            background: var(--light-bg);
+            color: var(--dark-bg);
+            border: 2px solid #e9ecef;
+        }
+
+        .ai-suggestion-box {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border: 2px solid var(--primary-color);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            position: relative;
+        }
+
+        .ai-suggestion-box::before {
+            content: "🤖 AI Suggestion";
+            position: absolute;
+            top: -10px;
+            left: 20px;
+            background: var(--primary-color);
+            color: white;
+            padding: 0.25rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .branding-preview {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .color-palette {
+            display: flex;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .color-swatch {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            border: 3px solid white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.1);
+        }
+
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .success-animation {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .success-icon {
+            font-size: 4rem;
+            color: var(--success-color);
+            margin-bottom: 1rem;
+        }
+
+        .feature-card {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .verification-code {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin: 1rem 0;
+        }
+
+        .verification-input {
+            width: 50px;
+            height: 50px;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+        }
+
+        .verification-input:focus {
+            border-color: var(--primary-color);
+        }
+
+        .onboarding-footer {
+            background: var(--light-bg);
+            padding: 1.5rem 2rem;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .step-navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2rem;
+        }
+
+        .ai-powered-badge {
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+
+        /* Facebook Integration Styles */
+        .facebook-setup-options {
+            display: grid;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .facebook-option {
+            border: 2px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .facebook-option:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        .facebook-option.selected {
+            border-color: var(--primary-color);
+            background: linear-gradient(135deg, rgba(46, 134, 171, 0.05), rgba(162, 59, 114, 0.05));
+        }
+
+        .benefits {
+            margin: 1rem 0;
+        }
+
+        .benefit-item {
+            display: flex;
+            align-items: center;
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+
+        .benefit-item i {
+            margin-right: 0.5rem;
+            width: 16px;
+        }
+
+        .setup-form {
+            background: var(--light-bg);
+            border-radius: 15px;
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+
+        .pages-list {
+            margin: 1rem 0;
+        }
+
+        .loading-pages {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            color: var(--primary-color);
+        }
+
+        .page-option {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .page-option:hover {
+            border-color: var(--primary-color);
+            background: rgba(46, 134, 171, 0.05);
+        }
+
+        .page-option.selected {
+            border-color: var(--primary-color);
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .onboarding-container {
+                margin: 1rem;
+                border-radius: 15px;
+            }
+            
+            .onboarding-header {
+                padding: 1.5rem 1rem;
+            }
+            
+            .header-navigation {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .header-title-center {
+                position: static;
+                transform: none;
+            }
+            
+            .onboarding-header h1 {
+                font-size: 2rem;
+            }
+            
+            .back-to-home {
+                align-self: flex-start;
+                font-size: 0.8rem;
+                padding: 0.4rem 0.8rem;
+            }
+            
+            .step-navigation {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .step-navigation button {
+                width: 100%;
+            }
+            
+            .facebook-setup-options {
+                grid-template-columns: 1fr;
+            }
+            
+            .setup-form {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="onboarding-container">
+        <!-- Header -->
+        <div class="onboarding-header">
+            <div class="header-navigation">
+                <a href="/" class="back-to-home" title="Back to Login">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Login
+                </a>
+                <div class="header-title-center">
+                    <h1><i class="fas fa-home me-2"></i>PropertyAI</h1>
+                    <p>Modern GenAI-Powered Agent Onboarding</p>
+                </div>
+                <div class="header-right">
+                    <div class="ai-powered-badge">
+                        <i class="fas fa-robot me-1"></i>Powered by GenAI
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 16.67%"></div>
+            </div>
+            <div class="step-indicator">
+                <div class="step-dot active" data-step="1">1</div>
+                <div class="step-dot" data-step="2">2</div>
+                <div class="step-dot" data-step="3">3</div>
+                <div class="step-dot" data-step="4">4</div>
+                <div class="step-dot" data-step="5">5</div>
+                <div class="step-dot" data-step="6">6</div>
+                <div class="step-dot" data-step="7">7</div>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="onboarding-content">
+            <form id="onboardingForm">
+                <!-- Step 1: Personal Information -->
+                <div class="step active" id="step1">
+                    <h3><i class="fas fa-user me-2"></i>Personal Information</h3>
+                    <p class="text-muted">Let's start with your basic details</p>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Full Name *</label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Email Address *</label>
+                        <input type="email" class="form-control" name="email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Phone Number *</label>
+                        <input type="tel" class="form-control" name="phone" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">WhatsApp Number</label>
+                        <input type="tel" class="form-control" name="whatsapp">
+                    </div>
+                </div>
+
+                <!-- Step 2: Company Details -->
+                <div class="step" id="step2">
+                    <h3><i class="fas fa-building me-2"></i>Company Details</h3>
+                    <p class="text-muted">Tell us about your business</p>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Company Name *</label>
+                        <input type="text" class="form-control" name="company" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Years of Experience *</label>
+                        <select class="form-control" name="experience_years" required>
+                            <option value="">Select experience</option>
+                            <option value="0">Just starting</option>
+                            <option value="1">1 year</option>
+                            <option value="2">2 years</option>
+                            <option value="3">3 years</option>
+                            <option value="4">4 years</option>
+                            <option value="5">5+ years</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Specialization Areas *</label>
+                        <input type="text" class="form-control" name="specialization_areas" placeholder="e.g., Mumbai, Bandra, Powai" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Languages Spoken *</label>
+                        <input type="text" class="form-control" name="languages" placeholder="e.g., English, Hindi, Marathi" required>
+                    </div>
+                </div>
+
+                <!-- Step 3: AI Branding Generation -->
+                <div class="step" id="step3">
+                    <h3><i class="fas fa-magic me-2"></i>AI Branding Generation</h3>
+                    <p class="text-muted">Our GenAI will create your professional branding</p>
+                    
+                    <div class="ai-suggestion-box">
+                        <h5><i class="fas fa-robot me-2"></i>AI Branding Assistant</h5>
+                        <p>Click the button below to generate personalized branding based on your profile.</p>
+                        <button type="button" class="btn btn-primary" id="generateBranding">
+                            <i class="fas fa-magic me-2"></i>Generate AI Branding
+                        </button>
+                    </div>
+                    
+                    <div id="brandingResults" style="display: none;">
+                        <div class="branding-preview">
+                            <h5>Your AI-Generated Branding</h5>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Professional Tagline</label>
+                                <input type="text" class="form-control" name="tagline" id="aiTagline">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">About Section</label>
+                                <textarea class="form-control" name="about" id="aiAbout" rows="4"></textarea>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Brand Colors</label>
+                                <div class="color-palette" id="colorPalette">
+                                    <!-- Colors will be populated by AI -->
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Social Media Bio</label>
+                                <input type="text" class="form-control" name="social_media_bio" id="aiSocialBio">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Profile Setup -->
+                <div class="step" id="step4">
+                    <h3><i class="fas fa-camera me-2"></i>Profile Setup</h3>
+                    <p class="text-muted">Complete your professional profile</p>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Profile Photo URL</label>
+                        <input type="url" class="form-control" name="profile_photo_url" placeholder="https://example.com/photo.jpg">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Bio/About Section</label>
+                        <textarea class="form-control" name="bio" rows="4" placeholder="Tell your story..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Contact Preferences</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="contact_preferences[]" value="phone" id="prefPhone">
+                            <label class="form-check-label" for="prefPhone">Phone calls</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="contact_preferences[]" value="whatsapp" id="prefWhatsApp">
+                            <label class="form-check-label" for="prefWhatsApp">WhatsApp</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="contact_preferences[]" value="email" id="prefEmail">
+                            <label class="form-check-label" for="prefEmail">Email</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 5: Facebook Integration Setup -->
+                <div class="step" id="step5">
+                    <h3><i class="fab fa-facebook me-2"></i>Facebook Integration Setup</h3>
+                    <p class="text-muted">Connect your Facebook pages for automated property posting</p>
+                    
+                    <div class="facebook-setup-options">
+                        <!-- Option 1: Use Our Facebook App (Recommended) -->
+                        <div class="feature-card facebook-option" id="optionOurApp">
+                            <div class="feature-icon">
+                                <i class="fas fa-rocket"></i>
+                            </div>
+                            <h5>🚀 Quick Start (Recommended)</h5>
+                            <p class="text-muted">Use our pre-configured Facebook App for instant setup</p>
+                            <div class="benefits">
+                                <div class="benefit-item">
+                                    <i class="fas fa-check text-success"></i>
+                                    <span>No technical setup required</span>
+                                </div>
+                                <div class="benefit-item">
+                                    <i class="fas fa-check text-success"></i>
+                                    <span>Instant Facebook page connection</span>
+                                </div>
+                                <div class="benefit-item">
+                                    <i class="fas fa-check text-success"></i>
+                                    <span>AI-powered content posting</span>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-primary mt-3" onclick="selectOurApp()">
+                                <i class="fas fa-play me-2"></i>Start with Our App
+                            </button>
+                        </div>
+
+                        <!-- Option 2: Use Your Own Facebook App -->
+                        <div class="feature-card facebook-option" id="optionYourApp">
+                            <div class="feature-icon">
+                                <i class="fas fa-cog"></i>
+                            </div>
+                            <h5>⚙️ Advanced Setup</h5>
+                            <p class="text-muted">Use your own Facebook App for full control</p>
+                            <div class="benefits">
+                                <div class="benefit-item">
+                                    <i class="fas fa-check text-success"></i>
+                                    <span>Full control over your data</span>
+                                </div>
+                                <div class="benefit-item">
+                                    <i class="fas fa-check text-success"></i>
+                                    <span>Custom branding and permissions</span>
+                                </div>
+                                <div class="benefit-item">
+                                    <i class="fas fa-check text-success"></i>
+                                    <span>Higher posting limits</span>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-outline-primary mt-3" onclick="selectYourApp()">
+                                <i class="fas fa-cog me-2"></i>Use My Own App
+                            </button>
+                        </div>
+
+                        <!-- Option 3: Skip for Now -->
+                        <div class="feature-card facebook-option" id="optionSkip">
+                            <div class="feature-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <h5>⏰ Skip for Now</h5>
+                            <p class="text-muted">You can set up Facebook integration later</p>
+                            <div class="benefits">
+                                <div class="benefit-item">
+                                    <i class="fas fa-check text-success"></i>
+                                    <span>Complete onboarding quickly</span>
+                                </div>
+                                <div class="benefit-item">
+                                    <i class="fas fa-check text-success"></i>
+                                    <span>Access all other features</span>
+                                </div>
+                                <div class="benefit-item">
+                                    <i class="fas fa-check text-success"></i>
+                                    <span>Setup Facebook anytime later</span>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-outline-secondary mt-3" onclick="skipFacebook()">
+                                <i class="fas fa-clock me-2"></i>Skip for Now
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Our App Setup Form (Hidden by default) -->
+                    <div id="ourAppSetup" style="display: none;">
+                        <div class="setup-form">
+                            <h5><i class="fas fa-rocket me-2"></i>Quick Facebook Connection</h5>
+                            <p class="text-muted">Connect your Facebook page in just a few clicks</p>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Select Your Facebook Page</label>
+                                <div id="facebookPagesList" class="pages-list">
+                                    <div class="loading-pages">
+                                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                                        <span class="ms-2">Loading your Facebook pages...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <button type="button" class="btn btn-primary" id="connectFacebookBtn">
+                                    <i class="fab fa-facebook me-2"></i>Connect Facebook Account
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Your App Setup Form (Hidden by default) -->
+                    <div id="yourAppSetup" style="display: none;">
+                        <div class="setup-form">
+                            <h5><i class="fas fa-cog me-2"></i>Your Facebook App Configuration</h5>
+                            <p class="text-muted">Enter your Facebook App details</p>
+                            
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-info-circle me-2"></i>How to get your Facebook App ID:</h6>
+                                <ol class="mb-0">
+                                    <li>Go to <a href="https://developers.facebook.com" target="_blank">Facebook Developers</a></li>
+                                    <li>Create a new app or select existing one</li>
+                                    <li>Copy the App ID and App Secret</li>
+                                    <li>Add your domain to Valid OAuth Redirect URIs</li>
+                                </ol>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Facebook App ID *</label>
+                                <input type="text" class="form-control" name="facebook_app_id" placeholder="123456789012345">
+                                <small class="form-text text-muted">Your Facebook App ID from Facebook Developers Console</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Facebook App Secret *</label>
+                                <input type="password" class="form-control" name="facebook_app_secret" placeholder="your_app_secret_here">
+                                <small class="form-text text-muted">Your Facebook App Secret (keep this secure)</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Facebook Page ID</label>
+                                <input type="text" class="form-control" name="facebook_page_id" placeholder="123456789012345">
+                                <small class="form-text text-muted">
+                                    Optional: Your Facebook Page ID for direct posting<br>
+                                    <strong>How to find it:</strong> Go to your Facebook Page → About → Page ID<br>
+                                    Or extract from URL: facebook.com/YourPageName → Page ID in About section
+                                </small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <button type="button" class="btn btn-primary" id="testFacebookConfig">
+                                    <i class="fas fa-test-tube me-2"></i>Test Configuration
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Facebook Connection Status -->
+                    <div id="facebookStatus" style="display: none;">
+                        <div class="alert alert-success">
+                            <h6><i class="fas fa-check-circle me-2"></i>Facebook Connected Successfully!</h6>
+                            <p class="mb-0">Your Facebook page is now connected and ready for automated posting.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 6: Legal Compliance & RERA -->
+                <div class="step" id="step6">
+                    <h3><i class="fas fa-balance-scale me-2"></i>Legal Compliance & RERA</h3>
+                    <p class="text-muted">Complete your legal compliance setup for Indian real estate market</p>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-certificate"></i>
+                        </div>
+                        <h5>RERA Registration</h5>
+                        <p class="text-muted mb-3">Real Estate Regulatory Authority registration details</p>
+                        <div class="form-group">
+                            <label class="form-label">RERA Registration Number</label>
+                            <input type="text" class="form-control" name="rera_number" placeholder="Enter your RERA registration number">
+                            <small class="form-text text-muted">Required for real estate agents in India</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">State/UT</label>
+                            <select class="form-control" name="rera_state" required>
+                                <option value="">Select State/UT</option>
+                                <option value="maharashtra">Maharashtra</option>
+                                <option value="delhi">Delhi</option>
+                                <option value="karnataka">Karnataka</option>
+                                <option value="gujarat">Gujarat</option>
+                                <option value="rajasthan">Rajasthan</option>
+                                <option value="haryana">Haryana</option>
+                                <option value="uttar_pradesh">Uttar Pradesh</option>
+                                <option value="west_bengal">West Bengal</option>
+                                <option value="tamil_nadu">Tamil Nadu</option>
+                                <option value="telangana">Telangana</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-building"></i>
+                        </div>
+                        <h5>Business Type & Specialization</h5>
+                        <div class="form-group">
+                            <label class="form-label">Business Type</label>
+                            <select class="form-control" name="business_type" required>
+                                <option value="">Select Business Type</option>
+                                <option value="individual_agent">Individual Agent</option>
+                                <option value="real_estate_firm">Real Estate Firm</option>
+                                <option value="property_dealer">Property Dealer</option>
+                                <option value="builder_developer">Builder/Developer</option>
+                                <option value="property_consultant">Property Consultant</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Property Specialization</label>
+                            <div class="specialization-checkboxes">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="specialization[]" value="residential_sale" id="specResSale">
+                                    <label class="form-check-label" for="specResSale">Residential Sale</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="specialization[]" value="residential_rent" id="specResRent">
+                                    <label class="form-check-label" for="specResRent">Residential Rent</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="specialization[]" value="commercial" id="specComm">
+                                    <label class="form-check-label" for="specComm">Commercial Properties</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="specialization[]" value="land_plots" id="specLand">
+                                    <label class="form-check-label" for="specLand">Land & Plots</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="specialization[]" value="luxury_properties" id="specLux">
+                                    <label class="form-check-label" for="specLux">Luxury Properties</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 7: Verification & Completion -->
+                <div class="step" id="step7">
+                    <h3><i class="fas fa-shield-alt me-2"></i>Verification & Completion</h3>
+                    <p class="text-muted">Final step to activate your account</p>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Phone Verification</label>
+                        <p class="text-muted">We'll send a verification code to your phone number</p>
+                        <button type="button" class="btn btn-primary" id="sendVerification">
+                            <i class="fas fa-paper-plane me-2"></i>Send Verification Code
+                        </button>
+                    </div>
+                    
+                    <div id="verificationSection" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">Enter Verification Code</label>
+                            <div class="verification-code">
+                                <input type="text" class="verification-input" maxlength="1" data-index="0">
+                                <input type="text" class="verification-input" maxlength="1" data-index="1">
+                                <input type="text" class="verification-input" maxlength="1" data-index="2">
+                                <input type="text" class="verification-input" maxlength="1" data-index="3">
+                                <input type="text" class="verification-input" maxlength="1" data-index="4">
+                                <input type="text" class="verification-input" maxlength="1" data-index="5">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="terms_accepted" id="termsAccepted" required>
+                            <label class="form-check-label" for="termsAccepted">
+                                I accept the <a href="#" target="_blank">Terms of Service</a> and <a href="#" target="_blank">Privacy Policy</a>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="marketing_consent" id="marketingConsent">
+                            <label class="form-check-label" for="marketingConsent">
+                                I agree to receive marketing communications and AI-powered insights
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading Spinner -->
+                <div class="loading-spinner" id="loadingSpinner">
+                    <div class="spinner"></div>
+                    <p class="mt-3">AI is generating your branding...</p>
+                </div>
+
+                <!-- Success Animation -->
+                <div class="success-animation" id="successAnimation" style="display: none;">
+                    <div class="success-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h3>Onboarding Complete!</h3>
+                    <p>Your account has been successfully created with AI-powered branding.</p>
+                </div>
+
+                <!-- Navigation -->
+                <div class="step-navigation" id="stepNavigation">
+                    <button type="button" class="btn btn-secondary" id="prevBtn" style="display: none;">
+                        <i class="fas fa-arrow-left me-2"></i>Previous
+                    </button>
+                    <button type="button" class="btn btn-primary" id="nextBtn">
+                        Next<i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                    <button type="submit" class="btn btn-success" id="submitBtn" style="display: none;">
+                        <i class="fas fa-check me-2"></i>Complete Onboarding
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Footer -->
+        <div class="onboarding-footer">
+            <p class="text-muted mb-0">
+                <i class="fas fa-shield-alt me-1"></i>Your data is secure and protected
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        class ModernOnboarding {
+            constructor() {
+                this.currentStep = 1;
+                this.totalSteps = 7;
+                this.formData = {};
+                this.facebookConfig = {
+                    option: null,
+                    connected: false
+                };
+                this.init();
+            }
+
+            init() {
+                this.bindEvents();
+                this.updateProgress();
+                this.updateStepIndicator();
+            }
+
+            bindEvents() {
+                document.getElementById('nextBtn').addEventListener('click', () => this.nextStep());
+                document.getElementById('prevBtn').addEventListener('click', () => this.prevStep());
+                document.getElementById('generateBranding').addEventListener('click', () => this.generateBranding());
+                document.getElementById('sendVerification').addEventListener('click', () => this.sendVerification());
+                document.getElementById('onboardingForm').addEventListener('submit', (e) => this.submitForm(e));
+                
+                // Verification code inputs
+                document.querySelectorAll('.verification-input').forEach(input => {
+                    input.addEventListener('input', (e) => this.handleVerificationInput(e));
+                    input.addEventListener('keydown', (e) => this.handleVerificationKeydown(e));
+                });
+            }
+
+            nextStep() {
+                if (this.validateCurrentStep()) {
+                    this.saveStepData();
+                    if (this.currentStep < this.totalSteps) {
+                        this.currentStep++;
+                        this.updateStep();
+                    }
+                }
+            }
+
+            prevStep() {
+                if (this.currentStep > 1) {
+                    this.currentStep--;
+                    this.updateStep();
+                }
+            }
+
+            updateStep() {
+                // Hide all steps
+                document.querySelectorAll('.step').forEach(step => {
+                    step.classList.remove('active');
+                });
+
+                // Show current step
+                document.getElementById(`step${this.currentStep}`).classList.add('active');
+
+                // Update progress
+                this.updateProgress();
+                this.updateStepIndicator();
+                this.updateNavigation();
+                this.loadStepData();
+            }
+
+            updateProgress() {
+                const progress = (this.currentStep / this.totalSteps) * 100;
+                document.getElementById('progressFill').style.width = `${progress}%`;
+            }
+
+            updateStepIndicator() {
+                document.querySelectorAll('.step-dot').forEach((dot, index) => {
+                    const stepNumber = index + 1;
+                    dot.classList.remove('active', 'completed');
+                    
+                    if (stepNumber === this.currentStep) {
+                        dot.classList.add('active');
+                    } else if (stepNumber < this.currentStep) {
+                        dot.classList.add('completed');
+                    }
+                });
+            }
+
+            updateNavigation() {
+                const prevBtn = document.getElementById('prevBtn');
+                const nextBtn = document.getElementById('nextBtn');
+                const submitBtn = document.getElementById('submitBtn');
+
+                prevBtn.style.display = this.currentStep > 1 ? 'block' : 'none';
+                nextBtn.style.display = this.currentStep < this.totalSteps ? 'block' : 'none';
+                submitBtn.style.display = this.currentStep === this.totalSteps ? 'block' : 'none';
+            }
+
+            validateCurrentStep() {
+                const currentStepElement = document.getElementById(`step${this.currentStep}`);
+                const requiredFields = currentStepElement.querySelectorAll('[required]');
+                
+                let isValid = true;
+                requiredFields.forEach(field => {
+                    if (!field.value.trim()) {
+                        field.classList.add('is-invalid');
+                        isValid = false;
+                    } else {
+                        field.classList.remove('is-invalid');
+                    }
+                });
+
+                return isValid;
+            }
+
+            saveStepData() {
+                const currentStepElement = document.getElementById(`step${this.currentStep}`);
+                const inputs = currentStepElement.querySelectorAll('input, select, textarea');
+                
+                inputs.forEach(input => {
+                    if (input.name) {
+                        if (input.type === 'checkbox') {
+                            this.formData[input.name] = input.checked;
+                        } else {
+                            this.formData[input.name] = input.value;
+                        }
+                    }
+                });
+            }
+
+            loadStepData() {
+                const currentStepElement = document.getElementById(`step${this.currentStep}`);
+                const inputs = currentStepElement.querySelectorAll('input, select, textarea');
+                
+                inputs.forEach(input => {
+                    if (this.formData[input.name]) {
+                        input.value = this.formData[input.name];
+                    }
+                });
+            }
+
+            async generateBranding() {
+                const loadingSpinner = document.getElementById('loadingSpinner');
+                const generateBtn = document.getElementById('generateBranding');
+                const resultsDiv = document.getElementById('brandingResults');
+
+                // Show loading
+                loadingSpinner.style.display = 'block';
+                generateBtn.disabled = true;
+                generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating...';
+
+                try {
+                    // Get user data from previous steps
+                    const userData = {
+                        name: this.formData.name || document.querySelector('input[name="name"]').value,
+                        company: this.formData.company || document.querySelector('input[name="company"]').value,
+                        experience_years: this.formData.experience_years || document.querySelector('select[name="experience_years"]').value,
+                        specialization_areas: this.formData.specialization_areas || document.querySelector('input[name="specialization_areas"]').value,
+                        languages: this.formData.languages || document.querySelector('input[name="languages"]').value,
+                        market: 'Mumbai' // Default market
+                    };
+
+                    // Call AI branding API
+                    const response = await fetch('/api/ai/generate-branding', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(userData)
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        // Populate branding fields
+                        document.getElementById('aiTagline').value = result.branding.tagline;
+                        document.getElementById('aiAbout').value = result.branding.about_section;
+                        document.getElementById('aiSocialBio').value = result.branding.social_media_bio;
+
+                        // Create color palette
+                        this.createColorPalette(result.branding.color_scheme);
+
+                        // Show results
+                        resultsDiv.style.display = 'block';
+                        
+                        // Smooth scroll to results
+                        resultsDiv.scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                        throw new Error('Failed to generate branding');
+                    }
+
+                } catch (error) {
+                    console.error('Branding generation error:', error);
+                    alert('Failed to generate branding. Please try again.');
+                } finally {
+                    // Hide loading
+                    loadingSpinner.style.display = 'none';
+                    generateBtn.disabled = false;
+                    generateBtn.innerHTML = '<i class="fas fa-magic me-2"></i>Generate AI Branding';
+                }
+            }
+
+            createColorPalette(colorScheme) {
+                const palette = document.getElementById('colorPalette');
+                palette.innerHTML = '';
+
+                Object.entries(colorScheme).forEach(([name, color]) => {
+                    const swatch = document.createElement('div');
+                    swatch.className = 'color-swatch';
+                    swatch.style.backgroundColor = color;
+                    swatch.title = `${name}: ${color}`;
+                    swatch.onclick = () => this.selectColor(color);
+                    palette.appendChild(swatch);
+                });
+            }
+
+            selectColor(color) {
+                // You can implement color selection logic here
+                console.log('Selected color:', color);
+            }
+
+            async sendVerification() {
+                const sendBtn = document.getElementById('sendVerification');
+                const verificationSection = document.getElementById('verificationSection');
+                
+                // Get phone number from previous step
+                const phoneNumber = this.formData.phone || document.querySelector('input[name="phone"]')?.value;
+                
+                if (!phoneNumber) {
+                    this.showNotification('Please enter your phone number first', 'error');
+                    return;
+                }
+
+                sendBtn.disabled = true;
+                sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending...';
+
+                try {
+                    const response = await fetch('/api/sms/send-verification', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            phone_number: phoneNumber,
+                            user_id: this.formData.email || 'onboarding_user'
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        sendBtn.innerHTML = '<i class="fas fa-check me-2"></i>Code Sent!';
+                        verificationSection.style.display = 'block';
+                        
+                        // Show success message
+                        this.showNotification('Verification code sent to your phone', 'success');
+                        
+                        // If it's demo mode, show the code
+                        if (result.demo_mode) {
+                            this.showNotification('Demo Mode: Check browser console for verification code', 'info');
+                        }
+
+                        // Focus on first verification input
+                        document.querySelector('.verification-input').focus();
+
+                        setTimeout(() => {
+                            sendBtn.disabled = false;
+                            sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Resend Code';
+                        }, 30000); // 30 seconds before allowing resend
+                    } else {
+                        sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Send Verification Code';
+                        sendBtn.disabled = false;
+                        this.showNotification(result.error || 'Failed to send verification code', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error sending verification:', error);
+                    sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Send Verification Code';
+                    sendBtn.disabled = false;
+                    this.showNotification('Network error. Please try again.', 'error');
+                }
+            }
+
+            handleVerificationInput(e) {
+                const input = e.target;
+                const index = parseInt(input.dataset.index);
+                const value = input.value;
+
+                if (value && index < 5) {
+                    // Move to next input
+                    document.querySelector(`[data-index="${index + 1}"]`).focus();
+                }
+                
+                // Check if all inputs are filled
+                const inputs = document.querySelectorAll('.verification-input');
+                const allFilled = Array.from(inputs).every(inp => inp.value);
+                
+                if (allFilled) {
+                    // Auto-verify when all fields are filled
+                    this.verifyCode();
+                }
+            }
+
+            async verifyCode() {
+                const inputs = document.querySelectorAll('.verification-input');
+                const code = Array.from(inputs).map(input => input.value).join('');
+                const phoneNumber = this.formData.phone || document.querySelector('input[name="phone"]')?.value;
+                
+                if (!phoneNumber) {
+                    this.showNotification('Phone number not found', 'error');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/sms/verify-code', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            phone_number: phoneNumber,
+                            code: code,
+                            user_id: this.formData.email || 'onboarding_user'
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        this.showNotification('Phone number verified successfully!', 'success');
+                        
+                        // Mark verification as complete
+                        this.phoneVerified = true;
+                        
+                        // Update UI to show verification success
+                        document.getElementById('verificationSection').innerHTML = `
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle me-2"></i>
+                                Phone number verified successfully!
+                            </div>
+                        `;
+                        
+                        // Auto-advance to complete registration after 2 seconds
+                        setTimeout(() => {
+                            this.submitForm();
+                        }, 2000);
+                    } else {
+                        this.showNotification(result.error || 'Invalid verification code', 'error');
+                        
+                        // Clear inputs and focus on first
+                        inputs.forEach(input => input.value = '');
+                        inputs[0].focus();
+                    }
+                } catch (error) {
+                    console.error('Error verifying code:', error);
+                    this.showNotification('Network error. Please try again.', 'error');
+                }
+            }
+
+            handleVerificationKeydown(e) {
+                const input = e.target;
+                const index = parseInt(input.dataset.index);
+
+                if (e.key === 'Backspace' && !input.value && index > 0) {
+                    // Move to previous input on backspace
+                    document.querySelector(`[data-index="${index - 1}"]`).focus();
+                }
+            }
+
+            async submitForm(e) {
+                e.preventDefault();
+
+                const submitBtn = document.getElementById('submitBtn');
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Completing...';
+
+                try {
+                    // Collect all form data
+                    const formData = new FormData(e.target);
+                    
+                    // Add saved step data
+                    Object.entries(this.formData).forEach(([key, value]) => {
+                        formData.append(key, value);
+                    });
+
+                    // Submit to backend
+                    const response = await fetch('/modern-agent/onboard', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        console.log('✅ Onboarding successful:', result);
+                        // Show success animation
+                        document.querySelector('.onboarding-content').style.display = 'none';
+                        document.getElementById('successAnimation').style.display = 'block';
+                        
+                        // Redirect to login after 3 seconds
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 3000);
+                    } else {
+                        console.error('❌ Onboarding failed:', result);
+                        throw new Error(result.error || 'Onboarding failed');
+                    }
+
+                } catch (error) {
+                    console.error('Form submission error:', error);
+                    alert('Failed to complete onboarding. Please try again.');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-check me-2"></i>Complete Onboarding';
+                }
+            }
+        }
+
+        // Initialize onboarding when page loads
+        // Facebook Configuration Functions
+        function selectOurApp() {
+            onboarding.facebookConfig.option = 'our_app';
+            document.querySelectorAll('.facebook-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            document.getElementById('optionOurApp').classList.add('selected');
+            document.getElementById('ourAppSetup').style.display = 'block';
+            document.getElementById('yourAppSetup').style.display = 'none';
+        }
+
+        function selectYourApp() {
+            onboarding.facebookConfig.option = 'your_app';
+            document.querySelectorAll('.facebook-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            document.getElementById('optionYourApp').classList.add('selected');
+            document.getElementById('yourAppSetup').style.display = 'block';
+            document.getElementById('ourAppSetup').style.display = 'none';
+        }
+
+        function skipFacebook() {
+            onboarding.facebookConfig.option = 'skip';
+            document.querySelectorAll('.facebook-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            document.getElementById('optionSkip').classList.add('selected');
+            document.getElementById('ourAppSetup').style.display = 'none';
+            document.getElementById('yourAppSetup').style.display = 'none';
+            document.getElementById('facebookStatus').style.display = 'block';
+        }
+
+        async function connectFacebookAccount() {
+            try {
+                const response = await fetch('/api/facebook/connect');
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Open Facebook OAuth in new window
+                    window.open(data.oauth_url, 'facebook_oauth', 'width=600,height=600');
+                    
+                    // Poll for connection status
+                    const checkInterval = setInterval(async () => {
+                        const statusResponse = await fetch('/api/facebook/status');
+                        const statusData = await statusResponse.json();
+                        
+                        if (statusData.success && statusData.status.connected) {
+                            clearInterval(checkInterval);
+                            onboarding.facebookConfig.connected = true;
+                            document.getElementById('facebookStatus').style.display = 'block';
+                            document.getElementById('ourAppSetup').style.display = 'none';
+                        }
+                    }, 2000);
+                } else {
+                    alert('Failed to connect to Facebook: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Facebook connection error:', error);
+                alert('Error connecting to Facebook. Please try again.');
+            }
+        }
+
+                async function testFacebookConfig() {
+            const appId = document.querySelector('input[name="facebook_app_id"]').value;
+            const appSecret = document.querySelector('input[name="facebook_app_secret"]').value;
+            const pageId = document.querySelector('input[name="facebook_page_id"]').value;
+
+            if (!appId || !appSecret) {
+                showFacebookAlert('error', 'Please enter both App ID and App Secret');
+                return;
+            }
+
+            // Show loading state
+            const testBtn = document.getElementById('testFacebookConfig');
+            const originalText = testBtn.innerHTML;
+            testBtn.disabled = true;
+            testBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Testing...';
+
+            try {
+                const response = await fetch('/api/facebook/test-config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        app_id: appId,
+                        app_secret: appSecret,
+                        page_id: pageId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    let message = `✅ Facebook configuration is valid!\n\nApp: ${data.app_name}`;
+                    if (data.page_name) {
+                        message += `\nPage: ${data.page_name}`;
+                        if (data.page_category) {
+                            message += ` (${data.page_category})`;
+                        }
+                    }
+                    if (data.note) {
+                        message += `\n\nNote: ${data.note}`;
+                    }
+                    
+                    showFacebookAlert('success', message);
+                    onboarding.facebookConfig.connected = true;
+                    document.getElementById('facebookStatus').style.display = 'block';
+                } else {
+                    let errorMessage = `❌ ${data.error}`;
+                    if (data.help) {
+                        errorMessage += `\n\nHow to fix: ${data.help}`;
+                    }
+                    if (data.app_valid) {
+                        errorMessage += '\n\n✅ Your App credentials are valid.';
+                    }
+                    
+                    showFacebookAlert('error', errorMessage);
+                }
+            } catch (error) {
+                console.error('Facebook config test error:', error);
+                showFacebookAlert('error', 'Network error testing Facebook configuration. Please check your connection and try again.');
+            } finally {
+                // Restore button state
+                testBtn.disabled = false;
+                testBtn.innerHTML = originalText;
+            }
+        }
+
+        function showFacebookAlert(type, message) {
+            // Remove existing alerts
+            const existingAlerts = document.querySelectorAll('#yourAppSetup .alert');
+            existingAlerts.forEach(alert => alert.remove());
+
+            // Create new alert
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type === 'success' ? 'success' : 'danger'} mt-3`;
+            alertDiv.style.whiteSpace = 'pre-line'; // Preserve line breaks
+            alertDiv.innerHTML = `
+                <div class="d-flex align-items-start">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2 mt-1"></i>
+                    <div>${message}</div>
+                </div>
+            `;
+
+            // Add to the setup form
+            const setupForm = document.querySelector('#yourAppSetup .setup-form');
+            setupForm.appendChild(alertDiv);
+
+            // Auto-remove after 10 seconds for success messages
+            if (type === 'success') {
+                setTimeout(() => {
+                    if (alertDiv.parentElement) {
+                        alertDiv.remove();
+                    }
+                }, 10000);
+            }
+        }
+
+        // Initialize onboarding
+        let onboarding;
+        document.addEventListener('DOMContentLoaded', () => {
+            onboarding = new ModernOnboarding();
+            
+            // Bind Facebook buttons
+            document.getElementById('connectFacebookBtn')?.addEventListener('click', connectFacebookAccount);
+            document.getElementById('testFacebookConfig')?.addEventListener('click', testFacebookConfig);
+        });
+    </script>
+</body>
+</html>

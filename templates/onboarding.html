@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Agent Onboarding</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <h2>Agent Onboarding</h2>
+    <form method="POST" action="/agent/onboard">
+        <fieldset>
+            <legend>Step 1: Basics</legend>
+            <label>Name:</label>
+            <input id="name" name="name" required>
+            <label>Email:</label>
+            <input name="email" required type="email">
+            <label>WhatsApp:</label>
+            <input name="whatsapp" required>
+        </fieldset>
+
+        <fieldset>
+            <legend>Step 2: Branding</legend>
+            <div style="margin: 8px 0;">
+                <button type="button" id="suggestBranding">Suggest branding</button>
+            </div>
+            <label>Tagline (optional):</label>
+            <input id="tagline" name="tagline">
+            <label>About (optional):</label>
+            <textarea id="about" name="about"></textarea>
+        </fieldset>
+
+        <fieldset>
+            <legend>Step 3: Profile</legend>
+            <label>Photo URL (optional):</label>
+            <input name="profile_photo_url">
+        </fieldset>
+
+        <div style="margin-top: 12px;">
+            <button type="submit">Finish Onboarding</button>
+        </div>
+    </form>
+
+    <script>
+        document.getElementById('suggestBranding') && document.getElementById('suggestBranding').addEventListener('click', async function () {
+            var nameInput = document.getElementById('name');
+            var name = nameInput && nameInput.value || '';
+            if (!name) return;
+            var form = new FormData();
+            form.append('name', name);
+            var resp = await fetch('/agent/branding-suggest', { method: 'POST', body: form });
+            if (resp.ok) {
+                var data = await resp.json();
+                var tagInput = document.getElementById('tagline');
+                var aboutInput = document.getElementById('about');
+                if (tagInput) tagInput.value = data.tagline || '';
+                if (aboutInput) aboutInput.value = data.about || '';
+            }
+        });
+    </script>
+</body>
+</html>

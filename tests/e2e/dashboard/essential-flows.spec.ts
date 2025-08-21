@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+ import { test, expect } from '@playwright/test';
 
 // Dashboard Navigation Test
 test('dashboard main navigation works correctly', async ({ page }) => {
