@@ -1271,6 +1271,14 @@
             document.getElementById('userName').textContent = `Welcome, ${userName}`;
             document.getElementById('userAvatar').textContent = userName.charAt(0).toUpperCase();
 
+            // Sync language checkboxes with user.languages
+            if (user.languages && Array.isArray(user.languages)) {
+                user.languages.forEach(function(lang) {
+                    const checkbox = document.querySelector(`input[name="languages[]"][value="${lang}"]`);
+                    if (checkbox) checkbox.checked = true;
+                });
+            }
+
             // Load dashboard data
             loadDashboardStats();
             loadFacebookStatus();

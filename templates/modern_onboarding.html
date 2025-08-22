@@ -30,6 +30,33 @@
             background: white;
             border-radius: 20px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            /* Language checkboxes styling */
+            .language-checkboxes {
+                max-height: 150px;
+                overflow-y: auto;
+                border: 1px solid #dee2e6;
+                border-radius: 8px;
+                padding: 10px;
+                background: #f8f9fa;
+            }
+
+            .language-checkboxes .form-check {
+                margin-bottom: 8px;
+            }
+
+            .language-checkboxes .form-check:last-child {
+                margin-bottom: 0;
+            }
+
+            .language-checkboxes .form-check-label {
+                font-weight: 500;
+                color: #495057;
+            }
+
+            .language-checkboxes .form-check-input:checked {
+                background-color: var(--primary-color);
+                border-color: var(--primary-color);
+            }
             overflow: hidden;
         }
 
