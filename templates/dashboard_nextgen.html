@@ -1203,6 +1203,8 @@
                         <textarea id="aiContentTextArea" class="form-control" rows="6" placeholder="AI generated content will appear here..." style="resize:vertical;"></textarea>
                         <small class="text-muted">You can review and edit the AI-generated content before saving.</small>
                     </div>
+                    <!-- Multi-language AI Content Cards -->
+                    <div id="multiLanguageContent" class="mt-4"></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -1630,7 +1632,7 @@
                 // Generate content for each selected language
                 for (const language of selectedLanguages) {
                     try {
-                        const response = await fetch('/api/listings/generate', {
+                        const response = await fetch('/api/v1/listings/generate', {
                             method: 'POST',
                             headers: {
                                 'Authorization': `Bearer ${token}`,
@@ -1807,7 +1809,7 @@
             const propertyData = Object.fromEntries(formData.entries());
 
             try {
-                const response = await fetch('/api/listings/generate', {
+                const response = await fetch('/api/v1/listings/generate', {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,

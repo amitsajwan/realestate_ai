@@ -30,34 +30,69 @@
             background: white;
             border-radius: 20px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            /* Language checkboxes styling */
-            .language-checkboxes {
-                max-height: 150px;
-                overflow-y: auto;
-                border: 1px solid #dee2e6;
-                border-radius: 8px;
-                padding: 10px;
-                background: #f8f9fa;
-            }
-
-            .language-checkboxes .form-check {
-                margin-bottom: 8px;
-            }
-
-            .language-checkboxes .form-check:last-child {
-                margin-bottom: 0;
-            }
-
-            .language-checkboxes .form-check-label {
-                font-weight: 500;
-                color: #495057;
-            }
-
-            .language-checkboxes .form-check-input:checked {
-                background-color: var(--primary-color);
-                border-color: var(--primary-color);
-            }
             overflow: hidden;
+        }
+
+        .language-checkboxes {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px;
+            background: #f8f9fa;
+        }
+
+        .language-checkboxes .form-check {
+            margin-bottom: 8px;
+        }
+
+        .language-checkboxes .form-check:last-child {
+            margin-bottom: 0;
+        }
+
+        .language-checkboxes .form-check-label {
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .language-checkboxes .form-check-input:checked {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .selected-languages-container {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .selected-languages-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        .language-tag {
+            display: inline-flex;
+            align-items: center;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .language-tag .remove-btn {
+            margin-left: 0.5rem;
+            cursor: pointer;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1rem;
         }
 
         .onboarding-header {
@@ -116,7 +151,7 @@
         }
 
         .progress-container {
-            background: var(--light-b`g);
+            background: var(--light-bg);
             padding: 1rem 2rem;
         }
 
@@ -498,6 +533,11 @@
             .setup-form {
                 padding: 1rem;
             }
+            
+            .selected-languages-list {
+                flex-direction: column;
+                align-items: flex-start;
+            }
         }
     </style>
 </head>
@@ -596,7 +636,15 @@
                     
                     <div class="form-group">
                         <label class="form-label">Languages Spoken *</label>
-                        <input type="text" class="form-control" name="languages" placeholder="e.g., English, Hindi, Marathi" required>
+                        <div class="language-checkboxes" id="languageCheckboxes">
+                            <!-- Languages will be populated by JavaScript -->
+                        </div>
+                        <div class="selected-languages-container" id="selectedLanguagesContainer" style="display: none;">
+                            <h6>Selected Languages:</h6>
+                            <div class="selected-languages-list" id="selectedLanguagesList">
+                                <!-- Selected languages will appear here -->
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -925,69 +973,56 @@
                     <div class="form-group">
                         <label class="form-label">Phone Verification</label>
                         <p class="text-muted">We'll send a verification code to your phone number</p>
-                        <button type="button" class="btn btn-primary" id="sendVerification">
-                            <i class="fas fa-paper-plane me-2"></i>Send Verification Code
+                        <button type="button" class="btn btn-outline-primary" id="sendVerificationCode">
+                            <i class="fas fa-mobile-alt me-2"></i>Send Verification Code
                         </button>
                     </div>
                     
-                    <div id="verificationSection" style="display: none;">
-                        <div class="form-group">
-                            <label class="form-label">Enter Verification Code</label>
-                            <div class="verification-code">
-                                <input type="text" class="verification-input" maxlength="1" data-index="0">
-                                <input type="text" class="verification-input" maxlength="1" data-index="1">
-                                <input type="text" class="verification-input" maxlength="1" data-index="2">
-                                <input type="text" class="verification-input" maxlength="1" data-index="3">
-                                <input type="text" class="verification-input" maxlength="1" data-index="4">
-                                <input type="text" class="verification-input" maxlength="1" data-index="5">
-                            </div>
+                    <div class="form-group" id="verificationCodeGroup" style="display: none;">
+                        <label class="form-label">Enter Verification Code</label>
+                        <div class="verification-code">
+                            <input type="text" class="verification-input" maxlength="1" data-index="1">
+                            <input type="text" class="verification-input" maxlength="1" data-index="2">
+                            <input type="text" class="verification-input" maxlength="1" data-index="3">
+                            <input type="text" class="verification-input" maxlength="1" data-index="4">
+                            <input type="text" class="verification-input" maxlength="1" data-index="5">
+                            <input type="text" class="verification-input" maxlength="1" data-index="6">
                         </div>
                     </div>
                     
                     <div class="form-group">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="terms_accepted" id="termsAccepted" required>
-                            <label class="form-check-label" for="termsAccepted">
-                                I accept the <a href="#" target="_blank">Terms of Service</a> and <a href="#" target="_blank">Privacy Policy</a>
+                            <input class="form-check-input" type="checkbox" id="termsAgreement" required>
+                            <label class="form-check-label" for="termsAgreement">
+                                I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>
                             </label>
                         </div>
                     </div>
                     
-                    <div class="form-group">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="marketing_consent" id="marketingConsent">
-                            <label class="form-check-label" for="marketingConsent">
-                                I agree to receive marketing communications and AI-powered insights
-                            </label>
+                    <div class="loading-spinner" id="completionSpinner">
+                        <div class="spinner"></div>
+                        <p class="mt-3">Completing your setup...</p>
+                    </div>
+                    
+                    <div class="success-animation" id="completionSuccess" style="display: none;">
+                        <div class="success-icon">
+                            <i class="fas fa-check-circle"></i>
                         </div>
+                        <h4>Setup Complete!</h4>
+                        <p>Your account is now ready to use.</p>
+                        <button type="button" class="btn btn-primary" id="goToDashboard">
+                            <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
+                        </button>
                     </div>
-                </div>
-
-                <!-- Loading Spinner -->
-                <div class="loading-spinner" id="loadingSpinner">
-                    <div class="spinner"></div>
-                    <p class="mt-3">AI is generating your branding...</p>
-                </div>
-
-                <!-- Success Animation -->
-                <div class="success-animation" id="successAnimation" style="display: none;">
-                    <div class="success-icon">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <h3>Onboarding Complete!</h3>
-                    <p>Your account has been successfully created with AI-powered branding.</p>
                 </div>
 
                 <!-- Navigation -->
-                <div class="step-navigation" id="stepNavigation">
-                    <button type="button" class="btn btn-secondary" id="prevBtn" style="display: none;">
+                <div class="step-navigation">
+                    <button type="button" class="btn btn-secondary" id="prevBtn" disabled>
                         <i class="fas fa-arrow-left me-2"></i>Previous
                     </button>
                     <button type="button" class="btn btn-primary" id="nextBtn">
                         Next<i class="fas fa-arrow-right ms-2"></i>
-                    </button>
-                    <button type="submit" class="btn btn-success" id="submitBtn" style="display: none;">
-                        <i class="fas fa-check me-2"></i>Complete Onboarding
                     </button>
                 </div>
             </form>
@@ -995,594 +1030,263 @@
 
         <!-- Footer -->
         <div class="onboarding-footer">
-            <p class="text-muted mb-0">
-                <i class="fas fa-shield-alt me-1"></i>Your data is secure and protected
-            </p>
+            <p class="mb-0">© 2023 PropertyAI. All rights reserved. | <a href="#">Privacy Policy</a> | <a href="#">Terms of Service</a></p>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        class ModernOnboarding {
-            constructor() {
-                this.currentStep = 1;
-                this.totalSteps = 7;
-                this.formData = {};
-                this.facebookConfig = {
-                    option: null,
-                    connected: false
-                };
-                this.init();
-            }
-
-            init() {
-                this.bindEvents();
-                this.updateProgress();
-                this.updateStepIndicator();
-            }
-
-            bindEvents() {
-                document.getElementById('nextBtn').addEventListener('click', () => this.nextStep());
-                document.getElementById('prevBtn').addEventListener('click', () => this.prevStep());
-                document.getElementById('generateBranding').addEventListener('click', () => this.generateBranding());
-                document.getElementById('sendVerification').addEventListener('click', () => this.sendVerification());
-                document.getElementById('onboardingForm').addEventListener('submit', (e) => this.submitForm(e));
+        // Current step tracker
+        let currentStep = 1;
+        const totalSteps = 7;
+        
+        // Available languages
+        const languages = [
+            "English", "Hindi", "Marathi", "Gujarati", "Bengali", "Tamil", 
+            "Telugu", "Kannada", "Malayalam", "Punjabi", "Urdu", "Spanish",
+            "French", "German", "Mandarin", "Arabic"
+        ];
+        
+        // Selected languages
+        let selectedLanguages = [];
+        
+        // Initialize the onboarding process
+        function initOnboarding() {
+            // Populate language checkboxes
+            populateLanguageCheckboxes();
+            
+            // Setup event listeners
+            document.getElementById('nextBtn').addEventListener('click', goToNextStep);
+            document.getElementById('prevBtn').addEventListener('click', goToPrevStep);
+            
+            // Setup verification code input
+            setupVerificationInputs();
+            
+            // Update progress bar
+            updateProgressBar();
+        }
+        
+        // Populate language checkboxes
+        function populateLanguageCheckboxes() {
+            const container = document.getElementById('languageCheckboxes');
+            container.innerHTML = '';
+            
+            languages.forEach(language => {
+                const isChecked = selectedLanguages.includes(language);
                 
-                // Verification code inputs
-                document.querySelectorAll('.verification-input').forEach(input => {
-                    input.addEventListener('input', (e) => this.handleVerificationInput(e));
-                    input.addEventListener('keydown', (e) => this.handleVerificationKeydown(e));
-                });
-            }
-
-            nextStep() {
-                if (this.validateCurrentStep()) {
-                    this.saveStepData();
-                    if (this.currentStep < this.totalSteps) {
-                        this.currentStep++;
-                        this.updateStep();
-                    }
-                }
-            }
-
-            prevStep() {
-                if (this.currentStep > 1) {
-                    this.currentStep--;
-                    this.updateStep();
-                }
-            }
-
-            updateStep() {
-                // Hide all steps
-                document.querySelectorAll('.step').forEach(step => {
-                    step.classList.remove('active');
-                });
-
-                // Show current step
-                document.getElementById(`step${this.currentStep}`).classList.add('active');
-
-                // Update progress
-                this.updateProgress();
-                this.updateStepIndicator();
-                this.updateNavigation();
-                this.loadStepData();
-            }
-
-            updateProgress() {
-                const progress = (this.currentStep / this.totalSteps) * 100;
-                document.getElementById('progressFill').style.width = `${progress}%`;
-            }
-
-            updateStepIndicator() {
-                document.querySelectorAll('.step-dot').forEach((dot, index) => {
-                    const stepNumber = index + 1;
-                    dot.classList.remove('active', 'completed');
-                    
-                    if (stepNumber === this.currentStep) {
-                        dot.classList.add('active');
-                    } else if (stepNumber < this.currentStep) {
-                        dot.classList.add('completed');
-                    }
-                });
-            }
-
-            updateNavigation() {
-                const prevBtn = document.getElementById('prevBtn');
-                const nextBtn = document.getElementById('nextBtn');
-                const submitBtn = document.getElementById('submitBtn');
-
-                prevBtn.style.display = this.currentStep > 1 ? 'block' : 'none';
-                nextBtn.style.display = this.currentStep < this.totalSteps ? 'block' : 'none';
-                submitBtn.style.display = this.currentStep === this.totalSteps ? 'block' : 'none';
-            }
-
-            validateCurrentStep() {
-                const currentStepElement = document.getElementById(`step${this.currentStep}`);
-                const requiredFields = currentStepElement.querySelectorAll('[required]');
+                const checkboxDiv = document.createElement('div');
+                checkboxDiv.className = 'form-check';
                 
-                let isValid = true;
-                requiredFields.forEach(field => {
-                    if (!field.value.trim()) {
-                        field.classList.add('is-invalid');
-                        isValid = false;
+                checkboxDiv.innerHTML = `
+                    <input class="form-check-input" type="checkbox" id="lang-${language}" 
+                           value="${language}" ${isChecked ? 'checked' : ''}>
+                    <label class="form-check-label" for="lang-${language}">
+                        ${language}
+                    </label>
+                `;
+                
+                container.appendChild(checkboxDiv);
+                
+                // Add event listener to the checkbox
+                const checkbox = checkboxDiv.querySelector('input');
+                checkbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        selectedLanguages.push(language);
                     } else {
-                        field.classList.remove('is-invalid');
-                    }
-                });
-
-                return isValid;
-            }
-
-            saveStepData() {
-                const currentStepElement = document.getElementById(`step${this.currentStep}`);
-                const inputs = currentStepElement.querySelectorAll('input, select, textarea');
-                
-                inputs.forEach(input => {
-                    if (input.name) {
-                        if (input.type === 'checkbox') {
-                            this.formData[input.name] = input.checked;
-                        } else {
-                            this.formData[input.name] = input.value;
+                        const index = selectedLanguages.indexOf(language);
+                        if (index > -1) {
+                            selectedLanguages.splice(index, 1);
                         }
                     }
+                    updateSelectedLanguagesDisplay();
                 });
-            }
-
-            loadStepData() {
-                const currentStepElement = document.getElementById(`step${this.currentStep}`);
-                const inputs = currentStepElement.querySelectorAll('input, select, textarea');
+            });
+        }
+        
+        // Update the display of selected languages
+        function updateSelectedLanguagesDisplay() {
+            const container = document.getElementById('selectedLanguagesContainer');
+            const list = document.getElementById('selectedLanguagesList');
+            
+            list.innerHTML = '';
+            
+            if (selectedLanguages.length > 0) {
+                container.style.display = 'block';
                 
-                inputs.forEach(input => {
-                    if (this.formData[input.name]) {
-                        input.value = this.formData[input.name];
-                    }
-                });
-            }
-
-            async generateBranding() {
-                const loadingSpinner = document.getElementById('loadingSpinner');
-                const generateBtn = document.getElementById('generateBranding');
-                const resultsDiv = document.getElementById('brandingResults');
-
-                // Show loading
-                loadingSpinner.style.display = 'block';
-                generateBtn.disabled = true;
-                generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating...';
-
-                try {
-                    // Get user data from previous steps
-                    const userData = {
-                        name: this.formData.name || document.querySelector('input[name="name"]').value,
-                        company: this.formData.company || document.querySelector('input[name="company"]').value,
-                        experience_years: this.formData.experience_years || document.querySelector('select[name="experience_years"]').value,
-                        specialization_areas: this.formData.specialization_areas || document.querySelector('input[name="specialization_areas"]').value,
-                        languages: this.formData.languages || document.querySelector('input[name="languages"]').value,
-                        market: 'Mumbai' // Default market
-                    };
-
-                    // Call AI branding API
-                    const response = await fetch('/api/ai/generate-branding', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(userData)
-                    });
-
-                    const result = await response.json();
-
-                    if (result.success) {
-                        // Populate branding fields
-                        document.getElementById('aiTagline').value = result.branding.tagline;
-                        document.getElementById('aiAbout').value = result.branding.about_section;
-                        document.getElementById('aiSocialBio').value = result.branding.social_media_bio;
-
-                        // Create color palette
-                        this.createColorPalette(result.branding.color_scheme);
-
-                        // Show results
-                        resultsDiv.style.display = 'block';
-                        
-                        // Smooth scroll to results
-                        resultsDiv.scrollIntoView({ behavior: 'smooth' });
-                    } else {
-                        throw new Error('Failed to generate branding');
-                    }
-
-                } catch (error) {
-                    console.error('Branding generation error:', error);
-                    alert('Failed to generate branding. Please try again.');
-                } finally {
-                    // Hide loading
-                    loadingSpinner.style.display = 'none';
-                    generateBtn.disabled = false;
-                    generateBtn.innerHTML = '<i class="fas fa-magic me-2"></i>Generate AI Branding';
-                }
-            }
-
-            createColorPalette(colorScheme) {
-                const palette = document.getElementById('colorPalette');
-                palette.innerHTML = '';
-
-                Object.entries(colorScheme).forEach(([name, color]) => {
-                    const swatch = document.createElement('div');
-                    swatch.className = 'color-swatch';
-                    swatch.style.backgroundColor = color;
-                    swatch.title = `${name}: ${color}`;
-                    swatch.onclick = () => this.selectColor(color);
-                    palette.appendChild(swatch);
-                });
-            }
-
-            selectColor(color) {
-                // You can implement color selection logic here
-                console.log('Selected color:', color);
-            }
-
-            async sendVerification() {
-                const sendBtn = document.getElementById('sendVerification');
-                const verificationSection = document.getElementById('verificationSection');
-                
-                // Get phone number from previous step
-                const phoneNumber = this.formData.phone || document.querySelector('input[name="phone"]')?.value;
-                
-                if (!phoneNumber) {
-                    this.showNotification('Please enter your phone number first', 'error');
-                    return;
-                }
-
-                sendBtn.disabled = true;
-                sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending...';
-
-                try {
-                    const response = await fetch('/api/sms/send-verification', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            phone_number: phoneNumber,
-                            user_id: this.formData.email || 'onboarding_user'
-                        })
-                    });
-
-                    const result = await response.json();
-
-                    if (result.success) {
-                        sendBtn.innerHTML = '<i class="fas fa-check me-2"></i>Code Sent!';
-                        verificationSection.style.display = 'block';
-                        
-                        // Show success message
-                        this.showNotification('Verification code sent to your phone', 'success');
-                        
-                        // If it's demo mode, show the code
-                        if (result.demo_mode) {
-                            this.showNotification('Demo Mode: Check browser console for verification code', 'info');
-                        }
-
-                        // Focus on first verification input
-                        document.querySelector('.verification-input').focus();
-
-                        setTimeout(() => {
-                            sendBtn.disabled = false;
-                            sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Resend Code';
-                        }, 30000); // 30 seconds before allowing resend
-                    } else {
-                        sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Send Verification Code';
-                        sendBtn.disabled = false;
-                        this.showNotification(result.error || 'Failed to send verification code', 'error');
-                    }
-                } catch (error) {
-                    console.error('Error sending verification:', error);
-                    sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Send Verification Code';
-                    sendBtn.disabled = false;
-                    this.showNotification('Network error. Please try again.', 'error');
-                }
-            }
-
-            handleVerificationInput(e) {
-                const input = e.target;
-                const index = parseInt(input.dataset.index);
-                const value = input.value;
-
-                if (value && index < 5) {
-                    // Move to next input
-                    document.querySelector(`[data-index="${index + 1}"]`).focus();
-                }
-                
-                // Check if all inputs are filled
-                const inputs = document.querySelectorAll('.verification-input');
-                const allFilled = Array.from(inputs).every(inp => inp.value);
-                
-                if (allFilled) {
-                    // Auto-verify when all fields are filled
-                    this.verifyCode();
-                }
-            }
-
-            async verifyCode() {
-                const inputs = document.querySelectorAll('.verification-input');
-                const code = Array.from(inputs).map(input => input.value).join('');
-                const phoneNumber = this.formData.phone || document.querySelector('input[name="phone"]')?.value;
-                
-                if (!phoneNumber) {
-                    this.showNotification('Phone number not found', 'error');
-                    return;
-                }
-
-                try {
-                    const response = await fetch('/api/sms/verify-code', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            phone_number: phoneNumber,
-                            code: code,
-                            user_id: this.formData.email || 'onboarding_user'
-                        })
-                    });
-
-                    const result = await response.json();
-
-                    if (result.success) {
-                        this.showNotification('Phone number verified successfully!', 'success');
-                        
-                        // Mark verification as complete
-                        this.phoneVerified = true;
-                        
-                        // Update UI to show verification success
-                        document.getElementById('verificationSection').innerHTML = `
-                            <div class="alert alert-success">
-                                <i class="fas fa-check-circle me-2"></i>
-                                Phone number verified successfully!
-                            </div>
-                        `;
-                        
-                        // Auto-advance to complete registration after 2 seconds
-                        setTimeout(() => {
-                            this.submitForm();
-                        }, 2000);
-                    } else {
-                        this.showNotification(result.error || 'Invalid verification code', 'error');
-                        
-                        // Clear inputs and focus on first
-                        inputs.forEach(input => input.value = '');
-                        inputs[0].focus();
-                    }
-                } catch (error) {
-                    console.error('Error verifying code:', error);
-                    this.showNotification('Network error. Please try again.', 'error');
-                }
-            }
-
-            handleVerificationKeydown(e) {
-                const input = e.target;
-                const index = parseInt(input.dataset.index);
-
-                if (e.key === 'Backspace' && !input.value && index > 0) {
-                    // Move to previous input on backspace
-                    document.querySelector(`[data-index="${index - 1}"]`).focus();
-                }
-            }
-
-            async submitForm(e) {
-                e.preventDefault();
-
-                const submitBtn = document.getElementById('submitBtn');
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Completing...';
-
-                try {
-                    // Collect all form data
-                    const formData = new FormData(e.target);
+                selectedLanguages.forEach(language => {
+                    const tag = document.createElement('div');
+                    tag.className = 'language-tag';
+                    tag.innerHTML = `
+                        ${language}
+                        <button type="button" class="remove-btn" data-lang="${language}">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+                    list.appendChild(tag);
                     
-                    // Add saved step data
-                    Object.entries(this.formData).forEach(([key, value]) => {
-                        formData.append(key, value);
-                    });
-
-                    // Submit to backend
-                    const response = await fetch('/modern-agent/onboard', {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    const result = await response.json();
-
-                    if (result.success) {
-                        console.log('✅ Onboarding successful:', result);
-                        // Show success animation
-                        document.querySelector('.onboarding-content').style.display = 'none';
-                        document.getElementById('successAnimation').style.display = 'block';
+                    // Add event listener to remove button
+                    const removeBtn = tag.querySelector('.remove-btn');
+                    removeBtn.addEventListener('click', function() {
+                        const langToRemove = this.getAttribute('data-lang');
+                        const index = selectedLanguages.indexOf(langToRemove);
                         
-                        // Redirect to login after 3 seconds
-                        setTimeout(() => {
-                            window.location.href = '/';
-                        }, 3000);
-                    } else {
-                        console.error('❌ Onboarding failed:', result);
-                        throw new Error(result.error || 'Onboarding failed');
-                    }
-
-                } catch (error) {
-                    console.error('Form submission error:', error);
-                    alert('Failed to complete onboarding. Please try again.');
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<i class="fas fa-check me-2"></i>Complete Onboarding';
-                }
+                        if (index > -1) {
+                            selectedLanguages.splice(index, 1);
+                            
+                            // Also uncheck the checkbox
+                            const checkbox = document.getElementById(`lang-${langToRemove}`);
+                            if (checkbox) {
+                                checkbox.checked = false;
+                            }
+                            
+                            updateSelectedLanguagesDisplay();
+                        }
+                    });
+                });
+            } else {
+                container.style.display = 'none';
             }
         }
-
-        // Initialize onboarding when page loads
-        // Facebook Configuration Functions
+        
+        // Navigate to next step
+        function goToNextStep() {
+            if (currentStep < totalSteps) {
+                document.getElementById(`step${currentStep}`).classList.remove('active');
+                currentStep++;
+                document.getElementById(`step${currentStep}`).classList.add('active');
+                
+                updateNavigationButtons();
+                updateProgressBar();
+            } else {
+                // Submit the form if we're on the last step
+                submitForm();
+            }
+        }
+        
+        // Navigate to previous step
+        function goToPrevStep() {
+            if (currentStep > 1) {
+                document.getElementById(`step${currentStep}`).classList.remove('active');
+                currentStep--;
+                document.getElementById(`step${currentStep}`).classList.add('active');
+                
+                updateNavigationButtons();
+                updateProgressBar();
+            }
+        }
+        
+        // Update navigation buttons state
+        function updateNavigationButtons() {
+            document.getElementById('prevBtn').disabled = currentStep === 1;
+            
+            if (currentStep === totalSteps) {
+                document.getElementById('nextBtn').innerHTML = 'Complete Setup<i class="fas fa-check ms-2"></i>';
+            } else {
+                document.getElementById('nextBtn').innerHTML = 'Next<i class="fas fa-arrow-right ms-2"></i>';
+            }
+        }
+        
+        // Update progress bar
+        function updateProgressBar() {
+            const progressPercentage = (currentStep / totalSteps) * 100;
+            document.getElementById('progressFill').style.width = `${progressPercentage}%`;
+            
+            // Update step indicators
+            document.querySelectorAll('.step-dot').forEach((dot, index) => {
+                const stepNum = index + 1;
+                
+                if (stepNum < currentStep) {
+                    dot.classList.remove('active');
+                    dot.classList.add('completed');
+                } else if (stepNum === currentStep) {
+                    dot.classList.add('active');
+                    dot.classList.remove('completed');
+                } else {
+                    dot.classList.remove('active');
+                    dot.classList.remove('completed');
+                }
+            });
+        }
+        
+        // Setup verification code inputs
+        function setupVerificationInputs() {
+            const inputs = document.querySelectorAll('.verification-input');
+            
+            inputs.forEach(input => {
+                input.addEventListener('input', function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    
+                    if (this.value.length === 1) {
+                        if (index < 6) {
+                            inputs[index].focus();
+                        } else {
+                            this.blur();
+                        }
+                    }
+                });
+                
+                input.addEventListener('keydown', function(e) {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    
+                    if (e.key === 'Backspace' && this.value === '' && index > 1) {
+                        inputs[index - 2].focus();
+                    }
+                });
+            });
+        }
+        
+        // Submit the form
+        function submitForm() {
+            // Show loading spinner
+            document.getElementById('completionSpinner').style.display = 'block';
+            
+            // Simulate API call
+            setTimeout(() => {
+                document.getElementById('completionSpinner').style.display = 'none';
+                document.getElementById('completionSuccess').style.display = 'block';
+                
+                // Update navigation buttons
+                document.getElementById('prevBtn').style.display = 'none';
+                document.getElementById('nextBtn').style.display = 'none';
+            }, 2000);
+        }
+        
+        // Facebook integration functions
         function selectOurApp() {
-            onboarding.facebookConfig.option = 'our_app';
             document.querySelectorAll('.facebook-option').forEach(option => {
                 option.classList.remove('selected');
             });
             document.getElementById('optionOurApp').classList.add('selected');
+            
             document.getElementById('ourAppSetup').style.display = 'block';
             document.getElementById('yourAppSetup').style.display = 'none';
         }
-
+        
         function selectYourApp() {
-            onboarding.facebookConfig.option = 'your_app';
             document.querySelectorAll('.facebook-option').forEach(option => {
                 option.classList.remove('selected');
             });
             document.getElementById('optionYourApp').classList.add('selected');
-            document.getElementById('yourAppSetup').style.display = 'block';
+            
             document.getElementById('ourAppSetup').style.display = 'none';
+            document.getElementById('yourAppSetup').style.display = 'block';
         }
-
+        
         function skipFacebook() {
-            onboarding.facebookConfig.option = 'skip';
             document.querySelectorAll('.facebook-option').forEach(option => {
                 option.classList.remove('selected');
             });
             document.getElementById('optionSkip').classList.add('selected');
+            
             document.getElementById('ourAppSetup').style.display = 'none';
             document.getElementById('yourAppSetup').style.display = 'none';
+            
+            // Show status that Facebook can be set up later
             document.getElementById('facebookStatus').style.display = 'block';
         }
-
-        async function connectFacebookAccount() {
-            try {
-                const response = await fetch('/api/facebook/connect');
-                const data = await response.json();
-                
-                if (data.success) {
-                    // Open Facebook OAuth in new window
-                    window.open(data.oauth_url, 'facebook_oauth', 'width=600,height=600');
-                    
-                    // Poll for connection status
-                    const checkInterval = setInterval(async () => {
-                        const statusResponse = await fetch('/api/facebook/status');
-                        const statusData = await statusResponse.json();
-                        
-                        if (statusData.success && statusData.status.connected) {
-                            clearInterval(checkInterval);
-                            onboarding.facebookConfig.connected = true;
-                            document.getElementById('facebookStatus').style.display = 'block';
-                            document.getElementById('ourAppSetup').style.display = 'none';
-                        }
-                    }, 2000);
-                } else {
-                    alert('Failed to connect to Facebook: ' + data.error);
-                }
-            } catch (error) {
-                console.error('Facebook connection error:', error);
-                alert('Error connecting to Facebook. Please try again.');
-            }
-        }
-
-                async function testFacebookConfig() {
-            const appId = document.querySelector('input[name="facebook_app_id"]').value;
-            const appSecret = document.querySelector('input[name="facebook_app_secret"]').value;
-            const pageId = document.querySelector('input[name="facebook_page_id"]').value;
-
-            if (!appId || !appSecret) {
-                showFacebookAlert('error', 'Please enter both App ID and App Secret');
-                return;
-            }
-
-            // Show loading state
-            const testBtn = document.getElementById('testFacebookConfig');
-            const originalText = testBtn.innerHTML;
-            testBtn.disabled = true;
-            testBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Testing...';
-
-            try {
-                const response = await fetch('/api/facebook/test-config', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        app_id: appId,
-                        app_secret: appSecret,
-                        page_id: pageId
-                    })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    let message = `✅ Facebook configuration is valid!\n\nApp: ${data.app_name}`;
-                    if (data.page_name) {
-                        message += `\nPage: ${data.page_name}`;
-                        if (data.page_category) {
-                            message += ` (${data.page_category})`;
-                        }
-                    }
-                    if (data.note) {
-                        message += `\n\nNote: ${data.note}`;
-                    }
-                    
-                    showFacebookAlert('success', message);
-                    onboarding.facebookConfig.connected = true;
-                    document.getElementById('facebookStatus').style.display = 'block';
-                } else {
-                    let errorMessage = `❌ ${data.error}`;
-                    if (data.help) {
-                        errorMessage += `\n\nHow to fix: ${data.help}`;
-                    }
-                    if (data.app_valid) {
-                        errorMessage += '\n\n✅ Your App credentials are valid.';
-                    }
-                    
-                    showFacebookAlert('error', errorMessage);
-                }
-            } catch (error) {
-                console.error('Facebook config test error:', error);
-                showFacebookAlert('error', 'Network error testing Facebook configuration. Please check your connection and try again.');
-            } finally {
-                // Restore button state
-                testBtn.disabled = false;
-                testBtn.innerHTML = originalText;
-            }
-        }
-
-        function showFacebookAlert(type, message) {
-            // Remove existing alerts
-            const existingAlerts = document.querySelectorAll('#yourAppSetup .alert');
-            existingAlerts.forEach(alert => alert.remove());
-
-            // Create new alert
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${type === 'success' ? 'success' : 'danger'} mt-3`;
-            alertDiv.style.whiteSpace = 'pre-line'; // Preserve line breaks
-            alertDiv.innerHTML = `
-                <div class="d-flex align-items-start">
-                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2 mt-1"></i>
-                    <div>${message}</div>
-                </div>
-            `;
-
-            // Add to the setup form
-            const setupForm = document.querySelector('#yourAppSetup .setup-form');
-            setupForm.appendChild(alertDiv);
-
-            // Auto-remove after 10 seconds for success messages
-            if (type === 'success') {
-                setTimeout(() => {
-                    if (alertDiv.parentElement) {
-                        alertDiv.remove();
-                    }
-                }, 10000);
-            }
-        }
-
-        // Initialize onboarding
-        let onboarding;
-        document.addEventListener('DOMContentLoaded', () => {
-            onboarding = new ModernOnboarding();
-            
-            // Bind Facebook buttons
-            document.getElementById('connectFacebookBtn')?.addEventListener('click', connectFacebookAccount);
-            document.getElementById('testFacebookConfig')?.addEventListener('click', testFacebookConfig);
-        });
+        
+        // Initialize when the page loads
+        window.addEventListener('DOMContentLoaded', initOnboarding);
     </script>
 </body>
 </html>
