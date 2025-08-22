@@ -1,14 +1,27 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Facebook Integration Tests', () => {
-  test.beforeEach(async ({ page }) => {
-    // Login first
+  test.beforeEach(async ({ page, context }) => {
+    // Facebook OAuth login
     await page.goto('/');
-    await page.fill('input[type="email"]', 'demo@mumbai.com');
-    await page.fill('input[type="password"]', 'demo123');
-    await page.click('button[type="submit"]');
-    
-    // Wait for dashboard
+    await page.click('button#facebook-login-btn');
+    // Wait for Facebook OAuth popup and handle login
+    const [popup] = await Promise.all([
+      context.waitForEvent('page'),
+      // The button click triggers the popup
+    ]);
+    // Simulate Facebook login in popup (replace selectors with actual Facebook login page selectors)
+    await popup.waitForLoadState('domcontentloaded');
+    // If Facebook login page appears, fill credentials
+    if (await popup.locator('input[name="email"]').isVisible()) {
+      await popup.fill('input[name="email"]', process.env.FB_TEST_EMAIL || 'your_fb_test_email');
+      await popup.fill('input[name="pass"]', process.env.FB_TEST_PASSWORD || 'your_fb_test_password');
+      await popup.click('button[name="login"]');
+    }
+    // Wait for redirect to dashboard
+    await popup.waitForURL(/dashboard/);
+    await popup.close();
+    // Main page should now be authenticated
     await page.waitForURL('**/dashboard');
   });
 

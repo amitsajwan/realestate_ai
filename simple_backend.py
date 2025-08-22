@@ -48,7 +48,10 @@ from typing import Optional, Dict, Any
 import requests
 import httpx
 from genai_onboarding import genai_onboarding
-from facebook_integration import facebook_integration
+from routes.facebook_login import router as facebook_login_router
+from routes.facebook_callback import router as facebook_callback_router
+from routes.facebook_connect import router as facebook_connect_router
+from routes.facebook_post import router as facebook_post_router
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -60,6 +63,12 @@ app = FastAPI(
     version="1.0.0",
     description="AI-Powered Real Estate CRM with Facebook Integration"
 )
+
+# Register new Facebook routes
+app.include_router(facebook_login_router)
+app.include_router(facebook_callback_router)
+app.include_router(facebook_connect_router)
+app.include_router(facebook_post_router)
 
 # Setup templates - check both directories
 try:
@@ -337,270 +346,6 @@ async def create_property(request: Request):
             content={"success": False, "error": str(e)}
         )
 
-# Enhanced Facebook Integration API
-@app.get("/api/facebook/status")
-async def get_facebook_status(request: Request):
-    """Get user's Facebook connection status"""
-    try:
-        # TODO: Extract user_id from OAuth context
-        user_id = request.headers.get("X-User-ID")
-        if not user_id:
-            return JSONResponse(status_code=401, content={"success": False, "error": "User not authenticated"})
-        status = facebook_integration.get_facebook_status(user_id)
-        return {"success": True, "status": status}
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
-        )
-
-# Facebook Configuration endpoint
-@app.post("/api/facebook/configure")
-async def configure_facebook_app(request: Request):
-    """Configure Facebook App credentials for a user"""
-    try:
-        body = await request.json()
-        user_id = 1  # Demo user ID - in real app, get from authentication
-        
-        app_id = body.get("app_id")
-        app_secret = body.get("app_secret")
-        app_name = body.get("app_name", "User's Facebook App")
-        
-        if not app_id or not app_secret:
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "error": "App ID and App Secret are required"}
-            )
-        
-        # Save configuration
-        success = facebook_integration.save_user_app_config(user_id, app_id, app_secret, app_name)
-        
-        if success:
-            return {
-                "success": True,
-                "message": "Facebook App configured successfully",
-                "app_id": app_id,
-                "app_name": app_name
-            }
-        else:
-            return JSONResponse(
-                status_code=500,
-                content={"success": False, "error": "Failed to save configuration"}
-            )
-            
-    except Exception as e:
-        logger.error(f"Error configuring Facebook app: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
-        )
-
-@app.get("/api/facebook/connect")
-async def facebook_connect(request: Request):
-    """Generate Facebook OAuth URL (no authentication required) and set state cookie."""
-    try:
-        redirect_uri = f"{request.base_url}api/facebook/callback"
-        # Generate state and OAuth URL
-        oauth_url = facebook_integration.get_oauth_url(None, redirect_uri)
-        # Extract state from URL
-        from urllib.parse import urlparse, parse_qs
-        parsed = urlparse(oauth_url)
-        state = parse_qs(parsed.query).get("state", [None])[0]
-        from fastapi.responses import RedirectResponse, Response
-        response = RedirectResponse(url=oauth_url)
-        if state:
-            response.set_cookie(key="fb_oauth_state", value=state, httponly=True, secure=True, samesite='none')
-        return response
-    except Exception as oauth_error:
-        return JSONResponse(
-            status_code=500,
-            content={
-                "success": False,
-                "error": str(oauth_error)
-            }
-        )
-
-# Facebook OAuth callback endpoint
-@app.get("/api/facebook/callback")
-async def facebook_callback(request: Request):
-    """Handle Facebook OAuth callback, validate state, exchange code for token, and complete login."""
-    try:
-        code = request.query_params.get("code")
-        state = request.query_params.get("state")
-        error = request.query_params.get("error")
-        cookie_state = request.cookies.get("fb_oauth_state")
-        if error:
-            return HTMLResponse(f"<h2>Facebook Login Error</h2><p>{error}</p>", status_code=400)
-        if not code:
-            return HTMLResponse("<h2>Missing code in callback</h2>", status_code=400)
-        if not state or not cookie_state or state != cookie_state:
-            return HTMLResponse("<h2>Invalid state parameter (possible CSRF or expired session)</h2>", status_code=400)
-        # Exchange code for access token
-        redirect_uri = f"{request.base_url}api/facebook/callback"
-        token_result = await facebook_integration.handle_oauth_callback(code, state, redirect_uri)
-        if token_result.get("success"):
-            from fastapi.responses import RedirectResponse
-            response = RedirectResponse(url="/dashboard")
-            response.delete_cookie("fb_oauth_state")
-            return response
-        else:
-            return HTMLResponse(f"<h2>Facebook Login Failed</h2><p>{token_result.get('error', 'Unknown error')}</p>", status_code=400)
-    except Exception as e:
-        return HTMLResponse(f"<h2>Callback Error</h2><p>{str(e)}</p>", status_code=500)
-
-@app.get("/api/facebook/pages")
-async def get_facebook_pages(request: Request):
-    """Get user's Facebook pages"""
-    try:
-        user_id = request.headers.get("X-User-ID")
-        if not user_id:
-            return JSONResponse(status_code=401, content={"success": False, "error": "User not authenticated"})
-        pages = await facebook_integration.get_user_pages(user_id)
-        return {"success": True, "pages": pages}
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
-        )
-
-@app.post("/api/facebook/connect-page")
-async def connect_facebook_page(request: Request):
-    """Connect a specific Facebook page"""
-    try:
-        body = await request.json()
-        user_id = request.headers.get("X-User-ID")
-        if not user_id:
-            return JSONResponse(status_code=401, content={"success": False, "error": "User not authenticated"})
-        result = await facebook_integration.connect_page(user_id, body)
-        return {"success": True, "result": result}
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
-        )
-
-@app.post("/api/facebook/test-config")
-async def test_facebook_config(request: Request):
-    """Test Facebook App configuration"""
-    try:
-        data = await request.json()
-        app_id = data.get("app_id")
-        app_secret = data.get("app_secret")
-        page_id = data.get("page_id")
-        
-        if not app_id or not app_secret:
-            return {"success": False, "error": "App ID and App Secret are required"}
-        
-        # Test the configuration by making a simple API call
-        async with httpx.AsyncClient() as client:
-            # Test app credentials
-            test_response = await client.get(
-                f"https://graph.facebook.com/v19.0/{app_id}",
-                params={
-                    "access_token": f"{app_id}|{app_secret}",
-                    "fields": "name,id"
-                }
-            )
-            
-            if test_response.status_code == 200:
-                app_data = test_response.json()
-                
-                # If page_id is provided, test page access with public information only
-                if page_id:
-                    # First try with app access token (limited to public info)
-                    page_response = await client.get(
-                        f"https://graph.facebook.com/v19.0/{page_id}",
-                        params={
-                            "access_token": f"{app_id}|{app_secret}",
-                            "fields": "name,id,category"
-                        }
-                    )
-                    
-                    if page_response.status_code == 200:
-                        page_data = page_response.json()
-                        return {
-                            "success": True,
-                            "message": "Facebook App and Page ID are valid",
-                            "app_name": app_data.get("name"),
-                            "page_name": page_data.get("name"),
-                            "page_id": page_data.get("id"),
-                            "page_category": page_data.get("category"),
-                            "note": "App credentials are valid. To post to this page, you'll need to complete Facebook OAuth to get page permissions."
-                        }
-                    elif page_response.status_code == 403:
-                        return {
-                            "success": False, 
-                            "error": "Page exists but is private. You'll need to complete Facebook OAuth to access it.",
-                            "app_valid": True
-                        }
-                    elif page_response.status_code == 404:
-                        return {
-                            "success": False, 
-                            "error": "Page ID not found. Please check the Page ID is correct.",
-                            "help": "To find your Page ID: Go to your Facebook Page → About → Page ID"
-                        }
-                    else:
-                        page_error = page_response.json() if page_response.content else {}
-                        error_message = page_error.get("error", {}).get("message", "Unknown error")
-                        return {
-                            "success": False, 
-                            "error": f"Cannot access page: {error_message}",
-                            "status_code": page_response.status_code,
-                            "help": "Ensure Page ID is correct and page is public, or complete OAuth for private pages"
-                        }
-                
-                return {
-                    "success": True,
-                    "message": "Facebook App configuration is valid",
-                    "app_name": app_data.get("name")
-                }
-            else:
-                return {"success": False, "error": "Invalid App ID or App Secret"}
-                
-    except Exception as e:
-        logger.error(f"Error testing Facebook config: {e}")
-        return {"success": False, "error": str(e)}
-
-@app.post("/api/facebook/post-property")
-async def post_property_to_facebook(request: Request):
-    """Post a property to Facebook with AI-generated content"""
-    try:
-        body = await request.json()
-        user_id = request.headers.get("X-User-ID")
-        if not user_id:
-            return JSONResponse(status_code=401, content={"success": False, "error": "User not authenticated"})
-        result = await facebook_integration.post_property_to_facebook(user_id, body)
-        return {"success": True, "result": result}
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
-        )
-
-# Legacy Facebook endpoints for backward compatibility
-@app.post("/api/facebook/post")
-async def post_to_facebook(request: Request):
-    try:
-        body = await request.json()
-        page_id = body.get("page_id")
-        message = body.get("message")
-        # Use enhanced Facebook integration if available
-        if hasattr(facebook_integration, 'post_property_to_facebook'):
-            user_id = request.headers.get("X-User-ID")
-            if not user_id:
-                return JSONResponse(status_code=401, content={"success": False, "error": "User not authenticated"})
-            result = await facebook_integration.post_property_to_facebook(user_id, {
-                "title": "Property Post",
-                "message": message
-            })
-            return {"success": True, "result": result}
-        else:
-            return JSONResponse(status_code=400, content={"success": False, "error": "Facebook integration not available"})
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "error": str(e)}
-        )
 
 # AI Content Generation API
 @app.post("/api/ai/generate-content")

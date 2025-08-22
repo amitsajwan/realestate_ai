@@ -192,14 +192,17 @@
             loadFacebookStatus();
         });
 
+        // Facebook connection status is now managed via cookies/session
         async function loadFacebookStatus() {
             try {
-                const response = await fetch('/api/facebook/status');
-                const data = await response.json();
-                
-                if (data.success) {
-                    updateConnectionStatus(data.status);
+                // Check if user is authenticated via cookie
+                const userId = getCookie('fb_user_id');
+                if (!userId) {
+                    updateConnectionStatus({ connected: false });
+                    return;
                 }
+                // If authenticated, show connected status
+                updateConnectionStatus({ connected: true, fb_user_name: 'Facebook User', fb_page_name: '' });
             } catch (error) {
                 console.error('Error loading Facebook status:', error);
             }
@@ -236,32 +239,15 @@
         async function connectFacebook() {
             const connectBtn = document.getElementById('connectBtn');
             const loadingSpinner = document.querySelector('.loading-spinner');
-            
             connectBtn.disabled = true;
             loadingSpinner.style.display = 'block';
-            
             try {
-                const response = await fetch('/api/facebook/connect');
-                const data = await response.json();
-                
-                if (data.success) {
-                    // Open Facebook OAuth in new window
-                    window.open(data.oauth_url, 'facebook_oauth', 'width=600,height=600');
-                    
-                    // Poll for connection status
-                    const checkInterval = setInterval(async () => {
-                        const statusResponse = await fetch('/api/facebook/status');
-                        const statusData = await statusResponse.json();
-                        
-                        if (statusData.success && statusData.status.connected) {
-                            clearInterval(checkInterval);
-                            updateConnectionStatus(statusData.status);
-                            connectBtn.disabled = false;
-                            loadingSpinner.style.display = 'none';
-                        }
-                    }, 2000);
+                const resp = await fetch('/api/facebook/login');
+                const data = await resp.json();
+                if (data.oauth_url) {
+                    window.location.href = data.oauth_url;
                 } else {
-                    alert('Failed to generate Facebook OAuth URL: ' + data.error);
+                    alert('Failed to get Facebook login URL');
                 }
             } catch (error) {
                 console.error('Error connecting to Facebook:', error);
@@ -276,8 +262,7 @@
             try {
                 const response = await fetch('/api/facebook/pages');
                 const data = await response.json();
-                
-                if (data.success) {
+                if (data.pages) {
                     displayPages(data.pages);
                 }
             } catch (error) {
@@ -309,31 +294,9 @@
             `).join('');
         }
 
+        // Page connect is now handled automatically after login
         async function connectPage(pageId, pageName) {
-            try {
-                const response = await fetch('/api/facebook/connect-page', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        id: pageId,
-                        name: pageName
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    alert(`Successfully connected to ${pageName}!`);
-                    loadFacebookStatus(); // Refresh status
-                } else {
-                    alert('Failed to connect page: ' + data.error);
-                }
-            } catch (error) {
-                console.error('Error connecting page:', error);
-                alert('Error connecting page: ' + error.message);
-            }
+            alert('Page connection is handled after Facebook login.');
         }
 
         function previewPost() {
@@ -361,37 +324,36 @@
 
         async function postToFacebook() {
             const propertyData = {
-                title: document.getElementById('propertyTitle').value,
-                price: document.getElementById('propertyPrice').value,
-                location: document.getElementById('propertyLocation').value,
-                bedrooms: parseInt(document.getElementById('propertyBedrooms').value),
-                bathrooms: parseInt(document.getElementById('propertyBathrooms').value),
-                area: document.getElementById('propertyArea').value
+                page_id: '', // Select page from UI if needed
+                message: document.getElementById('previewContent').textContent,
+                image_url: '' // Add image URL if needed
             };
-            
             try {
-                const response = await fetch('/api/facebook/post-property', {
+                const response = await fetch('/api/facebook/post', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(propertyData)
                 });
-                
                 const data = await response.json();
-                
-                if (data.success) {
+                if (data.post_id) {
                     alert('Property posted successfully to Facebook!');
-                    // Clear form
                     document.getElementById('postForm').reset();
                     document.getElementById('postPreview').style.display = 'none';
                 } else {
-                    alert('Failed to post property: ' + data.error);
+                    alert('Failed to post property: ' + (data.error || 'Unknown error'));
                 }
             } catch (error) {
                 console.error('Error posting to Facebook:', error);
                 alert('Error posting to Facebook: ' + error.message);
             }
+        }
+        // Helper to get cookie value
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
         }
     </script>
 </body>
