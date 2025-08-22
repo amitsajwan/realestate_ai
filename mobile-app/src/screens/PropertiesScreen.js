@@ -9,7 +9,12 @@ import {
   Avatar,
   Button,
   IconButton,
+  Modal,
+  Portal,
+  TextInput,
+  Checkbox,
 } from 'react-native-paper';
+import groqService from '../services/groqService';
 import { useBranding } from '../contexts/BrandingContext';
 
 const SAMPLE_PROPERTIES = [
@@ -59,9 +64,72 @@ const STATUS_FILTERS = [
 ];
 
 export default function PropertiesScreen() {
+  // Add Property Modal State
+  const [modalVisible, setModalVisible] = useState(false);
+  const [propertyTitle, setPropertyTitle] = useState('');
+    const [modalVisible, setModalVisible] = useState(false);
+    const [propertyTitle, setPropertyTitle] = useState('');
+    const [propertyAddress, setPropertyAddress] = useState('');
+    const [propertyPrice, setPropertyPrice] = useState('');
+    const [propertyType, setPropertyType] = useState('');
+    const [bedrooms, setBedrooms] = useState('1');
+    const [bathrooms, setBathrooms] = useState('1');
+    const [features, setFeatures] = useState('');
+    const [contentTone, setContentTone] = useState('Professional');
+    const [languages, setLanguages] = useState({
+      English: false,
+      Hindi: false,
+      Marathi: false,
+      Gujarati: false,
+    });
+    const [aiContent, setAiContent] = useState('');
+    const [loading, setLoading] = useState(false);
+  const [bedrooms, setBedrooms] = useState('1');
+  const [bathrooms, setBathrooms] = useState('1');
+  const [features, setFeatures] = useState('');
+  const [contentTone, setContentTone] = useState('Professional');
+  const [languages, setLanguages] = useState({
+    English: false,
+    Hindi: false,
+    Marathi: false,
+    Gujarati: false,
+  });
+  const [aiContent, setAiContent] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleAddProperty = async () => {
+    setLoading(true);
+    const selectedLanguages = Object.keys(languages).filter(lang => languages[lang]);
+    const propertyData = {
+      title: propertyTitle,
+      address: propertyAddress,
+      price: propertyPrice,
+      type: propertyType,
+      bedrooms,
+      bathrooms,
+      features,
+      tone: contentTone,
+      languages: selectedLanguages,
+    };
+    try {
+      const aiResult = await groqService.generatePropertyDescription(propertyData);
+      setAiContent(aiResult);
+    } catch (err) {
+      setAiContent('Error generating AI content.');
+    }
+    setLoading(false);
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [properties] = useState(SAMPLE_PROPERTIES);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [propertyTitle, setPropertyTitle] = useState('');
+  const [aiContent, setAiContent] = useState('');
+
+  const handleAddProperty = () => {
+    // Simulate AI content generation
+    setAiContent(`AI-generated description for: ${propertyTitle}`);
+  };
   
   const { branding } = useBranding();
 
@@ -181,15 +249,75 @@ export default function PropertiesScreen() {
             <Text style={styles.emptyStateText}>No properties found</Text>
           </View>
         }
-      />
+  />
 
       <FAB
         icon="plus"
         style={[styles.fab, { backgroundColor: branding.primaryColor }]}
-        onPress={() => {
-          // Handle add property
-        }}
-      />
+        onPress={() => setModalVisible(true)}
+  {/* Removed stray closing tag */}
+
+      <Portal>
+        <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={{ margin: 20, backgroundColor: 'white', padding: 20, borderRadius: 12, elevation: 4 }}>
+          <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 16, color: branding.primaryColor }}>🏠 Add New Property</Text>
+          <TextInput label="Property Title *" value={propertyTitle} onChangeText={setPropertyTitle} style={{ marginBottom: 10 }} mode="outlined" />
+          <TextInput label="Property Address *" value={propertyAddress} onChangeText={setPropertyAddress} style={{ marginBottom: 10 }} mode="outlined" />
+          <TextInput label="Price *" value={propertyPrice} onChangeText={setPropertyPrice} style={{ marginBottom: 10 }} mode="outlined" keyboardType="numeric" />
+          <TextInput label="Property Type *" value={propertyType} onChangeText={setPropertyType} style={{ marginBottom: 10 }} mode="outlined" placeholder="Select Type" />
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+            <TextInput label="Bedrooms" value={bedrooms} onChangeText={setBedrooms} style={{ flex: 1 }} mode="outlined" keyboardType="numeric" />
+            <TextInput label="Bathrooms" value={bathrooms} onChangeText={setBathrooms} style={{ flex: 1 }} mode="outlined" keyboardType="numeric" />
+          </View>
+          <TextInput label="Features" value={features} onChangeText={setFeatures} style={{ marginBottom: 10 }} mode="outlined" placeholder="Gym, Swimming Pool, Garden, Parking..." />
+          <Text style={{ fontWeight: 'bold', marginBottom: 6 }}>Content Tone</Text>
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+            {['Professional', 'Friendly', 'Luxury', 'Casual'].map(tone => (
+              <Button key={tone} mode={contentTone === tone ? 'contained' : 'outlined'} onPress={() => setContentTone(tone)} style={{ marginRight: 6 }}>{tone}</Button>
+            ))}
+          </View>
+          <Text style={{ fontWeight: 'bold', marginBottom: 6 }}>Languages (Select Multiple)</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 }}>
+            {Object.keys(languages).map(lang => (
+              <View key={lang} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
+                <Checkbox
+                  status={languages[lang] ? 'checked' : 'unchecked'}
+                  onPress={() => setLanguages(prev => ({ ...prev, [lang]: !prev[lang] }))}
+                  uncheckedColor="#64748B"
+                  color={branding.primaryColor}
+                />
+                <Text style={{ marginLeft: 4 }}>{lang}</Text>
+              </View>
+            ))}
+          </View>
+          <Button mode="contained" onPress={handleAddProperty} style={{ marginBottom: 10 }} loading={loading} disabled={loading}>
+            {loading ? 'Generating...' : 'Generate AI Content'}
+          </Button>
+          {loading && (
+            <View style={{ marginBottom: 10, alignItems: 'center' }}>
+              <Text style={{ color: branding.primaryColor, fontWeight: 'bold' }}>Generating AI content...</Text>
+            </View>
+          )}
+          {aiContent !== '' && !loading && (
+            <View style={{ marginBottom: 10 }}>
+              <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Gen AI Description</Text>
+              <TextInput
+                value={aiContent}
+                multiline
+                editable={false}
+                style={{ backgroundColor: '#F7FAFC', color: 'green', minHeight: 100, maxHeight: 200, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, padding: 8 }}
+                scrollEnabled
+              />
+            </View>
+          )}
+          {aiContent === 'Error generating AI content.' && !loading && (
+            <Text style={{ color: 'red', marginBottom: 10 }}>Failed to generate AI content. Please try again.</Text>
+          )}
+          <Button mode="outlined" onPress={() => setModalVisible(false)}>
+            Close
+          </Button>
+        </Modal>
+      </Portal>
+      
     </View>
   );
 }

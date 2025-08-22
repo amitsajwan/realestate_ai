@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def get_facebook_service() -> FacebookService:
     user_repo = UserRepository()
     return FacebookService(user_repo)
-
+ 
 @router.get("/config")
 async def get_facebook_config(
     current_user = Depends(get_current_user),
@@ -26,12 +26,16 @@ async def get_facebook_config(
         return config
     except Exception as e:
         logger.error(f"Facebook config error: {e}")
-        return {
-            "connected": False,
-            "page_id": None,
-            "page_name": None,
-            "error": "Failed to get Facebook config"
-        }
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=200,
+            content={
+                "connected": False,
+                "page_id": None,
+                "page_name": None,
+                "error": "Failed to get Facebook config"
+            }
+        )
 
 @router.get("/login")
 async def facebook_login_redirect(

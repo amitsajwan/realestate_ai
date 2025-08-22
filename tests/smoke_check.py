@@ -1,6 +1,7 @@
 import time, requests
 
-BASE = 'http://127.0.0.1:8004'
+import os
+BASE = os.getenv('BASE_URL', 'http://127.0.0.1:8004')
 
 def wait_ready(timeout=20):
     start = time.time()

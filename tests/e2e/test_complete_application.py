@@ -29,7 +29,9 @@ class TestRealEstateCRM:
     
     async def login(self, page: Page, email: str = "demo@mumbai.com", password: str = "demo123"):
         """Utility method to login"""
-        await page.goto("http://localhost:8003/")
+        import os
+        base_url = os.getenv('BASE_URL', 'http://localhost:8003/')
+        await page.goto(base_url)
         await page.wait_for_load_state('networkidle')
         
         # Fill login form
@@ -56,7 +58,9 @@ class TestRealEstateCRM:
         print("🔐 Testing Login Functionality...")
         
         # Test 1: Login page loads
-        await page.goto("http://localhost:8003/")
+    import os
+    base_url = os.getenv('BASE_URL', 'http://localhost:8003/')
+    await page.goto(base_url)
         await page.wait_for_load_state('networkidle')
         
         title = await page.title()

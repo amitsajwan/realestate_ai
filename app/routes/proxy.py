@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-TARGET = os.getenv("MODULAR_PROXY_TARGET", "https://rabbit-engaging-endlessly.ngrok-free.app")
+TARGET = os.getenv("BASE_URL")
 
 async def _forward(method: str, path: str, request: Request) -> Response:
     
