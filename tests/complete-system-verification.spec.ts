@@ -6,7 +6,7 @@ test.describe('Complete System Verification', () => {
         
         // Step 1: Test public URL access
         console.log('🌐 Step 1: Test public URL access');
-        await page.goto('https://119d6fa2e2a7.ngrok-free.app/');
+        await page.goto('https://e4ec81495136.ngrok-free.app/');
         await expect(page).toHaveTitle(/Real Estate CRM - Login/);
         console.log('✅ Public URL accessible');
         
@@ -103,7 +103,7 @@ test.describe('Complete System Verification', () => {
         console.log('   ✅ Logout Functionality');
         console.log('');
         console.log('🚀 The PropertyAI system is fully functional with Facebook integration!');
-        console.log('🌐 Public URL: https://119d6fa2e2a7.ngrok-free.app');
+        console.log('🌐 Public URL: https://e4ec81495136.ngrok-free.app');
     });
 
     test('Facebook integration detailed test', async ({ page }) => {
