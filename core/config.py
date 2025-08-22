@@ -79,7 +79,7 @@ class Settings(BaseSettings):
             self.MONGODB_URL = self.MONGO_URI
         
         # Facebook redirect URI
-        self.FB_REDIRECT_URI = f"{self.BASE_URL}/api/v1/facebook/callback"
+    self.FB_REDIRECT_URI = f"{self.BASE_URL}/auth/facebook/callback"
     
     @property
     def mongodb_url(self) -> str:
@@ -106,6 +106,6 @@ MONGODB_URL = settings.mongodb_url
 DATABASE_NAME = settings.DATABASE_NAME
 FB_APP_ID = settings.FB_APP_ID
 FB_APP_SECRET = settings.FB_APP_SECRET
-FB_REDIRECT_URI = settings.FB_REDIRECT_URI
+FB_REDIRECT_URI = f"{settings.BASE_URL}/auth/facebook/callback"
 BASE_URL = settings.BASE_URL
 DEBUG = settings.DEBUG

@@ -17,9 +17,22 @@ class FacebookService:
     
     def __init__(self, user_repository: UserRepository):
         self.user_repository = user_repository
-        self.client_id = settings.FB_APP_ID
-        self.client_secret = settings.FB_APP_SECRET
-        self.redirect_uri = settings.FB_REDIRECT_URI
+        import os
+        self.client_id = os.getenv("FB_APP_ID", settings.FB_APP_ID)
+        self.client_secret = os.getenv("FB_APP_SECRET", settings.FB_APP_SECRET)
+        self.graph_api_version = os.getenv("FB_GRAPH_API_VERSION", getattr(settings, "FB_GRAPH_API_VERSION", "v19.0"))
+        self.redirect_uri = os.getenv("BASE_URL", getattr(settings, "BASE_URL", None)) + "/auth/facebook/callback"
+
+    def get_test_page_config(self):
+        import os
+        return {
+            "page_id": os.getenv("FB_PAGE_ID", getattr(settings, "FB_PAGE_ID", None)),
+            "page_token": os.getenv("FB_PAGE_TOKEN", getattr(settings, "FB_PAGE_TOKEN", None)),
+        }
+
+    def is_test_user(self, user):
+        # Define logic for test user (by email, id, or env)
+        return user and (user.get("email", "").endswith("@example.com") or user.get("is_test", False))
 
     async def get_facebook_config(self, user_id: str) -> Dict:
         """Get Facebook connection status and config for user"""
@@ -74,20 +87,15 @@ class FacebookService:
                     "https://graph.facebook.com/v19.0/oauth/access_token",
                     data={
                         "client_id": self.client_id,
-                        "client_secret": self.client_secret,
                         "redirect_uri": self.redirect_uri,
+                        "client_secret": self.client_secret,
                         "code": code
                     }
                 )
-                token_data = token_response.json()
-
-            if "access_token" not in token_data:
-                raise FacebookError(f"Token exchange failed: {token_data}")
-
-            user_token = token_data["access_token"]
-
-            # Get user info from Facebook
-            async with httpx.AsyncClient() as client:
+                token_json = token_response.json()
+                user_token = token_json.get("access_token")
+                if not user_token:
+                    raise FacebookError("Failed to obtain access token")
                 user_response = await client.get(
                     "https://graph.facebook.com/v19.0/me",
                     params={
@@ -223,4 +231,5 @@ class FacebookService:
             return True
         except Exception as e:
             logger.error(f"Error disconnecting Facebook: {e}")
+            # Separate raise statement for clarity
             raise FacebookError(f"Failed to disconnect: {str(e)}")
