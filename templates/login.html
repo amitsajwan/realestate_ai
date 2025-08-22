@@ -35,7 +35,7 @@
                             </div>
                             
                             <div class="d-grid">
-                                <a href="/api/facebook/connect" class="btn btn-primary btn-lg">Sign In with Facebook</a>
+                                <button id="facebook-login-btn" class="btn btn-primary btn-lg">Sign In with Facebook</button>
                             </div>
                             
                             <div class="text-center mt-4">
@@ -49,5 +49,16 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    document.getElementById('facebook-login-btn').onclick = async function() {
+        const resp = await fetch('/api/facebook/login');
+        const data = await resp.json();
+        if (data.oauth_url) {
+            window.location.href = data.oauth_url;
+        } else {
+            alert('Failed to get Facebook login URL');
+        }
+    };
+    </script>
 </body>
 </html>
