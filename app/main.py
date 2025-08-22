@@ -343,7 +343,15 @@ async def onboarding(request: Request):
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     try:
-        return templates.TemplateResponse("dashboard.html", {"request": request})
+        fb_user_id = request.cookies.get("fb_user_id")
+        if not fb_user_id:
+            # Not authenticated via Facebook, redirect to login
+            return HTMLResponse(
+                "<script>window.location.href='/';</script>",
+                status_code=302
+            )
+        # Pass fb_user_id to template for client-side use
+        return templates.TemplateResponse("dashboard_nextgen.html", {"request": request, "fb_user_id": fb_user_id})
     except Exception as e:
         logger.error(f"Error serving dashboard: {e}")
         return HTMLResponse("""

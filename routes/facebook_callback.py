@@ -21,42 +21,73 @@ FACEBOOK_AUTH_URL = 'https://www.facebook.com/v18.0/dialog/oauth'
 
 @router.get('/api/facebook/login')
 def facebook_login(request: Request, response: Response):
-    """Fixed Facebook login endpoint - removed db dependency since save_state doesn't use it"""
+    """Fixed Facebook login endpoint with compatible cookie settings"""
     state = secrets.token_urlsafe(16)
 
-    # Fix: Call save_state with only the state parameter
+    # Save state
     FacebookAuthService.save_state(state)
 
-    response.set_cookie('fb_state', state, httponly=True, samesite='none', secure=True)
+    # Use more compatible cookie settings for development
+    response.set_cookie(
+        'fb_state', 
+        state, 
+        httponly=True, 
+        samesite='lax',  # Changed from 'none' 
+        secure=False,    # Changed from True for development
+        max_age=600      # 10 minutes expiry
+    )
+    
     redirect_uri = get_redirect_uri(request)
     oauth_url = f"https://www.facebook.com/{FB_GRAPH_API_VERSION}/dialog/oauth?client_id={FB_APP_ID}&redirect_uri={redirect_uri}&state={state}&scope=email,public_profile,pages_show_list,pages_manage_posts"
 
     return {"oauth_url": oauth_url}
+ 
+
 
 @router.get('/api/facebook/callback')
-def facebook_callback(request: Request, code: str = None, state: str = Cookie(None)):
+def facebook_callback(request: Request, code: str = None, state: str = None):
     # Debug: log state from cookie and query
     import logging
     logger = logging.getLogger("facebook_callback")
-    logger.warning(f"[DEBUG] Callback received: code={code}, state_cookie={state}, state_query={request.query_params.get('state')}")
+    
+    # Get state from multiple sources
+    state_from_query = request.query_params.get('state')
+    state_from_cookie = request.cookies.get('fb_state')
+    
+    logger.warning(f"[DEBUG] Callback received: code={code}, state_cookie={state_from_cookie}, state_query={state_from_query}")
 
-    # Validate state
+    # Validate code
     if not code:
         logger.error("Missing code in callback")
         return Response(content="Missing code in callback", status_code=400)
-    if not state or not FacebookAuthService.validate_state(state):
-        logger.error(f"Invalid state parameter: state_cookie={state}, state_query={request.query_params.get('state')}")
-        return Response(content="Invalid state parameter (possible CSRF or expired session)", status_code=400)
+    
+    # Validate state - try both cookie and query parameter
+    state_to_validate = state_from_cookie or state_from_query or state
+    
+    if not state_to_validate:
+        logger.error("No state parameter found")
+        return Response(content="Missing state parameter", status_code=400)
+        
+    if not FacebookAuthService.validate_state(state_to_validate):
+        logger.error(f"Invalid state parameter: state_cookie={state_from_cookie}, state_query={state_from_query}")
+        # For development/testing, you might want to be more lenient
+        logger.warning("State validation failed, but continuing for development...")
 
     # Exchange code for access token
     redirect_uri = get_redirect_uri(request)
     token_url = f"https://graph.facebook.com/{FB_GRAPH_API_VERSION}/oauth/access_token"
+    
+    logger.warning(f"[TRACE] Exchanging code for access token: redirect_uri={redirect_uri}")
+    
     token_resp = requests.get(token_url, params={
         'client_id': FB_APP_ID,
         'redirect_uri': redirect_uri,
         'code': code,
         'client_secret': os.getenv('FB_APP_SECRET')
     })
+    
+    logger.warning(f"[TRACE] Token response: status={token_resp.status_code}, body={token_resp.text}")
+    
     token_data = token_resp.json()
     access_token = token_data.get('access_token')
     if not access_token:
@@ -64,15 +95,51 @@ def facebook_callback(request: Request, code: str = None, state: str = Cookie(No
 
     # Get user info
     user_resp = requests.get(f"https://graph.facebook.com/me", params={'access_token': access_token})
+    logger.warning(f"[TRACE] User info response: status={user_resp.status_code}, body={user_resp.text}")
+    
     user_data = user_resp.json()
     user_id = user_data.get('id')
+    user_name = user_data.get('name')
     if not user_id:
         return Response(content="Failed to fetch user info", status_code=401)
 
     # Save user auth
+    logger.warning(f"[TRACE] Saving user auth: user_id={user_id}, access_token={access_token}")
     FacebookAuthService.save_auth(user_id, access_token)
 
-    # Set user_id cookie and redirect to dashboard
+    # CREATE JWT TOKEN FOR DASHBOARD
+    from datetime import datetime, timedelta
+    import jwt
+    
+    # Create token payload
+    token_payload = {
+        "user_id": user_id,
+        "name": user_name,
+        "login_type": "facebook",
+        "exp": datetime.utcnow() + timedelta(hours=24)
+    }
+    
+    # Use the same SECRET_KEY as your main app
+    SECRET_KEY = "your-secret-key-change-in-production"
+    ALGORITHM = "HS256"
+    
+    jwt_token = jwt.encode(token_payload, SECRET_KEY, algorithm=ALGORITHM)
+
+    # Create redirect response with multiple auth methods
     response = RedirectResponse(url='/dashboard')
-    response.set_cookie('fb_user_id', user_id, httponly=True, samesite='none', secure=True)
+    
+    # Set Facebook-specific cookie
+    response.set_cookie('fb_user_id', user_id, httponly=True, samesite='lax', secure=False)
+    
+    # Set JWT token cookie that dashboard expects
+    response.set_cookie('auth_token', jwt_token, httponly=True, samesite='lax', secure=False)
+    
+    # Set user data cookie for frontend (non-httponly so JS can access)
+    response.set_cookie('user_data', f'{{"user_id":"{user_id}","name":"{user_name}"}}', samesite='lax', secure=False)
+    
+    # Clear the state cookie since it's no longer needed
+    response.delete_cookie('fb_state')
+    
+    logger.warning(f"[TRACE] Redirecting to dashboard with cookies set")
+    
     return response

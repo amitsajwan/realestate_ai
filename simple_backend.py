@@ -308,9 +308,10 @@ async def login(request: Request):
 # Dashboard endpoint
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    try:
+    try: 
         return templates.TemplateResponse("dashboard_nextgen.html", {"request": request})
     except Exception as e:
+        print(f"There is error in /dashboard, exception {e}")
         return HTMLResponse("""
         <html>
             <head><title>PropertyAI - Dashboard</title></head>
