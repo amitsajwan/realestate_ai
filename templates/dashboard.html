@@ -174,6 +174,10 @@
     </style>
 </head>
 <body>
+    <!-- DEBUG: Show fb_user_id cookie value -->
+    <div style="position:fixed;top:10px;right:10px;z-index:9999;background:#fff3cd;color:#856404;padding:8px 16px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);font-size:14px;">
+        <b>Debug:</b> fb_user_id cookie = <span id="fbUserIdDebug">(not set)</span>
+    </div>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
         <div class="container">
@@ -406,6 +410,16 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // DEBUG: Show fb_user_id cookie value
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            const fbUserId = getCookie('fb_user_id');
+            document.getElementById('fbUserIdDebug').textContent = fbUserId || '(not set)';
+        });
         // Global variables
         let currentUser = null;
         let facebookPages = [];
@@ -421,7 +435,9 @@
             try {
                 const token = localStorage.getItem('token');
                 if (!token) {
-                    window.location.href = '/login';
+                    // Pause for debugging, do not redirect
+                    debugger;
+                    // No redirect, page stays loaded for inspection
                     return;
                 }
 
@@ -525,39 +541,19 @@
 
         // Connect Facebook
         async function connectFacebook() {
-            const pageId = document.getElementById('facebookPageSelect').value;
-            if (!pageId) {
-                alert('Please select a Facebook page');
-                return;
-            }
-
-            showLoading('Connecting to Facebook...');
-
+            showLoading('Redirecting to Facebook...');
             try {
-                const response = await fetch('/api/facebook/connect', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        page_id: pageId,
-                        email: currentUser.email
-                    })
-                });
-
-                const result = await response.json();
+                const res = await fetch('/api/facebook/login');
+                const data = await res.json();
                 hideLoading();
-
-                if (result.success) {
-                    currentUser.facebookConnected = true;
-                    currentUser.facebookPageId = pageId;
-                    currentUser.facebookPageName = facebookPages.find(p => p.id === pageId)?.name;
-                    updateFacebookStatus();
-                    alert('Facebook connected successfully!');
+                if (data.oauth_url) {
+                    window.location.href = data.oauth_url; // 👈 send user to FB login
                 } else {
-                    alert('Failed to connect Facebook: ' + result.error);
+                    alert("Failed to get Facebook login URL");
                 }
-            } catch (error) {
+            } catch (err) {
                 hideLoading();
-                alert('Error connecting to Facebook');
+                alert("Error connecting Facebook");
             }
         }
 
