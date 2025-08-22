@@ -176,7 +176,9 @@ class AdvancedPlaywrightMCPTests:
         
         try:
             # Navigate to login
-            await self.page.goto("http://localhost:8003/")
+            import os
+            base_url = os.getenv('BASE_URL', 'http://localhost:8003/')
+            await self.page.goto(base_url)
             await self.page.wait_for_load_state('networkidle')
             
             # Use MCP for Python code validation
@@ -458,7 +460,9 @@ class AdvancedPlaywrightMCPTests:
             
             # Test page load times
             navigation_start = time.time()
-            await self.page.goto("http://localhost:8003/dashboard", wait_until='networkidle')
+            import os
+            base_url = os.getenv('BASE_URL', 'http://localhost:8003/dashboard')
+            await self.page.goto(base_url, wait_until='networkidle')
             navigation_time = time.time() - navigation_start
             metrics['page_load_time'] = navigation_time
             
