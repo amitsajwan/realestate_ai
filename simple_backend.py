@@ -48,10 +48,12 @@ from typing import Optional, Dict, Any
 import requests
 import httpx
 from genai_onboarding import genai_onboarding
-from routes.facebook_login import router as facebook_login_router
-from routes.facebook_callback import router as facebook_callback_router
-from routes.facebook_connect import router as facebook_connect_router
-from routes.facebook_post import router as facebook_post_router
+from app.api.v1.endpoints.facebook_login import router as facebook_login_router
+from app.api.v1.endpoints.facebook_callback import router as facebook_callback_router
+from app.api.v1.endpoints.facebook_connect import router as facebook_connect_router
+from app.api.v1.endpoints.facebook_post import router as facebook_post_router
+
+from app.api.v1.endpoints.listing_posts import router as listing_posts_router
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -69,6 +71,9 @@ app.include_router(facebook_login_router)
 app.include_router(facebook_callback_router)
 app.include_router(facebook_connect_router)
 app.include_router(facebook_post_router)
+app.include_router(listing_posts_router)
+ 
+
 
 # Setup templates - check both directories
 try:

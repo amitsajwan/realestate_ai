@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from api.endpoints.facebook_pages import router as fb_router
+# from app.api.v1.endpoints.facebook_pages import router as fb_router  # No such file exists, so this import is commented out
 
 
 def test_facebook_config_connected_demo_user():

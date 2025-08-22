@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 import logging
 
-from core.dependencies import get_current_user
+from app.dependencies import get_current_user
 from models.listing import ListingTemplate, ListingDetails, GeneratedListingPost
 from services.listing_templates import generate_listing_post
 from repositories.agent_repository import AgentRepository, get_agent_repository
-
-router = APIRouter()
+ 
+router = APIRouter(prefix="/api/v1/listings", tags=["ai-listing"])
 logger = logging.getLogger(__name__)
 
 @router.get("/templates")

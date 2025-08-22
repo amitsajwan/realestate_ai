@@ -1,6 +1,8 @@
 
 from datetime import datetime, timedelta
 from typing import Optional
+import jwt
+from jwt.exceptions import InvalidSignatureError
  
 import logging
 
@@ -55,21 +57,20 @@ class AuthService:
         """Verify JWT token and return payload"""
         try:
             payload = jwt.decode(
-                token, 
-                settings.jwt_secret, 
+                token,
+                settings.jwt_secret,
                 algorithms=[settings.jwt_algorithm]
             )
-            
             if not payload.get("user_id") or not payload.get("email"):
                 raise AuthenticationError("Invalid token payload")
-            
             if payload.get("type") != "access_token":
                 raise AuthenticationError("Invalid token type")
-            
             return payload
-            
         except jwt.ExpiredSignatureError:
             raise AuthenticationError("Token expired")
+        except InvalidSignatureError:
+            logger.warning("Invalid token signature")
+            raise AuthenticationError("Invalid token signature")
         except jwt.JWTError as e:
             logger.warning(f"Invalid token: {e}")
             raise AuthenticationError("Invalid token")
