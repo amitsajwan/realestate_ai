@@ -35,7 +35,7 @@ def test_templates_and_generate():
         "bathrooms": 2,
         "features": ["Near Metro", "Sea view"],
     }
-    r2 = requests.post(f"{BASE}/api/listings/generate", json=payload, headers=headers, timeout=20)
+    r2 = requests.post(f"{BASE}/api/v1/listings/generate", json=payload, headers=headers, timeout=20)
     assert r2.status_code == 200, r2.text
     g = r2.json()
     for key in ("caption", "hashtags", "suggested_cta", "fair_housing_disclaimer"):

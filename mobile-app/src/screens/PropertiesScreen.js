@@ -67,23 +67,9 @@ export default function PropertiesScreen() {
   // Add Property Modal State
   const [modalVisible, setModalVisible] = useState(false);
   const [propertyTitle, setPropertyTitle] = useState('');
-    const [modalVisible, setModalVisible] = useState(false);
-    const [propertyTitle, setPropertyTitle] = useState('');
-    const [propertyAddress, setPropertyAddress] = useState('');
-    const [propertyPrice, setPropertyPrice] = useState('');
-    const [propertyType, setPropertyType] = useState('');
-    const [bedrooms, setBedrooms] = useState('1');
-    const [bathrooms, setBathrooms] = useState('1');
-    const [features, setFeatures] = useState('');
-    const [contentTone, setContentTone] = useState('Professional');
-    const [languages, setLanguages] = useState({
-      English: false,
-      Hindi: false,
-      Marathi: false,
-      Gujarati: false,
-    });
-    const [aiContent, setAiContent] = useState('');
-    const [loading, setLoading] = useState(false);
+  const [propertyAddress, setPropertyAddress] = useState('');
+  const [propertyPrice, setPropertyPrice] = useState('');
+  const [propertyType, setPropertyType] = useState('');
   const [bedrooms, setBedrooms] = useState('1');
   const [bathrooms, setBathrooms] = useState('1');
   const [features, setFeatures] = useState('');
@@ -94,12 +80,19 @@ export default function PropertiesScreen() {
     Marathi: false,
     Gujarati: false,
   });
-  const [aiContent, setAiContent] = useState('');
+  const [aiContent, setAiContent] = useState({});
   const [loading, setLoading] = useState(false);
 
   const handleAddProperty = async () => {
     setLoading(true);
     const selectedLanguages = Object.keys(languages).filter(lang => languages[lang]);
+    
+    if (selectedLanguages.length === 0) {
+      alert('Please select at least one language.');
+      setLoading(false);
+      return;
+    }
+    
     const propertyData = {
       title: propertyTitle,
       address: propertyAddress,
@@ -111,11 +104,12 @@ export default function PropertiesScreen() {
       tone: contentTone,
       languages: selectedLanguages,
     };
+    
     try {
-      const aiResult = await groqService.generatePropertyDescription(propertyData);
+      const aiResult = await groqService.generateMultiLanguagePropertyDescription(propertyData);
       setAiContent(aiResult);
     } catch (err) {
-      setAiContent('Error generating AI content.');
+      setAiContent({ error: 'Error generating AI content.' });
     }
     setLoading(false);
   };
@@ -297,20 +291,26 @@ export default function PropertiesScreen() {
               <Text style={{ color: branding.primaryColor, fontWeight: 'bold' }}>Generating AI content...</Text>
             </View>
           )}
-          {aiContent !== '' && !loading && (
+          {Object.keys(aiContent).length > 0 && !loading && (
             <View style={{ marginBottom: 10 }}>
-              <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Gen AI Description</Text>
-              <TextInput
-                value={aiContent}
-                multiline
-                editable={false}
-                style={{ backgroundColor: '#F7FAFC', color: 'green', minHeight: 100, maxHeight: 200, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, padding: 8 }}
-                scrollEnabled
-              />
+              <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>Generated AI Descriptions</Text>
+              {aiContent.error ? (
+                <Text style={{ color: 'red', marginBottom: 10 }}>Failed to generate AI content. Please try again.</Text>
+              ) : (
+                Object.entries(aiContent).map(([language, description]) => (
+                  <View key={language} style={{ marginBottom: 12 }}>
+                    <Text style={{ fontWeight: 'bold', marginBottom: 4, color: branding.primaryColor }}>{language}</Text>
+                    <TextInput
+                      value={description}
+                      multiline
+                      editable={false}
+                      style={{ backgroundColor: '#F7FAFC', color: 'green', minHeight: 100, maxHeight: 200, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, padding: 8, marginBottom: 8 }}
+                      scrollEnabled
+                    />
+                  </View>
+                ))
+              )}
             </View>
-          )}
-          {aiContent === 'Error generating AI content.' && !loading && (
-            <Text style={{ color: 'red', marginBottom: 10 }}>Failed to generate AI content. Please try again.</Text>
           )}
           <Button mode="outlined" onPress={() => setModalVisible(false)}>
             Close

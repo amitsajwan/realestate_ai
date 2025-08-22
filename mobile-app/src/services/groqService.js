@@ -101,6 +101,50 @@ Create a professional, engaging description that highlights the property's best 
     });
   }
 
+  async generateMultiLanguagePropertyDescription(propertyData) {
+    const selectedLanguages = propertyData.languages || ['English'];
+    const results = {};
+
+    for (const language of selectedLanguages) {
+      const prompt = `Generate a compelling property description in ${language} for the following property:
+
+Property Details:
+- Title: ${propertyData.title || 'Not specified'}
+- Address: ${propertyData.address || 'Not specified'}
+- Type: ${propertyData.type || 'Not specified'}
+- Bedrooms: ${propertyData.bedrooms || 'Not specified'}
+- Bathrooms: ${propertyData.bathrooms || 'Not specified'}
+- Price: ${propertyData.price || 'Not specified'}
+- Features: ${propertyData.features || 'Not specified'}
+- Content Tone: ${propertyData.tone || 'Professional'}
+
+Create a ${propertyData.tone?.toLowerCase() || 'professional'}, engaging description in ${language} that highlights the property's best features and appeals to potential buyers in that language market.`;
+
+      try {
+        const description = await this.generateResponse([
+          { role: 'user', content: prompt }
+        ], {
+          systemPrompt: `You are a professional multilingual real estate copywriter. Create compelling property descriptions in ${language} that:
+- Are written in fluent, native-level ${language}
+- Highlight unique selling points
+- Use culturally appropriate and appealing language
+- Include location benefits relevant to ${language} speakers
+- Appeal to the target buyer demographic
+- Are 150-250 words long
+- Follow real estate marketing best practices for ${language} markets
+- Match the requested tone: ${propertyData.tone || 'Professional'}`
+        });
+        
+        results[language] = description;
+      } catch (error) {
+        console.error(`Error generating description in ${language}:`, error);
+        results[language] = `Error generating description in ${language}. Please try again.`;
+      }
+    }
+
+    return results;
+  }
+
   async generateMarketAnalysis(location, propertyType) {
     const prompt = `Provide a market analysis for ${propertyType} properties in ${location}. Include:
 
