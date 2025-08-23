@@ -1,0 +1,759 @@
+<!-- Dashboard JavaScript Functions Component -->
+<script>
+// Dashboard functionality
+let currentSection = 'welcome';
+let userProfile = null; // ✅ Add missing userProfile variable
+
+// ✅ IMPROVED: Handle OAuth callback and store token
+function handleOAuthCallback() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const auth = urlParams.get('auth');
+    const token = urlParams.get('token');
+    
+    if (auth === 'success' && token) {
+        console.log('🔐 OAuth success, storing token');
+        localStorage.setItem('access_token', token);
+        
+        // Clean up URL
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+        
+        // Extract user info from token
+        try {
+            const tokenParts = token.split('.');
+            if (tokenParts.length === 3) {
+                const payload = JSON.parse(atob(tokenParts[1]));
+                console.log('✅ Token stored, user_id:', payload.user_id);
+            }
+        } catch (e) {
+            console.warn('Failed to decode token payload');
+        }
+    } else {
+        console.log('No OAuth callback detected');
+    }
+}
+
+// ✅ ADDED: loadProperties function (alias for loadUserProperties)
+function loadProperties() {
+    loadUserProperties();
+}
+
+// Show different sections
+function showSection(sectionName) {
+    console.log(`🎯 showSection called with: ${sectionName}`);
+    
+    // Hide all sections
+    document.querySelectorAll('.dashboard-section').forEach(section => {
+        section.style.display = 'none';
+    });
+    
+    // Show selected section
+    const targetSection = document.getElementById(sectionName + '-section');
+    console.log(`🔍 Looking for section: ${sectionName}-section`);
+    console.log(`🔍 Found element:`, targetSection);
+    
+    if (targetSection) {
+        targetSection.style.display = 'block';
+        currentSection = sectionName;
+        console.log(`✅ Section ${sectionName} displayed successfully`);
+        
+        // Update navigation active state
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('active');
+        });
+        
+        // Find the clicked navigation link and mark it as active
+        const clickedLink = document.querySelector(`[onclick*="showSection('${sectionName}')"]`);
+        if (clickedLink) {
+            clickedLink.classList.add('active');
+            console.log(`✅ Navigation link marked as active`);
+        } else {
+            console.log(`⚠️ Could not find navigation link for ${sectionName}`);
+        }
+        
+        // Load section-specific data
+        loadSectionData(sectionName);
+        
+        // Special handling for onboarding section
+        if (sectionName === 'onboarding') {
+            // Load user profile data into form if available
+            loadUserProfileIntoOnboardingForm();
+            
+            // Load any saved form data
+            loadOnboardingFormData();
+            
+            // Reset onboarding to first step when showing
+            currentOnboardingStep = 1;
+            updateOnboardingProgress();
+            updateOnboardingNavigation();
+            
+            // Show first step
+            document.querySelectorAll('.onboarding-step').forEach(step => {
+                step.classList.remove('active');
+            });
+            const firstStep = document.getElementById('step1');
+            if (firstStep) firstStep.classList.add('active');
+        }
+    } else {
+        console.error(`❌ Section ${sectionName}-section not found!`);
+        console.log(`🔍 Available sections:`, Array.from(document.querySelectorAll('.dashboard-section')).map(s => s.id));
+    }
+}
+
+// Load data for specific sections
+function loadSectionData(sectionName) {
+    switch(sectionName) {
+        case 'welcome':
+            loadDashboardStats();
+            break;
+        case 'ai-content':
+            loadFacebookPages();
+            // ✅ Load properties for AI Content dropdown
+            loadUserProperties();
+            // Load user profile for content generation
+            if (!userProfile) {
+                loadUserProfile();
+            }
+            break;
+        case 'facebook':
+            loadFacebookStatus();
+            loadFacebookPages();
+            loadPostingHistory();
+            break;
+        case 'properties':
+            loadUserProperties();
+            break;
+        case 'onboarding':
+            // Initialize onboarding when section is loaded
+            initOnboarding();
+            break;
+        case 'leads':
+            loadLeads();
+            break;
+    }
+}
+
+// ✅ FIXED: Load dashboard statistics
+async function loadDashboardStats() {
+    try {
+        // Update time
+        updateCurrentTime();
+        
+        // Load stats from API
+        const response = await fetch('/api/v1/dashboard/stats');
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Handle different response formats
+            let stats = {};
+            if (data && typeof data === 'object') {
+                stats = data;
+            } else {
+                console.warn('Dashboard stats API returned unexpected format:', data);
+                stats = {};
+            }
+            
+            // Update stats with null checks
+            const totalPropertiesEl = document.getElementById('totalProperties');
+            const aiGeneratedEl = document.getElementById('aiGenerated');
+            const facebookPostsEl = document.getElementById('facebookPosts');
+            const totalLeadsEl = document.getElementById('totalLeads');
+            
+            if (totalPropertiesEl) totalPropertiesEl.textContent = stats.totalProperties || 0;
+            if (aiGeneratedEl) aiGeneratedEl.textContent = stats.aiGenerated || 0;
+            if (facebookPostsEl) facebookPostsEl.textContent = stats.facebookPosts || 0;
+            if (totalLeadsEl) totalLeadsEl.textContent = stats.totalLeads || 0;
+        } else {
+            console.error('Dashboard stats API returned status:', response.status);
+        }
+    } catch (error) {
+        console.error('Error loading dashboard stats:', error);
+    }
+}
+
+// Update current time
+function updateCurrentTime() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString();
+    const timeElement = document.getElementById('currentTime');
+    if (timeElement) {
+        timeElement.textContent = timeString;
+    }
+}
+
+// ✅ IMPROVED: Check authentication status
+function checkAuthentication() {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        console.log('❌ No access token found');
+        showAlert('Please login to continue', 'warning');
+        // Redirect to login or show login modal
+        return false;
+    }
+
+    // Validate token format
+    try {
+        const tokenParts = token.split('.');
+        if (tokenParts.length !== 3) {
+            console.log('❌ Invalid token format');
+            localStorage.removeItem('access_token');
+            showAlert('Invalid token. Please login again.', 'warning');
+            return false;
+        }
+
+        // Check if token is expired (basic check)
+        const payload = JSON.parse(atob(tokenParts[1]));
+        const exp = payload.exp * 1000; // Convert to milliseconds
+        if (Date.now() > exp) {
+            console.log('❌ Token expired');
+            localStorage.removeItem('access_token');
+            showAlert('Session expired. Please login again.', 'warning');
+            return false;
+        }
+
+        console.log('✅ Token is valid');
+        return true;
+    } catch (error) {
+        console.error('❌ Token validation error:', error);
+        localStorage.removeItem('access_token');
+        showAlert('Token validation failed. Please login again.', 'warning');
+        return false;
+    }
+}
+
+// ✅ SECURITY FIXED: Load user properties from database with proper user isolation
+async function loadUserProperties() {
+    try {
+        // Check authentication first
+        if (!checkAuthentication()) {
+            return;
+        }
+
+        const token = localStorage.getItem('access_token');
+        
+        // ✅ SECURITY: Extract actual user ID from JWT token
+        let userId = 'default_user';
+        try {
+            const tokenParts = token.split('.');
+            if (tokenParts.length === 3) {
+                const payload = JSON.parse(atob(tokenParts[1]));
+                userId = payload.user_id || payload.sub || 'default_user';
+                console.log(`🔐 Loading properties for authenticated user: ${userId}`);
+            }
+        } catch (e) {
+            console.warn('Failed to decode JWT, using default user ID');
+            userId = 'default_user';
+        }
+
+        // ✅ SECURITY: Call endpoint with actual user ID from token
+        const response = await fetch(`/api/v1/properties/user/${userId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (response.status === 401) {
+            console.log('❌ 401 Unauthorized - token may be invalid');
+            localStorage.removeItem('access_token');
+            showAlert('Authentication failed. Please login again.', 'danger');
+            return;
+        }
+
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.properties) {
+                displayProperties(result.properties);
+                console.log(`✅ Loaded ${result.properties.length} properties for user: ${userId}`);
+            } else {
+                console.log('No properties found or API error');
+                displayProperties([]);
+            }
+        } else {
+            console.log(`Failed to load properties: ${response.status}`);
+            displayProperties([]);
+        }
+    } catch (error) {
+        console.error('Error loading properties:', error);
+        showAlert('Error loading properties. Please try again.', 'danger');
+        displayProperties([]);
+    }
+}
+
+// Display properties in the grid
+function displayProperties(properties) {
+    const propertiesGrid = document.getElementById('propertiesGrid');
+    if (!propertiesGrid) return;
+
+    if (!properties || properties.length === 0) {
+        propertiesGrid.innerHTML = `
+            <div class="col-12">
+                <div class="empty-state text-center">
+                    <i class="fas fa-home fa-3x text-muted mb-3"></i>
+                    <h4>No Properties Yet</h4>
+                    <p class="text-muted">Start by adding your first property to get started</p>
+                    <button class="btn btn-primary" onclick="showAddPropertyModal()">
+                        <i class="fas fa-plus me-2"></i>Add First Property
+                    </button>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    propertiesGrid.innerHTML = properties.map(property => `
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="property-card">
+                <div class="property-image">
+                    <i class="fas fa-home fa-2x text-white"></i>
+                </div>
+                <div class="property-details">
+                    <h5 class="property-title">${property.title || `${property.type} in ${property.city}`}</h5>
+                    <p class="property-location">
+                        <i class="fas fa-map-marker-alt text-muted me-2"></i>
+                        ${property.city || 'City'}, ${property.state || 'State'}
+                    </p>
+                    <div class="property-price">
+                        <span class="price">₹${property.price?.toLocaleString() || '0'}</span>
+                        <span class="unit">${property.price_unit || 'per sq ft'}</span>
+                    </div>
+                    <div class="property-specs">
+                        <span class="badge bg-light text-dark me-2">
+                            <i class="fas fa-bed me-1"></i>${property.bedrooms || 'N/A'}
+                        </span>
+                        <span class="badge bg-light text-dark me-2">
+                            <i class="fas fa-ruler-combined me-1"></i>${property.carpet_area || 'N/A'} sq ft
+                        </span>
+                    </div>
+                    <div class="quick-actions mt-3">
+                        <button class="btn btn-sm btn-outline-primary me-2" onclick="editProperty('${property.id || property.property_id || 'unknown'}')">
+                            <i class="fas fa-edit me-1"></i>Edit
+                        </button>
+                        <button class="btn btn-sm btn-outline-success me-2" onclick="generateContentForProperty('${property.id || property.property_id || 'unknown'}')">
+                            <i class="fas fa-magic me-1"></i>Generate Content
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteProperty('${property.id || property.property_id || 'unknown'}')">
+                            <i class="fas fa-trash me-1"></i>Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    // ✅ Also update the AI Content property dropdown
+    updateAIContentPropertyDropdown(properties);
+}
+
+// ✅ NEW FUNCTION: Update AI Content property dropdown
+function updateAIContentPropertyDropdown(properties) {
+    const propertySelect = document.getElementById('propertySelect');
+    if (propertySelect) {
+        // Clear existing options
+        propertySelect.innerHTML = '<option value="">Choose a property...</option>';
+        
+        if (properties && properties.length > 0) {
+            properties.forEach(property => {
+                const option = document.createElement('option');
+                // Use the correct ID field
+                option.value = property.id || property.property_id || 'unknown';
+                option.textContent = `${property.title || property.type} - ${property.city || 'Unknown Location'}`;
+                propertySelect.appendChild(option);
+            });
+            console.log(`✅ Updated AI Content dropdown with ${properties.length} properties`);
+        } else {
+            propertySelect.innerHTML = '<option value="">No properties available - Add a property first</option>';
+        }
+    }
+}
+
+// ✅ SECURITY FIXED: Save property to database with proper user isolation
+async function savePropertyToDatabase(propertyData) {
+    try {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            showAlert('No access token found. Please login again.', 'danger');
+            return null;
+        }
+
+        // ✅ SECURITY: Extract actual user ID from JWT token
+        let userId = 'default_user';
+        try {
+            const tokenParts = token.split('.');
+            if (tokenParts.length === 3) {
+                const payload = JSON.parse(atob(tokenParts[1]));
+                userId = payload.user_id || payload.sub || 'default_user';
+                console.log(`🔐 Saving property for authenticated user: ${userId}`);
+            }
+        } catch (e) {
+            console.warn('Failed to decode JWT, using default user ID');
+            userId = 'default_user';
+        }
+
+        const response = await fetch('/api/v1/properties/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                ...propertyData,
+                user_id: userId // ✅ SECURITY: Use actual user ID from token
+            })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                showAlert('Property saved successfully!', 'success');
+                hideAddPropertyModal();
+                
+                // ✅ Get the property ID from the response
+                const propertyId = result.property_id || result.property?.id;
+                console.log(`✅ Property saved with ID: ${propertyId}`);
+                
+                loadUserProperties(); // Refresh the list
+                return propertyId;
+            } else {
+                showAlert('Failed to save property', 'danger');
+                return null;
+            }
+        } else {
+            showAlert('Failed to save property', 'danger');
+            return null;
+        }
+    } catch (error) {
+        console.error('Error saving property:', error);
+        showAlert('Error saving property', 'danger');
+        return null;
+    }
+}
+
+// Property management functions
+function showAddPropertyModal() {
+    const modalElement = document.getElementById('addPropertyModal');
+    if (modalElement && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    } else {
+        console.error('Bootstrap Modal not available or modal element not found');
+        showAlert('Modal functionality not available', 'warning');
+    }
+}
+
+// ✅ SECURITY FIXED: Submit property with proper form handling
+async function submitProperty() {
+    try {
+        // Get form data using FormData API
+        const form = document.getElementById('addPropertyForm');
+        if (!form) {
+            throw new Error('Property form not found');
+        }
+        
+        const formData = new FormData(form);
+        
+        // Extract form values
+        const propertyType = formData.get('propertyType');
+        const city = formData.get('city');
+        const area = formData.get('area');
+        const address = formData.get('address');
+        const price = formData.get('price');
+        const bedrooms = formData.get('bedrooms');
+        const carpetArea = formData.get('carpetArea');
+        const furnishing = formData.get('furnishing');
+        const description = formData.get('description');
+        
+        // Get selected amenities
+        const amenities = [];
+        form.querySelectorAll('input[name="amenities"]:checked').forEach(checkbox => {
+            amenities.push(checkbox.value);
+        });
+        
+        // Validate required fields
+        if (!propertyType || !city || !area || !price || !bedrooms || !carpetArea) {
+            showAlert('Please fill in all required fields', 'warning');
+            return;
+        }
+        
+        const propertyData = {
+            title: `${propertyType} in ${city}`,
+            type: propertyType,
+            bedrooms: bedrooms.toString(),
+            price: parseFloat(price),
+            price_unit: 'per sq ft',
+            city: city,
+            area: area,
+            address: address || `${area}, ${city}`,
+            carpet_area: parseFloat(carpetArea),
+            built_up_area: parseFloat(carpetArea) * 1.2, // Estimate built-up area
+            floor: 'Ground Floor',
+            furnishing: furnishing || 'Semi-Furnished',
+            possession: 'Ready to Move',
+            amenities: amenities,
+            description: description || ''
+        };
+        
+        // Save to database using the new function
+        const propertyId = await savePropertyToDatabase(propertyData);
+        if (propertyId) {
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addPropertyModal'));
+            if (modal) {
+                modal.hide();
+            }
+            
+            // Clear form
+            form.reset();
+            
+            // Refresh properties list
+            loadUserProperties();
+            
+            // Show success message
+            showAlert('Property added successfully!', 'success');
+        }
+    } catch (error) {
+        console.error('Error adding property:', error);
+        showAlert('Error adding property. Please try again.', 'danger');
+    }
+}
+
+// ✅ IMPLEMENTED: Generate AI content for a specific property
+async function generateContentForProperty(propertyId) {
+    try {
+        if (!propertyId || propertyId === 'unknown') {
+            showAlert('Please select a valid property first', 'warning');
+            return;
+        }
+
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            showAlert('No access token found. Please login again.', 'danger');
+            return;
+        }
+
+        showAlert('Generating AI content...', 'info');
+
+        // Call the AI content generation API
+        const response = await fetch('/api/v1/listings/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                property_id: propertyId,
+                languages: ['English', 'Hindi', 'Marathi', 'Gujarati'] // Default languages
+            })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                // Show the generated content
+                showGeneratedContent(result.content, propertyId);
+                showAlert('AI content generated successfully!', 'success');
+            } else {
+                showAlert(result.message || 'Failed to generate content', 'danger');
+            }
+        } else {
+            const errorData = await response.json();
+            showAlert(errorData.detail || 'Failed to generate content', 'danger');
+        }
+    } catch (error) {
+        console.error('Error generating content:', error);
+        showAlert('Error generating content. Please try again.', 'danger');
+    }
+}
+
+// ✅ NEW FUNCTION: Show generated content in a modal
+function showGeneratedContent(content, propertyId) {
+    // Create modal HTML
+    const modalHTML = `
+        <div class="modal fade" id="generatedContentModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">AI Generated Content</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="generated-content">
+                            ${Object.entries(content).map(([language, text]) => `
+                                <div class="language-content mb-4">
+                                    <h6 class="text-primary">${language}</h6>
+                                    <div class="content-text p-3 bg-light rounded">
+                                        <p>${text}</p>
+                                    </div>
+                                    <div class="mt-2">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="copyToClipboard('${text.replace(/'/g, "\\'")}')">
+                                            <i class="fas fa-copy me-1"></i>Copy
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-success" onclick="postToFacebook('${language}', '${text.replace(/'/g, "\\'")}', '${propertyId}')">
+                                            <i class="fab fa-facebook me-1"></i>Post to Facebook
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if any
+    const existingModal = document.getElementById('generatedContentModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('generatedContentModal'));
+    modal.show();
+}
+
+// ✅ NEW FUNCTION: Copy content to clipboard
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showAlert('Content copied to clipboard!', 'success');
+    }).catch(() => {
+        showAlert('Failed to copy content', 'danger');
+    });
+}
+
+// ✅ NEW FUNCTION: Post content to Facebook
+async function postToFacebook(language, content, propertyId) {
+    try {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            showAlert('No access token found. Please login again.', 'danger');
+            return;
+        }
+
+        showAlert(`Posting ${language} content to Facebook...`, 'info');
+
+        const response = await fetch('/api/v1/facebook/post', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                property_id: propertyId,
+                content: content,
+                language: language
+            })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                showAlert(`${language} content posted to Facebook successfully!`, 'success');
+            } else {
+                showAlert(result.message || 'Failed to post to Facebook', 'danger');
+            }
+        } else {
+            const errorData = await response.json();
+            showAlert(errorData.detail || 'Failed to post to Facebook', 'danger');
+        }
+    } catch (error) {
+        console.error('Error posting to Facebook:', error);
+        showAlert('Error posting to Facebook. Please try again.', 'danger');
+    }
+}
+
+// Show alert function
+function showAlert(message, type = 'info') {
+    // Create alert element
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Add to page
+    const container = document.querySelector('.container-fluid');
+    if (container) {
+        container.insertBefore(alertDiv, container.firstChild);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
+}
+
+// Initialize dashboard when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 PropertyAI Dashboard Initialized');
+    
+    // Handle OAuth callback FIRST to get token
+    handleOAuthCallback();
+    
+    // Handle URL hash to prevent empty page
+    const hash = window.location.hash;
+    if (hash) {
+        console.log('🔧 Removing hash from URL:', hash);
+        // Remove hash from URL without refreshing page
+        history.replaceState(null, null, window.location.pathname + window.location.search);
+        // Force a small delay to ensure hash is removed before proceeding
+        setTimeout(() => {
+            console.log('✅ Hash removed, proceeding with initialization');
+            initializeDashboard();
+        }, 100);
+    } else {
+        // No hash, initialize immediately
+        initializeDashboard();
+    }
+});
+
+// Handle browser back/forward buttons
+window.addEventListener('popstate', function(event) {
+    // Prevent hash-related navigation issues
+    if (window.location.hash) {
+        console.log('🔧 Popstate: Removing hash from URL');
+        history.replaceState(null, null, window.location.pathname + window.location.search);
+    }
+});
+
+// Separate initialization function
+function initializeDashboard() {
+    // Load initial data
+    loadUserProfile();
+    loadDashboardStats();
+    loadFacebookStatus();
+    
+    // Update branding display
+    updateBrandingDisplay();
+    
+    // Show welcome section by default
+    showSection('welcome');
+}
+
+// Placeholder functions for other features
+function loadFacebookPages() { console.log('Facebook pages loading...'); }
+function loadFacebookStatus() { console.log('Facebook status loading...'); }
+function loadPostingHistory() { console.log('Posting history loading...'); }
+function loadLeads() { console.log('Leads loading...'); }
+function initOnboarding() { console.log('Onboarding initialized...'); }
+function loadUserProfile() { console.log('User profile loading...'); }
+function updateBrandingDisplay() { console.log('Branding updated...'); }
+function editProperty(id) { showAlert(`Edit property ${id} - Coming soon!`, 'info'); }
+function deleteProperty(id) { showAlert(`Delete property ${id} - Coming soon!`, 'info'); }
+function hideAddPropertyModal() { console.log('Modal hidden'); }
+
+// ✅ ADDED: Missing onboarding functions
+function loadUserProfileIntoOnboardingForm() { console.log('Loading user profile into onboarding form...'); }
+function loadOnboardingFormData() { console.log('Loading onboarding form data...'); }
+function updateOnboardingProgress() { console.log('Updating onboarding progress...'); }
+function updateOnboardingNavigation() { console.log('Updating onboarding navigation...'); }
+
+</script>

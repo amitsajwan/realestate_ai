@@ -1,0 +1,331 @@
+<!-- Onboarding Section Component -->
+<div id="onboarding-section" class="dashboard-section" style="display: none;">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="glass-card p-4">
+                <h2 class="text-dark mb-4">
+                    <i class="fas fa-user-plus text-primary me-3"></i>
+                    Agent Onboarding
+                </h2>
+                
+                <!-- Onboarding Progress -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar" id="onboardingProgress" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <div class="d-flex justify-content-between mt-2">
+                            <small class="text-muted">Step 1 of 7</small>
+                            <small class="text-muted" id="onboardingStepText">Personal Information</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Onboarding Form -->
+                <form id="onboardingForm">
+                    <!-- Step 1: Personal Information -->
+                    <div class="onboarding-step active" id="step1">
+                        <h4 class="mb-3"><i class="fas fa-user me-2"></i>Personal Information</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Full Name *</label>
+                                <input type="text" class="form-control" name="name" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email Address *</label>
+                                <input type="email" class="form-control" name="email" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Phone Number *</label>
+                                <input type="tel" class="form-control" name="phone" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">WhatsApp Number</label>
+                                <input type="tel" class="form-control" name="whatsapp">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Company Details -->
+                    <div class="onboarding-step" id="step2">
+                        <h4 class="mb-3"><i class="fas fa-building me-2"></i>Company Details</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Company Name *</label>
+                                <input type="text" class="form-control" name="company" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Years of Experience *</label>
+                                <select class="form-control" name="experience_years" required>
+                                    <option value="">Select experience</option>
+                                    <option value="0">Just starting</option>
+                                    <option value="1">1 year</option>
+                                    <option value="2">2 years</option>
+                                    <option value="3">3 years</option>
+                                    <option value="4">4 years</option>
+                                    <option value="5">5+ years</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Specialization Areas *</label>
+                                <input type="text" class="form-control" name="specialization_areas" placeholder="e.g., Mumbai, Bandra, Powai" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Languages Spoken *</label>
+                                <div class="language-checkboxes">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="languages[]" value="English" id="lang-en">
+                                        <label class="form-check-label" for="lang-en">English</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="languages[]" value="Hindi" id="lang-hi">
+                                        <label class="form-check-label" for="lang-hi">Hindi</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="languages[]" value="Marathi" id="lang-mr">
+                                        <label class="form-check-label" for="lang-mr">Marathi</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="languages[]" value="Gujarati" id="lang-gu">
+                                        <label class="form-check-label" for="lang-gu">Gujarati</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: AI Branding -->
+                    <div class="onboarding-step" id="step3">
+                        <h4 class="mb-3"><i class="fas fa-magic me-2"></i>AI Branding Generation</h4>
+                        <div class="alert alert-info">
+                            <i class="fas fa-robot me-2"></i>
+                            Our AI will generate professional branding based on your profile.
+                        </div>
+                        <button type="button" class="btn btn-primary" id="generateBranding">
+                            <i class="fas fa-magic me-2"></i>Generate AI Branding
+                        </button>
+                        
+                        <div id="brandingResults" style="display: none;" class="mt-3">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Professional Tagline</label>
+                                    <input type="text" class="form-control" name="tagline" id="aiTagline">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Social Media Bio</label>
+                                    <input type="text" class="form-control" name="social_media_bio" id="aiSocialBio">
+                                </div>
+                                <div class="col-12 mb-3">
+                                    <label class="form-label">About Section</label>
+                                    <textarea class="form-control" name="about" id="aiAbout" rows="4"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Facebook Integration -->
+                    <div class="onboarding-step" id="step4">
+                        <h4 class="mb-3"><i class="fab fa-facebook me-2"></i>Facebook Integration Setup</h4>
+                        
+                        <!-- Clear Instructions -->
+                        <div class="alert alert-info mb-4">
+                            <h6><i class="fas fa-info-circle me-2"></i>What This Does:</h6>
+                            <p class="mb-2">Connect your Facebook business page to automatically post property listings and AI-generated content.</p>
+                            <ul class="mb-0">
+                                <li>✅ Post properties to your Facebook page automatically</li>
+                                <li>✅ Share AI-generated content in multiple languages</li>
+                                <li>✅ Engage with potential clients on social media</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100 border-primary">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-rocket fa-2x text-primary mb-2"></i>
+                                        <h6 class="text-primary">🚀 Quick Start (Recommended)</h6>
+                                        <p class="small text-muted">Use our pre-configured Facebook app - No technical setup required!</p>
+                                        <div class="mb-2">
+                                            <small class="text-success">
+                                                <i class="fas fa-check me-1"></i>Instant setup<br>
+                                                <i class="fas fa-check me-1"></i>No app creation needed<br>
+                                                <i class="fas fa-check me-1"></i>Ready in 2 minutes
+                                            </small>
+                                        </div>
+                                        <button type="button" class="btn btn-primary" onclick="setupFacebookQuick()">
+                                            <i class="fas fa-play me-2"></i>Start Quick Setup
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-cog fa-2x text-secondary mb-2"></i>
+                                        <h6>⚙️ Custom Setup</h6>
+                                        <p class="small text-muted">Use your own Facebook app for full control</p>
+                                        <div class="mb-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-info me-1"></i>Requires Facebook Developer account<br>
+                                                <i class="fas fa-info me-1"></i>Full data control<br>
+                                                <i class="fas fa-info me-1"></i>Higher posting limits
+                                            </small>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-secondary" onclick="setupFacebookCustom()">
+                                            <i class="fas fa-cog me-2"></i>Use My Own App
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-clock fa-2x text-muted mb-2"></i>
+                                        <h6>⏰ Skip for Now</h6>
+                                        <p class="small text-muted">You can set up Facebook integration later</p>
+                                        <div class="mb-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-info me-1"></i>Complete onboarding quickly<br>
+                                                <i class="fas fa-info me-1"></i>Setup Facebook anytime later<br>
+                                                <i class="fas fa-info me-1"></i>Access all other features
+                                            </small>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-muted" onclick="skipFacebookSetup()">
+                                            <i class="fas fa-clock me-2"></i>Skip for Now
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Facebook Setup Forms -->
+                        <div id="facebookQuickSetup" style="display: none;" class="mt-3">
+                            <div class="alert alert-success">
+                                <h6><i class="fas fa-rocket me-2"></i>Quick Setup - Step by Step:</h6>
+                                <ol class="mb-3">
+                                    <li><strong>Click "Connect Facebook Account" below</strong></li>
+                                    <li>You'll be redirected to Facebook to authorize our app</li>
+                                    <li>Select the Facebook page you want to post to</li>
+                                    <li>Grant permissions for posting and page management</li>
+                                    <li>You'll be redirected back here automatically</li>
+                                </ol>
+                                <p class="mb-0"><strong>Note:</strong> This process takes about 2 minutes and requires you to be logged into Facebook.</p>
+                            </div>
+                            
+                            <div class="text-center">
+                                <button type="button" class="btn btn-primary btn-lg" id="connectFacebookBtn">
+                                    <i class="fab fa-facebook me-2"></i>Connect Facebook Account
+                                </button>
+                                <p class="text-muted mt-2">Click to start Facebook authorization process</p>
+                            </div>
+                        </div>
+
+                        <div id="facebookCustomSetup" style="display: none;" class="mt-3">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Facebook App ID</label>
+                                    <input type="text" class="form-control" name="facebook_app_id" placeholder="123456789012345">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Facebook App Secret</label>
+                                    <input type="password" class="form-control" name="facebook_app_secret" placeholder="your_app_secret">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Facebook Page ID</label>
+                                    <input type="text" class="form-control" name="facebook_page_id" placeholder="123456789012345">
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-primary" onclick="testFacebookConfig()">
+                                <i class="fas fa-test-tube me-2"></i>Test Configuration
+                            </button>
+                        </div>
+
+                        <div id="facebookStatus" style="display: none;" class="mt-3">
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle me-2"></i>
+                                Facebook integration configured successfully!
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: RERA Compliance -->
+                    <div class="onboarding-step" id="step5">
+                        <h4 class="mb-3"><i class="fas fa-certificate me-2"></i>Legal Compliance & RERA</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">RERA Registration Number</label>
+                                <input type="text" class="form-control" name="rera_number" placeholder="Enter RERA number">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">State/UT</label>
+                                <select class="form-control" name="rera_state">
+                                    <option value="">Select State/UT</option>
+                                    <option value="maharashtra">Maharashtra</option>
+                                    <option value="delhi">Delhi</option>
+                                    <option value="karnataka">Karnataka</option>
+                                    <option value="gujarat">Gujarat</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Business Type</label>
+                                <select class="form-control" name="business_type" required>
+                                    <option value="">Select Business Type</option>
+                                    <option value="individual_agent">Individual Agent</option>
+                                    <option value="real_estate_firm">Real Estate Firm</option>
+                                    <option value="property_dealer">Property Dealer</option>
+                                    <option value="builder_developer">Builder/Developer</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 6: Profile Setup -->
+                    <div class="onboarding-step" id="step6">
+                        <h4 class="mb-3"><i class="fas fa-camera me-2"></i>Profile Setup</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Profile Photo URL</label>
+                                <input type="url" class="form-control" name="profile_photo_url" placeholder="https://example.com/photo.jpg">
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label class="form-label">Bio/About Section</label>
+                                <textarea class="form-control" name="bio" rows="4" placeholder="Tell your story..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 7: Completion -->
+                    <div class="onboarding-step" id="step7">
+                        <h4 class="mb-3"><i class="fas fa-check-circle me-2"></i>Complete Setup</h4>
+                        <div class="alert alert-success">
+                            <i class="fas fa-info-circle me-2"></i>
+                            You're almost done! Review your information and complete the setup.
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="termsAgreement" required>
+                            <label class="form-check-label" for="termsAgreement">
+                                I agree to the Terms of Service and Privacy Policy
+                            </label>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-check me-2"></i>Complete Onboarding
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Navigation -->
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-secondary" id="prevOnboardingBtn" disabled>
+                        <i class="fas fa-arrow-left me-2"></i>Previous
+                    </button>
+                    <button type="button" class="btn btn-primary" id="nextOnboardingBtn">
+                        Next<i class="fas fa-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -222,3 +222,6 @@ dmypy.json
 
 # profiling data
 .prof
+
+# Expo files
+.expo/
