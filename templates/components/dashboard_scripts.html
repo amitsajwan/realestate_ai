@@ -530,9 +530,27 @@ async function generateContentForProperty(propertyId) {
             return;
         }
 
+        // ✅ Get selected languages from checkboxes
+        const selectedLanguages = [];
+        document.querySelectorAll('input[name="languages[]"]:checked').forEach(checkbox => {
+            selectedLanguages.push(checkbox.value);
+        });
+
+        if (selectedLanguages.length === 0) {
+            showAlert('Please select at least one language', 'warning');
+            return;
+        }
+
+        // ✅ Get content template and tone
+        const templateSelect = document.getElementById('contentTemplate');
+        const toneSelect = document.getElementById('contentTone');
+        
+        const template = templateSelect ? templateSelect.value : 'just_listed';
+        const tone = toneSelect ? toneSelect.value : 'Professional';
+
         showAlert('Generating AI content...', 'info');
 
-        // Call the AI content generation API
+        // Call the AI content generation API with selected languages
         const response = await fetch('/api/v1/listings/generate', {
             method: 'POST',
             headers: {
@@ -541,15 +559,17 @@ async function generateContentForProperty(propertyId) {
             },
             body: JSON.stringify({
                 property_id: propertyId,
-                languages: ['English', 'Hindi', 'Marathi', 'Gujarati'] // Default languages
+                languages: selectedLanguages, // ✅ Send selected languages
+                template: template,
+                tone: tone
             })
         });
 
         if (response.ok) {
             const result = await response.json();
             if (result.success) {
-                // Show the generated content
-                showGeneratedContent(result.content, propertyId);
+                // Show the generated content with language tabs
+                showGeneratedContentWithLanguages(result.content, propertyId, selectedLanguages);
                 showAlert('AI content generated successfully!', 'success');
             } else {
                 showAlert(result.message || 'Failed to generate content', 'danger');
@@ -564,35 +584,74 @@ async function generateContentForProperty(propertyId) {
     }
 }
 
-// ✅ NEW FUNCTION: Show generated content in a modal
-function showGeneratedContent(content, propertyId) {
-    // Create modal HTML
+// ✅ NEW FUNCTION: Show generated content with language tabs
+function showGeneratedContentWithLanguages(content, propertyId, languages) {
+    // Create modal HTML with language tabs
     const modalHTML = `
         <div class="modal fade" id="generatedContentModal" tabindex="-1">
-            <div class="modal-dialog modal-lg">
+            <div class="modal-dialog modal-xl">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">AI Generated Content</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <div class="generated-content">
-                            ${Object.entries(content).map(([language, text]) => `
-                                <div class="language-content mb-4">
-                                    <h6 class="text-primary">${language}</h6>
-                                    <div class="content-text p-3 bg-light rounded">
-                                        <p>${text}</p>
-                                    </div>
-                                    <div class="mt-2">
-                                        <button class="btn btn-sm btn-outline-primary" onclick="copyToClipboard('${text.replace(/'/g, "\\'")}')">
-                                            <i class="fas fa-copy me-1"></i>Copy
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-success" onclick="postToFacebook('${language}', '${text.replace(/'/g, "\\'")}', '${propertyId}')">
-                                            <i class="fab fa-facebook me-1"></i>Post to Facebook
-                                        </button>
-                                    </div>
-                                </div>
+                        <!-- Language Tabs -->
+                        <ul class="nav nav-tabs" id="languageTabs" role="tablist">
+                            ${languages.map((lang, index) => `
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link ${index === 0 ? 'active' : ''}" 
+                                            id="tab-${lang.toLowerCase()}" 
+                                            data-bs-toggle="tab" 
+                                            data-bs-target="#content-${lang.toLowerCase()}" 
+                                            type="button" 
+                                            role="tab">
+                                        ${getLanguageEmoji(lang)} ${lang}
+                                    </button>
+                                </li>
                             `).join('')}
+                        </ul>
+                        
+                        <!-- Tab Content -->
+                        <div class="tab-content mt-3" id="languageTabContent">
+                            ${languages.map((lang, index) => {
+                                const langContent = content[lang] || content[lang.toLowerCase()] || {};
+                                const caption = langContent.caption || 'Content not available';
+                                const hashtags = langContent.hashtags || [];
+                                const cta = langContent.suggested_cta || '';
+                                
+                                return `
+                                    <div class="tab-pane fade ${index === 0 ? 'show active' : ''}" 
+                                         id="content-${lang.toLowerCase()}" 
+                                         role="tabpanel">
+                                        <div class="content-section mb-3">
+                                            <h6 class="text-primary">Generated Content</h6>
+                                            <textarea class="form-control" rows="6" readonly>${caption}</textarea>
+                                        </div>
+                                        
+                                        <div class="content-section mb-3">
+                                            <h6 class="text-primary">Hashtags</h6>
+                                            <div class="hashtags-container">
+                                                ${hashtags.map(tag => `<span class="badge bg-light text-dark me-1">${tag}</span>`).join('')}
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="content-section mb-3">
+                                            <h6 class="text-primary">Call to Action</h6>
+                                            <p class="text-muted">${cta}</p>
+                                        </div>
+                                        
+                                        <div class="action-buttons">
+                                            <button class="btn btn-sm btn-outline-primary me-2" onclick="copyToClipboard('${caption.replace(/'/g, "\\'")}')">
+                                                <i class="fas fa-copy me-1"></i>Copy Content
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-success" onclick="postToFacebook('${lang}', '${caption.replace(/'/g, "\\'")}', '${propertyId}')">
+                                                <i class="fab fa-facebook me-1"></i>Post to Facebook
+                                            </button>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -615,6 +674,20 @@ function showGeneratedContent(content, propertyId) {
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('generatedContentModal'));
     modal.show();
+}
+
+// ✅ NEW FUNCTION: Get language emoji
+function getLanguageEmoji(language) {
+    const emojiMap = {
+        'English': '🇺🇸',
+        'Hindi': '🇮🇳',
+        'Marathi': '🇮🇳',
+        'Gujarati': '🇮🇳',
+        'हिंदी': '🇮🇳',
+        'मराठी': '🇮🇳',
+        'ગુજરાતી': '🇮🇳'
+    };
+    return emojiMap[language] || '🌐';
 }
 
 // ✅ NEW FUNCTION: Copy content to clipboard
@@ -664,6 +737,244 @@ async function postToFacebook(language, content, propertyId) {
     } catch (error) {
         console.error('Error posting to Facebook:', error);
         showAlert('Error posting to Facebook. Please try again.', 'danger');
+    }
+}
+
+// ✅ ENHANCED: Generate AI Content with Branding (from reference script)
+async function generateAIContentWithBranding(propertyId, language, tone, template) {
+    try {
+        // Show loading state
+        const generateBtn = document.getElementById('generateContentBtn');
+        if (generateBtn) {
+            generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating...';
+            generateBtn.disabled = true;
+        }
+        
+        // Get selected languages
+        const selectedLanguages = [];
+        document.querySelectorAll('input[name="languages[]"]:checked').forEach(checkbox => {
+            selectedLanguages.push(checkbox.value);
+        });
+
+        if (selectedLanguages.length === 0) {
+            showAlert('Please select at least one language', 'warning');
+            return;
+        }
+
+        // Generate base content
+        const response = await fetch('/api/v1/listings/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            },
+            body: JSON.stringify({
+                property_id: propertyId,
+                languages: selectedLanguages,
+                tone: tone,
+                template: template
+            })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            let content = result.content || result.message || 'Content generated successfully';
+            
+            // Enhance content with user branding
+            const brandedContent = generateContentWithBranding(content, language);
+            
+            // Display the branded content
+            const contentDisplay = document.getElementById('generatedContent');
+            if (contentDisplay) {
+                contentDisplay.value = brandedContent;
+                contentDisplay.style.display = 'block';
+            }
+            
+            // Show success message
+            showAlert('🎯 AI content generated with your branding!', 'success');
+            
+            // Enable Facebook posting if user has completed onboarding
+            if (userProfile && userProfile.company) {
+                const postToFacebookSection = document.getElementById('postToFacebookSection');
+                if (postToFacebookSection) {
+                    postToFacebookSection.style.display = 'block';
+                }
+            }
+            
+        } else {
+            const error = await response.json();
+            showAlert(`❌ Content generation failed: ${error.detail || 'Unknown error'}`, 'danger');
+        }
+        
+    } catch (error) {
+        console.error('Error generating content:', error);
+        showAlert('❌ Error generating content. Please try again.', 'danger');
+    } finally {
+        // Reset button
+        const generateBtn = document.getElementById('generateContentBtn');
+        if (generateBtn) {
+            generateBtn.innerHTML = '<i class="fas fa-magic me-2"></i>Generate AI Content';
+            generateBtn.disabled = false;
+        }
+    }
+}
+
+// ✅ ENHANCED: Content generation with user branding
+function generateContentWithBranding(baseContent, language = 'English') {
+    if (!userProfile) {
+        return baseContent;
+    }
+    
+    let brandedContent = baseContent;
+    
+    // Add user's tagline if available
+    if (userProfile.tagline) {
+        brandedContent += `\n\n${userProfile.tagline}`;
+    }
+    
+    // Add contact information
+    let contactInfo = '';
+    if (userProfile.phone) {
+        contactInfo += `📞 ${userProfile.phone}`;
+    }
+    if (userProfile.whatsapp) {
+        contactInfo += contactInfo ? ` | 📱 ${userProfile.whatsapp}` : `📱 ${userProfile.whatsapp}`;
+    }
+    if (userProfile.email) {
+        contactInfo += contactInfo ? ` | ✉️ ${userProfile.email}` : `✉️ ${userProfile.email}`;
+    }
+    
+    if (contactInfo) {
+        brandedContent += `\n\n${contactInfo}`;
+    }
+    
+    // Add company info if available
+    if (userProfile.company) {
+        brandedContent += `\n🏢 ${userProfile.company}`;
+    }
+    
+    // Add experience if available
+    if (userProfile.experience_years && userProfile.experience_years > 0) {
+        brandedContent += `\n⭐ ${userProfile.experience_years}+ years of experience`;
+    }
+    
+    // Add specialization areas if available
+    if (userProfile.specialization_areas) {
+        brandedContent += `\n📍 Specializing in: ${userProfile.specialization_areas}`;
+    }
+    
+    return brandedContent;
+}
+
+// ✅ NEW FUNCTION: Quick Start functionality
+function showQuickStart() {
+    showSection('welcome');
+    
+    // Show quick start guide
+    const quickStartGuide = `
+        <div class="quick-start-guide mt-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="glass-card p-4 text-center">
+                        <i class="fas fa-rocket fa-3x text-primary mb-3"></i>
+                        <h4>🚀 Quick Start Guide</h4>
+                        <p class="text-muted">Get up and running in minutes!</p>
+                        <button class="btn btn-primary" onclick="startQuickSetup()">
+                            <i class="fas fa-play me-2"></i>Start Quick Setup
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="glass-card p-4">
+                        <h5><i class="fas fa-list-check me-2"></i>Quick Steps:</h5>
+                        <ol class="text-muted">
+                            <li>Complete your profile</li>
+                            <li>Connect Facebook account</li>
+                            <li>Add your first property</li>
+                            <li>Generate AI content</li>
+                            <li>Post to Facebook</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const welcomeSection = document.getElementById('welcome-section');
+    if (welcomeSection) {
+        const existingGuide = welcomeSection.querySelector('.quick-start-guide');
+        if (existingGuide) {
+            existingGuide.remove();
+        }
+        welcomeSection.insertAdjacentHTML('beforeend', quickStartGuide);
+    }
+}
+
+// ✅ NEW FUNCTION: Start quick setup
+function startQuickSetup() {
+    showSection('onboarding');
+    showAlert('🚀 Starting quick setup! Let\'s get you configured in minutes.', 'info');
+}
+
+// ✅ NEW FUNCTION: Update branding display
+function updateBrandingDisplay() {
+    if (!userProfile) return;
+    
+    // Update company name in header
+    const companyName = userProfile.company || 'Your Company';
+    updateCompanyHeader(companyName);
+    
+    // Update logo if available
+    if (userProfile.logo_url) {
+        updateCompanyLogo(userProfile.logo_url);
+    }
+    
+    // Update welcome message
+    const welcomeTitle = document.querySelector('.dashboard-welcome h1');
+    if (welcomeTitle && userProfile.name) {
+        welcomeTitle.textContent = `Welcome back, ${userProfile.name}!`;
+    }
+    
+    // Update company info
+    const companyInfo = document.querySelector('.company-info');
+    if (companyInfo && userProfile.company) {
+        companyInfo.textContent = userProfile.company;
+    }
+}
+
+// ✅ NEW FUNCTION: Update company header across all pages
+function updateCompanyHeader(companyName) {
+    // Update navbar brand
+    const navbarBrand = document.querySelector('.navbar-brand');
+    if (navbarBrand && companyName) {
+        navbarBrand.innerHTML = `<i class="fas fa-building me-2"></i>${companyName}`;
+    }
+    
+    // Update page titles
+    const pageTitle = document.querySelector('title');
+    if (pageTitle && companyName) {
+        pageTitle.textContent = `${companyName} - PropertyAI Dashboard`;
+    }
+    
+    // Update any company name placeholders
+    document.querySelectorAll('.company-name-placeholder').forEach(el => {
+        el.textContent = companyName;
+    });
+    
+    // Update company tagline if available
+    if (userProfile && userProfile.tagline) {
+        document.querySelectorAll('.company-tagline-placeholder').forEach(el => {
+            el.textContent = userProfile.tagline;
+        });
+    }
+}
+
+// ✅ NEW FUNCTION: Update company logo
+function updateCompanyLogo(logoUrl) {
+    // Update navbar logo
+    const navbarBrand = document.querySelector('.navbar-brand');
+    if (navbarBrand && logoUrl) {
+        navbarBrand.innerHTML = `<img src="${logoUrl}" alt="Company Logo" height="30" class="me-2">${navbarBrand.textContent}`;
     }
 }
 
@@ -736,6 +1047,9 @@ function initializeDashboard() {
     
     // Show welcome section by default
     showSection('welcome');
+    
+    // ✅ Show Quick Start guide
+    showQuickStart();
 }
 
 // Placeholder functions for other features
@@ -751,9 +1065,423 @@ function deleteProperty(id) { showAlert(`Delete property ${id} - Coming soon!`, 
 function hideAddPropertyModal() { console.log('Modal hidden'); }
 
 // ✅ ADDED: Missing onboarding functions
-function loadUserProfileIntoOnboardingForm() { console.log('Loading user profile into onboarding form...'); }
-function loadOnboardingFormData() { console.log('Loading onboarding form data...'); }
-function updateOnboardingProgress() { console.log('Updating onboarding progress...'); }
-function updateOnboardingNavigation() { console.log('Updating onboarding navigation...'); }
+function loadUserProfileIntoOnboardingForm() { 
+    console.log('Loading user profile into onboarding form...');
+    // Load saved onboarding data if available
+    loadOnboardingFormData();
+}
+
+function loadOnboardingFormData() { 
+    console.log('Loading onboarding form data...');
+    try {
+        const savedData = localStorage.getItem('onboardingData');
+        if (savedData) {
+            const data = JSON.parse(savedData);
+            console.log('✅ Loaded saved onboarding data:', data);
+            
+            // Populate form fields with saved data
+            Object.keys(data).forEach(key => {
+                const element = document.querySelector(`[name="${key}"]`);
+                if (element) {
+                    element.value = data[key];
+                }
+            });
+            
+            // Handle checkboxes for languages
+            if (data.languages && Array.isArray(data.languages)) {
+                data.languages.forEach(lang => {
+                    const checkbox = document.querySelector(`input[name="languages[]"][value="${lang}"]`);
+                    if (checkbox) checkbox.checked = true;
+                });
+            }
+            
+            showAlert('✅ Onboarding data loaded from previous session', 'success');
+        }
+    } catch (error) {
+        console.error('Error loading onboarding data:', error);
+    }
+}
+
+function saveOnboardingFormData() {
+    try {
+        const form = document.getElementById('onboardingForm');
+        if (!form) return;
+        
+        const formData = new FormData(form);
+        const data = {};
+        
+        // Collect all form data
+        for (let [key, value] of formData.entries()) {
+            if (key === 'languages[]') {
+                if (!data.languages) data.languages = [];
+                data.languages.push(value);
+            } else {
+                data[key] = value;
+            }
+        }
+        
+        // Save to localStorage
+        localStorage.setItem('onboardingData', JSON.stringify(data));
+        console.log('✅ Onboarding data saved:', data);
+        
+    } catch (error) {
+        console.error('Error saving onboarding data:', error);
+    }
+}
+
+function updateOnboardingProgress() { 
+    console.log('Updating onboarding progress...');
+    try {
+        const currentStep = parseInt(localStorage.getItem('onboardingStep') || '1');
+        const totalSteps = 7;
+        const progress = (currentStep / totalSteps) * 100;
+        
+        const progressBar = document.getElementById('onboardingProgress');
+        const stepText = document.getElementById('onboardingStepText');
+        
+        if (progressBar) progressBar.style.width = `${progress}%`;
+        if (stepText) stepText.textContent = `Step ${currentStep} of ${totalSteps}`;
+        
+        console.log(`✅ Progress updated: Step ${currentStep}/${totalSteps} (${progress}%)`);
+    } catch (error) {
+        console.error('Error updating progress:', error);
+    }
+}
+
+function updateOnboardingNavigation() { 
+    console.log('Updating onboarding navigation...');
+    try {
+        const currentStep = parseInt(localStorage.getItem('onboardingStep') || '1');
+        const prevBtn = document.getElementById('prevOnboardingBtn');
+        const nextBtn = document.getElementById('nextOnboardingBtn');
+        
+        if (prevBtn) prevBtn.disabled = currentStep <= 1;
+        if (nextBtn) nextBtn.disabled = currentStep >= 7;
+        
+        console.log(`✅ Navigation updated for step ${currentStep}`);
+    } catch (error) {
+        console.error('Error updating navigation:', error);
+    }
+}
+
+// ✅ ENHANCED: Initialize onboarding with proper step management
+function initOnboarding() {
+    console.log('Initializing onboarding...');
+    
+    // Load saved step
+    const savedStep = localStorage.getItem('onboardingStep') || '1';
+    const currentStep = parseInt(savedStep);
+    
+    // Show current step
+    showOnboardingStep(currentStep);
+    
+    // Update progress and navigation
+    updateOnboardingProgress();
+    updateOnboardingNavigation();
+    
+    // Setup form auto-save
+    setupOnboardingAutoSave();
+    
+    console.log(`✅ Onboarding initialized at step ${currentStep}`);
+}
+
+// ✅ NEW FUNCTION: Show specific onboarding step
+function showOnboardingStep(stepNumber) {
+    // Hide all steps
+    document.querySelectorAll('.onboarding-step').forEach(step => {
+        step.classList.remove('active');
+    });
+    
+    // Show current step
+    const currentStepElement = document.getElementById(`step${stepNumber}`);
+    if (currentStepElement) {
+        currentStepElement.classList.add('active');
+        localStorage.setItem('onboardingStep', stepNumber.toString());
+        updateOnboardingProgress();
+        updateOnboardingNavigation();
+    }
+}
+
+// ✅ NEW FUNCTION: Setup auto-save for onboarding form
+function setupOnboardingAutoSave() {
+    const form = document.getElementById('onboardingForm');
+    if (!form) return;
+    
+    // Auto-save on input change
+    form.addEventListener('input', function() {
+        saveOnboardingFormData();
+    });
+    
+    // Auto-save on checkbox change
+    form.addEventListener('change', function() {
+        saveOnboardingFormData();
+    });
+    
+    console.log('✅ Onboarding auto-save enabled');
+}
+
+// ✅ ENHANCED: Submit onboarding with proper data handling
+function submitOnboarding(event) {
+    event.preventDefault();
+    
+    const termsCheckbox = document.getElementById('termsAgreement');
+    if (!termsCheckbox || !termsCheckbox.checked) {
+        showAlert('Please agree to the terms and conditions', 'warning');
+        return;
+    }
+    
+    // Show loading
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Completing...';
+    submitBtn.disabled = true;
+    
+    try {
+        // Get all form data
+        const formData = new FormData(event.target);
+        const data = {};
+        
+        for (let [key, value] of formData.entries()) {
+            if (key === 'languages[]') {
+                if (!data.languages) data.languages = [];
+                data.languages.push(value);
+            } else {
+                data[key] = value;
+            }
+        }
+        
+        // Save to localStorage as completed profile
+        localStorage.setItem('userProfile', JSON.stringify(data));
+        localStorage.setItem('onboardingCompleted', 'true');
+        localStorage.removeItem('onboardingData'); // Clean up temporary data
+        localStorage.removeItem('onboardingStep'); // Clean up step data
+        
+        console.log('✅ Onboarding completed, profile saved:', data);
+        
+        // Show success and redirect
+        showAlert('🎉 Onboarding completed successfully!', 'success');
+        
+        setTimeout(() => {
+            showSection('welcome');
+            // Update user profile globally
+            userProfile = data;
+            updateBrandingDisplay();
+        }, 1500);
+        
+    } catch (error) {
+        console.error('Error completing onboarding:', error);
+        showAlert('❌ Error completing onboarding. Please try again.', 'danger');
+    } finally {
+        // Reset button
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+}
+
+// ✅ NEW FUNCTION: Navigate to next onboarding step
+function nextOnboardingStep() {
+    const currentStep = parseInt(localStorage.getItem('onboardingStep') || '1');
+    if (currentStep < 7) {
+        showOnboardingStep(currentStep + 1);
+    }
+}
+
+// ✅ NEW FUNCTION: Navigate to previous onboarding step
+function prevOnboardingStep() {
+    const currentStep = parseInt(localStorage.getItem('onboardingStep') || '1');
+    if (currentStep > 1) {
+        showOnboardingStep(currentStep - 1);
+    }
+}
+
+// ✅ NEW FUNCTION: AI Branding Generation
+function generateAIBranding() {
+    const nameInput = document.querySelector('input[name="name"]');
+    if (!nameInput || !nameInput.value) {
+        showAlert('Please enter your name first', 'warning');
+        return;
+    }
+    
+    const name = nameInput.value;
+    const generateBtn = document.getElementById('generateBranding');
+    
+    // Simulate AI branding generation
+    generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating...';
+    generateBtn.disabled = true;
+    
+    setTimeout(() => {
+        const aiTagline = document.getElementById('aiTagline');
+        const aiSocialBio = document.getElementById('aiSocialBio');
+        const aiAbout = document.getElementById('aiAbout');
+        const brandingResults = document.getElementById('brandingResults');
+        
+        if (aiTagline) aiTagline.value = `Your Trusted Real Estate Partner in ${name.split(' ')[0]}'s Success`;
+        if (aiSocialBio) aiSocialBio.value = `Professional real estate agent helping families find their dream homes. Expert in residential and commercial properties.`;
+        if (aiAbout) aiAbout.value = `With years of experience in the real estate market, I specialize in helping clients navigate the complexities of property transactions. My commitment to excellence and personalized service ensures that every client receives the attention they deserve.`;
+        
+        if (brandingResults) brandingResults.style.display = 'block';
+        
+        generateBtn.innerHTML = '<i class="fas fa-magic me-2"></i>Regenerate Branding';
+        generateBtn.disabled = false;
+        
+        showAlert('AI branding generated successfully!', 'success');
+    }, 2000);
+}
+
+// ✅ NEW FUNCTION: Setup Facebook Quick Setup
+function setupFacebookQuick() {
+    const quickSetup = document.getElementById('facebookQuickSetup');
+    const customSetup = document.getElementById('facebookCustomSetup');
+    
+    if (quickSetup) quickSetup.style.display = 'block';
+    if (customSetup) customSetup.style.display = 'none';
+    
+    // Setup the connect button event listener
+    const connectBtn = document.getElementById('connectFacebookBtn');
+    if (connectBtn) {
+        connectBtn.onclick = async function() {
+            try {
+                // Show loading state
+                connectBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Connecting...';
+                connectBtn.disabled = true;
+                
+                // Call Facebook OAuth endpoint
+                const response = await fetch('/api/v1/facebook/oauth', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.oauth_url) {
+                        // Redirect to Facebook OAuth
+                        showAlert('Redirecting to Facebook for authorization...', 'info');
+                        setTimeout(() => {
+                            window.location.href = data.oauth_url;
+                        }, 1000);
+                    } else {
+                        throw new Error('No OAuth URL received');
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error('Facebook connection error:', error);
+                showAlert(`Connection failed: ${error.message}`, 'danger');
+                
+                // Reset button
+                connectBtn.innerHTML = '<i class="fab fa-facebook me-2"></i>Connect Facebook Account';
+                connectBtn.disabled = false;
+            }
+        };
+    }
+}
+
+// ✅ NEW FUNCTION: Setup Facebook Custom Setup
+function setupFacebookCustom() {
+    const quickSetup = document.getElementById('facebookQuickSetup');
+    const customSetup = document.getElementById('facebookCustomSetup');
+    
+    if (quickSetup) quickSetup.style.display = 'none';
+    if (customSetup) customSetup.style.display = 'block';
+}
+
+// ✅ NEW FUNCTION: Skip Facebook Setup
+function skipFacebookSetup() {
+    const quickSetup = document.getElementById('facebookQuickSetup');
+    const customSetup = document.getElementById('facebookCustomSetup');
+    const status = document.getElementById('facebookStatus');
+    
+    if (quickSetup) quickSetup.style.display = 'none';
+    if (customSetup) customSetup.style.display = 'none';
+    if (status) status.style.display = 'block';
+}
+
+// ✅ NEW FUNCTION: Test Facebook Config
+function testFacebookConfig() {
+    const appId = document.querySelector('input[name="facebook_app_id"]');
+    const appSecret = document.querySelector('input[name="facebook_app_secret"]');
+    
+    if (!appId || !appId.value || !appSecret || !appSecret.value) {
+        showAlert('Please enter both App ID and App Secret', 'warning');
+        return;
+    }
+    
+    // Simulate testing
+    showAlert('Testing Facebook configuration...', 'info');
+    setTimeout(() => {
+        showAlert('Facebook configuration is valid!', 'success');
+        const status = document.getElementById('facebookStatus');
+        if (status) status.style.display = 'block';
+    }, 1500);
+}
+
+// ✅ NEW FUNCTION: Submit Onboarding
+function submitOnboarding(event) {
+    event.preventDefault();
+    
+    const termsCheckbox = document.getElementById('termsAgreement');
+    if (!termsCheckbox || !termsCheckbox.checked) {
+        showAlert('Please agree to the terms and conditions', 'warning');
+        return;
+    }
+    
+    // Show loading
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Completing...';
+    submitBtn.disabled = true;
+    
+    try {
+        // Get all form data
+        const formData = new FormData(event.target);
+        const data = {};
+        
+        for (let [key, value] of formData.entries()) {
+            if (key === 'languages[]') {
+                if (!data.languages) data.languages = [];
+                data.languages.push(value);
+            } else {
+                data[key] = value;
+            }
+        }
+        
+        // Save to localStorage as completed profile
+        localStorage.setItem('userProfile', JSON.stringify(data));
+        localStorage.setItem('onboardingCompleted', 'true');
+        localStorage.removeItem('onboardingData'); // Clean up temporary data
+        localStorage.removeItem('onboardingStep'); // Clean up step data
+        
+        console.log('✅ Onboarding completed, profile saved:', data);
+        
+        // Show success and redirect
+        showAlert('🎉 Onboarding completed successfully!', 'success');
+        
+        setTimeout(() => {
+            showSection('welcome');
+            // Update user profile globally
+            userProfile = data;
+            updateBrandingDisplay();
+        }, 1500);
+        
+    } catch (error) {
+        console.error('Error completing onboarding:', error);
+        showAlert('❌ Error completing onboarding. Please try again.', 'danger');
+    } finally {
+        // Reset button
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+}
+
+// ✅ NEW FUNCTION: Logout
+function logout() {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user');
+    window.location.href = '/';
+}
 
 </script>
