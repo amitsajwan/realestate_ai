@@ -304,9 +304,27 @@ class Database:
                     except:
                         property_dict['amenities'] = []
                 
-                # ✅ Ensure id is properly set as integer
+                # ✅ FIXED: Ensure numeric fields maintain consistent types
                 if property_dict['id'] is not None:
                     property_dict['id'] = int(property_dict['id'])
+                
+                # ✅ FIXED: Convert price back to int if it was originally int
+                if property_dict['price'] is not None:
+                    # Check if price is a whole number (float with .0)
+                    if isinstance(property_dict['price'], float) and property_dict['price'].is_integer():
+                        property_dict['price'] = int(property_dict['price'])
+                    elif isinstance(property_dict['price'], float):
+                        # Keep as float if it has decimal places
+                        pass
+                
+                # ✅ FIXED: Convert carpet_area and built_up_area back to int if they were originally int
+                if property_dict['carpet_area'] is not None:
+                    if isinstance(property_dict['carpet_area'], float) and property_dict['carpet_area'].is_integer():
+                        property_dict['carpet_area'] = int(property_dict['carpet_area'])
+                
+                if property_dict['built_up_area'] is not None:
+                    if isinstance(property_dict['built_up_area'], float) and property_dict['built_up_area'].is_integer():
+                        property_dict['built_up_area'] = int(property_dict['built_up_area'])
                 
                 result.append(property_dict)
             
@@ -361,6 +379,24 @@ class Database:
                         property_dict['amenities'] = json.loads(property_dict['amenities'])
                     except:
                         property_dict['amenities'] = []
+                
+                # ✅ FIXED: Ensure numeric fields maintain consistent types
+                if property_dict['id'] is not None:
+                    property_dict['id'] = int(property_dict['id'])
+                
+                # ✅ FIXED: Convert price back to int if it was originally int
+                if property_dict['price'] is not None:
+                    if isinstance(property_dict['price'], float) and property_dict['price'].is_integer():
+                        property_dict['price'] = int(property_dict['price'])
+                
+                # ✅ FIXED: Convert carpet_area and built_up_area back to int if they were originally int
+                if property_dict['carpet_area'] is not None:
+                    if isinstance(property_dict['carpet_area'], float) and property_dict['carpet_area'].is_integer():
+                        property_dict['carpet_area'] = int(property_dict['carpet_area'])
+                
+                if property_dict['built_up_area'] is not None:
+                    if isinstance(property_dict['built_up_area'], float) and property_dict['built_up_area'].is_integer():
+                        property_dict['built_up_area'] = int(property_dict['built_up_area'])
                 
                 # Map database fields to expected format for listings
                 mapped_property = {
