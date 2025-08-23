@@ -1,1 +1,0 @@
-branding_prompt = 'You are an expert marketer. Create brand names...'

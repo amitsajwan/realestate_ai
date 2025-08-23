@@ -108,22 +108,25 @@ def facebook_callback(request: Request, code: str = None, state: str = None):
     FacebookAuthService.save_auth(user_id, access_token)
 
     # CREATE JWT TOKEN FOR DASHBOARD
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     import jwt
     
-    # Create token payload
+    # Create token payload compatible with auth service
     token_payload = {
+        "sub": f"fb_{user_id}",  # Use Facebook ID as subject
         "user_id": user_id,
+        "email": f"fb_{user_id}@facebook.com",  # Create a virtual email for Facebook users
         "name": user_name,
         "login_type": "facebook",
-        "exp": datetime.utcnow() + timedelta(hours=24)
+        "exp": datetime.now(timezone.utc) + timedelta(hours=24),
+        "iat": datetime.now(timezone.utc),
+        "type": "access_token"
     }
     
     # Use the same SECRET_KEY as your main app
-    SECRET_KEY = "your-secret-key-change-in-production"
-    ALGORITHM = "HS256"
+    from core.config import settings
     
-    jwt_token = jwt.encode(token_payload, SECRET_KEY, algorithm=ALGORITHM)
+    jwt_token = jwt.encode(token_payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
     # Create redirect response with multiple auth methods
     response = RedirectResponse(url='/dashboard')
@@ -131,8 +134,8 @@ def facebook_callback(request: Request, code: str = None, state: str = None):
     # Set Facebook-specific cookie
     response.set_cookie('fb_user_id', user_id, httponly=True, samesite='lax', secure=False)
     
-    # Set JWT token cookie that dashboard expects
-    response.set_cookie('auth_token', jwt_token, httponly=True, samesite='lax', secure=False)
+    # Set JWT token cookie that dashboard expects (non-httponly so JS can read it)
+    response.set_cookie('auth_token', jwt_token, httponly=False, samesite='lax', secure=False)
     
     # Set user data cookie for frontend (non-httponly so JS can access)
     response.set_cookie('user_data', f'{{"user_id":"{user_id}","name":"{user_name}"}}', samesite='lax', secure=False)
