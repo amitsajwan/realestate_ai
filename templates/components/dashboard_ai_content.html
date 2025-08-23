@@ -34,7 +34,7 @@
                         <div class="row">
                             <div class="col-md-3 mb-2">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="langEnglish" value="English" checked>
+                                    <input class="form-check-input" type="checkbox" id="langEnglish" name="languages[]" value="English" checked>
                                     <label class="form-check-label" for="langEnglish">
                                         🇺🇸 English
                                     </label>
@@ -42,7 +42,7 @@
                             </div>
                             <div class="col-md-3 mb-2">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="langHindi" value="Hindi">
+                                    <input class="form-check-input" type="checkbox" id="langHindi" name="languages[]" value="Hindi">
                                     <label class="form-check-label" for="langHindi">
                                         🇮🇳 Hindi
                                     </label>
@@ -50,7 +50,7 @@
                             </div>
                             <div class="col-md-3 mb-2">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="langMarathi" value="Marathi">
+                                    <input class="form-check-input" type="checkbox" id="langMarathi" name="languages[]" value="Marathi">
                                     <label class="form-check-label" for="langMarathi">
                                         🇮🇳 Marathi
                                     </label>
@@ -58,7 +58,7 @@
                             </div>
                             <div class="col-md-3 mb-2">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="langGujarati" value="Gujarati">
+                                    <input class="form-check-input" type="checkbox" id="langGujarati" name="languages[]" value="Gujarati">
                                     <label class="form-check-label" for="langGujarati">
                                         🇮🇳 Gujarati
                                     </label>
@@ -80,7 +80,7 @@
                         </select>
                     </div>
                     <div class="col-md-6">
-                        <button class="btn btn-primary btn-lg w-100" onclick="generateAIContent()">
+                        <button class="btn btn-primary btn-lg w-100" onclick="generateAIContentWithBranding()">
                             <i class="fas fa-magic me-2"></i>
                             Generate Content
                         </button>
@@ -89,7 +89,7 @@
 
                 <!-- Generated Content Display -->
                 <div id="contentDisplay" style="display: none;">
-                    <!-- This will be populated by generateAIContent() function -->
+                    <!-- This will be populated by generateAIContentWithBranding() function -->
                 </div>
                 
                 <div id="generatedContent" style="display: none;">
