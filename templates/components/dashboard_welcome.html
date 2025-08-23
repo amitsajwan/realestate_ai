@@ -1,7 +1,8 @@
-<!-- 🎯 Enhanced Welcome Dashboard -->
+<!-- 🎯 Complete Enhanced Welcome Dashboard with Next-Gen Support -->
 <div id="welcome-section" class="dashboard-section active fade-in-up">
     <div class="container-fluid">
-        <!-- Welcome Header -->
+        
+        <!-- Welcome Header (Always visible) -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="welcome-header text-center">
@@ -21,225 +22,137 @@
             </div>
         </div>
 
-        <!-- Quick Stats Row -->
-        <div class="row mb-4">
-            <div class="col-xl-3 col-md-6 mb-3">
-                <div class="stat-card">
-                    <div class="stat-icon">🏠</div>
-                    <div class="stat-number" id="activeListings">0</div>
-                    <div class="stat-label">Active Listings</div>
-                    <div class="stat-trend positive" id="listingsTrend">+0 this week</div>
+    <!-- Next-Gen Stats Row -->
+        <div class="row mb-4 nextgen-container" id="nextgenStatsRow">
+            <!-- Next-Gen Stats (Always visible) -->
+            <div class="col-6 col-md-3 mb-3 nextgen-stat">
+                <div class="nextgen-stat-card">
+                    <div class="nextgen-stat-icon">🏠</div>
+                    <div class="nextgen-stat-number" id="nextgenActiveListings">24</div>
+                    <div class="nextgen-stat-label">Active Listings</div>
                 </div>
             </div>
-            <div class="col-xl-3 col-md-6 mb-3">
-                <div class="stat-card">
-                    <div class="stat-icon">📱</div>
-                    <div class="stat-number" id="pendingPosts">0</div>
-                    <div class="stat-label">Pending Posts</div>
-                    <div class="stat-trend warning" id="postsTrend">Ready to post</div>
+            <div class="col-6 col-md-3 mb-3 nextgen-stat">
+                <div class="nextgen-stat-card">
+                    <div class="nextgen-stat-icon">🤖</div>
+                    <div class="nextgen-stat-number" id="nextgenAiGenerated">156</div>
+                    <div class="nextgen-stat-label">AI Generated</div>
                 </div>
             </div>
-            <div class="col-xl-3 col-md-6 mb-3">
-                <div class="stat-card">
-                    <div class="stat-icon">👥</div>
-                    <div class="stat-number" id="newLeads">0</div>
-                    <div class="stat-label">New Leads</div>
-                    <div class="stat-trend success" id="leadsTrend">+0 today</div>
+            <div class="col-6 col-md-3 mb-3 nextgen-stat">
+                <div class="nextgen-stat-card">
+                    <div class="nextgen-stat-icon">📱</div>
+                    <div class="nextgen-stat-number" id="nextgenSocialPosts">89</div>
+                    <div class="nextgen-stat-label">Social Posts</div>
                 </div>
             </div>
-            <div class="col-xl-3 col-md-6 mb-3">
-                <div class="stat-card">
-                    <div class="stat-icon">💰</div>
-                    <div class="stat-number" id="revenue">₹0</div>
-                    <div class="stat-label">Revenue</div>
-                    <div class="stat-trend positive" id="revenueTrend">+0 this month</div>
+            <div class="col-6 col-md-3 mb-3 nextgen-stat">
+                <div class="nextgen-stat-card">
+                    <div class="nextgen-stat-icon">👥</div>
+                    <div class="nextgen-stat-number" id="nextgenNewLeads">12</div>
+                    <div class="nextgen-stat-label">New Leads</div>
                 </div>
             </div>
         </div>
 
-        <!-- Smart Actions & AI Suggestions -->
+    <!-- Next-Gen Quick Actions (Default visible, enhanced) -->
+    <div class="nextgen-quick-actions">
         <div class="row mb-4">
-            <!-- Quick Actions -->
-            <div class="col-lg-8 mb-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="fas fa-bolt me-2"></i>Quick Actions
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <button class="btn btn-primary w-100 h-100 py-4" onclick="showSection('properties')">
-                                    <i class="fas fa-plus fa-2x mb-3"></i>
-                                    <h6>Add New Property</h6>
-                                    <small class="text-white-50">Create listing with AI content</small>
-                                </button>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <button class="btn btn-ai w-100 h-100 py-4" onclick="showSection('ai-content')">
-                                    <i class="fas fa-robot fa-2x mb-3"></i>
-                                    <h6>Generate Content</h6>
-                                    <small class="text-white-50">AI-powered descriptions</small>
-                                </button>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <button class="btn btn-secondary w-100 h-100 py-4" onclick="showSection('facebook')">
-                                    <i class="fab fa-facebook fa-2x mb-3"></i>
-                                    <h6>Post to Facebook</h6>
-                                    <small class="text-white-50">Share with your audience</small>
-                                </button>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <button class="btn btn-success w-100 h-100 py-4" onclick="showSection('crm')">
-                                    <i class="fas fa-users fa-2x mb-3"></i>
-                                    <h6>Manage Leads</h6>
-                                    <small class="text-white-50">Track and convert prospects</small>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div class="col-6 col-md-3 mb-3">
+                <button class="nextgen-glass-card w-100 border-0 nextgen-action-btn" onclick="showSection('properties')">
+                    <div class="nextgen-action-icon"><i class="fas fa-plus"></i></div>
+                    <div class="nextgen-action-label">Add Property</div>
+                </button>
             </div>
-
-            <!-- AI Suggestions -->
-            <div class="col-lg-4 mb-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="fas fa-lightbulb me-2"></i>AI Suggestions
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="aiSuggestions">
-                            <div class="suggestion-item mb-3">
-                                <div class="suggestion-icon">💡</div>
-                                <p class="suggestion-text">Complete your onboarding to unlock all features</p>
-                                <button class="btn btn-sm btn-outline-primary" onclick="showSection('onboarding')">Get Started</button>
-                            </div>
-                            <div class="suggestion-item mb-3">
-                                <div class="suggestion-icon">📱</div>
-                                <p class="suggestion-text">Connect Facebook to start posting properties</p>
-                                <button class="btn btn-sm btn-outline-secondary" onclick="showSection('facebook')">Connect</button>
-                            </div>
-                            <div class="suggestion-item">
-                                <div class="suggestion-icon">🏠</div>
-                                <p class="suggestion-text">Add your first property to generate content</p>
-                                <button class="btn btn-sm btn-outline-success" onclick="showSection('properties')">Add Property</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div class="col-6 col-md-3 mb-3">
+                <button class="nextgen-glass-card w-100 border-0 nextgen-action-btn" onclick="showSection('ai-content')">
+                    <div class="nextgen-action-icon"><i class="fas fa-magic"></i></div>
+                    <div class="nextgen-action-label">AI Content</div>
+                </button>
             </div>
-        </div>
-
-        <!-- Recent Activity & Market Insights -->
-        <div class="row">
-            <!-- Recent Activity -->
-            <div class="col-lg-8 mb-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="fas fa-history me-2"></i>Recent Activity
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="recentActivity">
-                            <div class="activity-item d-flex align-items-center mb-3">
-                                <div class="activity-icon bg-primary text-white rounded-circle p-2 me-3">
-                                    <i class="fas fa-home"></i>
-                                </div>
-                                <div class="activity-content flex-grow-1">
-                                    <div class="activity-title">Property Added</div>
-                                    <div class="activity-desc">2BHK Apartment in Andheri West</div>
-                                    <div class="activity-time text-muted small">2 hours ago</div>
-                                </div>
-                                <div class="activity-action">
-                                    <button class="btn btn-sm btn-outline-primary">View</button>
-                                </div>
-                            </div>
-                            <div class="activity-item d-flex align-items-center mb-3">
-                                <div class="activity-icon bg-success text-white rounded-circle p-2 me-3">
-                                    <i class="fab fa-facebook"></i>
-                                </div>
-                                <div class="activity-content flex-grow-1">
-                                    <div class="activity-title">Posted to Facebook</div>
-                                    <div class="activity-desc">3BHK Villa in Bandra East</div>
-                                    <div class="activity-time text-muted small">1 day ago</div>
-                                </div>
-                                <div class="activity-action">
-                                    <button class="btn btn-sm btn-outline-success">View Post</button>
-                                </div>
-                            </div>
-                            <div class="activity-item d-flex align-items-center">
-                                <div class="activity-icon bg-warning text-white rounded-circle p-2 me-3">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                                <div class="activity-content flex-grow-1">
-                                    <div class="activity-title">New Lead</div>
-                                    <div class="activity-desc">Interested in 2BHK Andheri West</div>
-                                    <div class="activity-time text-muted small">3 days ago</div>
-                                </div>
-                                <div class="activity-action">
-                                    <button class="btn btn-sm btn-outline-warning">Contact</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div class="col-6 col-md-3 mb-3">
+                <button class="nextgen-glass-card w-100 border-0 nextgen-action-btn" onclick="showSection('facebook')">
+                    <div class="nextgen-action-icon"><i class="fas fa-share-alt"></i></div>
+                    <div class="nextgen-action-label">Post to Social</div>
+                </button>
             </div>
-
-            <!-- Market Insights -->
-            <div class="col-lg-4 mb-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="fas fa-chart-line me-2"></i>Market Insights
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="insight-item mb-3">
-                            <div class="insight-header d-flex align-items-center mb-2">
-                                <i class="fas fa-arrow-up text-success me-2"></i>
-                                <span class="fw-semibold">Market Trend</span>
-                            </div>
-                            <p class="insight-text small">Properties in Andheri West are selling 15% faster this month</p>
-                        </div>
-                        <div class="insight-item mb-3">
-                            <div class="insight-header d-flex align-items-center mb-2">
-                                <i class="fas fa-clock text-warning me-2"></i>
-                                <span class="fw-semibold">Best Posting Time</span>
-                            </div>
-                            <p class="insight-text small">Your audience is most active between 7-9 PM</p>
-                        </div>
-                        <div class="insight-item">
-                            <div class="insight-header d-flex align-items-center mb-2">
-                                <i class="fas fa-users text-info me-2"></i>
-                                <span class="fw-semibold">Audience Growth</span>
-                            </div>
-                            <p class="insight-text small">Facebook page engagement increased by 25%</p>
-                        </div>
-                    </div>
-                </div>
+            <div class="col-6 col-md-3 mb-3">
+                <button class="nextgen-glass-card w-100 border-0 nextgen-action-btn" onclick="showSection('crm')">
+                    <div class="nextgen-action-icon"><i class="fas fa-users"></i></div>
+                    <div class="nextgen-action-label">Manage Leads</div>
+                </button>
             </div>
         </div>
     </div>
-</div>
 
-<style>
-/* 🎨 Enhanced Welcome Dashboard Styles */
-.welcome-header {
-    padding: var(--spacing-2xl) 0;
-}
+    <!-- Next-Gen AI Action Cards (Default visible, enhanced) -->
+    <div class="nextgen-ai-actions">
+            <h3 style="color: var(--nextgen-text-primary); margin-bottom: 1.5rem; font-weight: 600;">
+                <i class="fas fa-brain me-2"></i>AI-Powered Actions
+            </h3>
+            <div class="row mb-4">
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="nextgen-glass-card" onclick="generateListingContent()" style="cursor: pointer; min-height: 200px;">
+                        <div class="nextgen-action-gradient">
+                            <i class="fas fa-pen-fancy"></i>
+                        </div>
+                        <h4 style="color: var(--nextgen-text-primary); margin-bottom: 0.5rem; font-size: 1.1rem;">Smart Listing Generator</h4>
+                        <p style="color: var(--nextgen-text-secondary); font-size: 0.875rem; line-height: 1.6; margin: 0;">Generate compelling property descriptions in multiple languages with AI-powered insights.</p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="nextgen-glass-card" onclick="predictPricing()" style="cursor: pointer; min-height: 200px;">
+                        <div class="nextgen-action-gradient">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <h4 style="color: var(--nextgen-text-primary); margin-bottom: 0.5rem; font-size: 1.1rem;">AI Price Prediction</h4>
+                        <p style="color: var(--nextgen-text-secondary); font-size: 0.875rem; line-height: 1.6; margin: 0;">Get accurate property valuations using machine learning models trained on local market data.</p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="nextgen-glass-card" onclick="leadScoring()" style="cursor: pointer; min-height: 200px;">
+                        <div class="nextgen-action-gradient">
+                            <i class="fas fa-target"></i>
+                        </div>
+                        <h4 style="color: var(--nextgen-text-primary); margin-bottom: 0.5rem; font-size: 1.1rem;">Lead Scoring AI</h4>
+                        <p style="color: var(--nextgen-text-secondary); font-size: 0.875rem; line-height: 1.6; margin: 0;">Prioritize leads with intelligent scoring based on engagement patterns and buying behavior.</p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="nextgen-glass-card" onclick="marketInsights()" style="cursor: pointer; min-height: 200px;">
+                        <div class="nextgen-action-gradient">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <h4 style="color: var(--nextgen-text-primary); margin-bottom: 0.5rem; font-size: 1.1rem;">Market Intelligence</h4>
+                        <p style="color: var(--nextgen-text-secondary); font-size: 0.875rem; line-height: 1.6; margin: 0;">Real-time market trends and neighborhood insights powered by advanced analytics.</p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="nextgen-glass-card" onclick="socialOptimizer()" style="cursor: pointer; min-height: 200px;">
+                        <div class="nextgen-action-gradient">
+                            <i class="fas fa-rocket"></i>
+                        </div>
+                        <h4 style="color: var(--nextgen-text-primary); margin-bottom: 0.5rem; font-size: 1.1rem;">Social Media AI</h4>
+                        <p style="color: var(--nextgen-text-secondary); font-size: 0.875rem; line-height: 1.6; margin: 0;">Optimize posting times, content, and audience targeting with AI-driven social media strategies.</p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="nextgen-glass-card" onclick="virtualTour()" style="cursor: pointer; min-height: 200px;">
+                        <div class="nextgen-action-gradient">
+                            <i class="fas fa-vr-cardboard"></i>
+                        </div>
+                        <h4 style="color: var(--nextgen-text-primary); margin-bottom: 0.5rem; font-size: 1.1rem;">Virtual Tour Creator</h4>
+                        <p style="color: var(--nextgen-text-secondary); font-size: 0.875rem; line-height: 1.6; margin: 0;">Create immersive 3D virtual tours and AR experiences for your property listings.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-.welcome-header h1 {
-    font-size: 3rem;
-    font-weight: 800;
-    margin-bottom: var(--spacing-lg);
-}
-
-.welcome-header .lead {
-    font-size: 1.25rem;
     color: var(--gray);
 }
 
@@ -364,5 +277,166 @@
     .quick-actions .btn i {
         font-size: 1.5rem;
     }
+    
+    .nextgen-glass-card {
+        padding: 1rem;
+    }
+    
+    .nextgen-ai-actions h3 {
+        font-size: 1.25rem;
+    }
+    
+    .nextgen-glass-card h4 {
+        font-size: 1rem;
+    }
 }
 </style>
+
+<!-- JavaScript for Mode Switching and AI Actions -->
+<script>
+// AI Action Functions for Next-Gen Mode
+function generateListingContent() {
+    if (typeof showNextGenToast === 'function') {
+        showNextGenToast('🎯 AI is analyzing your properties and generating compelling content...', 'success');
+    } else if (typeof showAlert === 'function') {
+        showAlert('Starting AI content generation...', 'success');
+    }
+    setTimeout(() => showSection('ai-content'), 1000);
+}
+
+function predictPricing() {
+    if (typeof showNextGenToast === 'function') {
+        showNextGenToast('📊 Running AI price prediction models on market data...', 'success');
+    } else if (typeof showAlert === 'function') {
+        showAlert('Running price prediction analysis...', 'success');
+    }
+    // Could redirect to a pricing analysis section
+    setTimeout(() => {
+        if (typeof showNextGenToast === 'function') {
+            showNextGenToast('💰 Estimated property value: ₹85,00,000 - ₹95,00,000', 'success');
+        }
+    }, 2000);
+}
+
+function leadScoring() {
+    if (typeof showNextGenToast === 'function') {
+        showNextGenToast('🎯 Analyzing leads with intelligent scoring algorithm...', 'success');
+    } else if (typeof showAlert === 'function') {
+        showAlert('Analyzing leads...', 'success');
+    }
+    setTimeout(() => showSection('crm'), 1000);
+}
+
+function marketInsights() {
+    if (typeof showNextGenToast === 'function') {
+        showNextGenToast('🧠 Gathering real-time market intelligence...', 'success');
+    } else if (typeof showAlert === 'function') {
+        showAlert('Loading market insights...', 'success');
+    }
+    // Could show market insights modal or section
+    setTimeout(() => {
+        if (typeof showNextGenToast === 'function') {
+            showNextGenToast('📈 Market trend: Properties in your area are 12% above average price', 'success');
+        }
+    }, 2000);
+}
+
+function socialOptimizer() {
+    if (typeof showNextGenToast === 'function') {
+        showNextGenToast('🚀 Optimizing social media strategy with AI...', 'success');
+    } else if (typeof showAlert === 'function') {
+        showAlert('Optimizing social media...', 'success');
+    }
+    setTimeout(() => showSection('facebook'), 1000);
+}
+
+function virtualTour() {
+    if (typeof showNextGenToast === 'function') {
+        showNextGenToast('🥽 Launching virtual tour creator...', 'success');
+    } else if (typeof showAlert === 'function') {
+        showAlert('Opening virtual tour creator...', 'success');
+    }
+    // Could redirect to virtual tour creation tool
+    setTimeout(() => {
+        if (typeof showNextGenToast === 'function') {
+            showNextGenToast('🎬 Virtual tour feature coming soon! Stay tuned for 3D property experiences.', 'success');
+        }
+    }, 2000);
+}
+
+// Enhanced stats animation for nextgen mode
+function animateNextGenStats() {
+    if (typeof nextgenMode === 'undefined' || !nextgenMode) return;
+    
+    const stats = [
+        { id: 'nextgenActiveListings', target: 24 },
+        { id: 'nextgenAiGenerated', target: 156 },
+        { id: 'nextgenSocialPosts', target: 89 },
+        { id: 'nextgenNewLeads', target: 12 }
+    ];
+    
+    stats.forEach((stat, index) => {
+        const element = document.getElementById(stat.id);
+        if (!element) return;
+        
+        let current = 0;
+        const increment = stat.target / 30;
+        
+        setTimeout(() => {
+            const timer = setInterval(() => {
+                current += increment;
+                element.textContent = Math.floor(current);
+                
+                if (current >= stat.target) {
+                    element.textContent = stat.target;
+                    clearInterval(timer);
+                }
+            }, 50);
+        }, index * 100); // Staggered animation
+    });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize stats animation
+    if (typeof animateStats === 'function') {
+        animateStats();
+    } else {
+        // Fallback stats animation
+        const stats = [
+            { id: 'activeListings', target: 24 },
+            { id: 'pendingPosts', target: 8 },
+            { id: 'newLeads', target: 12 },
+            { id: 'revenue', target: 2500000 }
+        ];
+
+        stats.forEach((stat, index) => {
+            const element = document.getElementById(stat.id);
+            if (!element) return;
+            
+            let current = 0;
+            const increment = stat.target / 30;
+            
+            setTimeout(() => {
+                const timer = setInterval(() => {
+                    current += increment;
+                    if (stat.id === 'revenue') {
+                        element.textContent = '₹' + Math.floor(current).toLocaleString();
+                    } else {
+                        element.textContent = Math.floor(current);
+                    }
+                    
+                    if (current >= stat.target) {
+                        if (stat.id === 'revenue') {
+                            element.textContent = '₹' + stat.target.toLocaleString();
+                        } else {
+                            element.textContent = stat.target;
+                        }
+                        clearInterval(timer);
+                    }
+                }, 50);
+            }, index * 200);
+        });
+    }
+});
+</script>

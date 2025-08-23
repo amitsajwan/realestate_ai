@@ -81,10 +81,13 @@ function handleOAuthCallback() {
 function showSection(sectionName) {
     console.log(`🎯 showSection called with: ${sectionName}`);
     
-    // Hide all sections
-    document.querySelectorAll('.dashboard-section').forEach(section => {
-        section.style.display = 'none';
-    });
+    // ✅ FIXED: Don't hide welcome section - keep it visible for stats
+    if (sectionName !== 'welcome') {
+        // Hide all sections except welcome
+        document.querySelectorAll('.dashboard-section:not(#welcome-section)').forEach(section => {
+            section.style.display = 'none';
+        });
+    }
     
     // Show selected section
     const targetSection = document.getElementById(sectionName + '-section');
@@ -95,6 +98,12 @@ function showSection(sectionName) {
         targetSection.style.display = 'block';
         currentSection = sectionName;
         console.log(`✅ Section ${sectionName} displayed successfully`);
+        
+        // ✅ FIXED: Ensure welcome section and stats remain visible
+        ensureWelcomeSectionVisibility();
+        
+        // ✅ SIMPLIFIED: Always use Next-Gen mode
+        const nextgenMode = true; // Always true, no toggle needed
         
         // Update navigation active state
         document.querySelectorAll('.nav-link').forEach(link => {
@@ -137,6 +146,34 @@ function showSection(sectionName) {
         console.error(`❌ Section ${sectionName}-section not found!`);
         console.log(`🔍 Available sections:`, Array.from(document.querySelectorAll('.dashboard-section')).map(s => s.id));
     }
+}
+
+// ✅ FIXED: Function to ensure welcome section and stats remain visible
+function ensureWelcomeSectionVisibility() {
+    const welcomeSection = document.getElementById('welcome-section');
+    const statsRow = document.getElementById('nextgenStatsRow');
+    
+    if (welcomeSection) {
+        welcomeSection.style.display = 'block';
+        welcomeSection.style.visibility = 'visible';
+        welcomeSection.style.opacity = '1';
+    }
+    
+    if (statsRow) {
+        statsRow.style.display = 'block';
+        statsRow.style.visibility = 'visible';
+        statsRow.style.opacity = '1';
+    }
+    
+    // Ensure all stat elements are visible
+    const statElements = document.querySelectorAll('.nextgen-stat, .nextgen-stat-card');
+    statElements.forEach(element => {
+        element.style.display = 'block';
+        element.style.visibility = 'visible';
+        element.style.opacity = '1';
+    });
+    
+    console.log('✅ Welcome section and stats visibility ensured');
 }
 
 // Load data for specific sections
@@ -780,10 +817,23 @@ async function postToFacebook(language, content, propertyId) {
 }
 
 // ✅ ENHANCED: Generate AI Content with Branding (from reference script)
-async function generateAIContentWithBranding(propertyId, language, tone, template) {
+async function generateAIContentWithBranding() {
     try {
+        // Check authentication first
+        if (!checkAuthentication()) {
+            return;
+        }
+        
+        // Get property ID from dropdown
+        const propertySelect = document.getElementById('propertySelect');
+        if (!propertySelect || !propertySelect.value) {
+            showAlert('Please select a property first', 'warning');
+            return;
+        }
+        const propertyId = propertySelect.value;
+        
         // Show loading state
-        const generateBtn = document.getElementById('generateContentBtn');
+        const generateBtn = document.querySelector('button[onclick="generateAIContentWithBranding()"]');
         if (generateBtn) {
             generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating...';
             generateBtn.disabled = true;
@@ -799,6 +849,13 @@ async function generateAIContentWithBranding(propertyId, language, tone, templat
             showAlert('Please select at least one language', 'warning');
             return;
         }
+
+        // Get content template and tone from form
+        const templateSelect = document.getElementById('contentTemplate');
+        const toneSelect = document.getElementById('contentTone');
+        
+        const template = templateSelect ? templateSelect.value : 'just_listed';
+        const tone = toneSelect ? toneSelect.value : 'Professional';
 
         // Generate base content
         const response = await fetch('/api/v1/listings/generate', {
@@ -817,27 +874,12 @@ async function generateAIContentWithBranding(propertyId, language, tone, templat
         
         if (response.ok) {
             const result = await response.json();
-            let content = result.content || result.message || 'Content generated successfully';
-            
-            // Enhance content with user branding
-            const brandedContent = generateContentWithBranding(content, language);
-            
-            // Display the branded content
-            const contentDisplay = document.getElementById('generatedContent');
-            if (contentDisplay) {
-                contentDisplay.value = brandedContent;
-                contentDisplay.style.display = 'block';
-            }
-            
-            // Show success message
-            showAlert('🎯 AI content generated with your branding!', 'success');
-            
-            // Enable Facebook posting if user has completed onboarding
-            if (userProfile && userProfile.company) {
-                const postToFacebookSection = document.getElementById('postToFacebookSection');
-                if (postToFacebookSection) {
-                    postToFacebookSection.style.display = 'block';
-                }
+            if (result.success) {
+                // Show the generated content with language tabs
+                showGeneratedContentWithLanguages(result.content, propertyId, selectedLanguages);
+                showAlert('🎯 AI content generated with your branding!', 'success');
+            } else {
+                showAlert(result.message || 'Failed to generate content', 'danger');
             }
             
         } else {
@@ -850,9 +892,9 @@ async function generateAIContentWithBranding(propertyId, language, tone, templat
         showAlert('❌ Error generating content. Please try again.', 'danger');
     } finally {
         // Reset button
-        const generateBtn = document.getElementById('generateContentBtn');
+        const generateBtn = document.querySelector('button[onclick="generateAIContentWithBranding()"]');
         if (generateBtn) {
-            generateBtn.innerHTML = '<i class="fas fa-magic me-2"></i>Generate AI Content';
+            generateBtn.innerHTML = '<i class="fas fa-magic me-2"></i>Generate Content';
             generateBtn.disabled = false;
         }
     }
@@ -1071,9 +1113,10 @@ function showAlert(message, type = 'info') {
     }
 }
 
-// Initialize dashboard when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 PropertyAI Dashboard Initialized');
+// ✅ REMOVED: DOMContentLoaded listener moved to dashboard_modular.html to prevent conflicts
+// This function is now called from the main dashboard initialization
+function initializeDashboardFromScripts() {
+    console.log('🚀 Dashboard scripts initializing...');
     
     // Handle OAuth callback FIRST to get token
     handleOAuthCallback();
@@ -1093,7 +1136,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // No hash, initialize immediately
         initializeDashboard();
     }
-});
+    
+    console.log('✅ Dashboard scripts initialization complete');
+}
 
 // Handle browser back/forward buttons
 window.addEventListener('popstate', function(event) {
@@ -1104,21 +1149,22 @@ window.addEventListener('popstate', function(event) {
     }
 });
 
-// Separate initialization function
+// ✅ FIXED: Separate initialization function
 function initializeDashboard() {
     // Load initial data
-    loadUserProfile();
     loadDashboardStats();
-    loadFacebookStatus();
+    loadUserProfile();
     
-    // Update branding display
-    updateBrandingDisplay();
-    
-    // Show welcome section by default
+    // ✅ FIXED: Show welcome section by default
     showSection('welcome');
     
-    // ✅ Show Quick Start guide
-    showQuickStart();
+    // Initialize onboarding if needed
+    if (localStorage.getItem('onboardingCompleted') === 'true') {
+        console.log('✅ Onboarding completed, loading user data...');
+        loadUserProfileIntoOnboardingForm();
+    } else {
+        console.log('🔄 Onboarding not completed, user needs to complete setup...');
+    }
 }
 
 // Placeholder functions for other features
@@ -1152,6 +1198,31 @@ function hideAddPropertyModal() {
 }
 
 // ✅ ADDED: Missing onboarding functions
+function loadUserProfile() {
+    console.log('Loading user profile...');
+    try {
+        // Try to load from localStorage first
+        const savedProfile = localStorage.getItem('userProfile');
+        if (savedProfile) {
+            userProfile = JSON.parse(savedProfile);
+            console.log('✅ Loaded user profile from localStorage:', userProfile);
+            updateBrandingDisplay();
+            return;
+        }
+        
+        // If no saved profile, try to load from API
+        const token = localStorage.getItem('access_token');
+        if (token) {
+            // TODO: Implement API call to load user profile
+            console.log('No saved profile, would load from API');
+        }
+        
+        console.log('No user profile found');
+    } catch (error) {
+        console.error('Error loading user profile:', error);
+    }
+}
+
 function loadUserProfileIntoOnboardingForm() { 
     console.log('Loading user profile into onboarding form...');
     // Load saved onboarding data if available
@@ -1161,7 +1232,18 @@ function loadUserProfileIntoOnboardingForm() {
 function loadOnboardingFormData() { 
     console.log('Loading onboarding form data...');
     try {
-        const savedData = localStorage.getItem('onboardingData');
+        // First try to load from onboardingData (temporary data)
+        let savedData = localStorage.getItem('onboardingData');
+        
+        // If no temporary data, try to load from completed userProfile
+        if (!savedData) {
+            const userProfileData = localStorage.getItem('userProfile');
+            if (userProfileData) {
+                savedData = userProfileData;
+                console.log('✅ Loading from completed user profile');
+            }
+        }
+        
         if (savedData) {
             const data = JSON.parse(savedData);
             console.log('✅ Loaded saved onboarding data:', data);
@@ -1182,7 +1264,15 @@ function loadOnboardingFormData() {
                 });
             }
             
-            showAlert('✅ Onboarding data loaded from previous session', 'success');
+            // Handle select elements
+            if (data.business_type) {
+                const businessTypeSelect = document.querySelector('select[name="business_type"]');
+                if (businessTypeSelect) businessTypeSelect.value = data.business_type;
+            }
+            
+            console.log('✅ Onboarding form populated with saved data');
+        } else {
+            console.log('No saved onboarding data found');
         }
     } catch (error) {
         console.error('Error loading onboarding data:', error);
@@ -1207,9 +1297,15 @@ function saveOnboardingFormData() {
             }
         }
         
+        // Also collect select elements
+        const businessTypeSelect = form.querySelector('select[name="business_type"]');
+        if (businessTypeSelect && businessTypeSelect.value) {
+            data.business_type = businessTypeSelect.value;
+        }
+        
         // Save to localStorage
         localStorage.setItem('onboardingData', JSON.stringify(data));
-        console.log('✅ Onboarding data saved:', data);
+        console.log('✅ Onboarding data auto-saved:', data);
         
     } catch (error) {
         console.error('Error saving onboarding data:', error);
@@ -1613,8 +1709,10 @@ function submitOnboarding(event) {
         // Save to localStorage as completed profile
         localStorage.setItem('userProfile', JSON.stringify(data));
         localStorage.setItem('onboardingCompleted', 'true');
-        localStorage.removeItem('onboardingData'); // Clean up temporary data
+        localStorage.setItem('onboardingData', JSON.stringify(data)); // Keep a copy for form loading
         localStorage.removeItem('onboardingStep'); // Clean up step data
+        
+        console.log('✅ Onboarding data saved to localStorage:', data);
         
         console.log('✅ Onboarding completed, profile saved:', data);
         
