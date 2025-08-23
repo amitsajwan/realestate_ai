@@ -1,1 +1,0 @@
-post_prompt = 'Write a catchy real estate post using the info provided...'

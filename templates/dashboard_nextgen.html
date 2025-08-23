@@ -442,6 +442,29 @@
             background-color: var(--primary-color);
             border-color: var(--primary-color);
         }
+        
+        .language-checkboxes .form-check-input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            border: 2px solid #dee2e6;
+            border-radius: 3px;
+            transition: all 0.2s ease;
+        }
+        
+        .language-checkboxes .form-check-input:checked {
+            background-color: #007bff !important;
+            border-color: #007bff !important;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e");
+            background-size: 12px;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        
+        .language-checkboxes .form-check-input:hover {
+            border-color: #007bff;
+            transform: scale(1.1);
+        }
 
         /* AI Content section styling */
         #aiContentSection .card {
@@ -1254,9 +1277,93 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Authentication check
-        const token = localStorage.getItem('token');
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        // Authentication check - handle both localStorage and cookies
+        let token = localStorage.getItem('access_token');
+        let user = JSON.parse(localStorage.getItem('user') || '{}');
+        
+        // Check if we have a token in URL (from OAuth callback)
+        const urlParams = new URLSearchParams(window.location.search);
+        const authToken = urlParams.get('token');
+        const authStatus = urlParams.get('auth');
+        
+        if (authToken && authStatus === 'success') {
+            // Store token from OAuth callback
+            localStorage.setItem('access_token', authToken);
+            token = authToken;
+            
+            // Clean up URL
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+            
+            console.log('✅ OAuth token stored successfully from callback');
+            console.log('🔗 Token source: OAuth callback');
+        }
+        
+        // If no token in localStorage, try to get from cookie (Facebook auth)
+        if (!token) {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === 'auth_token') {
+                    token = value;
+                    // Store in localStorage for consistency
+                    localStorage.setItem('access_token', token);
+                    break;
+                }
+            }
+        }
+        
+        // If still no token, try to get user data from cookie
+        if (!user.name && !user.firstName) {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === 'user_data') {
+                    try {
+                        // Handle potential encoding issues
+                        let decodedValue = value;
+                        try {
+                            decodedValue = decodeURIComponent(value);
+                        } catch (decodeError) {
+                            console.warn('Failed to decode cookie value, using raw value');
+                        }
+                        
+                        // Try to parse JSON with error handling
+                        let userData;
+                        try {
+                            userData = JSON.parse(decodedValue);
+                        } catch (parseError) {
+                            // If JSON parsing fails, try to fix common issues
+                            console.warn('JSON parsing failed, attempting to fix malformed JSON');
+                            const fixedValue = decodedValue.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+                            try {
+                                userData = JSON.parse(fixedValue);
+                            } catch (finalError) {
+                                console.error('Failed to parse user data cookie after fixes:', finalError);
+                                // Create a fallback user object
+                                userData = {
+                                    name: 'Agent',
+                                    firstName: 'Agent',
+                                    email: 'agent@example.com'
+                                };
+                            }
+                        }
+                        
+                        user = userData;
+                        localStorage.setItem('user', JSON.stringify(userData));
+                        break;
+                    } catch (e) {
+                        console.error('Error parsing user data cookie:', e);
+                        // Create a fallback user object
+                        user = {
+                            name: 'Agent',
+                            firstName: 'Agent',
+                            email: 'agent@example.com'
+                        };
+                    }
+                }
+            }
+        }
         
         if (!token) {
             window.location.href = '/';
@@ -1273,13 +1380,16 @@
             document.getElementById('userName').textContent = `Welcome, ${userName}`;
             document.getElementById('userAvatar').textContent = userName.charAt(0).toUpperCase();
 
-            // Sync language checkboxes with user.languages
-            if (user.languages && Array.isArray(user.languages)) {
-                user.languages.forEach(function(lang) {
-                    const checkbox = document.querySelector(`input[name="languages[]"][value="${lang}"]`);
-                    if (checkbox) checkbox.checked = true;
-                });
-            }
+                    // Sync language checkboxes with user.languages
+        if (user.languages && Array.isArray(user.languages)) {
+            user.languages.forEach(function(lang) {
+                const checkbox = document.querySelector(`input[name="languages[]"][value="${lang}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+        }
+        
+        // Initialize language checkboxes with proper event listeners
+        initializeLanguageCheckboxes();
 
             // Load dashboard data
             loadDashboardStats();
@@ -1354,6 +1464,39 @@
 
         function easeOutCubic(t) {
             return 1 - Math.pow(1 - t, 3);
+        }
+        
+        function initializeLanguageCheckboxes() {
+            console.log('🔧 Initializing language checkboxes...');
+            
+            // Get all language checkboxes
+            const languageCheckboxes = document.querySelectorAll('input[name="languages[]"]');
+            
+            languageCheckboxes.forEach(checkbox => {
+                console.log(`🔧 Setting up checkbox: ${checkbox.id} (${checkbox.value})`);
+                
+                // Add change event listener
+                checkbox.addEventListener('change', function() {
+                    console.log(`✅ Checkbox ${this.id} changed to: ${this.checked}`);
+                    
+                    // Visual feedback
+                    if (this.checked) {
+                        this.style.backgroundColor = '#007bff';
+                        this.style.borderColor = '#007bff';
+                    } else {
+                        this.style.backgroundColor = '';
+                        this.style.borderColor = '';
+                    }
+                });
+                
+                // Ensure proper styling
+                checkbox.style.cursor = 'pointer';
+                
+                // Debug current state
+                console.log(`🔧 Checkbox ${checkbox.id}: checked=${checkbox.checked}, value=${checkbox.value}`);
+            });
+            
+            console.log(`🔧 Initialized ${languageCheckboxes.length} language checkboxes`);
         }
 
         async function loadFacebookStatus() {
@@ -1474,7 +1617,7 @@
         }
 
         function logout() {
-            localStorage.removeItem('token');
+            localStorage.removeItem('access_token');
             localStorage.removeItem('user');
             window.location.href = '/';
         }
@@ -1909,16 +2052,17 @@
             try {
                 for (const post of selectedPosts) {
                     try {
-                        const response = await fetch('/api/facebook/post', {
+                        const response = await fetch('/api/v1/listings/post-to-facebook', {
                             method: 'POST',
                             headers: {
                                 'Authorization': `Bearer ${token}`,
                                 'Content-Type': 'application/json'
                             },
                             body: JSON.stringify({
-                                message: `${post.content}\n\n${post.hashtags}`,
-                                language: post.language,
-                                tone: document.querySelector('select[name="tone"]').value || "Professional"
+                                caption: post.content,
+                                hashtags: post.hashtags.split(' ').filter(tag => tag.trim()),
+                                suggested_cta: "📞 Contact us for viewing!",
+                                fair_housing_disclaimer: "Equal Housing Opportunity."
                             })
                         });
 

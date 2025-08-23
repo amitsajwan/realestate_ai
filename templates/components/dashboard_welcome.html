@@ -1,0 +1,368 @@
+<!-- 🎯 Enhanced Welcome Dashboard -->
+<div id="welcome-section" class="dashboard-section active fade-in-up">
+    <div class="container-fluid">
+        <!-- Welcome Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="welcome-header text-center">
+                    <h1 class="gradient-text mb-3">Welcome to PropertyAI</h1>
+                    <p class="lead text-muted">Your AI-powered real estate success platform</p>
+                    <div class="company-info-section mt-3">
+                        <span class="badge bg-primary me-2">
+                            <i class="fas fa-building me-1"></i>
+                            <span class="company-name-placeholder" id="welcomeCompanyName">Loading...</span>
+                        </span>
+                        <span class="badge bg-secondary me-2">
+                            <i class="fas fa-star me-1"></i>
+                            <span class="company-tagline-placeholder">Professional Real Estate Services</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats Row -->
+        <div class="row mb-4">
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon">🏠</div>
+                    <div class="stat-number" id="activeListings">0</div>
+                    <div class="stat-label">Active Listings</div>
+                    <div class="stat-trend positive" id="listingsTrend">+0 this week</div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon">📱</div>
+                    <div class="stat-number" id="pendingPosts">0</div>
+                    <div class="stat-label">Pending Posts</div>
+                    <div class="stat-trend warning" id="postsTrend">Ready to post</div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-number" id="newLeads">0</div>
+                    <div class="stat-label">New Leads</div>
+                    <div class="stat-trend success" id="leadsTrend">+0 today</div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-number" id="revenue">₹0</div>
+                    <div class="stat-label">Revenue</div>
+                    <div class="stat-trend positive" id="revenueTrend">+0 this month</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Smart Actions & AI Suggestions -->
+        <div class="row mb-4">
+            <!-- Quick Actions -->
+            <div class="col-lg-8 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-bolt me-2"></i>Quick Actions
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <button class="btn btn-primary w-100 h-100 py-4" onclick="showSection('properties')">
+                                    <i class="fas fa-plus fa-2x mb-3"></i>
+                                    <h6>Add New Property</h6>
+                                    <small class="text-white-50">Create listing with AI content</small>
+                                </button>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <button class="btn btn-ai w-100 h-100 py-4" onclick="showSection('ai-content')">
+                                    <i class="fas fa-robot fa-2x mb-3"></i>
+                                    <h6>Generate Content</h6>
+                                    <small class="text-white-50">AI-powered descriptions</small>
+                                </button>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <button class="btn btn-secondary w-100 h-100 py-4" onclick="showSection('facebook')">
+                                    <i class="fab fa-facebook fa-2x mb-3"></i>
+                                    <h6>Post to Facebook</h6>
+                                    <small class="text-white-50">Share with your audience</small>
+                                </button>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <button class="btn btn-success w-100 h-100 py-4" onclick="showSection('crm')">
+                                    <i class="fas fa-users fa-2x mb-3"></i>
+                                    <h6>Manage Leads</h6>
+                                    <small class="text-white-50">Track and convert prospects</small>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Suggestions -->
+            <div class="col-lg-4 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-lightbulb me-2"></i>AI Suggestions
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="aiSuggestions">
+                            <div class="suggestion-item mb-3">
+                                <div class="suggestion-icon">💡</div>
+                                <p class="suggestion-text">Complete your onboarding to unlock all features</p>
+                                <button class="btn btn-sm btn-outline-primary" onclick="showSection('onboarding')">Get Started</button>
+                            </div>
+                            <div class="suggestion-item mb-3">
+                                <div class="suggestion-icon">📱</div>
+                                <p class="suggestion-text">Connect Facebook to start posting properties</p>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="showSection('facebook')">Connect</button>
+                            </div>
+                            <div class="suggestion-item">
+                                <div class="suggestion-icon">🏠</div>
+                                <p class="suggestion-text">Add your first property to generate content</p>
+                                <button class="btn btn-sm btn-outline-success" onclick="showSection('properties')">Add Property</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity & Market Insights -->
+        <div class="row">
+            <!-- Recent Activity -->
+            <div class="col-lg-8 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history me-2"></i>Recent Activity
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="recentActivity">
+                            <div class="activity-item d-flex align-items-center mb-3">
+                                <div class="activity-icon bg-primary text-white rounded-circle p-2 me-3">
+                                    <i class="fas fa-home"></i>
+                                </div>
+                                <div class="activity-content flex-grow-1">
+                                    <div class="activity-title">Property Added</div>
+                                    <div class="activity-desc">2BHK Apartment in Andheri West</div>
+                                    <div class="activity-time text-muted small">2 hours ago</div>
+                                </div>
+                                <div class="activity-action">
+                                    <button class="btn btn-sm btn-outline-primary">View</button>
+                                </div>
+                            </div>
+                            <div class="activity-item d-flex align-items-center mb-3">
+                                <div class="activity-icon bg-success text-white rounded-circle p-2 me-3">
+                                    <i class="fab fa-facebook"></i>
+                                </div>
+                                <div class="activity-content flex-grow-1">
+                                    <div class="activity-title">Posted to Facebook</div>
+                                    <div class="activity-desc">3BHK Villa in Bandra East</div>
+                                    <div class="activity-time text-muted small">1 day ago</div>
+                                </div>
+                                <div class="activity-action">
+                                    <button class="btn btn-sm btn-outline-success">View Post</button>
+                                </div>
+                            </div>
+                            <div class="activity-item d-flex align-items-center">
+                                <div class="activity-icon bg-warning text-white rounded-circle p-2 me-3">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div class="activity-content flex-grow-1">
+                                    <div class="activity-title">New Lead</div>
+                                    <div class="activity-desc">Interested in 2BHK Andheri West</div>
+                                    <div class="activity-time text-muted small">3 days ago</div>
+                                </div>
+                                <div class="activity-action">
+                                    <button class="btn btn-sm btn-outline-warning">Contact</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Market Insights -->
+            <div class="col-lg-4 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>Market Insights
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="insight-item mb-3">
+                            <div class="insight-header d-flex align-items-center mb-2">
+                                <i class="fas fa-arrow-up text-success me-2"></i>
+                                <span class="fw-semibold">Market Trend</span>
+                            </div>
+                            <p class="insight-text small">Properties in Andheri West are selling 15% faster this month</p>
+                        </div>
+                        <div class="insight-item mb-3">
+                            <div class="insight-header d-flex align-items-center mb-2">
+                                <i class="fas fa-clock text-warning me-2"></i>
+                                <span class="fw-semibold">Best Posting Time</span>
+                            </div>
+                            <p class="insight-text small">Your audience is most active between 7-9 PM</p>
+                        </div>
+                        <div class="insight-item">
+                            <div class="insight-header d-flex align-items-center mb-2">
+                                <i class="fas fa-users text-info me-2"></i>
+                                <span class="fw-semibold">Audience Growth</span>
+                            </div>
+                            <p class="insight-text small">Facebook page engagement increased by 25%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* 🎨 Enhanced Welcome Dashboard Styles */
+.welcome-header {
+    padding: var(--spacing-2xl) 0;
+}
+
+.welcome-header h1 {
+    font-size: 3rem;
+    font-weight: 800;
+    margin-bottom: var(--spacing-lg);
+}
+
+.welcome-header .lead {
+    font-size: 1.25rem;
+    color: var(--gray);
+}
+
+.company-info-section .badge {
+    font-size: 0.875rem;
+    padding: var(--spacing-sm) var(--spacing-md);
+}
+
+/* 🎯 Quick Actions */
+.quick-actions .btn {
+    text-align: center;
+    border-radius: var(--radius-lg);
+    transition: all var(--transition-normal);
+}
+
+.quick-actions .btn:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: var(--shadow-xl);
+}
+
+.quick-actions .btn i {
+    display: block;
+    margin-bottom: var(--spacing-md);
+}
+
+.quick-actions .btn h6 {
+    margin-bottom: var(--spacing-sm);
+    font-weight: 600;
+}
+
+/* 🌟 AI Suggestions */
+.suggestion-item {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    background: rgba(37, 99, 235, 0.05);
+    border-left: 4px solid var(--primary);
+}
+
+.suggestion-icon {
+    font-size: 1.5rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.suggestion-text {
+    font-size: 0.875rem;
+    color: var(--dark);
+    margin-bottom: var(--spacing-sm);
+    line-height: 1.4;
+}
+
+/* 📊 Recent Activity */
+.activity-item {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+}
+
+.activity-item:hover {
+    background: rgba(37, 99, 235, 0.05);
+    transform: translateX(4px);
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.activity-title {
+    font-weight: 600;
+    color: var(--dark);
+    margin-bottom: var(--spacing-xs);
+}
+
+.activity-desc {
+    color: var(--gray);
+    margin-bottom: var(--spacing-xs);
+}
+
+.activity-time {
+    font-size: 0.75rem;
+}
+
+/* 📈 Market Insights */
+.insight-item {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    background: rgba(16, 185, 129, 0.05);
+    border-left: 4px solid var(--success);
+}
+
+.insight-header {
+    color: var(--dark);
+}
+
+.insight-text {
+    color: var(--gray);
+    line-height: 1.4;
+}
+
+/* 🌟 Animations */
+.fade-in-up {
+    animation: fadeInUp 0.8s ease-out;
+}
+
+/* 📱 Responsive Design */
+@media (max-width: 768px) {
+    .welcome-header h1 {
+        font-size: 2rem;
+    }
+    
+    .welcome-header .lead {
+        font-size: 1rem;
+    }
+    
+    .quick-actions .btn {
+        padding: var(--spacing-md);
+    }
+    
+    .quick-actions .btn i {
+        font-size: 1.5rem;
+    }
+}
+</style>

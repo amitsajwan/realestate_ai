@@ -1,202 +1,245 @@
-# PropertyAI - Next-Generation Real Estate CRM
-*AI-Powered Real Estate Management with Facebook Integration*
+# PropertyAI - Next-Gen AI Real Estate Dashboard
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![React Native](https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactnative.dev/)
-[![GROQ](https://img.shields.io/badge/AI-GROQ%20LLM-orange?style=for-the-badge)](https://groq.com/)
-[![Facebook](https://img.shields.io/badge/Facebook-1877F2?style=for-the-badge&logo=facebook&logoColor=white)](https://developers.facebook.com/)
+A modern, modular real estate platform with AI-powered content generation, Facebook integration, and multi-language support.
 
-## 🏠 Overview
+## 🚀 **Features**
 
-PropertyAI is a comprehensive, AI-powered real estate CRM solution designed specifically for Indian real estate agents. It combines modern web technologies with advanced AI capabilities to streamline property management, automate social media posting, and enhance agent productivity.
+### ✅ **Core Functionality**
+- **AI Content Generation**: Multi-language real estate listing content
+- **Facebook Integration**: OAuth, page management, and automated posting
+- **User Management**: JWT authentication with Facebook OAuth support
+- **Property Management**: Add, edit, and manage real estate listings
+- **Multi-language Support**: English, Hindi, Marathi, Gujarati
+- **Onboarding System**: 7-step user onboarding with branding
 
-### ✨ Key Features
+### ✅ **Technical Features**
+- **Modular Architecture**: Clean, maintainable code structure
+- **FastAPI Backend**: Modern, fast Python web framework
+- **JWT Authentication**: Secure user sessions
+- **Demo Mode**: Facebook integration simulation for testing
+- **Responsive UI**: Bootstrap-based dashboard
 
-- **🤖 AI Content Generation**: Real LLM integration using GROQ for property descriptions and branding
-- **📱 Modern Onboarding**: 7-step AI-powered agent onboarding with Facebook integration
-- **🔗 Facebook Automation**: Complete OAuth flow, page management, and automated posting
-- **🏠 Smart Properties**: AI-generated property listings with multi-language support
-- **🌏 Localization**: Support for English, Hindi, Marathi, and Gujarati
-- **📱 Mobile-Responsive**: Works seamlessly across all devices
-- **🔐 Secure Authentication**: JWT-based auth with bcrypt password hashing
+## 🏗️ **Architecture**
 
-## 🚀 Quick Start
+```
+app/
+├── main.py                 # FastAPI application entry point
+├── config.py              # Configuration and environment settings
+├── utils.py               # Shared utilities (JWT, etc.)
+├── routers/               # API route handlers
+│   ├── auth.py           # Authentication and user management
+│   ├── facebook.py       # Facebook OAuth and posting
+│   ├── listings.py       # AI content generation
+│   ├── properties.py     # Property management
+│   ├── user_profile.py   # User onboarding and profiles
+│   ├── dashboard.py      # Dashboard statistics
+│   ├── crm.py           # CRM functionality
+│   └── localization.py   # Multi-language support
+└── templates/             # HTML templates
+    ├── dashboard_modular.html      # Main dashboard
+    └── components/                 # Dashboard components
+        ├── dashboard_header.html   # Navigation header
+        ├── dashboard_main.html     # Main content area
+        ├── dashboard_scripts.html  # JavaScript functionality
+        ├── dashboard_styles.html   # CSS styles
+        ├── dashboard_welcome.html  # Welcome section
+        ├── dashboard_properties.html # Properties section
+        ├── dashboard_ai_content.html # AI content generation
+        ├── dashboard_facebook.html   # Facebook integration
+        ├── dashboard_onboarding.html # User onboarding
+        └── dashboard_crm.html      # CRM section
+```
 
-### Prerequisites
-- Python 3.8+
-- Node.js 16+ (for testing)
-- Facebook Developer Account (optional, for social media features)
+## 🚀 **Quick Start**
 
-### Installation
-
-1. **Clone Repository**
-   ```bash
-   git clone <repository-url>
-   cd realestate_ai
-   ```
-
-2. **Setup Environment**
-   ```bash
-   python -m venv .venv
-   .venv\Scripts\activate  # Windows
-   source .venv/bin/activate  # Linux/Mac
-   pip install -r requirements.txt
-   ```
-
-3. **Initialize Database**
-   ```bash
-   python database_setup.py
-   ```
-
-4. **Start Application**
-   ```bash
-   python simple_backend.py
-   ```
-
-5. **Access Application**
-   - Open http://localhost:8003
-   - Login with demo@mumbai.com / password123
-
-## 📖 Documentation
-
-### 📚 **[Complete Guide](PROPERTYAI_COMPLETE_GUIDE.md)**
-Comprehensive overview including features, installation, API documentation, and business value.
-
-### 🔧 **[Technical Documentation](TECHNICAL_DOCUMENTATION.md)**
-Detailed architecture, database schema, API specifications, and security implementation.
-
-### 🚀 **[Deployment Guide](DEPLOYMENT_GUIDE.md)**
-Production deployment, Docker configuration, cloud setup, and monitoring.
-
-## 🧪 Testing
-
-### Automated Testing with Playwright
+### 1. **Environment Setup**
 ```bash
-# Install test dependencies
-npm install
-npx playwright install
+# Clone the repository
+git clone <repository-url>
+cd realestate_ai
 
-# Run all tests
-npx playwright test
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Run specific test suites
-npx playwright test tests/auth.spec.ts
-npx playwright test tests/modern-onboarding-flow.spec.ts
-npx playwright test tests/facebook-connect-demo.spec.ts
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-### Test Coverage
-- ✅ Authentication and login flow
-- ✅ Complete 7-step onboarding process
-- ✅ Facebook integration and OAuth
-- ✅ Property management and AI content generation
-- ✅ Mobile responsiveness
-- ✅ API endpoint validation
+### 2. **Environment Configuration**
+Create a `.env` file:
+```env
+# Server Configuration
+SECRET_KEY=your-secret-key-here
+DEBUG=True
 
-## 🏗️ Architecture
+# Facebook Integration (Optional - Demo mode works without these)
+FB_APP_ID=your-facebook-app-id
+FB_APP_SECRET=your-facebook-app-secret
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Web Frontend  │    │  Mobile App     │    │  External APIs  │
-│   (Bootstrap)   │    │ (React Native)  │    │ (Facebook, AI)  │
-└─────────┬───────┘    └─────────┬───────┘    └─────────┬───────┘
-          │                      │                      │
-          └──────────────────────┼──────────────────────┘
-                                 │
-                    ┌─────────────┴───────────┐
-                    │    FastAPI Backend      │
-                    │   (simple_backend.py)   │
-                    └─────────────┬───────────┘
-                                  │
-                    ┌─────────────┴───────────┐
-                    │   SQLite Database       │
-                    │   (propertyai.db)       │
-                    └─────────────────────────┘
+# URL Configuration
+NGROK_BASE_URL=https://your-ngrok-url.ngrok-free.app
+LOCAL_BASE_URL=http://127.0.0.1:8003
 ```
 
-## 🔧 Tech Stack
+### 3. **Start the Server**
+```bash
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8003 --reload
+```
 
-### Backend
-- **FastAPI**: Modern, fast web framework for Python
-- **SQLite**: Lightweight database (PostgreSQL for production)
-- **JWT**: Secure authentication tokens
-- **bcrypt**: Password hashing
+### 4. **Access the Application**
+- **Dashboard**: http://127.0.0.1:8003/dashboard
+- **API Docs**: http://127.0.0.1:8003/docs
 
-### Frontend
-- **Bootstrap 5**: Responsive UI framework
-- **Font Awesome**: Icon library
-- **Modern JavaScript**: ES6+ features
+## 🔧 **Usage**
 
-### AI Integration
-- **GROQ**: Real LLM for content generation
-- **Multi-language**: Localized content support
+### **Facebook Integration (Demo Mode)**
+1. Navigate to the dashboard
+2. Click "Connect Facebook" in the onboarding section
+3. Complete the demo OAuth flow
+4. Generate AI content for properties
+5. Post content to Facebook (simulated in demo mode)
 
-### Social Media
-- **Facebook Graph API**: Complete integration
-- **OAuth 2.0**: Secure authentication
-- **Token Encryption**: Secure credential storage
+### **AI Content Generation**
+1. Select a property from the dropdown
+2. Choose languages (English, Hindi, Marathi, Gujarati)
+3. Select tone and template
+4. Click "Generate Content"
+5. Review generated content in language tabs
+6. Post to Facebook or copy content
 
-### Testing
-- **Playwright**: End-to-end testing framework
-- **TypeScript**: Type-safe test development
+### **User Onboarding**
+1. Complete the 7-step onboarding process
+2. Provide company information and branding
+3. Set language preferences
+4. Connect Facebook account
+5. Save profile for future use
 
-## 📱 Mobile Application
+## 📁 **File Structure**
 
-The project includes a React Native mobile application located in the `mobile-app/` directory. See the [mobile app README](mobile-app/README.md) for setup instructions.
+### **Core Files**
+- `app/main.py` - Main FastAPI application
+- `app/config.py` - Configuration management
+- `app/utils.py` - Shared utilities
 
-## 🔐 Security Features
+### **Routers**
+- `app/routers/auth.py` - Authentication (365 lines)
+- `app/routers/facebook.py` - Facebook integration (400 lines)
+- `app/routers/listings.py` - AI content generation (232 lines)
+- `app/routers/properties.py` - Property management (116 lines)
+- `app/routers/user_profile.py` - User profiles (146 lines)
+- `app/routers/dashboard.py` - Dashboard stats (59 lines)
+- `app/routers/crm.py` - CRM functionality (559 lines)
+- `app/routers/localization.py` - Localization (433 lines)
+
+### **Templates**
+- `templates/dashboard_modular.html` - Main dashboard template
+- `templates/components/` - Modular dashboard components
+
+## 🔒 **Security Features**
 
 - **JWT Authentication**: Secure token-based authentication
-- **Password Hashing**: bcrypt for secure password storage
-- **Token Encryption**: Fernet encryption for Facebook tokens
-- **Input Validation**: Comprehensive data validation
-- **CORS Protection**: Configurable cross-origin policies
-- **Rate Limiting**: API endpoint protection
+- **OAuth State Verification**: CSRF protection for Facebook OAuth
+- **Input Validation**: Pydantic models for data validation
+- **Environment Variables**: Secure configuration management
 
-## 🌍 Localization
+## 🌐 **Multi-language Support**
 
-PropertyAI supports multiple Indian languages:
-- **English**: Default language
-- **Hindi (हिंदी)**: Full UI and content support
-- **Marathi (मराठी)**: Regional language support
-- **Gujarati (ગુજરાતી)**: Western India market focus
+- **English**: Primary language with full feature support
+- **Hindi**: हिंदी content generation and display
+- **Marathi**: मराठी content generation and display
+- **Gujarati**: ગુજરાતી content generation and display
 
-## 🤝 Contributing
+## 📊 **API Endpoints**
+
+### **Authentication**
+- `POST /api/v1/auth/login` - User login
+- `POST /api/v1/auth/register` - User registration
+
+### **Facebook Integration**
+- `GET /api/v1/facebook/oauth` - Start OAuth flow
+- `GET /api/v1/facebook/callback` - OAuth callback
+- `POST /api/v1/facebook/post` - Post to Facebook
+- `GET /api/v1/facebook/pages` - Get user's pages
+- `GET /api/v1/facebook/config` - Get integration status
+
+### **Content Generation**
+- `POST /api/v1/listings/generate` - Generate AI content
+
+### **Properties**
+- `GET /api/v1/properties` - List properties
+- `POST /api/v1/properties` - Add property
+
+### **User Profile**
+- `POST /api/v1/user/profile` - Save user profile
+- `GET /api/v1/user/profile/{user_id}` - Get user profile
+
+## 🧪 **Testing**
+
+### **Demo Mode**
+The system includes a comprehensive demo mode that simulates:
+- Facebook OAuth flow
+- Content generation
+- Facebook posting
+- User management
+
+### **Manual Testing**
+1. Start the server
+2. Navigate to dashboard
+3. Complete Facebook OAuth (demo mode)
+4. Generate AI content
+5. Post to Facebook
+6. Verify all functionality
+
+## 🚀 **Deployment**
+
+### **Production Setup**
+1. Set `DEBUG=False` in environment
+2. Configure real Facebook app credentials
+3. Set up proper database (currently using in-memory storage)
+4. Configure production URLs
+5. Set up SSL/TLS certificates
+
+### **Docker Support**
+```bash
+# Build and run with Docker
+docker build -t propertyai .
+docker run -p 8003:8003 propertyai
+```
+
+## 📝 **Development Notes**
+
+### **Code Quality**
+- All files under 800 lines (as requested)
+- Modular architecture for easy maintenance
+- Comprehensive error handling
+- Detailed logging throughout
+
+### **Performance**
+- Async/await for I/O operations
+- Efficient database queries (when implemented)
+- Optimized template rendering
+
+## 🤝 **Contributing**
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+2. Create a feature branch
+3. Make your changes
+4. Ensure all tests pass
+5. Submit a pull request
 
-## 📄 License
+## 📄 **License**
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
 
-## 🆘 Support
+## 🆘 **Support**
 
 For support and questions:
-- Check the [Technical Documentation](TECHNICAL_DOCUMENTATION.md)
-- Review the [Deployment Guide](DEPLOYMENT_GUIDE.md)
-- Create an issue in the repository
-
-## 🚀 Roadmap
-
-### Upcoming Features
-- **WhatsApp Integration**: Automated messaging and lead management
-- **Instagram Integration**: Multi-platform social media posting
-- **Advanced Analytics**: Detailed performance insights
-- **Lead Scoring**: AI-powered prospect qualification
-- **Voice Commands**: AI assistant for hands-free operation
-
-### Technical Improvements
-- **Real-time Notifications**: WebSocket implementation
-- **Advanced Search**: Elasticsearch integration
-- **Image Recognition**: Property photo analysis
-- **Performance Monitoring**: Advanced observability
+- Check the documentation
+- Review the code comments
+- Test in demo mode first
+- Contact the development team
 
 ---
 
-**PropertyAI** - Empowering Real Estate Professionals with Next-Generation AI Technology
-
-*Built with ❤️ for the Indian Real Estate Market*
+**PropertyAI** - Transforming Real Estate with AI 🏠✨

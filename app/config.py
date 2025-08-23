@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""
+Configuration Management
+=======================
+Centralized configuration for URLs, environment variables, and settings
+"""
+
+import os
+from typing import Optional
+
+class Settings:
+    """Application settings and configuration"""
+    
+    # Server Configuration
+    HOST: str = os.getenv("HOST", "127.0.0.1")
+    PORT: int = int(os.getenv("PORT", "8003"))
+    
+    # Base URLs
+    LOCAL_BASE_URL: str = f"http://{HOST}:{PORT}"
+    NGROK_BASE_URL: str = os.getenv("NGROK_BASE_URL", "https://8400abb81098.ngrok-free.app")
+    
+    # Environment Detection
+    IS_PRODUCTION: bool = os.getenv("ENVIRONMENT", "development").lower() == "production"
+    USE_NGROK: bool = os.getenv("USE_NGROK", "false").lower() == "true"
+    
+    # Facebook Configuration
+    FB_APP_ID: str = os.getenv("FB_APP_ID", "")
+    FB_APP_SECRET: str = os.getenv("FB_APP_SECRET", "")
+    FB_PAGE_TOKEN: str = os.getenv("FB_PAGE_TOKEN", "")
+    FB_PAGE_ID: str = os.getenv("FB_PAGE_ID", "")
+    
+    # Facebook OAuth - Always use ngrok for callbacks
+    FB_REDIRECT_URI: str = f"{NGROK_BASE_URL}/api/v1/facebook/callback"
+    
+    # JWT Configuration
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+    
+    @classmethod
+    def get_base_url(cls) -> str:
+        """Get the appropriate base URL based on environment"""
+        if cls.USE_NGROK or cls.IS_PRODUCTION:
+            return cls.NGROK_BASE_URL
+        return cls.LOCAL_BASE_URL
+    
+    @classmethod
+    def get_dashboard_url(cls) -> str:
+        """Get dashboard URL for OAuth callbacks"""
+        return f"{cls.get_base_url()}/dashboard"
+    
+    @classmethod
+    def get_oauth_dashboard_url(cls) -> str:
+        """Get dashboard URL specifically for OAuth callbacks (always ngrok)"""
+        return f"{cls.NGROK_BASE_URL}/dashboard"
+    
+    @classmethod
+    def get_login_url(cls) -> str:
+        """Get login URL for OAuth error redirects"""
+        return f"{cls.get_base_url()}/"
+    
+    @classmethod
+    def get_oauth_login_url(cls) -> str:
+        """Get login URL specifically for OAuth error redirects (always ngrok)"""
+        return f"{cls.NGROK_BASE_URL}/"
+    
+    @classmethod
+    def get_facebook_callback_url(cls) -> str:
+        """Get Facebook OAuth callback URL (always ngrok for external access)"""
+        return cls.FB_REDIRECT_URI
+    
+    @classmethod
+    def get_api_base_url(cls) -> str:
+        """Get API base URL for internal use"""
+        return cls.LOCAL_BASE_URL
+
+# Global settings instance
+settings = Settings()
