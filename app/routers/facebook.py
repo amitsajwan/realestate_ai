@@ -333,16 +333,23 @@ class FacebookIntegration:
 fb_integration = FacebookIntegration()
 
 @router.get("/oauth")
-async def facebook_oauth(request: Request):
+async def facebook_oauth(request: Request, fromOnboarding: bool = False):
     """Start Facebook OAuth flow - Public endpoint"""
     try:
         oauth_data = fb_integration.get_oauth_url()
+        
+        # Store onboarding context in session or state
+        if fromOnboarding:
+            logger.info("🔄 Facebook OAuth initiated from onboarding flow")
+            # Add onboarding context to state
+            oauth_data['state'] = f"{oauth_data['state']}_onboarding"
         
         return JSONResponse(content={
             "success": True,
             "oauth_url": oauth_data['oauth_url'],
             "state": oauth_data['state'],
-            "expires_in": oauth_data['expires_in']
+            "expires_in": oauth_data['expires_in'],
+            "fromOnboarding": fromOnboarding
         })
         
     except Exception as e:
@@ -360,6 +367,10 @@ async def facebook_callback(code: str, state: str, request: Request):
         logger.info(f"🔄 Request method: {request.method}")
         logger.info(f"🔄 Request URL: {request.url}")
         logger.info(f"🔄 Request headers: {dict(request.headers)}")
+        
+        # Check if this is from onboarding flow
+        isFromOnboarding = "_onboarding" in state
+        logger.info(f"🔄 Is from onboarding: {isFromOnboarding}")
         
         # Handle OAuth callback
         logger.info(f"🔄 Calling handle_oauth_callback with code: {code[:10]}... and state: {state[:10]}...")
@@ -390,7 +401,7 @@ async def facebook_callback(code: str, state: str, request: Request):
             
             logger.info(f"✅ Facebook OAuth successful for user: {email}")
             
-            # Redirect to dashboard with success message
+            # Redirect based on context
             from app.config import settings
             # Determine if we're being called from ngrok or locally
             request_url = str(request.url)
@@ -408,14 +419,22 @@ async def facebook_callback(code: str, state: str, request: Request):
             
             logger.info(f"🔄 Is Ngrok Request: {is_ngrok}")
             
-            if is_ngrok:
-                # Redirect to ngrok dashboard URL
-                dashboard_url = f"{settings.NGROK_BASE_URL}/dashboard?auth=success&token={access_token_jwt}"
-                logger.info(f"🔄 Redirecting to ngrok dashboard: {dashboard_url}")
+            if isFromOnboarding:
+                # Redirect back to onboarding with success
+                if is_ngrok:
+                    dashboard_url = f"{settings.NGROK_BASE_URL}/dashboard?auth=success&token={access_token_jwt}&fromOnboarding=true"
+                else:
+                    dashboard_url = f"http://127.0.0.1:8003/dashboard?auth=success&token={access_token_jwt}&fromOnboarding=true"
+                
+                logger.info(f"🔄 Redirecting to onboarding completion: {dashboard_url}")
             else:
-                # Redirect to local dashboard URL
-                dashboard_url = f"http://127.0.0.1:8003/dashboard?auth=success&token={access_token_jwt}"
-                logger.info(f"🔄 Redirecting to local dashboard: {dashboard_url}")
+                # Regular OAuth callback - go to dashboard
+                if is_ngrok:
+                    dashboard_url = f"{settings.NGROK_BASE_URL}/dashboard?auth=success&token={access_token_jwt}"
+                else:
+                    dashboard_url = f"http://127.0.0.1:8003/dashboard?auth=success&token={access_token_jwt}"
+                
+                logger.info(f"🔄 Redirecting to dashboard: {dashboard_url}")
             
             from fastapi.responses import RedirectResponse
             return RedirectResponse(url=dashboard_url)

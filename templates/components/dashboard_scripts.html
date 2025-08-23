@@ -9,6 +9,7 @@ function handleOAuthCallback() {
     const urlParams = new URLSearchParams(window.location.search);
     const auth = urlParams.get('auth');
     const token = urlParams.get('token');
+    const fromOnboarding = urlParams.get('fromOnboarding');
     
     if (auth === 'success' && token) {
         console.log('🔐 OAuth success, storing token');
@@ -17,6 +18,37 @@ function handleOAuthCallback() {
         // Clean up URL
         const newUrl = window.location.pathname;
         window.history.replaceState({}, document.title, newUrl);
+        
+        // If coming from onboarding, complete the Facebook step
+        if (fromOnboarding === 'true') {
+            console.log('🔄 Facebook OAuth completed during onboarding');
+            
+            // Mark Facebook step as completed
+            const facebookStatus = document.getElementById('facebookStatus');
+            if (facebookStatus) {
+                facebookStatus.style.display = 'block';
+            }
+            
+            // Hide Facebook setup forms
+            const quickSetup = document.getElementById('facebookQuickSetup');
+            const customSetup = document.getElementById('facebookCustomSetup');
+            if (quickSetup) quickSetup.style.display = 'none';
+            if (customSetup) customSetup.style.display = 'none';
+            
+            // Show success message
+            showAlert('✅ Facebook connected successfully! You can now proceed to the next step.', 'success');
+            
+            // Auto-save onboarding data
+            saveOnboardingFormData();
+            
+            // Stay on onboarding step 4 (Facebook Integration)
+            showOnboardingStep(4);
+            
+        } else {
+            // Regular OAuth callback - go to dashboard
+            console.log('🔐 Regular OAuth callback, going to dashboard');
+            showSection('welcome');
+        }
         
         // Extract user info from token
         try {
@@ -866,6 +898,92 @@ function generateContentWithBranding(baseContent, language = 'English') {
     return brandedContent;
 }
 
+// ✅ NEW FUNCTION: Compare property data with type-aware comparison
+function comparePropertyData(originalData, retrievedData, keyFields = ['title', 'type', 'bedrooms', 'price', 'city']) {
+    const mismatches = [];
+    
+    for (const field of keyFields) {
+        const originalValue = originalData[field];
+        const retrievedValue = retrievedData[field];
+        
+        if (originalValue !== undefined && retrievedValue !== undefined) {
+            // Handle numeric type differences
+            let isEqual = false;
+            
+            if (typeof originalValue === 'number' && typeof retrievedValue === 'number') {
+                // Both are numbers - compare directly
+                isEqual = originalValue === retrievedValue;
+            } else if (typeof originalValue === 'string' && typeof retrievedValue === 'string') {
+                // Both are strings - compare directly
+                isEqual = originalValue === retrievedValue;
+            } else if (typeof originalValue === 'number' && typeof retrievedValue === 'string') {
+                // Original is number, retrieved is string - try parsing
+                const parsedRetrieved = parseFloat(retrievedValue);
+                isEqual = !isNaN(parsedRetrieved) && originalValue === parsedRetrieved;
+            } else if (typeof originalValue === 'string' && typeof retrievedValue === 'number') {
+                // Original is string, retrieved is number - try parsing
+                const parsedOriginal = parseFloat(originalValue);
+                isEqual = !isNaN(parsedOriginal) && parsedOriginal === retrievedValue;
+            } else {
+                // Different types - convert both to strings for comparison
+                isEqual = String(originalValue) === String(retrievedValue);
+            }
+            
+            if (!isEqual) {
+                mismatches.push({
+                    field,
+                    original: originalValue,
+                    retrieved: retrievedValue,
+                    originalType: typeof originalValue,
+                    retrievedType: typeof retrievedValue
+                });
+            }
+        }
+    }
+    
+    return {
+        isConsistent: mismatches.length === 0,
+        mismatches,
+        totalFields: keyFields.length,
+        matchingFields: keyFields.length - mismatches.length
+    };
+}
+
+// ✅ ENHANCED: Validate property data consistency
+function validatePropertyDataConsistency(propertyData) {
+    console.log('🔍 Validating property data consistency...');
+    
+    // Check for required fields
+    const requiredFields = ['title', 'type', 'bedrooms', 'price', 'city'];
+    const missingFields = requiredFields.filter(field => !propertyData[field]);
+    
+    if (missingFields.length > 0) {
+        console.warn(`⚠️ Missing required fields: ${missingFields.join(', ')}`);
+        return false;
+    }
+    
+    // Check data types
+    const typeValidation = {
+        title: typeof propertyData.title === 'string',
+        type: typeof propertyData.type === 'string',
+        bedrooms: typeof propertyData.bedrooms === 'string' || typeof propertyData.bedrooms === 'number',
+        price: typeof propertyData.price === 'number' || typeof propertyData.price === 'string',
+        city: typeof propertyData.city === 'string'
+    };
+    
+    const invalidTypes = Object.entries(typeValidation)
+        .filter(([field, isValid]) => !isValid)
+        .map(([field]) => field);
+    
+    if (invalidTypes.length > 0) {
+        console.warn(`⚠️ Invalid data types for fields: ${invalidTypes.join(', ')}`);
+        return false;
+    }
+    
+    console.log('✅ Property data validation passed');
+    return true;
+}
+
 // ✅ NEW FUNCTION: Quick Start functionality
 function showQuickStart() {
     showSection('welcome');
@@ -1129,46 +1247,11 @@ function saveOnboardingFormData() {
     }
 }
 
-function updateOnboardingProgress() { 
-    console.log('Updating onboarding progress...');
-    try {
-        const currentStep = parseInt(localStorage.getItem('onboardingStep') || '1');
-        const totalSteps = 7;
-        const progress = (currentStep / totalSteps) * 100;
-        
-        const progressBar = document.getElementById('onboardingProgress');
-        const stepText = document.getElementById('onboardingStepText');
-        
-        if (progressBar) progressBar.style.width = `${progress}%`;
-        if (stepText) stepText.textContent = `Step ${currentStep} of ${totalSteps}`;
-        
-        console.log(`✅ Progress updated: Step ${currentStep}/${totalSteps} (${progress}%)`);
-    } catch (error) {
-        console.error('Error updating progress:', error);
-    }
-}
-
-function updateOnboardingNavigation() { 
-    console.log('Updating onboarding navigation...');
-    try {
-        const currentStep = parseInt(localStorage.getItem('onboardingStep') || '1');
-        const prevBtn = document.getElementById('prevOnboardingBtn');
-        const nextBtn = document.getElementById('nextOnboardingBtn');
-        
-        if (prevBtn) prevBtn.disabled = currentStep <= 1;
-        if (nextBtn) nextBtn.disabled = currentStep >= 7;
-        
-        console.log(`✅ Navigation updated for step ${currentStep}`);
-    } catch (error) {
-        console.error('Error updating navigation:', error);
-    }
-}
-
 // ✅ ENHANCED: Initialize onboarding with proper step management
 function initOnboarding() {
     console.log('Initializing onboarding...');
     
-    // Load saved step
+    // Load saved step or start from step 1
     const savedStep = localStorage.getItem('onboardingStep') || '1';
     const currentStep = parseInt(savedStep);
     
@@ -1185,112 +1268,326 @@ function initOnboarding() {
     console.log(`✅ Onboarding initialized at step ${currentStep}`);
 }
 
-// ✅ NEW FUNCTION: Show specific onboarding step
+// ✅ FIXED: Show specific onboarding step with proper validation
 function showOnboardingStep(stepNumber) {
+    console.log(`🎯 Showing onboarding step ${stepNumber}`);
+    
+    // Validate step number
+    if (stepNumber < 1 || stepNumber > 7) {
+        stepNumber = 1;
+    }
+    
     // Hide all steps
     document.querySelectorAll('.onboarding-step').forEach(step => {
         step.classList.remove('active');
+        step.style.display = 'none';
     });
     
     // Show current step
     const currentStepElement = document.getElementById(`step${stepNumber}`);
     if (currentStepElement) {
         currentStepElement.classList.add('active');
+        currentStepElement.style.display = 'block';
         localStorage.setItem('onboardingStep', stepNumber.toString());
+        
+        // Update progress and navigation
         updateOnboardingProgress();
         updateOnboardingNavigation();
+        
+        console.log(`✅ Step ${stepNumber} displayed successfully`);
+    } else {
+        console.error(`❌ Step ${stepNumber} element not found`);
     }
 }
 
-// ✅ NEW FUNCTION: Setup auto-save for onboarding form
-function setupOnboardingAutoSave() {
-    const form = document.getElementById('onboardingForm');
-    if (!form) return;
+// ✅ FIXED: Navigate to next onboarding step with validation
+function nextOnboardingStep() {
+    const currentStep = parseInt(localStorage.getItem('onboardingStep') || '1');
+    console.log(`🔄 Navigating from step ${currentStep} to next step`);
     
-    // Auto-save on input change
-    form.addEventListener('input', function() {
-        saveOnboardingFormData();
-    });
-    
-    // Auto-save on checkbox change
-    form.addEventListener('change', function() {
-        saveOnboardingFormData();
-    });
-    
-    console.log('✅ Onboarding auto-save enabled');
-}
-
-// ✅ ENHANCED: Submit onboarding with proper data handling
-function submitOnboarding(event) {
-    event.preventDefault();
-    
-    const termsCheckbox = document.getElementById('termsAgreement');
-    if (!termsCheckbox || !termsCheckbox.checked) {
-        showAlert('Please agree to the terms and conditions', 'warning');
+    // Validate current step data before proceeding
+    if (!validateCurrentStep(currentStep)) {
         return;
     }
     
-    // Show loading
-    const submitBtn = event.target.querySelector('button[type="submit"]');
-    const originalText = submitBtn.innerHTML;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Completing...';
-    submitBtn.disabled = true;
+    if (currentStep < 7) {
+        showOnboardingStep(currentStep + 1);
+    } else {
+        // Already on last step, don't navigate further
+        console.log('✅ Already on last step (7)');
+    }
+}
+
+// ✅ FIXED: Navigate to previous onboarding step
+function prevOnboardingStep() {
+    const currentStep = parseInt(localStorage.getItem('onboardingStep') || '1');
+    console.log(`🔄 Navigating from step ${currentStep} to previous step`);
     
+    if (currentStep > 1) {
+        showOnboardingStep(currentStep - 1);
+    }
+}
+
+// ✅ NEW FUNCTION: Validate current step data
+function validateCurrentStep(stepNumber) {
+    console.log(`🔍 Validating step ${stepNumber}`);
+    
+    switch(stepNumber) {
+        case 1: // Personal Information
+            const name = document.querySelector('input[name="name"]')?.value;
+            const email = document.querySelector('input[name="email"]')?.value;
+            const phone = document.querySelector('input[name="phone"]')?.value;
+            
+            if (!name || !email || !phone) {
+                showAlert('Please fill in all required fields (Name, Email, Phone)', 'warning');
+                return false;
+            }
+            break;
+            
+        case 2: // Company Details
+            const company = document.querySelector('input[name="company"]')?.value;
+            const experience = document.querySelector('select[name="experience_years"]')?.value;
+            const specialization = document.querySelector('input[name="specialization_areas"]')?.value;
+            const languages = document.querySelectorAll('input[name="languages[]"]:checked');
+            
+            if (!company || !experience || !specialization) {
+                showAlert('Please fill in all required company details', 'warning');
+                return false;
+            }
+            
+            if (languages.length === 0) {
+                showAlert('Please select at least one language', 'warning');
+                return false;
+            }
+            break;
+            
+        case 3: // AI Branding
+            const tagline = document.querySelector('input[name="tagline"]')?.value;
+            if (!tagline) {
+                showAlert('Please generate AI branding first', 'warning');
+                return false;
+            }
+            break;
+            
+        case 4: // Facebook Integration
+            // Facebook step is optional, can be skipped
+            break;
+            
+        case 5: // RERA Compliance
+            const businessType = document.querySelector('select[name="business_type"]')?.value;
+            if (!businessType) {
+                showAlert('Please select your business type', 'warning');
+                return false;
+            }
+            break;
+            
+        case 6: // Profile Setup
+            // Profile setup is optional
+            break;
+            
+        case 7: // Completion
+            const terms = document.getElementById('termsAgreement')?.checked;
+            if (!terms) {
+                showAlert('Please agree to the terms and conditions', 'warning');
+                return false;
+            }
+            break;
+    }
+    
+    return true;
+}
+
+// ✅ FIXED: Update onboarding progress with proper step calculation
+function updateOnboardingProgress() { 
+    console.log('Updating onboarding progress...');
     try {
-        // Get all form data
-        const formData = new FormData(event.target);
-        const data = {};
+        const currentStep = parseInt(localStorage.getItem('onboardingStep') || '1');
+        const totalSteps = 7;
+        const progress = (currentStep / totalSteps) * 100;
         
-        for (let [key, value] of formData.entries()) {
-            if (key === 'languages[]') {
-                if (!data.languages) data.languages = [];
-                data.languages.push(value);
+        const progressBar = document.getElementById('onboardingProgress');
+        const stepText = document.getElementById('onboardingStepText');
+        
+        if (progressBar) {
+            progressBar.style.width = `${progress}%`;
+            progressBar.setAttribute('aria-valuenow', currentStep);
+        }
+        
+        if (stepText) {
+            const stepNames = [
+                'Personal Information',
+                'Company Details', 
+                'AI Branding',
+                'Facebook Integration',
+                'Legal Compliance',
+                'Profile Setup',
+                'Complete Setup'
+            ];
+            stepText.textContent = stepNames[currentStep - 1] || `Step ${currentStep}`;
+        }
+        
+        console.log(`✅ Progress updated: Step ${currentStep}/${totalSteps} (${progress}%)`);
+    } catch (error) {
+        console.error('Error updating progress:', error);
+    }
+}
+
+// ✅ FIXED: Update onboarding navigation buttons
+function updateOnboardingNavigation() { 
+    console.log('Updating onboarding navigation...');
+    try {
+        const currentStep = parseInt(localStorage.getItem('onboardingStep') || '1');
+        const prevBtn = document.getElementById('prevOnboardingBtn');
+        const nextBtn = document.getElementById('nextOnboardingBtn');
+        const completeSection = document.getElementById('completeOnboardingSection');
+        
+        if (prevBtn) {
+            prevBtn.disabled = currentStep <= 1;
+            if (currentStep <= 1) {
+                prevBtn.classList.add('disabled');
             } else {
-                data[key] = value;
+                prevBtn.classList.remove('disabled');
             }
         }
         
-        // Save to localStorage as completed profile
-        localStorage.setItem('userProfile', JSON.stringify(data));
-        localStorage.setItem('onboardingCompleted', 'true');
-        localStorage.removeItem('onboardingData'); // Clean up temporary data
-        localStorage.removeItem('onboardingStep'); // Clean up step data
+        if (nextBtn) {
+            if (currentStep >= 7) {
+                // Hide next button and show complete section on last step
+                nextBtn.style.display = 'none';
+                if (completeSection) {
+                    completeSection.style.display = 'block';
+                }
+            } else {
+                // Show next button and hide complete section
+                nextBtn.style.display = 'block';
+                if (completeSection) {
+                    completeSection.style.display = 'none';
+                }
+                nextBtn.innerHTML = 'Next<i class="fas fa-arrow-right ms-2"></i>';
+                nextBtn.classList.remove('btn-success');
+                nextBtn.classList.add('btn-primary');
+            }
+        }
         
-        console.log('✅ Onboarding completed, profile saved:', data);
-        
-        // Show success and redirect
-        showAlert('🎉 Onboarding completed successfully!', 'success');
-        
-        setTimeout(() => {
-            showSection('welcome');
-            // Update user profile globally
-            userProfile = data;
-            updateBrandingDisplay();
-        }, 1500);
-        
+        console.log(`✅ Navigation updated for step ${currentStep}`);
     } catch (error) {
-        console.error('Error completing onboarding:', error);
-        showAlert('❌ Error completing onboarding. Please try again.', 'danger');
-    } finally {
-        // Reset button
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
+        console.error('Error updating navigation:', error);
     }
 }
 
-// ✅ NEW FUNCTION: Navigate to next onboarding step
-function nextOnboardingStep() {
-    const currentStep = parseInt(localStorage.getItem('onboardingStep') || '1');
-    if (currentStep < 7) {
-        showOnboardingStep(currentStep + 1);
+// ✅ ENHANCED: Handle Facebook OAuth callback to complete onboarding
+function handleFacebookOAuthCallback() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const auth = urlParams.get('auth');
+    const token = urlParams.get('token');
+    const fromOnboarding = urlParams.get('fromOnboarding');
+    
+    if (auth === 'success' && token) {
+        console.log('🔐 OAuth success, storing token');
+        localStorage.setItem('access_token', token);
+        
+        // Clean up URL
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+        
+        // If coming from onboarding, complete the Facebook step
+        if (fromOnboarding === 'true') {
+            console.log('🔄 Facebook OAuth completed during onboarding');
+            
+            // Mark Facebook step as completed
+            const facebookStatus = document.getElementById('facebookStatus');
+            if (facebookStatus) {
+                facebookStatus.style.display = 'block';
+            }
+            
+            // Hide Facebook setup forms
+            const quickSetup = document.getElementById('facebookQuickSetup');
+            const customSetup = document.getElementById('facebookCustomSetup');
+            if (quickSetup) quickSetup.style.display = 'none';
+            if (customSetup) customSetup.style.display = 'none';
+            
+            // Show success message
+            showAlert('✅ Facebook connected successfully! You can now proceed to the next step.', 'success');
+            
+            // Auto-save onboarding data
+            saveOnboardingFormData();
+            
+            // Stay on onboarding step 4 (Facebook Integration)
+            showOnboardingStep(4);
+            
+        } else {
+            // Regular OAuth callback - go to dashboard
+            console.log('🔐 Regular OAuth callback, going to dashboard');
+            showSection('welcome');
+        }
+        
+        // Extract user info from token
+        try {
+            const tokenParts = token.split('.');
+            if (tokenParts.length === 3) {
+                const payload = JSON.parse(atob(tokenParts[1]));
+                console.log('✅ Token stored, user_id:', payload.user_id);
+            }
+        } catch (e) {
+            console.warn('Failed to decode token payload');
+        }
+    } else {
+        console.log('No OAuth callback detected');
     }
 }
 
-// ✅ NEW FUNCTION: Navigate to previous onboarding step
-function prevOnboardingStep() {
-    const currentStep = parseInt(localStorage.getItem('onboardingStep') || '1');
-    if (currentStep > 1) {
-        showOnboardingStep(currentStep - 1);
+// ✅ ENHANCED: Setup Facebook Quick Setup with onboarding context
+function setupFacebookQuick() {
+    const quickSetup = document.getElementById('facebookQuickSetup');
+    const customSetup = document.getElementById('facebookCustomSetup');
+    
+    if (quickSetup) quickSetup.style.display = 'block';
+    if (customSetup) customSetup.style.display = 'none';
+    
+    // Setup the connect button event listener
+    const connectBtn = document.getElementById('connectFacebookBtn');
+    if (connectBtn) {
+        connectBtn.onclick = async function() {
+            try {
+                // Show loading state
+                connectBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Connecting...';
+                connectBtn.disabled = true;
+                
+                // Call Facebook OAuth endpoint with onboarding context
+                const response = await fetch('/api/v1/facebook/oauth?fromOnboarding=true', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.oauth_url) {
+                        // Redirect to Facebook OAuth with onboarding context
+                        showAlert('Redirecting to Facebook for authorization...', 'info');
+                        setTimeout(() => {
+                            // Add fromOnboarding parameter to track context
+                            const oauthUrl = new URL(data.oauth_url);
+                            oauthUrl.searchParams.set('fromOnboarding', 'true');
+                            window.location.href = oauthUrl.toString();
+                        }, 1000);
+                    } else {
+                        throw new Error('No OAuth URL received');
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error('Facebook connection error:', error);
+                showAlert(`Connection failed: ${error.message}`, 'danger');
+                
+                // Reset button
+                connectBtn.innerHTML = '<i class="fab fa-facebook me-2"></i>Connect Facebook Account';
+                connectBtn.disabled = false;
+            }
+        };
     }
 }
 
@@ -1326,58 +1623,6 @@ function generateAIBranding() {
         
         showAlert('AI branding generated successfully!', 'success');
     }, 2000);
-}
-
-// ✅ NEW FUNCTION: Setup Facebook Quick Setup
-function setupFacebookQuick() {
-    const quickSetup = document.getElementById('facebookQuickSetup');
-    const customSetup = document.getElementById('facebookCustomSetup');
-    
-    if (quickSetup) quickSetup.style.display = 'block';
-    if (customSetup) customSetup.style.display = 'none';
-    
-    // Setup the connect button event listener
-    const connectBtn = document.getElementById('connectFacebookBtn');
-    if (connectBtn) {
-        connectBtn.onclick = async function() {
-            try {
-                // Show loading state
-                connectBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Connecting...';
-                connectBtn.disabled = true;
-                
-                // Call Facebook OAuth endpoint
-                const response = await fetch('/api/v1/facebook/oauth', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    if (data.oauth_url) {
-                        // Redirect to Facebook OAuth
-                        showAlert('Redirecting to Facebook for authorization...', 'info');
-                        setTimeout(() => {
-                            window.location.href = data.oauth_url;
-                        }, 1000);
-                    } else {
-                        throw new Error('No OAuth URL received');
-                    }
-                } else {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-            } catch (error) {
-                console.error('Facebook connection error:', error);
-                showAlert(`Connection failed: ${error.message}`, 'danger');
-                
-                // Reset button
-                connectBtn.innerHTML = '<i class="fab fa-facebook me-2"></i>Connect Facebook Account';
-                connectBtn.disabled = false;
-            }
-        };
-    }
 }
 
 // ✅ NEW FUNCTION: Setup Facebook Custom Setup
@@ -1419,7 +1664,25 @@ function testFacebookConfig() {
     }, 1500);
 }
 
-// ✅ NEW FUNCTION: Submit Onboarding
+// ✅ NEW FUNCTION: Setup auto-save for onboarding form
+function setupOnboardingAutoSave() {
+    const form = document.getElementById('onboardingForm');
+    if (!form) return;
+    
+    // Auto-save on input change
+    form.addEventListener('input', function() {
+        saveOnboardingFormData();
+    });
+    
+    // Auto-save on checkbox change
+    form.addEventListener('change', function() {
+        saveOnboardingFormData();
+    });
+    
+    console.log('✅ Onboarding auto-save enabled');
+}
+
+// ✅ ENHANCED: Submit onboarding with proper data handling
 function submitOnboarding(event) {
     event.preventDefault();
     
