@@ -328,7 +328,7 @@
                 </div>
                 
                 <div class="option-cards">
-                    <div class="option-card recommended" onclick="selectOption('facebook')">
+                    <div class="option-card recommended" onclick="selectOption('facebook', event)">
                         <i class="fab fa-facebook"></i>
                         <h3>Facebook Login (Recommended)</h3>
                         <p>Quick and secure setup using your Facebook account. Perfect for real estate agents who want to post to Facebook pages.</p>
@@ -339,7 +339,7 @@
                             <li>✅ Perfect for social media posting</li>
                         </ul>
                     </div>
-                    <div class="option-card" onclick="selectOption('email')">
+                    <div class="option-card" onclick="selectOption('email', event)">
                         <i class="fas fa-envelope"></i>
                         <h3>Email & Password</h3>
                         <p>Traditional email and password login. Good for users who prefer not to use social media accounts.</p>
@@ -389,7 +389,7 @@
                     </div>
                     
                     <div class="d-grid gap-3">
-                        <button class="btn btn-primary" onclick="loginWithFacebook()">
+                        <button class="btn btn-primary" onclick="loginWithFacebook(event)">
                             <i class="fab fa-facebook me-2"></i>Continue with Facebook
                         </button>
                         <button class="btn btn-outline" onclick="goBackToStep1()">
@@ -506,17 +506,22 @@
         let selectedOption = null;
         let currentStep = 1;
         
-        function selectOption(option) {
+        function selectOption(option, event) {
             selectedOption = option;
             
             // Update visual selection
             document.querySelectorAll('.option-card').forEach(card => {
                 card.classList.remove('selected');
             });
-            event.currentTarget.classList.add('selected');
+            if (event && event.currentTarget) {
+                event.currentTarget.classList.add('selected');
+            }
             
             // Enable proceed button
-            document.getElementById('proceedBtn').disabled = false;
+            const proceedBtn = document.getElementById('proceedBtn');
+            if (proceedBtn) {
+                proceedBtn.disabled = false;
+            }
         }
         
         function proceedToStep2() {
@@ -563,7 +568,7 @@
             currentStep = 1;
         }
         
-        async function loginWithFacebook() {
+        async function loginWithFacebook(event) {
             try {
                 // Show loading state
                 const button = event.target;
@@ -586,9 +591,11 @@
                 alert('Failed to connect with Facebook. Please try again.');
                 
                 // Reset button
-                const button = event.target;
-                button.innerHTML = originalText;
-                button.disabled = false;
+                if (event && event.target) {
+                    const button = event.target;
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }
             }
         }
         
