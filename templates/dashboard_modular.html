@@ -353,16 +353,42 @@
     <!-- EXISTING External JavaScript (Keep unchanged) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- EXISTING Dashboard Scripts (Clean version) -->
-    {% include 'components/dashboard_scripts.html' %}
-    
-    <!-- ✅ ADDED: Essential JavaScript files -->
-    <script src="/static/js/dashboard_core.js"></script>
+    <!-- ✅ SIMPLIFIED: Only essential JavaScript files -->
     <script src="/static/js/dashboard_functions.js"></script>
-    <script src="/static/js/dashboard_init.js"></script>
     
-    <!-- ✅ ADDED: Essential onboarding functions to ensure global availability -->
+    <!-- ✅ ADDED: Simple section management and onboarding functions -->
     <script>
+        // Simple section management - no conflicts
+        function showSection(sectionName) {
+            console.log('🎯 showSection called with: ' + sectionName);
+            
+            // Hide all sections
+            const allSections = document.querySelectorAll('.dashboard-section');
+            allSections.forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            // Show target section
+            const targetSection = document.getElementById(sectionName + '-section');
+            if (targetSection) {
+                targetSection.style.display = 'block';
+                console.log('✅ Section displayed:', sectionName);
+                
+                        // Load section-specific data
+        if (sectionName === 'onboarding') {
+            if (typeof showOnboardingSection === 'function') {
+                showOnboardingSection();
+            } else {
+                console.warn('⚠️ showOnboardingSection function not found, calling populateOnboardingForm directly');
+                populateOnboardingForm();
+            }
+        }
+            } else {
+                console.error('❌ Section not found:', sectionName + '-section');
+            }
+        }
+        
+        // Essential onboarding functions - ensure they're available globally
         // Essential onboarding functions - ensure they're available globally
         function nextOnboardingStep() {
             const currentStep = parseInt(localStorage.getItem('onboardingStep') || '1');
@@ -426,6 +452,25 @@
         console.log('  - prevOnboardingStep:', typeof prevOnboardingStep);
         console.log('  - populateOnboardingForm:', typeof populateOnboardingForm);
         console.log('  - showOnboardingSection:', typeof showOnboardingSection);
+        
+        // Function to show onboarding section and populate form
+        function showOnboardingSection() {
+            console.log('🎯 Showing onboarding section...');
+            
+            // Populate form with user data
+            populateOnboardingForm();
+            
+            // Show first step
+            const firstStep = document.getElementById('step1');
+            if (firstStep) {
+                firstStep.style.display = 'block';
+            }
+            
+            // Setup auto-save
+            setupSimpleAutoSave();
+            
+            console.log('✅ Onboarding section displayed and populated');
+        }
         
         // Simple function to populate onboarding form with user data
         function populateOnboardingForm() {
@@ -560,6 +605,31 @@
         // Setup auto-save when onboarding is shown
         window.setupSimpleAutoSave = setupSimpleAutoSave;
         
+        // Simple dashboard initialization
+        function initializeDashboard() {
+            console.log('🚀 Initializing dashboard...');
+            
+            // Load user profile and stats
+            if (typeof loadUserProfile === 'function') {
+                loadUserProfile();
+            }
+            if (typeof loadDashboardStats === 'function') {
+                loadDashboardStats();
+            }
+            
+            // Show welcome section by default
+            showSection('welcome');
+            
+            console.log('✅ Dashboard initialized successfully');
+        }
+        
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeDashboard);
+        } else {
+            initializeDashboard();
+        }
+        
         // Verify functions are loaded
         console.log('🔍 Verifying onboarding functions are loaded:');
         console.log('  - nextOnboardingStep:', typeof nextOnboardingStep);
@@ -575,140 +645,5 @@
         console.log('  - window.showOnboardingSection:', typeof window.showOnboardingSection);
     </script>
     
-    <!-- ✅ SIMPLIFIED: Next-Gen initialization script -->
-    <script>
-        // ✅ SIMPLIFIED: Always use Next-Gen mode
-        const nextgenMode = true;
-        
-        // ✅ ADDED: Debug logging
-        console.log('🚀 Next-Gen script loaded');
-        console.log('🔍 Body class:', document.body.className);
-        console.log('🔍 Welcome section exists:', !!document.getElementById('welcome-section'));
-        console.log('🔍 Bottom nav exists:', !!document.getElementById('nextgenBottomNav'));
-        console.log('🔍 FAB exists:', !!document.getElementById('nextgenFAB'));
-        
-        // ✅ SIMPLIFIED: Enhanced stats animation
-        function animateNextGenStats() {
-            const stats = document.querySelectorAll('.nextgen-stat-number');
-            stats.forEach((stat, index) => {
-                const target = parseInt(stat.textContent) || Math.floor(Math.random() * 100) + 1;
-                let current = 0;
-                const increment = target / 30;
-                
-                const timer = setInterval(() => {
-                    current += increment;
-                    stat.textContent = Math.floor(current);
-                    
-                    if (current >= target) {
-                        stat.textContent = target;
-                        clearInterval(timer);
-                    }
-                }, 50);
-            });
-        }
-        
-        // ✅ SIMPLIFIED: Override showSection for nextgen compatibility
-        const originalShowSection = window.showSection;
-        window.showSection = function(sectionName) {
-            console.log(`🎯 Next-Gen showSection override called with: ${sectionName}`);
-            
-            if (originalShowSection) {
-                originalShowSection(sectionName);
-            }
-            
-            // Update nextgen navigation
-            document.querySelectorAll('.nextgen-nav-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            
-            const activeNavItem = document.querySelector(`.nextgen-nav-item[onclick*="${sectionName}"]`);
-            if (activeNavItem) {
-                activeNavItem.classList.add('active');
-                console.log(`✅ Navigation updated for ${sectionName}`);
-            }
-        };
-        
-        // ✅ SIMPLIFIED: Single initialization function
-        function initializeNextGen() {
-            console.log('🚀 Initializing Next-Gen mode...');
-            
-            // Ensure body has nextgen-enabled class
-            document.body.classList.add('nextgen-enabled');
-            console.log('✅ Body class set:', document.body.className);
-            
-            // Show welcome section by default
-            const welcomeSection = document.getElementById('welcome-section');
-            if (welcomeSection) {
-                welcomeSection.style.display = 'block';
-                welcomeSection.style.visibility = 'visible';
-                welcomeSection.style.opacity = '1';
-                console.log('✅ Welcome section displayed');
-            } else {
-                console.error('❌ Welcome section not found!');
-            }
-            
-            // Ensure stats are visible
-            const statsRow = document.getElementById('nextgenStatsRow');
-            if (statsRow) {
-                statsRow.style.display = 'block';
-                statsRow.style.visibility = 'visible';
-                console.log('✅ Stats row displayed');
-            } else {
-                console.error('❌ Stats row not found!');
-            }
-            
-            // Mark welcome as active in navigation
-            const welcomeNavItem = document.querySelector('.nextgen-nav-item[onclick*="welcome"]');
-            if (welcomeNavItem) {
-                document.querySelectorAll('.nextgen-nav-item').forEach(item => {
-                    item.classList.remove('active');
-                });
-                welcomeNavItem.classList.add('active');
-                console.log('✅ Welcome navigation active');
-            } else {
-                console.error('❌ Welcome navigation item not found!');
-            }
-            
-            // ✅ ADDED: Initialize dashboard scripts after Next-Gen setup
-            if (typeof initializeDashboard === 'function') {
-                console.log('🔄 Calling dashboard scripts initialization...');
-                initializeDashboard();
-            } else {
-                console.log('⚠️ Dashboard scripts not loaded yet, waiting...');
-                setTimeout(() => {
-                    if (typeof initializeDashboard === 'function') {
-                        initializeDashboard();
-                    } else {
-                        console.error('❌ Dashboard scripts still not loaded after timeout');
-                    }
-                }, 100);
-            }
-            
-            console.log('✅ Next-Gen mode initialized successfully');
-        }
-        
-        // ✅ SIMPLIFIED: Single DOMContentLoaded listener
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 DOM loaded, initializing Next-Gen...');
-            console.log('🔍 DOM ready, body class:', document.body.className);
-            
-            // Wait a bit longer for all components to be fully rendered
-            setTimeout(() => {
-                initializeNextGen();
-            }, 300);
-        });
-        
-        // ✅ ADDED: Fallback initialization if DOMContentLoaded already fired
-        if (document.readyState === 'loading') {
-            console.log('🔄 DOM still loading, waiting for DOMContentLoaded...');
-        } else {
-            console.log('🚀 DOM already loaded, initializing immediately...');
-            
-            // Wait a bit longer for all components to be fully rendered
-            setTimeout(() => {
-                initializeNextGen();
-            }, 300);
-        }
-    </script>
 </body>
 </html>
