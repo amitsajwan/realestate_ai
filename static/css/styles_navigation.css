@@ -1,0 +1,138 @@
+/* 🧭 Navigation Styles */
+
+/* 📱 Bottom Navigation */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background: rgba(15, 15, 35, 0.95);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    z-index: 1000;
+    padding: 0 var(--spacing-md);
+}
+
+.nav-item {
+    color: var(--white);
+    text-decoration: none;
+    text-align: center;
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-md);
+    transition: var(--transition-normal);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 60px;
+}
+
+.nav-item:hover,
+.nav-item.active {
+    background: rgba(99, 102, 241, 0.3);
+    color: var(--white);
+    transform: translateY(-2px);
+}
+
+.nav-item i {
+    font-size: 1.5rem;
+    margin-bottom: var(--spacing-xs);
+}
+
+.nav-item span {
+    font-size: 0.75rem;
+    display: block;
+    font-weight: 500;
+}
+
+/* 🎯 Active Navigation States */
+.nav-item.active {
+    background: rgba(99, 102, 241, 0.4);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.nav-item.active i {
+    color: var(--primary-light);
+}
+
+/* 📱 Responsive Navigation */
+@media (max-width: 768px) {
+    .bottom-nav {
+        height: 70px;
+        padding: 0 var(--spacing-sm);
+    }
+    
+    .nav-item {
+        min-width: 50px;
+        padding: var(--spacing-xs);
+    }
+    
+    .nav-item i {
+        font-size: 1.25rem;
+    }
+    
+    .nav-item span {
+        font-size: 0.7rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .bottom-nav {
+        height: 65px;
+    }
+    
+    .nav-item {
+        min-width: 45px;
+    }
+    
+    .nav-item i {
+        font-size: 1.1rem;
+    }
+    
+    .nav-item span {
+        font-size: 0.65rem;
+    }
+}
+
+/* 🎨 Navigation Animations */
+.nav-item {
+    position: relative;
+    overflow: hidden;
+}
+
+.nav-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    transition: var(--transition-normal);
+}
+
+.nav-item:hover::before {
+    left: 100%;
+}
+
+/* 🔍 Navigation Focus States */
+.nav-item:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* 🌙 Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    .bottom-nav {
+        background: rgba(0, 0, 0, 0.95);
+        border-top-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .nav-item:hover,
+    .nav-item.active {
+        background: rgba(99, 102, 241, 0.2);
+    }
+}

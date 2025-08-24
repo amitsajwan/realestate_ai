@@ -12,7 +12,7 @@ PropertyAI now uses a centralized, environment-based URL configuration system to
 - **Facebook OAuth**: Callbacks still use ngrok for external access
 
 ### Production/ngrok
-- **Base URL**: `https://8400abb81098.ngrok-free.app`
+- **Base URL**: `https://68896542ea3d.ngrok-free.app`
 - **Testing**: Can be configured to test against ngrok
 - **Facebook OAuth**: Callbacks use the same ngrok URL
 
@@ -44,8 +44,8 @@ TEST_BASE_URL=http://localhost:8003
 
 # Production/ngrok
 USE_NGROK=true
-TEST_BASE_URL=https://8400abb81098.ngrok-free.app
-NGROK_BASE_URL=https://8400abb81098.ngrok-free.app
+TEST_BASE_URL=https://68896542ea3d.ngrok-free.app
+NGROK_BASE_URL=https://68896542ea3d.ngrok-free.app
 ```
 
 ### 3. Playwright Configuration
@@ -69,7 +69,7 @@ TEST_BASE_URL=http://localhost:8003 npx playwright test
 ### Running Tests Against ngrok
 ```bash
 # Test against ngrok
-TEST_BASE_URL=https://8400abb81098.ngrok-free.app npx playwright test
+TEST_BASE_URL=https://68896542ea3d.ngrok-free.app npx playwright test
 ```
 
 ### Facebook OAuth

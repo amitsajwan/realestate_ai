@@ -13,78 +13,280 @@
     <!-- EXISTING Dashboard Styles (Keep all current styles) -->
     {% include 'components/dashboard_styles.html' %}
     
-    <!-- NEW Next-Gen Styles (Add new styles) -->
-    {% include 'components/dashboard_styles_nextgen.html' %}
-    
-    <!-- ✅ FIXED: Essential Next-Gen styles to ensure proper layout -->
+    <!-- ✅ FIXED: Next-Gen Styles embedded directly instead of include -->
     <style>
-        /* Essential Next-Gen styles */
+        /* 🚀 PropertyAI Next-Gen Styles - Next-Gen Only Mode */
+        
+        /* CSS variables for Next-Gen theme */
+        :root {
+            --nextgen-primary: #6366f1;
+            --nextgen-primary-dark: #4f46e5;
+            --nextgen-secondary: #06b6d4;
+            --nextgen-accent: #f59e0b;
+            --nextgen-success: #10b981;
+            --nextgen-bg-primary: #0f0f23;
+            --nextgen-bg-secondary: #1a1a2e;
+            --nextgen-text-primary: #ffffff;
+            --nextgen-text-secondary: #a1a1aa;
+            --nextgen-glass-bg: rgba(255, 255, 255, 0.1);
+            --nextgen-glass-border: rgba(255, 255, 255, 0.2);
+            --nextgen-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* Dark mode background for Next-Gen */
         body.nextgen-enabled {
-            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
-            color: #ffffff;
+            background: linear-gradient(135deg, var(--nextgen-bg-primary) 0%, var(--nextgen-bg-secondary) 100%);
+            color: var(--nextgen-text-primary);
             min-height: 100vh;
             padding-bottom: 100px; /* Space for bottom nav */
         }
         
-        /* Ensure welcome section is visible */
+        /* Animated background */
+        .nextgen-bg::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(6, 182, 212, 0.1) 0%, transparent 50%);
+            animation: nextgen-float 20s ease-in-out infinite;
+            z-index: -1;
+            pointer-events: none;
+        }
+        
+        @keyframes nextgen-float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        /* Glass cards for Next-Gen */
+        .nextgen-glass-card {
+            background: var(--nextgen-glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--nextgen-glass-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            transition: var(--nextgen-transition);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .nextgen-glass-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(31, 38, 135, 0.5);
+        }
+        
+        /* Bottom Navigation */
+        .nextgen-bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: rgba(15, 15, 35, 0.95);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid var(--nextgen-glass-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            z-index: 1000;
+            transition: var(--nextgen-transition);
+        }
+        
+        .nextgen-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.5rem;
+            cursor: pointer;
+            transition: var(--nextgen-transition);
+            color: var(--nextgen-text-secondary);
+            text-decoration: none;
+            border-radius: 8px;
+        }
+        
+        .nextgen-nav-item.active {
+            color: var(--nextgen-primary);
+            background: rgba(99, 102, 241, 0.1);
+        }
+        
+        /* FAB Button */
+        .nextgen-fab {
+            position: fixed;
+            bottom: 100px;
+            right: 1rem;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: var(--nextgen-transition);
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.4);
+            z-index: 999;
+        }
+        
+        .nextgen-fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.6);
+        }
+        
+        /* Stats Cards */
+        .nextgen-stat-card {
+            background: var(--nextgen-glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--nextgen-glass-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: var(--nextgen-transition);
+            display: block;
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .nextgen-stat-card:hover {
+            transform: translateY(-4px);
+        }
+        
+        .nextgen-stat {
+            display: block;
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .nextgen-stat-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--nextgen-primary), var(--nextgen-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .nextgen-stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+            background: linear-gradient(135deg, var(--nextgen-primary), var(--nextgen-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .nextgen-stat-label {
+            color: var(--nextgen-text-secondary);
+            font-size: 0.875rem;
+        }
+        
+        /* Header Overrides */
+        .nextgen-enabled .navbar {
+            background: rgba(15, 15, 35, 0.9);
+            backdrop-filter: blur(20px);
+        }
+        
+        .nextgen-enabled .navbar-brand,
+        .nextgen-enabled .nav-link {
+            color: var(--nextgen-text-primary) !important;
+        }
+        
+        /* Dashboard Section Overrides */
+        .nextgen-enabled .dashboard-section {
+            background: transparent;
+            color: var(--nextgen-text-primary);
+        }
+        
+        .nextgen-enabled .glass-card {
+            background: var(--nextgen-glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--nextgen-glass-border);
+            color: var(--nextgen-text-primary);
+        }
+        
+        /* Form Overrides */
+        .nextgen-enabled .form-control,
+        .nextgen-enabled .form-select {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--nextgen-glass-border);
+            color: var(--nextgen-text-primary);
+        }
+        
+        .nextgen-enabled .form-control:focus,
+        .nextgen-enabled .form-select:focus {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: var(--nextgen-primary);
+            color: var(--nextgen-text-primary);
+            box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
+        }
+        
+        /* Button Overrides */
+        .nextgen-enabled .btn-primary {
+            background: linear-gradient(135deg, var(--nextgen-primary), var(--nextgen-primary-dark));
+            border: none;
+            color: white;
+        }
+        
+        .nextgen-enabled .btn-success {
+            background: linear-gradient(135deg, var(--nextgen-success), #059669);
+            border: none;
+            color: white;
+        }
+        
+        /* Text Overrides */
+        .nextgen-enabled .text-dark {
+            color: var(--nextgen-text-primary) !important;
+        }
+        
+        .nextgen-enabled .text-muted {
+            color: var(--nextgen-text-secondary) !important;
+        }
+        
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .nextgen-container {
+                padding: 1rem;
+            }
+            
+            .nextgen-glass-card {
+                padding: 1rem;
+            }
+            
+            .nextgen-bottom-nav {
+                bottom: 0;
+                height: 80px;
+            }
+            
+            .nextgen-fab {
+                bottom: 100px;
+                right: 1rem;
+            }
+        }
+        
+        /* Essential visibility overrides */
         #welcome-section {
             display: block !important;
             visibility: visible !important;
             opacity: 1 !important;
         }
         
-        /* Ensure bottom navigation is at bottom */
-        .nextgen-bottom-nav {
-            position: fixed !important;
-            bottom: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            z-index: 1000 !important;
-            background: rgba(15, 15, 35, 0.95) !important;
-            backdrop-filter: blur(20px) !important;
-            border-top: 1px solid rgba(255, 255, 255, 0.2) !important;
-        }
-        
-        /* Ensure FAB is above bottom nav */
-        .nextgen-fab {
-            position: fixed !important;
-            bottom: 100px !important;
-            right: 1rem !important;
-            z-index: 999 !important;
-            background: linear-gradient(135deg, #8b5cf6, #ec4899) !important;
-            border: none !important;
-            border-radius: 50% !important;
-            color: white !important;
-            width: 60px !important;
-            height: 60px !important;
-            font-size: 1.5rem !important;
-            cursor: pointer !important;
-            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.4) !important;
-        }
-        
-        /* Ensure stats are visible */
         #nextgenStatsRow {
             display: block !important;
             visibility: visible !important;
             opacity: 1 !important;
         }
         
-        .nextgen-stat {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-        
+        .nextgen-stat,
         .nextgen-stat-card {
             display: block !important;
             visibility: visible !important;
             opacity: 1 !important;
-            background: rgba(255, 255, 255, 0.1) !important;
-            backdrop-filter: blur(20px) !important;
-            border: 1px solid rgba(255, 255, 255, 0.2) !important;
-            border-radius: 12px !important;
-            padding: 1.5rem !important;
-            text-align: center !important;
         }
         
         /* Override any conflicting styles */
@@ -126,6 +328,14 @@
             <div><i class="fas fa-share-alt"></i></div>
             <div style="font-size: 0.75rem;">Social</div>
         </a>
+        <a href="#" class="nextgen-nav-item" onclick="showSection('crm')">
+            <div><i class="fas fa-users"></i></div>
+            <div style="font-size: 0.75rem;">Leads</div>
+        </a>
+        <a href="#" class="nextgen-nav-item" onclick="showSection('analytics')">
+            <div><i class="fas fa-chart-bar"></i></div>
+            <div style="font-size: 0.75rem;">Analytics</div>
+        </a>
         <a href="#" class="nextgen-nav-item" onclick="showSection('onboarding')">
             <div><i class="fas fa-user"></i></div>
             <div style="font-size: 0.75rem;">Profile</div>
@@ -143,8 +353,227 @@
     <!-- EXISTING External JavaScript (Keep unchanged) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- EXISTING Dashboard Scripts (Keep unchanged) -->
+    <!-- EXISTING Dashboard Scripts (Clean version) -->
     {% include 'components/dashboard_scripts.html' %}
+    
+    <!-- ✅ ADDED: Essential JavaScript files -->
+    <script src="/static/js/dashboard_core.js"></script>
+    <script src="/static/js/dashboard_functions.js"></script>
+    <script src="/static/js/dashboard_init.js"></script>
+    
+    <!-- ✅ ADDED: Essential onboarding functions to ensure global availability -->
+    <script>
+        // Essential onboarding functions - ensure they're available globally
+        function nextOnboardingStep() {
+            const currentStep = parseInt(localStorage.getItem('onboardingStep') || '1');
+            console.log('🔄 Navigating from step ' + currentStep + ' to next step');
+            
+            if (currentStep < 7) {
+                // Simple step navigation
+                const nextStep = currentStep + 1;
+                localStorage.setItem('onboardingStep', nextStep.toString());
+                
+                // Hide all steps
+                document.querySelectorAll('.onboarding-step').forEach(step => {
+                    step.style.display = 'none';
+                });
+                
+                // Show next step
+                const nextStepElement = document.getElementById('step' + nextStep);
+                if (nextStepElement) {
+                    nextStepElement.style.display = 'block';
+                    console.log('✅ Step ' + nextStep + ' displayed');
+                }
+                
+                // Update progress
+                const progress = (nextStep / 7) * 100;
+                const progressBar = document.getElementById('onboardingProgress');
+                if (progressBar) {
+                    progressBar.style.width = progress + '%';
+                }
+            }
+        }
+        
+        function prevOnboardingStep() {
+            const currentStep = parseInt(localStorage.getItem('onboardingStep') || '1');
+            if (currentStep > 1) {
+                const prevStep = currentStep - 1;
+                localStorage.setItem('onboardingStep', prevStep.toString());
+                
+                // Hide all steps
+                document.querySelectorAll('.onboarding-step').forEach(step => {
+                    step.style.display = 'none';
+                });
+                
+                // Show previous step
+                const prevStepElement = document.getElementById('step' + prevStep);
+                if (prevStepElement) {
+                    prevStepElement.style.display = 'block';
+                }
+                
+                // Update progress
+                const progress = (prevStep / 7) * 100;
+                const progressBar = document.getElementById('onboardingProgress');
+                if (progressBar) {
+                    progressBar.style.width = progress + '%';
+                }
+            }
+        }
+        
+        console.log('✅ Essential onboarding functions loaded globally');
+        console.log('🔍 Function availability check:');
+        console.log('  - nextOnboardingStep:', typeof nextOnboardingStep);
+        console.log('  - prevOnboardingStep:', typeof prevOnboardingStep);
+        console.log('  - populateOnboardingForm:', typeof populateOnboardingForm);
+        console.log('  - showOnboardingSection:', typeof showOnboardingSection);
+        
+        // Simple function to populate onboarding form with user data
+        function populateOnboardingForm() {
+            console.log('👤 Populating onboarding form with user data...');
+            
+            // Try to load from localStorage
+            const userProfile = localStorage.getItem('userProfile');
+            const onboardingData = localStorage.getItem('onboardingData');
+            
+            let data = null;
+            if (onboardingData) {
+                try {
+                    data = JSON.parse(onboardingData);
+                    console.log('✅ Loaded onboarding data:', data);
+                } catch (e) {
+                    console.warn('⚠️ Failed to parse onboarding data');
+                }
+            } else if (userProfile) {
+                try {
+                    data = JSON.parse(userProfile);
+                    console.log('✅ Loaded user profile data:', data);
+                } catch (e) {
+                    console.warn('⚠️ Failed to parse user profile data');
+                }
+            }
+            
+            if (data) {
+                // Populate form fields
+                Object.keys(data).forEach(key => {
+                    const element = document.querySelector(`[name="${key}"]`);
+                    if (element) {
+                        element.value = data[key];
+                        console.log('✅ Populated field:', key, '=', data[key]);
+                    }
+                });
+                
+                // Handle special cases
+                if (data.languages && Array.isArray(data.languages)) {
+                    data.languages.forEach(lang => {
+                        const checkbox = document.querySelector(`input[name="languages[]"][value="${lang}"]`);
+                        if (checkbox) checkbox.checked = true;
+                    });
+                }
+                
+                if (data.business_type) {
+                    const select = document.querySelector('select[name="business_type"]');
+                    if (select) select.value = data.business_type;
+                }
+            } else {
+                console.log('ℹ️ No user data found, form will start empty');
+            }
+        }
+        
+        // Auto-populate form when onboarding section is shown
+        function showOnboardingSection() {
+            console.log('🎯 Showing onboarding section...');
+            
+            // Hide all sections
+            document.querySelectorAll('.dashboard-section').forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            // Show onboarding section
+            const onboardingSection = document.getElementById('onboarding-section');
+            if (onboardingSection) {
+                onboardingSection.style.display = 'block';
+                
+                // Populate form with user data
+                populateOnboardingForm();
+                
+                // Show first step
+                const firstStep = document.getElementById('step1');
+                if (firstStep) {
+                    firstStep.style.display = 'block';
+                }
+                
+                // Setup auto-save
+                setupSimpleAutoSave();
+                
+                console.log('✅ Onboarding section displayed and populated');
+            }
+        }
+        
+        // Expose the show function globally
+        window.showOnboardingSection = showOnboardingSection;
+        
+        // Simple auto-save function to prevent multiple calls
+        let autoSaveEnabled = false;
+        function setupSimpleAutoSave() {
+            if (autoSaveEnabled) return;
+            
+            const form = document.getElementById('onboardingForm');
+            if (!form) return;
+            
+            form.addEventListener('input', function() {
+                saveOnboardingFormData();
+            });
+            
+            form.addEventListener('change', function() {
+                saveOnboardingFormData();
+            });
+            
+            autoSaveEnabled = true;
+            console.log('✅ Simple auto-save enabled');
+        }
+        
+        function saveOnboardingFormData() {
+            try {
+                const form = document.getElementById('onboardingForm');
+                if (!form) return;
+                
+                const formData = new FormData(form);
+                const data = {};
+                
+                for (let [key, value] of formData.entries()) {
+                    if (key === 'languages[]') {
+                        if (!data.languages) data.languages = [];
+                        data.languages.push(value);
+                    } else {
+                        data[key] = value;
+                    }
+                }
+                
+                localStorage.setItem('onboardingData', JSON.stringify(data));
+                console.log('✅ Form data auto-saved');
+                
+            } catch (error) {
+                console.error('❌ Error saving form data:', error);
+            }
+        }
+        
+        // Setup auto-save when onboarding is shown
+        window.setupSimpleAutoSave = setupSimpleAutoSave;
+        
+        // Verify functions are loaded
+        console.log('🔍 Verifying onboarding functions are loaded:');
+        console.log('  - nextOnboardingStep:', typeof nextOnboardingStep);
+        console.log('  - prevOnboardingStep:', typeof prevOnboardingStep);
+        console.log('  - showOnboardingSection:', typeof showOnboardingSection);
+        console.log('  - populateOnboardingForm:', typeof populateOnboardingForm);
+        console.log('  - setupSimpleAutoSave:', typeof setupSimpleAutoSave);
+        
+        // Test function availability in global scope
+        console.log('🔍 Global scope function check:');
+        console.log('  - window.nextOnboardingStep:', typeof window.nextOnboardingStep);
+        console.log('  - window.prevOnboardingStep:', typeof window.prevOnboardingStep);
+        console.log('  - window.showOnboardingSection:', typeof window.showOnboardingSection);
+    </script>
     
     <!-- ✅ SIMPLIFIED: Next-Gen initialization script -->
     <script>
@@ -241,14 +670,14 @@
             }
             
             // ✅ ADDED: Initialize dashboard scripts after Next-Gen setup
-            if (typeof initializeDashboardFromScripts === 'function') {
+            if (typeof initializeDashboard === 'function') {
                 console.log('🔄 Calling dashboard scripts initialization...');
-                initializeDashboardFromScripts();
+                initializeDashboard();
             } else {
                 console.log('⚠️ Dashboard scripts not loaded yet, waiting...');
                 setTimeout(() => {
-                    if (typeof initializeDashboardFromScripts === 'function') {
-                        initializeDashboardFromScripts();
+                    if (typeof initializeDashboard === 'function') {
+                        initializeDashboard();
                     } else {
                         console.error('❌ Dashboard scripts still not loaded after timeout');
                     }
@@ -262,7 +691,11 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 DOM loaded, initializing Next-Gen...');
             console.log('🔍 DOM ready, body class:', document.body.className);
-            initializeNextGen();
+            
+            // Wait a bit longer for all components to be fully rendered
+            setTimeout(() => {
+                initializeNextGen();
+            }, 300);
         });
         
         // ✅ ADDED: Fallback initialization if DOMContentLoaded already fired
@@ -270,7 +703,11 @@
             console.log('🔄 DOM still loading, waiting for DOMContentLoaded...');
         } else {
             console.log('🚀 DOM already loaded, initializing immediately...');
-            initializeNextGen();
+            
+            // Wait a bit longer for all components to be fully rendered
+            setTimeout(() => {
+                initializeNextGen();
+            }, 300);
         }
     </script>
 </body>
