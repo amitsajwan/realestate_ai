@@ -29,7 +29,7 @@ class FacebookIntegration:
         from app.config import settings
         self.client_id = settings.FB_APP_ID
         self.client_secret = settings.FB_APP_SECRET
-        self.base_url = "https://graph.facebook.com/v19.0"
+        self.base_url = f"https://graph.facebook.com/{settings.FB_GRAPH_API_VERSION}"
         self.redirect_uri = settings.get_facebook_callback_url()
         
         # In-memory storage for OAuth states and tokens (use database in production)
@@ -95,7 +95,7 @@ class FacebookIntegration:
         if user_id:
             params['state'] = f"{state}_{user_id}"
         
-        oauth_url = f"https://www.facebook.com/v19.0/dialog/oauth?{urlencode(params)}"
+        oauth_url = f"https://www.facebook.com/{self.base_url.split('/')[-1]}/dialog/oauth?{urlencode(params)}"
         
         return {
             'oauth_url': oauth_url,
@@ -419,21 +419,19 @@ async def facebook_callback(code: str, state: str, request: Request):
             
             logger.info(f"🔄 Is Ngrok Request: {is_ngrok}")
             
+            # Use development mode for local testing
+            if settings.IS_DEVELOPMENT and not is_ngrok:
+                base_url = "http://127.0.0.1:8003"
+            else:
+                base_url = settings.NGROK_BASE_URL
+            
             if isFromOnboarding:
                 # Redirect back to onboarding with success
-                if is_ngrok:
-                    dashboard_url = f"{settings.NGROK_BASE_URL}/dashboard?auth=success&token={access_token_jwt}&fromOnboarding=true"
-                else:
-                    dashboard_url = f"http://127.0.0.1:8003/dashboard?auth=success&token={access_token_jwt}&fromOnboarding=true"
-                
+                dashboard_url = f"{base_url}/dashboard?auth=success&token={access_token_jwt}&fromOnboarding=true"
                 logger.info(f"🔄 Redirecting to onboarding completion: {dashboard_url}")
             else:
                 # Regular OAuth callback - go to dashboard
-                if is_ngrok:
-                    dashboard_url = f"{settings.NGROK_BASE_URL}/dashboard?auth=success&token={access_token_jwt}"
-                else:
-                    dashboard_url = f"http://127.0.0.1:8003/dashboard?auth=success&token={access_token_jwt}"
-                
+                dashboard_url = f"{base_url}/dashboard?auth=success&token={access_token_jwt}"
                 logger.info(f"🔄 Redirecting to dashboard: {dashboard_url}")
             
             from fastapi.responses import RedirectResponse
@@ -442,7 +440,10 @@ async def facebook_callback(code: str, state: str, request: Request):
             logger.error(f"❌ Facebook OAuth failed: {result.get('error')}")
             # Redirect to login with error
             from app.config import settings
-            login_url = f"{settings.get_oauth_login_url()}?error=oauth_failed&message={result.get('error')}"
+            if settings.IS_DEVELOPMENT:
+                login_url = f"http://127.0.0.1:8003/login?error=oauth_failed&message={result.get('error')}"
+            else:
+                login_url = f"{settings.get_oauth_login_url()}?error=oauth_failed&message={result.get('error')}"
             
             from fastapi.responses import RedirectResponse
             return RedirectResponse(url=login_url)
@@ -451,7 +452,10 @@ async def facebook_callback(code: str, state: str, request: Request):
         logger.error(f"Facebook callback error: {e}")
         # Redirect to login with error
         from app.config import settings
-        login_url = f"{settings.get_oauth_login_url()}?error=callback_error&message={str(e)}"
+        if settings.IS_DEVELOPMENT:
+            login_url = f"http://127.0.0.1:8003/login?error=callback_error&message={str(e)}"
+        else:
+            login_url = f"{settings.get_oauth_login_url()}?error=callback_error&message={str(e)}"
         
         from fastapi.responses import RedirectResponse
         return RedirectResponse(url=login_url)
