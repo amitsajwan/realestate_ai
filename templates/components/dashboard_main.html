@@ -2,15 +2,9 @@
 <div class="container-fluid py-4">
     <!-- ✅ FIXED: Proper section structure to prevent empty areas -->
     
-    <!-- Debug Info -->
-    <div class="alert alert-info mb-3">
-        <strong>Debug Info:</strong> Template includes are being processed. 
-        <button class="btn btn-sm btn-outline-info ms-2" onclick="debugAllSections()">Check Sections</button>
-        <button class="btn btn-sm btn-outline-warning ms-2" onclick="console.log('All elements:', document.querySelectorAll('[id$=\'-section\']'))">Log Elements</button>
-    </div>
+    <!-- Main content sections -->
     
-    <!-- Welcome Section (Always visible) -->
-    {% include 'components/dashboard_welcome.html' %}
+    <!-- Welcome Section is already included in the main template -->
     
     <!-- AI Content Section -->
     {% include 'components/dashboard_ai_content.html' %}
@@ -28,19 +22,5 @@
     
     <!-- ✅ REMOVED: Duplicate Analytics section - now included separately -->
     
-    <!-- ✅ ADDED: Debug Section to show what's available -->
-    <div id="debug-section" class="dashboard-section" style="display: none; background: rgba(255, 0, 0, 0.1); border: 2px solid red; padding: 20px; margin: 20px 0;">
-        <h3>🔍 Debug Information</h3>
-        <p><strong>Available Sections:</strong></p>
-        <ul>
-            <li>✅ welcome-section</li>
-            <li>✅ ai-content-section</li>
-            <li>✅ facebook-section</li>
-            <li>✅ properties-section</li>
-            <li>✅ onboarding-section</li>
-            <li>✅ crm-section</li>
-            <li>✅ analytics-section</li>
-        </ul>
-        <p><strong>Note:</strong> All sections are included and should be available for JavaScript.</p>
-    </div>
+    <!-- All sections are properly included and available -->
 </div>
