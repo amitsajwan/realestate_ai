@@ -1,8 +1,9 @@
+# Fixed Authentication Router with Secure Password Handling
 #!/usr/bin/env python3
 """
-Authentication Router
-====================
-Handles user registration and login with email/password
+Authentication Router - FIXED VERSION
+=====================================
+Handles user registration and login with secure password handling and database storage
 """
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -11,6 +12,7 @@ from typing import Optional
 import logging
 import jwt
 from datetime import datetime, timedelta
+from werkzeug.security import generate_password_hash, check_password_hash
 from app.database import db
 from app.config import settings
 
@@ -32,9 +34,6 @@ class AuthResponse(BaseModel):
     user_id: Optional[str] = None
     message: Optional[str] = None
 
-# Simple in-memory user storage (replace with database in production)
-users_db = {}
-
 def create_access_token(user_id: str) -> str:
     """Create JWT access token"""
     payload = {
@@ -46,28 +45,36 @@ def create_access_token(user_id: str) -> str:
 
 @router.post("/register", response_model=AuthResponse)
 async def register_user(user_data: UserRegistration):
-    """Register a new user"""
+    """Register a new user with secure password handling"""
     try:
-        # Check if user already exists
-        if user_data.email in users_db:
+        # Check if user already exists in database
+        existing_user = db.get_user_by_email(user_data.email)
+        if existing_user:
             raise HTTPException(status_code=400, detail="User already exists")
         
-        # Create user ID
-        user_id = f"email_user_{len(users_db) + 1}"
+        # Validate password strength
+        if len(user_data.password) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
         
-        # Store user (in production, hash the password)
-        users_db[user_data.email] = {
+        # Hash password securely
+        hashed_password = generate_password_hash(user_data.password)
+        
+        # Create user ID
+        user_id = f"user_{datetime.utcnow().timestamp()}"
+        
+        # Save user credentials to database
+        user_saved = db.save_user_credentials({
             "user_id": user_id,
             "full_name": user_data.full_name,
             "email": user_data.email,
-            "password": user_data.password,  # In production, hash this
+            "password_hash": hashed_password,
             "created_at": datetime.utcnow().isoformat()
-        }
+        })
         
-        # Create access token
-        access_token = create_access_token(user_id)
+        if not user_saved:
+            raise HTTPException(status_code=500, detail="Failed to save user")
         
-        # Create user profile in database
+        # Create user profile
         profile_data = {
             "user_id": user_id,
             "name": user_data.full_name,
@@ -77,7 +84,10 @@ async def register_user(user_data: UserRegistration):
         }
         db.save_user_profile(profile_data)
         
-        logger.info(f"✅ User registered: {user_id}")
+        # Create access token
+        access_token = create_access_token(user_id)
+        
+        logger.info(f"✅ User registered securely: {user_id}")
         
         return AuthResponse(
             success=True,
@@ -94,22 +104,21 @@ async def register_user(user_data: UserRegistration):
 
 @router.post("/login", response_model=AuthResponse)
 async def login_user(user_data: UserLogin):
-    """Login user with email and password"""
+    """Login user with secure password verification"""
     try:
-        # Check if user exists
-        if user_data.email not in users_db:
+        # Get user from database
+        user = db.get_user_by_email(user_data.email)
+        if not user:
             raise HTTPException(status_code=401, detail="Invalid credentials")
         
-        user = users_db[user_data.email]
-        
-        # Check password (in production, verify hashed password)
-        if user["password"] != user_data.password:
+        # Verify password hash
+        if not check_password_hash(user["password_hash"], user_data.password):
             raise HTTPException(status_code=401, detail="Invalid credentials")
         
         # Create access token
         access_token = create_access_token(user["user_id"])
         
-        logger.info(f"✅ User logged in: {user['user_id']}")
+        logger.info(f"✅ User logged in securely: {user['user_id']}")
         
         return AuthResponse(
             success=True,
@@ -138,13 +147,8 @@ async def get_current_user(token: str = Depends(lambda x: x.headers.get("Authori
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token")
         
-        # Find user
-        user = None
-        for email, user_data in users_db.items():
-            if user_data["user_id"] == user_id:
-                user = user_data
-                break
-        
+        # Get user from database
+        user = db.get_user_by_id(user_id)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         

@@ -1,19 +1,20 @@
-<div id="property-form-section" class="dashboard-section" style="display:none;">
-  <div class="container">
-    <div class="card shadow-lg mt-4 mb-4">
-      <div class="card-header bg-primary text-white">
-        <h4><i class="fas fa-home me-2"></i>Add Property</h4>
+<div id="property-form-section" class="dashboard-section">
+  <div class="container-fluid">
+    <div class="glass-card">
+      <div class="d-flex align-items-center mb-4">
+        <i class="fas fa-home me-3 text-primary" style="font-size: 1.5rem;"></i>
+        <h4 class="mb-0">Add Property</h4>
       </div>
-      <div class="card-body">
+      <div>
         <form id="propertyForm">
           <div class="row">
             <div class="col-md-6 mb-3">
               <label class="form-label">Title *</label>
               <div class="input-group">
                 <input type="text" name="title" id="propTitle" class="form-control" required>
-                <button type="button" class="btn btn-info ai-fill-btn" onclick="aiFillField('title')">
-                  <i class="fas fa-magic"></i>
-                </button>
+                            <button type="button" class="btn btn-secondary ai-fill-btn" onclick="aiFillField('title')">
+              <i class="fas fa-magic"></i>
+            </button>
               </div>
             </div>
             <div class="col-md-6 mb-3">
@@ -26,9 +27,9 @@
               <label class="form-label">Price *</label>
               <div class="input-group">
                 <input type="text" name="price" id="propPrice" class="form-control" required>
-                <button type="button" class="btn btn-info ai-fill-btn" onclick="aiFillField('price')">
-                  <i class="fas fa-magic"></i>
-                </button>
+                            <button type="button" class="btn btn-secondary ai-fill-btn" onclick="aiFillField('price')">
+              <i class="fas fa-magic"></i>
+            </button>
               </div>
             </div>
             <div class="col-md-6 mb-3">
@@ -40,18 +41,18 @@
             <label class="form-label">Description *</label>
             <div class="input-group">
               <textarea name="description" id="propDesc" class="form-control" required rows="4"></textarea>
-              <button type="button" class="btn btn-info ai-fill-btn" onclick="aiFillField('description')">
-                <i class="fas fa-magic"></i>
-              </button>
+                          <button type="button" class="btn btn-secondary ai-fill-btn" onclick="aiFillField('description')">
+              <i class="fas fa-magic"></i>
+            </button>
             </div>
           </div>
           <div class="mb-3">
             <label class="form-label">Amenities</label>
             <div class="input-group">
               <input type="text" name="amenities" id="propAmenities" class="form-control">
-              <button type="button" class="btn btn-info ai-fill-btn" onclick="aiFillField('amenities')">
-                <i class="fas fa-magic"></i>
-              </button>
+                          <button type="button" class="btn btn-secondary ai-fill-btn" onclick="aiFillField('amenities')">
+              <i class="fas fa-magic"></i>
+            </button>
             </div>
           </div>
           <div class="mb-3">
