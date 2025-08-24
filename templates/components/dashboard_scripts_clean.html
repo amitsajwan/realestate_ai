@@ -247,5 +247,50 @@ window.addEventListener('popstate', function(event) {
     }
 });
 
+// Essential onboarding functions
+function showOnboardingSection() {
+    console.log('✅ showOnboardingSection called');
+    showOnboardingStep(1);
+}
+
+function nextOnboardingStep() {
+    console.log('✅ nextOnboardingStep called');
+    
+    // Get current active step
+    const currentStepElement = document.querySelector('.onboarding-step:not([style*="display: none"])');
+    if (!currentStepElement) return;
+    
+    const currentStep = parseInt(currentStepElement.dataset.step || '1');
+    const nextStep = currentStep + 1;
+    
+    // Hide current step
+    currentStepElement.style.display = 'none';
+    
+    // Show next step or complete
+    const nextStepElement = document.querySelector(`[data-step="${nextStep}"]`);
+    if (nextStepElement) {
+        nextStepElement.style.display = 'block';
+    } else {
+        alert('Onboarding completed! Redirecting to dashboard...');
+        if (window.dashboardCore && window.dashboardCore.showSection) {
+            window.dashboardCore.showSection('welcome');
+        }
+    }
+}
+
+function showOnboardingStep(stepNumber) {
+    // Hide all steps
+    document.querySelectorAll('[data-step]').forEach(step => {
+        step.style.display = 'none';
+    });
+    
+    // Show target step
+    const targetStep = document.querySelector(`[data-step="${stepNumber}"]`);
+    if (targetStep) {
+        targetStep.style.display = 'block';
+    }
+}
+
+
 console.log('✅ Clean dashboard scripts loaded successfully');
 </script>
