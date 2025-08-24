@@ -1,8 +1,6 @@
-<!-- 🎯 Complete Enhanced Welcome Dashboard with Next-Gen Support -->
 <div id="welcome-section" class="dashboard-section active fade-in-up">
     <div class="container-fluid">
         
-        <!-- Welcome Header (Always visible) -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="welcome-header text-center">
@@ -22,27 +20,26 @@
             </div>
         </div>
 
-    <!-- Next-Gen Stats Row -->
+        <!-- ✅ FIXED: Stats row with proper spacing -->
         <div class="row mb-4 nextgen-container" id="nextgenStatsRow">
-            <!-- Next-Gen Stats (Always visible) -->
             <div class="col-6 col-md-3 mb-3 nextgen-stat">
                 <div class="nextgen-stat-card">
                     <div class="nextgen-stat-icon">🏠</div>
-                    <div class="nextgen-stat-number" id="nextgenActiveListings">24</div>
+                    <div class="nextgen-stat-number" id="nextgenActiveListings">8</div>
                     <div class="nextgen-stat-label">Active Listings</div>
                 </div>
             </div>
             <div class="col-6 col-md-3 mb-3 nextgen-stat">
                 <div class="nextgen-stat-card">
                     <div class="nextgen-stat-icon">🤖</div>
-                    <div class="nextgen-stat-number" id="nextgenAiGenerated">156</div>
+                    <div class="nextgen-stat-number" id="nextgenAiGenerated">1247</div>
                     <div class="nextgen-stat-label">AI Generated</div>
                 </div>
             </div>
             <div class="col-6 col-md-3 mb-3 nextgen-stat">
                 <div class="nextgen-stat-card">
                     <div class="nextgen-stat-icon">📱</div>
-                    <div class="nextgen-stat-number" id="nextgenSocialPosts">89</div>
+                    <div class="nextgen-stat-number" id="nextgenSocialPosts">3</div>
                     <div class="nextgen-stat-label">Social Posts</div>
                 </div>
             </div>
@@ -55,38 +52,153 @@
             </div>
         </div>
 
-    <!-- Next-Gen Quick Actions (Default visible, enhanced) -->
-    <div class="nextgen-quick-actions">
-        <div class="row mb-4">
-            <div class="col-6 col-md-3 mb-3">
-                <button class="nextgen-glass-card w-100 border-0 nextgen-action-btn" onclick="showSection('properties')">
-                    <div class="nextgen-action-icon"><i class="fas fa-plus"></i></div>
-                    <div class="nextgen-action-label">Add Property</div>
-                </button>
-            </div>
-            <div class="col-6 col-md-3 mb-3">
-                <button class="nextgen-glass-card w-100 border-0 nextgen-action-btn" onclick="showSection('ai-content')">
-                    <div class="nextgen-action-icon"><i class="fas fa-magic"></i></div>
-                    <div class="nextgen-action-label">AI Content</div>
-                </button>
-            </div>
-            <div class="col-6 col-md-3 mb-3">
-                <button class="nextgen-glass-card w-100 border-0 nextgen-action-btn" onclick="showSection('facebook')">
-                    <div class="nextgen-action-icon"><i class="fas fa-share-alt"></i></div>
-                    <div class="nextgen-action-label">Post to Social</div>
-                </button>
-            </div>
-            <div class="col-6 col-md-3 mb-3">
-                <button class="nextgen-glass-card w-100 border-0 nextgen-action-btn" onclick="showSection('crm')">
-                    <div class="nextgen-action-icon"><i class="fas fa-users"></i></div>
-                    <div class="nextgen-action-label">Manage Leads</div>
-                </button>
+        <!-- ✅ FIXED: Quick Actions with better layout -->
+        <div class="nextgen-quick-actions">
+            <div class="row mb-4">
+                <div class="col-6 col-md-3 mb-3">
+                    <button class="nextgen-glass-card w-100 border-0 nextgen-action-btn" onclick="showSection('properties')">
+                        <div class="nextgen-action-icon"><i class="fas fa-plus"></i></div>
+                        <div class="nextgen-action-label">Add Property</div>
+                    </button>
+                </div>
+                <div class="col-6 col-md-3 mb-3">
+                    <button class="nextgen-glass-card w-100 border-0 nextgen-action-btn" onclick="showSection('ai-content')">
+                        <div class="nextgen-action-icon"><i class="fas fa-magic"></i></div>
+                        <div class="nextgen-action-label">AI Content</div>
+                    </button>
+                </div>
+                <div class="col-6 col-md-3 mb-3">
+                    <button class="nextgen-glass-card w-100 border-0 nextgen-action-btn" onclick="showSection('facebook')">
+                        <div class="nextgen-action-icon"><i class="fas fa-share-alt"></i></div>
+                        <div class="nextgen-action-label">Post to Social</div>
+                    </button>
+                </div>
+                <div class="col-6 col-md-3 mb-3">
+                    <button class="nextgen-glass-card w-100 border-0 nextgen-action-btn" onclick="showSection('crm')">
+                        <div class="nextgen-action-icon"><i class="fas fa-users"></i></div>
+                        <div class="nextgen-action-label">Manage Leads</div>
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- Next-Gen AI Action Cards (Default visible, enhanced) -->
-    <div class="nextgen-ai-actions">
+
+
+        <!-- ✅ FIXED: Middle Content Section - positioned between stats and AI actions -->
+        <div class="nextgen-middle-content mt-4 mb-4" style="display: block !important; visibility: visible !important; opacity: 1 !important; position: relative !important; z-index: 2 !important; margin-top: 3rem !important; margin-bottom: 3rem !important; min-height: 300px !important; border: 2px solid rgba(0, 255, 0, 0.5) !important;">
+            <div class="row">
+                <!-- Recent Activity -->
+                <div class="col-md-4 mb-3">
+                    <div class="nextgen-glass-card h-100" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
+                        <div class="card-header bg-transparent border-0">
+                            <h5 class="text-primary mb-0">
+                                <i class="fas fa-clock me-2"></i>Recent Activity
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="activity-item d-flex align-items-center mb-3">
+                                <div class="activity-icon bg-primary rounded-circle p-2 me-3">
+                                    <i class="fas fa-home text-white"></i>
+                                </div>
+                                <div class="activity-content">
+                                    <div class="activity-title fw-bold">New Property Added</div>
+                                    <div class="activity-time text-muted small">2 hours ago</div>
+                                </div>
+                            </div>
+                            <div class="activity-item d-flex align-items-center mb-3">
+                                <div class="activity-icon bg-success rounded-circle p-2 me-3">
+                                    <i class="fas fa-magic text-white"></i>
+                                </div>
+                                <div class="activity-content">
+                                    <div class="activity-title fw-bold">AI Content Generated</div>
+                                    <div class="activity-time text-muted small">4 hours ago</div>
+                                </div>
+                            </div>
+                            <div class="activity-item d-flex align-items-center">
+                                <div class="activity-icon bg-info rounded-circle p-2 me-3">
+                                    <i class="fab fa-facebook text-white"></i>
+                                </div>
+                                <div class="activity-content">
+                                    <div class="activity-title fw-bold">Facebook Post Published</div>
+                                    <div class="activity-time text-muted small">1 day ago</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Market Insights -->
+                <div class="col-md-4 mb-3">
+                    <div class="nextgen-glass-card h-100" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
+                        <div class="card-header bg-transparent border-0">
+                            <h5 class="text-primary mb-0">
+                                <i class="fas fa-chart-line me-2"></i>Market Insights
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="insight-item mb-3">
+                                <div class="insight-label text-muted small">Mumbai Market Trend</div>
+                                <div class="insight-value fw-bold text-success">↗️ +12.5%</div>
+                                <div class="insight-desc small">Property prices increased this month</div>
+                            </div>
+                            <div class="insight-item mb-3">
+                                <div class="insight-label text-muted small">Demand Index</div>
+                                <div class="insight-value fw-bold text-primary">🔥 High</div>
+                                <div class="insight-desc small">Strong buyer interest in 2-3 BHK</div>
+                            </div>
+                            <div class="insight-item">
+                                <div class="insight-label text-muted small">Inventory Status</div>
+                                <div class="insight-value fw-bold text-warning">⚠️ Limited</div>
+                                <div class="insight-desc small">Low supply in premium segments</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pro Tips -->
+                <div class="col-md-4 mb-3">
+                    <div class="nextgen-glass-card h-100" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
+                        <div class="card-header bg-transparent border-0">
+                            <h5 class="text-primary mb-0">
+                                <i class="fas fa-lightbulb me-2"></i>Pro Tips
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="tip-item mb-3">
+                                <div class="tip-icon text-warning mb-2">
+                                    <i class="fas fa-star"></i>
+                                </div>
+                                <div class="tip-content">
+                                    <div class="tip-title fw-bold">Optimize Photos</div>
+                                    <div class="tip-desc small text-muted">High-quality images increase engagement by 40%</div>
+                                </div>
+                            </div>
+                            <div class="tip-item mb-3">
+                                <div class="tip-icon text-info mb-2">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <div class="tip-content">
+                                    <div class="tip-title fw-bold">Post Timing</div>
+                                    <div class="tip-desc small text-muted">Best posting times: 7-9 AM and 6-8 PM</div>
+                                </div>
+                            </div>
+                            <div class="tip-item">
+                                <div class="tip-icon text-success mb-2">
+                                    <i class="fas fa-hashtag"></i>
+                                </div>
+                                <div class="tip-content">
+                                    <div class="tip-title fw-bold">Use Hashtags</div>
+                                    <div class="tip-desc small text-muted">Include 3-5 relevant hashtags for better reach</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ✅ FIXED: AI Actions with better layout -->
+        <div class="nextgen-ai-actions">
             <h3 style="color: var(--nextgen-text-primary); margin-bottom: 1.5rem; font-weight: 600;">
                 <i class="fas fa-brain me-2"></i>AI-Powered Actions
             </h3>
@@ -153,9 +265,11 @@
             </div>
         </div>
 
-    color: var(--gray);
-}
+    </div>
+</div>
 
+<style>
+/* ✅ FIXED: Enhanced spacing and layout to prevent empty areas */
 .company-info-section .badge {
     font-size: 0.875rem;
     padding: var(--spacing-sm) var(--spacing-md);
@@ -201,6 +315,220 @@
     color: var(--dark);
     margin-bottom: var(--spacing-sm);
     line-height: 1.4;
+}
+
+/* ✅ FIXED: Enhanced spacing and layout */
+.nextgen-container {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+}
+
+.nextgen-stats-row {
+    margin-bottom: 3rem !important;
+}
+
+.nextgen-quick-actions {
+    margin-bottom: 3rem;
+}
+
+.nextgen-middle-content {
+    margin-top: 3rem;
+    margin-bottom: 3rem;
+}
+
+.nextgen-ai-actions {
+    margin-top: 3rem;
+    margin-bottom: 3rem;
+}
+
+/* ✅ ADDED: Prevent empty areas with minimum heights */
+.dashboard-section {
+    min-height: 400px;
+}
+
+#welcome-section {
+    min-height: 600px;
+}
+
+.nextgen-stat-card {
+    min-height: 120px;
+}
+
+.nextgen-glass-card {
+    min-height: 200px;
+}
+
+/* ✅ ADDED: Better responsive spacing */
+@media (max-width: 768px) {
+    .nextgen-container {
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .nextgen-middle-content {
+        margin-top: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .nextgen-ai-actions {
+        margin-top: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .dashboard-section {
+        min-height: 300px;
+    }
+    
+    #welcome-section {
+        min-height: 500px;
+    }
+}
+
+/* ✅ ADDED: Enhanced glass card styling */
+.nextgen-glass-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 1.5rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nextgen-glass-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(31, 38, 135, 0.3);
+}
+
+/* ✅ ADDED: Enhanced stats styling */
+.nextgen-stat-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: block;
+    opacity: 1;
+    visibility: visible;
+}
+
+.nextgen-stat-card:hover {
+    transform: translateY(-4px);
+}
+
+.nextgen-stat {
+    display: block;
+    opacity: 1;
+    visibility: visible;
+}
+
+.nextgen-stat-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, var(--nextgen-primary), var(--nextgen-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.nextgen-stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    background: linear-gradient(135deg, var(--nextgen-primary), var(--nextgen-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.nextgen-stat-label {
+    color: var(--nextgen-text-secondary);
+    font-size: 0.875rem;
+}
+
+/* ✅ ADDED: Enhanced action buttons */
+.nextgen-action-btn {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 1.5rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.nextgen-action-btn:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(31, 38, 135, 0.3);
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.nextgen-action-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: var(--nextgen-primary);
+}
+
+.nextgen-action-label {
+    font-weight: 600;
+    color: var(--nextgen-text-primary);
+    text-align: center;
+}
+
+/* ✅ ADDED: Enhanced middle content styling */
+.nextgen-middle-content .nextgen-glass-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nextgen-middle-content .nextgen-glass-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(31, 38, 135, 0.3);
+}
+
+.nextgen-middle-content h4 {
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+}
+
+.nextgen-middle-content .bg-success,
+.nextgen-middle-content .bg-info,
+.nextgen-middle-content .bg-warning,
+.nextgen-middle-content .bg-primary {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.nextgen-middle-content .h3 {
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.nextgen-middle-content .text-success,
+.nextgen-middle-content .text-info,
+.nextgen-middle-content .text-warning {
+    font-weight: 600;
+}
+
+.nextgen-middle-content .d-flex {
+    align-items: flex-start;
+}
+
+.nextgen-middle-content .fas.fa-check-circle {
+    margin-top: 0.25rem;
+    flex-shrink: 0;
 }
 
 /* 📊 Recent Activity */
@@ -260,6 +588,17 @@
     animation: fadeInUp 0.8s ease-out;
 }
 
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* 📱 Responsive Design */
 @media (max-width: 768px) {
     .welcome-header h1 {
@@ -289,10 +628,290 @@
     .nextgen-glass-card h4 {
         font-size: 1rem;
     }
+    
+    .nextgen-stat-card {
+        padding: 1rem;
+    }
+    
+    .nextgen-stat-number {
+        font-size: 1.5rem;
+    }
+    
+    .nextgen-stat-icon {
+        font-size: 1.5rem;
+    }
+}
+
+/* ✅ ADDED: Content distribution fixes */
+.welcome-header {
+    margin-bottom: 3rem;
+}
+
+.nextgen-middle-content .row {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.nextgen-middle-content .col-md-6,
+.nextgen-middle-content .col-md-4 {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+}
+
+/* ✅ ADDED: Ensure full width utilization */
+.container-fluid {
+    padding-left: 2rem;
+    padding-right: 2rem;
+}
+
+@media (max-width: 768px) {
+    .container-fluid {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}
+
+/* ✅ ADDED: Better content flow */
+.nextgen-middle-content .nextgen-glass-card {
+    margin-bottom: 2rem;
+}
+
+.nextgen-middle-content .nextgen-glass-card:last-child {
+    margin-bottom: 0;
+}
+
+/* ✅ ADDED: Enhanced visual hierarchy */
+.nextgen-middle-content h4 {
+    font-size: 1.25rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid rgba(99, 102, 241, 0.3);
+    padding-bottom: 0.5rem;
+}
+
+/* ✅ ADDED: Better spacing for activity items */
+.nextgen-middle-content .d-flex {
+    padding: 0.75rem;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.nextgen-middle-content .d-flex:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateX(4px);
+}
+
+/* ✅ ADDED: Market insights enhancement */
+.nextgen-middle-content .h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.nextgen-middle-content .text-success,
+.nextgen-middle-content .text-info,
+.nextgen-middle-content .text-warning {
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+/* ✅ ADDED: Pro tips enhancement */
+.nextgen-middle-content .fas.fa-check-circle {
+    color: #10b981;
+    font-size: 1.1rem;
+    margin-top: 0.25rem;
+    flex-shrink: 0;
+}
+
+.nextgen-middle-content .d-flex > div {
+    line-height: 1.5;
+}
+
+/* ✅ FIXED: Middle content positioning and styling */
+.nextgen-middle-content {
+    margin-top: 3rem !important;
+    margin-bottom: 3rem !important;
+    position: relative !important;
+    z-index: 2 !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    min-height: 300px !important;
+}
+
+.nextgen-middle-content .nextgen-glass-card {
+    height: 100% !important;
+    min-height: 280px !important;
+    transition: all 0.3s ease !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(10px) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.nextgen-middle-content .nextgen-glass-card:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 0 20px 40px rgba(31, 38, 135, 0.3) !important;
+    border-color: rgba(37, 99, 235, 0.3) !important;
+}
+
+.nextgen-middle-content .card-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 1.5rem 1.5rem 1rem;
+}
+
+.nextgen-middle-content .card-body {
+    padding: 1.5rem;
+}
+
+/* Activity items styling */
+.activity-item {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-title {
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+    color: var(--nextgen-text-primary);
+}
+
+.activity-time {
+    font-size: 0.75rem;
+    color: var(--nextgen-text-secondary);
+}
+
+/* Insight items styling */
+.insight-item {
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.insight-item:last-child {
+    border-bottom: none;
+}
+
+.insight-label {
+    font-size: 0.8rem;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.insight-value {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.insight-desc {
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+/* Tip items styling */
+.tip-item {
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tip-item:last-child {
+    border-bottom: none;
+}
+
+.tip-icon {
+    font-size: 1.2rem;
+    margin-bottom: 0.75rem;
+}
+
+.tip-title {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    color: var(--nextgen-text-primary);
+}
+
+.tip-desc {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: var(--nextgen-text-secondary);
+}
+
+/* Responsive adjustments for middle content */
+@media (max-width: 768px) {
+    .nextgen-middle-content {
+        margin-top: 2rem !important;
+        margin-bottom: 2rem !important;
+    }
+    
+    .nextgen-middle-content .col-md-4 {
+        margin-bottom: 1.5rem;
+    }
+    
+    .nextgen-middle-content .nextgen-glass-card {
+        min-height: 250px;
+    }
+}
+
+/* ✅ ADDED: Debug and ensure middle content visibility */
+.nextgen-middle-content {
+    /* Force visibility */
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    
+    /* Ensure proper positioning */
+    position: relative !important;
+    z-index: 2 !important;
+    
+    /* Force proper spacing */
+    margin-top: 3rem !important;
+    margin-bottom: 3rem !important;
+    
+    /* Ensure minimum height */
+    min-height: 300px !important;
+    
+    /* Debug border to see the section */
+    border: 2px solid rgba(255, 0, 0, 0.3) !important;
+}
+
+/* Ensure all child elements are visible */
+.nextgen-middle-content * {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Ensure the row and columns are properly displayed */
+.nextgen-middle-content .row {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.nextgen-middle-content .col-md-4 {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 </style>
 
-<!-- JavaScript for Mode Switching and AI Actions -->
 <script>
 // AI Action Functions for Next-Gen Mode
 function generateListingContent() {
@@ -369,9 +988,9 @@ function animateNextGenStats() {
     if (typeof nextgenMode === 'undefined' || !nextgenMode) return;
     
     const stats = [
-        { id: 'nextgenActiveListings', target: 24 },
-        { id: 'nextgenAiGenerated', target: 156 },
-        { id: 'nextgenSocialPosts', target: 89 },
+        { id: 'nextgenActiveListings', target: 8 },
+        { id: 'nextgenAiGenerated', target: 1247 },
+        { id: 'nextgenSocialPosts', target: 3 },
         { id: 'nextgenNewLeads', target: 12 }
     ];
     
@@ -439,4 +1058,58 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// ✅ ADDED: Force middle content visibility
+function forceMiddleContentVisibility() {
+    console.log('🔧 Forcing middle content visibility...');
+    
+    const middleContent = document.querySelector('.nextgen-middle-content');
+    if (middleContent) {
+        // Force visibility
+        middleContent.style.display = 'block';
+        middleContent.style.visibility = 'visible';
+        middleContent.style.opacity = '1';
+        
+        // Force positioning
+        middleContent.style.position = 'relative';
+        middleContent.style.zIndex = '2';
+        
+        // Force spacing
+        middleContent.style.marginTop = '3rem';
+        middleContent.style.marginBottom = '3rem';
+        
+        // Force minimum height
+        middleContent.style.minHeight = '300px';
+        
+        // Add debug border
+        middleContent.style.border = '2px solid rgba(255, 0, 0, 0.3)';
+        
+        console.log('✅ Middle content visibility forced');
+        
+        // Force layout recalculation
+        middleContent.offsetHeight;
+    } else {
+        console.error('❌ Middle content section not found');
+    }
+}
+
+// Call the function when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 DOM loaded, forcing middle content visibility...');
+    setTimeout(forceMiddleContentVisibility, 100);
+});
+
+// Also call it immediately if DOM is already loaded
+if (document.readyState === 'loading') {
+    console.log('🔄 DOM still loading...');
+} else {
+    console.log('🚀 DOM already loaded, forcing middle content visibility immediately...');
+    forceMiddleContentVisibility();
+}
+
+
+
+
+
+
 </script>

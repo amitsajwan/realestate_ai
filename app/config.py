@@ -17,7 +17,7 @@ class Settings:
     
     # Base URLs
     LOCAL_BASE_URL: str = f"http://{HOST}:{PORT}"
-    NGROK_BASE_URL: str = os.getenv("NGROK_BASE_URL", "https://8400abb81098.ngrok-free.app")
+    NGROK_BASE_URL: str = os.getenv("NGROK_BASE_URL", "https://68896542ea3d.ngrok-free.app")
     
     # Environment Detection
     IS_PRODUCTION: bool = os.getenv("ENVIRONMENT", "development").lower() == "production"
