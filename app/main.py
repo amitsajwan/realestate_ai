@@ -53,12 +53,12 @@ async def login_page(request: Request):
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_page(request: Request):
     """Dashboard page"""
-    return templates.TemplateResponse("dashboard_modular.html", {"request": request})
+    return templates.TemplateResponse("dashboard_clean.html", {"request": request})
 
 @app.get("/modern-onboarding", response_class=HTMLResponse)
 async def modern_onboarding_page(request: Request):
     """Modern onboarding page"""
-    return templates.TemplateResponse("dashboard_modular.html", {"request": request})
+    return templates.TemplateResponse("dashboard_clean.html", {"request": request})
 
 @app.get("/api/v1/dashboard/stats")
 async def get_dashboard_stats():

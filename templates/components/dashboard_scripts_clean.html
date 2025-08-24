@@ -4,11 +4,75 @@
 let userProfile = null;
 
 // ===== CORE NAVIGATION =====
-// showSection function is defined in dashboard_core.js - removed duplicate
+function showSection(sectionName) {
+    console.log('🎯 showSection called with: ' + sectionName);
+    
+    // Hide all sections
+    const allSections = document.querySelectorAll('.dashboard-section');
+    allSections.forEach(section => {
+        section.style.display = 'none';
+        section.style.visibility = 'hidden';
+        section.style.opacity = '0';
+    });
+    
+    // Show target section
+    const targetSection = document.getElementById(sectionName + '-section');
+    if (targetSection) {
+        targetSection.style.display = 'block';
+        targetSection.style.visibility = 'visible';
+        targetSection.style.opacity = '1';
+        console.log('✅ Section displayed:', sectionName);
+        
+        // Update navigation
+        updateNavigationActiveState(sectionName);
+        
+        // Load section-specific data
+        loadSectionData(sectionName);
+    } else {
+        console.error('❌ Section not found:', sectionName + '-section');
+    }
+}
 
-// updateNavigationActiveState function is defined in dashboard_core.js - removed duplicate
+function updateNavigationActiveState(sectionName) {
+    // Update main navigation
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+    });
+    
+    const clickedLink = document.querySelector(`[onclick*="showSection('${sectionName}')"]`);
+    if (clickedLink) {
+        clickedLink.classList.add('active');
+    }
+    
+    // Update Next-Gen bottom navigation
+    document.querySelectorAll('.nextgen-nav-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    const nextgenNavItem = document.querySelector(`.nextgen-nav-item[onclick*="${sectionName}"]`);
+    if (nextgenNavItem) {
+        nextgenNavItem.classList.add('active');
+    }
+}
 
-// loadSectionData function is defined in dashboard_core.js - removed duplicate
+function loadSectionData(sectionName) {
+    console.log('📂 Loading data for section:', sectionName);
+    
+    switch(sectionName) {
+        case 'properties':
+            if (typeof loadUserProperties === 'function') loadUserProperties();
+            break;
+        case 'facebook':
+            loadFacebookStatus();
+            break;
+        case 'onboarding':
+            // Use our simple onboarding functions from the main template
+            if (typeof showOnboardingSection === 'function') {
+                showOnboardingSection();
+            }
+            break;
+    }
+}
 
 // ===== OAUTH HANDLING =====
 function handleOAuthCallback() {
