@@ -371,3 +371,70 @@ body.nextgen-enabled {
 .nextgen-enabled .dashboard-section {
     margin-bottom: 100px;
 }
+
+/* ✅ FIXED: Mobile-specific improvements */
+@media (max-width: 768px) {
+    /* Better touch targets */
+    .btn {
+        min-height: 44px;
+        padding: 0.75rem 1rem;
+    }
+    
+    /* Improved card spacing */
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .card-header {
+        padding: 1rem;
+    }
+    
+    /* Better property card layout */
+    .property-card {
+        margin-bottom: 1rem;
+    }
+    
+    .property-image {
+        height: 180px;
+    }
+    
+    /* Improved form spacing */
+    .form-control, .form-select {
+        margin-bottom: 1rem;
+    }
+    
+    /* Better navigation touch targets */
+    .nextgen-nav-item {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    /* Improved header spacing */
+    header {
+        padding: 0.5rem 0;
+    }
+    
+    /* Better container padding */
+    .container-fluid {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+    
+    /* Improved stats layout on mobile */
+    .stat-card {
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-number {
+        font-size: 1.5rem;
+    }
+    
+    .stat-icon {
+        font-size: 1.5rem;
+    }
+}
