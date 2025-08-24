@@ -7,6 +7,10 @@ Centralized configuration for URLs, environment variables, and settings
 
 import os
 from typing import Optional
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 class Settings:
     """Application settings and configuration"""
@@ -17,20 +21,22 @@ class Settings:
     
     # Base URLs
     LOCAL_BASE_URL: str = f"http://{HOST}:{PORT}"
-    NGROK_BASE_URL: str = os.getenv("NGROK_BASE_URL", "https://68896542ea3d.ngrok-free.app")
+    NGROK_BASE_URL: str = os.getenv("BASE_URL", "https://8400abb81098.ngrok-free.app")
     
     # Environment Detection
     IS_PRODUCTION: bool = os.getenv("ENVIRONMENT", "development").lower() == "production"
     USE_NGROK: bool = os.getenv("USE_NGROK", "false").lower() == "true"
+    IS_DEVELOPMENT: bool = not IS_PRODUCTION
     
     # Facebook Configuration
     FB_APP_ID: str = os.getenv("FB_APP_ID", "")
     FB_APP_SECRET: str = os.getenv("FB_APP_SECRET", "")
     FB_PAGE_TOKEN: str = os.getenv("FB_PAGE_TOKEN", "")
     FB_PAGE_ID: str = os.getenv("FB_PAGE_ID", "")
+    FB_GRAPH_API_VERSION: str = os.getenv("FB_GRAPH_API_VERSION", "v19.0")
     
-    # Facebook OAuth - Always use ngrok for callbacks
-    FB_REDIRECT_URI: str = f"{NGROK_BASE_URL}/api/v1/facebook/callback"
+    # Facebook OAuth - Use ngrok for production, localhost for development
+    FB_REDIRECT_URI: str = f"{NGROK_BASE_URL}/api/v1/facebook/callback" if NGROK_BASE_URL else f"http://127.0.0.1:8003/api/v1/facebook/callback"
     
     # JWT Configuration
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")
