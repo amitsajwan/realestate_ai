@@ -518,7 +518,7 @@
     text-align: center;
 }
 
-/* ✅ ADDED: Enhanced middle content styling */
+/* ✅ REMOVED: Old middle content styling - no longer needed */
 .nextgen-middle-content .nextgen-glass-card {
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(20px);
@@ -764,7 +764,7 @@
     line-height: 1.5;
 }
 
-/* ✅ FIXED: Middle content positioning and styling */
+/* ✅ REMOVED: Old middle content positioning - no longer needed */
 .nextgen-middle-content {
     margin-top: 3rem !important;
     margin-bottom: 3rem !important;
@@ -891,7 +891,7 @@
     color: var(--nextgen-text-secondary);
 }
 
-/* Responsive adjustments for middle content */
+/* ✅ REMOVED: Old responsive middle content - no longer needed */
 @media (max-width: 768px) {
     .nextgen-middle-content {
         margin-top: 2rem !important;
@@ -907,7 +907,7 @@
     }
 }
 
-/* ✅ ADDED: Debug and ensure middle content visibility */
+/* ✅ REMOVED: Old debug middle content - no longer needed */
 .nextgen-middle-content {
     /* Force visibility */
     display: block !important;
@@ -1097,53 +1097,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// ✅ ADDED: Force middle content visibility
-function forceMiddleContentVisibility() {
-    console.log('🔧 Forcing middle content visibility...');
-    
-    const middleContent = document.querySelector('.nextgen-middle-content');
-    if (middleContent) {
-        // Force visibility
-        middleContent.style.display = 'block';
-        middleContent.style.visibility = 'visible';
-        middleContent.style.opacity = '1';
-        
-        // Force positioning
-        middleContent.style.position = 'relative';
-        middleContent.style.zIndex = '2';
-        
-        // Force spacing
-        middleContent.style.marginTop = '3rem';
-        middleContent.style.marginBottom = '3rem';
-        
-        // Force minimum height
-        middleContent.style.minHeight = '300px';
-        
-        // Add debug border
-        middleContent.style.border = '2px solid rgba(255, 0, 0, 0.3)';
-        
-        console.log('✅ Middle content visibility forced');
-        
-        // Force layout recalculation
-        middleContent.offsetHeight;
-    } else {
-        console.error('❌ Middle content section not found');
-    }
-}
-
-// Call the function when the page loads
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 DOM loaded, forcing middle content visibility...');
-    setTimeout(forceMiddleContentVisibility, 100);
-});
-
-// Also call it immediately if DOM is already loaded
-if (document.readyState === 'loading') {
-    console.log('🔄 DOM still loading...');
-} else {
-    console.log('🚀 DOM already loaded, forcing middle content visibility immediately...');
-    forceMiddleContentVisibility();
-}
+// ✅ REMOVED: Old middle content code - no longer needed
 
 
 
