@@ -27,6 +27,14 @@
     --nextgen-glass-bg: rgba(255, 255, 255, 0.1);
     --nextgen-glass-border: rgba(255, 255, 255, 0.2);
     --nextgen-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* ✅ ADDED: Additional color variables for welcome section */
+    --color-text: #1f2937;
+    --color-text-secondary: #6b7280;
+    --color-teal-500-rgb: 20, 184, 166;
+    --color-orange-500-rgb: 249, 115, 22;
+    --color-blue-500-rgb: 59, 130, 246;
+    --color-green-500-rgb: 34, 197, 94;
 }
 
 /* Only apply to elements with .nextgen- classes */
@@ -348,11 +356,75 @@ body.nextgen-enabled {
     border-left: 4px solid #ef4444;
 }
 
-/* ✅ FIXED: Simplified welcome section visibility */
+/* ✅ FIXED: Enhanced visibility for all dashboard elements */
 #welcome-section {
-    display: block;
-    visibility: visible;
-    opacity: 1;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    min-height: 600px !important;
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+/* ✅ FIXED: Force all dashboard sections to be visible */
+.dashboard-section {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important;
+    z-index: 1 !important;
+    min-height: 200px !important;
+}
+
+/* ✅ FIXED: Ensure glass cards are visible */
+.nextgen-glass-card {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    min-height: 100px !important;
+}
+
+/* ✅ FIXED: Ensure stat cards are visible */
+.nextgen-stat-card {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    min-height: 120px !important;
+}
+
+/* ✅ FIXED: Ensure property cards are visible */
+.property-card {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    min-height: 300px !important;
+}
+
+/* ✅ FIXED: Ensure all cards are visible */
+.card {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* ✅ FIXED: Ensure proper content flow */
+.container-fluid {
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+/* ✅ FIXED: Ensure proper spacing */
+.row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+.col-md-3, .col-md-4, .col-md-6, .col-12 {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
 }
 
 /* ✅ FIXED: Simplified stats visibility */
@@ -438,3 +510,28 @@ body.nextgen-enabled {
         font-size: 1.5rem;
     }
 }
+
+/* 🚨 TEMPORARY DEBUG CSS - Remove after fixing visibility issues */
+.nextgen-glass-card {
+    border: 2px solid red !important;
+    background: rgba(255, 255, 255, 0.9) !important;
+    min-height: 100px !important;
+}
+
+.nextgen-stat-card {
+    border: 2px solid blue !important;
+    background: rgba(255, 255, 255, 0.8) !important;
+    min-height: 120px !important;
+}
+
+#welcome-section {
+    border: 3px solid green !important;
+    min-height: 600px !important;
+}
+
+.dashboard-section {
+    border: 2px solid orange !important;
+    min-height: 200px !important;
+}
+
+/* 🚨 END DEBUG CSS */

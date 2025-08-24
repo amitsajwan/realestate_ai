@@ -1,1107 +1,293 @@
-<div id="welcome-section" class="dashboard-section">
-  <div class="container-fluid px-3">
-    <!-- Welcome Header -->
-    <div class="row mb-4">
-      <div class="col-12">
-        <div class="card shadow-lg bg-gradient-primary text-white">
-          <div class="card-body p-4">
-            <div class="row align-items-center">
-              <div class="col-md-8">
-                <h2 class="mb-2">Welcome back, <span id="userFirstName">Agent</span>! 👋</h2>
-                <p class="lead mb-0">Ready to grow your real estate business with AI-powered tools?</p>
-              </div>
-              <div class="col-md-4 text-end">
-                <div class="welcome-actions">
-                  <button class="btn btn-light me-2" onclick="showSection('property-form')">
-                    <i class="fas fa-plus me-1"></i>Add Property
-                  </button>
-                  <button class="btn btn-outline-light" onclick="showSection('ai-content')">
-                    <i class="fas fa-robot me-1"></i>AI Tools
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+<!-- FIXED Welcome Dashboard Component with Visible Content -->
+<!-- ✅ FIXED: All content properly structured and visible -->
 
-    <!-- Stats Row -->
-    <div class="row g-3 mb-4" id="nextgenStatsRow">
-      <div class="col-6 col-md-3 mb-0">
-        <div class="stat-card text-center">
-          <div class="stat-icon text-primary">
-            <i class="fas fa-home"></i>
+<div class="dashboard-section" id="welcome-section">
+  <div class="container-fluid">
+      <!-- ✅ FIXED: Welcome header with proper visibility -->
+      <div class="row mb-4">
+          <div class="col-12">
+              <div class="nextgen-glass-card">
+                  <h2 class="h4 mb-3">Welcome back, Agent! 👋</h2>
+                  <p class="text-muted mb-0">Ready to grow your real estate business with AI-powered tools?</p>
+              </div>
           </div>
-          <div class="stat-number" id="totalProperties">0</div>
-          <div class="stat-label">Total Properties</div>
-          <div class="stat-trend positive">
-            <i class="fas fa-arrow-up me-1"></i>+12% this month
-          </div>
-        </div>
       </div>
-      <div class="col-6 col-md-3 mb-0">
-        <div class="stat-card text-center">
-          <div class="stat-icon text-success">
-            <i class="fas fa-eye"></i>
-          </div>
-          <div class="stat-number" id="totalViews">0</div>
-          <div class="stat-label">Property Views</div>
-          <div class="stat-trend positive">
-            <i class="fas fa-arrow-up me-1"></i>+8% this week
-          </div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3 mb-0">
-        <div class="stat-card text-center">
-          <div class="stat-icon text-warning">
-            <i class="fas fa-users"></i>
-          </div>
-          <div class="stat-number" id="totalLeads">0</div>
-          <div class="stat-label">Active Leads</div>
-          <div class="stat-trend positive">
-            <i class="fas fa-arrow-up me-1"></i>+15% this month
-          </div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3 mb-0">
-        <div class="stat-card text-center">
-          <div class="stat-icon text-info">
-            <i class="fas fa-chart-line"></i>
-          </div>
-          <div class="stat-number" id="conversionRate">0%</div>
-          <div class="stat-label">Conversion Rate</div>
-          <div class="stat-trend positive">
-            <i class="fas fa-arrow-up me-1"></i>+3% this month
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- Featured Properties -->
-    <div class="row mb-4">
-      <div class="col-12">
-        <div class="card shadow-lg">
-          <div class="card-header bg-primary text-white">
-            <h5><i class="fas fa-star me-2"></i>Featured Properties</h5>
-          </div>
-          <div class="card-body">
-            <div class="row g-3" id="featuredProperties">
-              <!-- Properties will be loaded dynamically -->
-                             <div class="col-12 col-md-4 mb-0">
-                 <div class="property-card">
-                   <div class="property-image">
-                     <div class="property-placeholder bg-light d-flex align-items-center justify-content-center" style="height: 200px; background: linear-gradient(135deg, #f8f9fa, #e9ecef);">
-                       <i class="fas fa-home text-muted" style="font-size: 3rem;"></i>
-                     </div>
-                     <div class="property-badge">Featured</div>
-                   </div>
-                  <div class="property-content p-3">
-                    <h6 class="property-title">Luxury Apartment in Koregaon Park</h6>
-                    <p class="property-location text-muted">
-                      <i class="fas fa-map-marker-alt me-1"></i>Koregaon Park, Pune
-                    </p>
-                    <div class="property-details d-flex justify-content-between">
-                      <span><i class="fas fa-bed me-1"></i>3 BHK</span>
-                      <span><i class="fas fa-bath me-1"></i>2 Bath</span>
-                      <span><i class="fas fa-ruler-combined me-1"></i>1200 sq ft</span>
-                    </div>
-                    <div class="property-price mt-2">
-                      <strong class="text-primary">₹1.25 Cr</strong>
-                    </div>
+      <!-- ✅ FIXED: Stats row with forced visibility -->
+      <div class="row mb-4" id="nextgenStatsRow">
+          <!-- Total Properties -->
+          <div class="col-6 col-md-3 mb-3">
+              <div class="nextgen-stat-card">
+                  <div class="nextgen-stat">
+                      <div class="nextgen-stat-icon">🏠</div>
+                      <div class="nextgen-stat-number" id="totalProperties">12</div>
+                      <div class="nextgen-stat-label">Total Properties</div>
+                      <small class="text-success">+12% this month</small>
                   </div>
-                </div>
               </div>
-                             <div class="col-12 col-md-4 mb-0">
-                 <div class="property-card">
-                   <div class="property-image">
-                     <div class="property-placeholder bg-light d-flex align-items-center justify-content-center" style="height: 200px; background: linear-gradient(135deg, #f8f9fa, #e9ecef);">
-                       <i class="fas fa-home text-muted" style="font-size: 3rem;"></i>
-                     </div>
-                     <div class="property-badge">New</div>
-                   </div>
-                  <div class="property-content p-3">
-                    <h6 class="property-title">Modern Villa in Baner</h6>
-                    <p class="property-location text-muted">
-                      <i class="fas fa-map-marker-alt me-1"></i>Baner, Pune
-                    </p>
-                    <div class="property-details d-flex justify-content-between">
-                      <span><i class="fas fa-bed me-1"></i>4 BHK</span>
-                      <span><i class="fas fa-bath me-1"></i>3 Bath</span>
-                      <span><i class="fas fa-ruler-combined me-1"></i>2000 sq ft</span>
-                    </div>
-                    <div class="property-price mt-2">
-                      <strong class="text-primary">₹2.5 Cr</strong>
-                    </div>
+          </div>
+
+          <!-- Property Views -->
+          <div class="col-6 col-md-3 mb-3">
+              <div class="nextgen-stat-card">
+                  <div class="nextgen-stat">
+                      <div class="nextgen-stat-icon">👁️</div>
+                      <div class="nextgen-stat-number" id="propertyViews">1,247</div>
+                      <div class="nextgen-stat-label">Property Views</div>
+                      <small class="text-success">+8% this week</small>
                   </div>
-                </div>
               </div>
-                             <div class="col-12 col-md-4 mb-0">
-                 <div class="property-card">
-                   <div class="property-image">
-                     <div class="property-placeholder bg-light d-flex align-items-center justify-content-center" style="height: 200px; background: linear-gradient(135deg, #f8f9fa, #e9ecef);">
-                       <i class="fas fa-home text-muted" style="font-size: 3rem;"></i>
-                     </div>
-                     <div class="property-badge">Hot</div>
-                   </div>
-                  <div class="property-content p-3">
-                    <h6 class="property-title">Premium Flat in Hinjewadi</h6>
-                    <p class="property-location text-muted">
-                      <i class="fas fa-map-marker-alt me-1"></i>Hinjewadi, Pune
-                    </p>
-                    <div class="property-details d-flex justify-content-between">
-                      <span><i class="fas fa-bed me-1"></i>2 BHK</span>
-                      <span><i class="fas fa-bath me-1"></i>2 Bath</span>
-                      <span><i class="fas fa-ruler-combined me-1"></i>950 sq ft</span>
-                    </div>
-                    <div class="property-price mt-2">
-                      <strong class="text-primary">₹85 Lakhs</strong>
-                    </div>
+          </div>
+
+          <!-- Active Leads -->
+          <div class="col-6 col-md-3 mb-3">
+              <div class="nextgen-stat-card">
+                  <div class="nextgen-stat">
+                      <div class="nextgen-stat-icon">📋</div>
+                      <div class="nextgen-stat-number" id="activeLeads">24</div>
+                      <div class="nextgen-stat-label">Active Leads</div>
+                      <small class="text-success">+15% this month</small>
                   </div>
-                </div>
               </div>
-            </div>
           </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- Recent Activity & AI Insights -->
-    <div class="row">
-      <div class="col-md-6 mb-4">
-        <div class="card shadow-lg h-100">
-          <div class="card-header bg-info text-white">
-            <h5><i class="fas fa-history me-2"></i>Recent Activity</h5>
+          <!-- Conversion Rate -->
+          <div class="col-6 col-md-3 mb-3">
+              <div class="nextgen-stat-card">
+                  <div class="nextgen-stat">
+                      <div class="nextgen-stat-icon">📈</div>
+                      <div class="nextgen-stat-number" id="conversionRate">18%</div>
+                      <div class="nextgen-stat-label">Conversion Rate</div>
+                      <small class="text-success">+3% this month</small>
+                  </div>
+              </div>
           </div>
-          <div class="card-body">
-            <div class="activity-timeline">
-              <div class="activity-item">
-                <div class="activity-icon bg-success">
-                  <i class="fas fa-plus text-white"></i>
-                </div>
-                <div class="activity-content">
-                  <div class="activity-title">New Property Added</div>
-                  <div class="activity-desc">Luxury Apartment in Koregaon Park</div>
-                  <div class="activity-time">2 hours ago</div>
-                </div>
-              </div>
-              <div class="activity-item">
-                <div class="activity-icon bg-primary">
-                  <i class="fas fa-eye text-white"></i>
-                </div>
-                <div class="activity-content">
-                  <div class="activity-title">Property Viewed</div>
-                  <div class="activity-desc">Modern Villa in Baner - 15 views today</div>
-                  <div class="activity-time">4 hours ago</div>
-                </div>
-              </div>
-              <div class="activity-item">
-                <div class="activity-icon bg-warning">
-                  <i class="fas fa-user text-white"></i>
-                </div>
-                <div class="activity-content">
-                  <div class="activity-title">New Lead Generated</div>
-                  <div class="activity-desc">Rahul Sharma interested in 3 BHK properties</div>
-                  <div class="activity-time">6 hours ago</div>
-                </div>
-              </div>
-              <div class="activity-item">
-                <div class="activity-icon bg-info">
-                  <i class="fas fa-robot text-white"></i>
-                </div>
-                <div class="activity-content">
-                  <div class="activity-title">AI Content Generated</div>
-                  <div class="activity-desc">Property description for Hinjewadi flat</div>
-                  <div class="activity-time">1 day ago</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
-      <div class="col-md-6 mb-4">
-        <div class="card shadow-lg h-100">
-          <div class="card-header bg-warning text-white">
-            <h5><i class="fas fa-lightbulb me-2"></i>AI Insights & Recommendations</h5>
-          </div>
-          <div class="card-body">
-            <div class="ai-insights">
-              <div class="insight-card mb-3">
-                <div class="insight-icon">
-                  <i class="fas fa-chart-line text-success"></i>
-                </div>
-                <div class="insight-content">
-                  <h6>Market Trend Alert</h6>
-                  <p class="text-muted mb-2">Properties in Baner area are getting 23% more views this month. Consider highlighting this location.</p>
-                  <button class="btn btn-sm btn-outline-success">View Details</button>
-                </div>
-              </div>
-              
-              <div class="insight-card mb-3">
-                <div class="insight-icon">
-                  <i class="fas fa-clock text-warning"></i>
-                </div>
-                <div class="insight-content">
-                  <h6>Best Posting Time</h6>
-                  <p class="text-muted mb-2">Your properties get 40% more engagement when posted between 7-9 PM. Schedule accordingly.</p>
-                  <button class="btn btn-sm btn-outline-warning">Optimize Timing</button>
-                </div>
-              </div>
-              
-              <div class="insight-card">
-                <div class="insight-icon">
-                  <i class="fas fa-tags text-info"></i>
-                </div>
-                <div class="insight-content">
-                  <h6>Keyword Opportunity</h6>
-                  <p class="text-muted mb-2">"Luxury apartments Pune" searches increased by 35%. Update your property titles.</p>
-                  <button class="btn btn-sm btn-outline-info">Update Keywords</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+      <!-- ✅ FIXED: Featured content with proper spacing -->
+      <div class="row mb-4">
+          <!-- Featured Properties -->
+          <div class="col-lg-6 mb-4">
+              <div class="nextgen-glass-card">
+                  <h5 class="mb-3">📍 Featured Properties</h5>
+                  
+                  <!-- Property 1 -->
+                  <div class="mb-3 p-3 property-item">
+                      <div class="d-flex justify-content-between align-items-start mb-2">
+                          <span class="badge bg-success">Featured</span>
+                          <small class="text-muted">2 hours ago</small>
+                      </div>
+                      <h6 class="mb-2">🏢 Luxury Apartment in Koregaon Park</h6>
+                      <p class="small text-muted mb-2">📍 Koregaon Park, Pune, Maharashtra</p>
+                      <div class="d-flex justify-content-between align-items-center">
+                          <div class="small text-muted">
+                              🛏️ 3 BHK • 🚿 2 Bath • 📐 1,200 sq ft
+                          </div>
+                          <strong class="text-success" style="font-size: 1.1rem;">₹1.25 Cr</strong>
+                      </div>
+                  </div>
 
-    <!-- Quick Actions -->
-    <div class="row mb-4">
-      <div class="col-12">
-        <div class="card shadow-lg">
-          <div class="card-header bg-success text-white">
-            <h5><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+                  <!-- Property 2 -->
+                  <div class="mb-3 p-3 property-item">
+                      <div class="d-flex justify-content-between align-items-start mb-2">
+                          <span class="badge bg-primary">New</span>
+                          <small class="text-muted">5 hours ago</small>
+                      </div>
+                      <h6 class="mb-2">🏠 Modern Villa in Baner</h6>
+                      <p class="small text-muted mb-2">📍 Baner, Pune, Maharashtra</p>
+                      <div class="d-flex justify-content-between align-items-center">
+                          <div class="small text-muted">
+                              🛏️ 4 BHK • 🚿 3 Bath • 📐 2,000 sq ft
+                          </div>
+                          <strong class="text-success" style="font-size: 1.1rem;">₹2.5 Cr</strong>
+                      </div>
+                  </div>
+
+                  <!-- Property 3 -->
+                  <div class="p-3 property-item property-item-hot">
+                      <div class="d-flex justify-content-between align-items-start mb-2">
+                          <span class="badge bg-warning text-dark">Hot Deal</span>
+                          <small class="text-muted">1 day ago</small>
+                      </div>
+                      <h6 class="mb-2">🏠 Premium Flat in Hinjewadi</h6>
+                      <p class="small text-muted mb-2">📍 Hinjewadi, Pune, Maharashtra</p>
+                      <div class="d-flex justify-content-between align-items-center">
+                          <div class="small text-muted">
+                              🛏️ 2 BHK • 🚿 2 Bath • 📐 950 sq ft
+                          </div>
+                          <strong class="text-success" style="font-size: 1.1rem;">₹85 Lakhs</strong>
+                      </div>
+                  </div>
+              </div>
           </div>
-          <div class="card-body">
-            <div class="row">
-              <div class="col-md-3 mb-3">
-                <button class="btn btn-outline-primary w-100 h-100 p-4" onclick="showSection('property-form')">
-                  <i class="fas fa-plus fa-2x mb-3"></i>
-                  <div>Add New Property</div>
-                </button>
+
+          <!-- Recent Activity -->
+          <div class="col-lg-6 mb-4">
+              <div class="nextgen-glass-card">
+                  <h5 class="mb-3">📊 Recent Activity</h5>
+                  
+                  <!-- Activity 1 -->
+                  <div class="d-flex align-items-start mb-3 p-2" style="background: rgba(var(--color-success-rgb), 0.05); border-radius: 8px;">
+                      <div class="me-3">
+                          <div class="rounded-circle bg-success d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                              <i class="fas fa-plus text-white"></i>
+                          </div>
+                      </div>
+                      <div class="flex-grow-1">
+                          <h6 class="mb-1" style="color: var(--color-text) !important;">🏠 New Property Added</h6>
+                          <p class="small text-muted mb-1">Luxury Apartment in Koregaon Park</p>
+                          <small class="text-muted">⏰ 2 hours ago</small>
+                      </div>
+                  </div>
+
+                  <!-- Activity 2 -->
+                  <div class="d-flex align-items-start mb-3 p-2" style="background: rgba(var(--color-teal-500-rgb), 0.05); border-radius: 8px;">
+                      <div class="me-3">
+                          <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                              <i class="fas fa-eye text-white"></i>
+                          </div>
+                      </div>
+                      <div class="flex-grow-1">
+                          <h6 class="mb-1" style="color: var(--color-text) !important;">👀 Property Viewed</h6>
+                          <p class="small text-muted mb-1">Modern Villa in Baner - 15 views today</p>
+                          <small class="text-muted">⏰ 4 hours ago</small>
+                      </div>
+                  </div>
+
+                  <!-- Activity 3 -->
+                  <div class="d-flex align-items-start mb-3 p-2" style="background: rgba(var(--color-orange-500-rgb), 0.05); border-radius: 8px;">
+                      <div class="me-3">
+                          <div class="rounded-circle bg-warning d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                              <i class="fas fa-user-plus text-dark"></i>
+                          </div>
+                      </div>
+                      <div class="flex-grow-1">
+                          <h6 class="mb-1" style="color: var(--color-text) !important;">👤 New Lead Generated</h6>
+                          <p class="small text-muted mb-1">Rahul Sharma interested in 3 BHK properties</p>
+                          <small class="text-muted">⏰ 6 hours ago</small>
+                      </div>
+                  </div>
+
+                  <!-- Activity 4 -->
+                  <div class="d-flex align-items-start p-2" style="background: rgba(var(--color-teal-500-rgb), 0.05); border-radius: 8px;">
+                      <div class="me-3">
+                          <div class="rounded-circle bg-info d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                              <i class="fas fa-robot text-white"></i>
+                          </div>
+                      </div>
+                      <div class="flex-grow-1">
+                          <h6 class="mb-1" style="color: var(--color-text) !important;">🤖 AI Content Generated</h6>
+                          <p class="small text-muted mb-1">Property description for Hinjewadi flat</p>
+                          <small class="text-muted">⏰ 1 day ago</small>
+                      </div>
+                  </div>
               </div>
-              <div class="col-md-3 mb-3">
-                <button class="btn btn-outline-success w-100 h-100 p-4" onclick="showSection('ai-content')">
-                  <i class="fas fa-robot fa-2x mb-3"></i>
-                  <div>Generate AI Content</div>
-                </button>
-              </div>
-              <div class="col-md-3 mb-3">
-                <button class="btn btn-outline-info w-100 h-100 p-4" onclick="showSection('facebook')">
-                  <i class="fab fa-facebook fa-2x mb-3"></i>
-                  <div>Post to Facebook</div>
-                </button>
-              </div>
-              <div class="col-md-3 mb-3">
-                <button class="btn btn-outline-warning w-100 h-100 p-4" onclick="showSection('analytics')">
-                  <i class="fas fa-chart-bar fa-2x mb-3"></i>
-                  <div>View Analytics</div>
-                </button>
-              </div>
-            </div>
           </div>
-        </div>
       </div>
-    </div>
+
+      <!-- ✅ FIXED: AI Insights section with better visual hierarchy -->
+      <div class="row mb-4">
+          <div class="col-12">
+              <div class="nextgen-glass-card">
+                  <h5 class="mb-4" style="color: var(--color-text) !important;">🧠 AI Insights & Recommendations</h5>
+                  
+                  <div class="row">
+                      <!-- Market Trend Alert -->
+                      <div class="col-md-4 mb-3">
+                          <div class="h-100 p-3" style="background: rgba(var(--color-success-rgb), 0.08); border: 1px solid rgba(var(--color-success-rgb), 0.2); border-radius: 12px;">
+                              <div class="d-flex align-items-start">
+                                  <div class="me-3">
+                                      <div class="rounded-circle bg-success d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                          <i class="fas fa-chart-line text-white"></i>
+                                      </div>
+                                  </div>
+                                  <div class="flex-grow-1">
+                                      <h6 class="mb-2" style="color: var(--color-text) !important;">📈 Market Trend Alert</h6>
+                                      <p class="small text-muted mb-0">Properties in Baner area are getting <strong>23% more views</strong> this month. Consider highlighting this location.</p>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+
+                      <!-- Best Posting Time -->
+                      <div class="col-md-4 mb-3">
+                          <div class="h-100 p-3" style="background: rgba(var(--color-orange-500-rgb), 0.08); border: 1px solid rgba(var(--color-orange-500-rgb), 0.2); border-radius: 12px;">
+                              <div class="d-flex align-items-start">
+                                  <div class="me-3">
+                                      <div class="rounded-circle bg-warning d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                          <i class="fas fa-clock text-dark"></i>
+                                      </div>
+                                  </div>
+                                  <div class="flex-grow-1">
+                                      <h6 class="mb-2" style="color: var(--color-text) !important;">⏰ Best Posting Time</h6>
+                                      <p class="small text-muted mb-0">Your properties get <strong>40% more engagement</strong> when posted between 7-9 PM. Schedule accordingly.</p>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+
+                      <!-- Keyword Opportunity -->
+                      <div class="col-md-4 mb-3">
+                          <div class="h-100 p-3" style="background: rgba(var(--color-teal-500-rgb), 0.08); border: 1px solid rgba(var(--color-teal-500-rgb), 0.2); border-radius: 12px;">
+                              <div class="d-flex align-items-start">
+                                  <div class="me-3">
+                                      <div class="rounded-circle bg-info d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                          <i class="fas fa-search text-white"></i>
+                                      </div>
+                                  </div>
+                                  <div class="flex-grow-1">
+                                      <h6 class="mb-2" style="color: var(--color-text) !important;">🔍 Keyword Opportunity</h6>
+                                      <p class="small text-muted mb-0">"Luxury apartments Pune" searches increased by <strong>35%</strong>. Update your property titles.</p>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      <!-- ✅ FIXED: Quick Actions with enhanced visibility -->
+      <div class="row mb-5">
+          <div class="col-12">
+              <div class="nextgen-glass-card">
+                  <h5 class="mb-4" style="color: var(--color-text) !important;">⚡ Quick Actions</h5>
+                  
+                  <div class="row g-3">
+                      <div class="col-6 col-md-3">
+                          <button class="btn btn-primary w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3" onclick="showSection('properties')" style="min-height: 100px; border-radius: 12px;">
+                              <i class="fas fa-plus mb-2" style="font-size: 1.8rem;"></i>
+                              <span style="font-weight: 600;">Add Property</span>
+                              <small class="mt-1 opacity-75">List new properties</small>
+                          </button>
+                      </div>
+                      <div class="col-6 col-md-3">
+                          <button class="btn btn-success w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3" onclick="showSection('ai-content')" style="min-height: 100px; border-radius: 12px;">
+                              <i class="fas fa-robot mb-2" style="font-size: 1.8rem;"></i>
+                              <span style="font-weight: 600;">Generate Content</span>
+                              <small class="mt-1 opacity-75">AI-powered descriptions</small>
+                          </button>
+                      </div>
+                      <div class="col-6 col-md-3">
+                          <button class="btn btn-info w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3" onclick="showSection('facebook')" style="min-height: 100px; border-radius: 12px;">
+                              <i class="fab fa-facebook mb-2" style="font-size: 1.8rem;"></i>
+                              <span style="font-weight: 600;">Post to Facebook</span>
+                              <small class="mt-1 opacity-75">Social media marketing</small>
+                          </button>
+                      </div>
+                      <div class="col-6 col-md-3">
+                          <button class="btn btn-warning w-100 h-100 d-flex flex-column align-items-center justify-content-center p-3" onclick="showSection('analytics')" style="min-height: 100px; border-radius: 12px;">
+                              <i class="fas fa-chart-bar mb-2" style="font-size: 1.8rem;"></i>
+                              <span style="font-weight: 600;">View Analytics</span>
+                              <small class="mt-1 opacity-75">Track performance</small>
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      <!-- ✅ FIXED: Bottom spacing for mobile navigation -->
+      <div style="height: 60px;"></div>
   </div>
 </div>
-
-<style>
-/* ✅ FIXED: Enhanced spacing and layout to prevent empty areas */
-.company-info-section .badge {
-    font-size: 0.875rem;
-    padding: var(--spacing-sm) var(--spacing-md);
-}
-
-/* 🎯 Quick Actions */
-.quick-actions .btn {
-    text-align: center;
-    border-radius: var(--radius-lg);
-    transition: all var(--transition-normal);
-}
-
-.quick-actions .btn:hover {
-    transform: translateY(-8px) scale(1.02);
-    box-shadow: var(--shadow-xl);
-}
-
-.quick-actions .btn i {
-    display: block;
-    margin-bottom: var(--spacing-md);
-}
-
-.quick-actions .btn h6 {
-    margin-bottom: var(--spacing-sm);
-    font-weight: 600;
-}
-
-/* 🌟 AI Suggestions */
-.suggestion-item {
-    padding: var(--spacing-md);
-    border-radius: var(--radius-md);
-    background: rgba(37, 99, 235, 0.05);
-    border-left: 4px solid var(--primary);
-}
-
-.suggestion-icon {
-    font-size: 1.5rem;
-    margin-bottom: var(--spacing-sm);
-}
-
-.suggestion-text {
-    font-size: 0.875rem;
-    color: var(--dark);
-    margin-bottom: var(--spacing-sm);
-    line-height: 1.4;
-}
-
-/* ✅ FIXED: Enhanced spacing and layout */
-.nextgen-container {
-    margin-top: 2rem;
-    margin-bottom: 2rem;
-}
-
-.nextgen-stats-row {
-    margin-bottom: 3rem !important;
-}
-
-.nextgen-quick-actions {
-    margin-bottom: 3rem;
-}
-
-.nextgen-middle-content {
-    margin-top: 3rem;
-    margin-bottom: 3rem;
-}
-
-.nextgen-ai-actions {
-    margin-top: 3rem;
-    margin-bottom: 3rem;
-}
-
-/* ✅ ADDED: Prevent empty areas with minimum heights */
-.dashboard-section {
-    min-height: 400px;
-}
-
-#welcome-section {
-    min-height: 600px;
-}
-
-.nextgen-stat-card {
-    min-height: 120px;
-}
-
-.nextgen-glass-card {
-    min-height: 200px;
-}
-
-/* ✅ ADDED: Better responsive spacing */
-@media (max-width: 768px) {
-    .nextgen-container {
-        margin-top: 1rem;
-        margin-bottom: 1rem;
-    }
-    
-    .nextgen-middle-content {
-        margin-top: 2rem;
-        margin-bottom: 2rem;
-    }
-    
-    .nextgen-ai-actions {
-        margin-top: 2rem;
-        margin-bottom: 2rem;
-    }
-    
-    .dashboard-section {
-        min-height: 300px;
-    }
-    
-    #welcome-section {
-        min-height: 500px;
-    }
-}
-
-/* ✅ ADDED: Enhanced glass card styling */
-.nextgen-glass-card {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 16px;
-    padding: 1.5rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.nextgen-glass-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 20px 40px rgba(31, 38, 135, 0.3);
-}
-
-/* ✅ ADDED: Enhanced stats styling */
-.nextgen-stat-card {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
-    padding: 1.5rem;
-    text-align: center;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    display: block;
-    opacity: 1;
-    visibility: visible;
-}
-
-.nextgen-stat-card:hover {
-    transform: translateY(-4px);
-}
-
-.nextgen-stat {
-    display: block;
-    opacity: 1;
-    visibility: visible;
-}
-
-.nextgen-stat-icon {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-    background: linear-gradient(135deg, var(--nextgen-primary), var(--nextgen-secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.nextgen-stat-number {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 0.25rem;
-    background: linear-gradient(135deg, var(--nextgen-primary), var(--nextgen-secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.nextgen-stat-label {
-    color: var(--nextgen-text-secondary);
-    font-size: 0.875rem;
-}
-
-/* ✅ ADDED: Enhanced action buttons */
-.nextgen-action-btn {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 16px;
-    padding: 1.5rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    min-height: 120px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
-
-.nextgen-action-btn:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 20px 40px rgba(31, 38, 135, 0.3);
-    background: rgba(255, 255, 255, 0.15);
-}
-
-.nextgen-action-icon {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-    color: var(--nextgen-primary);
-}
-
-.nextgen-action-label {
-    font-weight: 600;
-    color: var(--nextgen-text-primary);
-    text-align: center;
-}
-
-/* ✅ REMOVED: Old middle content styling - no longer needed */
-.nextgen-middle-content .nextgen-glass-card {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 16px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.nextgen-middle-content .nextgen-glass-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 20px 40px rgba(31, 38, 135, 0.3);
-}
-
-.nextgen-middle-content h4 {
-    font-weight: 600;
-    margin-bottom: 1.5rem;
-}
-
-.nextgen-middle-content .bg-success,
-.nextgen-middle-content .bg-info,
-.nextgen-middle-content .bg-warning,
-.nextgen-middle-content .bg-primary {
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-}
-
-.nextgen-middle-content .h3 {
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-}
-
-.nextgen-middle-content .text-success,
-.nextgen-middle-content .text-info,
-.nextgen-middle-content .text-warning {
-    font-weight: 600;
-}
-
-.nextgen-middle-content .d-flex {
-    align-items: flex-start;
-}
-
-.nextgen-middle-content .fas.fa-check-circle {
-    margin-top: 0.25rem;
-    flex-shrink: 0;
-}
-
-/* 📊 Recent Activity */
-.activity-item {
-    padding: var(--spacing-md);
-    border-radius: var(--radius-md);
-    transition: all var(--transition-fast);
-}
-
-.activity-item:hover {
-    background: rgba(37, 99, 235, 0.05);
-    transform: translateX(4px);
-}
-
-.activity-icon {
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.activity-title {
-    font-weight: 600;
-    color: var(--dark);
-    margin-bottom: var(--spacing-xs);
-}
-
-.activity-desc {
-    color: var(--gray);
-    margin-bottom: var(--spacing-xs);
-}
-
-.activity-time {
-    font-size: 0.75rem;
-}
-
-/* 📈 Market Insights */
-.insight-item {
-    padding: var(--spacing-md);
-    border-radius: var(--radius-md);
-    background: rgba(16, 185, 129, 0.05);
-    border-left: 4px solid var(--success);
-}
-
-.insight-header {
-    color: var(--dark);
-}
-
-.insight-text {
-    color: var(--gray);
-    line-height: 1.4;
-}
-
-/* 🌟 Animations */
-.fade-in-up {
-    animation: fadeInUp 0.8s ease-out;
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* 📱 Responsive Design */
-@media (max-width: 768px) {
-    .welcome-header h1 {
-        font-size: 2rem;
-    }
-    
-    .welcome-header .lead {
-        font-size: 1rem;
-    }
-    
-    .quick-actions .btn {
-        padding: var(--spacing-md);
-    }
-    
-    .quick-actions .btn i {
-        font-size: 1.5rem;
-    }
-    
-    .nextgen-glass-card {
-        padding: 1rem;
-    }
-    
-    .nextgen-ai-actions h3 {
-        font-size: 1.25rem;
-    }
-    
-    .nextgen-glass-card h4 {
-        font-size: 1rem;
-    }
-    
-    .nextgen-stat-card {
-        padding: 1rem;
-    }
-    
-    .nextgen-stat-number {
-        font-size: 1.5rem;
-    }
-    
-    .nextgen-stat-icon {
-        font-size: 1.5rem;
-    }
-}
-
-/* ✅ ADDED: Content distribution fixes */
-.welcome-header {
-    margin-bottom: 3rem;
-}
-
-.nextgen-middle-content .row {
-    margin-left: 0;
-    margin-right: 0;
-}
-
-.nextgen-middle-content .col-md-6,
-.nextgen-middle-content .col-md-4 {
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
-}
-
-/* ✅ ADDED: Ensure full width utilization */
-.container-fluid {
-    padding-left: 2rem;
-    padding-right: 2rem;
-}
-
-@media (max-width: 768px) {
-    .container-fluid {
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
-}
-
-/* ✅ ADDED: Better content flow */
-.nextgen-middle-content .nextgen-glass-card {
-    margin-bottom: 2rem;
-}
-
-.nextgen-middle-content .nextgen-glass-card:last-child {
-    margin-bottom: 0;
-}
-
-/* ✅ ADDED: Enhanced visual hierarchy */
-.nextgen-middle-content h4 {
-    font-size: 1.25rem;
-    margin-bottom: 1.5rem;
-    border-bottom: 2px solid rgba(99, 102, 241, 0.3);
-    padding-bottom: 0.5rem;
-}
-
-/* ✅ ADDED: Better spacing for activity items */
-.nextgen-middle-content .d-flex {
-    padding: 0.75rem;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-}
-
-.nextgen-middle-content .d-flex:hover {
-    background: rgba(255, 255, 255, 0.05);
-    transform: translateX(4px);
-}
-
-/* ✅ ADDED: Market insights enhancement */
-.nextgen-middle-content .h3 {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-}
-
-.nextgen-middle-content .text-success,
-.nextgen-middle-content .text-info,
-.nextgen-middle-content .text-warning {
-    font-weight: 600;
-    font-size: 0.875rem;
-}
-
-/* ✅ ADDED: Pro tips enhancement */
-.nextgen-middle-content .fas.fa-check-circle {
-    color: #10b981;
-    font-size: 1.1rem;
-    margin-top: 0.25rem;
-    flex-shrink: 0;
-}
-
-.nextgen-middle-content .d-flex > div {
-    line-height: 1.5;
-}
-
-/* ✅ REMOVED: Old middle content positioning - no longer needed */
-.nextgen-middle-content {
-    margin-top: 3rem !important;
-    margin-bottom: 3rem !important;
-    position: relative !important;
-    z-index: 2 !important;
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    min-height: 300px !important;
-}
-
-.nextgen-middle-content .nextgen-glass-card {
-    height: 100% !important;
-    min-height: 280px !important;
-    transition: all 0.3s ease !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    backdrop-filter: blur(10px) !important;
-    background: rgba(255, 255, 255, 0.05) !important;
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
-.nextgen-middle-content .nextgen-glass-card:hover {
-    transform: translateY(-5px) !important;
-    box-shadow: 0 20px 40px rgba(31, 38, 135, 0.3) !important;
-    border-color: rgba(37, 99, 235, 0.3) !important;
-}
-
-.nextgen-middle-content .card-header {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 1.5rem 1.5rem 1rem;
-}
-
-.nextgen-middle-content .card-body {
-    padding: 1.5rem;
-}
-
-/* Activity items styling */
-.activity-item {
-    padding: 0.75rem 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.activity-item:last-child {
-    border-bottom: none;
-}
-
-.activity-icon {
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.activity-content {
-    flex: 1;
-}
-
-.activity-title {
-    font-size: 0.9rem;
-    margin-bottom: 0.25rem;
-    color: var(--nextgen-text-primary);
-}
-
-.activity-time {
-    font-size: 0.75rem;
-    color: var(--nextgen-text-secondary);
-}
-
-/* Insight items styling */
-.insight-item {
-    padding: 1rem 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.insight-item:last-child {
-    border-bottom: none;
-}
-
-.insight-label {
-    font-size: 0.8rem;
-    margin-bottom: 0.5rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.insight-value {
-    font-size: 1.1rem;
-    margin-bottom: 0.5rem;
-}
-
-.insight-desc {
-    font-size: 0.8rem;
-    line-height: 1.4;
-}
-
-/* Tip items styling */
-.tip-item {
-    padding: 1rem 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.tip-item:last-child {
-    border-bottom: none;
-}
-
-.tip-icon {
-    font-size: 1.2rem;
-    margin-bottom: 0.75rem;
-}
-
-.tip-title {
-    font-size: 0.9rem;
-    margin-bottom: 0.5rem;
-    color: var(--nextgen-text-primary);
-}
-
-.tip-desc {
-    font-size: 0.8rem;
-    line-height: 1.4;
-    color: var(--nextgen-text-secondary);
-}
-
-/* ✅ REMOVED: Old responsive middle content - no longer needed */
-@media (max-width: 768px) {
-    .nextgen-middle-content {
-        margin-top: 2rem !important;
-        margin-bottom: 2rem !important;
-    }
-    
-    .nextgen-middle-content .col-md-4 {
-        margin-bottom: 1.5rem;
-    }
-    
-    .nextgen-middle-content .nextgen-glass-card {
-        min-height: 250px;
-    }
-}
-
-/* ✅ REMOVED: Old debug middle content - no longer needed */
-.nextgen-middle-content {
-    /* Force visibility */
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    
-    /* Ensure proper positioning */
-    position: relative !important;
-    z-index: 2 !important;
-    
-    /* Force proper spacing */
-    margin-top: 3rem !important;
-    margin-bottom: 3rem !important;
-    
-    /* Ensure minimum height */
-    min-height: 300px !important;
-    
-    /* Debug border to see the section */
-    border: 2px solid rgba(255, 0, 0, 0.3) !important;
-}
-
-/* Ensure all child elements are visible */
-.nextgen-middle-content * {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
-/* Ensure the row and columns are properly displayed */
-.nextgen-middle-content .row {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
-.nextgen-middle-content .col-md-4 {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-</style>
-
-<script>
-// AI Action Functions for Next-Gen Mode
-function generateListingContent() {
-    if (typeof showNextGenToast === 'function') {
-        showNextGenToast('🎯 AI is analyzing your properties and generating compelling content...', 'success');
-    } else if (typeof showAlert === 'function') {
-        showAlert('Starting AI content generation...', 'success');
-    }
-    setTimeout(() => showSection('ai-content'), 1000);
-}
-
-function predictPricing() {
-    if (typeof showNextGenToast === 'function') {
-        showNextGenToast('📊 Running AI price prediction models on market data...', 'success');
-    } else if (typeof showAlert === 'function') {
-        showAlert('Running price prediction analysis...', 'success');
-    }
-    // Could redirect to a pricing analysis section
-    setTimeout(() => {
-        if (typeof showNextGenToast === 'function') {
-            showNextGenToast('💰 Estimated property value: ₹85,00,000 - ₹95,00,000', 'success');
-        }
-    }, 2000);
-}
-
-function leadScoring() {
-    if (typeof showNextGenToast === 'function') {
-        showNextGenToast('🎯 Analyzing leads with intelligent scoring algorithm...', 'success');
-    } else if (typeof showAlert === 'function') {
-        showAlert('Analyzing leads...', 'success');
-    }
-    setTimeout(() => showSection('crm'), 1000);
-}
-
-function marketInsights() {
-    if (typeof showNextGenToast === 'function') {
-        showNextGenToast('🧠 Gathering real-time market intelligence...', 'success');
-    } else if (typeof showAlert === 'function') {
-        showAlert('Loading market insights...', 'success');
-    }
-    // Could show market insights modal or section
-    setTimeout(() => {
-        if (typeof showNextGenToast === 'function') {
-            showNextGenToast('📈 Market trend: Properties in your area are 12% above average price', 'success');
-        }
-    }, 2000);
-}
-
-function socialOptimizer() {
-    if (typeof showNextGenToast === 'function') {
-        showNextGenToast('🚀 Optimizing social media strategy with AI...', 'success');
-    } else if (typeof showAlert === 'function') {
-        showAlert('Optimizing social media...', 'success');
-    }
-    setTimeout(() => showSection('facebook'), 1000);
-}
-
-function virtualTour() {
-    if (typeof showNextGenToast === 'function') {
-        showNextGenToast('🥽 Launching virtual tour creator...', 'success');
-    } else if (typeof showAlert === 'function') {
-        showAlert('Opening virtual tour creator...', 'success');
-    }
-    // Could redirect to virtual tour creation tool
-    setTimeout(() => {
-        if (typeof showNextGenToast === 'function') {
-            showNextGenToast('🎬 Virtual tour feature coming soon! Stay tuned for 3D property experiences.', 'success');
-        }
-    }, 2000);
-}
-
-// Enhanced stats animation for nextgen mode
-function animateNextGenStats() {
-    if (typeof nextgenMode === 'undefined' || !nextgenMode) return;
-    
-    const stats = [
-        { id: 'nextgenActiveListings', target: 8 },
-        { id: 'nextgenAiGenerated', target: 1247 },
-        { id: 'nextgenSocialPosts', target: 3 },
-        { id: 'nextgenNewLeads', target: 12 }
-    ];
-    
-    stats.forEach((stat, index) => {
-        const element = document.getElementById(stat.id);
-        if (!element) return;
-        
-        let current = 0;
-        const increment = stat.target / 30;
-        
-        setTimeout(() => {
-            const timer = setInterval(() => {
-                current += increment;
-                element.textContent = Math.floor(current);
-                
-                if (current >= stat.target) {
-                    element.textContent = stat.target;
-                    clearInterval(timer);
-                }
-            }, 50);
-        }, index * 100); // Staggered animation
-    });
-}
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize stats animation
-    if (typeof animateStats === 'function') {
-        animateStats();
-    } else {
-        // Fallback stats animation
-        const stats = [
-            { id: 'activeListings', target: 24 },
-            { id: 'pendingPosts', target: 8 },
-            { id: 'newLeads', target: 12 },
-            { id: 'revenue', target: 2500000 }
-        ];
-
-        stats.forEach((stat, index) => {
-            const element = document.getElementById(stat.id);
-            if (!element) return;
-            
-            let current = 0;
-            const increment = stat.target / 30;
-            
-            setTimeout(() => {
-                const timer = setInterval(() => {
-                    current += increment;
-                    if (stat.id === 'revenue') {
-                        element.textContent = '₹' + Math.floor(current).toLocaleString();
-                    } else {
-                        element.textContent = Math.floor(current);
-                    }
-                    
-                    if (current >= stat.target) {
-                        if (stat.id === 'revenue') {
-                            element.textContent = '₹' + stat.target.toLocaleString();
-                        } else {
-                            element.textContent = stat.target;
-                        }
-                        clearInterval(timer);
-                    }
-                }, 50);
-            }, index * 200);
-        });
-    }
-});
-
-// ✅ REMOVED: Old middle content code - no longer needed
-
-
-
-
-
-
-</script>
