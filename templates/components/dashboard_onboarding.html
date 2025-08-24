@@ -1,391 +1,332 @@
-<div id="onboarding-section" class="dashboard-section" style="display: none;">
-    <div class="onboarding-container">
-        <div class="onboarding-stepper-wrapper">
-            <div class="stepper-header">
-                <h4 class="mb-0 text-white fw-bold">PropertyAI Setup</h4>
-                <small class="text-white-50">Complete these steps to get started</small>
-            </div>
-            <ul class="stepper">
-                <li class="stepper-item active" id="stepper-1">
-                    <div class="stepper-icon"><i class="fas fa-user"></i></div>
-                    <div class="stepper-content">
-                        <div class="stepper-title">Personal Info</div>
-                        <div class="stepper-desc">Enter your contact details</div>
-                    </div>
-                </li>
-                <li class="stepper-item" id="stepper-2">
-                    <div class="stepper-icon"><i class="fas fa-building"></i></div>
-                    <div class="stepper-content">
-                        <div class="stepper-title">Company Details</div>
-                        <div class="stepper-desc">Describe your business</div>
-                    </div>
-                </li>
-                <li class="stepper-item" id="stepper-3">
-                    <div class="stepper-icon"><i class="fas fa-magic"></i></div>
-                    <div class="stepper-content">
-                        <div class="stepper-title">AI Branding</div>
-                        <div class="stepper-desc">Generate your brand identity</div>
-                    </div>
-                </li>
-                <li class="stepper-item" id="stepper-4">
-                    <div class="stepper-icon"><i class="fab fa-facebook"></i></div>
-                    <div class="stepper-content">
-                        <div class="stepper-title">Facebook</div>
-                        <div class="stepper-desc">Connect your social media</div>
-                    </div>
-                </li>
-                <li class="stepper-item" id="stepper-5">
-                    <div class="stepper-icon"><i class="fas fa-certificate"></i></div>
-                    <div class="stepper-content">
-                        <div class="stepper-title">Compliance</div>
-                        <div class="stepper-desc">Add your RERA details</div>
-                    </div>
-                </li>
-                <li class="stepper-item" id="stepper-6">
-                    <div class="stepper-icon"><i class="fas fa-camera"></i></div>
-                    <div class="stepper-content">
-                        <div class="stepper-title">Profile Setup</div>
-                        <div class="stepper-desc">Upload your photo & bio</div>
-                    </div>
-                </li>
-                <li class="stepper-item" id="stepper-7">
-                    <div class="stepper-icon"><i class="fas fa-check-circle"></i></div>
-                    <div class="stepper-content">
-                        <div class="stepper-title">Complete</div>
-                        <div class="stepper-desc">Finalize your setup</div>
-                    </div>
-                </li>
-            </ul>
-        </div>
-
-        <div class="onboarding-content-wrapper">
-            <div class="nextgen-glass-card p-4 h-100">
-                <div class="mb-4 d-md-none">
-                    <div class="d-flex justify-content-between mb-1">
-                        <small class="text-white-50" id="onboardingStepText">Personal Information</small>
-                        <small class="text-white-50">Step 1 of 7</small>
-                    </div>
-                    <div class="progress" style="height: 5px;">
-                        <div class="progress-bar" id="onboardingProgress" role="progressbar" style="width: 14%;"></div>
-                    </div>
+<div id="onboarding-section" class="dashboard-section" style="display:none;">
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar Progress -->
+      <div class="col-md-3">
+        <div class="card shadow-lg">
+          <div class="card-header bg-primary text-white">
+            <h5><i class="fas fa-user-plus me-2"></i>Setup Progress</h5>
+          </div>
+          <div class="card-body p-0">
+            <div class="onboarding-steps">
+              <div class="step-item active" data-step="1">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                  <div class="step-title">Personal Info</div>
+                  <div class="step-desc">Basic details</div>
                 </div>
-
-                <form id="onboardingForm" onsubmit="submitOnboarding(event)">
-                    <div class="onboarding-step active" id="step1">
-                        <h3 class="step-title"><i class="fas fa-user me-2"></i>Personal Information</h3>
-                        <p class="step-subtitle">Let's start with the basics. This information will be used for your public profile.</p>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Full Name *</label>
-                                <input type="text" class="form-control" name="name" required placeholder="e.g., Rohan Sharma">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Email Address *</label>
-                                <input type="email" class="form-control" name="email" required placeholder="you@example.com">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Phone Number *</label>
-                                <input type="tel" class="form-control" name="phone" required placeholder="+91 98765 43210">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">WhatsApp Number</label>
-                                <input type="tel" class="form-control" name="whatsapp" placeholder="Same as phone number">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="onboarding-step" id="step2" style="display: none;">
-                        <h3 class="step-title"><i class="fas fa-building me-2"></i>Company Details</h3>
-                        <p class="step-subtitle">Tell us about your business. This helps the AI tailor content for you.</p>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Company Name *</label>
-                                <input type="text" class="form-control" name="company" required placeholder="e.g., Sharma Real Estate">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Years of Experience *</label>
-                                <select class="form-select" name="experience_years" required>
-                                    <option value="">Select experience</option>
-                                    <option value="0">Just starting</option>
-                                    <option value="1">1 year</option>
-                                    <option value="2">2 years</option>
-                                    <option value="3">3 years</option>
-                                    <option value="4">4 years</option>
-                                    <option value="5">5+ years</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Specialization Areas *</label>
-                                <input type="text" class="form-control" name="specialization_areas" placeholder="e.g., Pune, Koregaon Park" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Languages Spoken *</label>
-                                <div class="language-checkboxes">
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="checkbox" name="languages[]" value="English" id="lang-en">
-                                        <label class="form-check-label" for="lang-en">English</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="checkbox" name="languages[]" value="Hindi" id="lang-hi">
-                                        <label class="form-check-label" for="lang-hi">हिंदी</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="checkbox" name="languages[]" value="Marathi" id="lang-mr">
-                                        <label class="form-check-label" for="lang-mr">मराठी</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="checkbox" name="languages[]" value="Gujarati" id="lang-gu">
-                                        <label class="form-check-label" for="lang-gu">ગુજરાતી</label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="onboarding-step" id="step3" style="display: none;">
-                        <h3 class="step-title"><i class="fas fa-magic me-2"></i>AI Branding Generation</h3>
-                        <p class="step-subtitle">Let our AI create a professional brand identity for you in seconds.</p>
-                        <div class="text-center p-4 rounded" style="background: rgba(0,0,0,0.2);">
-                            <button type="button" class="btn btn-primary btn-lg" id="generateBranding" onclick="generateAIBranding()">
-                                <i class="fas fa-magic me-2"></i>Generate My AI Branding
-                            </button>
-                        </div>
-                        <div id="brandingResults" style="display: none;" class="mt-4">
-                            <div class="row">
-                                <div class="col-md-12 mb-3">
-                                    <label class="form-label">Professional Tagline</label>
-                                    <input type="text" class="form-control" name="tagline" id="aiTagline">
-                                </div>
-                                <div class="col-12 mb-3">
-                                    <label class="form-label">Social Media Bio</label>
-                                    <textarea class="form-control" name="social_media_bio" id="aiSocialBio" rows="2"></textarea>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="onboarding-step" id="step4" style="display: none;">
-                        <h3 class="step-title"><i class="fab fa-facebook me-2"></i>Facebook Integration</h3>
-                        <p class="step-subtitle">Connect your Facebook page to automate posts and reach more clients.</p>
-                        <div class="row">
-                             <div class="col-lg-4 mb-3">
-                                <div class="nextgen-glass-card h-100 text-center p-3 choice-card" onclick="setupFacebookQuick()">
-                                    <div class="nextgen-action-gradient"><i class="fas fa-rocket"></i></div>
-                                    <h5 class="mt-2">Quick Start</h5>
-                                    <p class="small text-white-50">The fastest way to connect. Use our secure, pre-configured app.</p>
-                                </div>
-                            </div>
-                            <div class="col-lg-4 mb-3">
-                                <div class="nextgen-glass-card h-100 text-center p-3 choice-card" onclick="setupFacebookCustom()">
-                                    <div class="nextgen-action-gradient"><i class="fas fa-cog"></i></div>
-                                    <h5 class="mt-2">Custom Setup</h5>
-                                    <p class="small text-white-50">For advanced users who want to use their own Facebook Developer App.</p>
-                                </div>
-                            </div>
-                            <div class="col-lg-4 mb-3">
-                                <div class="nextgen-glass-card h-100 text-center p-3 choice-card" onclick="skipFacebookSetup()">
-                                    <div class="nextgen-action-gradient"><i class="fas fa-clock"></i></div>
-                                    <h5 class="mt-2">Skip for Now</h5>
-                                    <p class="small text-white-50">You can always complete this step later from the dashboard.</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div id="facebookQuickSetup" style="display: none;" class="mt-3"></div>
-                        <div id="facebookCustomSetup" style="display: none;" class="mt-3"></div>
-                        <div id="facebookStatus" style="display: none;" class="mt-3"></div>
-                    </div>
-
-                    <div class="onboarding-step" id="step5" style="display: none;">
-                        <h3 class="step-title"><i class="fas fa-certificate me-2"></i>Legal Compliance</h3>
-                        <p class="step-subtitle">Ensure you are compliant by providing your RERA details.</p>
-                         <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Business Type *</label>
-                                <select class="form-select" name="business_type" required>
-                                    <option value="">Select Business Type</option>
-                                    <option value="individual_agent">Individual Agent</option>
-                                    <option value="real_estate_firm">Real Estate Firm</option>
-                                    <option value="property_dealer">Property Dealer</option>
-                                    <option value="builder_developer">Builder/Developer</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">RERA Registration Number</label>
-                                <input type="text" class="form-control" name="rera_number" placeholder="e.g., A51700000000">
-                            </div>
-                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Operating State/UT</label>
-                                <select class="form-select" name="rera_state">
-                                    <option value="">Select State/UT</option>
-                                    <option value="maharashtra" selected>Maharashtra</option>
-                                    <option value="delhi">Delhi</option>
-                                    <option value="karnataka">Karnataka</option>
-                                    <option value="gujarat">Gujarat</option>
-                                    <option value="other">Other</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="onboarding-step" id="step6" style="display: none;">
-                        <h3 class="step-title"><i class="fas fa-camera me-2"></i>Profile Setup</h3>
-                        <p class="step-subtitle">Personalize your profile. A photo and bio build trust with clients.</p>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Profile Photo URL</label>
-                                <input type="url" class="form-control" name="profile_photo_url" placeholder="https://your-website.com/photo.jpg">
-                            </div>
-                            <div class="col-12 mb-3">
-                                <label class="form-label">Professional Bio</label>
-                                <textarea class="form-control" name="bio" rows="4" placeholder="With 5 years of experience in the Pune real estate market, I specialize in..."></textarea>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="onboarding-step text-center" id="step7" style="display: none;">
-                        <div class="nextgen-action-gradient" style="font-size: 5rem;"><i class="fas fa-check-circle"></i></div>
-                        <h2 class="mt-3">You're All Set!</h2>
-                        <p class="lead text-white-50">You have successfully completed the setup process. <br>Click the button below to jump into your new dashboard.</p>
-                        
-                        <div class="form-check d-inline-block mb-3">
-                            <input class="form-check-input" type="checkbox" id="termsAgreement" required>
-                            <label class="form-check-label" for="termsAgreement">
-                                I agree to the Terms of Service
-                            </label>
-                        </div>
-                        
-                        <div>
-                            <button type="submit" class="btn btn-success btn-lg">
-                                <i class="fas fa-rocket me-2"></i>Complete Setup & Launch Dashboard
-                            </button>
-                        </div>
-                    </div>
-                 </form>
-
-                <div class="onboarding-navigation mt-4">
-                    <button type="button" class="btn btn-outline-secondary" id="prevOnboardingBtn" onclick="prevOnboardingStep()" disabled>
-                        <i class="fas fa-arrow-left me-2"></i>Previous
-                    </button>
-                    <button type="button" class="btn btn-primary" id="nextOnboardingBtn" onclick="nextOnboardingStep()">
-                        Next Step<i class="fas fa-arrow-right ms-2"></i>
-                    </button>
+              </div>
+              <div class="step-item" data-step="2">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                  <div class="step-title">Company Details</div>
+                  <div class="step-desc">Business info</div>
                 </div>
+              </div>
+              <div class="step-item" data-step="3">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                  <div class="step-title">AI Branding</div>
+                  <div class="step-desc">Customize AI</div>
+                </div>
+              </div>
+              <div class="step-item" data-step="4">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                  <div class="step-title">Facebook Connect</div>
+                  <div class="step-desc">Social integration</div>
+                </div>
+              </div>
+              <div class="step-item" data-step="5">
+                <div class="step-number">5</div>
+                <div class="step-content">
+                  <div class="step-title">Compliance</div>
+                  <div class="step-desc">Legal requirements</div>
+                </div>
+              </div>
+              <div class="step-item" data-step="6">
+                <div class="step-number">6</div>
+                <div class="step-content">
+                  <div class="step-title">Profile Setup</div>
+                  <div class="step-desc">Photo & preferences</div>
+                </div>
+              </div>
+              <div class="step-item" data-step="7">
+                <div class="step-number">7</div>
+                <div class="step-content">
+                  <div class="step-title">Complete</div>
+                  <div class="step-desc">Ready to go!</div>
+                </div>
+              </div>
             </div>
+          </div>
         </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="col-md-9">
+        <div class="card shadow-lg">
+          <div class="card-header bg-gradient-primary text-white">
+            <h4><i class="fas fa-rocket me-2"></i>Welcome to PropertyAI!</h4>
+            <p class="mb-0">Let's get you set up in just a few steps</p>
+          </div>
+          <div class="card-body">
+            <!-- Step 1: Personal Info -->
+            <div class="onboarding-step" id="step-1">
+              <h5><i class="fas fa-user me-2"></i>Personal Information</h5>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">First Name *</label>
+                  <input type="text" class="form-control" id="firstName" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Last Name *</label>
+                  <input type="text" class="form-control" id="lastName" required>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Email *</label>
+                  <input type="email" class="form-control" id="email" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Phone</label>
+                  <input type="tel" class="form-control" id="phone">
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Bio</label>
+                <textarea class="form-control" id="bio" rows="3" placeholder="Tell us about yourself..."></textarea>
+              </div>
+            </div>
+
+            <!-- Step 2: Company Details -->
+            <div class="onboarding-step" id="step-2" style="display:none;">
+              <h5><i class="fas fa-building me-2"></i>Company Information</h5>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Company Name *</label>
+                  <input type="text" class="form-control" id="companyName" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Position</label>
+                  <input type="text" class="form-control" id="position">
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">License Number</label>
+                  <input type="text" class="form-control" id="licenseNumber">
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Years in Business</label>
+                  <select class="form-select" id="yearsInBusiness">
+                    <option value="">Select...</option>
+                    <option value="1">1 year</option>
+                    <option value="2">2 years</option>
+                    <option value="3">3 years</option>
+                    <option value="5">5+ years</option>
+                    <option value="10">10+ years</option>
+                  </select>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Company Address</label>
+                <textarea class="form-control" id="companyAddress" rows="2"></textarea>
+              </div>
+            </div>
+
+            <!-- Step 3: AI Branding -->
+            <div class="onboarding-step" id="step-3" style="display:none;">
+              <h5><i class="fas fa-robot me-2"></i>AI Branding & Preferences</h5>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">AI Agent Name</label>
+                  <input type="text" class="form-control" id="aiAgentName" placeholder="e.g., PropertyPro AI">
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Communication Style</label>
+                  <select class="form-select" id="communicationStyle">
+                    <option value="professional">Professional</option>
+                    <option value="friendly">Friendly</option>
+                    <option value="casual">Casual</option>
+                    <option value="formal">Formal</option>
+                  </select>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">AI Response Tone</label>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="aiTone" id="toneHelpful" value="helpful" checked>
+                  <label class="form-check-label" for="toneHelpful">Helpful & Informative</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="aiTone" id="tonePersuasive" value="persuasive">
+                  <label class="form-check-label" for="tonePersuasive">Persuasive & Sales-focused</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="aiTone" id="toneConsultative" value="consultative">
+                  <label class="form-check-label" for="toneConsultative">Consultative & Advisory</label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 4: Facebook Connect -->
+            <div class="onboarding-step" id="step-4" style="display:none;">
+              <h5><i class="fab fa-facebook me-2"></i>Facebook Integration</h5>
+              <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                Connect your Facebook account to automatically post properties and engage with leads.
+              </div>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Facebook Page</label>
+                  <input type="text" class="form-control" id="facebookPage" placeholder="Your Facebook page URL">
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Auto-posting</label>
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="autoPosting">
+                    <label class="form-check-label" for="autoPosting">Enable automatic property posting</label>
+                  </div>
+                </div>
+              </div>
+              <div class="mb-3">
+                <button class="btn btn-primary" onclick="connectFacebook()">
+                  <i class="fab fa-facebook me-2"></i>Connect Facebook Account
+                </button>
+              </div>
+            </div>
+
+            <!-- Step 5: Compliance -->
+            <div class="onboarding-step" id="step-5" style="display:none;">
+              <h5><i class="fas fa-shield-alt me-2"></i>Compliance & Legal</h5>
+              <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Please review and accept our terms and conditions.
+              </div>
+              <div class="mb-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="termsAccepted" required>
+                  <label class="form-check-label" for="termsAccepted">
+                    I accept the <a href="#" onclick="showTerms()">Terms of Service</a> and <a href="#" onclick="showPrivacy()">Privacy Policy</a>
+                  </label>
+                </div>
+              </div>
+              <div class="mb-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="gdprAccepted">
+                  <label class="form-check-label" for="gdprAccepted">
+                    I consent to the processing of my personal data in accordance with GDPR
+                  </label>
+                </div>
+              </div>
+              <div class="mb-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="marketingAccepted">
+                  <label class="form-check-label" for="marketingAccepted">
+                    I agree to receive marketing communications about PropertyAI features and updates
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 6: Profile Setup -->
+            <div class="onboarding-step" id="step-6" style="display:none;">
+              <h5><i class="fas fa-camera me-2"></i>Profile & Preferences</h5>
+              <div class="row">
+                <div class="col-md-4 mb-3">
+                  <label class="form-label">Profile Photo</label>
+                  <div class="profile-upload">
+                                         <div id="profilePreview" class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white" style="width:100px;height:100px;font-size:2.5rem;">
+                       <i class="fas fa-user"></i>
+                     </div>
+                    <input type="file" id="profilePhoto" accept="image/*" class="d-none">
+                    <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="document.getElementById('profilePhoto').click()">
+                      <i class="fas fa-upload me-1"></i>Upload Photo
+                    </button>
+                  </div>
+                </div>
+                <div class="col-md-8 mb-3">
+                  <label class="form-label">Preferred Language</label>
+                  <select class="form-select" id="preferredLanguage">
+                    <option value="en">English</option>
+                    <option value="hi">Hindi</option>
+                    <option value="mr">Marathi</option>
+                    <option value="gu">Gujarati</option>
+                  </select>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Notification Preferences</label>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="emailNotifications" checked>
+                  <label class="form-check-label" for="emailNotifications">Email notifications</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="smsNotifications">
+                  <label class="form-check-label" for="smsNotifications">SMS notifications</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="pushNotifications" checked>
+                  <label class="form-check-label" for="pushNotifications">Push notifications</label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 7: Completion -->
+            <div class="onboarding-step" id="step-7" style="display:none;">
+              <div class="text-center">
+                <div class="completion-icon mb-4">
+                  <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+                </div>
+                <h4 class="text-success mb-3">🎉 Setup Complete!</h4>
+                <p class="lead mb-4">Welcome to PropertyAI! Your account is now fully configured and ready to use.</p>
+                <div class="row">
+                  <div class="col-md-4 mb-3">
+                    <div class="feature-card text-center p-3">
+                      <i class="fas fa-home text-primary mb-2" style="font-size: 2rem;"></i>
+                      <h6>Add Properties</h6>
+                      <small>Start listing your properties with AI assistance</small>
+                    </div>
+                  </div>
+                  <div class="col-md-4 mb-3">
+                    <div class="feature-card text-center p-3">
+                      <i class="fas fa-robot text-primary mb-2" style="font-size: 2rem;"></i>
+                      <h6>AI Tools</h6>
+                      <small>Use AI to generate content and insights</small>
+                    </div>
+                  </div>
+                  <div class="col-md-4 mb-3">
+                    <div class="feature-card text-center p-3">
+                      <i class="fas fa-chart-line text-primary mb-2" style="font-size: 2rem;"></i>
+                      <h6>Analytics</h6>
+                      <small>Track your performance and growth</small>
+                    </div>
+                  </div>
+                </div>
+                <button class="btn btn-success btn-lg mt-4" onclick="completeOnboarding()">
+                  <i class="fas fa-rocket me-2"></i>Get Started!
+                </button>
+              </div>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="onboarding-navigation mt-4">
+              <div class="d-flex justify-content-between">
+                <button type="button" class="btn btn-secondary" id="prevBtn" onclick="previousOnboardingStep()" style="display:none;">
+                  <i class="fas fa-arrow-left me-2"></i>Previous
+                </button>
+                <div class="ms-auto">
+                  <button type="button" class="btn btn-primary" id="nextBtn" onclick="nextOnboardingStep()">
+                    Next<i class="fas fa-arrow-right ms-2"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
 </div>
-
-<style>
-/* 🎨 Enhanced Onboarding Styles */
-.onboarding-container {
-    display: flex;
-    gap: 1.5rem;
-    height: 100%;
-}
-.onboarding-stepper-wrapper {
-    width: 280px;
-    flex-shrink: 0;
-    background: rgba(15, 15, 35, 0.9);
-    border-radius: 16px;
-    padding: 1.5rem;
-}
-.onboarding-content-wrapper {
-    flex-grow: 1;
-}
-.stepper-header {
-    padding-bottom: 1.5rem;
-    margin-bottom: 1.5rem;
-    border-bottom: 1px solid var(--nextgen-glass-border);
-}
-
-.stepper {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-.stepper-item {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    opacity: 0.5;
-    transition: var(--nextgen-transition);
-}
-.stepper-item.active {
-    opacity: 1;
-}
-.stepper-item.completed .stepper-icon {
-    background: var(--nextgen-success);
-    color: white;
-}
-.stepper-item.active .stepper-title {
-    color: var(--nextgen-primary);
-}
-.stepper-icon {
-    width: 40px;
-    height: 40px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    background: var(--nextgen-bg-secondary);
-    color: var(--nextgen-text-secondary);
-    transition: var(--nextgen-transition);
-}
-.stepper-title {
-    font-weight: 600;
-    color: var(--nextgen-text-primary);
-}
-.stepper-desc {
-    font-size: 0.8rem;
-    color: var(--nextgen-text-secondary);
-}
-
-.onboarding-step {
-    animation: fadeIn 0.5s ease-out;
-}
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.step-title {
-    color: var(--nextgen-text-primary);
-    font-weight: 600;
-    margin-bottom: 0.25rem;
-}
-.step-subtitle {
-    color: var(--nextgen-text-secondary);
-    margin-bottom: 2rem;
-}
-
-.onboarding-navigation {
-    display: flex;
-    justify-content: space-between;
-    border-top: 1px solid var(--nextgen-glass-border);
-    padding-top: 1.5rem;
-}
-.choice-card {
-    cursor: pointer;
-    transition: var(--nextgen-transition);
-}
-.choice-card:hover {
-    transform: translateY(-5px);
-    border-color: var(--nextgen-primary) !important;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-}
-
-/* 📱 Responsive Design */
-@media (max-width: 992px) {
-    .onboarding-container {
-        flex-direction: column;
-    }
-    .onboarding-stepper-wrapper {
-        width: 100%;
-        display: none; /* Hide stepper on mobile, use progress bar */
-    }
-}
-</style>

@@ -1,271 +1,309 @@
-<div id="welcome-section" class="dashboard-section active fade-in-up">
-    <div class="container-fluid">
-        
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="welcome-header text-center">
-                    <h1 class="gradient-text mb-3">Welcome to PropertyAI</h1>
-                    <p class="lead text-muted">Your AI-powered real estate success platform</p>
-                    <div class="company-info-section mt-3">
-                        <span class="badge bg-primary me-2">
-                            <i class="fas fa-building me-1"></i>
-                            <span class="company-name-placeholder" id="welcomeCompanyName">Loading...</span>
-                        </span>
-                        <span class="badge bg-secondary me-2">
-                            <i class="fas fa-star me-1"></i>
-                            <span class="company-tagline-placeholder">Professional Real Estate Services</span>
-                        </span>
-                    </div>
+<div id="welcome-section" class="dashboard-section">
+  <div class="container-fluid">
+    <!-- Welcome Header -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card shadow-lg bg-gradient-primary text-white">
+          <div class="card-body p-4">
+            <div class="row align-items-center">
+              <div class="col-md-8">
+                <h2 class="mb-2">Welcome back, <span id="userFirstName">Agent</span>! 👋</h2>
+                <p class="lead mb-0">Ready to grow your real estate business with AI-powered tools?</p>
+              </div>
+              <div class="col-md-4 text-end">
+                <div class="welcome-actions">
+                  <button class="btn btn-light me-2" onclick="showSection('property-form')">
+                    <i class="fas fa-plus me-1"></i>Add Property
+                  </button>
+                  <button class="btn btn-outline-light" onclick="showSection('ai-content')">
+                    <i class="fas fa-robot me-1"></i>AI Tools
+                  </button>
                 </div>
+              </div>
             </div>
+          </div>
         </div>
-
-        <!-- ✅ FIXED: Stats row with proper spacing -->
-        <div class="row mb-4 nextgen-container" id="nextgenStatsRow">
-            <div class="col-6 col-md-3 mb-3 nextgen-stat">
-                <div class="nextgen-stat-card">
-                    <div class="nextgen-stat-icon">🏠</div>
-                    <div class="nextgen-stat-number" id="nextgenActiveListings">8</div>
-                    <div class="nextgen-stat-label">Active Listings</div>
-                </div>
-            </div>
-            <div class="col-6 col-md-3 mb-3 nextgen-stat">
-                <div class="nextgen-stat-card">
-                    <div class="nextgen-stat-icon">🤖</div>
-                    <div class="nextgen-stat-number" id="nextgenAiGenerated">1247</div>
-                    <div class="nextgen-stat-label">AI Generated</div>
-                </div>
-            </div>
-            <div class="col-6 col-md-3 mb-3 nextgen-stat">
-                <div class="nextgen-stat-card">
-                    <div class="nextgen-stat-icon">📱</div>
-                    <div class="nextgen-stat-number" id="nextgenSocialPosts">3</div>
-                    <div class="nextgen-stat-label">Social Posts</div>
-                </div>
-            </div>
-            <div class="col-6 col-md-3 mb-3 nextgen-stat">
-                <div class="nextgen-stat-card">
-                    <div class="nextgen-stat-icon">👥</div>
-                    <div class="nextgen-stat-number" id="nextgenNewLeads">12</div>
-                    <div class="nextgen-stat-label">New Leads</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ✅ FIXED: Quick Actions with better layout -->
-        <div class="nextgen-quick-actions">
-            <div class="row mb-4">
-                <div class="col-6 col-md-3 mb-3">
-                    <button class="nextgen-glass-card w-100 border-0 nextgen-action-btn" onclick="showSection('properties')">
-                        <div class="nextgen-action-icon"><i class="fas fa-plus"></i></div>
-                        <div class="nextgen-action-label">Add Property</div>
-                    </button>
-                </div>
-                <div class="col-6 col-md-3 mb-3">
-                    <button class="nextgen-glass-card w-100 border-0 nextgen-action-btn" onclick="showSection('ai-content')">
-                        <div class="nextgen-action-icon"><i class="fas fa-magic"></i></div>
-                        <div class="nextgen-action-label">AI Content</div>
-                    </button>
-                </div>
-                <div class="col-6 col-md-3 mb-3">
-                    <button class="nextgen-glass-card w-100 border-0 nextgen-action-btn" onclick="showSection('facebook')">
-                        <div class="nextgen-action-icon"><i class="fas fa-share-alt"></i></div>
-                        <div class="nextgen-action-label">Post to Social</div>
-                    </button>
-                </div>
-                <div class="col-6 col-md-3 mb-3">
-                    <button class="nextgen-glass-card w-100 border-0 nextgen-action-btn" onclick="showSection('crm')">
-                        <div class="nextgen-action-icon"><i class="fas fa-users"></i></div>
-                        <div class="nextgen-action-label">Manage Leads</div>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-
-
-        <!-- ✅ FIXED: Middle Content Section - positioned between stats and AI actions -->
-        <div class="nextgen-middle-content mt-4 mb-4" style="display: block !important; visibility: visible !important; opacity: 1 !important; position: relative !important; z-index: 2 !important; margin-top: 3rem !important; margin-bottom: 3rem !important; min-height: 300px !important; border: 2px solid rgba(0, 255, 0, 0.5) !important;">
-            <div class="row">
-                <!-- Recent Activity -->
-                <div class="col-md-4 mb-3">
-                    <div class="nextgen-glass-card h-100" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
-                        <div class="card-header bg-transparent border-0">
-                            <h5 class="text-primary mb-0">
-                                <i class="fas fa-clock me-2"></i>Recent Activity
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="activity-item d-flex align-items-center mb-3">
-                                <div class="activity-icon bg-primary rounded-circle p-2 me-3">
-                                    <i class="fas fa-home text-white"></i>
-                                </div>
-                                <div class="activity-content">
-                                    <div class="activity-title fw-bold">New Property Added</div>
-                                    <div class="activity-time text-muted small">2 hours ago</div>
-                                </div>
-                            </div>
-                            <div class="activity-item d-flex align-items-center mb-3">
-                                <div class="activity-icon bg-success rounded-circle p-2 me-3">
-                                    <i class="fas fa-magic text-white"></i>
-                                </div>
-                                <div class="activity-content">
-                                    <div class="activity-title fw-bold">AI Content Generated</div>
-                                    <div class="activity-time text-muted small">4 hours ago</div>
-                                </div>
-                            </div>
-                            <div class="activity-item d-flex align-items-center">
-                                <div class="activity-icon bg-info rounded-circle p-2 me-3">
-                                    <i class="fab fa-facebook text-white"></i>
-                                </div>
-                                <div class="activity-content">
-                                    <div class="activity-title fw-bold">Facebook Post Published</div>
-                                    <div class="activity-time text-muted small">1 day ago</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Market Insights -->
-                <div class="col-md-4 mb-3">
-                    <div class="nextgen-glass-card h-100" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
-                        <div class="card-header bg-transparent border-0">
-                            <h5 class="text-primary mb-0">
-                                <i class="fas fa-chart-line me-2"></i>Market Insights
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="insight-item mb-3">
-                                <div class="insight-label text-muted small">Mumbai Market Trend</div>
-                                <div class="insight-value fw-bold text-success">↗️ +12.5%</div>
-                                <div class="insight-desc small">Property prices increased this month</div>
-                            </div>
-                            <div class="insight-item mb-3">
-                                <div class="insight-label text-muted small">Demand Index</div>
-                                <div class="insight-value fw-bold text-primary">🔥 High</div>
-                                <div class="insight-desc small">Strong buyer interest in 2-3 BHK</div>
-                            </div>
-                            <div class="insight-item">
-                                <div class="insight-label text-muted small">Inventory Status</div>
-                                <div class="insight-value fw-bold text-warning">⚠️ Limited</div>
-                                <div class="insight-desc small">Low supply in premium segments</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Pro Tips -->
-                <div class="col-md-4 mb-3">
-                    <div class="nextgen-glass-card h-100" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
-                        <div class="card-header bg-transparent border-0">
-                            <h5 class="text-primary mb-0">
-                                <i class="fas fa-lightbulb me-2"></i>Pro Tips
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="tip-item mb-3">
-                                <div class="tip-icon text-warning mb-2">
-                                    <i class="fas fa-star"></i>
-                                </div>
-                                <div class="tip-content">
-                                    <div class="tip-title fw-bold">Optimize Photos</div>
-                                    <div class="tip-desc small text-muted">High-quality images increase engagement by 40%</div>
-                                </div>
-                            </div>
-                            <div class="tip-item mb-3">
-                                <div class="tip-icon text-info mb-2">
-                                    <i class="fas fa-clock"></i>
-                                </div>
-                                <div class="tip-content">
-                                    <div class="tip-title fw-bold">Post Timing</div>
-                                    <div class="tip-desc small text-muted">Best posting times: 7-9 AM and 6-8 PM</div>
-                                </div>
-                            </div>
-                            <div class="tip-item">
-                                <div class="tip-icon text-success mb-2">
-                                    <i class="fas fa-hashtag"></i>
-                                </div>
-                                <div class="tip-content">
-                                    <div class="tip-title fw-bold">Use Hashtags</div>
-                                    <div class="tip-desc small text-muted">Include 3-5 relevant hashtags for better reach</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ✅ FIXED: AI Actions with better layout -->
-        <div class="nextgen-ai-actions">
-            <h3 style="color: var(--nextgen-text-primary); margin-bottom: 1.5rem; font-weight: 600;">
-                <i class="fas fa-brain me-2"></i>AI-Powered Actions
-            </h3>
-            <div class="row mb-4">
-                <div class="col-md-6 col-lg-4 mb-3">
-                    <div class="nextgen-glass-card" onclick="generateListingContent()" style="cursor: pointer; min-height: 200px;">
-                        <div class="nextgen-action-gradient">
-                            <i class="fas fa-pen-fancy"></i>
-                        </div>
-                        <h4 style="color: var(--nextgen-text-primary); margin-bottom: 0.5rem; font-size: 1.1rem;">Smart Listing Generator</h4>
-                        <p style="color: var(--nextgen-text-secondary); font-size: 0.875rem; line-height: 1.6; margin: 0;">Generate compelling property descriptions in multiple languages with AI-powered insights.</p>
-                    </div>
-                </div>
-                
-                <div class="col-md-6 col-lg-4 mb-3">
-                    <div class="nextgen-glass-card" onclick="predictPricing()" style="cursor: pointer; min-height: 200px;">
-                        <div class="nextgen-action-gradient">
-                            <i class="fas fa-chart-line"></i>
-                        </div>
-                        <h4 style="color: var(--nextgen-text-primary); margin-bottom: 0.5rem; font-size: 1.1rem;">AI Price Prediction</h4>
-                        <p style="color: var(--nextgen-text-secondary); font-size: 0.875rem; line-height: 1.6; margin: 0;">Get accurate property valuations using machine learning models trained on local market data.</p>
-                    </div>
-                </div>
-                
-                <div class="col-md-6 col-lg-4 mb-3">
-                    <div class="nextgen-glass-card" onclick="leadScoring()" style="cursor: pointer; min-height: 200px;">
-                        <div class="nextgen-action-gradient">
-                            <i class="fas fa-target"></i>
-                        </div>
-                        <h4 style="color: var(--nextgen-text-primary); margin-bottom: 0.5rem; font-size: 1.1rem;">Lead Scoring AI</h4>
-                        <p style="color: var(--nextgen-text-secondary); font-size: 0.875rem; line-height: 1.6; margin: 0;">Prioritize leads with intelligent scoring based on engagement patterns and buying behavior.</p>
-                    </div>
-                </div>
-                
-                <div class="col-md-6 col-lg-4 mb-3">
-                    <div class="nextgen-glass-card" onclick="marketInsights()" style="cursor: pointer; min-height: 200px;">
-                        <div class="nextgen-action-gradient">
-                            <i class="fas fa-brain"></i>
-                        </div>
-                        <h4 style="color: var(--nextgen-text-primary); margin-bottom: 0.5rem; font-size: 1.1rem;">Market Intelligence</h4>
-                        <p style="color: var(--nextgen-text-secondary); font-size: 0.875rem; line-height: 1.6; margin: 0;">Real-time market trends and neighborhood insights powered by advanced analytics.</p>
-                    </div>
-                </div>
-                
-                <div class="col-md-6 col-lg-4 mb-3">
-                    <div class="nextgen-glass-card" onclick="socialOptimizer()" style="cursor: pointer; min-height: 200px;">
-                        <div class="nextgen-action-gradient">
-                            <i class="fas fa-rocket"></i>
-                        </div>
-                        <h4 style="color: var(--nextgen-text-primary); margin-bottom: 0.5rem; font-size: 1.1rem;">Social Media AI</h4>
-                        <p style="color: var(--nextgen-text-secondary); font-size: 0.875rem; line-height: 1.6; margin: 0;">Optimize posting times, content, and audience targeting with AI-driven social media strategies.</p>
-                    </div>
-                </div>
-                
-                <div class="col-md-6 col-lg-4 mb-3">
-                    <div class="nextgen-glass-card" onclick="virtualTour()" style="cursor: pointer; min-height: 200px;">
-                        <div class="nextgen-action-gradient">
-                            <i class="fas fa-vr-cardboard"></i>
-                        </div>
-                        <h4 style="color: var(--nextgen-text-primary); margin-bottom: 0.5rem; font-size: 1.1rem;">Virtual Tour Creator</h4>
-                        <p style="color: var(--nextgen-text-secondary); font-size: 0.875rem; line-height: 1.6; margin: 0;">Create immersive 3D virtual tours and AR experiences for your property listings.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
+      </div>
     </div>
+
+    <!-- Stats Row -->
+    <div class="row mb-4" id="nextgenStatsRow">
+      <div class="col-md-3 mb-3">
+        <div class="stat-card text-center">
+          <div class="stat-icon text-primary">
+            <i class="fas fa-home"></i>
+          </div>
+          <div class="stat-number" id="totalProperties">0</div>
+          <div class="stat-label">Total Properties</div>
+          <div class="stat-trend positive">
+            <i class="fas fa-arrow-up me-1"></i>+12% this month
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="stat-card text-center">
+          <div class="stat-icon text-success">
+            <i class="fas fa-eye"></i>
+          </div>
+          <div class="stat-number" id="totalViews">0</div>
+          <div class="stat-label">Property Views</div>
+          <div class="stat-trend positive">
+            <i class="fas fa-arrow-up me-1"></i>+8% this week
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="stat-card text-center">
+          <div class="stat-icon text-warning">
+            <i class="fas fa-users"></i>
+          </div>
+          <div class="stat-number" id="totalLeads">0</div>
+          <div class="stat-label">Active Leads</div>
+          <div class="stat-trend positive">
+            <i class="fas fa-arrow-up me-1"></i>+15% this month
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="stat-card text-center">
+          <div class="stat-icon text-info">
+            <i class="fas fa-chart-line"></i>
+          </div>
+          <div class="stat-number" id="conversionRate">0%</div>
+          <div class="stat-label">Conversion Rate</div>
+          <div class="stat-trend positive">
+            <i class="fas fa-arrow-up me-1"></i>+3% this month
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Featured Properties -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card shadow-lg">
+          <div class="card-header bg-primary text-white">
+            <h5><i class="fas fa-star me-2"></i>Featured Properties</h5>
+          </div>
+          <div class="card-body">
+            <div class="row" id="featuredProperties">
+              <!-- Properties will be loaded dynamically -->
+                             <div class="col-md-4 mb-3">
+                 <div class="property-card">
+                   <div class="property-image">
+                     <div class="property-placeholder bg-light d-flex align-items-center justify-content-center" style="height: 200px; background: linear-gradient(135deg, #f8f9fa, #e9ecef);">
+                       <i class="fas fa-home text-muted" style="font-size: 3rem;"></i>
+                     </div>
+                     <div class="property-badge">Featured</div>
+                   </div>
+                  <div class="property-content p-3">
+                    <h6 class="property-title">Luxury Apartment in Koregaon Park</h6>
+                    <p class="property-location text-muted">
+                      <i class="fas fa-map-marker-alt me-1"></i>Koregaon Park, Pune
+                    </p>
+                    <div class="property-details d-flex justify-content-between">
+                      <span><i class="fas fa-bed me-1"></i>3 BHK</span>
+                      <span><i class="fas fa-bath me-1"></i>2 Bath</span>
+                      <span><i class="fas fa-ruler-combined me-1"></i>1200 sq ft</span>
+                    </div>
+                    <div class="property-price mt-2">
+                      <strong class="text-primary">₹1.25 Cr</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+                             <div class="col-md-4 mb-3">
+                 <div class="property-card">
+                   <div class="property-image">
+                     <div class="property-placeholder bg-light d-flex align-items-center justify-content-center" style="height: 200px; background: linear-gradient(135deg, #f8f9fa, #e9ecef);">
+                       <i class="fas fa-home text-muted" style="font-size: 3rem;"></i>
+                     </div>
+                     <div class="property-badge">New</div>
+                   </div>
+                  <div class="property-content p-3">
+                    <h6 class="property-title">Modern Villa in Baner</h6>
+                    <p class="property-location text-muted">
+                      <i class="fas fa-map-marker-alt me-1"></i>Baner, Pune
+                    </p>
+                    <div class="property-details d-flex justify-content-between">
+                      <span><i class="fas fa-bed me-1"></i>4 BHK</span>
+                      <span><i class="fas fa-bath me-1"></i>3 Bath</span>
+                      <span><i class="fas fa-ruler-combined me-1"></i>2000 sq ft</span>
+                    </div>
+                    <div class="property-price mt-2">
+                      <strong class="text-primary">₹2.5 Cr</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+                             <div class="col-md-4 mb-3">
+                 <div class="property-card">
+                   <div class="property-image">
+                     <div class="property-placeholder bg-light d-flex align-items-center justify-content-center" style="height: 200px; background: linear-gradient(135deg, #f8f9fa, #e9ecef);">
+                       <i class="fas fa-home text-muted" style="font-size: 3rem;"></i>
+                     </div>
+                     <div class="property-badge">Hot</div>
+                   </div>
+                  <div class="property-content p-3">
+                    <h6 class="property-title">Premium Flat in Hinjewadi</h6>
+                    <p class="property-location text-muted">
+                      <i class="fas fa-map-marker-alt me-1"></i>Hinjewadi, Pune
+                    </p>
+                    <div class="property-details d-flex justify-content-between">
+                      <span><i class="fas fa-bed me-1"></i>2 BHK</span>
+                      <span><i class="fas fa-bath me-1"></i>2 Bath</span>
+                      <span><i class="fas fa-ruler-combined me-1"></i>950 sq ft</span>
+                    </div>
+                    <div class="property-price mt-2">
+                      <strong class="text-primary">₹85 Lakhs</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Activity & AI Insights -->
+    <div class="row">
+      <div class="col-md-6 mb-4">
+        <div class="card shadow-lg h-100">
+          <div class="card-header bg-info text-white">
+            <h5><i class="fas fa-history me-2"></i>Recent Activity</h5>
+          </div>
+          <div class="card-body">
+            <div class="activity-timeline">
+              <div class="activity-item">
+                <div class="activity-icon bg-success">
+                  <i class="fas fa-plus text-white"></i>
+                </div>
+                <div class="activity-content">
+                  <div class="activity-title">New Property Added</div>
+                  <div class="activity-desc">Luxury Apartment in Koregaon Park</div>
+                  <div class="activity-time">2 hours ago</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <div class="activity-icon bg-primary">
+                  <i class="fas fa-eye text-white"></i>
+                </div>
+                <div class="activity-content">
+                  <div class="activity-title">Property Viewed</div>
+                  <div class="activity-desc">Modern Villa in Baner - 15 views today</div>
+                  <div class="activity-time">4 hours ago</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <div class="activity-icon bg-warning">
+                  <i class="fas fa-user text-white"></i>
+                </div>
+                <div class="activity-content">
+                  <div class="activity-title">New Lead Generated</div>
+                  <div class="activity-desc">Rahul Sharma interested in 3 BHK properties</div>
+                  <div class="activity-time">6 hours ago</div>
+                </div>
+              </div>
+              <div class="activity-item">
+                <div class="activity-icon bg-info">
+                  <i class="fas fa-robot text-white"></i>
+                </div>
+                <div class="activity-content">
+                  <div class="activity-title">AI Content Generated</div>
+                  <div class="activity-desc">Property description for Hinjewadi flat</div>
+                  <div class="activity-time">1 day ago</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 mb-4">
+        <div class="card shadow-lg h-100">
+          <div class="card-header bg-warning text-white">
+            <h5><i class="fas fa-lightbulb me-2"></i>AI Insights & Recommendations</h5>
+          </div>
+          <div class="card-body">
+            <div class="ai-insights">
+              <div class="insight-card mb-3">
+                <div class="insight-icon">
+                  <i class="fas fa-chart-line text-success"></i>
+                </div>
+                <div class="insight-content">
+                  <h6>Market Trend Alert</h6>
+                  <p class="text-muted mb-2">Properties in Baner area are getting 23% more views this month. Consider highlighting this location.</p>
+                  <button class="btn btn-sm btn-outline-success">View Details</button>
+                </div>
+              </div>
+              
+              <div class="insight-card mb-3">
+                <div class="insight-icon">
+                  <i class="fas fa-clock text-warning"></i>
+                </div>
+                <div class="insight-content">
+                  <h6>Best Posting Time</h6>
+                  <p class="text-muted mb-2">Your properties get 40% more engagement when posted between 7-9 PM. Schedule accordingly.</p>
+                  <button class="btn btn-sm btn-outline-warning">Optimize Timing</button>
+                </div>
+              </div>
+              
+              <div class="insight-card">
+                <div class="insight-icon">
+                  <i class="fas fa-tags text-info"></i>
+                </div>
+                <div class="insight-content">
+                  <h6>Keyword Opportunity</h6>
+                  <p class="text-muted mb-2">"Luxury apartments Pune" searches increased by 35%. Update your property titles.</p>
+                  <button class="btn btn-sm btn-outline-info">Update Keywords</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card shadow-lg">
+          <div class="card-header bg-success text-white">
+            <h5><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-3 mb-3">
+                <button class="btn btn-outline-primary w-100 h-100 p-4" onclick="showSection('property-form')">
+                  <i class="fas fa-plus fa-2x mb-3"></i>
+                  <div>Add New Property</div>
+                </button>
+              </div>
+              <div class="col-md-3 mb-3">
+                <button class="btn btn-outline-success w-100 h-100 p-4" onclick="showSection('ai-content')">
+                  <i class="fas fa-robot fa-2x mb-3"></i>
+                  <div>Generate AI Content</div>
+                </button>
+              </div>
+              <div class="col-md-3 mb-3">
+                <button class="btn btn-outline-info w-100 h-100 p-4" onclick="showSection('facebook')">
+                  <i class="fab fa-facebook fa-2x mb-3"></i>
+                  <div>Post to Facebook</div>
+                </button>
+              </div>
+              <div class="col-md-3 mb-3">
+                <button class="btn btn-outline-warning w-100 h-100 p-4" onclick="showSection('analytics')">
+                  <i class="fas fa-chart-bar fa-2x mb-3"></i>
+                  <div>View Analytics</div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <style>
