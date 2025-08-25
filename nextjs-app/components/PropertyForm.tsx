@@ -3,19 +3,11 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { PlusIcon, SparklesIcon, ArrowLeftIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
-
-interface PropertyFormData {
-  title: string
-  price: string
-  address: string
-  bedrooms: string
-  bathrooms: string
-  area: string
-  description: string
-  amenities: string
-}
+import { propertySchema, PropertyFormData, getFieldError, getFieldErrorClass } from '@/lib/validation'
+import { apiService, APIError } from '@/lib/api'
 
 interface PropertyFormProps {
   onSuccess?: () => void
@@ -30,17 +22,33 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
     handleSubmit,
     setValue,
     formState: { errors }
-  } = useForm<PropertyFormData>()
+  } = useForm<PropertyFormData>({
+    resolver: zodResolver(propertySchema),
+    mode: 'onBlur'
+  })
 
   const onSubmit = async (data: PropertyFormData) => {
     setIsLoading(true)
     try {
-      // Here you would typically send the data to your API
-      console.log('Property data:', data)
-      toast.success('Property added successfully!')
-      onSuccess?.()
+      const response = await apiService.createProperty({
+        ...data,
+        status: 'draft',
+        images: []
+      })
+      
+      if (response.success) {
+        toast.success('Property added successfully!')
+        onSuccess?.()
+      } else {
+        throw new Error(response.error || 'Failed to create property')
+      }
     } catch (error) {
-      toast.error('Failed to add property')
+      console.error('Property creation error:', error)
+      if (error instanceof APIError) {
+        toast.error(`Failed to add property: ${error.message}`)
+      } else {
+        toast.error('Failed to add property. Please try again.')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -49,23 +57,15 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
   const autoFillWithAI = async () => {
     setIsAILoading(true)
     try {
-      const response = await fetch('/api/v1/property/ai_suggest', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          property_type: 'Apartment',
-          location: 'City Center',
-          budget: '₹75,00,000',
-          requirements: 'Modern amenities'
-        })
+      const response = await apiService.getAIPropertySuggestions({
+        property_type: 'Apartment',
+        location: 'City Center',
+        budget: '₹75,00,000',
+        requirements: 'Modern amenities'
       })
 
-      const result = await response.json()
-
-      if (result.success && result.suggestions && result.suggestions.length > 0) {
-        const suggestion = result.suggestions[0]
+      if (response.success && response.data && response.data.length > 0) {
+        const suggestion = response.data[0]
         setValue('title', suggestion.title)
         setValue('price', suggestion.price)
         setValue('address', '123 Main Street, City Center')
@@ -77,7 +77,11 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
       }
     } catch (error) {
       console.error('AI Suggest error:', error)
-      toast.error('Failed to generate AI content. Please try again.')
+      if (error instanceof APIError) {
+        toast.error(`Failed to generate AI content: ${error.message}`)
+      } else {
+        toast.error('Failed to generate AI content. Please try again.')
+      }
     } finally {
       setIsAILoading(false)
     }
@@ -123,12 +127,12 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
               </label>
               <input
                 type="text"
-                {...register('price', { required: 'Price is required' })}
-                className="form-input"
+                {...register('price')}
+                className={`form-input ${getFieldErrorClass(errors, 'price')}`}
                 placeholder="₹50,00,000"
               />
-              {errors.price && (
-                <p className="text-red-500 text-sm mt-1">{errors.price.message}</p>
+              {getFieldError(errors, 'price') && (
+                <p className="text-red-500 text-sm mt-1">{getFieldError(errors, 'price')}</p>
               )}
             </div>
           </div>
@@ -137,15 +141,15 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Address *
             </label>
-            <input
-              type="text"
-              {...register('address', { required: 'Address is required' })}
-              className="form-input"
-              placeholder="Enter property address"
-            />
-            {errors.address && (
-              <p className="text-red-500 text-sm mt-1">{errors.address.message}</p>
-            )}
+                          <input
+                type="text"
+                {...register('address')}
+                className={`form-input ${getFieldErrorClass(errors, 'address')}`}
+                placeholder="Enter property address"
+              />
+              {getFieldError(errors, 'address') && (
+                <p className="text-red-500 text-sm mt-1">{getFieldError(errors, 'address')}</p>
+              )}
           </div>
 
           {/* Property Details */}
@@ -154,26 +158,32 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Bedrooms
               </label>
-              <select {...register('bedrooms')} className="form-input">
+              <select {...register('bedrooms')} className={`form-input ${getFieldErrorClass(errors, 'bedrooms')}`}>
                 <option value="">Select</option>
                 <option value="1">1</option>
                 <option value="2">2</option>
                 <option value="3">3</option>
                 <option value="4">4+</option>
               </select>
+              {getFieldError(errors, 'bedrooms') && (
+                <p className="text-red-500 text-sm mt-1">{getFieldError(errors, 'bedrooms')}</p>
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Bathrooms
               </label>
-              <select {...register('bathrooms')} className="form-input">
+              <select {...register('bathrooms')} className={`form-input ${getFieldErrorClass(errors, 'bathrooms')}`}>
                 <option value="">Select</option>
                 <option value="1">1</option>
                 <option value="2">2</option>
                 <option value="3">3</option>
                 <option value="4">4+</option>
               </select>
+              {getFieldError(errors, 'bathrooms') && (
+                <p className="text-red-500 text-sm mt-1">{getFieldError(errors, 'bathrooms')}</p>
+              )}
             </div>
 
             <div>
@@ -183,9 +193,12 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
               <input
                 type="number"
                 {...register('area')}
-                className="form-input"
+                className={`form-input ${getFieldErrorClass(errors, 'area')}`}
                 placeholder="1200"
               />
+              {getFieldError(errors, 'area') && (
+                <p className="text-red-500 text-sm mt-1">{getFieldError(errors, 'area')}</p>
+              )}
             </div>
           </div>
 
@@ -194,13 +207,13 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
               Description *
             </label>
             <textarea
-              {...register('description', { required: 'Description is required' })}
+              {...register('description')}
               rows={4}
-              className="form-input"
+              className={`form-input ${getFieldErrorClass(errors, 'description')}`}
               placeholder="Describe the property features, location, amenities..."
             />
-            {errors.description && (
-              <p className="text-red-500 text-sm mt-1">{errors.description.message}</p>
+            {getFieldError(errors, 'description') && (
+              <p className="text-red-500 text-sm mt-1">{getFieldError(errors, 'description')}</p>
             )}
           </div>
 
@@ -211,9 +224,12 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
             <input
               type="text"
               {...register('amenities')}
-              className="form-input"
+              className={`form-input ${getFieldErrorClass(errors, 'amenities')}`}
               placeholder="Parking, Gym, Pool, etc."
             />
+            {getFieldError(errors, 'amenities') && (
+              <p className="text-red-500 text-sm mt-1">{getFieldError(errors, 'amenities')}</p>
+            )}
           </div>
 
           {/* Action Buttons */}
