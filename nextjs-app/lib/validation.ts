@@ -45,10 +45,10 @@ export const registrationSchema = z.object({
     .min(5, 'Email must be at least 5 characters')
     .max(100, 'Email must be less than 100 characters'),
   phone: z.string()
-    .optional()
     .refine((val) => !val || /^[\+]?[1-9][\d]{0,15}$/.test(val), {
       message: 'Please enter a valid phone number'
-    }),
+    })
+    .optional(),
   password: z.string()
     .min(8, 'Password must be at least 8 characters')
     .max(100, 'Password must be less than 100 characters')
@@ -81,10 +81,10 @@ export const onboardingStep1Schema = z.object({
     .min(2, 'Last name must be at least 2 characters')
     .max(50, 'Last name must be less than 50 characters'),
   phone: z.string()
-    .optional()
     .refine((val) => !val || /^[\+]?[1-9][\d]{0,15}$/.test(val), {
       message: 'Please enter a valid phone number'
-    }),
+    })
+    .optional(),
 })
 
 export const onboardingStep2Schema = z.object({
@@ -95,10 +95,10 @@ export const onboardingStep2Schema = z.object({
     .min(2, 'Position must be at least 2 characters')
     .max(100, 'Position must be less than 100 characters'),
   licenseNumber: z.string()
-    .optional()
     .refine((val) => !val || /^[A-Z]{2}\d{6}$/.test(val), {
       message: 'License number must be in format: RE123456'
-    }),
+    })
+    .optional(),
 })
 
 export const onboardingStep3Schema = z.object({
@@ -130,8 +130,8 @@ export const leadSchema = z.object({
   source: z.string()
     .min(1, 'Please select a lead source'),
   notes: z.string()
-    .optional()
-    .max(500, 'Notes must be less than 500 characters'),
+    .max(500, 'Notes must be less than 500 characters')
+    .optional(),
 })
 
 export type LeadFormData = z.infer<typeof leadSchema>
@@ -160,10 +160,10 @@ export const profileSchema = z.object({
   email: z.string()
     .email('Please enter a valid email address'),
   phone: z.string()
-    .optional()
     .refine((val) => !val || /^[\+]?[1-9][\d]{0,15}$/.test(val), {
       message: 'Please enter a valid phone number'
-    }),
+    })
+    .optional(),
   company: z.string()
     .min(2, 'Company name must be at least 2 characters')
     .max(100, 'Company name must be less than 100 characters'),
@@ -171,10 +171,10 @@ export const profileSchema = z.object({
     .min(2, 'Position must be at least 2 characters')
     .max(100, 'Position must be less than 100 characters'),
   licenseNumber: z.string()
-    .optional()
     .refine((val) => !val || /^[A-Z]{2}\d{6}$/.test(val), {
       message: 'License number must be in format: RE123456'
-    }),
+    })
+    .optional(),
 })
 
 export type ProfileFormData = z.infer<typeof profileSchema>
