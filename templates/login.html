@@ -3,37 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PropertyAI - Get Started</title>
+    <title>PropertyAI - Login</title>
     
     <!-- External CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
+    <!-- ✅ TEMPORARY: Inline styles for testing -->
     <style>
         :root {
             --primary: #2563eb;
             --primary-dark: #1d4ed8;
-            --secondary: #f59e0b;
-            --success: #10b981;
-            --dark: #1f2937;
-            --light: #f8fafc;
-            --white: #ffffff;
-            --gray: #6b7280;
+            --glass-border: rgba(255, 255, 255, 0.2);
         }
         
-        body {
-            font-family: 'Inter', sans-serif;
+        body.login-page {
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 2rem 0;
+            margin: 0;
+            font-family: 'Inter', sans-serif;
         }
         
         .login-container {
-            background: var(--white);
+            background: white;
             border-radius: 20px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             overflow: hidden;
@@ -43,7 +40,7 @@
         
         .login-header {
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: var(--white);
+            color: white;
             padding: 3rem 2rem;
             text-align: center;
         }
@@ -64,349 +61,291 @@
             padding: 3rem 2rem;
         }
         
-        .step-indicator {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 2rem;
+        .step-content {
+            display: none;
         }
         
-        .step {
-            display: flex;
-            align-items: center;
-            margin: 0 1rem;
+        .step-content.active {
+            display: block;
         }
         
-        .step-number {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: var(--light);
-            color: var(--gray);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            margin-right: 0.5rem;
-            transition: all 0.3s ease;
-        }
-        
-        .step.active .step-number {
-            background: var(--primary);
-            color: var(--white);
-        }
-        
-        .step.completed .step-number {
-            background: var(--success);
-            color: var(--white);
-        }
-        
-        .step-text {
-            font-weight: 500;
-            color: var(--gray);
-        }
-        
-        .step.active .step-text {
-            color: var(--primary);
-        }
-        
-        .step.completed .step-text {
-            color: var(--success);
-        }
-        
-        .welcome-section {
-            text-align: center;
-            margin-bottom: 3rem;
-        }
-        
-        .welcome-section h2 {
-            color: var(--dark);
-            margin-bottom: 1rem;
-        }
-        
-        .welcome-section p {
-            color: var(--gray);
-            font-size: 1.1rem;
-            line-height: 1.6;
-        }
-        
-        .option-cards {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            margin-bottom: 2rem;
-        }
-        
-        .option-card {
-            border: 2px solid #e5e7eb;
-            border-radius: 15px;
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 1rem;
             padding: 2rem;
-            text-align: center;
-            transition: all 0.3s ease;
-            cursor: pointer;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            transition: 0.3s ease-in-out;
             position: relative;
+            cursor: pointer;
         }
         
-        .option-card:hover {
-            border-color: var(--primary);
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.15);
+        .glass-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(31, 38, 135, 0.5);
         }
         
-        .option-card.selected {
-            border-color: var(--primary);
-            background: rgba(37, 99, 235, 0.05);
-        }
-        
-        .option-card.recommended::before {
-            content: '⭐ RECOMMENDED';
-            position: absolute;
-            top: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--secondary);
-            color: var(--white);
-            padding: 0.25rem 1rem;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        
-        .option-card i {
-            font-size: 3rem;
-            color: var(--primary);
+        .glass-card h4 {
+            color: #1f2937;
             margin-bottom: 1rem;
         }
         
-        .option-card h3 {
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            color: var(--dark);
+        .glass-card p {
+            color: #6b7280;
+            margin-bottom: 2rem;
         }
         
-        .option-card p {
-            color: var(--gray);
-            font-size: 0.9rem;
-            line-height: 1.5;
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: 0.15s ease-in-out;
+            gap: 0.5rem;
         }
         
         .btn-primary {
             background: var(--primary);
-            border: none;
-            padding: 1rem 2rem;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 1.1rem;
-            transition: all 0.3s ease;
+            color: white;
         }
         
         .btn-primary:hover {
             background: var(--primary-dark);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3);
+            transform: translateY(-1px);
         }
         
-        .btn-outline {
-            border: 2px solid var(--primary);
-            color: var(--primary);
+        .btn-outline-primary {
             background: transparent;
-            padding: 1rem 2rem;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 1.1rem;
-            transition: all 0.3s ease;
+            color: var(--primary);
+            border: 2px solid var(--primary);
         }
         
-        .btn-outline:hover {
+        .btn-outline-primary:hover {
             background: var(--primary);
-            color: var(--white);
-            transform: translateY(-2px);
+            color: white;
+        }
+        
+        .btn-lg {
+            padding: 1rem 2rem;
+            font-size: 1.125rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #1f2937;
         }
         
         .form-control {
-            border: 2px solid #e5e7eb;
-            border-radius: 10px;
-            padding: 1rem;
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
             font-size: 1rem;
-            transition: all 0.3s ease;
+            transition: 0.15s ease-in-out;
+            background: white;
+            color: #1f2937;
         }
         
         .form-control:focus {
+            outline: none;
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
         }
         
-        .form-label {
-            font-weight: 600;
-            color: var(--dark);
+        .alert-info {
+            background: rgba(14, 165, 233, 0.1);
+            color: #0ea5e9;
+            border-left: 4px solid #0ea5e9;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .alert-info h5 {
             margin-bottom: 0.5rem;
+            color: #0ea5e9;
         }
         
-        .alert {
-            border-radius: 10px;
-            border: none;
-            padding: 1rem 1.5rem;
-        }
-        
-        .info-box {
-            background: rgba(37, 99, 235, 0.1);
-            border: 1px solid rgba(37, 99, 235, 0.2);
-            border-radius: 10px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .info-box h4 {
-            color: var(--primary);
-            margin-bottom: 1rem;
-        }
-        
-        .info-box ul {
+        .alert-info ul {
             margin-bottom: 0;
             padding-left: 1.5rem;
         }
         
-        .info-box li {
-            margin-bottom: 0.5rem;
-            color: var(--dark);
+        .alert-info li {
+            margin-bottom: 0.25rem;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn-group .btn {
+            flex: 1;
+        }
+        
+        .text-primary { color: var(--primary) !important; }
+        .text-secondary { color: #f59e0b !important; }
+        .text-success { color: #10b981 !important; }
+        .text-warning { color: #f59e0b !important; }
+        .text-muted { color: #6b7280 !important; }
+        
+        .mb-2 { margin-bottom: 0.5rem; }
+        .mb-3 { margin-bottom: 1rem; }
+        .mb-4 { margin-bottom: 1.5rem; }
+        .mt-4 { margin-top: 1.5rem; }
+        .mt-3 { margin-top: 1rem; }
+        .me-2 { margin-right: 0.5rem; }
+        .h-100 { height: 100%; }
+        
+        .d-flex { display: flex; }
+        .d-grid { display: grid; }
+        .gap-2 { gap: 0.5rem; }
+        .gap-3 { gap: 1rem; }
+        .w-100 { width: 100%; }
+        .text-center { text-align: center; }
+        .text-start { text-align: left; }
+        
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            margin-right: -1rem;
+            margin-left: -1rem;
+        }
+        
+        .col-md-6 {
+            flex: 0 0 50%;
+            max-width: 50%;
+            padding-right: 1rem;
+            padding-left: 1rem;
         }
         
         @media (max-width: 768px) {
-            .option-cards {
-                grid-template-columns: 1fr;
+            .col-md-6 {
+                flex: 0 0 100%;
+                max-width: 100%;
             }
             
             .login-container {
                 margin: 1rem;
-                border-radius: 15px;
+                border-radius: 16px;
             }
             
             .login-header, .login-body {
-                padding: 2rem 1.5rem;
+                padding: 2rem 1rem;
             }
             
-            .step {
-                margin: 0 0.5rem;
-            }
-            
-            .step-text {
-                display: none;
+            .login-header h1 {
+                font-size: 2rem;
             }
         }
     </style>
 </head>
-<body>
+<body class="login-page">
     <div class="login-container">
-        <!-- Header -->
         <div class="login-header">
             <h1>🚀 Welcome to PropertyAI</h1>
-            <p>Your AI-powered real estate success platform</p>
+            <p>Your AI-powered real estate assistant</p>
         </div>
         
-        <!-- Body -->
         <div class="login-body">
-            <!-- Step Indicator -->
-            <div class="step-indicator">
-                <div class="step active" id="step1">
-                    <div class="step-number">1</div>
-                    <div class="step-text">Choose Login</div>
-                </div>
-                <div class="step" id="step2">
-                    <div class="step-number">2</div>
-                    <div class="step-text">Authenticate</div>
-                </div>
-                <div class="step" id="step3">
-                    <div class="step-number">3</div>
-                    <div class="step-text">Setup Profile</div>
-                </div>
-            </div>
-            
             <!-- Step 1: Choose Login Method -->
-            <div id="step1-content">
-                <div class="welcome-section">
-                    <h2>How would you like to get started?</h2>
-                    <p>Choose the option that works best for you. We'll guide you through the setup process.</p>
+            <div class="step-content active" id="step1">
+                <h2>How would you like to get started?</h2>
+                <p>Choose the option that works best for you. We'll guide you through the setup process.</p>
+                
+                <div class="row mt-4">
+                    <div class="col-md-6 mb-3">
+                        <div class="glass-card text-center h-100" onclick="selectOption('facebook')" style="cursor: pointer;">
+                            <div class="mb-3">
+                                <i class="fab fa-facebook text-primary" style="font-size: 3rem;"></i>
+                            </div>
+                            <h4>Facebook Login (Recommended)</h4>
+                            <p class="text-muted">Quick and secure setup using your Facebook account. Perfect for real estate agents who want to post to Facebook pages.</p>
+                            <div class="text-start">
+                                <div class="mb-2"><i class="fas fa-check text-success me-2"></i>One-click login</div>
+                                <div class="mb-2"><i class="fas fa-check text-success me-2"></i>Automatic Facebook page connection</div>
+                                <div class="mb-2"><i class="fas fa-check text-success me-2"></i>No password to remember</div>
+                                <div class="mb-2"><i class="fas fa-check text-success me-2"></i>Perfect for social media posting</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <div class="glass-card text-center h-100" onclick="selectOption('email')" style="cursor: pointer;">
+                            <div class="mb-3">
+                                <i class="fas fa-envelope text-secondary" style="font-size: 3rem;"></i>
+                            </div>
+                            <h4>Email & Password</h4>
+                            <p class="text-muted">Traditional email and password login. Good for users who prefer not to use social media accounts.</p>
+                            <div class="text-start">
+                                <div class="mb-2"><i class="fas fa-check text-success me-2"></i>Traditional login method</div>
+                                <div class="mb-2"><i class="fas fa-check text-success me-2"></i>No social media required</div>
+                                <div class="mb-2"><i class="fas fa-check text-success me-2"></i>Full control over account</div>
+                                <div class="mb-2"><i class="fas fa-exclamation-triangle text-warning me-2"></i>Manual Facebook setup needed</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="option-cards">
-                    <div class="option-card recommended" onclick="selectOption('facebook', event)">
-                        <i class="fab fa-facebook"></i>
-                        <h3>Facebook Login (Recommended)</h3>
-                        <p>Quick and secure setup using your Facebook account. Perfect for real estate agents who want to post to Facebook pages.</p>
-                        <ul style="text-align: left; margin-top: 1rem; font-size: 0.85rem;">
-                            <li>✅ One-click login</li>
-                            <li>✅ Automatic Facebook page connection</li>
-                            <li>✅ No password to remember</li>
-                            <li>✅ Perfect for social media posting</li>
-                        </ul>
-                    </div>
-                    <div class="option-card" onclick="selectOption('email', event)">
-                        <i class="fas fa-envelope"></i>
-                        <h3>Email & Password</h3>
-                        <p>Traditional email and password login. Good for users who prefer not to use social media accounts.</p>
-                        <ul style="text-align: left; margin-top: 1rem; font-size: 0.85rem;">
-                            <li>✅ Traditional login method</li>
-                            <li>✅ No social media required</li>
-                            <li>✅ Full control over account</li>
-                            <li>⚠️ Manual Facebook setup needed</li>
-                        </ul>
-                    </div>
-                </div>
-                
-                <div class="info-box">
-                    <h4><i class="fas fa-info-circle me-2"></i>What happens next?</h4>
-                    <ul>
+                <div class="alert alert-info mt-4">
+                    <h5><i class="fas fa-info-circle me-2"></i>What happens next?</h5>
+                    <ul class="mb-0">
                         <li><strong>Step 1:</strong> Choose your login method (you're here!)</li>
                         <li><strong>Step 2:</strong> Authenticate with Facebook or create email account</li>
                         <li><strong>Step 3:</strong> Complete your profile setup and connect Facebook pages</li>
                         <li><strong>Ready:</strong> Start adding properties and generating AI content!</li>
                     </ul>
                 </div>
+            </div>
+            
+            <!-- Step 2: Facebook Authentication -->
+            <div class="step-content" id="step2" style="display: none;">
+                <h2><i class="fab fa-facebook me-2"></i>Connect with Facebook</h2>
+                <p>We'll redirect you to Facebook to securely authenticate your account.</p>
                 
-                <div class="d-grid gap-2">
-                    <button class="btn btn-primary" onclick="proceedToStep2()" disabled id="proceedBtn">
-                        <i class="fas fa-arrow-right me-2"></i>Continue to Authentication
-                    </button>
+                <div class="glass-card">
+                    <h4><i class="fab fa-facebook me-2"></i>Facebook Authentication Benefits</h4>
+                    <p>This allows us to:</p>
+                    <ul>
+                        <li>Verify your identity securely</li>
+                        <li>Access your Facebook pages for posting</li>
+                        <li>Create your PropertyAI account automatically</li>
+                        <li>Enable seamless social media integration</li>
+                    </ul>
+                    
+                    <div class="d-flex gap-3 mt-4">
+                        <button type="button" class="btn btn-outline-primary" onclick="goToOptions()">
+                            <i class="fas fa-arrow-left me-2"></i> Back to Options
+                        </button>
+                        <button type="button" class="btn btn-primary btn-lg" onclick="loginWithFacebook()">
+                            <i class="fab fa-facebook me-2"></i>Continue with Facebook
+                        </button>
+                    </div>
                 </div>
             </div>
             
-            <!-- Step 2: Authentication -->
-            <div id="step2-content" style="display: none;">
-                <div class="welcome-section">
-                    <h2 id="authTitle">Authenticate Your Account</h2>
-                    <p id="authDescription">Complete the authentication process to access PropertyAI.</p>
-                </div>
+            <!-- Step 2: Email Authentication -->
+            <div class="step-content" id="step3" style="display: none;">
+                <h2><i class="fas fa-envelope me-2"></i>Email Authentication</h2>
+                <p>Create your PropertyAI account or sign in with existing credentials.</p>
                 
-                <!-- Facebook Authentication -->
-                <div id="facebookAuth" style="display: none;">
-                    <div class="info-box">
-                        <h4><i class="fab fa-facebook me-2"></i>Facebook Authentication</h4>
-                        <p>We'll redirect you to Facebook to securely authenticate your account. This allows us to:</p>
-                        <ul>
-                            <li>Verify your identity</li>
-                            <li>Access your Facebook pages for posting</li>
-                            <li>Create your PropertyAI account automatically</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="d-grid gap-3">
-                        <button class="btn btn-primary" onclick="loginWithFacebook(event)">
-                            <i class="fab fa-facebook me-2"></i>Continue with Facebook
-                        </button>
-                        <button class="btn btn-outline" onclick="goBackToStep1()">
-                            <i class="fas fa-arrow-left me-2"></i>Go Back
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Email Authentication -->
-                <div id="emailAuth" style="display: none;">
-                    <div class="info-box">
-                        <h4><i class="fas fa-envelope me-2"></i>Email Authentication</h4>
-                        <p>Create your PropertyAI account or sign in with existing credentials.</p>
-                    </div>
-                    
+                <div class="glass-card">
                     <!-- Toggle between Register and Login -->
-                    <div class="mb-3">
+                    <div class="mb-4">
                         <div class="btn-group w-100" role="group">
                             <input type="radio" class="btn-check" name="authMode" id="registerMode" checked>
                             <label class="btn btn-outline-primary" for="registerMode">
@@ -422,25 +361,35 @@
                     
                     <!-- Registration Form -->
                     <form id="registerForm">
-                        <div class="mb-3">
-                            <label class="form-label">Full Name</label>
+                        <div class="form-group">
+                            <label for="fullName" class="form-label">Full Name</label>
                             <input type="text" class="form-control" id="fullName" required>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">Email Address</label>
+                        
+                        <div class="form-group">
+                            <label for="email" class="form-label">Email Address</label>
                             <input type="email" class="form-control" id="email" required>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">Password</label>
+                        
+                        <div class="form-group">
+                            <label for="password" class="form-label">Password</label>
                             <input type="password" class="form-control" id="password" required minlength="6">
                             <small class="text-muted">Minimum 6 characters</small>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">Confirm Password</label>
+                        
+                        <div class="form-group">
+                            <label for="confirmPassword" class="form-label">Confirm Password</label>
                             <input type="password" class="form-control" id="confirmPassword" required>
                         </div>
                         
-                        <div class="d-grid gap-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="termsAccepted" required>
+                            <label class="form-check-label" for="termsAccepted">
+                                I agree to the <a href="#" class="text-primary">Terms of Service</a> and <a href="#" class="text-primary">Privacy Policy</a>
+                            </label>
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-4">
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-user-plus me-2"></i>Create Account
                             </button>
@@ -449,16 +398,17 @@
                     
                     <!-- Login Form -->
                     <form id="loginForm" style="display: none;">
-                        <div class="mb-3">
-                            <label class="form-label">Email Address</label>
+                        <div class="form-group">
+                            <label for="loginEmail" class="form-label">Email Address</label>
                             <input type="email" class="form-control" id="loginEmail" required>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">Password</label>
+                        
+                        <div class="form-group">
+                            <label for="loginPassword" class="form-label">Password</label>
                             <input type="password" class="form-control" id="loginPassword" required>
                         </div>
                         
-                        <div class="d-grid gap-2">
+                        <div class="d-grid gap-2 mt-4">
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-sign-in-alt me-2"></i>Sign In
                             </button>
@@ -466,7 +416,7 @@
                     </form>
                     
                     <div class="d-grid gap-2 mt-3">
-                        <button type="button" class="btn btn-outline" onclick="goBackToStep1()">
+                        <button type="button" class="btn btn-outline-primary" onclick="goToOptions()">
                             <i class="fas fa-arrow-left me-2"></i>Go Back
                         </button>
                     </div>
@@ -474,13 +424,11 @@
             </div>
             
             <!-- Step 3: Profile Setup -->
-            <div id="step3-content" style="display: none;">
-                <div class="welcome-section">
-                    <h2>Complete Your Profile Setup</h2>
-                    <p>Let's set up your real estate business profile to get the most out of PropertyAI.</p>
-                </div>
+            <div class="step-content" id="step4" style="display: none;">
+                <h2><i class="fas fa-user-cog me-2"></i>Complete Your Profile Setup</h2>
+                <p>Let's set up your real estate business profile to get the most out of PropertyAI.</p>
                 
-                <div class="info-box">
+                <div class="glass-card">
                     <h4><i class="fas fa-user-cog me-2"></i>Profile Setup Benefits</h4>
                     <ul>
                         <li>Personalized AI content generation</li>
@@ -488,15 +436,15 @@
                         <li>Facebook page integration</li>
                         <li>Professional business presence</li>
                     </ul>
-                </div>
-                
-                <div class="d-grid gap-2">
-                    <button class="btn btn-primary" onclick="startOnboarding()">
-                        <i class="fas fa-rocket me-2"></i>Start Profile Setup
-                    </button>
-                    <button class="btn btn-outline" onclick="skipToDashboard()">
-                        <i class="fas fa-play me-2"></i>Skip for Now
-                    </button>
+                    
+                    <div class="d-grid gap-2 mt-4">
+                        <button class="btn btn-primary" onclick="startOnboarding()">
+                            <i class="fas fa-rocket me-2"></i>Start Profile Setup
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="skipToDashboard()">
+                            <i class="fas fa-play me-2"></i>Skip for Now
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -506,69 +454,94 @@
         let selectedOption = null;
         let currentStep = 1;
         
-        function selectOption(option, event) {
+        function selectOption(option) {
             selectedOption = option;
+            console.log('🎯 Selected option:', option);
             
             // Update visual selection
-            document.querySelectorAll('.option-card').forEach(card => {
-                card.classList.remove('selected');
+            document.querySelectorAll('.glass-card').forEach(card => {
+                card.style.border = '1px solid var(--glass-border)';
+                // Remove any existing selection indicators
+                const existingCheck = card.querySelector('.selection-check');
+                if (existingCheck) existingCheck.remove();
             });
-            if (event && event.currentTarget) {
-                event.currentTarget.classList.add('selected');
-            }
             
-            // Enable proceed button
-            const proceedBtn = document.getElementById('proceedBtn');
-            if (proceedBtn) {
-                proceedBtn.disabled = false;
-            }
+            // Highlight selected option
+            const selectedCard = event.currentTarget;
+            selectedCard.style.border = '2px solid var(--primary)';
+            
+            // Add selection checkmark
+            const checkmark = document.createElement('div');
+            checkmark.className = 'selection-check';
+            checkmark.innerHTML = '<i class="fas fa-check-circle text-success" style="font-size: 1.5rem;"></i>';
+            checkmark.style.position = 'absolute';
+            checkmark.style.top = '1rem';
+            checkmark.style.right = '1rem';
+            selectedCard.style.position = 'relative';
+            selectedCard.appendChild(checkmark);
+            
+            // Route to appropriate step based on selection
+            setTimeout(() => {
+                if (option === 'facebook') {
+                    console.log('🔄 Going to Facebook authentication (step 2)');
+                    currentStep = 2;
+                    showStep(2);
+                } else if (option === 'email') {
+                    console.log('🔄 Going to Email authentication (step 3)');
+                    currentStep = 3;
+                    showStep(3);
+                }
+            }, 500);
         }
         
-        function proceedToStep2() {
-            if (!selectedOption) {
-                alert('Please select a login option first');
-                return;
-            }
+        function showStep(stepNumber) {
+            console.log('📱 Showing step:', stepNumber);
             
-            // Update step indicator
-            document.getElementById('step1').classList.remove('active');
-            document.getElementById('step1').classList.add('completed');
-            document.getElementById('step2').classList.add('active');
+            // Hide all steps
+            document.querySelectorAll('.step-content').forEach(step => {
+                step.style.display = 'none';
+                step.classList.remove('active');
+                console.log('❌ Hiding step:', step.id);
+            });
             
-            // Show step 2 content
-            document.getElementById('step1-content').style.display = 'none';
-            document.getElementById('step2-content').style.display = 'block';
-            
-            // Show appropriate authentication method
-            if (selectedOption === 'facebook') {
-                document.getElementById('facebookAuth').style.display = 'block';
-                document.getElementById('emailAuth').style.display = 'none';
-                document.getElementById('authTitle').textContent = 'Connect with Facebook';
-                document.getElementById('authDescription').textContent = 'We\'ll redirect you to Facebook to securely authenticate your account.';
+            // Show current step
+            const targetStep = document.getElementById(`step${stepNumber}`);
+            if (targetStep) {
+                targetStep.style.display = 'block';
+                targetStep.classList.add('active');
+                console.log('✅ Showing step:', targetStep.id);
+                
+                // Force display with !important if needed
+                targetStep.style.setProperty('display', 'block', 'important');
             } else {
-                document.getElementById('facebookAuth').style.display = 'none';
-                document.getElementById('emailAuth').style.display = 'block';
-                document.getElementById('authTitle').textContent = 'Create Your Account';
-                document.getElementById('authDescription').textContent = 'Set up your PropertyAI account with email and password.';
+                console.error('❌ Step not found:', `step${stepNumber}`);
             }
-            
-            currentStep = 2;
         }
         
-        function goBackToStep1() {
-            // Update step indicator
-            document.getElementById('step2').classList.remove('active');
-            document.getElementById('step1').classList.remove('completed');
-            document.getElementById('step1').classList.add('active');
-            
-            // Show step 1 content
-            document.getElementById('step2-content').style.display = 'none';
-            document.getElementById('step1-content').style.display = 'block';
-            
+        function nextStep() {
+            if (currentStep < 4) {
+                currentStep++;
+                console.log('➡️ Moving to step:', currentStep);
+                showStep(currentStep);
+            }
+        }
+        
+        function prevStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                console.log('⬅️ Moving to step:', currentStep);
+                showStep(currentStep);
+            }
+        }
+        
+        // ✅ ADDED: Function to go back to step 1 (option selection)
+        function goToOptions() {
+            console.log('🔄 Going back to options selection (step 1)');
             currentStep = 1;
+            showStep(1);
         }
         
-        async function loginWithFacebook(event) {
+        async function loginWithFacebook() {
             try {
                 // Show loading state
                 const button = event.target;
@@ -581,7 +554,7 @@
                 const oauthData = await response.json();
                 
                 if (oauthData.success && oauthData.oauth_url) {
-                    // Redirect to the OAuth URL (which will be the callback)
+                    // Redirect to the OAuth URL
                     window.location.href = oauthData.oauth_url;
                 } else {
                     throw new Error('Failed to get OAuth URL');
@@ -591,11 +564,9 @@
                 alert('Failed to connect with Facebook. Please try again.');
                 
                 // Reset button
-                if (event && event.target) {
-                    const button = event.target;
-                    button.innerHTML = originalText;
-                    button.disabled = false;
-                }
+                const button = event.target;
+                button.innerHTML = originalText;
+                button.disabled = false;
             }
         }
         
@@ -612,15 +583,25 @@
         // Handle form mode toggle
         document.getElementById('registerMode').addEventListener('change', function() {
             if (this.checked) {
+                console.log('📝 Switching to Register mode');
                 document.getElementById('registerForm').style.display = 'block';
                 document.getElementById('loginForm').style.display = 'none';
+                
+                // Force display with !important
+                document.getElementById('registerForm').style.setProperty('display', 'block', 'important');
+                document.getElementById('loginForm').style.setProperty('display', 'none', 'important');
             }
         });
         
         document.getElementById('loginMode').addEventListener('change', function() {
             if (this.checked) {
+                console.log('🔑 Switching to Login mode');
                 document.getElementById('registerForm').style.display = 'none';
                 document.getElementById('loginForm').style.display = 'block';
+                
+                // Force display with !important
+                document.getElementById('registerForm').style.setProperty('display', 'none', 'important');
+                document.getElementById('loginForm').style.setProperty('display', 'block', 'important');
             }
         });
         
@@ -658,8 +639,8 @@
                     localStorage.setItem('authToken', result.access_token);
                     alert('Account created successfully! Redirecting to profile setup...');
                     
-                    // Proceed to step 3
-                    proceedToStep3();
+                    // Proceed to step 4
+                    nextStep();
                 } else {
                     alert(result.detail || 'Registration failed');
                 }
@@ -706,23 +687,29 @@
             }
         });
         
-        function proceedToStep3() {
-            // Update step indicator
-            document.getElementById('step2').classList.remove('active');
-            document.getElementById('step2').classList.add('completed');
-            document.getElementById('step3').classList.add('active');
-            
-            // Show step 3 content
-            document.getElementById('step2-content').style.display = 'none';
-            document.getElementById('step3-content').style.display = 'block';
-            
-            currentStep = 3;
-        }
+        // Initialize first step
+        console.log('🚀 Initializing login page...');
+        showStep(1);
         
-        // Auto-select Facebook option for better UX
-        window.addEventListener('load', function() {
-            selectOption('facebook');
-        });
+        // Debug: Check if all elements are present
+        console.log('🔍 Debug: Checking page elements...');
+        console.log('  - Step 1:', document.getElementById('step1'));
+        console.log('  - Step 2:', document.getElementById('step2'));
+        console.log('  - Step 3:', document.getElementById('step3'));
+        console.log('  - Step 4:', document.getElementById('step4'));
+        console.log('  - Register form:', document.getElementById('registerForm'));
+        console.log('  - Login form:', document.getElementById('loginForm'));
+        console.log('  - Register mode radio:', document.getElementById('registerMode'));
+        console.log('  - Login mode radio:', document.getElementById('loginMode'));
+        
+        // Force first step to be visible
+        const firstStep = document.getElementById('step1');
+        if (firstStep) {
+            firstStep.style.display = 'block';
+            firstStep.classList.add('active');
+            firstStep.style.setProperty('display', 'block', 'important');
+            console.log('✅ First step forced to be visible');
+        }
     </script>
 </body>
 </html>
