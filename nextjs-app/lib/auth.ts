@@ -77,6 +77,7 @@ export const authAPI = {
       email: 'john@example.com',
       firstName: 'John',
       lastName: 'Doe',
+      facebookConnected: false,
       ...data,
       onboardingStep: step,
       onboardingCompleted: step >= 7
