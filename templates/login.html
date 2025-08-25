@@ -10,74 +10,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
-    <!-- ✅ TEMPORARY: Inline styles for testing -->
-    <style>
-        :root {
-            --primary: #2563eb;
-            --primary-dark: #1d4ed8;
-            --glass-border: rgba(255, 255, 255, 0.2);
-        }
-        
-        body.login-page {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem 0;
-            margin: 0;
-            font-family: 'Inter', sans-serif;
-        }
-        
-        .login-container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-            overflow: hidden;
-            width: 100%;
-            max-width: 1000px;
-        }
-        
-        .login-header {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
-            padding: 3rem 2rem;
-            text-align: center;
-        }
-        
-        .login-header h1 {
-            font-family: 'Poppins', sans-serif;
-            font-weight: 700;
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-        }
-        
-        .login-header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-        
-        .login-body {
-            padding: 3rem 2rem;
-        }
-        
-        .step-content {
-            display: none;
-        }
-        
-        .step-content.active {
-            display: block;
-        }
-        
-        .glass-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border);
-            border-radius: 1rem;
-            padding: 2rem;
-            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
-            transition: 0.3s ease-in-out;
-            position: relative;
+    {% include 'components/propertyai_styles_unified.html' %}
             cursor: pointer;
         }
         
