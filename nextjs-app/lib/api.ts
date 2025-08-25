@@ -1,4 +1,5 @@
 // API service layer for PropertyAI backend integration
+// Refactored to match actual backend endpoints
 
 export interface APIResponse<T = any> {
   success: boolean
@@ -7,22 +8,68 @@ export interface APIResponse<T = any> {
   message?: string
 }
 
+// Backend Property interface (matches backend schema)
 export interface Property {
-  id: string
+  id?: number
+  user_id: string
   title: string
-  price: string
-  address: string
-  bedrooms: string
-  bathrooms: string
-  area: string
-  description: string
-  amenities: string
-  status: 'draft' | 'published' | 'sold'
-  images: string[]
-  createdAt: string
-  updatedAt: string
+  type?: string
+  bedrooms?: string
+  price?: number
+  price_unit?: string
+  city?: string
+  area?: string
+  address?: string
+  carpet_area?: number
+  built_up_area?: number
+  floor?: string
+  furnishing?: string
+  possession?: string
+  amenities?: string[]
+  description?: string
 }
 
+// Backend User Profile interface
+export interface UserProfile {
+  user_id: string
+  name: string
+  email: string
+  phone?: string
+  whatsapp?: string
+  company?: string
+  experience_years?: number
+  specialization_areas?: string[]
+  tagline?: string
+  social_bio?: string
+  about?: string
+  address?: string
+  city?: string
+  state?: string
+  pincode?: string
+  languages?: string[]
+  logo_url?: string
+}
+
+// Backend Auth interfaces
+export interface UserRegistration {
+  full_name: string
+  email: string
+  password: string
+}
+
+export interface UserLogin {
+  email: string
+  password: string
+}
+
+export interface AuthResponse {
+  success: boolean
+  access_token?: string
+  user_id?: string
+  message?: string
+}
+
+// Dashboard Stats (matches backend response)
 export interface DashboardStats {
   total_properties: number
   active_listings: number
@@ -33,23 +80,28 @@ export interface DashboardStats {
   revenue: string
 }
 
-export interface Lead {
-  id: string
-  name: string
-  email: string
-  phone: string
-  property_id?: string
-  status: 'new' | 'contacted' | 'qualified' | 'converted' | 'lost'
-  source: string
-  notes: string
-  createdAt: string
-}
-
+// AI Suggestion (matches backend response)
 export interface AISuggestion {
   title: string
   price: string
   description: string
   amenities: string
+  highlights?: string[]
+}
+
+// Facebook interfaces
+export interface FacebookPage {
+  id: string
+  name: string
+  access_token: string
+  category: string
+}
+
+export interface FacebookPost {
+  id: string
+  message: string
+  created_time: string
+  permalink_url: string
 }
 
 class APIError extends Error {
@@ -65,6 +117,17 @@ class APIError extends Error {
 
 class APIService {
   private baseURL = '/api'
+  private token: string | null = null
+
+  // Set auth token
+  setToken(token: string) {
+    this.token = token
+  }
+
+  // Clear auth token
+  clearToken() {
+    this.token = null
+  }
 
   private async request<T>(
     endpoint: string,
@@ -72,11 +135,18 @@ class APIService {
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`
     
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...options.headers as Record<string, string>,
+    }
+
+    // Add auth token if available
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`
+    }
+
     const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      headers,
       ...options,
     }
 
@@ -84,8 +154,9 @@ class APIService {
       const response = await fetch(url, config)
       
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
         throw new APIError(
-          `HTTP error! status: ${response.status}`,
+          errorData.detail || `HTTP error! status: ${response.status}`,
           response.status
         )
       }
@@ -104,65 +175,69 @@ class APIService {
     }
   }
 
-  // Authentication APIs
-  async login(email: string, password: string) {
-    return this.request<APIResponse>('/v1/auth/login', {
+  // ===== AUTHENTICATION APIs (✅ Backend Available) =====
+  
+  async login(email: string, password: string): Promise<AuthResponse> {
+    const response = await this.request<AuthResponse>('/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     })
+    
+    if (response.success && response.access_token) {
+      this.setToken(response.access_token)
+    }
+    
+    return response
   }
 
   async register(userData: {
+    full_name: string
     email: string
     password: string
-    firstName: string
-    lastName: string
-    phone?: string
-  }) {
-    return this.request<APIResponse>('/v1/auth/register', {
+  }): Promise<AuthResponse> {
+    const response = await this.request<AuthResponse>('/v1/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     })
+    
+    if (response.success && response.access_token) {
+      this.setToken(response.access_token)
+    }
+    
+    return response
   }
 
-  async updateOnboarding(userId: string, step: number, data: any) {
-    return this.request<APIResponse>('/v1/auth/onboarding', {
-      method: 'PUT',
-      body: JSON.stringify({ userId, step, data }),
-    })
+  async getCurrentUser(): Promise<APIResponse<{ user: any }>> {
+    return this.request<APIResponse<{ user: any }>>('/v1/auth/me')
   }
 
-  // Dashboard APIs
+  // ===== DASHBOARD APIs (✅ Backend Available) =====
+  
   async getDashboardStats(): Promise<APIResponse<DashboardStats>> {
     return this.request<APIResponse<DashboardStats>>('/v1/dashboard/stats')
   }
 
-  // Property APIs
-  async getProperties(): Promise<APIResponse<Property[]>> {
-    return this.request<APIResponse<Property[]>>('/v1/properties')
-  }
-
-  async createProperty(propertyData: Omit<Property, 'id' | 'createdAt' | 'updatedAt'>): Promise<APIResponse<Property>> {
-    return this.request<APIResponse<Property>>('/v1/properties', {
+  // ===== PROPERTY APIs (✅ Backend Available) =====
+  
+  async createProperty(propertyData: Omit<Property, 'id'>): Promise<APIResponse<Property>> {
+    return this.request<APIResponse<Property>>('/v1/properties/', {
       method: 'POST',
       body: JSON.stringify(propertyData),
     })
   }
 
-  async updateProperty(id: string, propertyData: Partial<Property>): Promise<APIResponse<Property>> {
-    return this.request<APIResponse<Property>>(`/v1/properties/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(propertyData),
-    })
+  async getUserProperties(userId: string): Promise<APIResponse<Property[]>> {
+    return this.request<APIResponse<Property[]>>(`/v1/properties/user/${userId}`)
   }
 
-  async deleteProperty(id: string): Promise<APIResponse> {
-    return this.request<APIResponse>(`/v1/properties/${id}`, {
+  async deleteProperty(propertyId: number): Promise<APIResponse> {
+    return this.request<APIResponse>(`/v1/properties/${propertyId}`, {
       method: 'DELETE',
     })
   }
 
-  // AI APIs
+  // ===== AI APIs (✅ Backend Available) =====
+  
   async getAIPropertySuggestions(data: {
     property_type: string
     location: string
@@ -175,73 +250,156 @@ class APIService {
     })
   }
 
-  async generateAIContent(prompt: string, style: string, tone: string): Promise<APIResponse<{ content: string }>> {
-    return this.request<APIResponse<{ content: string }>>('/v1/ai/generate-content', {
+  // ===== USER PROFILE APIs (✅ Backend Available) =====
+  
+  async createOrUpdateProfile(profileData: UserProfile): Promise<APIResponse<UserProfile>> {
+    return this.request<APIResponse<UserProfile>>('/v1/user/profile', {
       method: 'POST',
-      body: JSON.stringify({ prompt, style, tone }),
+      body: JSON.stringify(profileData),
     })
   }
 
-  // Lead/CRM APIs
-  async getLeads(): Promise<APIResponse<Lead[]>> {
-    return this.request<APIResponse<Lead[]>>('/v1/leads')
+  async getUserProfile(userId: string): Promise<APIResponse<UserProfile>> {
+    return this.request<APIResponse<UserProfile>>(`/v1/user/profile/${userId}`)
   }
 
-  async createLead(leadData: Omit<Lead, 'id' | 'createdAt'>): Promise<APIResponse<Lead>> {
-    return this.request<APIResponse<Lead>>('/v1/leads', {
-      method: 'POST',
-      body: JSON.stringify(leadData),
-    })
+  async getDefaultUserProfile(): Promise<APIResponse<UserProfile>> {
+    return this.request<APIResponse<UserProfile>>('/v1/user/profile/default_user')
   }
 
-  async updateLead(id: string, leadData: Partial<Lead>): Promise<APIResponse<Lead>> {
-    return this.request<APIResponse<Lead>>(`/v1/leads/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(leadData),
-    })
+  // ===== FACEBOOK APIs (✅ Backend Available) =====
+  
+  async getFacebookOAuthUrl(): Promise<APIResponse<{ oauth_url: string; state: string }>> {
+    return this.request<APIResponse<{ oauth_url: string; state: string }>>('/v1/facebook/oauth')
   }
 
-  // Analytics APIs
-  async getAnalytics(period: 'week' | 'month' | 'year' = 'month'): Promise<APIResponse<any>> {
-    return this.request<APIResponse<any>>(`/v1/analytics?period=${period}`)
+  async handleFacebookCallback(code: string, state: string): Promise<APIResponse> {
+    return this.request<APIResponse>(`/v1/facebook/callback?code=${code}&state=${state}`)
   }
 
-  // Facebook Integration APIs
-  async connectFacebook(code: string): Promise<APIResponse> {
-    return this.request<APIResponse>('/v1/facebook/connect', {
-      method: 'POST',
-      body: JSON.stringify({ code }),
-    })
+  async getFacebookPages(): Promise<APIResponse<FacebookPage[]>> {
+    return this.request<APIResponse<FacebookPage[]>>('/v1/facebook/pages')
   }
 
-  async getFacebookPages(): Promise<APIResponse<any[]>> {
-    return this.request<APIResponse<any[]>>('/v1/facebook/pages')
+  async getFacebookPosts(): Promise<APIResponse<FacebookPost[]>> {
+    return this.request<APIResponse<FacebookPost[]>>('/v1/facebook/posts')
   }
 
-  async postToFacebook(pageId: string, content: string): Promise<APIResponse> {
+  async postToFacebook(data: { page_id: string; message: string }): Promise<APIResponse> {
     return this.request<APIResponse>('/v1/facebook/post', {
       method: 'POST',
-      body: JSON.stringify({ pageId, content }),
+      body: JSON.stringify(data),
     })
   }
 
-  // File Upload APIs
-  async uploadImage(file: File): Promise<APIResponse<{ url: string }>> {
-    const formData = new FormData()
-    formData.append('file', file)
+  async getFacebookConfig(): Promise<APIResponse<{ connected: boolean; pages_count: number }>> {
+    return this.request<APIResponse<{ connected: boolean; pages_count: number }>>('/v1/facebook/config')
+  }
 
-    return this.request<APIResponse<{ url: string }>>('/v1/upload/image', {
+  // ===== LISTINGS APIs (✅ Backend Available) =====
+  
+  async generateListingPost(data: {
+    property_details: any
+    language: string
+    style: string
+  }): Promise<APIResponse<{ content: string; hashtags: string[] }>> {
+    return this.request<APIResponse<{ content: string; hashtags: string[] }>>('/v1/listings/generate', {
       method: 'POST',
-      headers: {
-        // Don't set Content-Type for FormData
-      },
-      body: formData,
+      body: JSON.stringify(data),
     })
   }
 
-  // Health Check
+  // ===== HEALTH CHECK (✅ Backend Available) =====
+  
   async healthCheck(): Promise<APIResponse<{ status: string; database: string }>> {
     return this.request<APIResponse<{ status: string; database: string }>>('/health')
+  }
+
+  // ===== MOCK APIs (❌ Backend Not Available - Using Mock Data) =====
+  
+  // These endpoints don't exist in the backend, so we'll provide mock implementations
+  // for development purposes. In production, these should be implemented in the backend.
+
+  async getLeads(): Promise<APIResponse<any[]>> {
+    // Mock implementation - backend doesn't have leads API
+    return Promise.resolve({
+      success: true,
+      data: [
+        {
+          id: '1',
+          name: 'John Doe',
+          email: 'john@example.com',
+          phone: '+91 98765 43210',
+          status: 'new',
+          source: 'Website',
+          notes: 'Interested in 2BHK apartment',
+          createdAt: new Date().toISOString()
+        }
+      ]
+    })
+  }
+
+  async createLead(leadData: any): Promise<APIResponse<any>> {
+    // Mock implementation
+    return Promise.resolve({
+      success: true,
+      data: { ...leadData, id: Date.now().toString(), createdAt: new Date().toISOString() }
+    })
+  }
+
+  async updateLead(id: string, leadData: any): Promise<APIResponse<any>> {
+    // Mock implementation
+    return Promise.resolve({
+      success: true,
+      data: { ...leadData, id, updatedAt: new Date().toISOString() }
+    })
+  }
+
+  async getAnalytics(period: 'week' | 'month' | 'year' = 'month'): Promise<APIResponse<any>> {
+    // Mock implementation
+    return Promise.resolve({
+      success: true,
+      data: {
+        period,
+        views: 1247,
+        leads: 23,
+        conversions: 8,
+        revenue: '₹45,00,000'
+      }
+    })
+  }
+
+  async generateAIContent(prompt: string, style: string, tone: string): Promise<APIResponse<{ content: string }>> {
+    // Mock implementation - backend doesn't have this specific endpoint
+    return Promise.resolve({
+      success: true,
+      data: {
+        content: `Generated content for: "${prompt}" in ${style} style with ${tone} tone.`
+      }
+    })
+  }
+
+  async uploadImage(file: File): Promise<APIResponse<{ url: string }>> {
+    // Mock implementation - backend doesn't have file upload endpoint
+    return Promise.resolve({
+      success: true,
+      data: {
+        url: `https://example.com/uploads/${file.name}`
+      }
+    })
+  }
+
+  // ===== UTILITY METHODS =====
+  
+  async updateOnboarding(userId: string, step: number, data: any): Promise<APIResponse> {
+    // Mock implementation - backend doesn't have onboarding endpoint
+    // In a real implementation, this would update the user profile
+    return this.createOrUpdateProfile({
+      user_id: userId,
+      name: data.firstName + ' ' + data.lastName,
+      email: data.email || 'user@example.com',
+      ...data
+    })
   }
 }
 

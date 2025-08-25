@@ -1,5 +1,7 @@
 // Authentication utilities for PropertyAI
 
+import { apiService } from './api'
+
 export interface User {
   id: string
   email: string
@@ -24,25 +26,33 @@ export interface AuthState {
 export const authAPI = {
   // Login with email/password
   async login(email: string, password: string): Promise<User> {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // Mock user data - for demo purposes
-    // Use different emails to test different scenarios
-    const isNewUser = email.includes('new') || email.includes('test')
-    
-    return {
-      id: '1',
-      email,
-      firstName: 'John',
-      lastName: 'Doe',
-      phone: '+91 98765 43210',
-      company: 'Real Estate Pro',
-      position: 'Senior Agent',
-      licenseNumber: 'RE123456',
-      facebookConnected: false,
-      onboardingCompleted: !isNewUser, // New users need onboarding, existing users don't
-      onboardingStep: isNewUser ? 1 : 7
+    try {
+      const response = await apiService.login(email, password)
+      
+      if (response.success && response.user_id) {
+        // Mock user data - for demo purposes
+        // Use different emails to test different scenarios
+        const isNewUser = email.includes('new') || email.includes('test')
+        
+        return {
+          id: response.user_id,
+          email,
+          firstName: 'John',
+          lastName: 'Doe',
+          phone: '+91 98765 43210',
+          company: 'Real Estate Pro',
+          position: 'Senior Agent',
+          licenseNumber: 'RE123456',
+          facebookConnected: false,
+          onboardingCompleted: !isNewUser, // New users need onboarding, existing users don't
+          onboardingStep: isNewUser ? 1 : 7
+        }
+      } else {
+        throw new Error(response.message || 'Login failed')
+      }
+    } catch (error) {
+      console.error('Login error:', error)
+      throw error
     }
   },
 
@@ -54,17 +64,30 @@ export const authAPI = {
     lastName: string
     phone?: string
   }): Promise<User> {
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    return {
-      id: '1',
-      email: userData.email,
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      phone: userData.phone,
-      facebookConnected: false,
-      onboardingCompleted: false,
-      onboardingStep: 1
+    try {
+      const response = await apiService.register({
+        full_name: `${userData.firstName} ${userData.lastName}`,
+        email: userData.email,
+        password: userData.password
+      })
+      
+      if (response.success && response.user_id) {
+        return {
+          id: response.user_id,
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          phone: userData.phone,
+          facebookConnected: false,
+          onboardingCompleted: false,
+          onboardingStep: 1
+        }
+      } else {
+        throw new Error(response.message || 'Registration failed')
+      }
+    } catch (error) {
+      console.error('Registration error:', error)
+      throw error
     }
   },
 
