@@ -22,20 +22,84 @@ export interface AuthState {
   isLoading: boolean
 }
 
-// Simulate API calls
+// Enhanced token management with expiration handling
+class TokenManager {
+  private static readonly TOKEN_KEY = 'auth_token'
+  private static readonly REFRESH_TOKEN_KEY = 'refresh_token'
+  private static readonly TOKEN_EXPIRY_KEY = 'token_expiry'
+
+  static setTokens(accessToken: string, refreshToken?: string, expiresIn?: number) {
+    if (typeof window === 'undefined') return
+
+    const expiryTime = expiresIn ? Date.now() + (expiresIn * 1000) : null
+    
+    localStorage.setItem(this.TOKEN_KEY, accessToken)
+    if (refreshToken) {
+      localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken)
+    }
+    if (expiryTime) {
+      localStorage.setItem(this.TOKEN_EXPIRY_KEY, expiryTime.toString())
+    }
+  }
+
+  static getAccessToken(): string | null {
+    if (typeof window === 'undefined') return null
+    return localStorage.getItem(this.TOKEN_KEY)
+  }
+
+  static getRefreshToken(): string | null {
+    if (typeof window === 'undefined') return null
+    return localStorage.getItem(this.REFRESH_TOKEN_KEY)
+  }
+
+  static isTokenExpired(): boolean {
+    if (typeof window === 'undefined') return true
+    
+    const expiryTime = localStorage.getItem(this.TOKEN_EXPIRY_KEY)
+    if (!expiryTime) return true
+    
+    // Consider token expired if it expires within 5 minutes
+    const bufferTime = 5 * 60 * 1000 // 5 minutes
+    return Date.now() + bufferTime >= parseInt(expiryTime)
+  }
+
+  static clearTokens() {
+    if (typeof window === 'undefined') return
+    
+    localStorage.removeItem(this.TOKEN_KEY)
+    localStorage.removeItem(this.REFRESH_TOKEN_KEY)
+    localStorage.removeItem(this.TOKEN_EXPIRY_KEY)
+  }
+
+  static shouldRefreshToken(): boolean {
+    return this.isTokenExpired() && !!this.getRefreshToken()
+  }
+}
+
+// Enhanced API calls with automatic token refresh
 export const authAPI = {
   // Login with email/password
   async login(email: string, password: string): Promise<User> {
     try {
       const response = await apiService.login(email, password)
       
-      if (response.success && response.user_id) {
+      if (response.success && response.access_token) {
+        // Store tokens with expiration
+        TokenManager.setTokens(
+          response.access_token,
+          response.refresh_token,
+          response.expires_in || 3600 // Default 1 hour
+        )
+        
+        // Set token in API service
+        apiService.setToken(response.access_token)
+        
         // Mock user data - for demo purposes
         // Use different emails to test different scenarios
         const isNewUser = email.includes('new') || email.includes('test')
         
         return {
-          id: response.user_id,
+          id: response.user_id || '1',
           email,
           firstName: 'John',
           lastName: 'Doe',
@@ -71,9 +135,19 @@ export const authAPI = {
         password: userData.password
       })
       
-      if (response.success && response.user_id) {
+      if (response.success && response.access_token) {
+        // Store tokens
+        TokenManager.setTokens(
+          response.access_token,
+          response.refresh_token,
+          response.expires_in || 3600
+        )
+        
+        // Set token in API service
+        apiService.setToken(response.access_token)
+        
         return {
-          id: response.user_id,
+          id: response.user_id || '1',
           email: userData.email,
           firstName: userData.firstName,
           lastName: userData.lastName,
@@ -88,6 +162,32 @@ export const authAPI = {
     } catch (error) {
       console.error('Registration error:', error)
       throw error
+    }
+  },
+
+  // Refresh token
+  async refreshToken(): Promise<boolean> {
+    try {
+      const refreshToken = TokenManager.getRefreshToken()
+      if (!refreshToken) {
+        return false
+      }
+
+      // TODO: Implement actual refresh token endpoint
+      // const response = await apiService.refreshToken(refreshToken)
+      
+      // For now, simulate successful refresh
+      const currentToken = TokenManager.getAccessToken()
+      if (currentToken) {
+        // Extend token expiry by 1 hour
+        TokenManager.setTokens(currentToken, refreshToken, 3600)
+        return true
+      }
+      
+      return false
+    } catch (error) {
+      console.error('Token refresh error:', error)
+      return false
     }
   },
 
@@ -154,7 +254,7 @@ export const storage = {
   }
 }
 
-// Auth state management
+// Enhanced Auth state management with token refresh
 export class AuthManager {
   private static instance: AuthManager
   private listeners: ((state: AuthState) => void)[] = []
@@ -163,6 +263,7 @@ export class AuthManager {
     isAuthenticated: false,
     isLoading: true
   }
+  private tokenRefreshInterval: NodeJS.Timeout | null = null
 
   static getInstance(): AuthManager {
     if (!AuthManager.instance) {
@@ -172,12 +273,33 @@ export class AuthManager {
   }
 
   async init() {
-    // Check for existing session
+    // Check for existing session and token validity
     const user = storage.get('user')
-    if (user) {
+    const accessToken = TokenManager.getAccessToken()
+    
+    if (user && accessToken) {
+      // Check if token needs refresh
+      if (TokenManager.shouldRefreshToken()) {
+        const refreshSuccess = await authAPI.refreshToken()
+        if (!refreshSuccess) {
+          // Token refresh failed, clear everything
+          this.logout()
+          this.state.isLoading = false
+          this.notifyListeners()
+          return
+        }
+      }
+      
       this.state.user = user
       this.state.isAuthenticated = true
+      
+      // Set token in API service
+      apiService.setToken(accessToken)
+      
+      // Start token refresh monitoring
+      this.startTokenRefreshMonitoring()
     }
+    
     this.state.isLoading = false
     this.notifyListeners()
   }
@@ -191,6 +313,10 @@ export class AuthManager {
       this.state.user = user
       this.state.isAuthenticated = true
       storage.set('user', user)
+      
+      // Start token refresh monitoring
+      this.startTokenRefreshMonitoring()
+      
       return user
     } catch (error) {
       throw error
@@ -209,6 +335,10 @@ export class AuthManager {
       this.state.user = user
       this.state.isAuthenticated = true
       storage.set('user', user)
+      
+      // Start token refresh monitoring
+      this.startTokenRefreshMonitoring()
+      
       return user
     } catch (error) {
       throw error
@@ -236,7 +366,39 @@ export class AuthManager {
     this.state.user = null
     this.state.isAuthenticated = false
     storage.remove('user')
+    TokenManager.clearTokens()
+    apiService.clearToken()
+    
+    // Stop token refresh monitoring
+    this.stopTokenRefreshMonitoring()
+    
     this.notifyListeners()
+  }
+
+  // Start monitoring token expiration and auto-refresh
+  private startTokenRefreshMonitoring() {
+    if (this.tokenRefreshInterval) {
+      clearInterval(this.tokenRefreshInterval)
+    }
+    
+    // Check token every 5 minutes
+    this.tokenRefreshInterval = setInterval(async () => {
+      if (TokenManager.shouldRefreshToken()) {
+        const refreshSuccess = await authAPI.refreshToken()
+        if (!refreshSuccess) {
+          // Auto logout on refresh failure
+          this.logout()
+        }
+      }
+    }, 5 * 60 * 1000) // 5 minutes
+  }
+
+  // Stop token refresh monitoring
+  private stopTokenRefreshMonitoring() {
+    if (this.tokenRefreshInterval) {
+      clearInterval(this.tokenRefreshInterval)
+      this.tokenRefreshInterval = null
+    }
   }
 
   getState(): AuthState {
