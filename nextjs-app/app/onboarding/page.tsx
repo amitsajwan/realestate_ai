@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { authManager } from '@/lib/auth'
+import { authManager, User } from '@/lib/auth'
 import Onboarding from '@/components/Onboarding'
 
 export default function OnboardingPage() {
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
