@@ -29,7 +29,7 @@ export default function LoadingSpinner({
   }
 
   return (
-    <div className={`flex flex-col items-center justify-center ${className}`}>
+    <div data-testid="loading-spinner" className={`flex flex-col items-center justify-center ${className}`}>
       <motion.div
         className={`${sizeClasses[size]} border-4 rounded-full animate-spin ${colorClasses[color]}`}
         animate={{ rotate: 360 }}
