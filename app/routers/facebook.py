@@ -96,7 +96,7 @@ class FacebookIntegration:
             params['state'] = f"{state}_{user_id}"
         
         oauth_url = f"https://www.facebook.com/dialog/oauth?{urlencode(params)}"
-        
+        print(oauth_url)
         return {
             'oauth_url': oauth_url,
             'state': state,

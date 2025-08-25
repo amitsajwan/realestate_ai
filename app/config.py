@@ -19,10 +19,13 @@ class Settings:
     HOST: str = os.getenv("HOST", "127.0.0.1")
     PORT: int = int(os.getenv("PORT", "8003"))
     
+    # MongoDB Configuration
+    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+    DATABASE_NAME: str = os.getenv("DATABASE_NAME", "realestate_crm")
+    
     # Base URLs
     LOCAL_BASE_URL: str = f"http://{HOST}:{PORT}"
-    NGROK_BASE_URL: str = os.getenv("BASE_URL", "https://8400abb81098.ngrok-free.app")
-    
+    NGROK_BASE_URL: str = os.getenv("BASE_URL")
     # Environment Detection
     IS_PRODUCTION: bool = os.getenv("ENVIRONMENT", "development").lower() == "production"
     USE_NGROK: bool = os.getenv("USE_NGROK", "false").lower() == "true"
@@ -58,7 +61,7 @@ class Settings:
     @classmethod
     def get_oauth_dashboard_url(cls) -> str:
         """Get dashboard URL specifically for OAuth callbacks (always ngrok)"""
-        return f"{cls.NGROK_BASE_URL}/dashboard"
+        return f"{cls.get_base_url()}/dashboard"
     
     @classmethod
     def get_login_url(cls) -> str:
@@ -68,7 +71,7 @@ class Settings:
     @classmethod
     def get_oauth_login_url(cls) -> str:
         """Get login URL specifically for OAuth error redirects (always ngrok)"""
-        return f"{cls.NGROK_BASE_URL}/"
+        return f"{cls.get_base_url()}/"
     
     @classmethod
     def get_facebook_callback_url(cls) -> str:

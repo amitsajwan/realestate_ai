@@ -1,9 +1,9 @@
-# app/core/database.py - Compatibility with existing database setup
+# app/core/database.py - MongoDB Database Setup
 
 import motor.motor_asyncio
 from typing import Optional
 import logging
-from core.config import settings
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -16,18 +16,13 @@ db = Database()
 async def connect_to_mongo():
     """Create database connection"""
     try:
-        # Use your existing MongoDB URI
-        mongodb_url = settings.mongodb_url
-        logger.info(f"Connecting to MongoDB: {mongodb_url}")
+        # Use MongoDB URI from settings
+        mongodb_url = settings.MONGODB_URL
+        db_name = settings.DATABASE_NAME
+        
+        logger.info(f"Connecting to MongoDB: {mongodb_url}/{db_name}")
         
         db.client = motor.motor_asyncio.AsyncIOMotorClient(mongodb_url)
-        
-        # Extract database name from URI or use default
-        if "/" in mongodb_url:
-            db_name = mongodb_url.split("/")[-1].split("?")[0]
-        else:
-            db_name = settings.DATABASE_NAME
-            
         db.database = db.client[db_name]
         
         # Test connection
@@ -79,12 +74,28 @@ class DatabaseClient:
         return self.db.properties
     
     @property
-    def agents(self):
-        return self.db.agents
+    def smart_properties(self):
+        return self.db.smart_properties
     
     @property
-    def whatsapp_logs(self):
-        return self.db.whatsapp_logs
+    def agent_profiles(self):
+        return self.db.agent_profiles
+    
+    @property
+    def facebook_connections(self):
+        return self.db.facebook_connections
+    
+    @property
+    def facebook_pages(self):
+        return self.db.facebook_pages
+    
+    @property
+    def oauth_states(self):
+        return self.db.oauth_states
+    
+    @property
+    def facebook_auth(self):
+        return self.db.facebook_auth
 
 # Global instance for backward compatibility
 db_client = DatabaseClient()
