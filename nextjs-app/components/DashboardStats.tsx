@@ -50,7 +50,7 @@ const statCards = [
   }
 ]
 
-export default function DashboardStats({ stats }: StatsProps) {
+const DashboardStats = React.memo(function DashboardStats({ stats }: StatsProps) {
   return (
     <div className="space-y-8">
       {/* Welcome Section */}
@@ -153,4 +153,6 @@ export default function DashboardStats({ stats }: StatsProps) {
       </div>
     </div>
   )
-}
+})
+
+export default DashboardStats
