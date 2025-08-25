@@ -65,8 +65,10 @@ export interface UserLogin {
 export interface AuthResponse {
   success: boolean
   access_token?: string
+  refresh_token?: string
   user_id?: string
   message?: string
+  expires_in?: number
 }
 
 // Dashboard Stats (matches backend response)
