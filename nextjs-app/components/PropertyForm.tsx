@@ -30,11 +30,22 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
   const onSubmit = async (data: PropertyFormData) => {
     setIsLoading(true)
     try {
-      const response = await apiService.createProperty({
-        ...data,
-        status: 'draft',
-        images: []
-      })
+      // Transform form data to match backend Property interface
+      const propertyData = {
+        user_id: '1', // TODO: Get from auth context
+        title: data.title,
+        type: 'Apartment', // Default type
+        bedrooms: data.bedrooms,
+        price: parseFloat(data.price.replace(/[₹,]/g, '')),
+        price_unit: 'INR',
+        city: 'Mumbai', // Default city
+        area: data.area,
+        address: data.address,
+        description: data.description,
+        amenities: data.amenities.split(',').map(a => a.trim())
+      }
+
+      const response = await apiService.createProperty(propertyData)
       
       if (response.success) {
         toast.success('Property added successfully!')

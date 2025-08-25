@@ -14,6 +14,7 @@ import {
   ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline'
 import { authManager } from '@/lib/auth'
+import { apiService } from '@/lib/api'
 import DashboardStats from '@/components/DashboardStats'
 import PropertyForm from '@/components/PropertyForm'
 import AIContentGenerator from '@/components/AIContentGenerator'
@@ -72,10 +73,9 @@ export default function Dashboard() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/v1/dashboard/stats')
-      const data = await response.json()
-      if (data.success) {
-        setStats(data.stats)
+      const response = await apiService.getDashboardStats()
+      if (response.success && response.data) {
+        setStats(response.data)
       }
     } catch (error) {
       console.error('Error fetching stats:', error)
