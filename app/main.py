@@ -5,12 +5,14 @@ PropertyAI - Main Application
 FastAPI application for AI-powered real estate platform
 """
 
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 import logging
-from app.routers import facebook, listings, user_profile, properties, auth
+import re
+from app.routers import listings, user_profile
+from app.api.v1.endpoints import simple_auth
+from app.api.v1.router import api_router
 from app.config import settings
 from app.core.database import connect_to_mongo, close_mongo_connection
 
@@ -20,10 +22,59 @@ logger = logging.getLogger(__name__)
 
 # Create FastAPI app
 app = FastAPI(
-    title="PropertyAI",
-    description="AI-powered real estate platform",
+    title="PropertyAI API",
+    description="AI-powered real estate platform API",
     version="2.0.0"
 )
+
+# Dynamic CORS origins function
+def get_cors_origins():
+    """Get allowed CORS origins including dynamic ngrok URLs"""
+    base_origins = [
+        "http://localhost:3000",  # Next.js frontend
+        "http://localhost:8000",  # Backend
+    ]
+    
+    # Add ngrok patterns - these will be checked dynamically
+    return base_origins
+
+def is_allowed_origin(origin: str) -> bool:
+    """Check if origin is allowed (including ngrok patterns)"""
+    if not origin:
+        return False
+        
+    allowed_patterns = [
+        r"^https://[a-zA-Z0-9-]+\.ngrok-free\.app$",
+        r"^https://[a-zA-Z0-9-]+\.ngrok\.io$",
+        r"^http://localhost:\d+$",
+    ]
+    
+    # Check exact matches first
+    if origin in get_cors_origins():
+        return True
+        
+    # Check patterns
+    for pattern in allowed_patterns:
+        if re.match(pattern, origin):
+            return True
+            
+    return False
+
+# Add CORS middleware with explicit origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # Next.js frontend
+        "http://localhost:8000",  # Backend
+        "http://127.0.0.1:3000",  # Alternative localhost
+        "http://127.0.0.1:8000",  # Alternative localhost
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Static files are served through the catch-all route below
 
 # MongoDB Startup and Shutdown Events
 @app.on_event("startup")
@@ -45,41 +96,13 @@ async def shutdown_event():
     except Exception as e:
         logger.error(f"❌ Error closing MongoDB connection: {e}")
 
-# Mount static files (if directory exists)
-try:
-    app.mount("/static", StaticFiles(directory="static"), name="static")
-except:
-    pass  # Static directory doesn't exist
+# Include all API V1 routers
+app.include_router(api_router, prefix="/api/v1")
 
-# Templates
-templates = Jinja2Templates(directory="templates")
-
-# Include routers
-app.include_router(facebook.router)
-app.include_router(listings.router)
-app.include_router(user_profile.router)
-app.include_router(properties.router)
-app.include_router(auth.router)
-
-@app.get("/", response_class=HTMLResponse)
-async def root(request: Request):
-    """Root endpoint - redirect to login"""
-    return RedirectResponse(url="/login")
-
-@app.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
-    """Login page"""
-    return templates.TemplateResponse("login.html", {"request": request})
-
-@app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard_page(request: Request):
-    """Dashboard page"""
-    return templates.TemplateResponse("dashboard_clean.html", {"request": request})
-
-@app.get("/modern-onboarding", response_class=HTMLResponse)
-async def modern_onboarding_page(request: Request):
-    """Modern onboarding page"""
-    return templates.TemplateResponse("dashboard_clean.html", {"request": request})
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "message": "PropertyAI API is running"}
 
 @app.get("/api/v1/dashboard/stats")
 async def get_dashboard_stats():
@@ -145,7 +168,7 @@ async def ai_property_suggest(request: Request):
         # Mock AI suggestions - replace with actual AI model
         suggestions = {
             "success": True,
-            "suggestions": [
+            "data": [
                 {
                     "title": f"Beautiful {property_type} in {location}",
                     "price": budget,
@@ -157,51 +180,51 @@ async def ai_property_suggest(request: Request):
                         "Family-friendly neighborhood",
                         "Close to schools, hospitals, and shopping centers"
                     ]
-                },
-                {
-                    "title": f"Luxury {property_type} - Premium Location",
-                    "price": f"₹{budget_amount + 500000:,}",
-                    "description": f"Premium {property_type.lower()} offering luxury living with world-class amenities.",
-                    "amenities": "Concierge, Spa, Rooftop Garden, Smart Home Features, Underground Parking",
-                    "highlights": [
-                        "Luxury living experience",
-                        "Smart home automation",
-                        "Premium amenities and services",
-                        "Exclusive neighborhood"
-                    ]
-                },
-                {
-                    "title": f"Affordable {property_type} - Great Value",
-                    "price": f"₹{budget_amount - 500000:,}",
-                    "description": f"Value-for-money {property_type.lower()} with essential amenities and good location.",
-                    "amenities": "Parking, Security, Basic Gym, Children's Play Area",
-                    "highlights": [
-                        "Great value for money",
-                        "Essential amenities included",
-                        "Good connectivity",
-                        "Family-oriented community"
-                    ]
                 }
             ]
         }
+        
         return suggestions
         
     except Exception as e:
-        logger.error(f"Error generating AI suggestions: {e}")
-        raise HTTPException(status_code=500, detail="Failed to generate AI suggestions")
+        logger.error(f"Error in AI property suggestion: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    try:
-        from app.core.database import get_database
-        db = get_database()
-        # Test MongoDB connection
-        await db.command("ping")
-        return {"status": "healthy", "database": "connected"}
-    except Exception as e:
-        return {"status": "unhealthy", "database": "disconnected", "error": str(e)}
+# Catch-all route to serve frontend
+import os
+
+@app.api_route("/{full_path:path}", methods=["GET"])
+async def serve_frontend(full_path: str):
+    """Serve frontend static files"""
+    # Skip API routes - let them be handled by the API router
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API endpoint not found")
+    
+    # Define the path to the frontend build
+    frontend_path = os.path.join(os.path.dirname(__file__), "..", "nextjs-app", "out")
+    frontend_path = os.path.abspath(frontend_path)
+    
+    # Handle root path
+    if full_path == "" or full_path == "/":
+        file_path = os.path.join(frontend_path, "index.html")
+    else:
+        # Remove leading slash if present
+        clean_path = full_path.lstrip("/")
+        file_path = os.path.join(frontend_path, clean_path)
+    
+    # Check if it's a directory, serve index.html
+    if os.path.isdir(file_path):
+        file_path = os.path.join(file_path, "index.html")
+    
+    # If file doesn't exist, serve index.html for SPA routing
+    if not os.path.exists(file_path):
+        file_path = os.path.join(frontend_path, "index.html")
+    
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    else:
+        raise HTTPException(status_code=404, detail="File not found")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8003)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

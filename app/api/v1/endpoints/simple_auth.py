@@ -9,7 +9,7 @@ from jose import jwt
 import json
 from datetime import datetime, timedelta
 from typing import Optional
-from core.config import settings
+from app.config import settings
 
 router = APIRouter()
 

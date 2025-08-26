@@ -17,15 +17,15 @@ class Settings:
     
     # Server Configuration
     HOST: str = os.getenv("HOST", "127.0.0.1")
-    PORT: int = int(os.getenv("PORT", "8003"))
+    PORT: int = int(os.getenv("PORT", "8000"))  # Backend API port
     
     # MongoDB Configuration
     MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
     DATABASE_NAME: str = os.getenv("DATABASE_NAME", "realestate_crm")
     
     # Base URLs
-    LOCAL_BASE_URL: str = f"http://{HOST}:{PORT}"
-    NGROK_BASE_URL: str = os.getenv("BASE_URL")
+    LOCAL_BASE_URL: str = "http://localhost:3000"  # Frontend URL
+    NGROK_BASE_URL: str = os.getenv("BASE_URL", "https://d330c96673fe.ngrok-free.app")
     # Environment Detection
     IS_PRODUCTION: bool = os.getenv("ENVIRONMENT", "development").lower() == "production"
     USE_NGROK: bool = os.getenv("USE_NGROK", "false").lower() == "true"
@@ -39,12 +39,15 @@ class Settings:
     FB_GRAPH_API_VERSION: str = os.getenv("FB_GRAPH_API_VERSION", "v19.0")
     
     # Facebook OAuth - Use ngrok for production, localhost for development
-    FB_REDIRECT_URI: str = f"{NGROK_BASE_URL}/api/v1/facebook/callback" if NGROK_BASE_URL else f"http://127.0.0.1:8003/api/v1/facebook/callback"
+    FB_REDIRECT_URI: str = f"{NGROK_BASE_URL}/api/v1/facebook/callback" if NGROK_BASE_URL else f"http://localhost:8000/api/v1/facebook/callback"
     
     # JWT Configuration
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+    
+    # AI Configuration
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     
     @classmethod
     def get_base_url(cls) -> str:

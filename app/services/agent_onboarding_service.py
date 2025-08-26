@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from models.agent import Agent
+from app.schemas.mongodb_models import AgentProfile
 from app.utils.ai import generate_branding
 from app.utils.whatsapp import connect_whatsapp
 from typing import Optional
@@ -16,28 +16,28 @@ class AgentOnboardingService:
     def __init__(self, db):
         self.db = db
 
-    def onboard(self, data: AgentOnboardingData) -> Agent:
-        agent = self.db.agents.find_one({"email": data.email})
+    def onboard(self, data: AgentOnboardingData) -> AgentProfile:
+        agent = self.db.agent_profiles.find_one({"email": data.email})
         if agent:
-            return Agent(**agent)
+            return AgentProfile(**agent)
         tagline, about = data.tagline, data.about
-        brand_colors = None
         if not tagline or not about:
             branding = generate_branding(name=data.name)
             tagline = branding.get("tagline")
             about = branding.get("about")
-            brand_colors = branding.get("colors")
-        agent_doc = Agent(
+        agent_doc = AgentProfile(
+            user_id=data.email,
+            username=data.name,
             email=data.email,
-            name=data.name,
-            whatsapp=data.whatsapp,
-            photo_url=data.profile_photo_url,
+            phone=data.whatsapp,
             tagline=tagline,
-            about=about,
-            brand_colors=brand_colors or {"primary": "#007bff", "secondary": "#6c757d", "accent": "#28a745"},
-            status="active",
-            onboarding_completed=True,
+            bio=about,
+            profile_image_url=data.profile_photo_url,
+            facebook_connected=False
         )
-        self.db.agents.insert_one(agent_doc.dict())
-        connect_whatsapp(agent_doc)
+        self.db.agent_profiles.insert_one(agent_doc.dict())
+        try:
+            connect_whatsapp(agent_doc)
+        except Exception as e:
+            print(f"WhatsApp connection failed: {e}")
         return agent_doc
