@@ -96,21 +96,22 @@ export const authAPI = {
         
         // Mock user data - for demo purposes
         // Use different emails to test different scenarios
-        const isNewUser = email.includes('new') || email.includes('test')
+        const isNewUser = email.includes('new') || email.includes('test') || email.includes('onboarding')
         
-        return {
+        const userObj = {
           id: response.user_id || '1',
           email,
-          firstName: 'John',
-          lastName: 'Doe',
-          phone: '+91 98765 43210',
-          company: 'Real Estate Pro',
-          position: 'Senior Agent',
-          licenseNumber: 'RE123456',
+          firstName: isNewUser ? '' : 'John',
+          lastName: isNewUser ? '' : 'Doe',
+          phone: isNewUser ? '' : '+91 98765 43210',
+          company: isNewUser ? '' : 'Real Estate Pro',
+          position: isNewUser ? '' : 'Senior Agent',
+          licenseNumber: isNewUser ? '' : 'RE123456',
           facebookConnected: false,
-          onboardingCompleted: !isNewUser, // New users need onboarding, existing users don't
-          onboardingStep: isNewUser ? 1 : 7
+          onboardingCompleted: response.onboarding_completed !== undefined ? response.onboarding_completed : !isNewUser,
+          onboardingStep: response.onboarding_completed === true ? 7 : (isNewUser ? 1 : 7)
         }
+        return userObj
       } else {
         throw new Error(response.message || 'Login failed')
       }
@@ -130,7 +131,7 @@ export const authAPI = {
   }): Promise<User> {
     try {
       const response = await apiService.register({
-        full_name: `${userData.firstName} ${userData.lastName}`,
+        name: `${userData.firstName} ${userData.lastName}`,
         email: userData.email,
         password: userData.password
       })
@@ -273,11 +274,83 @@ export class AuthManager {
   }
 
   async init() {
+    console.log('[AuthManager] Initializing auth manager...')
+    
+    // Check for Facebook OAuth token from URL parameters
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const facebookToken = urlParams.get('token')
+      const authSuccess = urlParams.get('auth') === 'success'
+      
+      console.log('[AuthManager] URL params found:', {
+        hasToken: !!facebookToken,
+        hasAuthSuccess: authSuccess,
+        fullUrl: window.location.href,
+        params: Object.fromEntries(urlParams.entries())
+      })
+      
+      if (facebookToken && authSuccess) {
+        console.log('[AuthManager] Processing Facebook OAuth token...')
+        
+        try {
+          // Decode the JWT to get user info
+          const tokenParts = facebookToken.split('.')
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]))
+            console.log('[AuthManager] Decoded token payload:', payload)
+            
+            const user = {
+              id: payload.user_id || payload.sub || '1',
+              email: payload.email || 'user@example.com',
+              firstName: payload.first_name || 'User',
+              lastName: payload.last_name || 'Name',
+              facebookConnected: true,
+              onboardingCompleted: payload.onboarding_completed || false,
+              onboardingStep: payload.onboarding_step || 1
+            }
+            
+            console.log('[AuthManager] Created user object:', user)
+            
+            // Store the token and user
+            TokenManager.setTokens(facebookToken, facebookToken, 3600)
+            storage.set('user', user)
+            
+            console.log('[AuthManager] Stored tokens and user in localStorage')
+            console.log('[AuthManager] localStorage after storage:', {
+              access_token: localStorage.getItem('access_token'),
+              user: localStorage.getItem('user')
+            })
+            
+            this.state.user = user
+            this.state.isAuthenticated = true
+            
+            // Set token in API service
+            apiService.setToken(facebookToken)
+            
+            // Start token refresh monitoring
+            this.startTokenRefreshMonitoring()
+            
+            // Clean URL parameters
+            console.log('[AuthManager] Cleaning URL parameters...')
+            window.history.replaceState({}, document.title, '/')
+            
+            console.log('[AuthManager] Facebook OAuth processing completed successfully')
+          } else {
+            console.error('[AuthManager] Invalid token format:', facebookToken)
+          }
+        } catch (error) {
+          console.error('[AuthManager] Error handling Facebook OAuth token:', error)
+        }
+      } else {
+        console.log('[AuthManager] No Facebook OAuth parameters found, checking existing session...')
+      }
+    }
+    
     // Check for existing session and token validity
     const user = storage.get('user')
     const accessToken = TokenManager.getAccessToken()
     
-    if (user && accessToken) {
+    if (user && accessToken && !this.state.isAuthenticated) {
       // Check if token needs refresh
       if (TokenManager.shouldRefreshToken()) {
         const refreshSuccess = await authAPI.refreshToken()
@@ -418,3 +491,6 @@ export class AuthManager {
 }
 
 export const authManager = AuthManager.getInstance()
+
+// Export TokenManager for testing
+export { TokenManager }

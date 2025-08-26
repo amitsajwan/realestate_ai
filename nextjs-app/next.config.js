@@ -1,13 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: 'http://localhost:8000/api/:path*',
-      },
-    ];
+  // Removed 'output: export' for dynamic app with authentication
+  // Removed 'trailingSlash: true' to prevent routing conflicts
+  images: {
+    unoptimized: true
   },
+  // Allow ngrok origin for development
+  allowedDevOrigins: ['aa828dedf50c.ngrok-free.app'],
 }
 
 module.exports = nextConfig

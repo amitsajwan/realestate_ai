@@ -21,6 +21,11 @@
   --dark-bg-secondary: #1a1a2e;
   --dark-text-primary: #ffffff;
   --dark-text-secondary: #a1a1aa;
+  
+  /* Brand Theme Variables */
+  --brand-primary: #3b82f6;
+  --brand-secondary: #64748b;
+  --brand-accent: #10b981;
 }
 
 * {
@@ -40,19 +45,60 @@ body {
   }
   
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-3 px-6 rounded-lg transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5;
+    background-color: var(--brand-primary);
+    color: white;
+    @apply font-medium py-3 px-6 rounded-lg transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5;
+  }
+  
+  .btn-primary:hover {
+    filter: brightness(0.9);
   }
   
   .btn-secondary {
-    @apply bg-secondary-500 hover:bg-secondary-600 text-white font-medium py-3 px-6 rounded-lg transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5;
+    background-color: var(--brand-secondary);
+    color: white;
+    @apply font-medium py-3 px-6 rounded-lg transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5;
+  }
+  
+  .btn-secondary:hover {
+    filter: brightness(0.9);
   }
   
   .btn-outline {
-    @apply border-2 border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white font-medium py-3 px-6 rounded-lg transition-all duration-200;
+    border: 2px solid var(--brand-primary);
+    color: var(--brand-primary);
+    background-color: transparent;
+    @apply font-medium py-3 px-6 rounded-lg transition-all duration-200;
+  }
+  
+  .btn-outline:hover {
+    background-color: var(--brand-primary);
+    color: white;
+  }
+  
+  .btn-brand {
+    background-color: var(--brand-primary);
+    color: white;
+    @apply font-medium py-3 px-6 rounded-lg transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5;
+  }
+  
+  .btn-brand:hover {
+    filter: brightness(0.9);
+  }
+  
+  .border-brand {
+    border-color: var(--brand-primary);
   }
   
   .form-input {
-    @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500;
+    @apply w-full px-4 py-3 border border-gray-300 rounded-lg transition-all duration-200 bg-white text-gray-900 placeholder-gray-500;
+    border-color: #d1d5db;
+  }
+  
+  .form-input:focus {
+    outline: none;
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
   
   .stat-card {
@@ -60,10 +106,62 @@ body {
   }
   
   .stat-number {
-    @apply text-4xl font-bold bg-gradient-to-r from-primary-600 to-secondary-500 bg-clip-text text-transparent;
+    @apply text-4xl font-bold bg-clip-text text-transparent;
+    background-image: linear-gradient(to right, var(--brand-primary), var(--brand-accent));
   }
   
   .stat-label {
     @apply text-gray-600 text-sm font-medium mt-2;
+  }
+  
+  /* Brand-themed components */
+  .text-brand-primary {
+    color: var(--brand-primary);
+  }
+  
+  .text-brand-secondary {
+    color: var(--brand-secondary);
+  }
+  
+  .text-brand-accent {
+    color: var(--brand-accent);
+  }
+  
+  .bg-brand-primary {
+    background-color: var(--brand-primary);
+  }
+  
+  .bg-brand-secondary {
+    background-color: var(--brand-secondary);
+  }
+  
+  .bg-brand-accent {
+    background-color: var(--brand-accent);
+  }
+  
+  .border-brand-primary {
+    border-color: var(--brand-primary);
+  }
+  
+  .brand-gradient {
+    background-image: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
+  }
+  
+  /* Navigation and links */
+  .nav-link {
+    @apply transition-colors duration-200;
+    color: var(--dark-text-secondary);
+  }
+  
+  .nav-link:hover,
+  .nav-link.active {
+    color: var(--brand-primary);
+  }
+  
+  /* Interactive elements */
+  .interactive-element:hover {
+    color: var(--brand-primary);
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
   }
 }
