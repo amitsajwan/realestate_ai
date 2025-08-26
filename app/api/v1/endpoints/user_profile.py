@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-"""
-User Profile API Routes
+"""User Profile API Endpoints
 ======================
 Handles user profile creation, updates, and retrieval using MongoDB
 """
@@ -14,7 +12,7 @@ from app.services.user_profile_service import user_profile_service
 from app.schemas.mongodb_models import AgentProfile, AgentProfileBase
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/v1/user", tags=["user"])
+router = APIRouter()
 
 class UserProfile(BaseModel):
     user_id: str
@@ -83,55 +81,6 @@ async def create_or_update_profile(profile: UserProfile):
              detail=f"Internal server error: {str(e)}"
          )
 
-@router.get("/profile/stats", response_model=Dict[str, Any])
-async def get_profile_stats():
-    """Get profile statistics from MongoDB"""
-    try:
-        stats = await user_profile_service.get_profile_stats()
-        
-        return {
-            "success": True,
-            "stats": stats,
-            "message": "Profile statistics retrieved successfully"
-        }
-        
-    except Exception as e:
-        logger.error(f"❌ Get profile stats error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal server error: {str(e)}"
-        )
-
-@router.delete("/profile/{user_id}", response_model=Dict[str, Any])
-async def delete_user_profile(user_id: str):
-    """Delete user profile from MongoDB"""
-    try:
-        logger.info(f"🗑️ Deleting profile for user: {user_id}")
-        
-        success = await user_profile_service.delete_profile(user_id)
-        
-        if success:
-            logger.info(f"✅ Profile deleted successfully for user: {user_id}")
-            return {
-                "success": True,
-                "message": "Profile deleted successfully",
-                "user_id": user_id
-            }
-        else:
-            logger.info(f"📭 No profile found to delete for user: {user_id}")
-            return {
-                "success": False,
-                "message": "Profile not found",
-                "user_id": user_id
-            }
-            
-    except Exception as e:
-        logger.error(f"❌ Error deleting profile: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal server error: {str(e)}"
-        )
-
 @router.get("/profile/{user_id}", response_model=Dict[str, Any])
 async def get_user_profile(user_id: str):
     """
@@ -169,7 +118,7 @@ async def get_user_profile(user_id: str):
             detail=f"Internal server error: {str(e)}"
         )
 
-@router.get("/profile/default_user", response_model=Dict[str, Any])
+@router.get("/default_user", response_model=Dict[str, Any])
 async def get_default_user_profile():
     """Get default user profile for testing"""
     try:
@@ -197,35 +146,6 @@ async def get_default_user_profile():
         
     except Exception as e:
         logger.error(f"❌ Default profile error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal server error: {str(e)}"
-        )
-
-@router.get("/profiles", response_model=Dict[str, Any])
-async def get_all_profiles(limit: int = 100, skip: int = 0):
-    """Get all user profiles from MongoDB with pagination"""
-    try:
-        profiles = await user_profile_service.get_all_profiles(limit=limit, skip=skip)
-        
-        # Convert profiles to dict format
-        profile_dicts = []
-        for profile in profiles:
-            profile_dict = profile.dict()
-            if profile_dict.get('id'):
-                profile_dict['id'] = str(profile_dict['id'])
-            profile_dicts.append(profile_dict)
-        
-        return {
-            "success": True,
-            "profiles": profile_dicts,
-            "count": len(profile_dicts),
-            "limit": limit,
-            "skip": skip
-        }
-        
-    except Exception as e:
-        logger.error(f"❌ Get all profiles error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}"

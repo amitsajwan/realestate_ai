@@ -3,8 +3,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
  
 import logging
+import jwt
 
-from core.config import settings
+from app.config import settings
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate, UserResponse
 from app.core.exceptions import AuthenticationError, ValidationError, ConflictError
@@ -37,7 +38,7 @@ class AuthService:
     
     def create_access_token(self, user_id: str, email: str) -> str:
         """Create JWT access token"""
-        expire = datetime.now(timezone.utc) + timedelta(days=settings.JWT_EXPIRE_DAYS or 30)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES or 30)
         
         to_encode = {
             "sub": email,
@@ -61,8 +62,8 @@ class AuthService:
         try:
             payload = jwt.decode(
                 token, 
-                settings.jwt_secret, 
-                algorithms=[settings.jwt_algorithm]
+                settings.SECRET_KEY, 
+                algorithms=[settings.ALGORITHM]
             )
             
             if not payload.get("user_id") or not payload.get("email"):

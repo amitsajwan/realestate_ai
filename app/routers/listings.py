@@ -151,11 +151,11 @@ async def generate_listing_post(request: Request):
         if not isinstance(languages, list):
             languages = [languages] if languages else ["English"]
         
-        # Fetch property details from database
+        # Fetch property details from MongoDB
         try:
-            from app.database import Database
-            db = Database()
-            property_data = db.get_property_by_id(property_id)
+            from app.repositories.property_repository import PropertyRepository
+            property_repo = PropertyRepository()
+            property_data = await property_repo.get_by_id(property_id)
             
             if not property_data:
                 raise HTTPException(status_code=404, detail="Property not found")
@@ -164,16 +164,16 @@ async def generate_listing_post(request: Request):
             logger.error(f"Error fetching property data: {e}")
             raise HTTPException(status_code=500, detail="Failed to fetch property data")
         
-        # Extract listing details from property data
+        # Extract listing details from property data (MongoDB schema)
         listing_details = {
-            "address": property_data.get("address", ""),
-            "city": property_data.get("city", "Mumbai"),
-            "state": property_data.get("state", "Maharashtra"),
+            "address": property_data.get("location", ""),
+            "city": property_data.get("location", "Mumbai"),  # Extract city from location
+            "state": "Maharashtra",  # Default state
             "price": property_data.get("price", "Price on Request"),
-            "property_type": property_data.get("property_type", "Apartment"),
+            "property_type": property_data.get("propertyType", "Apartment"),
             "bedrooms": property_data.get("bedrooms", 2),
             "bathrooms": property_data.get("bathrooms", 1),
-            "features": property_data.get("features", []),
+            "features": property_data.get("amenities", "").split(",") if property_data.get("amenities") else [],
             "template": body.get("template", "just_listed"),
             "tone": body.get("tone", "Professional")
         }
