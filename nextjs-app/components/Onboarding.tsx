@@ -14,6 +14,7 @@ import {
   ArrowRightIcon
 } from '@heroicons/react/24/outline'
 import { authManager, User } from '@/lib/auth'
+import { applyBrandTheme } from '@/lib/theme'
 import toast from 'react-hot-toast'
 
 interface OnboardingProps {
@@ -59,17 +60,10 @@ const onboardingSteps = [
   },
   {
     id: 6,
-    title: 'Profile Setup',
-    description: 'Photo & preferences',
+    title: 'Profile Setup & Complete',
+    description: 'Photo, preferences & finish setup',
     icon: PhotoIcon,
     fields: ['profilePhoto', 'preferences']
-  },
-  {
-    id: 7,
-    title: 'Complete',
-    description: 'You\'re all set!',
-    icon: CheckIcon,
-    fields: []
   }
 ]
 
@@ -88,10 +82,18 @@ export default function Onboarding({ user, onComplete }: OnboardingProps) {
     termsAccepted: false,
     privacyAccepted: false,
     profilePhoto: '',
-    preferences: []
+    preferences: [],
+    brandingSuggestions: null
   })
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+
+  // Sync currentStep with user prop changes
+  useEffect(() => {
+    if (user.onboardingStep && user.onboardingStep !== currentStep) {
+      setCurrentStep(user.onboardingStep)
+    }
+  }, [user.onboardingStep, currentStep])
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
@@ -101,7 +103,7 @@ export default function Onboarding({ user, onComplete }: OnboardingProps) {
   }
 
   const handleNext = async () => {
-    if (currentStep < 7) {
+    if (currentStep < 6) {
       setIsLoading(true)
       try {
         await authManager.updateOnboarding(currentStep + 1, formData)
@@ -113,7 +115,17 @@ export default function Onboarding({ user, onComplete }: OnboardingProps) {
         setIsLoading(false)
       }
     } else {
-      onComplete()
+      // Complete onboarding on step 6
+      setIsLoading(true)
+      try {
+        await authManager.updateOnboarding(6, formData)
+        toast.success('Onboarding completed!')
+        onComplete()
+      } catch (error) {
+        toast.error('Failed to complete onboarding')
+      } finally {
+        setIsLoading(false)
+      }
     }
   }
 
@@ -124,9 +136,56 @@ export default function Onboarding({ user, onComplete }: OnboardingProps) {
   }
 
   const handleSkip = () => {
-    if (currentStep < 7) {
+    if (currentStep < 6) {
       setCurrentStep(currentStep + 1)
     }
+  }
+
+  const handleGenerateBranding = async () => {
+    if (!formData.company) {
+      toast.error('Please enter your company name first')
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/agent/branding-suggest', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          company_name: formData.company
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate branding suggestions')
+      }
+
+      const suggestions = await response.json()
+      handleInputChange('brandingSuggestions', suggestions)
+      toast.success('Branding suggestions generated!')
+    } catch (error) {
+      console.error('Error generating branding:', error)
+      toast.error('Failed to generate branding suggestions')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleApplyBranding = () => {
+    if (!formData.brandingSuggestions) return
+
+    // Apply the branding theme to the application
+    const brandTheme = {
+      primary: formData.brandingSuggestions.colors.primary,
+      secondary: formData.brandingSuggestions.colors.secondary,
+      accent: formData.brandingSuggestions.colors.accent
+    }
+    
+    applyBrandTheme(brandTheme) // Now persists by default
+    toast.success('Branding applied and saved successfully!')
   }
 
   const renderStepContent = () => {
@@ -222,35 +281,131 @@ export default function Onboarding({ user, onComplete }: OnboardingProps) {
       case 3:
         return (
           <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                AI Content Style
-              </label>
-              <select
-                value={formData.aiStyle}
-                onChange={(e) => handleInputChange('aiStyle', e.target.value)}
-                className="form-input"
-              >
-                <option value="Professional">Professional</option>
-                <option value="Casual">Casual</option>
-                <option value="Luxury">Luxury</option>
-                <option value="Family-friendly">Family-friendly</option>
-              </select>
+            {/* AI Branding Suggestions */}
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg border">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <SparklesIcon className="w-5 h-5 mr-2 text-purple-600" />
+                AI Branding Suggestions
+              </h3>
+              
+              {formData.brandingSuggestions ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Suggested Tagline
+                    </label>
+                    <div className="p-3 bg-white rounded border">
+                      <p className="text-gray-800 font-medium">{formData.brandingSuggestions.tagline}</p>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      About Description
+                    </label>
+                    <div className="p-3 bg-white rounded border">
+                      <p className="text-gray-700">{formData.brandingSuggestions.about}</p>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Brand Colors
+                    </label>
+                    <div className="flex space-x-4">
+                      <div className="text-center">
+                        <div 
+                          className="w-12 h-12 rounded-full border-2 border-gray-300 mx-auto mb-1"
+                          style={{ backgroundColor: formData.brandingSuggestions.colors.primary }}
+                        ></div>
+                        <span className="text-xs text-gray-600">Primary</span>
+                      </div>
+                      <div className="text-center">
+                        <div 
+                          className="w-12 h-12 rounded-full border-2 border-gray-300 mx-auto mb-1"
+                          style={{ backgroundColor: formData.brandingSuggestions.colors.secondary }}
+                        ></div>
+                        <span className="text-xs text-gray-600">Secondary</span>
+                      </div>
+                      <div className="text-center">
+                        <div 
+                          className="w-12 h-12 rounded-full border-2 border-gray-300 mx-auto mb-1"
+                          style={{ backgroundColor: formData.brandingSuggestions.colors.accent }}
+                        ></div>
+                        <span className="text-xs text-gray-600">Accent</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={handleGenerateBranding}
+                      disabled={isLoading}
+                      className="btn-outline flex-1"
+                    >
+                      {isLoading ? 'Generating...' : 'Regenerate'}
+                    </button>
+                    <button
+                      onClick={handleApplyBranding}
+                      className="btn-brand flex-1"
+                    >
+                      Apply Branding
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-600 mb-4">
+                    Generate AI-powered branding suggestions based on your company name
+                  </p>
+                  <button
+                    onClick={handleGenerateBranding}
+                    disabled={isLoading || !formData.company}
+                    className="btn-primary"
+                  >
+                    {isLoading ? 'Generating...' : 'Generate Branding'}
+                  </button>
+                  {!formData.company && (
+                    <p className="text-sm text-orange-600 mt-2">
+                      Please enter your company name in the previous step
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                AI Tone
-              </label>
-              <select
-                value={formData.aiTone}
-                onChange={(e) => handleInputChange('aiTone', e.target.value)}
-                className="form-input"
-              >
-                <option value="Friendly">Friendly</option>
-                <option value="Formal">Formal</option>
-                <option value="Enthusiastic">Enthusiastic</option>
-                <option value="Calm">Calm</option>
-              </select>
+            
+            {/* AI Content Preferences */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  AI Content Style
+                </label>
+                <select
+                  value={formData.aiStyle}
+                  onChange={(e) => handleInputChange('aiStyle', e.target.value)}
+                  className="form-input"
+                >
+                  <option value="Professional">Professional</option>
+                  <option value="Casual">Casual</option>
+                  <option value="Luxury">Luxury</option>
+                  <option value="Family-friendly">Family-friendly</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  AI Tone
+                </label>
+                <select
+                  value={formData.aiTone}
+                  onChange={(e) => handleInputChange('aiTone', e.target.value)}
+                  className="form-input"
+                >
+                  <option value="Friendly">Friendly</option>
+                  <option value="Formal">Formal</option>
+                  <option value="Enthusiastic">Enthusiastic</option>
+                  <option value="Calm">Calm</option>
+                </select>
+              </div>
             </div>
           </div>
         )
@@ -322,25 +477,20 @@ export default function Onboarding({ user, onComplete }: OnboardingProps) {
                 Upload Photo
               </button>
             </div>
-          </div>
-        )
-
-      case 7:
-        return (
-          <div className="text-center space-y-6">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-              <CheckIcon className="w-10 h-10 text-green-600" />
-            </div>
-            <div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">
-                Welcome to PropertyAI!
-              </h3>
-              <p className="text-gray-600">
-                Your account is now set up and ready to use. Start exploring the platform and discover how AI can help you succeed in real estate.
+            
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+              <CheckIcon className="w-8 h-8 text-green-600 mx-auto mb-2" />
+              <h4 className="text-lg font-semibold text-green-800 mb-1">
+                Almost Done!
+              </h4>
+              <p className="text-green-700 text-sm">
+                Click "Complete Setup" to finish your onboarding and start using PropertyAI.
               </p>
             </div>
           </div>
         )
+
+
 
       default:
         return null
@@ -358,7 +508,7 @@ export default function Onboarding({ user, onComplete }: OnboardingProps) {
                 {onboardingSteps[currentStep - 1].title}
               </h2>
               <span className="text-sm text-gray-500">
-                Step {currentStep} of 7
+                Step {currentStep} of 6
               </span>
             </div>
             
@@ -424,7 +574,7 @@ export default function Onboarding({ user, onComplete }: OnboardingProps) {
              </div>
 
             <div className="flex space-x-3">
-              {currentStep < 7 && (
+              {currentStep < 6 && (
                 <button
                   onClick={handleSkip}
                   className="text-gray-500 hover:text-gray-700 font-medium"
@@ -445,7 +595,7 @@ export default function Onboarding({ user, onComplete }: OnboardingProps) {
                   </>
                 ) : (
                   <>
-                    <span>{currentStep === 7 ? 'Get Started' : 'Next'}</span>
+                    <span>{currentStep === 6 ? 'Complete Setup' : 'Next'}</span>
                     <ArrowRightIcon className="w-4 h-4" />
                   </>
                 )}
