@@ -13,15 +13,21 @@ def get_auth_service() -> AuthService:
     user_repo = UserRepository()
     return AuthService(user_repo)
 
-@router.post("/register", response_model=UserResponse)
+@router.post("/register", response_model=Token)
 async def register(
     user_data: UserCreate,
     auth_service: AuthService = Depends(get_auth_service)
 ):
-    """Register a new user"""
+    """Register a new user and return access token"""
     try:
         user = await auth_service.register_user(user_data)
-        return user
+        # Create access token for the newly registered user
+        access_token = auth_service.create_access_token(user.id, user.email)
+        
+        return Token(
+            access_token=access_token,
+            user=user
+        )
     except (ValidationError, ConflictError) as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, 

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
  
 import logging
-import jwt
+from jose import jwt
 
 from app.config import settings
 from app.repositories.user_repository import UserRepository
