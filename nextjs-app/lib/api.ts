@@ -52,7 +52,7 @@ export interface UserProfile {
 
 // Backend Auth interfaces
 export interface UserRegistration {
-  full_name: string
+  name: string
   email: string
   password: string
 }
@@ -69,6 +69,7 @@ export interface AuthResponse {
   user_id?: string
   message?: string
   expires_in?: number
+  onboarding_completed?: boolean
 }
 
 // Dashboard Stats (matches backend response)
@@ -110,7 +111,8 @@ class APIError extends Error {
   constructor(
     message: string,
     public status: number,
-    public code?: string
+    public code?: string,
+    public response?: any
   ) {
     super(message)
     this.name = 'APIError'
@@ -118,7 +120,7 @@ class APIError extends Error {
 }
 
 class APIService {
-  private baseURL = '/api'
+  private readonly baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
   private token: string | null = null
 
   // Set auth token
@@ -159,7 +161,9 @@ class APIService {
         const errorData = await response.json().catch(() => ({}))
         throw new APIError(
           errorData.detail || `HTTP error! status: ${response.status}`,
-          response.status
+          response.status,
+          undefined,
+          { data: errorData }
         )
       }
 
@@ -180,49 +184,66 @@ class APIService {
   // ===== AUTHENTICATION APIs (✅ Backend Available) =====
   
   async login(email: string, password: string): Promise<AuthResponse> {
-    const response = await this.request<AuthResponse>('/v1/auth/login', {
+    const response = await this.request<any>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     })
     
-    if (response.success && response.access_token) {
-      this.setToken(response.access_token)
+    // Transform backend response to match frontend expectations
+    const authResponse: AuthResponse = {
+      success: !!response.access_token,
+      access_token: response.access_token,
+      user_id: response.user?.id,
+      expires_in: 3600, // Default 1 hour
+      onboarding_completed: response.onboarding_completed
     }
     
-    return response
+    if (authResponse.success && authResponse.access_token) {
+      this.setToken(authResponse.access_token)
+    }
+    
+    return authResponse
   }
 
   async register(userData: {
-    full_name: string
+    name: string
     email: string
     password: string
   }): Promise<AuthResponse> {
-    const response = await this.request<AuthResponse>('/v1/auth/register', {
+    const response = await this.request<any>('/api/v1/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     })
     
-    if (response.success && response.access_token) {
-      this.setToken(response.access_token)
+    // Transform backend response to match frontend expectations
+    const authResponse: AuthResponse = {
+      success: !!response.access_token,
+      access_token: response.access_token,
+      user_id: response.user?.id,
+      expires_in: 3600 // Default 1 hour
     }
     
-    return response
+    if (authResponse.success && authResponse.access_token) {
+      this.setToken(authResponse.access_token)
+    }
+    
+    return authResponse
   }
 
   async getCurrentUser(): Promise<APIResponse<{ user: any }>> {
-    return this.request<APIResponse<{ user: any }>>('/v1/auth/me')
+    return this.request<APIResponse<{ user: any }>>('/api/v1/auth/me')
   }
 
   // ===== DASHBOARD APIs (✅ Backend Available) =====
   
   async getDashboardStats(): Promise<APIResponse<DashboardStats>> {
-    return this.request<APIResponse<DashboardStats>>('/v1/dashboard/stats')
+    return this.request<APIResponse<DashboardStats>>('/api/v1/dashboard/stats')
   }
 
   // ===== PROPERTY APIs (✅ Backend Available) =====
   
   async createProperty(propertyData: Omit<Property, 'id'>): Promise<APIResponse<Property>> {
-    return this.request<APIResponse<Property>>('/v1/properties/', {
+    return this.request<APIResponse<Property>>('/api/v1/properties/', {
       method: 'POST',
       body: JSON.stringify(propertyData),
     })
@@ -246,7 +267,7 @@ class APIService {
     budget: string
     requirements: string
   }): Promise<APIResponse<AISuggestion[]>> {
-    return this.request<APIResponse<AISuggestion[]>>('/v1/property/ai_suggest', {
+    return this.request<APIResponse<AISuggestion[]>>('/api/v1/property/ai_suggest', {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -255,47 +276,47 @@ class APIService {
   // ===== USER PROFILE APIs (✅ Backend Available) =====
   
   async createOrUpdateProfile(profileData: UserProfile): Promise<APIResponse<UserProfile>> {
-    return this.request<APIResponse<UserProfile>>('/v1/user/profile', {
+    return this.request<APIResponse<UserProfile>>('/api/v1/user/profile', {
       method: 'POST',
       body: JSON.stringify(profileData),
     })
   }
 
   async getUserProfile(userId: string): Promise<APIResponse<UserProfile>> {
-    return this.request<APIResponse<UserProfile>>(`/v1/user/profile/${userId}`)
+    return this.request<APIResponse<UserProfile>>(`/api/v1/user/profile/${userId}`)
   }
 
   async getDefaultUserProfile(): Promise<APIResponse<UserProfile>> {
-    return this.request<APIResponse<UserProfile>>('/v1/user/profile/default_user')
+    return this.request<APIResponse<UserProfile>>('/api/v1/user/profile/default_user')
   }
 
   // ===== FACEBOOK APIs (✅ Backend Available) =====
   
   async getFacebookOAuthUrl(): Promise<APIResponse<{ oauth_url: string; state: string }>> {
-    return this.request<APIResponse<{ oauth_url: string; state: string }>>('/v1/facebook/oauth')
+    return this.request<APIResponse<{ oauth_url: string; state: string }>>('/api/v1/facebook/oauth')
   }
 
   async handleFacebookCallback(code: string, state: string): Promise<APIResponse> {
-    return this.request<APIResponse>(`/v1/facebook/callback?code=${code}&state=${state}`)
+    return this.request<APIResponse>(`/api/v1/facebook/callback?code=${code}&state=${state}`)
   }
 
   async getFacebookPages(): Promise<APIResponse<FacebookPage[]>> {
-    return this.request<APIResponse<FacebookPage[]>>('/v1/facebook/pages')
+    return this.request<APIResponse<FacebookPage[]>>('/api/v1/facebook/pages')
   }
 
   async getFacebookPosts(): Promise<APIResponse<FacebookPost[]>> {
-    return this.request<APIResponse<FacebookPost[]>>('/v1/facebook/posts')
+    return this.request<APIResponse<FacebookPost[]>>('/api/v1/facebook/posts')
   }
 
   async postToFacebook(data: { page_id: string; message: string }): Promise<APIResponse> {
-    return this.request<APIResponse>('/v1/facebook/post', {
+    return this.request<APIResponse>('/api/v1/facebook/post', {
       method: 'POST',
       body: JSON.stringify(data),
     })
   }
 
   async getFacebookConfig(): Promise<APIResponse<{ connected: boolean; pages_count: number }>> {
-    return this.request<APIResponse<{ connected: boolean; pages_count: number }>>('/v1/facebook/config')
+    return this.request<APIResponse<{ connected: boolean; pages_count: number }>>('/api/v1/facebook/config')
   }
 
   // ===== LISTINGS APIs (✅ Backend Available) =====
@@ -305,7 +326,7 @@ class APIService {
     language: string
     style: string
   }): Promise<APIResponse<{ content: string; hashtags: string[] }>> {
-    return this.request<APIResponse<{ content: string; hashtags: string[] }>>('/v1/listings/generate', {
+    return this.request<APIResponse<{ content: string; hashtags: string[] }>>('/api/v1/listings/generate', {
       method: 'POST',
       body: JSON.stringify(data),
     })
