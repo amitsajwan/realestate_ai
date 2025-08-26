@@ -37,8 +37,8 @@ export interface UserProfile {
   phone?: string
   whatsapp?: string
   company?: string
-  experience_years?: number
-  specialization_areas?: string[]
+  experience_years?: string
+  specialization_areas?: string
   tagline?: string
   social_bio?: string
   about?: string

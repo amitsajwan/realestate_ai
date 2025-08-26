@@ -15,21 +15,52 @@ services:
       - mongodb_data:/data/db
     networks:
       - crm_network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  app:
+  backend:
     build: .
-    container_name: crm_app
+    container_name: crm_backend
     restart: always
     ports:
       - "8000:8000"
     environment:
       MONGODB_URL: mongodb://admin:password123@mongodb:27017/real_estate_crm?authSource=admin
       DATABASE_NAME: real_estate_crm
-      DEBUG: "true"
+      NEXT_PUBLIC_API_BASE_URL: http://backend:8000
+      DEBUG: "false"
+      NODE_ENV: production
+      # Removed duplicate MONGODB_URL line here
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     volumes:
       - ./logs:/app/logs
+    networks:
+      - crm_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    container_name: crm_frontend
+    build:
+      context: ./nextjs-app
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://backend:8000
+      NODE_ENV: production
+      GENERATE_SOURCEMAP: 'false'
+    depends_on:
+      backend:
+        condition: service_healthy
     networks:
       - crm_network
 
