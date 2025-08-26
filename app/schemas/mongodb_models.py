@@ -6,25 +6,26 @@ Pydantic models for MongoDB collections in realestate_crm database
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 from bson import ObjectId
 
 class PyObjectId(ObjectId):
-    """Custom ObjectId for Pydantic compatibility"""
+    """Custom ObjectId for Pydantic v2 compatibility"""
     @classmethod
     def __get_validators__(cls):
         yield cls.validate
 
     @classmethod
-    def validate(cls, v):
+    def validate(cls, v, validation_info=None):
         if not ObjectId.is_valid(v):
             raise ValueError("Invalid ObjectId")
         return ObjectId(v)
 
     @classmethod
-    def __modify_schema__(cls, field_schema):
+    def __get_pydantic_json_schema__(cls, field_schema):
         field_schema.update(type="string")
+        return field_schema
 
 # User Models
 class UserBase(BaseModel):
@@ -32,7 +33,7 @@ class UserBase(BaseModel):
     phone: Optional[str] = None
     experience: Optional[str] = None
     areas: Optional[str] = None
-    languages: Optional[str] = None
+    languages: Optional[List[str]] = None
     firstName: Optional[str] = None
     lastName: Optional[str] = None
     propertyTypes: Optional[str] = None
@@ -50,7 +51,7 @@ class User(UserBase):
     createdAt: Optional[str] = None
 
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
 
@@ -76,7 +77,7 @@ class Property(PropertyBase):
     createdAt: Optional[str] = None
 
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
 
@@ -104,7 +105,7 @@ class SmartProperty(SmartPropertyBase):
     updated_at: Optional[datetime] = None
 
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
 
@@ -130,7 +131,7 @@ class Lead(LeadBase):
     createdAt: Optional[str] = None
 
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
 
@@ -145,7 +146,7 @@ class AgentProfileBase(BaseModel):
     brand_name: Optional[str] = None
     specialization: Optional[str] = None
     tagline: Optional[str] = None
-    languages: Optional[str] = None
+    languages: Optional[List[str]] = None
     location: Optional[str] = None
     website: Optional[str] = None
     linkedin_url: Optional[str] = None
@@ -164,7 +165,7 @@ class AgentProfile(AgentProfileBase):
     updated_at: Optional[datetime] = None
 
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
 
@@ -187,7 +188,7 @@ class FacebookConnection(FacebookConnectionBase):
     updated_at: Optional[datetime] = None
 
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
 
@@ -207,7 +208,7 @@ class FacebookPage(FacebookPageBase):
     connected_at: Optional[datetime] = None
 
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
 

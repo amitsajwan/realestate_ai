@@ -1,4 +1,4 @@
 # Routers package
-from . import facebook, listings, user_profile, properties
+from . import listings, user_profile
 
-__all__ = ['facebook', 'listings', 'user_profile', 'properties']
+__all__ = ['listings', 'user_profile']
