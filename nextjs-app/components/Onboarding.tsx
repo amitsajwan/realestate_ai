@@ -22,6 +22,33 @@ interface OnboardingProps {
   onComplete: () => void
 }
 
+interface BrandingSuggestions {
+  tagline: string
+  about: string
+  colors: {
+    primary: string
+    secondary: string
+    accent: string
+  }
+}
+
+interface OnboardingFormData {
+  firstName: string
+  lastName: string
+  phone: string
+  company: string
+  position: string
+  licenseNumber: string
+  aiStyle: string
+  aiTone: string
+  facebookPage: string
+  termsAccepted: boolean
+  privacyAccepted: boolean
+  profilePhoto: string
+  preferences: string[]
+  brandingSuggestions: BrandingSuggestions | null
+}
+
 const onboardingSteps = [
   {
     id: 1,
@@ -69,7 +96,7 @@ const onboardingSteps = [
 
 export default function Onboarding({ user, onComplete }: OnboardingProps) {
   const [currentStep, setCurrentStep] = useState(user.onboardingStep || 1)
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<OnboardingFormData>({
     firstName: user.firstName || '',
     lastName: user.lastName || '',
     phone: user.phone || '',
@@ -102,14 +129,71 @@ export default function Onboarding({ user, onComplete }: OnboardingProps) {
     }))
   }
 
+  const validateCurrentStep = () => {
+    switch (currentStep) {
+      case 1:
+        if (!formData.firstName?.trim()) {
+          toast.error('Please enter your first name')
+          return false
+        }
+        if (!formData.lastName?.trim()) {
+          toast.error('Please enter your last name')
+          return false
+        }
+        break
+      case 2:
+        if (!formData.company?.trim()) {
+          toast.error('Please enter your company name')
+          return false
+        }
+        if (!formData.position?.trim()) {
+          toast.error('Please enter your position')
+          return false
+        }
+        break
+      case 3:
+        if (!formData.aiStyle) {
+          toast.error('Please select an AI content style')
+          return false
+        }
+        if (!formData.aiTone) {
+          toast.error('Please select an AI tone')
+          return false
+        }
+        break
+      case 5:
+        if (!formData.termsAccepted) {
+          toast.error('Please accept the Terms of Service')
+          return false
+        }
+        if (!formData.privacyAccepted) {
+          toast.error('Please accept the Privacy Policy')
+          return false
+        }
+        break
+    }
+    return true
+  }
+
   const handleNext = async () => {
+    console.log('🔄 handleNext called - Current step:', currentStep)
+    console.log('📋 Form data:', formData)
+    
+    // Validate current step before proceeding
+    if (!validateCurrentStep()) {
+      return
+    }
+    
     if (currentStep < 6) {
       setIsLoading(true)
       try {
+        console.log('📤 Calling updateOnboarding with step:', currentStep + 1)
         await authManager.updateOnboarding(currentStep + 1, formData)
+        console.log('✅ updateOnboarding successful, updating step to:', currentStep + 1)
         setCurrentStep(currentStep + 1)
         toast.success('Progress saved!')
       } catch (error) {
+        console.error('❌ handleNext error:', error)
         toast.error('Failed to save progress')
       } finally {
         setIsLoading(false)
@@ -122,6 +206,7 @@ export default function Onboarding({ user, onComplete }: OnboardingProps) {
         toast.success('Onboarding completed!')
         onComplete()
       } catch (error) {
+        console.error('❌ Complete onboarding error:', error)
         toast.error('Failed to complete onboarding')
       } finally {
         setIsLoading(false)

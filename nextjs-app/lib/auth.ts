@@ -194,17 +194,52 @@ export const authAPI = {
 
   // Update onboarding progress
   async updateOnboarding(userId: string, step: number, data: Partial<User>): Promise<User> {
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    return {
-      id: userId,
-      email: 'john@example.com',
-      firstName: 'John',
-      lastName: 'Doe',
-      facebookConnected: false,
-      ...data,
-      onboardingStep: step,
-      onboardingCompleted: step >= 7
+    try {
+      console.log('🔧 authAPI.updateOnboarding called with:', { userId, step, data })
+      
+      // Prepare profile data for backend
+      const profileData = {
+        user_id: userId,
+        name: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
+        email: data.email || 'user@example.com',
+        phone: data.phone || '',
+        whatsapp: data.phone || '',
+        company: data.company || '',
+        position: data.position || '',
+        license_number: data.licenseNumber || '',
+        onboarding_step: step,
+        onboarding_completed: step >= 6
+      }
+      
+      console.log('📤 Sending profile data to backend:', profileData)
+      
+      // Call backend API to save profile
+      const response = await apiService.createOrUpdateProfile(profileData)
+      
+      console.log('📥 Backend response:', response)
+      
+      if (response.success) {
+        // Return updated user object
+        return {
+          id: userId,
+          email: data.email || 'user@example.com',
+          firstName: data.firstName || '',
+          lastName: data.lastName || '',
+          phone: data.phone || '',
+          company: data.company || '',
+          position: data.position || '',
+          licenseNumber: data.licenseNumber || '',
+          facebookConnected: false,
+          ...data,
+          onboardingStep: step,
+          onboardingCompleted: step >= 6
+        }
+      } else {
+        throw new Error('Failed to update onboarding progress')
+      }
+    } catch (error) {
+      console.error('Update onboarding error:', error)
+      throw error
     }
   },
 
@@ -422,15 +457,24 @@ export class AuthManager {
   }
 
   async updateOnboarding(step: number, data: Partial<User>) {
-    if (!this.state.user) return
+    console.log('🔍 authManager.updateOnboarding called with:', { step, data })
+    console.log('👤 Current user state:', this.state.user)
+    
+    if (!this.state.user) {
+      console.error('❌ No user found in state, cannot update onboarding')
+      throw new Error('User not authenticated')
+    }
 
     try {
+      console.log('📞 Calling authAPI.updateOnboarding with user ID:', this.state.user.id)
       const user = await authAPI.updateOnboarding(this.state.user.id, step, data)
+      console.log('✅ authAPI.updateOnboarding successful, updating state')
       this.state.user = user
       storage.set('user', user)
       this.notifyListeners()
       return user
     } catch (error) {
+      console.error('❌ authManager.updateOnboarding error:', error)
       throw error
     }
   }

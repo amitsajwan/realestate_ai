@@ -7,6 +7,16 @@ import { apiService } from '@/lib/api'
 import { applyBrandTheme } from '@/lib/theme'
 import { toast } from 'react-hot-toast'
 
+interface BrandingSuggestions {
+  tagline: string
+  about: string
+  colors: {
+    primary: string
+    secondary: string
+    accent: string
+  }
+}
+
 interface UserProfile {
   user_id: string
   name: string
@@ -14,7 +24,7 @@ interface UserProfile {
   phone?: string
   whatsapp?: string
   company?: string
-  experience_years?: number
+  experience_years?: string
   specialization_areas?: string
   tagline?: string
   social_bio?: string
@@ -25,15 +35,7 @@ interface UserProfile {
   pincode?: string
   languages?: string[]
   logo_url?: string
-  brandingSuggestions?: {
-    tagline: string
-    about: string
-    colors: {
-      primary: string
-      secondary: string
-      accent: string
-    }
-  } | null
+  brandingSuggestions?: BrandingSuggestions | null
 }
 
 export default function ProfileSettings() {
@@ -44,7 +46,7 @@ export default function ProfileSettings() {
     phone: '',
     whatsapp: '',
     company: '',
-    experience_years: 0,
+    experience_years: '0',
     specialization_areas: '',
     tagline: '',
     social_bio: '',
@@ -97,7 +99,7 @@ export default function ProfileSettings() {
         phone: profileData?.phone || currentUser?.phone || '',
         whatsapp: profileData?.whatsapp || currentUser?.phone || '',
         company: profileData?.company || currentUser?.company || '',
-        experience_years: profileData?.experience_years || 0,
+        experience_years: profileData?.experience_years || '0',
         specialization_areas: Array.isArray(profileData?.specialization_areas) 
           ? profileData.specialization_areas.join(', ') 
           : (profileData?.specialization_areas || ''),
@@ -159,9 +161,7 @@ export default function ProfileSettings() {
     try {
       // Ensure data types match backend expectations
       const profileData = {
-        ...formData,
-        experience_years: String(formData.experience_years || '0'),
-        specialization_areas: String(formData.specialization_areas || '')
+        ...formData
       }
       
       const response = await apiService.createOrUpdateProfile(profileData)
@@ -215,7 +215,7 @@ export default function ProfileSettings() {
           agent_name: formData.name,
           specialization_areas: formData.specialization_areas,
           experience_years: formData.experience_years,
-          location: formData.location,
+          location: `${formData.city || ''} ${formData.state || ''}`.trim() || 'Not specified',
           phone: formData.phone
         })
       })
@@ -344,7 +344,7 @@ export default function ProfileSettings() {
                   <input
                     type="number"
                     value={formData.experience_years}
-                    onChange={(e) => handleInputChange('experience_years', parseInt(e.target.value) || 0)}
+                    onChange={(e) => handleInputChange('experience_years', e.target.value)}
                     className="form-input"
                     placeholder="Years of experience"
                     min="0"
@@ -381,7 +381,7 @@ export default function ProfileSettings() {
                     {formData.brandingSuggestions && (
                       <button
                         type="button"
-                        onClick={() => handleInputChange('tagline', formData.brandingSuggestions!.tagline)}
+                        onClick={() => handleInputChange('tagline', formData.brandingSuggestions?.tagline || '')}
                         className="btn-outline px-3 py-2 text-sm whitespace-nowrap"
                         title="Use AI suggestion"
                       >
@@ -556,7 +556,7 @@ export default function ProfileSettings() {
                     {formData.brandingSuggestions && (
                       <button
                         type="button"
-                        onClick={() => handleInputChange('about', formData.brandingSuggestions!.about)}
+                        onClick={() => handleInputChange('about', formData.brandingSuggestions?.about || '')}
                         className="btn-outline px-3 py-1 text-xs"
                         title="Use AI suggestion"
                       >
