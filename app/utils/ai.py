@@ -8,7 +8,7 @@ from typing import Dict, Any
 import logging
 
 # Local modules
-from app.config import settings
+from app.core.config import settings
 
 # groq is an optional dependency across the codebase – we always import it
 # behind a try/except so local development keeps working even if the API key

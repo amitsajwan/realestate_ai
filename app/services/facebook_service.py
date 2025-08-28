@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 from typing import Dict, List, Optional
 from fastapi.responses import HTMLResponse
 
-from app.config import settings
+from app.core.config import settings
 from app.repositories.user_repository import UserRepository
 from app.core.exceptions import FacebookError
 

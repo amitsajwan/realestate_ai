@@ -1,40 +1,45 @@
-'use client'
+"use client";
 
-import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { authManager, User } from '@/lib/auth'
-import Onboarding from '@/components/Onboarding'
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { authManager, User } from '@/lib/auth';
+import Onboarding from '@/components/Onboarding';
 
 export default function OnboardingPage() {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const router = useRouter()
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentStep, setCurrentStep] = useState(0);
+  const router = useRouter();
 
   useEffect(() => {
     const initAuth = async () => {
-      await authManager.init()
-      const state = authManager.getState()
-      
+      await authManager.init();
+      const state = authManager.getState();
+
       if (!state.isAuthenticated) {
-        router.push('/login')
-        return
+        router.push('/login');
+        return;
       }
 
       if (state.user?.onboardingCompleted) {
-        router.push('/')
-        return
+        router.push('/');
+        return;
       }
 
-      setUser(state.user)
-      setIsLoading(false)
-    }
+      setUser(state.user);
+      setIsLoading(false);
+    };
 
-    initAuth()
-  }, [router])
+    initAuth();
+  }, [router]);
+
+  const handleStepChange = (step: number) => {
+    setCurrentStep(step);
+  };
 
   const handleOnboardingComplete = () => {
-    router.push('/')
-  }
+    router.push('/');
+  };
 
   if (isLoading) {
     return (
@@ -44,12 +49,19 @@ export default function OnboardingPage() {
           <p className="text-white">Loading...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (!user) {
-    return null
+    return null;
   }
 
-  return <Onboarding user={user} onComplete={handleOnboardingComplete} />
+  return (
+    <Onboarding
+      user={user}
+      currentStep={currentStep}
+      onStepChange={handleStepChange}
+      onComplete={handleOnboardingComplete}
+    />
+  );
 }
