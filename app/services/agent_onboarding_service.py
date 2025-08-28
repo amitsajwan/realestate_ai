@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from app.schemas.mongodb_models import AgentProfile
-from app.utils.ai import generate_branding
-from app.utils.whatsapp import connect_whatsapp
+from app.utils_dir.ai import generate_branding
+from app.utils_dir.whatsapp import connect_whatsapp
 from typing import Optional
 
 class AgentOnboardingData(BaseModel):

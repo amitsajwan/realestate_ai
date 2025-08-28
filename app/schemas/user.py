@@ -2,7 +2,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field, validator, root_validator
 import re
-from app.utils.validation import validate_password_strength, validate_email_format, validate_phone_number
+from app.utils_dir.validation import validate_password_strength, validate_email_format, validate_phone_number
 
 class UserBase(BaseModel):
     """Base user model with common fields"""
@@ -74,7 +74,7 @@ class UserCreate(UserBase):
             raise ValueError(f"Password validation failed: {', '.join(validation_result['errors'])}")
         return v
     
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def validate_passwords_match(cls, values):
         """Ensure password and confirm_password match"""
         password = values.get('password')
@@ -86,7 +86,7 @@ class UserCreate(UserBase):
         return values
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "email": "john.doe@example.com",
                 "first_name": "John",
@@ -121,7 +121,7 @@ class UserLogin(BaseModel):
         return v
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "email": "john.doe@example.com",
                 "password": "SecurePass123!",
@@ -198,7 +198,7 @@ class UserResponse(BaseModel):
     
     class Config:
         from_attributes = True
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": "60f7b3b3b3b3b3b3b3b3b3b3",
                 "email": "john.doe@example.com",
@@ -238,7 +238,7 @@ class Token(BaseModel):
     user: UserResponse = Field(..., description="User information")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                 "token_type": "bearer",
@@ -276,7 +276,7 @@ class PasswordChangeRequest(BaseModel):
             raise ValueError(f"Password validation failed: {', '.join(validation_result['errors'])}")
         return v
     
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def validate_password_change(cls, values):
         """Validate password change request"""
         current_password = values.get('current_password')
@@ -294,7 +294,7 @@ class PasswordChangeRequest(BaseModel):
         return values
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "current_password": "OldPass123!",
                 "new_password": "NewSecurePass456!",
@@ -316,7 +316,7 @@ class PasswordResetRequest(BaseModel):
         return v
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "email": "john.doe@example.com"
             }
@@ -336,7 +336,7 @@ class PasswordResetConfirm(BaseModel):
             raise ValueError(f"Password validation failed: {', '.join(validation_result['errors'])}")
         return v
     
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def validate_reset_passwords_match(cls, values):
         """Ensure passwords match"""
         new_password = values.get('new_password')
@@ -348,7 +348,7 @@ class PasswordResetConfirm(BaseModel):
         return values
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                 "new_password": "NewSecurePass123!",
@@ -361,7 +361,7 @@ class FacebookLogin(BaseModel):
     access_token: str = Field(..., min_length=1, description="Facebook access token")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "access_token": "EAABwzLixnjYBAO..."
             }
@@ -377,7 +377,7 @@ class UserStats(BaseModel):
     users_this_month: int = Field(..., description="Users registered this month")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "total_users": 1000,
                 "active_users": 950,

@@ -6,7 +6,7 @@ from typing import Union
 
 from app.core.database import get_database
 from app.services.agent_onboarding_service import AgentOnboardingData, AgentOnboardingService
-from app.utils.ai import generate_branding
+from app.utils_dir.ai import generate_branding
 
 class BrandingRequest(BaseModel):
     company_name: str

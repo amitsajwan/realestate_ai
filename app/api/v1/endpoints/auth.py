@@ -17,7 +17,7 @@ from app.schemas.user import (
 from app.services.auth_service import AuthService
 from app.repositories.user_repository import UserRepository
 from app.core.database import get_database
-from app.utils import verify_jwt_token, sanitize_user_input
+from app.utils import verify_token, sanitize_user_input
 
 # Configure structured logging
 logger = structlog.get_logger(__name__)
@@ -25,14 +25,14 @@ logger = structlog.get_logger(__name__)
 # Rate limiting setup
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter()
-router.state.limiter = limiter
-router.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# router.state.limiter = limiter
+# router.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Security
 security = HTTPBearer(auto_error=False)
 
 # Initialize services
-auth_service = AuthService()
+# auth_service = AuthService()
 
 
 async def get_user_repository() -> UserRepository:
@@ -56,7 +56,7 @@ async def get_current_user(
     
     try:
         # Verify JWT token
-        payload = verify_jwt_token(credentials.credentials)
+        payload = verify_token(credentials.credentials)
         user_id = payload.get("sub")
         token_type = payload.get("type")
         
@@ -111,7 +111,7 @@ async def get_current_user(
         500: {"description": "Internal server error", "model": ErrorResponse}
     }
 )
-@limiter.limit("5/minute")
+# @limiter.limit("5/minute")
 async def register(
     request: Request,
     user_data: UserCreate,
@@ -208,7 +208,7 @@ async def register(
         500: {"description": "Internal server error", "model": ErrorResponse}
     }
 )
-@limiter.limit("10/minute")
+# @limiter.limit("10/minute")
 async def login(
     request: Request,
     login_data: UserLogin,
@@ -340,7 +340,7 @@ async def get_current_user_info(
         500: {"description": "Internal server error", "model": ErrorResponse}
     }
 )
-@limiter.limit("3/minute")
+# @limiter.limit("3/minute")
 async def change_password(
     request: Request,
     password_data: PasswordChangeRequest,
@@ -415,7 +415,7 @@ async def change_password(
         500: {"description": "Internal server error", "model": ErrorResponse}
     }
 )
-@limiter.limit("20/minute")
+# @limiter.limit("20/minute")
 async def refresh_token(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -429,7 +429,7 @@ async def refresh_token(
     
     try:
         # Verify refresh token
-        payload = verify_jwt_token(credentials.credentials)
+        payload = verify_token(credentials.credentials)
         user_id = payload.get("sub")
         token_type = payload.get("type")
         

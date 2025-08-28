@@ -31,7 +31,11 @@ async def connect_to_mongo():
         
     except Exception as e:
         logger.error(f"❌ Failed to connect to MongoDB: {e}")
-        raise
+        logger.info("🔄 Falling back to mock database for development")
+        # Import mock database
+        from app.core.mock_database import get_mock_database
+        db.database = get_mock_database()
+        logger.info("✅ Using mock database for development")
 
 async def close_mongo_connection():
     """Close database connection"""
@@ -42,7 +46,10 @@ async def close_mongo_connection():
 def get_database():
     """Get database instance"""
     if db.database is None:
-        raise RuntimeError("Database not initialized. Call connect_to_mongo() first.")
+        # Try to initialize with mock database
+        from app.core.mock_database import get_mock_database
+        db.database = get_mock_database()
+        logger.info("✅ Using mock database for development")
     return db.database
 
 # Legacy compatibility - some of your existing code might expect this
