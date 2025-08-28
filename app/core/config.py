@@ -20,7 +20,7 @@ class Settings:
     PORT: int = int(os.getenv("PORT", "8000"))  # Backend API port
     
     # MongoDB Configuration
-    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+    MONGODB_URL: str = os.getenv("MONGO_URI", "mongodb://localhost:27017/realestate_crm")
     DATABASE_NAME: str = os.getenv("DATABASE_NAME", "realestate_crm")
     
     # Base URLs

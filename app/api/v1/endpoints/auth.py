@@ -17,7 +17,7 @@ from app.schemas.user import (
 from app.services.auth_service import AuthService
 from app.repositories.user_repository import UserRepository
 from app.core.database import get_database
-from app.utils import verify_jwt_token, sanitize_user_input
+import app.utils as utils
 
 # Configure structured logging
 logger = structlog.get_logger(__name__)
@@ -25,14 +25,12 @@ logger = structlog.get_logger(__name__)
 # Rate limiting setup
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter()
-router.state.limiter = limiter
-router.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Security
 security = HTTPBearer(auto_error=False)
 
 # Initialize services
-auth_service = AuthService()
+auth_service = None
 
 
 async def get_user_repository() -> UserRepository:
@@ -56,7 +54,7 @@ async def get_current_user(
     
     try:
         # Verify JWT token
-        payload = verify_jwt_token(credentials.credentials)
+        payload = utils.verify_token(credentials.credentials)
         user_id = payload.get("sub")
         token_type = payload.get("type")
         
@@ -128,11 +126,11 @@ async def register(
     try:
         # Sanitize input data
         sanitized_data = {
-            "email": sanitize_user_input(user_data.email.lower().strip()),
+            "email": utils.sanitize_user_input(user_data.email.lower().strip()),
             "password": user_data.password,
-            "first_name": sanitize_user_input(user_data.first_name.strip()) if user_data.first_name else None,
-            "last_name": sanitize_user_input(user_data.last_name.strip()) if user_data.last_name else None,
-            "phone": sanitize_user_input(user_data.phone.strip()) if user_data.phone else None
+            "first_name": utils.sanitize_user_input(user_data.first_name.strip()) if user_data.first_name else None,
+            "last_name": utils.sanitize_user_input(user_data.last_name.strip()) if user_data.last_name else None,
+            "phone": utils.sanitize_user_input(user_data.phone.strip()) if user_data.phone else None
         }
         
         # Check if user already exists
@@ -148,13 +146,17 @@ async def register(
             )
         
         # Create user account
-        user = await auth_service.register_user(
+        auth_service = AuthService(user_repo)
+        from app.schemas.user import UserCreate
+        user_create = UserCreate(
             email=sanitized_data["email"],
             password=sanitized_data["password"],
+            confirm_password=sanitized_data["password"],
             first_name=sanitized_data["first_name"],
             last_name=sanitized_data["last_name"],
             phone=sanitized_data["phone"]
         )
+        user = await auth_service.register_user(user_create)
         
         logger.info(f"User successfully registered: {user['email']}", extra={
             "user_id": str(user["_id"]),
@@ -164,13 +166,9 @@ async def register(
         
         return UserSecureResponse(
             id=str(user["_id"]),
-            email=user["email"],
             first_name=user.get("first_name"),
             last_name=user.get("last_name"),
-            phone=user.get("phone"),
-            is_active=user.get("is_active", True),
-            created_at=user.get("created_at"),
-            updated_at=user.get("updated_at")
+            is_active=user.get("is_active", True)
         )
         
     except HTTPException:
@@ -224,9 +222,10 @@ async def login(
     
     try:
         # Sanitize input
-        email = sanitize_user_input(login_data.email.lower().strip())
+        email = utils.sanitize_user_input(login_data.email.lower().strip())
         
         # Authenticate user
+        auth_service = AuthService(user_repo)
         result = await auth_service.authenticate_user(email, login_data.password)
         
         if not result:
@@ -356,6 +355,7 @@ async def change_password(
     
     try:
         # Change password
+        auth_service = AuthService(user_repo)
         success = await auth_service.change_password(
             user_id=str(current_user["_id"]),
             current_password=password_data.current_password,
@@ -429,7 +429,7 @@ async def refresh_token(
     
     try:
         # Verify refresh token
-        payload = verify_jwt_token(credentials.credentials)
+        payload = utils.verify_token(credentials.credentials)
         user_id = payload.get("sub")
         token_type = payload.get("type")
         
@@ -443,6 +443,7 @@ async def refresh_token(
             )
         
         # Generate new tokens
+        auth_service = AuthService(user_repo)
         token_data = await auth_service.create_tokens(user_id)
         
         logger.info(f"Token refreshed successfully: {user_id}", extra={

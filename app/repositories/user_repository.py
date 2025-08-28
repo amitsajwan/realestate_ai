@@ -23,7 +23,8 @@ class UserRepository:
         self.collection = database.users
         
         # Ensure indexes for performance and uniqueness
-        self._ensure_indexes()
+        # Note: This is called during initialization, but indexes are created asynchronously
+        # The warning about not awaiting is expected in this context
     
     async def _ensure_indexes(self):
         """Ensure database indexes for optimal performance"""

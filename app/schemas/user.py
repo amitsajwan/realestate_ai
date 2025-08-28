@@ -1,6 +1,6 @@
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field, validator, root_validator
+from pydantic import BaseModel, EmailStr, Field, validator, model_validator
 import re
 from app.utils.validation import validate_password_strength, validate_email_format, validate_phone_number
 
@@ -74,19 +74,15 @@ class UserCreate(UserBase):
             raise ValueError(f"Password validation failed: {', '.join(validation_result['errors'])}")
         return v
     
-    @root_validator
-    def validate_passwords_match(cls, values):
+    @model_validator(mode='after')
+    def validate_passwords_match(self):
         """Ensure password and confirm_password match"""
-        password = values.get('password')
-        confirm_password = values.get('confirm_password')
-        
-        if password and confirm_password and password != confirm_password:
+        if self.password and self.confirm_password and self.password != self.confirm_password:
             raise ValueError('Passwords do not match')
-        
-        return values
+        return self
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "email": "john.doe@example.com",
                 "first_name": "John",
@@ -121,7 +117,7 @@ class UserLogin(BaseModel):
         return v
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "email": "john.doe@example.com",
                 "password": "SecurePass123!",
@@ -198,7 +194,7 @@ class UserResponse(BaseModel):
     
     class Config:
         from_attributes = True
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": "60f7b3b3b3b3b3b3b3b3b3b3",
                 "email": "john.doe@example.com",
@@ -238,7 +234,7 @@ class Token(BaseModel):
     user: UserResponse = Field(..., description="User information")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                 "token_type": "bearer",
@@ -276,25 +272,21 @@ class PasswordChangeRequest(BaseModel):
             raise ValueError(f"Password validation failed: {', '.join(validation_result['errors'])}")
         return v
     
-    @root_validator
-    def validate_password_change(cls, values):
+    @model_validator(mode='after')
+    def validate_password_change(self):
         """Validate password change request"""
-        current_password = values.get('current_password')
-        new_password = values.get('new_password')
-        confirm_new_password = values.get('confirm_new_password')
-        
         # Check if new passwords match
-        if new_password and confirm_new_password and new_password != confirm_new_password:
+        if self.new_password and self.confirm_new_password and self.new_password != self.confirm_new_password:
             raise ValueError('New passwords do not match')
         
         # Check if new password is different from current
-        if current_password and new_password and current_password == new_password:
+        if self.current_password and self.new_password and self.current_password == self.new_password:
             raise ValueError('New password must be different from current password')
         
-        return values
+        return self
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "current_password": "OldPass123!",
                 "new_password": "NewSecurePass456!",
@@ -316,7 +308,7 @@ class PasswordResetRequest(BaseModel):
         return v
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "email": "john.doe@example.com"
             }
@@ -336,19 +328,16 @@ class PasswordResetConfirm(BaseModel):
             raise ValueError(f"Password validation failed: {', '.join(validation_result['errors'])}")
         return v
     
-    @root_validator
-    def validate_reset_passwords_match(cls, values):
+    @model_validator(mode='after')
+    def validate_reset_passwords_match(self):
         """Ensure passwords match"""
-        new_password = values.get('new_password')
-        confirm_new_password = values.get('confirm_new_password')
-        
-        if new_password and confirm_new_password and new_password != confirm_new_password:
+        if self.new_password and self.confirm_new_password and self.new_password != self.confirm_new_password:
             raise ValueError('Passwords do not match')
         
-        return values
+        return self
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                 "new_password": "NewSecurePass123!",
@@ -361,7 +350,7 @@ class FacebookLogin(BaseModel):
     access_token: str = Field(..., min_length=1, description="Facebook access token")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "access_token": "EAABwzLixnjYBAO..."
             }
@@ -377,7 +366,7 @@ class UserStats(BaseModel):
     users_this_month: int = Field(..., description="Users registered this month")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "total_users": 1000,
                 "active_users": 950,
@@ -397,7 +386,7 @@ class UserSearchResult(BaseModel):
     total_pages: int = Field(..., description="Total number of pages")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "users": [],
                 "total": 100,
@@ -414,7 +403,7 @@ class ErrorResponse(BaseModel):
     details: Optional[Dict[str, Any]] = Field(None, description="Additional error details")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "error": "validation_error",
                 "message": "Invalid input data",
@@ -432,7 +421,7 @@ class SuccessResponse(BaseModel):
     data: Optional[Dict[str, Any]] = Field(None, description="Additional response data")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "message": "Operation completed successfully",

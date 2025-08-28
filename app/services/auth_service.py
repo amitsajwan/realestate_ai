@@ -178,7 +178,7 @@ class AuthService:
         existing_user = await self.user_repository.get_by_email(user_data.email)
         if existing_user:
             logger.warning(f"Registration attempt with existing email: {user_data.email}")
-            raise ConflictError("User with this email already exists")
+            raise ConflictError("User", "email", user_data.email)
         
         # Validate password strength
         password_validation = self.validate_password_strength(user_data.password)
