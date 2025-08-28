@@ -31,6 +31,10 @@ router = APIRouter()
 security = HTTPBearer(auto_error=False)
 
 # Initialize services - will be created per request
+async def get_auth_service() -> AuthService:
+    """Dependency to get auth service instance."""
+    user_repo = await get_user_repository()
+    return AuthService(user_repo)
 
 
 async def get_user_repository() -> UserRepository:
@@ -113,7 +117,7 @@ async def get_current_user(
 async def register(
     request: Request,
     user_data: UserCreate,
-    user_repo: UserRepository = Depends(get_user_repository)
+    auth_service: AuthService = Depends(get_auth_service)
 ):
     """Register a new user account."""
     client_ip = get_remote_address(request)
@@ -134,7 +138,7 @@ async def register(
         }
         
         # Check if user already exists
-        existing_user = await user_repo.get_by_email(sanitized_data["email"])
+        existing_user = await auth_service.user_repository.get_by_email(sanitized_data["email"])
         if existing_user:
             logger.warning(f"Registration attempt with existing email: {sanitized_data['email']}", extra={
                 "ip_address": client_ip,

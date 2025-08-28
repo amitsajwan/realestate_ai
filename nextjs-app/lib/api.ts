@@ -589,18 +589,5 @@ export class APIService {
 }
 
 // Export error class and singleton instance
-  /**
-   * Get default user profile
-   */
-  async getDefaultUserProfile(): Promise<User> {
-    return this.makeRequest<User>(
-      '/api/v1/auth/default-profile',
-      {
-        method: 'GET'
-      },
-      true
-    );
-  }
-
 export { APIError };
 export const apiService = new APIService();
