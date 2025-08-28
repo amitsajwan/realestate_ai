@@ -25,14 +25,12 @@ logger = structlog.get_logger(__name__)
 # Rate limiting setup
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter()
-router.state.limiter = limiter
-router.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# Note: Rate limiting setup removed for compatibility with newer FastAPI versions
 
 # Security
 security = HTTPBearer(auto_error=False)
 
-# Initialize services
-auth_service = AuthService()
+# Initialize services - will be created per request
 
 
 async def get_user_repository() -> UserRepository:
