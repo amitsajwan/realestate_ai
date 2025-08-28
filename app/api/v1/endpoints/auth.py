@@ -17,7 +17,8 @@ from app.schemas.user import (
 from app.services.auth_service import AuthService
 from app.repositories.user_repository import UserRepository
 from app.core.database import get_database
-from app.utils import verify_jwt_token, sanitize_user_input
+from app.utils import verify_token as verify_jwt_token
+from app.utils import sanitize_user_input
 
 # Configure structured logging
 logger = structlog.get_logger(__name__)
