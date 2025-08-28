@@ -1,0 +1,124 @@
+nohup: ignoring input
+
+> propertyai-nextjs@0.1.0 dev
+> next dev
+
+ ⚠ Port 3000 is in use, trying 3001 instead.
+  ▲ Next.js 14.2.32
+  - Local:        http://localhost:3001
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1234ms
+ ○ Compiling / ...
+ ⚠ ./components/PropertyForm.tsx
+Attempted import error: 'propertySchema' is not exported from '@/lib/validation' (imported as 'propertySchema').
+
+Import trace for requested module:
+./components/PropertyForm.tsx
+./app/page.tsx
+
+./components/PropertyForm.tsx
+Attempted import error: 'propertySchema' is not exported from '@/lib/validation' (imported as 'propertySchema').
+
+Import trace for requested module:
+./components/PropertyForm.tsx
+./app/page.tsx
+[APIService] Configuration: {
+  baseURL: 'http://localhost:8000',
+  timeout: 30000,
+  environment: 'development'
+}
+[APIService] Configuration: {
+  baseURL: 'http://localhost:8000',
+  timeout: 30000,
+  environment: 'development'
+}
+ GET / 200 in 2193ms
+ ⚠ ./components/PropertyForm.tsx
+Attempted import error: 'propertySchema' is not exported from '@/lib/validation' (imported as 'propertySchema').
+
+Import trace for requested module:
+./components/PropertyForm.tsx
+./app/page.tsx
+
+./components/PropertyForm.tsx
+Attempted import error: 'propertySchema' is not exported from '@/lib/validation' (imported as 'propertySchema').
+
+Import trace for requested module:
+./components/PropertyForm.tsx
+./app/page.tsx
+ ⚠ ./components/PropertyForm.tsx
+Attempted import error: 'propertySchema' is not exported from '@/lib/validation' (imported as 'propertySchema').
+
+Import trace for requested module:
+./components/PropertyForm.tsx
+./app/page.tsx
+
+./components/PropertyForm.tsx
+Attempted import error: 'propertySchema' is not exported from '@/lib/validation' (imported as 'propertySchema').
+
+Import trace for requested module:
+./components/PropertyForm.tsx
+./app/page.tsx
+ ⚠ ./components/PropertyForm.tsx
+Attempted import error: 'propertySchema' is not exported from '@/lib/validation' (imported as 'propertySchema').
+
+Import trace for requested module:
+./components/PropertyForm.tsx
+./app/page.tsx
+
+./components/PropertyForm.tsx
+Attempted import error: 'propertySchema' is not exported from '@/lib/validation' (imported as 'propertySchema').
+
+Import trace for requested module:
+./components/PropertyForm.tsx
+./app/page.tsx
+[APIService] Configuration: {
+  baseURL: 'http://localhost:8000',
+  timeout: 30000,
+  environment: 'development'
+}
+[APIService] Configuration: {
+  baseURL: 'http://localhost:8000',
+  timeout: 30000,
+  environment: 'development'
+}
+ GET /login 200 in 691ms
+ ⚠ ./components/PropertyForm.tsx
+Attempted import error: 'propertySchema' is not exported from '@/lib/validation' (imported as 'propertySchema').
+
+Import trace for requested module:
+./components/PropertyForm.tsx
+./app/page.tsx
+
+./components/PropertyForm.tsx
+Attempted import error: 'propertySchema' is not exported from '@/lib/validation' (imported as 'propertySchema').
+
+Import trace for requested module:
+./components/PropertyForm.tsx
+./app/page.tsx
+ ⚠ ./components/PropertyForm.tsx
+Attempted import error: 'propertySchema' is not exported from '@/lib/validation' (imported as 'propertySchema').
+
+Import trace for requested module:
+./components/PropertyForm.tsx
+./app/page.tsx
+
+./components/PropertyForm.tsx
+Attempted import error: 'propertySchema' is not exported from '@/lib/validation' (imported as 'propertySchema').
+
+Import trace for requested module:
+./components/PropertyForm.tsx
+./app/page.tsx
+[APIService] Configuration: {
+  baseURL: 'http://localhost:8000',
+  timeout: 30000,
+  environment: 'development'
+}
+[APIService] Configuration: {
+  baseURL: 'http://localhost:8000',
+  timeout: 30000,
+  environment: 'development'
+}
+ GET /onboarding 200 in 386ms

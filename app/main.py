@@ -99,6 +99,9 @@ async def shutdown_event():
 # Include all API V1 routers
 app.include_router(api_router, prefix="/api/v1")
 
+# Include simple auth router for demo purposes
+app.include_router(simple_auth.router)
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""

@@ -25,14 +25,11 @@ logger = structlog.get_logger(__name__)
 # Rate limiting setup
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter()
-router.state.limiter = limiter
-router.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Security
 security = HTTPBearer(auto_error=False)
 
-# Initialize services
-auth_service = AuthService()
+# Initialize services - will be created per request
 
 
 async def get_user_repository() -> UserRepository:
@@ -148,6 +145,7 @@ async def register(
             )
         
         # Create user account
+        auth_service = AuthService(user_repo)
         user = await auth_service.register_user(
             email=sanitized_data["email"],
             password=sanitized_data["password"],
@@ -227,6 +225,7 @@ async def login(
         email = sanitize_user_input(login_data.email.lower().strip())
         
         # Authenticate user
+        auth_service = AuthService(user_repo)
         result = await auth_service.authenticate_user(email, login_data.password)
         
         if not result:
@@ -356,6 +355,7 @@ async def change_password(
     
     try:
         # Change password
+        auth_service = AuthService(user_repo)
         success = await auth_service.change_password(
             user_id=str(current_user["_id"]),
             current_password=password_data.current_password,
@@ -443,6 +443,7 @@ async def refresh_token(
             )
         
         # Generate new tokens
+        auth_service = AuthService(user_repo)
         token_data = await auth_service.create_tokens(user_id)
         
         logger.info(f"Token refreshed successfully: {user_id}", extra={

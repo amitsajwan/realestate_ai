@@ -74,7 +74,7 @@ class UserCreate(UserBase):
             raise ValueError(f"Password validation failed: {', '.join(validation_result['errors'])}")
         return v
     
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def validate_passwords_match(cls, values):
         """Ensure password and confirm_password match"""
         password = values.get('password')
@@ -276,7 +276,7 @@ class PasswordChangeRequest(BaseModel):
             raise ValueError(f"Password validation failed: {', '.join(validation_result['errors'])}")
         return v
     
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def validate_password_change(cls, values):
         """Validate password change request"""
         current_password = values.get('current_password')
@@ -336,7 +336,7 @@ class PasswordResetConfirm(BaseModel):
             raise ValueError(f"Password validation failed: {', '.join(validation_result['errors'])}")
         return v
     
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def validate_reset_passwords_match(cls, values):
         """Ensure passwords match"""
         new_password = values.get('new_password')
