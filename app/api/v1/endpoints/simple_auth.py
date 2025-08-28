@@ -9,7 +9,7 @@ from jose import jwt
 import json
 from datetime import datetime, timedelta
 from typing import Optional
-from app.config import settings
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -90,7 +90,6 @@ async def get_user_profile(request: Request):
 
     token = auth_header.split(" ")[1]
 
-    from core.config import settings
     from jose import jwt, JWTError, ExpiredSignatureError
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])

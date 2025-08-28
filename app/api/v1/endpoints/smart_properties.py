@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 
 from core.dependencies import get_current_user
-from app.config import settings
+from app.core.config import settings
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

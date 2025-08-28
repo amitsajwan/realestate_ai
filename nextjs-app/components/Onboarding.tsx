@@ -1,100 +1,55 @@
-'use client'
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
+import { authManager } from '@/lib/auth';
+import { applyBrandTheme } from '@/lib/theme';
+import { UserIcon, BuildingOfficeIcon, SparklesIcon, ShareIcon, DocumentTextIcon, PhotoIcon, CheckIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { validatePassword } from '@/lib/validation';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 
-import React, { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useRouter } from 'next/navigation'
-import { 
-  UserIcon, 
-  BuildingOfficeIcon, 
-  SparklesIcon, 
-  ShieldCheckIcon,
-  PhotoIcon,
-  CheckIcon,
-  ArrowLeftIcon,
-  ArrowRightIcon
-} from '@heroicons/react/24/outline'
-import { authManager, User } from '@/lib/auth'
-import { applyBrandTheme } from '@/lib/theme'
-import toast from 'react-hot-toast'
+const onboardingSteps = [
+  { id: 1, title: 'Personal Info', icon: UserIcon },
+  { id: 2, title: 'Company', icon: BuildingOfficeIcon },
+  { id: 3, title: 'AI Branding', icon: SparklesIcon },
+  { id: 4, title: 'Social', icon: ShareIcon },
+  { id: 5, title: 'Terms', icon: DocumentTextIcon },
+  { id: 6, title: 'Photo', icon: PhotoIcon }
+];
 
 interface OnboardingProps {
-  user: User
-  onComplete: () => void
-}
-
-interface BrandingSuggestions {
-  tagline: string
-  about: string
-  colors: {
-    primary: string
-    secondary: string
-    accent: string
-  }
+  user: any;
+  currentStep: number;
+  onStepChange: (step: number) => void;
+  onComplete: () => void;
 }
 
 interface OnboardingFormData {
-  firstName: string
-  lastName: string
-  phone: string
-  company: string
-  position: string
-  licenseNumber: string
-  aiStyle: string
-  aiTone: string
-  facebookPage: string
-  termsAccepted: boolean
-  privacyAccepted: boolean
-  profilePhoto: string
-  preferences: string[]
-  brandingSuggestions: BrandingSuggestions | null
+  firstName: string;
+  lastName: string;
+  phone: string;
+  company: string;
+  position: string;
+  licenseNumber: string;
+  aiStyle: string;
+  aiTone: string;
+  facebookPage: string;
+  termsAccepted: boolean;
+  privacyAccepted: boolean;
+  profilePhoto: string;
+  preferences: string[];
+  brandingSuggestions: {
+    tagline: string;
+    about: string;
+    colors: {
+      primary: string;
+      secondary: string;
+      accent: string;
+    };
+  } | null;
 }
 
-const onboardingSteps = [
-  {
-    id: 1,
-    title: 'Personal Information',
-    description: 'Tell us about yourself',
-    icon: UserIcon,
-    fields: ['firstName', 'lastName', 'phone']
-  },
-  {
-    id: 2,
-    title: 'Company Details',
-    description: 'Your business information',
-    icon: BuildingOfficeIcon,
-    fields: ['company', 'position', 'licenseNumber']
-  },
-  {
-    id: 3,
-    title: 'AI Branding',
-    description: 'Customize your AI assistant',
-    icon: SparklesIcon,
-    fields: ['aiStyle', 'aiTone']
-  },
-  {
-    id: 4,
-    title: 'Facebook Connect',
-    description: 'Connect your social media',
-    icon: BuildingOfficeIcon,
-    fields: ['facebookPage']
-  },
-  {
-    id: 5,
-    title: 'Compliance',
-    description: 'Legal requirements',
-    icon: ShieldCheckIcon,
-    fields: ['termsAccepted', 'privacyAccepted']
-  },
-  {
-    id: 6,
-    title: 'Profile Setup & Complete',
-    description: 'Photo, preferences & finish setup',
-    icon: PhotoIcon,
-    fields: ['profilePhoto', 'preferences']
-  }
-]
-
-export default function Onboarding({ user, onComplete }: OnboardingProps) {
+const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep, onStepChange, onComplete }) => {
   const [currentStep, setCurrentStep] = useState(user.onboardingStep || 1)
   const [formData, setFormData] = useState<OnboardingFormData>({
     firstName: user.firstName || '',
@@ -692,3 +647,5 @@ export default function Onboarding({ user, onComplete }: OnboardingProps) {
     </div>
   )
 }
+
+export default Onboarding;
