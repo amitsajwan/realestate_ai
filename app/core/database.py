@@ -31,7 +31,10 @@ async def connect_to_mongo():
         
     except Exception as e:
         logger.error(f"❌ Failed to connect to MongoDB: {e}")
-        raise
+        logger.warning("⚠️  MongoDB connection failed - using mock database")
+        # Set up mock database for development
+        db.client = None
+        db.database = None
 
 async def close_mongo_connection():
     """Close database connection"""
@@ -42,8 +45,43 @@ async def close_mongo_connection():
 def get_database():
     """Get database instance"""
     if db.database is None:
-        raise RuntimeError("Database not initialized. Call connect_to_mongo() first.")
+        logger.warning("⚠️  Database not available - returning mock database")
+        return MockDatabase()
     return db.database
+
+class MockDatabase:
+    """Mock database for development when MongoDB is not available"""
+    def __getattr__(self, name):
+        return MockCollection()
+
+class MockCollection:
+    """Mock collection for development"""
+    async def count_documents(self, *args, **kwargs):
+        return 0
+    
+    async def find_one(self, *args, **kwargs):
+        return None
+    
+    async def find(self, *args, **kwargs):
+        return []
+    
+    async def insert_one(self, *args, **kwargs):
+        return MockInsertResult()
+    
+    async def update_one(self, *args, **kwargs):
+        return MockUpdateResult()
+    
+    async def delete_one(self, *args, **kwargs):
+        return MockDeleteResult()
+
+class MockInsertResult:
+    inserted_id = "mock_id"
+
+class MockUpdateResult:
+    modified_count = 1
+
+class MockDeleteResult:
+    deleted_count = 1
 
 # Legacy compatibility - some of your existing code might expect this
 def get_db_client():

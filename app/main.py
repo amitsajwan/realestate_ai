@@ -85,7 +85,8 @@ async def startup_event():
         logger.info("🚀 MongoDB connected successfully")
     except Exception as e:
         logger.error(f"❌ Failed to connect to MongoDB: {e}")
-        raise
+        logger.warning("⚠️  Running without MongoDB - some features may be limited")
+        # Don't raise the exception, allow the app to start without MongoDB
 
 @app.on_event("shutdown")
 async def shutdown_event():

@@ -17,7 +17,12 @@ from app.schemas.user import (
 from app.services.auth_service import AuthService
 from app.repositories.user_repository import UserRepository
 from app.core.database import get_database
-from app.utils import verify_jwt_token, sanitize_user_input
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+from app import utils
+verify_jwt_token = utils.verify_token
+sanitize_user_input = utils.sanitize_user_input
 
 # Configure structured logging
 logger = structlog.get_logger(__name__)

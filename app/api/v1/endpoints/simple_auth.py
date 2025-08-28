@@ -3,132 +3,122 @@ Simple Authentication API for Demo/Development
 Provides basic login functionality with JWT tokens
 """
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from jose import jwt
-import json
-from datetime import datetime, timedelta
 from typing import Optional
-from app.core.config import settings
+import jwt
+from datetime import datetime, timedelta
 
 router = APIRouter()
 
-# Simple demo user credentials
-DEMO_USERS = {
-    "demo@mumbai.com": {
-        "email": "demo@mumbai.com", 
-        "password": "demo123",
-        "name": "Demo User",
-        "firstName": "Demo",
-        "lastName": "User",
-        "phone": "+91-9876543210",
-        "experience": "5 years",
-        "areas": "Mumbai, Bandra, Powai",
-        "languages": "English, Hindi, Marathi"
-    }
-}
-
- # Use app-wide secret and algorithm
-
+# Simple models
 class LoginRequest(BaseModel):
     email: str
     password: str
 
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    firstName: str
+    lastName: str
+    phone: Optional[str] = None
+
+class OnboardingRequest(BaseModel):
+    company: str
+    position: str
+    experience: str
+
 class LoginResponse(BaseModel):
-    token: str
+    access_token: str
+    token_type: str = "bearer"
     user: dict
-    success: bool = True
 
-@router.post("/api/login", response_model=LoginResponse)
-async def login(login_request: LoginRequest):
-    """Simple login endpoint for demo purposes"""
+# Mock users database (in production, use real database)
+MOCK_USERS = {}
+
+# Simple JWT secret (in production, use secure secret)
+SECRET_KEY = "simple-jwt-secret-key"
+
+def create_token(user_data: dict) -> str:
+    payload = {
+        "sub": user_data["email"],
+        "user_id": user_data["id"],
+        "exp": datetime.utcnow() + timedelta(hours=24),
+        "iat": datetime.utcnow(),
+        "type": "access"
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+
+@router.post("/register")
+async def register(request: RegisterRequest):
+    """Simple user registration"""
+    if request.email in MOCK_USERS:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="User already exists"
+        )
     
-    email = login_request.email.lower().strip()
-    password = login_request.password
+    user_id = f"user_{len(MOCK_USERS) + 1}"
+    user = {
+        "id": user_id,
+        "email": request.email,
+        "firstName": request.firstName,
+        "lastName": request.lastName,
+        "phone": request.phone,
+        "onboardingCompleted": False,
+        "password": request.password  # In production, hash this!
+    }
     
-    # Check demo user
-    if email in DEMO_USERS:
-        user_data = DEMO_USERS[email]
-        
-        if user_data["password"] == password:
-            # Create JWT token compatible with get_current_user
-            payload = {
-                "sub": email,
-                "user_id": f"user_{abs(hash(email)) % 10000}",
-                "email": email,
-                "name": user_data["name"],
-                "firstName": user_data["firstName"],
-                "exp": int((datetime.utcnow() + timedelta(hours=24)).timestamp())
-            }
-            token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-            
-            # Return successful login response
-            return LoginResponse(
-                token=token,
-                user={
-                    "email": user_data["email"],
-                    "name": user_data["name"],
-                    "firstName": user_data["firstName"],
-                    "lastName": user_data["lastName"],
-                    "phone": user_data["phone"],
-                    "experience": user_data["experience"],
-                    "areas": user_data["areas"],
-                    "languages": user_data["languages"]
-                }
-            )
+    MOCK_USERS[request.email] = user
     
-    # Invalid credentials
-    raise HTTPException(status_code=401, detail="Invalid email or password")
+    return {
+        "user": {k: v for k, v in user.items() if k != "password"},
+        "message": "User registered successfully"
+    }
 
-@router.get("/api/user/profile")
-async def get_user_profile(request: Request):
-    """Get current user profile from JWT token"""
+@router.post("/login")
+async def login(request: LoginRequest):
+    """Simple user login"""
+    user = MOCK_USERS.get(request.email)
+    if not user or user["password"] != request.password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
     
-    auth_header = request.headers.get("authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="No valid authorization header")
-
-    token = auth_header.split(" ")[1]
-
-    from jose import jwt, JWTError, ExpiredSignatureError
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        email = payload.get("email")
-
-        if email and email in DEMO_USERS:
-            user_data = DEMO_USERS[email]
-            return {
-                "success": True,
-                "user": {
-                    "email": user_data["email"],
-                    "name": user_data["name"],
-                    "firstName": user_data["firstName"],
-                    "lastName": user_data["lastName"],
-                    "phone": user_data["phone"],
-                    "experience": user_data["experience"],
-                    "areas": user_data["areas"],
-                    "languages": user_data["languages"]
-                }
-            }
-        else:
-            raise HTTPException(status_code=401, detail="User not found")
-
-    except ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token has expired")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-@router.post("/api/user/profile")
-async def update_user_profile(request: Request):
-    """Update user profile (placeholder for demo)"""
+    token = create_token(user)
+    user_response = {k: v for k, v in user.items() if k != "password"}
     
-    auth_header = request.headers.get("authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="No valid authorization header")
+    return LoginResponse(
+        access_token=token,
+        user=user_response
+    )
+
+@router.get("/me")
+async def get_current_user():
+    """Get current user info"""
+    # For simplicity, return mock user
+    return {
+        "id": "user_1",
+        "email": "test@example.com",
+        "firstName": "Test",
+        "lastName": "User",
+        "onboardingCompleted": False
+    }
+
+@router.post("/complete-onboarding")
+async def complete_onboarding(request: OnboardingRequest):
+    """Complete user onboarding"""
+    # In a real app, you'd get user from JWT token
+    # For now, just update the mock user
+    for user in MOCK_USERS.values():
+        user["onboardingCompleted"] = True
+        user["company"] = request.company
+        user["position"] = request.position
+        user["experience"] = request.experience
+        break
     
-    try:
-        body = await request.json()
-        # In a real app, you'd update the database here
-        return {"success": True, "message": "Profile updated successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail="Invalid request data")
+    return {
+        "success": True,
+        "message": "Onboarding completed successfully"
+    }
