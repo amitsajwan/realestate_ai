@@ -1,540 +1,507 @@
-// Authentication utilities for PropertyAI
+'use client';
 
-import { apiService } from './api'
+import { APIService } from './api';
 
 export interface User {
-  id: string
-  email: string
-  firstName: string
-  lastName: string
-  phone?: string
-  company?: string
-  position?: string
-  licenseNumber?: string
-  facebookConnected: boolean
-  onboardingCompleted: boolean
-  onboardingStep: number
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  onboardingCompleted: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AuthState {
-  user: User | null
-  isAuthenticated: boolean
-  isLoading: boolean
+  isAuthenticated: boolean;
+  user: User | null;
+  token: string | null;
+  refreshToken: string | null;
+  isLoading: boolean;
+  error: string | null;
 }
 
-// Enhanced token management with expiration handling
-class TokenManager {
-  private static readonly TOKEN_KEY = 'auth_token'
-  private static readonly REFRESH_TOKEN_KEY = 'refresh_token'
-  private static readonly TOKEN_EXPIRY_KEY = 'token_expiry'
-
-  static setTokens(accessToken: string, refreshToken?: string, expiresIn?: number) {
-    if (typeof window === 'undefined') return
-
-    const expiryTime = expiresIn ? Date.now() + (expiresIn * 1000) : null
-    
-    localStorage.setItem(this.TOKEN_KEY, accessToken)
-    if (refreshToken) {
-      localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken)
-    }
-    if (expiryTime) {
-      localStorage.setItem(this.TOKEN_EXPIRY_KEY, expiryTime.toString())
-    }
-  }
-
-  static getAccessToken(): string | null {
-    if (typeof window === 'undefined') return null
-    return localStorage.getItem(this.TOKEN_KEY)
-  }
-
-  static getRefreshToken(): string | null {
-    if (typeof window === 'undefined') return null
-    return localStorage.getItem(this.REFRESH_TOKEN_KEY)
-  }
-
-  static isTokenExpired(): boolean {
-    if (typeof window === 'undefined') return true
-    
-    const expiryTime = localStorage.getItem(this.TOKEN_EXPIRY_KEY)
-    if (!expiryTime) return true
-    
-    // Consider token expired if it expires within 5 minutes
-    const bufferTime = 5 * 60 * 1000 // 5 minutes
-    return Date.now() + bufferTime >= parseInt(expiryTime)
-  }
-
-  static clearTokens() {
-    if (typeof window === 'undefined') return
-    
-    localStorage.removeItem(this.TOKEN_KEY)
-    localStorage.removeItem(this.REFRESH_TOKEN_KEY)
-    localStorage.removeItem(this.TOKEN_EXPIRY_KEY)
-  }
-
-  static shouldRefreshToken(): boolean {
-    return this.isTokenExpired() && !!this.getRefreshToken()
-  }
+export interface AuthResult {
+  success: boolean;
+  user?: User;
+  error?: string;
 }
 
-// Enhanced API calls with automatic token refresh
-export const authAPI = {
-  // Login with email/password
-  async login(email: string, password: string): Promise<User> {
-    try {
-      const response = await apiService.login(email, password)
-      
-      if (response.success && response.access_token) {
-        // Store tokens with expiration
-        TokenManager.setTokens(
-          response.access_token,
-          response.refresh_token,
-          response.expires_in || 3600 // Default 1 hour
-        )
-        
-        // Set token in API service
-        apiService.setToken(response.access_token)
-        
-        // Mock user data - for demo purposes
-        // Use different emails to test different scenarios
-        const isNewUser = email.includes('new') || email.includes('test') || email.includes('onboarding')
-        
-        const userObj = {
-          id: response.user_id || '1',
-          email,
-          firstName: isNewUser ? '' : 'John',
-          lastName: isNewUser ? '' : 'Doe',
-          phone: isNewUser ? '' : '+91 98765 43210',
-          company: isNewUser ? '' : 'Real Estate Pro',
-          position: isNewUser ? '' : 'Senior Agent',
-          licenseNumber: isNewUser ? '' : 'RE123456',
-          facebookConnected: false,
-          onboardingCompleted: response.onboarding_completed !== undefined ? response.onboarding_completed : !isNewUser,
-          onboardingStep: response.onboarding_completed === true ? 7 : (isNewUser ? 1 : 7)
-        }
-        return userObj
-      } else {
-        throw new Error(response.message || 'Login failed')
-      }
-    } catch (error) {
-      console.error('Login error:', error)
-      throw error
-    }
-  },
-
-  // Register new user
-  async register(userData: {
-    email: string
-    password: string
-    firstName: string
-    lastName: string
-    phone?: string
-  }): Promise<User> {
-    try {
-      const response = await apiService.register({
-        name: `${userData.firstName} ${userData.lastName}`,
-        email: userData.email,
-        password: userData.password
-      })
-      
-      if (response.success && response.access_token) {
-        // Store tokens
-        TokenManager.setTokens(
-          response.access_token,
-          response.refresh_token,
-          response.expires_in || 3600
-        )
-        
-        // Set token in API service
-        apiService.setToken(response.access_token)
-        
-        return {
-          id: response.user_id || '1',
-          email: userData.email,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          phone: userData.phone,
-          facebookConnected: false,
-          onboardingCompleted: false,
-          onboardingStep: 1
-        }
-      } else {
-        throw new Error(response.message || 'Registration failed')
-      }
-    } catch (error) {
-      console.error('Registration error:', error)
-      throw error
-    }
-  },
-
-  // Refresh token
-  async refreshToken(): Promise<boolean> {
-    try {
-      const refreshToken = TokenManager.getRefreshToken()
-      if (!refreshToken) {
-        return false
-      }
-
-      // TODO: Implement actual refresh token endpoint
-      // const response = await apiService.refreshToken(refreshToken)
-      
-      // For now, simulate successful refresh
-      const currentToken = TokenManager.getAccessToken()
-      if (currentToken) {
-        // Extend token expiry by 1 hour
-        TokenManager.setTokens(currentToken, refreshToken, 3600)
-        return true
-      }
-      
-      return false
-    } catch (error) {
-      console.error('Token refresh error:', error)
-      return false
-    }
-  },
-
-  // Update onboarding progress
-  async updateOnboarding(userId: string, step: number, data: Partial<User>): Promise<User> {
-    try {
-      console.log('🔧 authAPI.updateOnboarding called with:', { userId, step, data })
-      
-      // Prepare profile data for backend
-      const profileData = {
-        user_id: userId,
-        name: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
-        email: data.email || 'user@example.com',
-        phone: data.phone || '',
-        whatsapp: data.phone || '',
-        company: data.company || '',
-        position: data.position || '',
-        license_number: data.licenseNumber || '',
-        onboarding_step: step,
-        onboarding_completed: step >= 6
-      }
-      
-      console.log('📤 Sending profile data to backend:', profileData)
-      
-      // Call backend API to save profile
-      const response = await apiService.createOrUpdateProfile(profileData)
-      
-      console.log('📥 Backend response:', response)
-      
-      if (response.success) {
-        // Return updated user object
-        return {
-          id: userId,
-          email: data.email || 'user@example.com',
-          firstName: data.firstName || '',
-          lastName: data.lastName || '',
-          phone: data.phone || '',
-          company: data.company || '',
-          position: data.position || '',
-          licenseNumber: data.licenseNumber || '',
-          facebookConnected: false,
-          ...data,
-          onboardingStep: step,
-          onboardingCompleted: step >= 6
-        }
-      } else {
-        throw new Error('Failed to update onboarding progress')
-      }
-    } catch (error) {
-      console.error('Update onboarding error:', error)
-      throw error
-    }
-  },
-
-  // Connect Facebook
-  async connectFacebook(userId: string, facebookData: any): Promise<User> {
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    return {
-      id: userId,
-      email: 'john@example.com',
-      firstName: 'John',
-      lastName: 'Doe',
-      facebookConnected: true,
-      onboardingCompleted: true,
-      onboardingStep: 7
-    }
-  }
+export interface RegisterData {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
 }
 
-// Local storage utilities
-export const storage = {
-  get(key: string) {
-    if (typeof window === 'undefined') return null
-    try {
-      const item = localStorage.getItem(key)
-      return item ? JSON.parse(item) : null
-    } catch {
-      return null
-    }
-  },
-
-  set(key: string, value: any) {
-    if (typeof window === 'undefined') return
-    try {
-      localStorage.setItem(key, JSON.stringify(value))
-    } catch {
-      // Handle error
-    }
-  },
-
-  remove(key: string) {
-    if (typeof window === 'undefined') return
-    try {
-      localStorage.removeItem(key)
-    } catch {
-      // Handle error
-    }
-  }
-}
-
-// Enhanced Auth state management with token refresh
-export class AuthManager {
-  private static instance: AuthManager
-  private listeners: ((state: AuthState) => void)[] = []
+class AuthManager {
   private state: AuthState = {
-    user: null,
     isAuthenticated: false,
-    isLoading: true
-  }
-  private tokenRefreshInterval: NodeJS.Timeout | null = null
+    user: null,
+    token: null,
+    refreshToken: null,
+    isLoading: false,
+    error: null
+  };
 
-  static getInstance(): AuthManager {
-    if (!AuthManager.instance) {
-      AuthManager.instance = new AuthManager()
-    }
-    return AuthManager.instance
-  }
+  private listeners: Array<(state: AuthState) => void> = [];
+  private apiService: APIService;
+  private refreshTimer: NodeJS.Timeout | null = null;
+  private isRefreshing = false;
+  private refreshPromise: Promise<boolean> | null = null;
 
-  async init() {
-    console.log('[AuthManager] Initializing auth manager...')
-    
-    // Check for Facebook OAuth token from URL parameters
+  constructor() {
+    this.apiService = new APIService();
     if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search)
-      const facebookToken = urlParams.get('token')
-      const authSuccess = urlParams.get('auth') === 'success'
+      this.init();
+    }
+  }
+
+  /**
+   * Initialize auth manager - load tokens from storage and validate
+   */
+  async init(): Promise<void> {
+    try {
+      this.setState({ isLoading: true, error: null });
       
-      console.log('[AuthManager] URL params found:', {
-        hasToken: !!facebookToken,
-        hasAuthSuccess: authSuccess,
-        fullUrl: window.location.href,
-        params: Object.fromEntries(urlParams.entries())
-      })
+      const token = this.getStoredToken();
+      const refreshToken = this.getStoredRefreshToken();
       
-      if (facebookToken && authSuccess) {
-        console.log('[AuthManager] Processing Facebook OAuth token...')
-        
-        try {
-          // Decode the JWT to get user info
-          const tokenParts = facebookToken.split('.')
-          if (tokenParts.length === 3) {
-            const payload = JSON.parse(atob(tokenParts[1]))
-            console.log('[AuthManager] Decoded token payload:', payload)
-            
-            const user = {
-              id: payload.user_id || payload.sub || '1',
-              email: payload.email || 'user@example.com',
-              firstName: payload.first_name || 'User',
-              lastName: payload.last_name || 'Name',
-              facebookConnected: true,
-              onboardingCompleted: payload.onboarding_completed || false,
-              onboardingStep: payload.onboarding_step || 1
-            }
-            
-            console.log('[AuthManager] Created user object:', user)
-            
-            // Store the token and user
-            TokenManager.setTokens(facebookToken, facebookToken, 3600)
-            storage.set('user', user)
-            
-            console.log('[AuthManager] Stored tokens and user in localStorage')
-            console.log('[AuthManager] localStorage after storage:', {
-              access_token: localStorage.getItem('access_token'),
-              user: localStorage.getItem('user')
-            })
-            
-            this.state.user = user
-            this.state.isAuthenticated = true
-            
-            // Set token in API service
-            apiService.setToken(facebookToken)
-            
-            // Start token refresh monitoring
-            this.startTokenRefreshMonitoring()
-            
-            // Clean URL parameters
-            console.log('[AuthManager] Cleaning URL parameters...')
-            window.history.replaceState({}, document.title, '/')
-            
-            console.log('[AuthManager] Facebook OAuth processing completed successfully')
-          } else {
-            console.error('[AuthManager] Invalid token format:', facebookToken)
+      if (!token) {
+        this.setState({ isLoading: false });
+        return;
+      }
+
+      // Check if token is expired
+      if (this.isTokenExpired(token)) {
+        if (refreshToken && !this.isTokenExpired(refreshToken)) {
+          const refreshed = await this.refreshAccessToken();
+          if (!refreshed) {
+            this.clearAuth();
+            this.setState({ isLoading: false });
+            return;
           }
-        } catch (error) {
-          console.error('[AuthManager] Error handling Facebook OAuth token:', error)
+        } else {
+          this.clearAuth();
+          this.setState({ isLoading: false });
+          return;
         }
+      }
+
+      // Validate token by fetching user info
+      const user = await this.getCurrentUser();
+      if (user) {
+        this.setState({
+          isAuthenticated: true,
+          user,
+          token: this.getStoredToken(),
+          refreshToken: this.getStoredRefreshToken(),
+          isLoading: false,
+          error: null
+        });
+        this.scheduleTokenRefresh();
       } else {
-        console.log('[AuthManager] No Facebook OAuth parameters found, checking existing session...')
+        this.clearAuth();
+        this.setState({ isLoading: false });
       }
+    } catch (error) {
+      console.error('[AuthManager] Init error:', error);
+      this.clearAuth();
+      this.setState({ isLoading: false, error: 'Authentication initialization failed' });
     }
-    
-    // Check for existing session and token validity
-    const user = storage.get('user')
-    const accessToken = TokenManager.getAccessToken()
-    
-    if (user && accessToken && !this.state.isAuthenticated) {
-      // Check if token needs refresh
-      if (TokenManager.shouldRefreshToken()) {
-        const refreshSuccess = await authAPI.refreshToken()
-        if (!refreshSuccess) {
-          // Token refresh failed, clear everything
-          this.logout()
-          this.state.isLoading = false
-          this.notifyListeners()
-          return
+  }
+
+  /**
+   * Login with email and password
+   */
+  async login(email: string, password: string): Promise<AuthResult> {
+    try {
+      this.setState({ isLoading: true, error: null });
+      
+      const response = await this.apiService.login({ email, password });
+      
+      if (response.access_token && response.user) {
+        // Store tokens
+        this.setStoredToken(response.access_token);
+        if (response.refresh_token) {
+          this.setStoredRefreshToken(response.refresh_token);
         }
+        
+        // Update state
+        this.setState({
+          isAuthenticated: true,
+          user: response.user,
+          token: response.access_token,
+          refreshToken: response.refresh_token || null,
+          isLoading: false,
+          error: null
+        });
+        
+        this.scheduleTokenRefresh();
+        
+        return { success: true, user: response.user };
+      } else {
+        const error = 'Invalid response from server';
+        this.setState({ isLoading: false, error });
+        return { success: false, error };
       }
-      
-      this.state.user = user
-      this.state.isAuthenticated = true
-      
-      // Set token in API service
-      apiService.setToken(accessToken)
-      
-      // Start token refresh monitoring
-      this.startTokenRefreshMonitoring()
+    } catch (error: any) {
+      console.error('[AuthManager] Login error:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Login failed';
+      this.setState({ isLoading: false, error: errorMessage });
+      return { success: false, error: errorMessage };
     }
-    
-    this.state.isLoading = false
-    this.notifyListeners()
   }
 
-  async login(email: string, password: string) {
-    this.state.isLoading = true
-    this.notifyListeners()
-
+  /**
+   * Register new user
+   */
+  async register(userData: RegisterData): Promise<AuthResult> {
     try {
-      const user = await authAPI.login(email, password)
-      this.state.user = user
-      this.state.isAuthenticated = true
-      storage.set('user', user)
+      this.setState({ isLoading: true, error: null });
       
-      // Start token refresh monitoring
-      this.startTokenRefreshMonitoring()
+      const response = await this.apiService.register(userData);
       
-      return user
+      if (response.user) {
+        this.setState({ isLoading: false, error: null });
+        return { success: true, user: response.user };
+      } else {
+        const error = 'Registration failed';
+        this.setState({ isLoading: false, error });
+        return { success: false, error };
+      }
+    } catch (error: any) {
+      console.error('[AuthManager] Registration error:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Registration failed';
+      this.setState({ isLoading: false, error: errorMessage });
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Logout user
+   */
+  async logout(): Promise<void> {
+    try {
+      // Call logout endpoint if token exists
+      if (this.state.token) {
+        await this.apiService.logout();
+      }
     } catch (error) {
-      throw error
+      console.error('[AuthManager] Logout error:', error);
     } finally {
-      this.state.isLoading = false
-      this.notifyListeners()
+      this.clearAuth();
+      this.setState({
+        isAuthenticated: false,
+        user: null,
+        token: null,
+        refreshToken: null,
+        isLoading: false,
+        error: null
+      });
     }
   }
 
-  async register(userData: any) {
-    this.state.isLoading = true
-    this.notifyListeners()
-
+  /**
+   * Get current user from API
+   */
+  async getCurrentUser(): Promise<User | null> {
     try {
-      const user = await authAPI.register(userData)
-      this.state.user = user
-      this.state.isAuthenticated = true
-      storage.set('user', user)
+      const token = this.getStoredToken();
+      if (!token) return null;
       
-      // Start token refresh monitoring
-      this.startTokenRefreshMonitoring()
-      
-      return user
+      const user = await this.apiService.getCurrentUser();
+      return user;
     } catch (error) {
-      throw error
+      console.error('[AuthManager] Get current user error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Refresh access token
+   */
+  async refreshAccessToken(): Promise<boolean> {
+    if (this.isRefreshing) {
+      return this.refreshPromise || Promise.resolve(false);
+    }
+
+    this.isRefreshing = true;
+    this.refreshPromise = this.performTokenRefresh();
+    
+    try {
+      const result = await this.refreshPromise;
+      return result;
     } finally {
-      this.state.isLoading = false
-      this.notifyListeners()
+      this.isRefreshing = false;
+      this.refreshPromise = null;
     }
   }
 
-  async updateOnboarding(step: number, data: Partial<User>) {
-    console.log('🔍 authManager.updateOnboarding called with:', { step, data })
-    console.log('👤 Current user state:', this.state.user)
-    
-    if (!this.state.user) {
-      console.error('❌ No user found in state, cannot update onboarding')
-      throw new Error('User not authenticated')
-    }
-
+  private async performTokenRefresh(): Promise<boolean> {
     try {
-      console.log('📞 Calling authAPI.updateOnboarding with user ID:', this.state.user.id)
-      const user = await authAPI.updateOnboarding(this.state.user.id, step, data)
-      console.log('✅ authAPI.updateOnboarding successful, updating state')
-      this.state.user = user
-      storage.set('user', user)
-      this.notifyListeners()
-      return user
-    } catch (error) {
-      console.error('❌ authManager.updateOnboarding error:', error)
-      throw error
-    }
-  }
+      const refreshToken = this.getStoredRefreshToken();
+      if (!refreshToken || this.isTokenExpired(refreshToken)) {
+        return false;
+      }
 
-  logout() {
-    this.state.user = null
-    this.state.isAuthenticated = false
-    storage.remove('user')
-    TokenManager.clearTokens()
-    apiService.clearToken()
-    
-    // Stop token refresh monitoring
-    this.stopTokenRefreshMonitoring()
-    
-    this.notifyListeners()
-  }
-
-  // Start monitoring token expiration and auto-refresh
-  private startTokenRefreshMonitoring() {
-    if (this.tokenRefreshInterval) {
-      clearInterval(this.tokenRefreshInterval)
-    }
-    
-    // Check token every 5 minutes
-    this.tokenRefreshInterval = setInterval(async () => {
-      if (TokenManager.shouldRefreshToken()) {
-        const refreshSuccess = await authAPI.refreshToken()
-        if (!refreshSuccess) {
-          // Auto logout on refresh failure
-          this.logout()
+      const response = await this.apiService.refreshToken(refreshToken);
+      
+      if (response.access_token) {
+        this.setStoredToken(response.access_token);
+        if (response.refresh_token) {
+          this.setStoredRefreshToken(response.refresh_token);
         }
+        
+        this.setState({
+          token: response.access_token,
+          refreshToken: response.refresh_token || this.state.refreshToken
+        });
+        
+        this.scheduleTokenRefresh();
+        return true;
       }
-    }, 5 * 60 * 1000) // 5 minutes
-  }
-
-  // Stop token refresh monitoring
-  private stopTokenRefreshMonitoring() {
-    if (this.tokenRefreshInterval) {
-      clearInterval(this.tokenRefreshInterval)
-      this.tokenRefreshInterval = null
+      
+      return false;
+    } catch (error) {
+      console.error('[AuthManager] Token refresh error:', error);
+      return false;
     }
   }
 
+  /**
+   * Check if user is authenticated
+   */
+  async isAuthenticated(): Promise<boolean> {
+    const token = this.getStoredToken();
+    if (!token) return false;
+    
+    if (this.isTokenExpired(token)) {
+      const refreshed = await this.refreshAccessToken();
+      return refreshed;
+    }
+    
+    return true;
+  }
+
+  /**
+   * Get current auth state
+   */
   getState(): AuthState {
-    return { ...this.state }
+    return { ...this.state };
   }
 
-  subscribe(listener: (state: AuthState) => void) {
-    this.listeners.push(listener)
+  /**
+   * Subscribe to auth state changes
+   */
+  subscribe(listener: (state: AuthState) => void): () => void {
+    this.listeners.push(listener);
     return () => {
-      this.listeners = this.listeners.filter(l => l !== listener)
+      const index = this.listeners.indexOf(listener);
+      if (index > -1) {
+        this.listeners.splice(index, 1);
+      }
+    };
+  }
+
+  /**
+   * Get current access token
+   */
+  getToken(): string | null {
+    return this.getStoredToken();
+  }
+
+  /**
+   * Update user profile
+   */
+  async updateProfile(userData: Partial<User>): Promise<AuthResult> {
+    try {
+      this.setState({ isLoading: true, error: null });
+      
+      const updatedUser = await this.apiService.updateProfile(userData);
+      
+      if (updatedUser) {
+        this.setState({
+          user: updatedUser,
+          isLoading: false,
+          error: null
+        });
+        return { success: true, user: updatedUser };
+      } else {
+        const error = 'Profile update failed';
+        this.setState({ isLoading: false, error });
+        return { success: false, error };
+      }
+    } catch (error: any) {
+      console.error('[AuthManager] Profile update error:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Profile update failed';
+      this.setState({ isLoading: false, error: errorMessage });
+      return { success: false, error: errorMessage };
     }
   }
 
-  private notifyListeners() {
-    this.listeners.forEach(listener => listener(this.getState()))
+  /**
+   * Change password
+   */
+  async changePassword(currentPassword: string, newPassword: string): Promise<AuthResult> {
+    try {
+      this.setState({ isLoading: true, error: null });
+      
+      await this.apiService.changePassword({
+        current_password: currentPassword,
+        new_password: newPassword
+      });
+      
+      this.setState({ isLoading: false, error: null });
+      return { success: true };
+    } catch (error: any) {
+      console.error('[AuthManager] Password change error:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Password change failed';
+      this.setState({ isLoading: false, error: errorMessage });
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Update onboarding progress for the current user
+   */
+  async updateOnboarding(step: number, data: any): Promise<{ success: boolean }>{
+    try {
+      this.setState({ isLoading: true, error: null });
+
+      const user = this.state.user;
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Save step progress or complete onboarding
+      if (step >= 6) {
+        await this.apiService.post(`/api/v1/onboarding/${user.id}/complete`, undefined, true);
+        // Optimistically update local state
+        this.setState({
+          user: { ...(this.state.user as User), onboardingCompleted: true },
+          isLoading: false,
+          error: null
+        });
+        return { success: true };
+      } else {
+        await this.apiService.post(
+          `/api/v1/onboarding/${user.id}`,
+          { step_number: step, data },
+          true
+        );
+        this.setState({ isLoading: false, error: null });
+        return { success: true };
+      }
+    } catch (error: any) {
+      console.error('[AuthManager] Update onboarding error:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to update onboarding';
+      this.setState({ isLoading: false, error: errorMessage });
+      return { success: false };
+    }
+  }
+
+  // Private methods
+  private setState(updates: Partial<AuthState>): void {
+    this.state = { ...this.state, ...updates };
+    this.listeners.forEach(listener => listener(this.state));
+  }
+
+  private getStoredToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('auth_token');
+  }
+
+  private setStoredToken(token: string): void {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('auth_token', token);
+  }
+
+  private getStoredRefreshToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('refresh_token');
+  }
+
+  private setStoredRefreshToken(token: string): void {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('refresh_token', token);
+  }
+
+  private clearAuth(): void {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('refresh_token');
+    
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+  }
+
+  private isTokenExpired(token: string): boolean {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Math.floor(Date.now() / 1000);
+      return payload.exp < currentTime;
+    } catch (error) {
+      console.error('[AuthManager] Token parsing error:', error);
+      return true;
+    }
+  }
+
+  private scheduleTokenRefresh(): void {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+    }
+
+    const token = this.getStoredToken();
+    if (!token) return;
+
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Math.floor(Date.now() / 1000);
+      const timeUntilExpiry = payload.exp - currentTime;
+      
+      // Refresh 5 minutes before expiry
+      const refreshTime = Math.max(0, (timeUntilExpiry - 300) * 1000);
+      
+      this.refreshTimer = setTimeout(() => {
+        this.refreshAccessToken();
+      }, refreshTime);
+    } catch (error) {
+      console.error('[AuthManager] Token scheduling error:', error);
+    }
   }
 }
 
-export const authManager = AuthManager.getInstance()
+// Export singleton instance
+export const authManager = new AuthManager();
 
-// Export TokenManager for testing
-export { TokenManager }
+// React hook for using auth state
+export function useAuth() {
+  const [state, setState] = React.useState<AuthState>(authManager.getState());
+
+  React.useEffect(() => {
+    const unsubscribe = authManager.subscribe(setState);
+    return unsubscribe;
+  }, []);
+
+  return {
+    ...state,
+    login: authManager.login.bind(authManager),
+    register: authManager.register.bind(authManager),
+    logout: authManager.logout.bind(authManager),
+    updateProfile: authManager.updateProfile.bind(authManager),
+    changePassword: authManager.changePassword.bind(authManager),
+    updateOnboarding: authManager.updateOnboarding.bind(authManager),
+    refreshToken: authManager.refreshAccessToken.bind(authManager)
+  };
+}
+
+// Add React import for the hook
+if (typeof window !== 'undefined') {
+  // @ts-ignore
+  const React = require('react');
+}

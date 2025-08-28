@@ -13,7 +13,7 @@ import re
 from app.routers import listings, user_profile
 from app.api.v1.endpoints import simple_auth
 from app.api.v1.router import api_router
-from app.config import settings
+from app.core.config import settings
 from app.core.database import connect_to_mongo, close_mongo_connection
 
 # Configure logging

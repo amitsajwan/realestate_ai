@@ -1,430 +1,606 @@
-// API service layer for PropertyAI backend integration
-// Refactored to match actual backend endpoints
+'use client';
 
-export interface APIResponse<T = any> {
-  success: boolean
-  data?: T
-  error?: string
-  message?: string
+// Enhanced API service with comprehensive error handling and logging
+
+export interface LoginRequest {
+  email: string;
+  password: string;
 }
 
-// Backend Property interface (matches backend schema)
-export interface Property {
-  id?: number
-  user_id: string
-  title: string
-  type?: string
-  bedrooms?: string
-  price?: number
-  price_unit?: string
-  city?: string
-  area?: string
-  address?: string
-  carpet_area?: number
-  built_up_area?: number
-  floor?: string
-  furnishing?: string
-  possession?: string
-  amenities?: string[]
-  description?: string
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
 }
 
-// Backend User Profile interface
-export interface UserProfile {
-  user_id: string
-  name: string
-  email: string
-  phone?: string
-  whatsapp?: string
-  company?: string
-  experience_years?: string
-  specialization_areas?: string
-  tagline?: string
-  social_bio?: string
-  about?: string
-  address?: string
-  city?: string
-  state?: string
-  pincode?: string
-  languages?: string[]
-  logo_url?: string
+export interface LoginResponse {
+  access_token: string;
+  refresh_token?: string;
+  token_type: string;
+  expires_in?: number;
+  user: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    phone?: string;
+    onboardingCompleted: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
 }
 
-// Backend Auth interfaces
-export interface UserRegistration {
-  name: string
-  email: string
-  password: string
+export interface RegisterResponse {
+  user: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    phone?: string;
+    onboardingCompleted: boolean;
+    createdAt: string;
+    updatedAt: string;
+  };
+  message: string;
 }
 
-export interface UserLogin {
-  email: string
-  password: string
+export interface RefreshTokenResponse {
+  access_token: string;
+  refresh_token?: string;
+  token_type: string;
+  expires_in?: number;
 }
 
-export interface AuthResponse {
-  success: boolean
-  access_token?: string
-  refresh_token?: string
-  user_id?: string
-  message?: string
-  expires_in?: number
-  onboarding_completed?: boolean
+export interface PasswordChangeRequest {
+  current_password: string;
+  new_password: string;
 }
 
-// Dashboard Stats (matches backend response)
-export interface DashboardStats {
-  total_properties: number
-  active_listings: number
-  total_leads: number
-  total_users: number
-  total_views: number
-  monthly_leads: number
-  revenue: string
+export interface APIError {
+  detail: string;
+  status_code: number;
+  error_type?: string;
 }
 
-// AI Suggestion (matches backend response)
-export interface AISuggestion {
-  title: string
-  price: string
-  description: string
-  amenities: string
-  highlights?: string[]
-}
-
-// Facebook interfaces
-export interface FacebookPage {
-  id: string
-  name: string
-  access_token: string
-  category: string
-}
-
-export interface FacebookPost {
-  id: string
-  message: string
-  created_time: string
-  permalink_url: string
+export interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  onboardingCompleted: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 class APIError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-    public code?: string,
-    public response?: any
-  ) {
-    super(message)
-    this.name = 'APIError'
+  public status: number;
+  public response?: any;
+  public errorType?: string;
+
+  constructor(message: string, status: number, response?: any, errorType?: string) {
+    super(message);
+    this.name = 'APIError';
+    this.status = status;
+    this.response = response;
+    this.errorType = errorType;
   }
 }
 
-class APIService {
-  private readonly baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
-  private token: string | null = null
+export class APIService {
+  private baseURL: string;
+  private token: string | null = null;
+  private requestTimeout: number = 30000; // 30 seconds
 
-  // Set auth token
-  setToken(token: string) {
-    this.token = token
+  constructor() {
+    // Use environment variables with fallbacks
+    this.baseURL = this.getAPIBaseURL();
+    this.logConfiguration();
   }
 
-  // Clear auth token
-  clearToken() {
-    this.token = null
+  /**
+   * Get API base URL from environment variables
+   */
+  private getAPIBaseURL(): string {
+    if (typeof window !== 'undefined') {
+      // Client-side: use Next.js public environment variables
+      return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    } else {
+      // Server-side: use regular environment variables
+      return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    }
   }
 
-  private async request<T>(
+  /**
+   * Log API configuration for debugging
+   */
+  private logConfiguration(): void {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[APIService] Configuration:', {
+        baseURL: this.baseURL,
+        timeout: this.requestTimeout,
+        environment: process.env.NODE_ENV
+      });
+    }
+  }
+
+  /**
+   * Set authentication token
+   */
+  setToken(token: string | null): void {
+    this.token = token;
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[APIService] Token updated:', !!token);
+    }
+  }
+
+  /**
+   * Clear authentication token
+   */
+  clearToken(): void {
+    this.token = null;
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[APIService] Token cleared');
+    }
+  }
+
+  /**
+   * Get current token
+   */
+  getToken(): string | null {
+    return this.token;
+  }
+
+  /**
+   * Make HTTP request with comprehensive error handling
+   */
+  private async makeRequest<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    requiresAuth: boolean = false
   ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`
-    
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...options.headers as Record<string, string>,
-    }
-
-    // Add auth token if available
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`
-    }
-
-    const config: RequestInit = {
-      headers,
-      ...options,
-    }
+    const url = `${this.baseURL}${endpoint}`;
+    const startTime = Date.now();
 
     try {
-      const response = await fetch(url, config)
+      // Prepare headers
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...options.headers
+      };
+
+      // Add authentication header if required
+      if (requiresAuth && this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.requestTimeout);
+
+      const requestOptions: RequestInit = {
+        ...options,
+        headers,
+        signal: controller.signal
+      };
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[APIService] Request:', {
+          method: options.method || 'GET',
+          url,
+          headers: this.sanitizeHeaders(headers),
+          body: options.body ? JSON.parse(options.body as string) : undefined
+        });
+      }
+
+      const response = await fetch(url, requestOptions);
+      clearTimeout(timeoutId);
+
+      const responseTime = Date.now() - startTime;
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[APIService] Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          responseTime: `${responseTime}ms`,
+          url
+        });
+      }
+
+      // Handle different response types
+      let responseData: any;
+      const contentType = response.headers.get('content-type');
       
+      if (contentType && contentType.includes('application/json')) {
+        responseData = await response.json();
+      } else {
+        responseData = await response.text();
+      }
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new APIError(
-          errorData.detail || `HTTP error! status: ${response.status}`,
-          response.status,
-          undefined,
-          { data: errorData }
-        )
-      }
-
-      const data = await response.json()
-      return data
-    } catch (error) {
-      if (error instanceof APIError) {
-        throw error
-      }
-      throw new APIError(
-        'Network error occurred',
-        0,
-        'NETWORK_ERROR'
-      )
-    }
-  }
-
-  // ===== AUTHENTICATION APIs (✅ Backend Available) =====
-  
-  async login(email: string, password: string): Promise<AuthResponse> {
-    const response = await this.request<any>('/api/v1/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    })
-    
-    // Transform backend response to match frontend expectations
-    const authResponse: AuthResponse = {
-      success: !!response.access_token,
-      access_token: response.access_token,
-      user_id: response.user?.id,
-      expires_in: 3600, // Default 1 hour
-      onboarding_completed: response.onboarding_completed
-    }
-    
-    if (authResponse.success && authResponse.access_token) {
-      this.setToken(authResponse.access_token)
-    }
-    
-    return authResponse
-  }
-
-  async register(userData: {
-    name: string
-    email: string
-    password: string
-  }): Promise<AuthResponse> {
-    const response = await this.request<any>('/api/v1/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(userData),
-    })
-    
-    // Transform backend response to match frontend expectations
-    const authResponse: AuthResponse = {
-      success: !!response.access_token,
-      access_token: response.access_token,
-      user_id: response.user?.id,
-      expires_in: 3600 // Default 1 hour
-    }
-    
-    if (authResponse.success && authResponse.access_token) {
-      this.setToken(authResponse.access_token)
-    }
-    
-    return authResponse
-  }
-
-  async getCurrentUser(): Promise<APIResponse<{ user: any }>> {
-    return this.request<APIResponse<{ user: any }>>('/api/v1/auth/me')
-  }
-
-  // ===== DASHBOARD APIs (✅ Backend Available) =====
-  
-  async getDashboardStats(): Promise<APIResponse<DashboardStats>> {
-    return this.request<APIResponse<DashboardStats>>('/api/v1/dashboard/stats')
-  }
-
-  // ===== PROPERTY APIs (✅ Backend Available) =====
-  
-  async createProperty(propertyData: Omit<Property, 'id'>): Promise<APIResponse<Property>> {
-    return this.request<APIResponse<Property>>('/api/v1/properties/', {
-      method: 'POST',
-      body: JSON.stringify(propertyData),
-    })
-  }
-
-  async getUserProperties(userId: string): Promise<APIResponse<Property[]>> {
-    return this.request<APIResponse<Property[]>>(`/v1/properties/user/${userId}`)
-  }
-
-  async deleteProperty(propertyId: number): Promise<APIResponse> {
-    return this.request<APIResponse>(`/v1/properties/${propertyId}`, {
-      method: 'DELETE',
-    })
-  }
-
-  // ===== AI APIs (✅ Backend Available) =====
-  
-  async getAIPropertySuggestions(data: {
-    property_type: string
-    location: string
-    budget: string
-    requirements: string
-  }): Promise<APIResponse<AISuggestion[]>> {
-    return this.request<APIResponse<AISuggestion[]>>('/api/v1/property/ai_suggest', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-  }
-
-  // ===== USER PROFILE APIs (✅ Backend Available) =====
-  
-  async createOrUpdateProfile(profileData: UserProfile): Promise<APIResponse<UserProfile>> {
-    return this.request<APIResponse<UserProfile>>('/api/v1/user/profile', {
-      method: 'POST',
-      body: JSON.stringify(profileData),
-    })
-  }
-
-  async getUserProfile(userId: string): Promise<APIResponse<UserProfile>> {
-    return this.request<APIResponse<UserProfile>>(`/api/v1/user/profile/${userId}`)
-  }
-
-  async getDefaultUserProfile(): Promise<APIResponse<UserProfile>> {
-    return this.request<APIResponse<UserProfile>>('/api/v1/user/profile/default_user')
-  }
-
-  // ===== FACEBOOK APIs (✅ Backend Available) =====
-  
-  async getFacebookOAuthUrl(): Promise<APIResponse<{ oauth_url: string; state: string }>> {
-    return this.request<APIResponse<{ oauth_url: string; state: string }>>('/api/v1/facebook/oauth')
-  }
-
-  async handleFacebookCallback(code: string, state: string): Promise<APIResponse> {
-    return this.request<APIResponse>(`/api/v1/facebook/callback?code=${code}&state=${state}`)
-  }
-
-  async getFacebookPages(): Promise<APIResponse<FacebookPage[]>> {
-    return this.request<APIResponse<FacebookPage[]>>('/api/v1/facebook/pages')
-  }
-
-  async getFacebookPosts(): Promise<APIResponse<FacebookPost[]>> {
-    return this.request<APIResponse<FacebookPost[]>>('/api/v1/facebook/posts')
-  }
-
-  async postToFacebook(data: { page_id: string; message: string }): Promise<APIResponse> {
-    return this.request<APIResponse>('/api/v1/facebook/post', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-  }
-
-  async getFacebookConfig(): Promise<APIResponse<{ connected: boolean; pages_count: number }>> {
-    return this.request<APIResponse<{ connected: boolean; pages_count: number }>>('/api/v1/facebook/config')
-  }
-
-  // ===== LISTINGS APIs (✅ Backend Available) =====
-  
-  async generateListingPost(data: {
-    property_details: any
-    language: string
-    style: string
-  }): Promise<APIResponse<{ content: string; hashtags: string[] }>> {
-    return this.request<APIResponse<{ content: string; hashtags: string[] }>>('/api/v1/listings/generate', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-  }
-
-  // ===== HEALTH CHECK (✅ Backend Available) =====
-  
-  async healthCheck(): Promise<APIResponse<{ status: string; database: string }>> {
-    return this.request<APIResponse<{ status: string; database: string }>>('/health')
-  }
-
-  // ===== MOCK APIs (❌ Backend Not Available - Using Mock Data) =====
-  
-  // These endpoints don't exist in the backend, so we'll provide mock implementations
-  // for development purposes. In production, these should be implemented in the backend.
-
-  async getLeads(): Promise<APIResponse<any[]>> {
-    // Mock implementation - backend doesn't have leads API
-    return Promise.resolve({
-      success: true,
-      data: [
-        {
-          id: '1',
-          name: 'John Doe',
-          email: 'john@example.com',
-          phone: '+91 98765 43210',
-          status: 'new',
-          source: 'Website',
-          notes: 'Interested in 2BHK apartment',
-          createdAt: new Date().toISOString()
+        const errorMessage = this.extractErrorMessage(responseData);
+        const errorType = this.getErrorType(response.status);
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[APIService] Error Response:', {
+            status: response.status,
+            statusText: response.statusText,
+            data: responseData,
+            url
+          });
         }
-      ]
-    })
-  }
 
-  async createLead(leadData: any): Promise<APIResponse<any>> {
-    // Mock implementation
-    return Promise.resolve({
-      success: true,
-      data: { ...leadData, id: Date.now().toString(), createdAt: new Date().toISOString() }
-    })
-  }
-
-  async updateLead(id: string, leadData: any): Promise<APIResponse<any>> {
-    // Mock implementation
-    return Promise.resolve({
-      success: true,
-      data: { ...leadData, id, updatedAt: new Date().toISOString() }
-    })
-  }
-
-  async getAnalytics(period: 'week' | 'month' | 'year' = 'month'): Promise<APIResponse<any>> {
-    // Mock implementation
-    return Promise.resolve({
-      success: true,
-      data: {
-        period,
-        views: 1247,
-        leads: 23,
-        conversions: 8,
-        revenue: '₹45,00,000'
+        throw new APIError(
+          errorMessage,
+          response.status,
+          responseData,
+          errorType
+        );
       }
-    })
-  }
 
-  async generateAIContent(prompt: string, style: string, tone: string): Promise<APIResponse<{ content: string }>> {
-    // Mock implementation - backend doesn't have this specific endpoint
-    return Promise.resolve({
-      success: true,
-      data: {
-        content: `Generated content for: "${prompt}" in ${style} style with ${tone} tone.`
+      return responseData as T;
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      
+      if (error instanceof APIError) {
+        throw error;
       }
-    })
-  }
 
-  async uploadImage(file: File): Promise<APIResponse<{ url: string }>> {
-    // Mock implementation - backend doesn't have file upload endpoint
-    return Promise.resolve({
-      success: true,
-      data: {
-        url: `https://example.com/uploads/${file.name}`
+      // Handle network errors
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.error('[APIService] Network Error:', {
+          message: error.message,
+          url,
+          responseTime: `${responseTime}ms`
+        });
+        throw new APIError(
+          'Network error. Please check your internet connection.',
+          0,
+          null,
+          'NETWORK_ERROR'
+        );
       }
-    })
+
+      // Handle timeout errors
+      if (error.name === 'AbortError') {
+        console.error('[APIService] Timeout Error:', {
+          url,
+          timeout: this.requestTimeout,
+          responseTime: `${responseTime}ms`
+        });
+        throw new APIError(
+          'Request timeout. Please try again.',
+          408,
+          null,
+          'TIMEOUT_ERROR'
+        );
+      }
+
+      console.error('[APIService] Unexpected Error:', {
+        error: error.message,
+        url,
+        responseTime: `${responseTime}ms`
+      });
+
+      throw new APIError(
+        'An unexpected error occurred. Please try again.',
+        500,
+        null,
+        'UNKNOWN_ERROR'
+      );
+    }
   }
 
-  // ===== UTILITY METHODS =====
-  
-  async updateOnboarding(userId: string, step: number, data: any): Promise<APIResponse> {
-    // Mock implementation - backend doesn't have onboarding endpoint
-    // In a real implementation, this would update the user profile
-    return this.createOrUpdateProfile({
-      user_id: userId,
-      name: data.firstName + ' ' + data.lastName,
-      email: data.email || 'user@example.com',
-      ...data
-    })
+  /**
+   * Extract error message from response
+   */
+  private extractErrorMessage(responseData: any): string {
+    if (typeof responseData === 'string') {
+      return responseData;
+    }
+
+    if (responseData && typeof responseData === 'object') {
+      return responseData.detail || 
+             responseData.message || 
+             responseData.error || 
+             'An error occurred';
+    }
+
+    return 'An error occurred';
+  }
+
+  /**
+   * Get error type based on status code
+   */
+  private getErrorType(status: number): string {
+    switch (status) {
+      case 400: return 'BAD_REQUEST';
+      case 401: return 'UNAUTHORIZED';
+      case 403: return 'FORBIDDEN';
+      case 404: return 'NOT_FOUND';
+      case 409: return 'CONFLICT';
+      case 422: return 'VALIDATION_ERROR';
+      case 429: return 'RATE_LIMIT';
+      case 500: return 'INTERNAL_SERVER_ERROR';
+      case 502: return 'BAD_GATEWAY';
+      case 503: return 'SERVICE_UNAVAILABLE';
+      case 504: return 'GATEWAY_TIMEOUT';
+      default: return 'UNKNOWN_ERROR';
+    }
+  }
+
+  /**
+   * Sanitize headers for logging (remove sensitive data)
+   */
+  private sanitizeHeaders(headers: HeadersInit): Record<string, string> {
+    const sanitized: Record<string, string> = {};
+    
+    if (headers instanceof Headers) {
+      headers.forEach((value, key) => {
+        sanitized[key] = key.toLowerCase() === 'authorization' ? '[REDACTED]' : value;
+      });
+    } else if (Array.isArray(headers)) {
+      headers.forEach(([key, value]) => {
+        sanitized[key] = key.toLowerCase() === 'authorization' ? '[REDACTED]' : value;
+      });
+    } else {
+      Object.entries(headers).forEach(([key, value]) => {
+        sanitized[key] = key.toLowerCase() === 'authorization' ? '[REDACTED]' : value;
+      });
+    }
+    
+    return sanitized;
+  }
+
+  /**
+   * Test API connection
+   */
+  async testConnection(): Promise<{ success: boolean; message: string; responseTime: number }> {
+    const startTime = Date.now();
+    
+    try {
+      await this.makeRequest('/health', { method: 'GET' });
+      const responseTime = Date.now() - startTime;
+      
+      return {
+        success: true,
+        message: 'API connection successful',
+        responseTime
+      };
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      
+      return {
+        success: false,
+        message: error instanceof APIError ? error.message : 'Connection failed',
+        responseTime
+      };
+    }
+  }
+
+  /**
+   * Login user
+   */
+  async login(credentials: LoginRequest): Promise<LoginResponse> {
+    return this.makeRequest<LoginResponse>('/api/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials)
+    });
+  }
+
+  /**
+   * Register new user
+   */
+  async register(userData: RegisterRequest): Promise<RegisterResponse> {
+    return this.makeRequest<RegisterResponse>('/api/v1/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(userData)
+    });
+  }
+
+  /**
+   * Refresh authentication token
+   */
+  async refreshToken(refreshToken: string): Promise<RefreshTokenResponse> {
+    return this.makeRequest<RefreshTokenResponse>('/api/v1/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refresh_token: refreshToken })
+    });
+  }
+
+  /**
+   * Get current user information
+   */
+  async getCurrentUser(): Promise<User> {
+    return this.makeRequest<User>('/api/v1/auth/me', {
+      method: 'GET'
+    }, true);
+  }
+
+  /**
+   * Update user profile
+   */
+  async updateProfile(userData: Partial<User>): Promise<User> {
+    return this.makeRequest<User>('/api/v1/auth/me', {
+      method: 'PUT',
+      body: JSON.stringify(userData)
+    }, true);
+  }
+
+  /**
+   * Change user password
+   */
+  async changePassword(passwordData: PasswordChangeRequest): Promise<{ message: string }> {
+    return this.makeRequest<{ message: string }>('/api/v1/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify(passwordData)
+    }, true);
+  }
+
+  /**
+   * Logout user
+   */
+  async logout(): Promise<{ message: string }> {
+    return this.makeRequest<{ message: string }>('/api/v1/auth/logout', {
+      method: 'POST'
+    }, true);
+  }
+
+  /**
+   * Request password reset
+   */
+  async requestPasswordReset(email: string): Promise<{ message: string }> {
+    return this.makeRequest<{ message: string }>('/api/v1/auth/password-reset-request', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+  }
+
+  /**
+   * Confirm password reset
+   */
+  async confirmPasswordReset(token: string, newPassword: string): Promise<{ message: string }> {
+    return this.makeRequest<{ message: string }>('/api/v1/auth/password-reset-confirm', {
+      method: 'POST',
+      body: JSON.stringify({ token, new_password: newPassword })
+    });
+  }
+
+  /**
+   * Get dashboard statistics
+   */
+  async getDashboardStats(): Promise<any> {
+    return this.makeRequest('/api/v1/dashboard/stats', {
+      method: 'GET'
+    }, true);
+  }
+
+  /**
+   * Search users (admin)
+   */
+  async searchUsers(query: string, page: number = 1, limit: number = 10): Promise<any> {
+    const params = new URLSearchParams({
+      q: query,
+      page: page.toString(),
+      limit: limit.toString()
+    });
+    
+    return this.makeRequest(`/api/v1/auth/search?${params}`, {
+      method: 'GET'
+    }, true);
+  }
+
+  /**
+   * Generic GET request
+   */
+  async get<T>(endpoint: string, requiresAuth: boolean = false): Promise<T> {
+    return this.makeRequest<T>(endpoint, { method: 'GET' }, requiresAuth);
+  }
+
+  /**
+   * Generic POST request
+   */
+  async post<T>(endpoint: string, data?: any, requiresAuth: boolean = false): Promise<T> {
+    return this.makeRequest<T>(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined
+    }, requiresAuth);
+  }
+
+  /**
+   * Generic PUT request
+   */
+  async put<T>(endpoint: string, data?: any, requiresAuth: boolean = false): Promise<T> {
+    return this.makeRequest<T>(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined
+    }, requiresAuth);
+  }
+
+  /**
+   * Generic DELETE request
+   */
+  async delete<T>(endpoint: string, requiresAuth: boolean = false): Promise<T> {
+    return this.makeRequest<T>(endpoint, { method: 'DELETE' }, requiresAuth);
+  }
+
+  /**
+   * Upload file
+   */
+  async uploadFile(endpoint: string, file: File, additionalData?: Record<string, string>): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    if (additionalData) {
+      Object.entries(additionalData).forEach(([key, value]) => {
+        formData.append(key, value);
+      });
+    }
+
+    const url = `${this.baseURL}${endpoint}`;
+    const headers: HeadersInit = {};
+    
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Upload failed' }));
+      throw new APIError(
+        this.extractErrorMessage(errorData),
+        response.status,
+        errorData,
+        this.getErrorType(response.status)
+      );
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Set request timeout
+   */
+  setTimeout(timeout: number): void {
+    this.requestTimeout = timeout;
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[APIService] Timeout updated:', timeout);
+    }
+  }
+
+  /**
+   * Get current configuration
+   */
+  getConfig(): { baseURL: string; timeout: number; hasToken: boolean } {
+    return {
+      baseURL: this.baseURL,
+      timeout: this.requestTimeout,
+      hasToken: !!this.token
+    };
   }
 }
 
-export const apiService = new APIService()
-export { APIError }
+// Export error class and singleton instance
+  /**
+   * Get default user profile
+   */
+  async getDefaultUserProfile(): Promise<User> {
+    return this.makeRequest<User>(
+      '/api/v1/auth/default-profile',
+      {
+        method: 'GET'
+      },
+      true
+    );
+  }
+
+export { APIError };
+export const apiService = new APIService();
