@@ -10,11 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 import logging
 import re
-from app.routers import listings, user_profile
-from app.api.v1.endpoints import simple_auth
-from app.api.v1.router import api_router
-from app.core.config import settings
-from app.core.database import connect_to_mongo, close_mongo_connection
+from pydantic import BaseModel
+from typing import Optional, Dict, Any
+import jwt
+from datetime import datetime, timedelta
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -74,157 +73,241 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Simple in-memory storage for demo (will be replaced with database)
+users_db = {}
+onboarding_data = {}
+
+# JWT Configuration
+SECRET_KEY = "your-secret-key-here-change-this-in-production"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+# Pydantic models for authentication
+class UserCreate(BaseModel):
+    email: str
+    password: str
+    firstName: str
+    lastName: str
+    phone: Optional[str] = None
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+class OnboardingStep(BaseModel):
+    step: int
+    data: Dict[str, Any]
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+# JWT functions
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def verify_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
+
+# Authentication endpoints
+@app.post("/api/v1/auth/register", response_model=Dict[str, Any])
+async def register(user_data: UserCreate):
+    """Register a new user"""
+    if user_data.email in users_db:
+        raise HTTPException(status_code=409, detail="User already exists")
+    
+    # Simple password hashing (in production, use proper hashing)
+    user_id = str(len(users_db) + 1)
+    users_db[user_data.email] = {
+        "id": user_id,
+        "email": user_data.email,
+        "password": user_data.password,  # In production, hash this
+        "firstName": user_data.firstName,
+        "lastName": user_data.lastName,
+        "phone": user_data.phone,
+        "onboardingCompleted": False,
+        "createdAt": datetime.utcnow().isoformat(),
+        "updatedAt": datetime.utcnow().isoformat()
+    }
+    
+    return {
+        "user": {
+            "id": user_id,
+            "email": user_data.email,
+            "firstName": user_data.firstName,
+            "lastName": user_data.lastName,
+            "phone": user_data.phone,
+            "onboardingCompleted": False,
+            "createdAt": users_db[user_data.email]["createdAt"],
+            "updatedAt": users_db[user_data.email]["updatedAt"]
+        },
+        "message": "User registered successfully"
+    }
+
+@app.post("/api/v1/auth/login", response_model=Token)
+async def login(login_data: UserLogin):
+    """Login user"""
+    if login_data.email not in users_db:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    user = users_db[login_data.email]
+    if user["password"] != login_data.password:  # In production, verify hash
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    # Create access token
+    access_token = create_access_token(data={"sub": user["id"], "email": user["email"]})
+    
+    return Token(
+        access_token=access_token,
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    )
+
+@app.get("/api/v1/auth/me", response_model=Dict[str, Any])
+async def get_current_user(request: Request):
+    """Get current user information"""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    token = auth_header.split(" ")[1]
+    payload = verify_token(token)
+    
+    # Find user by ID
+    user = None
+    for email, user_data in users_db.items():
+        if user_data["id"] == payload["sub"]:
+            user = user_data
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    return {
+        "id": user["id"],
+        "email": user["email"],
+        "firstName": user["firstName"],
+        "lastName": user["lastName"],
+        "phone": user["phone"],
+        "onboardingCompleted": user["onboardingCompleted"],
+        "createdAt": user["createdAt"],
+        "updatedAt": user["updatedAt"]
+    }
+
+# Onboarding endpoints
+@app.get("/api/v1/onboarding/{user_id}", response_model=OnboardingStep)
+async def get_onboarding_step(user_id: str, request: Request):
+    """Get current onboarding step for user"""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    token = auth_header.split(" ")[1]
+    payload = verify_token(token)
+    
+    if payload["sub"] != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    
+    current_step = onboarding_data.get(user_id, {"step": 1, "data": {}})
+    return OnboardingStep(step=current_step["step"], data=current_step["data"])
+
+@app.post("/api/v1/onboarding/{user_id}", response_model=OnboardingStep)
+async def save_onboarding_step(user_id: str, step_data: OnboardingStep, request: Request):
+    """Save onboarding step for user"""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    token = auth_header.split(" ")[1]
+    payload = verify_token(token)
+    
+    if payload["sub"] != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    
+    onboarding_data[user_id] = step_data.dict()
+    return step_data
+
+@app.post("/api/v1/onboarding/{user_id}/complete", response_model=Dict[str, Any])
+async def complete_onboarding(user_id: str, request: Request):
+    """Complete onboarding for user"""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    token = auth_header.split(" ")[1]
+    payload = verify_token(token)
+    
+    if payload["sub"] != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    
+    # Find and update user
+    for email, user_data in users_db.items():
+        if user_data["id"] == user_id:
+            user_data["onboardingCompleted"] = True
+            user_data["updatedAt"] = datetime.utcnow().isoformat()
+            break
+    
+    return {"message": "Onboarding completed successfully"}
+
+# Health check
+@app.get("/api/v1/health")
+async def api_health():
+    """API v1 health check"""
+    return {
+        "status": "healthy",
+        "version": "2.0.0",
+        "api": "v1",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+# Root endpoint
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {
+        "message": "PropertyAI API is running",
+        "version": "2.0.0",
+        "endpoints": {
+            "health": "/api/v1/health",
+            "register": "/api/v1/auth/register",
+            "login": "/api/v1/auth/login",
+            "me": "/api/v1/auth/me",
+            "onboarding": "/api/v1/onboarding/{user_id}"
+        }
+    }
+
 # Static files are served through the catch-all route below
 
-# MongoDB Startup and Shutdown Events
-@app.on_event("startup")
-async def startup_event():
-    """Initialize MongoDB connection on startup"""
-    try:
-        await connect_to_mongo()
-        logger.info("🚀 MongoDB connected successfully")
-    except Exception as e:
-        logger.error(f"❌ Failed to connect to MongoDB: {e}")
-        raise
+# MongoDB Startup and Shutdown Events (commented out for now)
+# @app.on_event("startup")
+# async def startup_event():
+#     """Initialize MongoDB connection on startup"""
+#     try:
+#         await connect_to_mongo()
+#         logger.info("🚀 MongoDB connected successfully")
+#     except Exception as e:
+#         logger.error(f"❌ Failed to connect to MongoDB: {e}")
+#         raise
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Close MongoDB connection on shutdown"""
-    try:
-        await close_mongo_connection()
-        logger.info("📊 MongoDB connection closed")
-    except Exception as e:
-        logger.error(f"❌ Error closing MongoDB connection: {e}")
-
-# Include all API V1 routers
-app.include_router(api_router, prefix="/api/v1")
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "message": "PropertyAI API is running"}
-
-@app.get("/api/v1/dashboard/stats")
-async def get_dashboard_stats():
-    """Get dashboard statistics from MongoDB"""
-    try:
-        from app.core.database import get_database
-        db = get_database()
-        
-        # Get real stats from MongoDB
-        total_properties = await db.properties.count_documents({})
-        active_listings = await db.properties.count_documents({"status": "available"})
-        total_leads = await db.leads.count_documents({})
-        total_users = await db.users.count_documents({})
-        
-        stats = {
-            "total_properties": total_properties,
-            "active_listings": active_listings,
-            "total_leads": total_leads,
-            "total_users": total_users,
-            "total_views": 1247,  # Mock for now
-            "monthly_leads": 23,  # Mock for now
-            "revenue": "₹45,00,000"  # Mock for now
-        }
-        
-        return {
-            "success": True,
-            "stats": stats
-        }
-        
-    except Exception as e:
-        logger.error(f"Error getting dashboard stats: {e}")
-        # Fallback to mock data if MongoDB fails
-        stats = {
-            "total_properties": 12,
-            "active_listings": 8,
-            "pending_posts": 3,
-            "total_views": 1247,
-            "monthly_leads": 23,
-            "revenue": "₹45,00,000"
-        }
-        return {
-            "success": True,
-            "stats": stats
-        }
-
-@app.post("/api/v1/property/ai_suggest")
-async def ai_property_suggest(request: Request):
-    """AI-powered property suggestion endpoint"""
-    try:
-        # Get request body
-        body = await request.json()
-        property_type = body.get("property_type", "Apartment")
-        location = body.get("location", "City Center")
-        budget = body.get("budget", "₹50,00,000")
-        requirements = body.get("requirements", "Modern amenities")
-        
-        # Parse budget safely
-        try:
-            budget_amount = int(budget.replace('₹', '').replace(',', ''))
-        except:
-            budget_amount = 5000000  # Default to 50 lakhs
-        
-        # Mock AI suggestions - replace with actual AI model
-        suggestions = {
-            "success": True,
-            "data": [
-                {
-                    "title": f"Beautiful {property_type} in {location}",
-                    "price": budget,
-                    "description": f"Stunning {property_type.lower()} with {requirements.lower()}. Perfect location with excellent connectivity.",
-                    "amenities": "Parking, Gym, Swimming Pool, 24/7 Security, Garden",
-                    "highlights": [
-                        "Prime location with excellent connectivity",
-                        f"Modern {property_type.lower()} with premium finishes",
-                        "Family-friendly neighborhood",
-                        "Close to schools, hospitals, and shopping centers"
-                    ]
-                }
-            ]
-        }
-        
-        return suggestions
-        
-    except Exception as e:
-        logger.error(f"Error in AI property suggestion: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-# Catch-all route to serve frontend
-import os
-
-@app.api_route("/{full_path:path}", methods=["GET"])
-async def serve_frontend(full_path: str):
-    """Serve frontend static files"""
-    # Skip API routes - let them be handled by the API router
-    if full_path.startswith("api/"):
-        raise HTTPException(status_code=404, detail="API endpoint not found")
-    
-    # Define the path to the frontend build
-    frontend_path = os.path.join(os.path.dirname(__file__), "..", "nextjs-app", "out")
-    frontend_path = os.path.abspath(frontend_path)
-    
-    # Handle root path
-    if full_path == "" or full_path == "/":
-        file_path = os.path.join(frontend_path, "index.html")
-    else:
-        # Remove leading slash if present
-        clean_path = full_path.lstrip("/")
-        file_path = os.path.join(frontend_path, clean_path)
-    
-    # Check if it's a directory, serve index.html
-    if os.path.isdir(file_path):
-        file_path = os.path.join(file_path, "index.html")
-    
-    # If file doesn't exist, serve index.html for SPA routing
-    if not os.path.exists(file_path):
-        file_path = os.path.join(frontend_path, "index.html")
-    
-    if os.path.exists(file_path):
-        return FileResponse(file_path)
-    else:
-        raise HTTPException(status_code=404, detail="File not found")
+# @app.on_event("shutdown")
+# async def shutdown_event():
+#     """Close MongoDB connection on shutdown"""
+#     try:
+#         await close_mongo_connection()
+#         logger.info("📊 MongoDB connection closed")
+#     except Exception as e:
+#         logger.error(f"❌ Error closing MongoDB connection: {e}")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8003)
