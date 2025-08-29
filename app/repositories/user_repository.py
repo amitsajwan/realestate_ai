@@ -21,9 +21,7 @@ class UserRepository:
     def __init__(self, database: AsyncIOMotorDatabase):
         self.database = database
         self.collection = database.users
-        
-        # Ensure indexes for performance and uniqueness
-        self._ensure_indexes()
+        self._indexes_ensured = False
     
     async def _ensure_indexes(self):
         """Ensure database indexes for optimal performance"""
@@ -116,6 +114,11 @@ class UserRepository:
     async def create(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new user with enhanced error handling"""
         try:
+            # Ensure indexes are created (lazy initialization)
+            if not self._indexes_ensured:
+                await self._ensure_indexes()
+                self._indexes_ensured = True
+            
             prepared_data = self._prepare_user_data(user_data)
             
             result = await self.collection.insert_one(prepared_data)

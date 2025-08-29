@@ -153,3 +153,21 @@ export const getFieldError = (errors: Record<string, any>, fieldName: string): s
 export const getFieldErrorClass = (errors: Record<string, any>, fieldName: string): string => {
   return errors[fieldName] ? 'border-red-500' : '';
 };
+
+import { z } from 'zod';
+
+export const propertySchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  description: z.string().min(1, 'Description is required'),
+  location: z.string().min(1, 'Location is required'),
+  address: z.string().min(1, 'Address is required'),
+  area: z.number().min(1, 'Area is required'),
+  price: z.string().min(1, 'Price is required'),
+  bedrooms: z.number().min(1, 'At least 1 bedroom is required'),
+  bathrooms: z.number().min(1, 'At least 1 bathroom is required'),
+  amenities: z.string().optional(),
+  status: z.string().default('available'),
+  propertyType: z.string().min(1, 'Property type is required')
+});
+
+export type PropertyFormData = z.infer<typeof propertySchema>;
