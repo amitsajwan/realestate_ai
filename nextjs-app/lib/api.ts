@@ -1,79 +1,31 @@
 'use client';
 
 // Enhanced API service with comprehensive error handling and logging
+import { errorHandler, AppError } from './error-handler';
+import {
+  LoginRequest,
+  RegisterRequest,
+  AuthResponse,
+  RefreshTokenResponse,
+  BrandingSuggestionRequest,
+  BrandingSuggestion,
+  BrandingSuggestionResponse,
+  OnboardingUpdateRequest,
+  User,
+  UserDataTransformer,
+  ApiResponse
+} from '../types/user';
 
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
-export interface RegisterRequest {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-}
-
-export interface LoginResponse {
-  access_token: string;
-  refresh_token?: string;
-  token_type: string;
-  expires_in?: number;
-  user: {
-    id: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    phone?: string;
-    onboardingCompleted: boolean;
-    createdAt: string;
-    updatedAt: string;
-  };
-}
-
-export interface RegisterResponse {
-  user: {
-    id: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    phone?: string;
-    onboardingCompleted: boolean;
-    createdAt: string;
-    updatedAt: string;
-  };
-  message: string;
-}
-
-export interface RefreshTokenResponse {
-  access_token: string;
-  refresh_token?: string;
-  token_type: string;
-  expires_in?: number;
-}
+// Legacy type aliases for backward compatibility
+type LoginResponse = AuthResponse;
+type RegisterResponse = AuthResponse;
 
 export interface PasswordChangeRequest {
   current_password: string;
   new_password: string;
 }
 
-export interface APIError {
-  detail: string;
-  status_code: number;
-  error_type?: string;
-}
-
-export interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  onboardingCompleted: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+// Re-exports removed to fix build issues - import directly from types/user
 
 class APIError extends Error {
   public status: number;
@@ -105,10 +57,8 @@ export class APIService {
    */
   private getAPIBaseURL(): string {
     if (typeof window !== 'undefined') {
-      // Client-side: use Next.js public environment variables
       return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     } else {
-      // Server-side: use regular environment variables
       return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     }
   }
@@ -156,28 +106,21 @@ export class APIService {
   /**
    * Make HTTP request with comprehensive error handling
    */
-  private async makeRequest<T>(
-    endpoint: string,
-    options: RequestInit = {},
-    requiresAuth: boolean = false
-  ): Promise<T> {
+  private async makeRequest<T>(endpoint: string, options: RequestInit = {}, requiresAuth: boolean = false, retryCount: number = 0): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
     const startTime = Date.now();
 
     try {
-      // Prepare headers
-      const headers: HeadersInit = {
+      const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        ...options.headers
+        ...(options.headers as Record<string, string> || {})
       };
 
-      // Add authentication header if required
       if (requiresAuth && this.token) {
         headers['Authorization'] = `Bearer ${this.token}`;
       }
 
-      // Create AbortController for timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.requestTimeout);
 
@@ -210,10 +153,8 @@ export class APIService {
         });
       }
 
-      // Handle different response types
       let responseData: any;
       const contentType = response.headers.get('content-type');
-      
       if (contentType && contentType.includes('application/json')) {
         responseData = await response.json();
       } else {
@@ -221,9 +162,6 @@ export class APIService {
       }
 
       if (!response.ok) {
-        const errorMessage = this.extractErrorMessage(responseData);
-        const errorType = this.getErrorType(response.status);
-        
         if (process.env.NODE_ENV === 'development') {
           console.error('[APIService] Error Response:', {
             status: response.status,
@@ -233,88 +171,94 @@ export class APIService {
           });
         }
 
-        throw new APIError(
-          errorMessage,
-          response.status,
-          responseData,
-          errorType
-        );
+        // Handle 401 Unauthorized - attempt token refresh and retry
+        if (response.status === 401 && requiresAuth && retryCount === 0) {
+          console.log('[APIService] 401 detected, attempting token refresh...');
+          
+          // Import authManager dynamically to avoid circular dependency
+          const { authManager } = await import('./auth');
+          const refreshSuccess = await authManager.refreshAccessToken();
+          
+          if (refreshSuccess) {
+            console.log('[APIService] Token refreshed, retrying request...');
+            // Update token and retry the request
+            this.setToken(authManager.getToken());
+            return this.makeRequest<T>(endpoint, options, requiresAuth, retryCount + 1);
+          } else {
+            console.log('[APIService] Token refresh failed, request will fail');
+          }
+        }
+
+        // Create error object for centralized error handler
+        const apiError = {
+          response: {
+            status: response.status,
+            data: responseData
+          },
+          message: this.extractErrorMessage(responseData)
+        };
+        
+        throw apiError;
       }
 
       return responseData as T;
-    } catch (error) {
+    } catch (error: any) {
       const responseTime = Date.now() - startTime;
+
+      if (error.name === 'AbortError') {
+        console.error('[APIService] Timeout Error:', {
+          message: 'Request timed out.',
+          url,
+          responseTime: `${responseTime}ms`
+        });
+        const timeoutError = {
+          code: 'TIMEOUT_ERROR',
+          message: 'Request timed out'
+        };
+        throw timeoutError;
+      }
       
-      if (error instanceof APIError) {
+      // If it's already a structured error, re-throw it
+      if (error.response || error.code) {
         throw error;
       }
 
-      // Handle network errors
       if (error instanceof TypeError && error.message.includes('fetch')) {
         console.error('[APIService] Network Error:', {
           message: error.message,
           url,
           responseTime: `${responseTime}ms`
         });
-        throw new APIError(
-          'Network error. Please check your internet connection.',
-          0,
-          null,
-          'NETWORK_ERROR'
-        );
-      }
-
-      // Handle timeout errors
-      if (error.name === 'AbortError') {
-        console.error('[APIService] Timeout Error:', {
-          url,
-          timeout: this.requestTimeout,
-          responseTime: `${responseTime}ms`
-        });
-        throw new APIError(
-          'Request timeout. Please try again.',
-          408,
-          null,
-          'TIMEOUT_ERROR'
-        );
+        const networkError = {
+          code: 'NETWORK_ERROR',
+          message: 'Network connection error'
+        };
+        throw networkError;
       }
 
       console.error('[APIService] Unexpected Error:', {
-        error: error.message,
+        message: error.message,
         url,
         responseTime: `${responseTime}ms`
       });
-
-      throw new APIError(
-        'An unexpected error occurred. Please try again.',
-        500,
-        null,
-        'UNKNOWN_ERROR'
-      );
+      const unexpectedError = {
+        code: 'UNEXPECTED_ERROR',
+        message: 'Unexpected error occurred'
+      };
+      throw unexpectedError;
     }
   }
 
-  /**
-   * Extract error message from response
-   */
   private extractErrorMessage(responseData: any): string {
     if (typeof responseData === 'string') {
       return responseData;
     }
-
     if (responseData && typeof responseData === 'object') {
-      return responseData.detail || 
-             responseData.message || 
-             responseData.error || 
-             'An error occurred';
+      return responseData.detail || responseData.message || responseData.error || 'An error occurred';
     }
-
     return 'An error occurred';
   }
 
-  /**
-   * Get error type based on status code
-   */
   private getErrorType(status: number): string {
     switch (status) {
       case 400: return 'BAD_REQUEST';
@@ -332,12 +276,8 @@ export class APIService {
     }
   }
 
-  /**
-   * Sanitize headers for logging (remove sensitive data)
-   */
   private sanitizeHeaders(headers: HeadersInit): Record<string, string> {
     const sanitized: Record<string, string> = {};
-    
     if (headers instanceof Headers) {
       headers.forEach((value, key) => {
         sanitized[key] = key.toLowerCase() === 'authorization' ? '[REDACTED]' : value;
@@ -351,28 +291,17 @@ export class APIService {
         sanitized[key] = key.toLowerCase() === 'authorization' ? '[REDACTED]' : value;
       });
     }
-    
     return sanitized;
   }
 
-  /**
-   * Test API connection
-   */
   async testConnection(): Promise<{ success: boolean; message: string; responseTime: number }> {
     const startTime = Date.now();
-    
     try {
       await this.makeRequest('/health', { method: 'GET' });
       const responseTime = Date.now() - startTime;
-      
-      return {
-        success: true,
-        message: 'API connection successful',
-        responseTime
-      };
+      return { success: true, message: 'API connection successful', responseTime };
     } catch (error) {
       const responseTime = Date.now() - startTime;
-      
       return {
         success: false,
         message: error instanceof APIError ? error.message : 'Connection failed',
@@ -381,29 +310,42 @@ export class APIService {
     }
   }
 
-  /**
-   * Login user
-   */
-  async login(credentials: LoginRequest): Promise<LoginResponse> {
-    return this.makeRequest<LoginResponse>('/api/v1/auth/login', {
+  async login(credentials: LoginRequest): Promise<AuthResponse> {
+    console.log('[APIService] Attempting login for:', credentials.email);
+    
+    const response = await this.makeRequest<any>('/api/v1/auth/login', {
       method: 'POST',
-      body: JSON.stringify(credentials)
+      body: JSON.stringify(credentials),
     });
+    
+    console.log('[APIService] Login successful');
+    
+    // Transform backend response to frontend format
+    return {
+      user: UserDataTransformer.fromBackend(response.user),
+      accessToken: response.access_token || response.accessToken,
+      refreshToken: response.refresh_token || response.refreshToken
+    };
   }
 
-  /**
-   * Register new user
-   */
-  async register(userData: RegisterRequest): Promise<RegisterResponse> {
-    return this.makeRequest<RegisterResponse>('/api/v1/auth/register', {
+  async register(userData: RegisterRequest): Promise<AuthResponse> {
+    console.log('[APIService] Attempting registration for:', userData.email);
+    
+    const response = await this.makeRequest<any>('/api/v1/auth/register', {
       method: 'POST',
-      body: JSON.stringify(userData)
+      body: JSON.stringify(userData),
     });
+    
+    console.log('[APIService] Registration successful');
+    
+    // Transform backend response to frontend format
+    return {
+      user: UserDataTransformer.fromBackend(response.user),
+      accessToken: response.access_token || response.accessToken,
+      refreshToken: response.refresh_token || response.refreshToken
+    };
   }
 
-  /**
-   * Refresh authentication token
-   */
   async refreshToken(refreshToken: string): Promise<RefreshTokenResponse> {
     return this.makeRequest<RefreshTokenResponse>('/api/v1/auth/refresh', {
       method: 'POST',
@@ -411,18 +353,10 @@ export class APIService {
     });
   }
 
-  /**
-   * Get current user information
-   */
   async getCurrentUser(): Promise<User> {
-    return this.makeRequest<User>('/api/v1/auth/me', {
-      method: 'GET'
-    }, true);
+    return this.makeRequest<User>('/api/v1/auth/me', { method: 'GET' }, true);
   }
 
-  /**
-   * Update user profile
-   */
   async updateProfile(userData: Partial<User>): Promise<User> {
     return this.makeRequest<User>('/api/v1/auth/me', {
       method: 'PUT',
@@ -430,9 +364,6 @@ export class APIService {
     }, true);
   }
 
-  /**
-   * Change user password
-   */
   async changePassword(passwordData: PasswordChangeRequest): Promise<{ message: string }> {
     return this.makeRequest<{ message: string }>('/api/v1/auth/change-password', {
       method: 'POST',
@@ -440,18 +371,10 @@ export class APIService {
     }, true);
   }
 
-  /**
-   * Logout user
-   */
   async logout(): Promise<{ message: string }> {
-    return this.makeRequest<{ message: string }>('/api/v1/auth/logout', {
-      method: 'POST'
-    }, true);
+    return this.makeRequest<{ message: string }>('/api/v1/auth/logout', { method: 'POST' }, true);
   }
 
-  /**
-   * Request password reset
-   */
   async requestPasswordReset(email: string): Promise<{ message: string }> {
     return this.makeRequest<{ message: string }>('/api/v1/auth/password-reset-request', {
       method: 'POST',
@@ -459,9 +382,6 @@ export class APIService {
     });
   }
 
-  /**
-   * Confirm password reset
-   */
   async confirmPasswordReset(token: string, newPassword: string): Promise<{ message: string }> {
     return this.makeRequest<{ message: string }>('/api/v1/auth/password-reset-confirm', {
       method: 'POST',
@@ -469,71 +389,34 @@ export class APIService {
     });
   }
 
-  /**
-   * Get dashboard statistics
-   */
   async getDashboardStats(): Promise<any> {
-    return this.makeRequest('/api/v1/dashboard/stats', {
-      method: 'GET'
-    }, true);
+    return this.makeRequest('/api/v1/dashboard/stats', { method: 'GET' }, true);
   }
 
-  /**
-   * Search users (admin)
-   */
   async searchUsers(query: string, page: number = 1, limit: number = 10): Promise<any> {
-    const params = new URLSearchParams({
-      q: query,
-      page: page.toString(),
-      limit: limit.toString()
-    });
-    
-    return this.makeRequest(`/api/v1/auth/search?${params}`, {
-      method: 'GET'
-    }, true);
+    const params = new URLSearchParams({ q: query, page: page.toString(), limit: limit.toString() });
+    return this.makeRequest(`/api/v1/auth/search?${params}`, { method: 'GET' }, true);
   }
 
-  /**
-   * Generic GET request
-   */
   async get<T>(endpoint: string, requiresAuth: boolean = false): Promise<T> {
     return this.makeRequest<T>(endpoint, { method: 'GET' }, requiresAuth);
   }
 
-  /**
-   * Generic POST request
-   */
   async post<T>(endpoint: string, data?: any, requiresAuth: boolean = false): Promise<T> {
-    return this.makeRequest<T>(endpoint, {
-      method: 'POST',
-      body: data ? JSON.stringify(data) : undefined
-    }, requiresAuth);
+    return this.makeRequest<T>(endpoint, { method: 'POST', body: data ? JSON.stringify(data) : undefined }, requiresAuth);
   }
 
-  /**
-   * Generic PUT request
-   */
   async put<T>(endpoint: string, data?: any, requiresAuth: boolean = false): Promise<T> {
-    return this.makeRequest<T>(endpoint, {
-      method: 'PUT',
-      body: data ? JSON.stringify(data) : undefined
-    }, requiresAuth);
+    return this.makeRequest<T>(endpoint, { method: 'PUT', body: data ? JSON.stringify(data) : undefined }, requiresAuth);
   }
 
-  /**
-   * Generic DELETE request
-   */
   async delete<T>(endpoint: string, requiresAuth: boolean = false): Promise<T> {
     return this.makeRequest<T>(endpoint, { method: 'DELETE' }, requiresAuth);
   }
 
-  /**
-   * Upload file
-   */
   async uploadFile(endpoint: string, file: File, additionalData?: Record<string, string>): Promise<any> {
     const formData = new FormData();
     formData.append('file', file);
-    
     if (additionalData) {
       Object.entries(additionalData).forEach(([key, value]) => {
         formData.append(key, value);
@@ -542,33 +425,18 @@ export class APIService {
 
     const url = `${this.baseURL}${endpoint}`;
     const headers: HeadersInit = {};
-    
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
+    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: formData
-    });
+    const response = await fetch(url, { method: 'POST', headers, body: formData });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ detail: 'Upload failed' }));
-      throw new APIError(
-        this.extractErrorMessage(errorData),
-        response.status,
-        errorData,
-        this.getErrorType(response.status)
-      );
+      throw new APIError(this.extractErrorMessage(errorData), response.status, errorData, this.getErrorType(response.status));
     }
 
     return response.json();
   }
 
-  /**
-   * Set request timeout
-   */
   setTimeout(timeout: number): void {
     this.requestTimeout = timeout;
     if (process.env.NODE_ENV === 'development') {
@@ -576,31 +444,68 @@ export class APIService {
     }
   }
 
-  /**
-   * Get current configuration
-   */
   getConfig(): { baseURL: string; timeout: number; hasToken: boolean } {
-    return {
-      baseURL: this.baseURL,
-      timeout: this.requestTimeout,
-      hasToken: !!this.token
-    };
+    return { baseURL: this.baseURL, timeout: this.requestTimeout, hasToken: !!this.token };
   }
-}
 
-// Export error class and singleton instance
   /**
    * Get default user profile
    */
   async getDefaultUserProfile(): Promise<User> {
-    return this.makeRequest<User>(
-      '/api/v1/auth/default-profile',
-      {
-        method: 'GET'
-      },
-      true
-    );
+    return await this.makeRequest<User>("/api/v1/auth/default-profile", { method: "GET" });
   }
+
+  async createProperty(propertyData: any): Promise<any> {
+    return this.makeRequest('/api/v1/properties/', {
+      method: 'POST',
+      body: JSON.stringify(propertyData)
+    }, true);
+  }
+
+  async getAIPropertySuggestions(data: any): Promise<any> {
+    return this.makeRequest('/api/v1/property/ai_suggest', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }, true);
+  }
+
+  async getBrandingSuggestions(data: { company_name: string; agent_name?: string; position?: string }): Promise<any> {
+    return this.post('/api/v1/agent/branding-suggest', data, false);
+  }
+
+  async updateOnboarding(userId: string, data: OnboardingUpdateRequest): Promise<ApiResponse<User>> {
+    console.log('[APIService] Updating onboarding for user:', userId);
+    
+    // Transform frontend data to backend format
+    const backendData = data.data ? UserDataTransformer.transformOnboardingData(data.data) : data;
+    
+    const response = await this.makeRequest<any>(`/api/v1/onboarding/${userId}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        ...backendData,
+        step: data.step,
+        completed: data.completed
+      })
+    }, true);
+    
+    console.log('[APIService] Onboarding update successful');
+    
+    // Transform response if it contains user data
+    if (response.user) {
+      return {
+        success: true,
+        data: UserDataTransformer.fromBackend(response.user),
+        message: response.message
+      };
+    }
+    
+    return {
+      success: true,
+      data: response.data,
+      message: response.message
+    };
+  }
+}
 
 export { APIError };
 export const apiService = new APIService();

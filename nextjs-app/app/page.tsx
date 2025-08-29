@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { 
   HomeIcon, 
@@ -12,7 +12,10 @@ import {
   UserIcon,
   SparklesIcon,
   ArrowRightOnRectangleIcon,
-  BuildingOfficeIcon
+  BuildingOfficeIcon,
+  Bars3Icon,
+  XMarkIcon,
+  BellIcon
 } from '@heroicons/react/24/outline'
 import { authManager } from '@/lib/auth'
 import { apiService } from '@/lib/api'
@@ -42,6 +45,7 @@ export default function Dashboard() {
   const [user, setUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [properties, setProperties] = useState<any[]>([])
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [stats, setStats] = useState({
     total_properties: 0,
     active_listings: 0,
@@ -238,69 +242,170 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Header */}
-      <header className="bg-white/10 backdrop-blur-lg border-b border-white/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <HomeIcon className="w-6 h-6 text-white" />
-              </div>
-              <h1 className="text-2xl font-bold text-white">PropertyAI</h1>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900">
+      {/* Mobile-First Header */}
+      <header className="sticky top-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-b border-gray-200 dark:border-white/20 shadow-sm">
+        <div className="px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo and Mobile Menu Button */}
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 text-white">
-                <div className="w-8 h-8 bg-gray-600 rounded-full"></div>
-                <span className="font-medium">{user?.firstName || 'Agent Name'}</span>
-              </div>
               <button
-                onClick={() => {
-                  authManager.logout()
-                  router.push('/login')
-                }}
-                className="text-white hover:text-gray-300 transition-colors"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="lg:hidden p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
               >
-                <ArrowRightOnRectangleIcon className="w-5 h-5" />
+                {isMobileMenuOpen ? (
+                  <XMarkIcon className="w-6 h-6" />
+                ) : (
+                  <Bars3Icon className="w-6 h-6" />
+                )}
               </button>
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <HomeIcon className="w-6 h-6 text-white" />
+                </div>
+                <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  PropertyAI
+                </h1>
+              </div>
+            </div>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden lg:flex items-center space-x-1">
+              {navigation.slice(0, 4).map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveSection(item.id)}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    activeSection === item.id
+                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-sm'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <item.icon className="w-4 h-4" />
+                  <span className="hidden xl:block">{item.name}</span>
+                </button>
+              ))}
+            </nav>
+
+            {/* Right Side Actions */}
+            <div className="flex items-center space-x-3">
+              <button className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors relative">
+                <BellIcon className="w-5 h-5" />
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+              </button>
+              <div className="flex items-center space-x-3">
+                <div className="hidden sm:flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm font-medium">
+                      {(user?.firstName || 'A').charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {user?.firstName || 'Agent'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    authManager.logout()
+                    router.push('/login')
+                  }}
+                  className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                >
+                  <ArrowRightOnRectangleIcon className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
       <div className="flex">
-        {/* Sidebar Navigation */}
-        <nav className="w-64 bg-white/10 backdrop-blur-lg border-r border-white/20 min-h-screen">
-          <div className="p-4">
-            <div className="space-y-2">
-              {navigation.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveSection(item.id)}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                    activeSection === item.id
-                      ? 'bg-white/20 text-white shadow-lg'
-                      : 'text-gray-300 hover:bg-white/10 hover:text-white'
-                  }`}
-                >
-                  <item.icon className="w-5 h-5" />
-                  <span className="font-medium">{item.name}</span>
-                </button>
-              ))}
+        {/* Desktop Sidebar */}
+        <aside className="hidden lg:flex lg:flex-col lg:w-64 xl:w-72">
+          <nav className="flex-1 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-r border-gray-200 dark:border-white/20">
+            <div className="p-6">
+              <div className="space-y-1">
+                {navigation.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveSection(item.id)}
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200 group hover-lift click-shrink ${
+                      activeSection === item.id
+                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-[1.02] animate-scale-in'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white hover:transform hover:scale-[1.01]'
+                    }`}
+                  >
+                    <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110 hover-rotate ${
+                      activeSection === item.id ? 'text-white' : ''
+                    }`} />
+                    <span className="font-medium">{item.name}</span>
+                    {activeSection === item.id && (
+                      <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse" />
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        </nav>
+          </nav>
+        </aside>
+
+        {/* Mobile Navigation Overlay */}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+                onClick={() => setIsMobileMenuOpen(false)}
+              />
+              <motion.nav
+                initial={{ x: '-100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '-100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="lg:hidden fixed left-0 top-16 bottom-0 z-50 w-80 bg-white dark:bg-slate-900 shadow-2xl overflow-y-auto"
+              >
+                <div className="p-6">
+                  <div className="space-y-2">
+                    {navigation.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          setActiveSection(item.id)
+                          setIsMobileMenuOpen(false)
+                        }}
+                        className={`w-full flex items-center space-x-4 px-4 py-4 rounded-xl text-left transition-all duration-200 ${
+                          activeSection === item.id
+                            ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10'
+                        }`}
+                      >
+                        <item.icon className="w-6 h-6" />
+                        <span className="font-medium text-lg">{item.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </motion.nav>
+            </>
+          )}
+        </AnimatePresence>
 
         {/* Main Content */}
-        <main className="flex-1 p-8">
-          <motion.div
-            key={activeSection}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            {renderSection()}
-          </motion.div>
+        <main className="flex-1 min-h-screen">
+          <div className="p-4 sm:p-6 lg:p-8">
+            <motion.div
+              key={activeSection}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+              className="max-w-7xl mx-auto animate-fade-in"
+            >
+              {renderSection()}
+            </motion.div>
+          </div>
         </main>
       </div>
     </div>

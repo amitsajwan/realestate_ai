@@ -5,7 +5,12 @@ import { UserIcon, CheckIcon, SparklesIcon } from '@heroicons/react/24/outline'
 import { authManager } from '@/lib/auth'
 import { apiService } from '@/lib/api'
 import { applyBrandTheme } from '@/lib/theme'
+import { handleError, showSuccess, withErrorHandling } from '@/lib/error-handler'
+import { User, BrandingSuggestion, OnboardingFormData } from '@/types/user'
+import { useAsyncOperation, useMultipleLoading } from '@/hooks/useLoading'
+import { LoadingButton, LoadingOverlay } from '@/components/LoadingStates'
 import { toast } from 'react-hot-toast'
+import { profileSettingsSchema, FormValidator } from '@/lib/form-validation'
 
 interface BrandingSuggestions {
   tagline: string
@@ -61,8 +66,17 @@ export default function ProfileSettings() {
   })
 
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
+  
+  // Use loading hooks for consistent state management
+  const profileOperation = useAsyncOperation<UserProfile>()
+  const brandingOperation = useAsyncOperation<BrandingSuggestions>()
+  const multipleLoading = useMultipleLoading()
+  
+  // Form validation
+  const validator = new FormValidator(profileSettingsSchema)
+  
+  const isLoading = profileOperation.loading
+  const isSaving = multipleLoading.isLoading('saveProfile')
 
   const availableLanguages = [
     'English', 'Hindi', 'Marathi', 'Gujarati', 'Tamil', 'Telugu', 
@@ -74,8 +88,7 @@ export default function ProfileSettings() {
   }, [])
 
   const loadUserProfile = async () => {
-    setIsLoading(true)
-    try {
+    await profileOperation.execute(async () => {
       // Get current user from auth manager
       const authState = authManager.getState()
       const currentUser = authState.user
@@ -84,8 +97,8 @@ export default function ProfileSettings() {
       let profileData = null
       try {
         const response = await apiService.getDefaultUserProfile()
-        if (response.success && response.data) {
-          profileData = response.data
+        if (response) {
+          profileData = response;
         }
       } catch (error) {
         console.log('No existing profile found, will use onboarding data')
@@ -93,25 +106,23 @@ export default function ProfileSettings() {
       
       // Merge onboarding data with profile data, prioritizing profile data
       const mergedData = {
-        user_id: profileData?.user_id || 'default_user',
-        name: profileData?.name || (currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() : ''),
+        user_id: profileData?.id || 'default_user',
+        name: profileData?.firstName && profileData?.lastName ? `${profileData.firstName} ${profileData.lastName}`.trim() : (currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() : ''),
         email: profileData?.email || currentUser?.email || '',
         phone: profileData?.phone || currentUser?.phone || '',
-        whatsapp: profileData?.whatsapp || currentUser?.phone || '',
-        company: profileData?.company || currentUser?.company || '',
-        experience_years: profileData?.experience_years || '0',
-        specialization_areas: Array.isArray(profileData?.specialization_areas) 
-          ? profileData.specialization_areas.join(', ') 
-          : (profileData?.specialization_areas || ''),
-        tagline: profileData?.tagline || '',
-        social_bio: profileData?.social_bio || '',
-        about: profileData?.about || '',
-        address: profileData?.address || '',
-        city: profileData?.city || '',
-        state: profileData?.state || '',
-        pincode: profileData?.pincode || '',
-        languages: profileData?.languages || [],
-        logo_url: profileData?.logo_url || ''
+        whatsapp: currentUser?.phone || '',
+        company: '',
+        experience_years: '0',
+        specialization_areas: '',
+        tagline: '',
+        social_bio: '',
+        about: '',
+        address: '',
+        city: '',
+        state: '',
+        pincode: '',
+        languages: [],
+        logo_url: ''
       }
       
       setFormData(mergedData)
@@ -122,19 +133,25 @@ export default function ProfileSettings() {
         toast.success('Onboarding data loaded! Please review and save your profile.')
       }
       
-    } catch (error) {
-      console.error('Failed to load profile:', error)
-      toast.error('Failed to load profile data')
-    } finally {
-      setIsLoading(false)
-    }
+      return mergedData
+    })
   }
 
   const handleInputChange = (field: keyof UserProfile, value: any) => {
-    setFormData(prev => ({
-      ...prev,
+    const updatedData = {
+      ...formData,
       [field]: value
-    }))
+    }
+    setFormData(updatedData)
+    
+    // Real-time validation for relevant fields
+    if (['name', 'email', 'phone', 'whatsapp', 'pincode', 'tagline', 'social_bio', 'about'].includes(field as string)) {
+      validator.validateField(field as string, value)
+    }
+  }
+
+  const handleBlur = (field: string) => {
+    validator.touch(field)
   }
 
   const handleLanguageToggle = (language: string) => {
@@ -147,53 +164,27 @@ export default function ProfileSettings() {
   }
 
   const handleSave = async () => {
-    if (!formData.name.trim()) {
-      toast.error('Name is required')
+    // Validate all fields before saving
+    const isValid = validator.validateAll(formData)
+    
+    if (!isValid) {
+      const errors = validator.getErrors()
+      const firstError = Object.values(errors)[0]
+      if (firstError) {
+        toast.error(firstError)
+      }
       return
     }
 
-    if (!formData.email.trim()) {
-      toast.error('Email is required')
-      return
-    }
-
-    setIsSaving(true)
+    multipleLoading.setLoading('saveProfile', true)
+    
     try {
-      // Ensure data types match backend expectations
-      const profileData = {
-        ...formData
-      }
-      
-      const response = await apiService.createOrUpdateProfile(profileData)
-      if (response.success) {
-        toast.success('Profile saved successfully!')
-      } else {
-        throw new Error(response.message || 'Failed to save profile')
-      }
-    } catch (error: any) {
-      console.error('Save error:', error)
-      
-      // Parse detailed error messages from server response
-      if (error.response?.data?.detail) {
-        // Handle validation errors
-        if (typeof error.response.data.detail === 'string') {
-          toast.error(error.response.data.detail)
-        } else if (Array.isArray(error.response.data.detail)) {
-          // Handle Pydantic validation errors
-          const errorMessages = error.response.data.detail.map((err: any) => 
-            `${err.loc?.join(' → ') || 'Field'}: ${err.msg}`
-          ).join('\n')
-          toast.error(`Validation errors:\n${errorMessages}`)
-        } else {
-          toast.error('Validation failed. Please check your input.')
-        }
-      } else if (error.message) {
-        toast.error(error.message)
-      } else {
-        toast.error('Failed to save profile. Please try again.')
-      }
+      await apiService.updateProfile({ ...formData })
+      showSuccess('Profile saved successfully!')
+    } catch (error) {
+      handleError(error, 'Failed to save profile')
     } finally {
-      setIsSaving(false)
+      multipleLoading.setLoading('saveProfile', false)
     }
   }
 
@@ -203,38 +194,26 @@ export default function ProfileSettings() {
       return
     }
 
-    setIsLoading(true)
-    try {
-      const response = await fetch('http://localhost:8000/api/v1/agent/branding-suggest', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          company_name: formData.company,
-          agent_name: formData.name,
-          specialization_areas: formData.specialization_areas,
-          experience_years: formData.experience_years,
-          location: `${formData.city || ''} ${formData.state || ''}`.trim() || 'Not specified',
-          phone: formData.phone
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to generate branding suggestions')
+    const suggestions = await brandingOperation.execute(
+      () => apiService.getBrandingSuggestions({
+        company_name: formData.company,
+        agent_name: formData.name,
+        specialization_areas: formData.specialization_areas,
+        experience_years: formData.experience_years,
+        location: `${formData.city || ''} ${formData.state || ''}`.trim() || 'Not specified',
+        phone: formData.phone
+      }),
+      {
+        successMessage: 'AI branding suggestions generated successfully!',
+        errorMessage: 'Failed to generate branding suggestions'
       }
-
-      const data = await response.json()
+    )
+    
+    if (suggestions) {
       setFormData(prev => ({
         ...prev,
-        brandingSuggestions: data
+        brandingSuggestions: suggestions
       }))
-      toast.success('AI branding suggestions generated!')
-    } catch (error) {
-      console.error('Branding generation error:', error)
-      toast.error('Failed to generate branding suggestions')
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -286,9 +265,18 @@ export default function ProfileSettings() {
                     type="text"
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
-                    className="form-input"
+                    onBlur={() => handleBlur('name')}
+                    className={`form-input ${
+                      validator.hasFieldError('name') ? 'border-red-300' : validator.isFieldValid('name') ? 'border-green-300' : ''
+                    }`}
                     placeholder="Enter your full name"
+                    aria-describedby={validator.hasFieldError('name') ? 'name-error' : undefined}
                   />
+                  {validator.hasFieldError('name') && (
+                    <p id="name-error" className="mt-1 text-sm text-red-400" role="alert">
+                      {validator.getFieldError('name')}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Email *</label>
@@ -296,9 +284,18 @@ export default function ProfileSettings() {
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
-                    className="form-input"
+                    onBlur={() => handleBlur('email')}
+                    className={`form-input ${
+                      validator.hasFieldError('email') ? 'border-red-300' : validator.isFieldValid('email') ? 'border-green-300' : ''
+                    }`}
                     placeholder="Enter your email"
+                    aria-describedby={validator.hasFieldError('email') ? 'email-error' : undefined}
                   />
+                  {validator.hasFieldError('email') && (
+                    <p id="email-error" className="mt-1 text-sm text-red-400" role="alert">
+                      {validator.getFieldError('email')}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">Phone</label>
@@ -306,9 +303,18 @@ export default function ProfileSettings() {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => handleInputChange('phone', e.target.value)}
-                    className="form-input"
+                    onBlur={() => handleBlur('phone')}
+                    className={`form-input ${
+                      validator.hasFieldError('phone') ? 'border-red-300' : validator.isFieldValid('phone') ? 'border-green-300' : ''
+                    }`}
                     placeholder="Enter your phone number"
+                    aria-describedby={validator.hasFieldError('phone') ? 'phone-error' : undefined}
                   />
+                  {validator.hasFieldError('phone') && (
+                    <p id="phone-error" className="mt-1 text-sm text-red-400" role="alert">
+                      {validator.getFieldError('phone')}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">WhatsApp</label>
@@ -316,9 +322,18 @@ export default function ProfileSettings() {
                     type="tel"
                     value={formData.whatsapp}
                     onChange={(e) => handleInputChange('whatsapp', e.target.value)}
-                    className="form-input"
+                    onBlur={() => handleBlur('whatsapp')}
+                    className={`form-input ${
+                      validator.hasFieldError('whatsapp') ? 'border-red-300' : validator.isFieldValid('whatsapp') ? 'border-green-300' : ''
+                    }`}
                     placeholder="Enter your WhatsApp number"
+                    aria-describedby={validator.hasFieldError('whatsapp') ? 'whatsapp-error' : undefined}
                   />
+                  {validator.hasFieldError('whatsapp') && (
+                    <p id="whatsapp-error" className="mt-1 text-sm text-red-400" role="alert">
+                      {validator.getFieldError('whatsapp')}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -375,8 +390,12 @@ export default function ProfileSettings() {
                       type="text"
                       value={formData.tagline}
                       onChange={(e) => handleInputChange('tagline', e.target.value)}
-                      className="form-input flex-1"
+                      onBlur={() => handleBlur('tagline')}
+                      className={`form-input flex-1 ${
+                        validator.hasFieldError('tagline') ? 'border-red-300' : validator.isFieldValid('tagline') ? 'border-green-300' : ''
+                      }`}
                       placeholder="Your professional tagline"
+                      aria-describedby={validator.hasFieldError('tagline') ? 'tagline-error' : undefined}
                     />
                     {formData.brandingSuggestions && (
                       <button
@@ -389,6 +408,11 @@ export default function ProfileSettings() {
                       </button>
                     )}
                   </div>
+                  {validator.hasFieldError('tagline') && (
+                    <p id="tagline-error" className="mt-1 text-sm text-red-400" role="alert">
+                      {validator.getFieldError('tagline')}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -403,13 +427,15 @@ export default function ProfileSettings() {
               {!formData.brandingSuggestions ? (
                 <div className="text-center py-8">
                   <p className="text-gray-400 mb-4">Generate AI-powered branding suggestions for your business</p>
-                  <button
+                  <LoadingButton
                     onClick={handleGenerateBranding}
-                    disabled={isLoading || !formData.company?.trim()}
+                    isLoading={brandingOperation.loading}
+                    disabled={!formData.company?.trim()}
                     className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                    loadingText="Generating..."
                   >
-                    {isLoading ? 'Generating...' : 'Generate Branding'}
-                  </button>
+                    Generate Branding
+                  </LoadingButton>
                   {!formData.company?.trim() && (
                     <p className="text-sm text-amber-400 mt-2">Please enter your company name first</p>
                   )}
@@ -457,13 +483,14 @@ export default function ProfileSettings() {
                   </div>
                   
                   <div className="flex gap-3">
-                    <button
+                    <LoadingButton
                       onClick={handleGenerateBranding}
-                      disabled={isLoading}
+                      isLoading={brandingOperation.loading}
                       className="btn-outline flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                      loadingText="Regenerating..."
                     >
-                      {isLoading ? 'Regenerating...' : 'Regenerate'}
-                    </button>
+                      Regenerate
+                    </LoadingButton>
                     <button
                       onClick={handleApplyBranding}
                       className="btn-brand flex-1"
@@ -521,9 +548,18 @@ export default function ProfileSettings() {
                     type="text"
                     value={formData.pincode}
                     onChange={(e) => handleInputChange('pincode', e.target.value)}
-                    className="form-input"
+                    onBlur={() => handleBlur('pincode')}
+                    className={`form-input ${
+                      validator.hasFieldError('pincode') ? 'border-red-300' : validator.isFieldValid('pincode') ? 'border-green-300' : ''
+                    }`}
                     placeholder="Enter your pincode"
+                    aria-describedby={validator.hasFieldError('pincode') ? 'pincode-error' : undefined}
                   />
+                  {validator.hasFieldError('pincode') && (
+                    <p id="pincode-error" className="mt-1 text-sm text-red-400" role="alert">
+                      {validator.getFieldError('pincode')}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -567,9 +603,18 @@ export default function ProfileSettings() {
                   <textarea
                     value={formData.about}
                     onChange={(e) => handleInputChange('about', e.target.value)}
-                    className="form-input h-24 resize-none"
+                    onBlur={() => handleBlur('about')}
+                    className={`form-input h-24 resize-none ${
+                      validator.hasFieldError('about') ? 'border-red-300' : validator.isFieldValid('about') ? 'border-green-300' : ''
+                    }`}
                     placeholder="Tell us about yourself..."
+                    aria-describedby={validator.hasFieldError('about') ? 'about-error' : undefined}
                   />
+                  {validator.hasFieldError('about') && (
+                    <p id="about-error" className="mt-1 text-sm text-red-400" role="alert">
+                      {validator.getFieldError('about')}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -590,24 +635,15 @@ export default function ProfileSettings() {
               >
                 Reset
               </button>
-              <button
-                type="button"
+              <LoadingButton
                 onClick={handleSave}
-                disabled={isSaving}
+                isLoading={multipleLoading.isLoading('saveProfile')}
                 className="btn-primary px-8 py-2 flex items-center gap-2"
+                loadingText="Saving..."
               >
-                {isSaving ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <CheckIcon className="h-4 w-4" />
-                    Save Changes
-                  </>
-                )}
-              </button>
+                <CheckIcon className="h-4 w-4" />
+                Save Changes
+              </LoadingButton>
             </div>
           </div>
         )}

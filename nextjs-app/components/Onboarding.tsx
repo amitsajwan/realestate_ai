@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { authManager } from '@/lib/auth';
+import { authManager } from '@/lib/auth'
+import { apiService } from '@/lib/api'
+import { handleError, showSuccess, withErrorHandling } from '@/lib/error-handler'
+import { OnboardingFormData, BrandingSuggestion } from '@/types/user'
+import { useAsyncOperation, useMultipleLoading } from '@/hooks/useLoading'
+import { LoadingButton, LoadingOverlay } from '@/components/LoadingStates';
 import { applyBrandTheme } from '@/lib/theme';
 import { UserIcon, BuildingOfficeIcon, SparklesIcon, ShareIcon, DocumentTextIcon, PhotoIcon, CheckIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import { validatePassword } from '@/lib/validation';
@@ -67,7 +72,12 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
     preferences: [],
     brandingSuggestions: null
   })
-  const [isLoading, setIsLoading] = useState(false)
+  const [brandingSuggestions, setBrandingSuggestions] = useState<BrandingSuggestion[]>([])
+  const [selectedBranding, setSelectedBranding] = useState<number | null>(null)
+  
+  // Use loading hooks for consistent state management
+  const brandingOperation = useAsyncOperation<BrandingSuggestion[]>()
+  const multipleLoading = useMultipleLoading()
   const router = useRouter()
 
   // Sync currentStep with user prop changes
@@ -140,33 +150,40 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
     }
     
     if (currentStep < 6) {
-      setIsLoading(true)
-      try {
-        console.log('📤 Calling updateOnboarding with step:', currentStep + 1)
-        await authManager.updateOnboarding(currentStep + 1, formData)
+      multipleLoading.setLoading('next', true)
+      
+      const { error } = await withErrorHandling(
+        () => authManager.updateOnboarding(currentStep + 1, formData),
+        'Save Onboarding Progress',
+        'Progress saved!'
+      )
+      
+      if (!error) {
         console.log('✅ updateOnboarding successful, updating step to:', currentStep + 1)
         setCurrentStep(currentStep + 1)
-        toast.success('Progress saved!')
-      } catch (error) {
-        console.error('❌ handleNext error:', error)
-        toast.error('Failed to save progress')
-      } finally {
-        setIsLoading(false)
       }
+      
+      multipleLoading.setLoading('next', false)
     } else {
       // Complete onboarding on step 6
-      setIsLoading(true)
-      try {
-        await authManager.updateOnboarding(6, formData)
-        toast.success('Onboarding completed!')
-        onComplete()
-      } catch (error) {
-        console.error('❌ Complete onboarding error:', error)
-        toast.error('Failed to complete onboarding')
-      } finally {
-        setIsLoading(false)
-      }
+      await handleComplete()
     }
+  }
+
+  const handleComplete = async () => {
+    multipleLoading.setLoading('complete', true)
+    
+    const { error } = await withErrorHandling(
+      () => authManager.updateOnboarding(6, formData),
+      'Complete Onboarding',
+      'Onboarding completed!'
+    )
+    
+    if (!error) {
+      onComplete()
+    }
+    
+    multipleLoading.setLoading('complete', false)
   }
 
   const handleBack = () => {
@@ -187,30 +204,20 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
       return
     }
 
-    setIsLoading(true)
-    try {
-      const response = await fetch('http://localhost:8000/api/v1/agent/branding-suggest', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          company_name: formData.company
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to generate branding suggestions')
+    const suggestions = await brandingOperation.execute(
+      () => apiService.getBrandingSuggestions({
+        company_name: formData.company,
+        agent_name: `${formData.firstName} ${formData.lastName}`.trim(),
+        position: formData.position
+      }),
+      {
+        successMessage: 'Branding suggestions generated successfully!',
+        errorMessage: 'Failed to generate branding suggestions'
       }
-
-      const suggestions = await response.json()
+    )
+    
+    if (suggestions) {
       handleInputChange('brandingSuggestions', suggestions)
-      toast.success('Branding suggestions generated!')
-    } catch (error) {
-      console.error('Error generating branding:', error)
-      toast.error('Failed to generate branding suggestions')
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -378,13 +385,14 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                   </div>
                   
                   <div className="flex space-x-3">
-                    <button
-                      onClick={handleGenerateBranding}
-                      disabled={isLoading}
+                    <LoadingButton
+                      onClick={generateBrandingSuggestions}
+                      isLoading={brandingOperation.isLoading}
                       className="btn-outline flex-1"
+                      loadingText="Generating..."
                     >
-                      {isLoading ? 'Generating...' : 'Regenerate'}
-                    </button>
+                      Regenerate
+                    </LoadingButton>
                     <button
                       onClick={handleApplyBranding}
                       className="btn-brand flex-1"
@@ -398,13 +406,15 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                   <p className="text-gray-600 mb-4">
                     Generate AI-powered branding suggestions based on your company name
                   </p>
-                  <button
-                    onClick={handleGenerateBranding}
-                    disabled={isLoading || !formData.company}
+                  <LoadingButton
+                    onClick={generateBrandingSuggestions}
+                    isLoading={brandingOperation.isLoading}
+                    disabled={!formData.companyName}
                     className="btn-primary"
+                    loadingText="Generating..."
                   >
-                    {isLoading ? 'Generating...' : 'Generate Branding'}
-                  </button>
+                    Generate Branding
+                  </LoadingButton>
                   {!formData.company && (
                     <p className="text-sm text-orange-600 mt-2">
                       Please enter your company name in the previous step
@@ -623,23 +633,15 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                 </button>
               )}
               
-              <button
+              <LoadingButton
                 onClick={handleNext}
-                disabled={isLoading}
+                isLoading={multipleLoading.isLoading('next') || multipleLoading.isLoading('complete')}
                 className="btn-primary flex items-center space-x-2"
+                loadingText={currentStep === 6 ? 'Completing...' : 'Saving...'}
               >
-                {isLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Saving...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>{currentStep === 6 ? 'Complete Setup' : 'Next'}</span>
-                    <ArrowRightIcon className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+                <span>{currentStep === 6 ? 'Complete Onboarding' : 'Next Step'}</span>
+                <ArrowRightIcon className="w-4 h-4" />
+              </LoadingButton>
             </div>
           </div>
         </div>

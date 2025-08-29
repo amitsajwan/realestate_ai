@@ -33,9 +33,15 @@ security = HTTPBearer(auto_error=False)
 # Initialize services - will be created per request
 
 
-async def get_user_repository() -> UserRepository:
+def get_auth_service() -> AuthService:
+    """Dependency to get auth service instance."""
+    user_repo = get_user_repository()
+    return AuthService(user_repo)
+
+
+def get_user_repository() -> UserRepository:
     """Dependency to get user repository instance."""
-    db = await get_database()
+    db = get_database()
     return UserRepository(db)
 
 
@@ -113,7 +119,8 @@ async def get_current_user(
 async def register(
     request: Request,
     user_data: UserCreate,
-    user_repo: UserRepository = Depends(get_user_repository)
+    user_repo: UserRepository = Depends(get_user_repository),
+    auth_service: AuthService = Depends(get_auth_service)
 ):
     """Register a new user account."""
     client_ip = get_remote_address(request)
@@ -210,7 +217,8 @@ async def register(
 async def login(
     request: Request,
     login_data: UserLogin,
-    user_repo: UserRepository = Depends(get_user_repository)
+    user_repo: UserRepository = Depends(get_user_repository),
+    auth_service: AuthService = Depends(get_auth_service)
 ):
     """Authenticate user and return access token."""
     client_ip = get_remote_address(request)
@@ -342,7 +350,8 @@ async def get_current_user_info(
 async def change_password(
     request: Request,
     password_data: PasswordChangeRequest,
-    current_user: Dict[str, Any] = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    auth_service: AuthService = Depends(get_auth_service)
 ):
     """Change user password."""
     client_ip = get_remote_address(request)
@@ -416,7 +425,8 @@ async def change_password(
 @limiter.limit("20/minute")
 async def refresh_token(
     request: Request,
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    auth_service: AuthService = Depends(get_auth_service)
 ):
     """Refresh access token using refresh token."""
     client_ip = get_remote_address(request)
