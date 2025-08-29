@@ -1,17 +1,9 @@
 'use client';
 
 import { APIService } from './api';
-
-export interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  onboardingCompleted: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+import { errorHandler, handleError, showSuccess } from './error-handler';
+import { User, LoginRequest, RegisterRequest, AuthResponse, UserDataTransformer } from '../types/user';
+import * as React from 'react';
 
 export interface AuthState {
   isAuthenticated: boolean;
@@ -48,9 +40,12 @@ class AuthManager {
 
   private listeners: Array<(state: AuthState) => void> = [];
   private apiService: APIService;
-  private refreshTimer: NodeJS.Timeout | null = null;
+  private refreshTimer: ReturnType<typeof setTimeout> | null = null;
   private isRefreshing = false;
   private refreshPromise: Promise<boolean> | null = null;
+  private refreshRetryCount = 0;
+  private maxRefreshRetries = 3;
+  private refreshRetryDelay = 1000; // 1 second
 
   constructor() {
     this.apiService = new APIService();
@@ -120,7 +115,8 @@ class AuthManager {
     try {
       this.setState({ isLoading: true, error: null });
       
-      const response = await this.apiService.login({ email, password });
+      const credentials: LoginRequest = { email, password };
+      const response: AuthResponse = await this.apiService.login(credentials);
       
       if (response.access_token && response.user) {
         // Store tokens
@@ -140,18 +136,16 @@ class AuthManager {
         });
         
         this.scheduleTokenRefresh();
+        showSuccess('Successfully logged in!');
         
         return { success: true, user: response.user };
       } else {
-        const error = 'Invalid response from server';
-        this.setState({ isLoading: false, error });
-        return { success: false, error };
+        throw new Error('Invalid response format');
       }
     } catch (error: any) {
-      console.error('[AuthManager] Login error:', error);
-      const errorMessage = error.response?.data?.detail || error.message || 'Login failed';
-      this.setState({ isLoading: false, error: errorMessage });
-      return { success: false, error: errorMessage };
+      const appError = handleError(error, 'Login');
+      this.setState({ isLoading: false, error: appError.message });
+      return { success: false, error: appError.message };
     }
   }
 
@@ -162,21 +156,48 @@ class AuthManager {
     try {
       this.setState({ isLoading: true, error: null });
       
-      const response = await this.apiService.register(userData);
+      const registerRequest: RegisterRequest = {
+        email: userData.email,
+        password: userData.password,
+        confirm_password: userData.password,
+        first_name: userData.firstName,
+        last_name: userData.lastName,
+        phone: userData.phone
+      };
+      const response: AuthResponse = await this.apiService.register(registerRequest);
       
       if (response.user) {
-        this.setState({ isLoading: false, error: null });
+        // If tokens are provided during registration, store them and authenticate
+        if (response.access_token) {
+          this.setStoredToken(response.access_token);
+          if (response.refresh_token) {
+            this.setStoredRefreshToken(response.refresh_token);
+          }
+          
+          this.setState({
+            isAuthenticated: true,
+            user: response.user,
+            token: response.access_token,
+            refreshToken: response.refresh_token || null,
+            isLoading: false,
+            error: null
+          });
+          
+          this.scheduleTokenRefresh();
+          showSuccess('Account created and logged in successfully!');
+        } else {
+          this.setState({ isLoading: false, error: null });
+          showSuccess('Account created successfully! Please log in.');
+        }
+        
         return { success: true, user: response.user };
       } else {
-        const error = 'Registration failed';
-        this.setState({ isLoading: false, error });
-        return { success: false, error };
+        throw new Error('Invalid response format');
       }
     } catch (error: any) {
-      console.error('[AuthManager] Registration error:', error);
-      const errorMessage = error.response?.data?.detail || error.message || 'Registration failed';
-      this.setState({ isLoading: false, error: errorMessage });
-      return { success: false, error: errorMessage };
+      const appError = handleError(error, 'Registration');
+      this.setState({ isLoading: false, error: appError.message });
+      return { success: false, error: appError.message };
     }
   }
 
@@ -241,33 +262,104 @@ class AuthManager {
   }
 
   private async performTokenRefresh(): Promise<boolean> {
-    try {
-      const refreshToken = this.getStoredRefreshToken();
-      if (!refreshToken || this.isTokenExpired(refreshToken)) {
-        return false;
-      }
+    const refreshToken = this.getStoredRefreshToken();
+    
+    // Validate refresh token exists and is not expired
+    if (!refreshToken) {
+      console.warn('[AuthManager] No refresh token available');
+      await this.handleRefreshFailure('No refresh token available');
+      return false;
+    }
+    
+    if (this.isTokenExpired(refreshToken)) {
+      console.warn('[AuthManager] Refresh token expired');
+      await this.handleRefreshFailure('Refresh token expired');
+      return false;
+    }
 
-      const response = await this.apiService.refreshToken(refreshToken);
-      
-      if (response.access_token) {
-        this.setStoredToken(response.access_token);
-        if (response.refresh_token) {
-          this.setStoredRefreshToken(response.refresh_token);
+    return await this.attemptTokenRefreshWithRetry(refreshToken);
+  }
+
+  private async attemptTokenRefreshWithRetry(refreshToken: string): Promise<boolean> {
+    for (let attempt = 1; attempt <= this.maxRefreshRetries; attempt++) {
+      try {
+        console.log(`[AuthManager] Token refresh attempt ${attempt}/${this.maxRefreshRetries}`);
+        
+        const response = await this.apiService.refreshToken(refreshToken);
+        
+        if (response.access_token) {
+          // Success - reset retry count and update tokens
+          this.refreshRetryCount = 0;
+          
+          this.setStoredToken(response.access_token);
+          if (response.refresh_token) {
+            this.setStoredRefreshToken(response.refresh_token);
+          }
+          
+          this.setState({
+            token: response.access_token,
+            refreshToken: response.refresh_token || this.state.refreshToken,
+            error: null
+          });
+          
+          this.scheduleTokenRefresh();
+          console.log('[AuthManager] Token refresh successful');
+          return true;
+        } else {
+          throw new Error('Invalid refresh response - no access token');
+        }
+      } catch (error: any) {
+        console.error(`[AuthManager] Token refresh attempt ${attempt} failed:`, error);
+        
+        // Check if this is a permanent failure (401, 403)
+        if (error?.response?.status === 401 || error?.response?.status === 403) {
+          console.warn('[AuthManager] Refresh token invalid - permanent failure');
+          await this.handleRefreshFailure('Invalid refresh token');
+          return false;
         }
         
-        this.setState({
-          token: response.access_token,
-          refreshToken: response.refresh_token || this.state.refreshToken
-        });
+        // If this is the last attempt, handle failure
+        if (attempt === this.maxRefreshRetries) {
+          console.error('[AuthManager] All refresh attempts failed');
+          await this.handleRefreshFailure(`Token refresh failed after ${this.maxRefreshRetries} attempts`);
+          return false;
+        }
         
-        this.scheduleTokenRefresh();
-        return true;
+        // Wait before retrying (exponential backoff)
+        const delay = this.refreshRetryDelay * Math.pow(2, attempt - 1);
+        console.log(`[AuthManager] Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-      
-      return false;
-    } catch (error) {
-      console.error('[AuthManager] Token refresh error:', error);
-      return false;
+    }
+    
+    return false;
+  }
+
+  private async handleRefreshFailure(reason: string): Promise<void> {
+    console.error(`[AuthManager] Token refresh failed: ${reason}`);
+    
+    // Clear invalid tokens
+    this.clearAuth();
+    
+    // Update state to reflect unauthenticated status
+    this.setState({
+      isAuthenticated: false,
+      user: null,
+      token: null,
+      refreshToken: null,
+      error: 'Session expired. Please log in again.'
+    });
+    
+    // Show user-friendly error message
+    const appError = errorHandler.createError('TOKEN_EXPIRED', 'Your session has expired. Please log in again.');
+    errorHandler.handleError(appError, 'Token Refresh');
+    
+    // Redirect to login if we're in a browser environment
+    if (typeof window !== 'undefined') {
+      // Small delay to ensure error message is shown
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 2000);
     }
   }
 
@@ -367,39 +459,54 @@ class AuthManager {
   /**
    * Update onboarding progress for the current user
    */
-  async updateOnboarding(step: number, data: any): Promise<{ success: boolean }>{
+  async updateOnboarding(step: number, data: any, completed: boolean = false): Promise<boolean> {
     try {
       this.setState({ isLoading: true, error: null });
 
       const user = this.state.user;
       if (!user) {
-        throw new Error('User not authenticated');
+        throw errorHandler.createError('UNAUTHORIZED', 'User not authenticated');
       }
 
-      // Save step progress or complete onboarding
-      if (step >= 6) {
-        await this.apiService.post(`/api/v1/onboarding/${user.id}/complete`, undefined, true);
-        // Optimistically update local state
+      console.log('[AuthManager] Updating onboarding:', { step, completed });
+      
+      const updateRequest = {
+        step,
+        data,
+        completed
+      };
+      
+      const response = await this.apiService.updateOnboarding(user.id, updateRequest);
+      
+      // Update user state if response contains updated user data
+      if (response.success && response.data) {
         this.setState({
-          user: { ...(this.state.user as User), onboardingCompleted: true },
+          user: response.data,
           isLoading: false,
           error: null
         });
-        return { success: true };
       } else {
-        await this.apiService.post(
-          `/api/v1/onboarding/${user.id}`,
-          { step_number: step, data },
-          true
-        );
-        this.setState({ isLoading: false, error: null });
-        return { success: true };
+        // Update local user state with new onboarding info
+        const updatedUser = {
+          ...user,
+          onboardingStep: step,
+          onboardingCompleted: completed
+        };
+        this.setState({
+          user: updatedUser,
+          isLoading: false,
+          error: null
+        });
       }
+      
+      console.log('[AuthManager] Onboarding update successful');
+      showSuccess(completed ? 'Onboarding completed!' : 'Progress saved!');
+      return true;
     } catch (error: any) {
-      console.error('[AuthManager] Update onboarding error:', error);
-      const errorMessage = error.response?.data?.detail || error.message || 'Failed to update onboarding';
-      this.setState({ isLoading: false, error: errorMessage });
-      return { success: false };
+      console.error('[AuthManager] Onboarding update failed:', error);
+      const appError = handleError(error, 'Update Onboarding');
+      this.setState({ isLoading: false, error: appError.message });
+      return false;
     }
   }
 
@@ -498,10 +605,4 @@ export function useAuth() {
     updateOnboarding: authManager.updateOnboarding.bind(authManager),
     refreshToken: authManager.refreshAccessToken.bind(authManager)
   };
-}
-
-// Add React import for the hook
-if (typeof window !== 'undefined') {
-  // @ts-ignore
-  const React = require('react');
 }

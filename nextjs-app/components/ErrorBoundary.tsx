@@ -58,56 +58,31 @@ export class ErrorBoundary extends Component<Props, State> {
                           >
                             <ExclamationTriangleIcon className="w-8 h-8 text-red-600" />
                           </motion.div>
-                          
                           <h2 className="text-2xl font-bold text-gray-800 mb-2">
                             Oops! Something went wrong
                           </h2>
-                          
                           <p className="text-gray-600 mb-6">
                             We encountered an unexpected error. Don't worry, this is usually temporary. Please try refreshing the page or contact support if the problem persists.
                           </p>
-
-              {process.env.NODE_ENV === 'development' && this.state.error && (
-                <details className="mb-6 text-left">
-                  <summary className="cursor-pointer text-sm font-medium text-gray-700 mb-2">
-                    Error Details (Development)
-                  </summary>
-                  <div className="bg-gray-100 p-4 rounded-lg text-xs font-mono text-gray-800 overflow-auto max-h-40">
-                    <div className="mb-2">
-                      <strong>Error:</strong> {this.state.error.message}
+                          <div className="flex space-x-3">
+                            <button
+                              onClick={this.handleRetry}
+                              className="btn-primary flex items-center space-x-2"
+                            >
+                              <ArrowPathIcon className="w-4 h-4" />
+                              <span>Try Again</span>
+                            </button>
+                            <button
+                              onClick={() => window.location.reload()}
+                              className="btn-outline"
+                            >
+                              Refresh Page
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
                     </div>
-                    {this.state.errorInfo && (
-                      <div>
-                        <strong>Stack:</strong>
-                        <pre className="whitespace-pre-wrap mt-1">
-                          {this.state.errorInfo.componentStack}
-                        </pre>
-                      </div>
-                    )}
-                  </div>
-                </details>
-              )}
-
-              <div className="flex space-x-3">
-                <button
-                  onClick={this.handleRetry}
-                  className="btn-primary flex items-center space-x-2"
-                >
-                  <ArrowPathIcon className="w-4 h-4" />
-                  <span>Try Again</span>
-                </button>
-                
-                <button
-                  onClick={() => window.location.reload()}
-                  className="btn-outline"
-                >
-                  Refresh Page
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )
+              )
     }
 
     return this.props.children

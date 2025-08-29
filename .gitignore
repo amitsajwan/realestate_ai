@@ -34,3 +34,4 @@ archive/
 # Generated & local data
 generated_images/
 *.db
+*.log

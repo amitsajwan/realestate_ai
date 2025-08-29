@@ -65,9 +65,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",  # Next.js frontend
-        "http://localhost:8000",  # Backend
-        "http://127.0.0.1:3000",  # Alternative localhost
-        "http://127.0.0.1:8000",  # Alternative localhost
+        "https://wp-data-assets-flat.trycloudflare.com", # Frontend cloudflared tunnel
+        "https://group-mime-quilt-buzz.trycloudflare.com",  # Backend cloudflared tunnel
+        "https://*.trycloudflare.com"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -228,3 +228,5 @@ async def serve_frontend(full_path: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
