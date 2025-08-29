@@ -214,6 +214,7 @@ class UserResponse(BaseModel):
 class UserSecureResponse(BaseModel):
     """Minimal user response for public contexts"""
     id: str = Field(..., description="User's unique identifier")
+    email: str = Field(..., description="User's email address")
     first_name: str = Field(..., description="User's first name")
     last_name: str = Field(..., description="User's last name")
     is_active: bool = Field(..., description="Whether the user account is active")

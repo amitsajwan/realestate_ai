@@ -166,6 +166,7 @@ async def register(
         
         return UserSecureResponse(
             id=str(user["_id"]),
+            email=user.get("email"),
             first_name=user.get("first_name"),
             last_name=user.get("last_name"),
             is_active=user.get("is_active", True)
