@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
@@ -51,7 +51,16 @@ const LoginPage: React.FC = () => {
   const { submit, isLoading } = useFormSubmission();
 
   // Check if user is already authenticated
+  const isInitialMount = useRef(true);
+  
   useEffect(() => {
+    // Skip the authentication check on the initial server-side render
+    // This prevents hydration mismatch between server and client
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    
     const checkAuth = async () => {
       try {
         const isAuthenticated = await authManager.isAuthenticated();
@@ -59,7 +68,7 @@ const LoginPage: React.FC = () => {
           router.push('/dashboard');
         }
       } catch (error) {
-        console.error('Auth check failed:', error);
+  console.error('[LoginPage] Auth check failed:', error);
       }
     };
     checkAuth();
@@ -123,18 +132,28 @@ const LoginPage: React.FC = () => {
       if (isLogin) {
         const result = await authManager.login(formData.email, formData.password);
         if (result.success) {
-          router.push('/dashboard');
+          // Wait for auth state to be fully updated before redirecting
+          await authManager.init();
+          const authState = authManager.getState();
+          
+          // Check onboarding status and redirect accordingly
+          if (authState.user?.onboardingCompleted) {
+            router.push('/dashboard');
+          } else {
+            router.push('/onboarding');
+          }
         }
       } else {
-        const registerData: RegisterRequest = {
+        const registerData = {
           email: formData.email,
           password: formData.password,
-          confirm_password: formData.confirmPassword,
-          first_name: formData.firstName || '',
-          last_name: formData.lastName || '',
+          confirmPassword: formData.confirmPassword,
+          firstName: formData.firstName || '',
+          lastName: formData.lastName || '',
           phone: formData.phone || undefined
         };
-        const result = await authManager.register(registerData);
+
+         const result = await authManager.register(registerData);
         
         if (result.success) {
           setIsLogin(true);
@@ -497,7 +516,6 @@ const LoginPage: React.FC = () => {
                 onClick={handleFacebookLogin}
                 isLoading={isLoading}
                 className="w-full inline-flex justify-center py-3 sm:py-2 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-base sm:text-sm font-medium text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 ease-in-out hover-lift click-shrink min-h-[48px]"
-                loadingText="Connecting..."
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path

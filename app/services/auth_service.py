@@ -6,9 +6,12 @@ Production-ready authentication service with comprehensive security features
 """
 
 from datetime import datetime, timedelta, timezone
+import asyncio
 from typing import Optional, Dict, Any
 import logging
 import re
+import functools
+import time
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 
@@ -18,6 +21,43 @@ from app.schemas.user import UserCreate, UserResponse, UserLogin
 from app.core.exceptions import AuthenticationError, ValidationError, ConflictError
 
 logger = logging.getLogger(__name__)
+
+# Debug decorator for logging method entry and exit
+def debug_log(func):
+    @functools.wraps(func)
+    async def async_wrapper(*args, **kwargs):
+        start_time = time.time()
+        method_name = func.__name__
+        logger.debug(f"START: {method_name} - Entry")
+        try:
+            result = await func(*args, **kwargs)
+            elapsed = time.time() - start_time
+            logger.debug(f"END: {method_name} - Success - Elapsed: {elapsed:.3f}s")
+            return result
+        except Exception as e:
+            elapsed = time.time() - start_time
+            logger.debug(f"END: {method_name} - Exception: {type(e).__name__}: {str(e)} - Elapsed: {elapsed:.3f}s")
+            raise
+    
+    @functools.wraps(func)
+    def sync_wrapper(*args, **kwargs):
+        start_time = time.time()
+        method_name = func.__name__
+        logger.debug(f"START: {method_name} - Entry")
+        try:
+            result = func(*args, **kwargs)
+            elapsed = time.time() - start_time
+            logger.debug(f"END: {method_name} - Success - Elapsed: {elapsed:.3f}s")
+            return result
+        except Exception as e:
+            elapsed = time.time() - start_time
+            logger.debug(f"END: {method_name} - Exception: {type(e).__name__}: {str(e)} - Elapsed: {elapsed:.3f}s")
+            raise
+    
+    if asyncio.iscoroutinefunction(func):
+        return async_wrapper
+    else:
+        return sync_wrapper
 
 class AuthService:
     """Enhanced authentication service with comprehensive security"""
@@ -31,14 +71,19 @@ class AuthService:
             bcrypt__rounds=12  # Increased rounds for better security
         )
     
+    @debug_log
     def hash_password(self, password: str) -> str:
         """Hash password with bcrypt"""
+        logger.debug("Hashing password with bcrypt")
         return self.pwd_context.hash(password)
     
+    @debug_log
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """Verify password against hash"""
+        logger.debug("Verifying password against stored hash")
         return self.pwd_context.verify(plain_password, hashed_password)
     
+    @debug_log
     def validate_password_strength(self, password: str) -> Dict[str, Any]:
         """Comprehensive password strength validation"""
         errors = []
@@ -117,11 +162,16 @@ class AuthService:
             }
         }
     
+    @debug_log
     def validate_email(self, email: str) -> bool:
         """Enhanced email validation"""
+        logger.debug(f"Validating email format: {email}")
         email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        return bool(re.match(email_pattern, email))
+        result = bool(re.match(email_pattern, email))
+        logger.debug(f"Email validation result: {result}")
+        return result
     
+    @debug_log
     def create_access_token(self, data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
         """Create JWT access token with enhanced security"""
         to_encode = data.copy()
@@ -145,6 +195,7 @@ class AuthService:
             logger.error(f"Error creating access token: {e}")
             raise AuthenticationError("Failed to create access token")
     
+    @debug_log
     def verify_token(self, token: str) -> Dict[str, Any]:
         """Enhanced JWT token verification"""
         try:
@@ -168,27 +219,38 @@ class AuthService:
             logger.error(f"Token verification error: {e}")
             raise AuthenticationError("Token verification failed")
     
+    @debug_log
     async def register_user(self, user_data: UserCreate) -> UserResponse:
         """Enhanced user registration with comprehensive validation"""
+        logger.debug(f"Starting user registration process for email: {user_data.email}")
+
         # Validate email format
+        logger.debug(f"Validating email format for: {user_data.email}")
         if not self.validate_email(user_data.email):
+            logger.debug(f"Email validation failed for: {user_data.email}")
             raise ValidationError("Invalid email format")
         
         # Check if user already exists
+        logger.debug(f"Checking if user already exists: {user_data.email}")
         existing_user = await self.user_repository.get_by_email(user_data.email)
         if existing_user:
             logger.warning(f"Registration attempt with existing email: {user_data.email}")
-            raise ConflictError("User with this email already exists")
+            logger.debug(f"User already exists with email: {user_data.email}")
+            raise ConflictError(message="User with this email already exists")
         
         # Validate password strength
+        logger.debug("Validating password strength")
         password_validation = self.validate_password_strength(user_data.password)
         if not password_validation["is_valid"]:
+            logger.debug(f"Password validation failed: {password_validation['errors']}")
             raise ValidationError(f"Password validation failed: {'; '.join(password_validation['errors'])}")
         
         # Hash password
+        logger.debug("Hashing user password")
         hashed_password = self.hash_password(user_data.password)
         
         # Create user data
+        logger.debug("Preparing user data for database creation")
         user_dict = user_data.dict()
         user_dict["password"] = hashed_password
         user_dict["email"] = user_dict["email"].lower()  # Normalize email
@@ -197,16 +259,22 @@ class AuthService:
         user_dict["facebook_connected"] = False
         user_dict["onboarding_completed"] = False
         user_dict["onboarding_step"] = 1
+        logger.debug(f"User data prepared with fields: {', '.join(user_dict.keys())}")
+
         
         try:
+            logger.debug(f"Attempting to create user in database: {user_data.email}")
             created_user = await self.user_repository.create(user_dict)
             logger.info(f"User registered successfully: {user_data.email}")
+            logger.debug(f"User created with ID: {created_user.get('id')}")
             return UserResponse(**created_user)
         except Exception as e:
             logger.error(f"User registration failed for {user_data.email}: {e}")
+            logger.debug(f"Exception details during user creation: {type(e).__name__}: {str(e)}")
             raise ValidationError("Failed to create user account")
     
-    async def authenticate_user(self, email: str, password: str) -> Optional[UserResponse]:
+    @debug_log
+    async def authenticate_user(self, email: str, password: str) -> Optional[tuple]:
         """Enhanced user authentication with security logging"""
         if not email or not password:
             logger.warning("Missing email or password in login attempt")
@@ -237,9 +305,30 @@ class AuthService:
         except Exception as e:
             logger.warning(f"Failed to update last login for {email}: {e}")
         
+        # Create token data
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        refresh_token_expires = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        
+        access_token = self.create_access_token(
+            data={"user_id": user["id"], "email": user["email"], "type": "access_token"},
+            expires_delta=access_token_expires
+        )
+        
+        refresh_token = self.create_access_token(
+            data={"user_id": user["id"], "email": user["email"], "type": "refresh_token"},
+            expires_delta=refresh_token_expires
+        )
+        
+        token_data = {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        }
+        
         logger.info(f"User authenticated successfully: {email}")
-        return UserResponse(**user)
+        return user, token_data
     
+    @debug_log
     async def get_current_user(self, token: str) -> UserResponse:
         """Get current user from token with enhanced validation"""
         payload = self.verify_token(token)

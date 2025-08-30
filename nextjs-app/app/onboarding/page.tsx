@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { authManager, User } from '@/lib/auth';
+import { authManager } from '@/lib/auth';
+import { User } from '@/types/user';
 import Onboarding from '@/components/Onboarding';
 
 export default function OnboardingPage() {
@@ -15,6 +16,11 @@ export default function OnboardingPage() {
     const initAuth = async () => {
       await authManager.init();
       const state = authManager.getState();
+      
+      console.log('[OnboardingPage] Auth state:', {
+        isAuthenticated: state.isAuthenticated,
+        user: state.user
+      });
 
       if (!state.isAuthenticated) {
         router.push('/login');
@@ -22,7 +28,7 @@ export default function OnboardingPage() {
       }
 
       if (state.user?.onboardingCompleted) {
-        router.push('/');
+        router.push('/dashboard');
         return;
       }
 
@@ -38,7 +44,17 @@ export default function OnboardingPage() {
   };
 
   const handleOnboardingComplete = () => {
-    router.push('/');
+    console.log('[OnboardingPage] Onboarding completed, redirecting to dashboard');
+    // Force a refresh of auth state before redirecting
+    authManager.init().then(() => {
+      console.log('[OnboardingPage] Auth state refreshed, redirecting to dashboard');
+      // Use replace instead of push to prevent back navigation to onboarding
+      router.replace('/dashboard');
+    }).catch(err => {
+      console.error('[OnboardingPage] Error refreshing auth state:', err);
+      // Fallback to direct navigation if refresh fails
+      window.location.href = '/dashboard';
+    });
   };
 
   if (isLoading) {

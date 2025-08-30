@@ -6,9 +6,9 @@ from app.utils.validation import validate_password_strength, validate_email_form
 
 class UserBase(BaseModel):
     """Base user model with common fields"""
-    email: EmailStr = Field(..., description="User's email address")
-    first_name: str = Field(..., min_length=1, max_length=50, description="User's first name")
-    last_name: str = Field(..., min_length=1, max_length=50, description="User's last name")
+    email: str = Field(..., description="User's email address")
+    first_name: Optional[str] = Field(None, min_length=1, max_length=50, description="User's first name")
+    last_name: Optional[str] = Field(None, min_length=1, max_length=50, description="User's last name")
     phone: Optional[str] = Field(None, max_length=20, description="User's phone number")
     is_active: bool = Field(True, description="Whether the user account is active")
     
@@ -64,7 +64,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     """Schema for creating a new user"""
     password: str = Field(..., min_length=8, max_length=128, description="User's password")
-    confirm_password: str = Field(..., description="Password confirmation")
+    confirm_password: Optional[str] = Field(None, description="Password confirmation")
     
     @validator('password')
     def validate_password_strength_check(cls, v):
@@ -98,7 +98,7 @@ class UserCreate(UserBase):
 
 class UserLogin(BaseModel):
     """Schema for user login"""
-    email: EmailStr = Field(..., description="User's email address")
+    email: str = Field(..., description="User's email address")
     password: str = Field(..., min_length=1, description="User's password")
     remember_me: bool = Field(False, description="Whether to remember the user")
     
@@ -173,7 +173,7 @@ class UserUpdate(BaseModel):
 class UserResponse(BaseModel):
     """Schema for user response (excludes sensitive data)"""
     id: str = Field(..., description="User's unique identifier")
-    email: EmailStr = Field(..., description="User's email address")
+    email: str = Field(..., description="User's email address")
     first_name: str = Field(..., description="User's first name")
     last_name: str = Field(..., description="User's last name")
     phone: Optional[str] = Field(None, description="User's phone number")

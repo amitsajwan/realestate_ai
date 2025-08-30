@@ -10,6 +10,9 @@ class BaseRepository:
     """Base repository with common CRUD operations"""
     
     def __init__(self, collection_name: str):
+        import logging
+        self.logger = logging.getLogger(__name__)
+        self.logger.debug(f"BaseRepository initialized for collection: {collection_name}")
         self.collection_name = collection_name
         self._collection = None
     
@@ -38,6 +41,7 @@ class BaseRepository:
         return document
     
     async def create(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        self.logger.info(f"Creating document in {self.collection_name}: {data}")
         """Create a new document"""
         try:
             data["created_at"] = datetime.utcnow()
@@ -54,6 +58,7 @@ class BaseRepository:
             raise
     
     async def get_by_id(self, document_id: str) -> Optional[Dict[str, Any]]:
+        self.logger.debug(f"Getting document by ID: {document_id}")
         """Get document by ID"""
         try:
             if not ObjectId.is_valid(document_id):
@@ -78,6 +83,7 @@ class BaseRepository:
             raise
     
     async def update(self, document_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        self.logger.info(f"Updating document {document_id} with data: {data}")
         """Update document by ID"""
         try:
             if not ObjectId.is_valid(document_id):
@@ -101,6 +107,7 @@ class BaseRepository:
             raise
     
     async def delete(self, document_id: str) -> bool:
+        self.logger.info(f"Deleting document {document_id}")
         """Delete document by ID"""
         try:
             if not ObjectId.is_valid(document_id):

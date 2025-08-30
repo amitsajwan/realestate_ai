@@ -15,7 +15,7 @@ def _ensure_user_access(path_user_id: str, current_user: Dict[str, Any]):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden: cannot access another user's onboarding")
 
 
-@router.get("/onboarding/{user_id}", response_model=OnboardingStep)
+@router.get("/{user_id}", response_model=OnboardingStep)
 async def get_onboarding_step(
     user_id: str,
     service: OnboardingService = Depends(),
@@ -28,7 +28,7 @@ async def get_onboarding_step(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/onboarding/{user_id}", response_model=OnboardingStep)
+@router.post("/{user_id}", response_model=OnboardingStep)
 async def save_onboarding_step(
     user_id: str,
     step_data: OnboardingStep,
@@ -42,7 +42,7 @@ async def save_onboarding_step(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/onboarding/{user_id}/complete", response_model=OnboardingComplete)
+@router.post("/{user_id}/complete", response_model=OnboardingComplete)
 async def complete_onboarding(
     user_id: str,
     service: OnboardingService = Depends(),

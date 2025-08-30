@@ -19,6 +19,8 @@ class UserProfileService:
     """MongoDB-based user profile service"""
     
     def __init__(self):
+        self.logger = logging.getLogger(__name__)
+        self.logger.debug("UserProfileService initialized")
         self.collection_name = "agent_profiles"
     
     async def get_collection(self):
@@ -27,6 +29,7 @@ class UserProfileService:
         return db[self.collection_name]
     
     async def create_profile(self, profile_data: Dict[str, Any]) -> Optional[AgentProfile]:
+        self.logger.info(f"Creating profile: {profile_data}")
         """Create a new user profile"""
         try:
             collection = await self.get_collection()
@@ -66,6 +69,7 @@ class UserProfileService:
             return None
     
     async def update_profile(self, user_id: str, profile_data: Dict[str, Any]) -> Optional[AgentProfile]:
+        self.logger.info(f"Updating profile for user {user_id}: {profile_data}")
         """Update existing user profile or create if not exists"""
         try:
             collection = await self.get_collection()
@@ -94,6 +98,7 @@ class UserProfileService:
             return None
     
     async def delete_profile(self, user_id: str) -> bool:
+        self.logger.info(f"Deleting profile for user {user_id}")
         """Delete user profile"""
         try:
             collection = await self.get_collection()

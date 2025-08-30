@@ -10,7 +10,7 @@ interface ThemeProviderProps {
 export default function ThemeProvider({ children }: ThemeProviderProps) {
   useEffect(() => {
     // Initialize theme on app startup
-    console.log('ThemeProvider: Initializing brand theme...');
+  console.info('[ThemeProvider] Initializing brand theme...');
     initializeBrandTheme();
   }, [])
 

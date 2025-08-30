@@ -8,7 +8,7 @@ from fastapi import APIRouter
 # Import endpoint routers
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.dashboard import router as dashboard_router
-from app.api.v1.endpoints.facebook import router as facebook_router
+# Removed facebook endpoints to ensure backend remains API-only without HTML responses
 from app.api.v1.endpoints.leads import router as leads_router
 from app.api.v1.endpoints.properties import router as properties_router
 from app.api.v1.endpoints.user_profile import router as user_profile_router
@@ -21,7 +21,7 @@ api_router = APIRouter()
 # Include all endpoint routers
 api_router.include_router(auth_router, prefix="/auth", tags=["authentication"]) 
 api_router.include_router(dashboard_router, prefix="/dashboard", tags=["dashboard"])
-api_router.include_router(facebook_router, prefix="/facebook", tags=["facebook"])
+# api_router.include_router(facebook_router, prefix="/facebook", tags=["facebook"])  # Removed
 api_router.include_router(leads_router, prefix="/leads", tags=["leads"])
 api_router.include_router(properties_router, prefix="/properties", tags=["properties"])
 api_router.include_router(user_profile_router, prefix="/user", tags=["user"])
@@ -49,7 +49,6 @@ async def api_info():
         "endpoints": [
             "/auth - Authentication endpoints",
             "/dashboard - Dashboard and analytics",
-            "/facebook - Facebook integration",
             "/leads - Lead management",
             "/properties - Property management"
         ]

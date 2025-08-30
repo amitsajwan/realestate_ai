@@ -1,5 +1,6 @@
 from typing import Any, Dict
 from datetime import datetime
+import logging
 from bson import ObjectId
 
 from app.schemas.onboarding import OnboardingStep, OnboardingComplete
@@ -15,6 +16,8 @@ class OnboardingService:
     """
 
     def __init__(self):
+        self.logger = logging.getLogger(__name__)
+        self.logger.debug("OnboardingService initialized")
         self.db = get_database()
         self.users = self.db.users
 
@@ -35,6 +38,7 @@ class OnboardingService:
         return OnboardingStep(step_number=step_number, data=step_data)
 
     async def save_step(self, user_id: str, step_data: OnboardingStep) -> OnboardingStep:
+        self.logger.info(f"Saving onboarding step for user {user_id}: {step_data}")
         """Validate and persist the given step data, and set current step."""
         step_number = int(step_data.step_number)
         if step_number < 1 or step_number > 6:
@@ -55,6 +59,7 @@ class OnboardingService:
         return OnboardingStep(step_number=step_number, data=step_data.data)
 
     async def complete_onboarding(self, user_id: str) -> OnboardingComplete:
+        self.logger.info(f"Completing onboarding for user {user_id}")
         """Mark the onboarding as completed for the user."""
         result = await self.users.update_one(
             {"_id": ObjectId(user_id)},

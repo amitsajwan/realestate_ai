@@ -19,6 +19,12 @@ const phoneSchema = z.string()
   .regex(/^[\+]?[1-9][\d]{0,15}$/, 'Please enter a valid phone number')
   .optional()
 
+// New: Allow empty-string for optional phone fields in forms where phone is not required
+const optionalPhoneEmptySchema = z.union([
+  z.string().regex(/^[\+]?[1-9][\d]{0,15}$/, 'Please enter a valid phone number'),
+  z.literal('')
+]).optional()
+
 const companyNameSchema = z.string()
   .min(2, 'Company name must be at least 2 characters')
   .max(100, 'Company name must be less than 100 characters')
@@ -42,7 +48,7 @@ export const registerSchema = z.object({
   password: passwordSchema,
   firstName: nameSchema,
   lastName: nameSchema,
-  phone: phoneSchema,
+  phone: optionalPhoneEmptySchema,
   confirmPassword: z.string()
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Passwords do not match',
@@ -91,8 +97,8 @@ export const brandingSuggestionSchema = z.object({
 export const profileSettingsSchema = z.object({
   name: nameSchema,
   email: emailSchema,
-  phone: phoneSchema,
-  whatsapp: phoneSchema,
+  phone: optionalPhoneEmptySchema,
+  whatsapp: optionalPhoneEmptySchema,
   company: z.string().optional(),
   experience_years: z.string().optional(),
   specialization_areas: z.string().optional(),
@@ -113,7 +119,10 @@ export function validateField<T>(schema: z.ZodSchema<T>, value: T): { isValid: b
     return { isValid: true }
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return { isValid: false, error: error.errors[0]?.message || 'Invalid value' }
+      const zodError = error as z.ZodError;
+      if (zodError.issues && zodError.issues.length > 0) {
+        return { isValid: false, error: zodError.issues[0]?.message || 'Invalid value' }
+      }
     }
     return { isValid: false, error: 'Validation failed' }
   }
@@ -124,9 +133,10 @@ export function validateForm<T>(schema: z.ZodSchema<T>, data: T): { isValid: boo
     schema.parse(data)
     return { isValid: true, errors: {} }
   } catch (error) {
-    if (error instanceof z.ZodError && error.errors && Array.isArray(error.errors)) {
+    if (error instanceof z.ZodError) {
+      const zodError = error as z.ZodError;
       const errors: ValidationErrors = {}
-      error.errors.forEach((err) => {
+      zodError.issues.forEach((err) => {
         const path = err.path.join('.')
         errors[path] = err.message
       })
@@ -200,7 +210,8 @@ export function useFormValidation<T>(schema: z.ZodSchema<T>) {
         return { isValid: true }
       } catch (error) {
         if (error instanceof z.ZodError) {
-          return { isValid: false, error: error.errors[0]?.message || 'Invalid value' }
+          const zodError = error as z.ZodError;
+          return { isValid: false, error: zodError.issues[0]?.message || 'Invalid value' }
         }
         return { isValid: false, error: 'Validation failed' }
       }
@@ -229,16 +240,29 @@ export class FormValidator {
   }
 
   validateField(fieldName: string, value: any): boolean {
-    const result = validateField((this.schema as any).shape[fieldName], value)
-    
-    if (result.isValid) {
-      delete this.errors[fieldName]
-    } else {
-      this.errors[fieldName] = result.error || 'Invalid value'
+    // Check if the field exists in the schema
+    if (!(this.schema as any).shape || !(this.schema as any).shape[fieldName]) {
+      this.errors[fieldName] = 'Field not defined in schema'
+      this.touched[fieldName] = true
+      return false
     }
     
-    this.touched[fieldName] = true
-    return result.isValid
+    try {
+      const result = validateField((this.schema as any).shape[fieldName], value)
+      
+      if (result.isValid) {
+        delete this.errors[fieldName]
+      } else {
+        this.errors[fieldName] = result.error || 'Invalid value'
+      }
+      
+      this.touched[fieldName] = true
+      return result.isValid
+    } catch (error) {
+      this.errors[fieldName] = 'Validation error occurred'
+      this.touched[fieldName] = true
+      return false
+    }
   }
 
   validateAll(data: any): boolean {
