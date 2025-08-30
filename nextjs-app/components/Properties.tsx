@@ -36,6 +36,7 @@ interface Property {
   type: string
   status: 'for-sale' | 'for-rent' | 'sold'
   dateAdded: string
+  image?: string
 }
 
 interface PropertiesProps {
@@ -48,6 +49,8 @@ export default function Properties({ onAddProperty, properties: propProperties =
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterType, setFilterType] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [typeFilter, setTypeFilter] = useState<string>('all')
   const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 1000000 })
   const [bedroomFilter, setBedroomFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState<string>('dateAdded')
@@ -59,7 +62,7 @@ export default function Properties({ onAddProperty, properties: propProperties =
   const [error, setError] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [favorites, setFavorites] = useState<Set<string>>(new Set())
+  const [favorites, setFavorites] = useState<string[]>([])
   
   // Use passed properties or fallback to empty array
   const properties = propProperties
@@ -132,20 +135,18 @@ export default function Properties({ onAddProperty, properties: propProperties =
 
   const toggleFavorite = (propertyId: string) => {
     setFavorites(prev => {
-      const newFavorites = new Set(prev)
-      if (newFavorites.has(propertyId)) {
-        newFavorites.delete(propertyId)
+      if (prev.includes(propertyId)) {
+        return prev.filter(id => id !== propertyId)
       } else {
-        newFavorites.add(propertyId)
+        return [...prev, propertyId]
       }
-      return newFavorites
     })
   }
 
   const handleEditProperty = (property: Property) => {
     setSelectedProperty(property)
     // You can implement edit modal or navigate to edit page here
-    console.log('Edit property:', property)
+  console.debug('[Properties] Edit property:', property)
   }
 
   const handleDeleteProperty = (propertyId: string) => {
@@ -164,7 +165,7 @@ export default function Properties({ onAddProperty, properties: propProperties =
   const handleViewProperty = (property: Property) => {
     // Navigate to property details or show property modal
     setSelectedProperty(property)
-    console.log('View property:', property)
+  console.debug('[Properties] View property:', property)
   }
 
   if (loading) {
@@ -432,7 +433,7 @@ export default function Properties({ onAddProperty, properties: propProperties =
                    onClick={() => toggleFavorite(property.id)}
                    className="p-2 rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm hover:bg-white dark:hover:bg-slate-800 transition-all duration-200 group/heart hover-scale click-shrink"
                  >
-                   {favorites.includes(property.id) ? (
+                   {favorites.indexOf(property.id) !== -1 ? (
                      <HeartSolidIcon className="w-4 h-4 text-red-500" />
                    ) : (
                      <HeartIcon className="w-4 h-4 text-gray-600 dark:text-gray-400 group-hover/heart:text-red-500" />
@@ -507,13 +508,16 @@ export default function Properties({ onAddProperty, properties: propProperties =
                    View Details
                  </button>
                  <button
-                   onClick={() => onEditProperty(property)}
+                   onClick={() => handleViewProperty(property)}
                    className="flex-1 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 py-2 px-3 rounded-lg font-medium transition-all duration-200 text-sm hover-lift click-shrink"
                  >
                    Edit
                  </button>
                  <button
-                   onClick={() => setDeleteModalProperty(property)}
+                   onClick={() => {
+                     setPropertyToDelete(property.id);
+                     setShowDeleteModal(true);
+                   }}
                    className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 py-2 px-3 rounded-lg font-medium transition-all duration-200 text-sm"
                  >
                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -594,7 +598,8 @@ export default function Properties({ onAddProperty, properties: propProperties =
                    className="w-full h-full object-cover"
                    onError={(e) => {
                      e.currentTarget.style.display = 'none'
-                     e.currentTarget.nextElementSibling.style.display = 'flex'
+                     const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                     if (nextElement) nextElement.style.display = 'flex';
                    }}
                  />
                  <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center" style={{display: 'none'}}>

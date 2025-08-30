@@ -35,3 +35,17 @@ archive/
 generated_images/
 *.db
 *.log
+
+# Temporary/Debug files
+check_user.py
+
+# Next.js specific
+nextjs-app/.next/
+nextjs-app/out/
+nextjs-app/build/
+nextjs-app/.swc/
+
+# Testing
+playwright-report/
+test-results/
+.nyc_output/

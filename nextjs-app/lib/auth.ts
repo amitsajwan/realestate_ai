@@ -2,7 +2,7 @@
 
 import { APIService } from './api';
 import { errorHandler, handleError, showSuccess } from './error-handler';
-import { User, LoginRequest, RegisterRequest, AuthResponse, UserDataTransformer } from '../types/user';
+import { User, LoginRequest, RegisterRequest, AuthResponse, UserDataTransformer, RegisterData } from '../types/user';
 import * as React from 'react';
 
 export interface AuthState {
@@ -20,13 +20,7 @@ export interface AuthResult {
   error?: string;
 }
 
-export interface RegisterData {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-}
+// RegisterData is now imported from '../types/user'
 
 class AuthManager {
   private state: AuthState = {
@@ -88,6 +82,11 @@ class AuthManager {
       // Validate token by fetching user info
       const user = await this.getCurrentUser();
       if (user) {
+        // Ensure user ID is properly set
+        if (!user.id) {
+          console.error('[AuthManager] User ID is missing in getCurrentUser response');
+        }
+        
         this.setState({
           isAuthenticated: true,
           user,
@@ -115,22 +114,33 @@ class AuthManager {
     try {
       this.setState({ isLoading: true, error: null });
       
-      const credentials: LoginRequest = { email, password };
+      // Validate inputs before sending to API
+      if (!email || !email.trim()) {
+        throw new Error('Email is required');
+      }
+      
+      if (!password || !password.trim()) {
+        throw new Error('Password is required');
+      }
+      
+      const credentials: LoginRequest = { email: email.trim(), password };
+      console.log('Attempting login with:', email);
+      
       const response: AuthResponse = await this.apiService.login(credentials);
       
-      if (response.access_token && response.user) {
+      if (response.accessToken && response.user) {
         // Store tokens
-        this.setStoredToken(response.access_token);
-        if (response.refresh_token) {
-          this.setStoredRefreshToken(response.refresh_token);
+        this.setStoredToken(response.accessToken);
+        if (response.refreshToken) {
+          this.setStoredRefreshToken(response.refreshToken);
         }
         
         // Update state
         this.setState({
           isAuthenticated: true,
           user: response.user,
-          token: response.access_token,
-          refreshToken: response.refresh_token || null,
+          token: response.accessToken,
+          refreshToken: response.refreshToken || null,
           isLoading: false,
           error: null
         });
@@ -140,9 +150,11 @@ class AuthManager {
         
         return { success: true, user: response.user };
       } else {
-        throw new Error('Invalid response format');
+        console.error('Invalid login response format:', response);
+        throw new Error('Invalid response format from server');
       }
     } catch (error: any) {
+      console.error('Login error:', error);
       const appError = handleError(error, 'Login');
       this.setState({ isLoading: false, error: appError.message });
       return { success: false, error: appError.message };
@@ -156,29 +168,22 @@ class AuthManager {
     try {
       this.setState({ isLoading: true, error: null });
       
-      const registerRequest: RegisterRequest = {
-        email: userData.email,
-        password: userData.password,
-        confirm_password: userData.password,
-        first_name: userData.firstName,
-        last_name: userData.lastName,
-        phone: userData.phone
-      };
+      const registerRequest: RegisterRequest = UserDataTransformer.transformRegisterData(userData);
       const response: AuthResponse = await this.apiService.register(registerRequest);
       
       if (response.user) {
         // If tokens are provided during registration, store them and authenticate
-        if (response.access_token) {
-          this.setStoredToken(response.access_token);
-          if (response.refresh_token) {
-            this.setStoredRefreshToken(response.refresh_token);
+        if (response.accessToken) {
+          this.setStoredToken(response.accessToken);
+          if (response.refreshToken) {
+            this.setStoredRefreshToken(response.refreshToken);
           }
           
           this.setState({
             isAuthenticated: true,
             user: response.user,
-            token: response.access_token,
-            refreshToken: response.refresh_token || null,
+            token: response.accessToken,
+            refreshToken: response.refreshToken || null,
             isLoading: false,
             error: null
           });
@@ -287,18 +292,18 @@ class AuthManager {
         
         const response = await this.apiService.refreshToken(refreshToken);
         
-        if (response.access_token) {
+        if (response.accessToken) {
           // Success - reset retry count and update tokens
           this.refreshRetryCount = 0;
           
-          this.setStoredToken(response.access_token);
-          if (response.refresh_token) {
-            this.setStoredRefreshToken(response.refresh_token);
+          this.setStoredToken(response.accessToken);
+          if (response.refreshToken) {
+            this.setStoredRefreshToken(response.refreshToken);
           }
           
           this.setState({
-            token: response.access_token,
-            refreshToken: response.refresh_token || this.state.refreshToken,
+            token: response.accessToken,
+            refreshToken: response.refreshToken || this.state.refreshToken,
             error: null
           });
           
@@ -468,7 +473,34 @@ class AuthManager {
         throw errorHandler.createError('UNAUTHORIZED', 'User not authenticated');
       }
 
-      console.log('[AuthManager] Updating onboarding:', { step, completed });
+      // Check if user ID is missing and try to refresh user data
+      if (!user.id) {
+        console.warn('[AuthManager] User ID is missing, attempting to refresh user data');
+        try {
+          // Try to get fresh user data from API
+          const refreshedUser = await this.getCurrentUser();
+          if (refreshedUser && refreshedUser.id) {
+            // Update user in state with refreshed data that has ID
+            this.setState({
+              user: refreshedUser
+            });
+            console.log('[AuthManager] Successfully refreshed user data with ID:', refreshedUser.id);
+          } else {
+            throw errorHandler.createError('INVALID_USER', 'Could not retrieve valid user ID');
+          }
+        } catch (refreshError) {
+          console.error('[AuthManager] Failed to refresh user data:', refreshError);
+          throw errorHandler.createError('INVALID_USER', 'User ID is undefined and refresh failed');
+        }
+      }
+
+      // Get the potentially updated user from state
+      const currentUser = this.state.user;
+      if (!currentUser || !currentUser.id) {
+        throw errorHandler.createError('INVALID_USER', 'User ID is still undefined after refresh attempt');
+      }
+
+      console.log('[AuthManager] Updating onboarding:', { step, completed, userId: currentUser.id });
       
       const updateRequest = {
         step,
@@ -476,7 +508,7 @@ class AuthManager {
         completed
       };
       
-      const response = await this.apiService.updateOnboarding(user.id, updateRequest);
+      const response = await this.apiService.updateOnboarding(currentUser.id, updateRequest);
       
       // Update user state if response contains updated user data
       if (response.success && response.data) {
@@ -485,10 +517,15 @@ class AuthManager {
           isLoading: false,
           error: null
         });
+        console.log('[AuthManager] Updated user state with API response data:', response.data);
+        console.log('[AuthManager] User onboarding status:', {
+          onboardingCompleted: response.data.onboardingCompleted,
+          onboardingStep: response.data.onboardingStep
+        });
       } else {
         // Update local user state with new onboarding info
         const updatedUser = {
-          ...user,
+          ...currentUser,
           onboardingStep: step,
           onboardingCompleted: completed
         };
@@ -497,6 +534,7 @@ class AuthManager {
           isLoading: false,
           error: null
         });
+        console.log('[AuthManager] Updated user state locally:', { step, completed });
       }
       
       console.log('[AuthManager] Onboarding update successful');

@@ -8,21 +8,65 @@ Production-ready user repository with comprehensive CRUD operations and error ha
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 import logging
+import functools
+import time
+import asyncio
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo.errors import DuplicateKeyError, PyMongoError
 from pymongo import ASCENDING, DESCENDING
+from app.core.exceptions import ConflictError
 
 logger = logging.getLogger(__name__)
+
+# Debug decorator for logging method entry and exit
+def debug_log(func):
+    @functools.wraps(func)
+    async def async_wrapper(*args, **kwargs):
+        start_time = time.time()
+        method_name = func.__name__
+        logger.debug(f"START: {method_name} - Entry")
+        try:
+            result = await func(*args, **kwargs)
+            elapsed = time.time() - start_time
+            logger.debug(f"END: {method_name} - Success - Elapsed: {elapsed:.3f}s")
+            return result
+        except Exception as e:
+            elapsed = time.time() - start_time
+            logger.debug(f"END: {method_name} - Exception: {type(e).__name__}: {str(e)} - Elapsed: {elapsed:.3f}s")
+            raise
+    
+    @functools.wraps(func)
+    def sync_wrapper(*args, **kwargs):
+        start_time = time.time()
+        method_name = func.__name__
+        logger.debug(f"START: {method_name} - Entry")
+        try:
+            result = func(*args, **kwargs)
+            elapsed = time.time() - start_time
+            logger.debug(f"END: {method_name} - Success - Elapsed: {elapsed:.3f}s")
+            return result
+        except Exception as e:
+            elapsed = time.time() - start_time
+            logger.debug(f"END: {method_name} - Exception: {type(e).__name__}: {str(e)} - Elapsed: {elapsed:.3f}s")
+            raise
+    
+    if asyncio.iscoroutinefunction(func):
+        return async_wrapper
+    else:
+        return sync_wrapper
 
 class UserRepository:
     """Enhanced user repository with comprehensive database operations"""
     
     def __init__(self, database: AsyncIOMotorDatabase):
+        self.logger = logging.getLogger(__name__)
+        self.logger.debug("UserRepository initialized")
         self.database = database
         self.collection = database.users
         self._indexes_ensured = False
     
+    @debug_log
     async def _ensure_indexes(self):
         """Ensure database indexes for optimal performance"""
         try:
@@ -64,6 +108,7 @@ class UserRepository:
         except Exception as e:
             logger.warning(f"Failed to create indexes: {e}")
     
+    @debug_log
     def _serialize_user(self, user: Dict[str, Any]) -> Dict[str, Any]:
         """Serialize user document for API response"""
         if not user:
@@ -81,6 +126,7 @@ class UserRepository:
         
         return user
     
+    @debug_log
     def _prepare_user_data(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
         """Prepare user data for database insertion"""
         prepared_data = user_data.copy()
@@ -111,7 +157,9 @@ class UserRepository:
         
         return prepared_data
     
+    @debug_log
     async def create(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
+        self.logger.info(f"Creating user: {user_data.get('email')}")
         """Create a new user with enhanced error handling"""
         try:
             # Ensure indexes are created (lazy initialization)
@@ -135,7 +183,7 @@ class UserRepository:
             
         except DuplicateKeyError as e:
             logger.warning(f"Duplicate user creation attempt: {user_data.get('email', 'unknown')}")
-            raise ValueError(f"User with email {user_data.get('email')} already exists")
+            raise ConflictError(message=f"User with email {user_data.get('email')} already exists")
         except PyMongoError as e:
             logger.error(f"Database error creating user: {e}")
             raise Exception(f"Database error: {str(e)}")
@@ -143,6 +191,7 @@ class UserRepository:
             logger.error(f"Unexpected error creating user: {e}")
             raise Exception(f"Failed to create user: {str(e)}")
     
+    @debug_log
     async def get_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user by ID with enhanced error handling"""
         try:
@@ -166,7 +215,9 @@ class UserRepository:
             logger.error(f"Unexpected error getting user by ID {user_id}: {e}")
             return None
     
+    @debug_log
     async def get_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        self.logger.debug(f"Getting user by email: {email}")
         """Get user by email with enhanced validation"""
         try:
             if not email or not email.strip():
@@ -174,10 +225,11 @@ class UserRepository:
                 return None
             
             normalized_email = email.lower().strip()
+            logger.debug(f"Looking up user by normalized email: {normalized_email}")
             user = await self.collection.find_one({"email": normalized_email})
             
             if user:
-                logger.debug(f"User found by email: {normalized_email}")
+                logger.debug(f"User found by email: {normalized_email}, user_id: {user.get('_id')}")
             else:
                 logger.debug(f"User not found by email: {normalized_email}")
             
@@ -214,6 +266,7 @@ class UserRepository:
             return None
     
     async def update(self, user_id: str, update_data: Dict[str, Any]) -> bool:
+        self.logger.info(f"Updating user {user_id} with data: {update_data}")
         """Update user with enhanced validation and error handling"""
         try:
             if not ObjectId.is_valid(user_id):
@@ -262,6 +315,7 @@ class UserRepository:
             return False
     
     async def delete(self, user_id: str) -> bool:
+        self.logger.info(f"Deleting user {user_id}")
         """Soft delete user (mark as inactive)"""
         try:
             if not ObjectId.is_valid(user_id):

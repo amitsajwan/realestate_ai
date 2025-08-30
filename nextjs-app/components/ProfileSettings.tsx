@@ -75,7 +75,7 @@ export default function ProfileSettings() {
   // Form validation
   const validator = new FormValidator(profileSettingsSchema)
   
-  const isLoading = profileOperation.loading
+  const isLoading = profileOperation.isLoading
   const isSaving = multipleLoading.isLoading('saveProfile')
 
   const availableLanguages = [
@@ -101,7 +101,7 @@ export default function ProfileSettings() {
           profileData = response;
         }
       } catch (error) {
-        console.log('No existing profile found, will use onboarding data')
+  console.info('[ProfileSettings] No existing profile found, will use onboarding data')
       }
       
       // Merge onboarding data with profile data, prioritizing profile data
@@ -196,12 +196,9 @@ export default function ProfileSettings() {
 
     const suggestions = await brandingOperation.execute(
       () => apiService.getBrandingSuggestions({
-        company_name: formData.company,
+        company_name: formData.company || '',
         agent_name: formData.name,
-        specialization_areas: formData.specialization_areas,
-        experience_years: formData.experience_years,
-        location: `${formData.city || ''} ${formData.state || ''}`.trim() || 'Not specified',
-        phone: formData.phone
+        position: formData.specialization_areas
       }),
       {
         successMessage: 'AI branding suggestions generated successfully!',
@@ -429,10 +426,9 @@ export default function ProfileSettings() {
                   <p className="text-gray-400 mb-4">Generate AI-powered branding suggestions for your business</p>
                   <LoadingButton
                     onClick={handleGenerateBranding}
-                    isLoading={brandingOperation.loading}
+                    isLoading={brandingOperation.isLoading}
                     disabled={!formData.company?.trim()}
                     className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                    loadingText="Generating..."
                   >
                     Generate Branding
                   </LoadingButton>
@@ -485,9 +481,8 @@ export default function ProfileSettings() {
                   <div className="flex gap-3">
                     <LoadingButton
                       onClick={handleGenerateBranding}
-                      isLoading={brandingOperation.loading}
+                      isLoading={brandingOperation.isLoading}
                       className="btn-outline flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                      loadingText="Regenerating..."
                     >
                       Regenerate
                     </LoadingButton>
@@ -639,7 +634,6 @@ export default function ProfileSettings() {
                 onClick={handleSave}
                 isLoading={multipleLoading.isLoading('saveProfile')}
                 className="btn-primary px-8 py-2 flex items-center gap-2"
-                loadingText="Saving..."
               >
                 <CheckIcon className="h-4 w-4" />
                 Save Changes

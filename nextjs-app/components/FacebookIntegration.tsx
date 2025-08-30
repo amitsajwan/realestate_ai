@@ -31,7 +31,7 @@ export default function FacebookIntegration() {
         setFacebookPages(data.status.pages || [])
       }
     } catch (error) {
-      console.log('Facebook status check failed:', error)
+  console.error('[FacebookIntegration] Facebook status check failed:', error)
     }
   }
 
@@ -49,7 +49,7 @@ export default function FacebookIntegration() {
         toast.error('Failed to initiate Facebook connection')
       }
     } catch (error) {
-      console.error('Facebook connection error:', error)
+  console.error('[FacebookIntegration] Facebook connection error:', error)
       toast.error('Facebook connection failed. Please try again.')
     } finally {
       setIsLoading(false)

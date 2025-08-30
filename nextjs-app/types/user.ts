@@ -37,12 +37,21 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface RegisterData {
+  email: string;
+  password: string;
+  confirmPassword: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+}
+
 export interface RegisterRequest {
   email: string;
   password: string;
   confirm_password: string;
-  first_name: string;
-  last_name: string;
+  first_name?: string;
+  last_name?: string;
   phone?: string;
 }
 
@@ -107,10 +116,10 @@ export interface BrandingSuggestionResponse {
 export interface LoginFormData {
   email: string;
   password: string;
-  firstName?: string;
-  lastName?: string;
+  firstName: string;
+  lastName: string;
   phone?: string;
-  confirmPassword?: string;
+  confirmPassword: string;
 }
 
 export interface OnboardingFormData {
@@ -139,8 +148,23 @@ export class UserDataTransformer {
    * Transform backend user data to frontend format
    */
   static fromBackend(backendUser: any): User {
+    // Extract ID from MongoDB object if needed
+    let userId = backendUser._id || backendUser.id;
+    
+    // Handle MongoDB ObjectId format if present
+    if (typeof userId === 'object' && userId !== null) {
+      if ('$oid' in userId) {
+        userId = userId.$oid;
+      }
+    }
+    
+    console.log('[UserDataTransformer] Transforming backend user:', { 
+      backendId: backendUser._id || backendUser.id,
+      transformedId: userId 
+    });
+    
     return {
-      id: backendUser._id || backendUser.id,
+      id: userId,
       email: backendUser.email,
       firstName: backendUser.first_name || backendUser.firstName,
       lastName: backendUser.last_name || backendUser.lastName,
@@ -181,10 +205,35 @@ export class UserDataTransformer {
    */
   static transformOnboardingData(data: OnboardingFormData): any {
     return {
-      company_name: data.companyName,
-      business_type: data.businessType,
-      target_audience: data.targetAudience,
-      branding_preferences: data.brandingPreferences,
+      // Map frontend form fields to backend expected format
+      first_name: data.firstName,
+      last_name: data.lastName,
+      phone: data.phone,
+      company_name: data.company,
+      position: data.position,
+      license_number: data.licenseNumber,
+      ai_style: data.aiStyle,
+      ai_tone: data.aiTone,
+      facebook_page: data.facebookPage,
+      terms_accepted: data.termsAccepted,
+      privacy_accepted: data.privacyAccepted,
+      profile_photo: data.profilePhoto,
+      preferences: data.preferences,
+      branding_suggestions: data.brandingSuggestions
+    };
+  }
+  
+  /**
+   * Transform register data for backend submission
+   */
+  static transformRegisterData(data: RegisterData): RegisterRequest {
+    return {
+      email: data.email,
+      password: data.password,
+      confirm_password: data.confirmPassword,
+      first_name: data.firstName,
+      last_name: data.lastName,
+      phone: data.phone
     };
   }
 }
