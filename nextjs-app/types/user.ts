@@ -123,10 +123,28 @@ export interface LoginFormData {
 }
 
 export interface OnboardingFormData {
-  companyName: string;
-  businessType: string;
-  targetAudience: string;
-  brandingPreferences?: Partial<BrandingPreferences>;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  company: string;
+  position: string;
+  licenseNumber: string;
+  aiStyle: string;
+  aiTone: string;
+  facebookPage: string;
+  termsAccepted: boolean;
+  privacyAccepted: boolean;
+  profilePhoto: string;
+  preferences: string[];
+  brandingSuggestions: {
+    tagline: string;
+    about: string;
+    colors: {
+      primary: string;
+      secondary: string;
+      accent: string;
+    };
+  } | null;
 }
 
 // Validation error interfaces
