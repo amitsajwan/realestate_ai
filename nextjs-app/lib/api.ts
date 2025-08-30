@@ -11,6 +11,7 @@ import {
   BrandingSuggestion,
   BrandingSuggestionResponse,
   OnboardingUpdateRequest,
+  OnboardingFormData,
   User,
   UserDataTransformer,
   ApiResponse
@@ -56,10 +57,17 @@ export class APIService {
    * Get API base URL from environment variables
    */
   private getAPIBaseURL(): string {
+    // Prefer explicit BASE_URL variables, fall back to legacy names, then default
+    const browserEnvUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL;
+    const serverEnvUrl = process.env.API_BASE_URL || process.env.API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL;
+
+    // Use a consistent default URL for both client and server
+    const defaultUrl = 'http://localhost:8000';
+    
     if (typeof window !== 'undefined') {
-      return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      return browserEnvUrl || defaultUrl;
     } else {
-      return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      return serverEnvUrl || defaultUrl;
     }
   }
 
@@ -250,12 +258,37 @@ export class APIService {
   }
 
   private extractErrorMessage(responseData: any): string {
+    // Handle string responses
     if (typeof responseData === 'string') {
       return responseData;
     }
-    if (responseData && typeof responseData === 'object') {
-      return responseData.detail || responseData.message || responseData.error || 'An error occurred';
+    
+    // Handle array responses directly
+    if (Array.isArray(responseData)) {
+      return responseData.map(item => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object') return this.extractErrorMessage(item);
+        return String(item);
+      }).join(', ');
     }
+    
+    // Handle object responses
+    if (responseData && typeof responseData === 'object') {
+      const message = responseData.detail || responseData.message || responseData.error;
+      
+      // Handle array messages (common in validation errors)
+      if (Array.isArray(message)) {
+        return message.join(', ');
+      }
+      
+      // Handle object messages (which might be causing the [object Object] issue)
+      if (message && typeof message === 'object') {
+        return this.extractErrorMessage(message);
+      }
+      
+      return message || 'An error occurred';
+    }
+    
     return 'An error occurred';
   }
 
@@ -313,19 +346,52 @@ export class APIService {
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     console.log('[APIService] Attempting login for:', credentials.email);
     
-    const response = await this.makeRequest<any>('/api/v1/auth/login', {
+    // Backend returns only tokens for /login; fetch user afterwards
+    const tokenResp = await this.makeRequest<any>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
     
+    console.log('[APIService] Login tokens received');
+
+    const accessToken = tokenResp.access_token || tokenResp.accessToken;
+    const refreshToken = tokenResp.refresh_token || tokenResp.refreshToken;
+
+    if (!accessToken) {
+      // Unexpected shape; just pass through whatever came back
+      return {
+        // @ts-ignore - provide best-effort mapping
+        user: tokenResp.user ? UserDataTransformer.fromBackend(tokenResp.user) : undefined,
+        // expose both key styles for compatibility
+        // @ts-ignore
+        access_token: tokenResp.access_token,
+        // @ts-ignore
+        refresh_token: tokenResp.refresh_token,
+        accessToken: tokenResp.accessToken,
+        refreshToken: tokenResp.refreshToken
+      } as any;
+    }
+
+    // Set token so that authenticated requests include Authorization header
+    this.setToken(accessToken);
+
+    // Fetch current user info
+    const rawUser = await this.makeRequest<any>('/api/v1/auth/me', { method: 'GET' }, true);
+    const user = UserDataTransformer.fromBackend(rawUser);
+    
     console.log('[APIService] Login successful');
     
-    // Transform backend response to frontend format
+    // Return with both snake_case and camelCase token keys for compatibility
     return {
-      user: UserDataTransformer.fromBackend(response.user),
-      accessToken: response.access_token || response.accessToken,
-      refreshToken: response.refresh_token || response.refreshToken
-    };
+      // @ts-ignore - allow additional fields
+      user,
+      // @ts-ignore
+      access_token: accessToken,
+      // @ts-ignore
+      refresh_token: refreshToken,
+      accessToken,
+      refreshToken
+    } as any;
   }
 
   async register(userData: RegisterRequest): Promise<AuthResponse> {
@@ -338,12 +404,24 @@ export class APIService {
     
     console.log('[APIService] Registration successful');
     
-    // Transform backend response to frontend format
+    // Backend returns the created user object directly (no tokens). Also support legacy { user: {...} }
+    const backendUser = response?.user ?? response;
+    const user = UserDataTransformer.fromBackend(backendUser);
+
+    const accessToken = response.access_token || response.accessToken;
+    const refreshToken = response.refresh_token || response.refreshToken;
+    
+    // Return with both token key styles (tokens may be undefined, which is fine)
     return {
-      user: UserDataTransformer.fromBackend(response.user),
-      accessToken: response.access_token || response.accessToken,
-      refreshToken: response.refresh_token || response.refreshToken
-    };
+      // @ts-ignore
+      user,
+      // @ts-ignore
+      access_token: accessToken,
+      // @ts-ignore
+      refresh_token: refreshToken,
+      accessToken,
+      refreshToken
+    } as any;
   }
 
   async refreshToken(refreshToken: string): Promise<RefreshTokenResponse> {
@@ -354,14 +432,16 @@ export class APIService {
   }
 
   async getCurrentUser(): Promise<User> {
-    return this.makeRequest<User>('/api/v1/auth/me', { method: 'GET' }, true);
+    const raw = await this.makeRequest<any>('/api/v1/auth/me', { method: 'GET' }, true);
+    return UserDataTransformer.fromBackend(raw);
   }
 
   async updateProfile(userData: Partial<User>): Promise<User> {
-    return this.makeRequest<User>('/api/v1/auth/me', {
+    const raw = await this.makeRequest<any>('/api/v1/auth/me', {
       method: 'PUT',
       body: JSON.stringify(userData)
     }, true);
+    return UserDataTransformer.fromBackend(raw);
   }
 
   async changePassword(passwordData: PasswordChangeRequest): Promise<{ message: string }> {
@@ -476,14 +556,45 @@ export class APIService {
   async updateOnboarding(userId: string, data: OnboardingUpdateRequest): Promise<ApiResponse<User>> {
     console.log('[APIService] Updating onboarding for user:', userId);
     
-    // Transform frontend data to backend format
-    const backendData = data.data ? UserDataTransformer.transformOnboardingData(data.data) : data;
+    if (!userId || userId === 'undefined') {
+      console.error('[APIService] Invalid user ID for onboarding update:', userId);
+      throw new Error('Invalid user ID for onboarding update');
+    }
+    
+    // If completing onboarding, use the dedicated complete endpoint
+    if (data.completed) {
+      console.log('[APIService] Completing onboarding via /complete endpoint');
+      const response = await this.makeRequest<any>(`/api/v1/onboarding/${userId}/complete`, {
+        method: 'POST'
+      }, true);
+      
+      console.log('[APIService] Onboarding completion successful');
+      
+      // After completion, get fresh user data to ensure onboarding_completed is updated
+      const updatedUser = await this.getCurrentUser();
+      
+      return {
+        success: true,
+        data: updatedUser,
+        message: response.message || 'Onboarding completed successfully'
+      };
+    }
+    
+    // For regular step updates, use the existing endpoint
+    const backendData = data.data ? UserDataTransformer.transformOnboardingData(data.data as OnboardingFormData) : {};
+    
+    console.log('[APIService] Making onboarding request with data:', {
+      userId,
+      step_number: data.step,
+      data: backendData,
+      completed: data.completed
+    });
     
     const response = await this.makeRequest<any>(`/api/v1/onboarding/${userId}`, {
       method: 'POST',
       body: JSON.stringify({
-        ...backendData,
-        step: data.step,
+        step_number: data.step, // Map 'step' to 'step_number' as expected by backend
+        data: backendData, // Ensure 'data' field is included as expected by backend
         completed: data.completed
       })
     }, true);

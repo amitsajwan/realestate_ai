@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Form, Depends, Request
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
+# Removed HTMLResponse and Jinja2Templates to avoid serving UI from backend
 from pydantic import BaseModel
 from typing import Union
 
@@ -17,11 +16,7 @@ class BrandingRequest(BaseModel):
     phone: str = None
 router = APIRouter(prefix="/agent", tags=["agent-onboarding"])
 
-templates = Jinja2Templates(directory="app/templates")
-
-@router.get("/onboarding", response_class=HTMLResponse)
-async def onboarding_get(request: Request):
-    return templates.TemplateResponse("onboarding.html", {"request": request})
+# Removed Jinja2Templates usage and the GET /onboarding route to keep backend API-only
 
 @router.post("/onboard")
 async def agent_onboard(

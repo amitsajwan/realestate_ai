@@ -16,6 +16,10 @@ router = APIRouter(prefix="/api/v1/listings", tags=["listings"])
 
 # Language-specific content generation functions
 def generate_english_content(property_type, address, city, state, price, bedrooms, bathrooms, features, tone, template):
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Generating English content for property: {property_type}, {address}, {city}")
+    logger.info("Generating listing post")
     """Generate English content"""
     if template == "just_listed":
         caption = f"""🏠 JUST LISTED! Beautiful {property_type} at {address}!

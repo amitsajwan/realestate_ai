@@ -60,7 +60,7 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
       toast.success('Property added successfully!')
       onSuccess?.()
     } catch (error) {
-      console.error('Property creation error:', error)
+  console.error('[PropertyForm] Property creation error:', error)
       if (error instanceof APIError) {
         toast.error(`Failed to add property: ${error.message}`)
       } else {
@@ -93,7 +93,7 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
         throw new Error('No suggestions received')
       }
     } catch (error) {
-      console.error('AI Suggest error:', error)
+  console.error('[PropertyForm] AI Suggest error:', error)
       if (error instanceof APIError) {
         toast.error(`Failed to generate AI content: ${error.message}`)
       } else {

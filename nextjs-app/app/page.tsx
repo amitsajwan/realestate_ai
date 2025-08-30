@@ -59,14 +59,14 @@ export default function Dashboard() {
 
   useEffect(() => {
     const initAuth = async () => {
-      console.log('[DashboardPage] Checking authentication...')
-      console.log('[DashboardPage] Current URL:', window.location.href)
-      console.log('[DashboardPage] URL params:', Object.fromEntries(new URLSearchParams(window.location.search).entries()))
+  console.debug('[DashboardPage] Checking authentication...')
+  console.debug('[DashboardPage] Current URL:', window.location.href)
+  console.debug('[DashboardPage] URL params:', Object.fromEntries(new URLSearchParams(window.location.search).entries()))
       
       await authManager.init()
       const state = authManager.getState()
       
-      console.log('[DashboardPage] Auth state after init:', {
+  console.debug('[DashboardPage] Auth state after init:', {
         isAuthenticated: state.isAuthenticated,
         hasUser: !!state.user,
         user: state.user,
@@ -74,18 +74,18 @@ export default function Dashboard() {
       })
       
       if (!state.isAuthenticated) {
-        console.log('[DashboardPage] Not authenticated, redirecting to login')
+  console.info('[DashboardPage] Not authenticated, redirecting to login')
         router.push('/login')
         return
       }
 
       if (!state.user?.onboardingCompleted) {
-        console.log('[DashboardPage] Onboarding not completed, redirecting to onboarding')
+  console.info('[DashboardPage] Onboarding not completed, redirecting to onboarding')
         router.push('/onboarding')
         return
       }
 
-      console.log('[DashboardPage] User authenticated and onboarded, loading dashboard data')
+  console.info('[DashboardPage] User authenticated and onboarded, loading dashboard data')
       setUser(state.user)
       setIsLoading(false)
       fetchStats()
@@ -102,7 +102,7 @@ export default function Dashboard() {
         setStats(response.data)
       }
     } catch (error) {
-      console.error('Error fetching stats:', error)
+  console.error('[DashboardPage] Error fetching stats:', error)
     }
   }
 
@@ -178,15 +178,15 @@ export default function Dashboard() {
   }
 
   const testThemePersistence = () => {
-    console.log('Testing theme persistence...');
+  console.debug('[DashboardPage] Testing theme persistence...');
     const savedTheme = loadBrandTheme();
-    console.log('Saved theme:', savedTheme);
+  console.debug('[DashboardPage] Saved theme:', savedTheme);
     
     if (savedTheme) {
-      console.log('Applying saved theme:', savedTheme);
+  console.debug('[DashboardPage] Applying saved theme:', savedTheme);
       applyBrandTheme(savedTheme, false);
     } else {
-      console.log('No saved theme found, applying test theme');
+  console.debug('[DashboardPage] No saved theme found, applying test theme');
       const testTheme = {
         primary: '#007bff',
         secondary: '#6c757d', 

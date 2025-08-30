@@ -7,7 +7,7 @@ FastAPI application for AI-powered real estate platform
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+# Removed FileResponse import to avoid serving UI from backend
 import logging
 import re
 from app.routers import listings, user_profile
@@ -17,8 +17,16 @@ from app.core.config import settings
 from app.core.database import connect_to_mongo, close_mongo_connection
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 logger = logging.getLogger(__name__)
+
+# Set specific loggers to DEBUG level
+for module in ['app.services.auth_service', 'app.repositories.user_repository', 'app.api.v1.endpoints.auth']:
+    logging.getLogger(module).setLevel(logging.DEBUG)
 
 # Create FastAPI app
 app = FastAPI(
@@ -32,6 +40,7 @@ def get_cors_origins():
     """Get allowed CORS origins including dynamic ngrok URLs"""
     base_origins = [
         "http://localhost:3000",  # Next.js frontend
+        "http://localhost:3001",  # Next.js frontend (alternative port)
         "http://localhost:8000",  # Backend
     ]
     
@@ -63,18 +72,11 @@ def is_allowed_origin(origin: str) -> bool:
 # Add CORS middleware with explicit origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # Next.js frontend
-        "https://wp-data-assets-flat.trycloudflare.com", # Frontend cloudflared tunnel
-        "https://group-mime-quilt-buzz.trycloudflare.com",  # Backend cloudflared tunnel
-        "https://*.trycloudflare.com"
-    ],
+    allow_origins=["*"],  # Allow all origins for development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Static files are served through the catch-all route below
 
 # MongoDB Startup and Shutdown Events
 @app.on_event("startup")
@@ -190,40 +192,7 @@ async def ai_property_suggest(request: Request):
         logger.error(f"Error in AI property suggestion: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-# Catch-all route to serve frontend
-import os
-
-@app.api_route("/{full_path:path}", methods=["GET"])
-async def serve_frontend(full_path: str):
-    """Serve frontend static files"""
-    # Skip API routes - let them be handled by the API router
-    if full_path.startswith("api/"):
-        raise HTTPException(status_code=404, detail="API endpoint not found")
-    
-    # Define the path to the frontend build
-    frontend_path = os.path.join(os.path.dirname(__file__), "..", "nextjs-app", "out")
-    frontend_path = os.path.abspath(frontend_path)
-    
-    # Handle root path
-    if full_path == "" or full_path == "/":
-        file_path = os.path.join(frontend_path, "index.html")
-    else:
-        # Remove leading slash if present
-        clean_path = full_path.lstrip("/")
-        file_path = os.path.join(frontend_path, clean_path)
-    
-    # Check if it's a directory, serve index.html
-    if os.path.isdir(file_path):
-        file_path = os.path.join(file_path, "index.html")
-    
-    # If file doesn't exist, serve index.html for SPA routing
-    if not os.path.exists(file_path):
-        file_path = os.path.join(frontend_path, "index.html")
-    
-    if os.path.exists(file_path):
-        return FileResponse(file_path)
-    else:
-        raise HTTPException(status_code=404, detail="File not found")
+# Removed catch-all route that served the frontend UI to ensure backend remains a pure API
 
 if __name__ == "__main__":
     import uvicorn

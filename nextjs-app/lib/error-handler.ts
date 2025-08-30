@@ -78,7 +78,21 @@ export class ErrorHandler {
     if (error?.response) {
       const { status, data } = error.response;
       const errorCode = data?.code || data?.error || this.getErrorCodeFromStatus(status);
-      const errorMessage = data?.detail || data?.message || this.errorMap.get(errorCode) || 'An error occurred';
+      let errorMessage = data?.detail || data?.message || this.errorMap.get(errorCode) || 'An error occurred';
+      
+      // Handle array error messages
+      if (Array.isArray(errorMessage)) {
+        errorMessage = errorMessage.map(item => {
+          if (typeof item === 'string') return item;
+          if (item && typeof item === 'object') return JSON.stringify(item);
+          return String(item);
+        }).join(', ');
+      }
+      
+      // Handle object error messages
+      if (errorMessage && typeof errorMessage === 'object') {
+        errorMessage = JSON.stringify(errorMessage);
+      }
       
       return {
         code: errorCode,

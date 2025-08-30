@@ -11,6 +11,9 @@ COMMON_PASSWORDS = {
 }
 
 def validate_password_strength(password: str) -> Dict[str, Any]:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Validating password strength for: {password}")
     """
     Validate password strength with comprehensive checks.
     
@@ -93,6 +96,9 @@ def validate_password_strength(password: str) -> Dict[str, Any]:
     return result
 
 def has_sequential_chars(password: str, min_length: int = 3) -> bool:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Checking sequential chars in password: {password}")
     """
     Check if password contains sequential characters.
     
@@ -122,6 +128,9 @@ def has_sequential_chars(password: str, min_length: int = 3) -> bool:
     return False
 
 def has_repeated_chars(password: str, max_repeats: int = 3) -> bool:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Checking repeated chars in password: {password}")
     """
     Check if password has too many repeated characters.
     
@@ -140,6 +149,9 @@ def has_repeated_chars(password: str, max_repeats: int = 3) -> bool:
     return False
 
 def validate_email_format(email: str) -> Dict[str, Any]:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Validating email format: {email}")
     """
     Validate email format with comprehensive checks.
     
@@ -157,7 +169,8 @@ def validate_email_format(email: str) -> Dict[str, Any]:
     
     try:
         # Use email-validator library for comprehensive validation
-        valid = validate_email(email)
+        # Disable deliverability checks to allow non-routable test domains like example.com
+        valid = validate_email(email, check_deliverability=False)
         result["normalized_email"] = valid.email
         
         # Additional custom checks
@@ -188,6 +201,9 @@ def validate_email_format(email: str) -> Dict[str, Any]:
     return result
 
 def validate_phone_number(phone: str) -> Dict[str, Any]:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Validating phone number: {phone}")
     """
     Validate phone number format with international support.
     

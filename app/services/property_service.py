@@ -17,9 +17,12 @@ class PropertyService:
     """Service layer for property-related business logic."""
 
     def __init__(self, property_repository: PropertyRepository):
+        self.logger = logging.getLogger(__name__)
+        self.logger.debug("PropertyService initialized")
         self.property_repository = property_repository
 
     async def create_property(self, property_data: PropertyCreate, agent_id: str) -> PropertyResponse:
+        self.logger.info(f"Creating property for agent {agent_id}: {property_data}")
         property_dict = property_data.model_dump()
         property_dict.update({
             "agent_id": agent_id,
@@ -42,6 +45,7 @@ class PropertyService:
         return PropertyResponse(**prop)
 
     async def update_property(self, property_id: str, property_data: PropertyUpdate, agent_id: str) -> PropertyResponse:
+        self.logger.info(f"Updating property {property_id} for agent {agent_id}: {property_data}")
         existing_prop = await self.property_repository.get_by_id(property_id)
         if not existing_prop or existing_prop.get("agent_id") != agent_id:
             raise NotFoundError("Property not found")
@@ -52,6 +56,7 @@ class PropertyService:
         return PropertyResponse(**updated_prop)
 
     async def delete_property(self, property_id: str, agent_id: str) -> bool:
+        self.logger.info(f"Deleting property {property_id} for agent {agent_id}")
         existing_prop = await self.property_repository.get_by_id(property_id)
         if not existing_prop or existing_prop.get("agent_id") != agent_id:
             raise NotFoundError("Property not found")

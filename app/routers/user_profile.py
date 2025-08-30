@@ -42,6 +42,7 @@ class UserProfileResponse(BaseModel):
 
 @router.post("/profile", response_model=Dict[str, Any])
 async def create_or_update_profile(profile: UserProfile):
+    logger.info(f"Creating or updating profile: {profile}")
     """
     Create or update user profile using MongoDB
     """
@@ -85,6 +86,7 @@ async def create_or_update_profile(profile: UserProfile):
 
 @router.get("/profile/stats", response_model=Dict[str, Any])
 async def get_profile_stats():
+    logger.debug("Getting profile stats")
     """Get profile statistics from MongoDB"""
     try:
         stats = await user_profile_service.get_profile_stats()
@@ -104,6 +106,7 @@ async def get_profile_stats():
 
 @router.delete("/profile/{user_id}", response_model=Dict[str, Any])
 async def delete_user_profile(user_id: str):
+    logger.info(f"Deleting user profile for user_id: {user_id}")
     """Delete user profile from MongoDB"""
     try:
         logger.info(f"🗑️ Deleting profile for user: {user_id}")
@@ -134,6 +137,7 @@ async def delete_user_profile(user_id: str):
 
 @router.get("/profile/{user_id}", response_model=Dict[str, Any])
 async def get_user_profile(user_id: str):
+    logger.debug(f"Getting user profile for user_id: {user_id}")
     """
     Get user profile by user_id from MongoDB
     """

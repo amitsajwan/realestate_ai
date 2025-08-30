@@ -31,6 +31,9 @@ except Exception as import_exc:  # pragma: no cover – best-effort import guard
 
 
 def _fallback_branding(profile_data) -> Dict[str, str]:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Fallback branding for profile: {profile_data}")
     """Return deterministic branding suggestions when LLM is unavailable."""
     name = getattr(profile_data, 'company_name', 'Your Company') if hasattr(profile_data, 'company_name') else profile_data if isinstance(profile_data, str) else 'Your Company'
     return {
@@ -45,6 +48,9 @@ def _fallback_branding(profile_data) -> Dict[str, str]:
 
 
 def generate_branding(profile_data) -> Dict[str, Any]:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Generating branding for profile: {profile_data}")
     """Generate branding suggestions for an agent/company profile.
 
     The returned dict has the following shape (keys MAY vary in the future):

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import ValidationError
 import structlog
+import time
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -18,6 +19,7 @@ from app.services.auth_service import AuthService
 from app.repositories.user_repository import UserRepository
 from app.core.database import get_database
 from app.utils import verify_jwt_token, sanitize_user_input
+from app.core.exceptions import ValidationError as AppValidationError, ConflictError
 
 # Configure structured logging
 logger = structlog.get_logger(__name__)
@@ -61,37 +63,23 @@ async def get_current_user(
     try:
         # Verify JWT token
         payload = verify_jwt_token(credentials.credentials)
-        user_id = payload.get("sub")
+        user_id = payload.get("user_id")
         token_type = payload.get("type")
         
-        if not user_id or token_type != "access":
+        if not user_id or token_type != "access_token":
             logger.warning(f"Invalid token payload: user_id={user_id}, type={token_type}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication token",
                 headers={"WWW-Authenticate": "Bearer"}
             )
-        
-        # Get user from database
-        user = await user_repo.get_by_id(user_id)
-        if not user:
-            logger.warning(f"User not found for token: {user_id}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found",
-                headers={"WWW-Authenticate": "Bearer"}
-            )
-        
-        if not user.get("is_active", True):
-            logger.warning(f"Inactive user attempted access: {user_id}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Account is inactive",
-                headers={"WWW-Authenticate": "Bearer"}
-            )
-        
-        return user
-        
+    except ValueError as e:
+        logger.error(f"JWT verification error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid authentication token: {str(e)}",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -101,6 +89,26 @@ async def get_current_user(
             detail="Authentication failed",
             headers={"WWW-Authenticate": "Bearer"}
         )
+    
+    # Get user from database
+    user = await user_repo.get_by_id(user_id)
+    if not user:
+        logger.warning(f"User not found for token: {user_id}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+    
+    if not user.get("is_active", True):
+        logger.warning(f"Inactive user attempted access: {user_id}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account is inactive",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+    
+    return user
 
 
 @router.post(
@@ -129,65 +137,103 @@ async def register(
         "ip_address": client_ip,
         "endpoint": "/register"
     })
+    logger.debug(f"START: register endpoint - Processing registration for email: {user_data.email}")
+    start_time = time.time()
     
     try:
         # Sanitize input data
+        logger.debug(f"Sanitizing registration input data for email: {user_data.email}")
         sanitized_data = {
             "email": sanitize_user_input(user_data.email.lower().strip()),
             "password": user_data.password,
+            "confirm_password": user_data.confirm_password,
             "first_name": sanitize_user_input(user_data.first_name.strip()) if user_data.first_name else None,
             "last_name": sanitize_user_input(user_data.last_name.strip()) if user_data.last_name else None,
             "phone": sanitize_user_input(user_data.phone.strip()) if user_data.phone else None
         }
+        logger.debug(f"Input data sanitized for email: {sanitized_data['email']}")
         
         # Check if user already exists
+        logger.debug(f"Checking if user already exists with email: {sanitized_data['email']}")
         existing_user = await user_repo.get_by_email(sanitized_data["email"])
         if existing_user:
             logger.warning(f"Registration attempt with existing email: {sanitized_data['email']}", extra={
                 "ip_address": client_ip,
                 "email": sanitized_data["email"]
             })
+            logger.debug(f"User already exists with email: {sanitized_data['email']}")
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="User with this email already exists"
             )
         
-        # Create user account
-        user = await auth_service.register_user(
+        # Create UserCreate object for registration
+        logger.debug(f"Creating UserCreate object for registration: {sanitized_data['email']}")
+        user_create_data = UserCreate(
             email=sanitized_data["email"],
             password=sanitized_data["password"],
+            confirm_password=sanitized_data["confirm_password"],
             first_name=sanitized_data["first_name"],
             last_name=sanitized_data["last_name"],
             phone=sanitized_data["phone"]
         )
         
+        # Create user account
+        logger.debug(f"Calling auth_service.register_user for: {sanitized_data['email']}")
+        user_response = await auth_service.register_user(user_create_data)
+        user = user_response.dict()
+        
         logger.info(f"User successfully registered: {user['email']}", extra={
-            "user_id": str(user["_id"]),
+            "user_id": str(user["id"]),
             "email": user["email"],
             "ip_address": client_ip
         })
         
-        return UserSecureResponse(
-            id=str(user["_id"]),
-            email=user["email"],
+        # Return only the fields defined in UserSecureResponse
+        response = UserSecureResponse(
+            id=str(user["id"]),
             first_name=user.get("first_name"),
             last_name=user.get("last_name"),
-            phone=user.get("phone"),
             is_active=user.get("is_active", True),
-            created_at=user.get("created_at"),
-            updated_at=user.get("updated_at")
         )
         
-    except HTTPException:
+        elapsed = time.time() - start_time
+        logger.debug(f"END: register endpoint - Registration successful for {user['email']} - Elapsed: {elapsed:.3f}s")
+        return response
+        
+    except HTTPException as e:
+        elapsed = time.time() - start_time
+        logger.debug(f"END: register endpoint - HTTPException: {e.status_code} {e.detail} - Elapsed: {elapsed:.3f}s")
         raise
     except ValidationError as e:
-        logger.warning(f"Validation error during registration: {str(e)}", extra={
+        elapsed = time.time() - start_time
+        logger.warning(f"Validation error during registration: {e.errors()}", extra={
             "ip_address": client_ip,
-            "email": user_data.email
+            "email": user_data.email,
+            "validation_errors": e.errors()
+        })
+        logger.debug(f"END: register endpoint - ValidationError: {e.errors()} - Elapsed: {elapsed:.3f}s")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"message": "Validation error during registration", "errors": e.errors()}
+        )
+    except AppValidationError as e:
+        logger.warning(f"Application validation error during registration: {str(e)}", extra={
+            "ip_address": client_ip,
+            "email": user_data.email,
         })
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Validation error: {str(e)}"
+            detail=str(e)
+        )
+    except ConflictError as e:
+        logger.warning(f"Conflict during registration: {str(e)}", extra={
+            "ip_address": client_ip,
+            "email": user_data.email,
+        })
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e)
         )
     except Exception as e:
         logger.error(f"Registration error: {str(e)}", extra={
@@ -255,16 +301,33 @@ async def login(
         await user_repo.reset_login_attempts(email)
         
         logger.info(f"Successful login: {email}", extra={
-            "user_id": str(user["_id"]),
+            "user_id": str(user.get("_id") or user.get("id")),
             "email": email,
             "ip_address": client_ip
         })
+        
+        # Convert user to UserResponse format
+        user_response = UserResponse(
+            id=str(user.get("_id") or user.get("id")),
+            email=user.get("email"),
+            first_name=user.get("first_name") or user.get("firstName", ""),
+            last_name=user.get("last_name") or user.get("lastName", ""),
+            phone=user.get("phone"),
+            is_active=user.get("is_active", True),
+            created_at=user.get("created_at") or user.get("createdAt") or datetime.now(),
+            updated_at=user.get("updated_at") or user.get("updatedAt"),
+            last_login=datetime.now(),
+            login_attempts=0,
+            is_verified=user.get("is_verified", False),
+            onboarding_completed=user.get("onboarding_completed", False)
+        )
         
         return Token(
             access_token=token_data["access_token"],
             refresh_token=token_data["refresh_token"],
             token_type="bearer",
-            expires_in=token_data["expires_in"]
+            expires_in=token_data["expires_in"],
+            user=user_response
         )
         
     except HTTPException:
@@ -292,7 +355,7 @@ async def login(
 
 @router.get(
     "/me",
-    response_model=UserSecureResponse,
+    response_model=UserResponse,
     responses={
         200: {"description": "Current user information"},
         401: {"description": "Authentication required", "model": ErrorResponse},
@@ -306,21 +369,25 @@ async def get_current_user_info(
     """Get current authenticated user information."""
     client_ip = get_remote_address(request)
     logger.info(f"User info request from IP: {client_ip}", extra={
-        "user_id": str(current_user["_id"]),
+        "user_id": str(current_user["id"]),
         "ip_address": client_ip,
         "endpoint": "/me"
     })
     
     try:
-        return UserSecureResponse(
-            id=str(current_user["_id"]),
+        return UserResponse(
+            id=str(current_user["id"]),
             email=current_user["email"],
             first_name=current_user.get("first_name"),
             last_name=current_user.get("last_name"),
             phone=current_user.get("phone"),
             is_active=current_user.get("is_active", True),
             created_at=current_user.get("created_at"),
-            updated_at=current_user.get("updated_at")
+            updated_at=current_user.get("updated_at"),
+            last_login=current_user.get("last_login"),
+            login_attempts=current_user.get("login_attempts", 0),
+            is_verified=current_user.get("is_verified", False),
+            onboarding_completed=current_user.get("onboarding_completed", False)
         )
         
     except Exception as e:
@@ -438,10 +505,10 @@ async def refresh_token(
     try:
         # Verify refresh token
         payload = verify_jwt_token(credentials.credentials)
-        user_id = payload.get("sub")
+        user_id = payload.get("user_id")
         token_type = payload.get("type")
         
-        if not user_id or token_type != "refresh":
+        if not user_id or token_type != "refresh_token":
             logger.warning(f"Invalid refresh token: user_id={user_id}, type={token_type}", extra={
                 "ip_address": client_ip
             })
@@ -449,6 +516,12 @@ async def refresh_token(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid refresh token"
             )
+    except ValueError as e:
+        logger.error(f"JWT verification error: {str(e)}", extra={"ip_address": client_ip})
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid refresh token: {str(e)}"
+        )
         
         # Generate new tokens
         token_data = await auth_service.create_tokens(user_id)

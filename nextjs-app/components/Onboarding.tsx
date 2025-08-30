@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { authManager } from '@/lib/auth'
 import { apiService } from '@/lib/api'
 import { handleError, showSuccess, withErrorHandling } from '@/lib/error-handler'
-import { OnboardingFormData, BrandingSuggestion } from '@/types/user'
+import { BrandingSuggestion } from '@/types/user'
 import { useAsyncOperation, useMultipleLoading } from '@/hooks/useLoading'
 import { LoadingButton, LoadingOverlay } from '@/components/LoadingStates';
 import { applyBrandTheme } from '@/lib/theme';
@@ -23,7 +23,20 @@ const onboardingSteps = [
 ];
 
 interface OnboardingProps {
-  user: any;
+  user: {
+    id: string;
+    email: string;
+    first_name?: string;
+    last_name?: string;
+    phone?: string;
+    onboarding_completed?: boolean;
+    onboardingStep?: number;
+    firstName?: string;
+    lastName?: string;
+    company?: string;
+    position?: string;
+    licenseNumber?: string;
+  };
   currentStep: number;
   onStepChange: (step: number) => void;
   onComplete: () => void;
@@ -55,6 +68,7 @@ interface OnboardingFormData {
 }
 
 const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep, onStepChange, onComplete }) => {
+  console.log('[Onboarding] User object:', user);
   const [currentStep, setCurrentStep] = useState(user.onboardingStep || 1)
   const [formData, setFormData] = useState<OnboardingFormData>({
     firstName: user.firstName || '',
@@ -141,8 +155,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
   }
 
   const handleNext = async () => {
-    console.log('🔄 handleNext called - Current step:', currentStep)
-    console.log('📋 Form data:', formData)
+  console.debug('[Onboarding] handleNext called - Current step:', currentStep)
+  console.debug('[Onboarding] Form data:', formData)
     
     // Validate current step before proceeding
     if (!validateCurrentStep()) {
@@ -152,18 +166,24 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
     if (currentStep < 6) {
       multipleLoading.setLoading('next', true)
       
-      const { error } = await withErrorHandling(
-        () => authManager.updateOnboarding(currentStep + 1, formData),
-        'Save Onboarding Progress',
-        'Progress saved!'
-      )
-      
-      if (!error) {
-        console.log('✅ updateOnboarding successful, updating step to:', currentStep + 1)
-        setCurrentStep(currentStep + 1)
+      try {
+        const { error } = await withErrorHandling(
+          () => authManager.updateOnboarding(currentStep + 1, formData),
+          'Save Onboarding Progress',
+          'Progress saved!'
+        )
+        
+        if (!error) {
+          console.info('[Onboarding] updateOnboarding successful, updating step to:', currentStep + 1)
+          setCurrentStep(currentStep + 1)
+        }
+      } catch (err) {
+        console.error('[Onboarding] Error during update:', err)
+        const errorMessage = err && typeof err === 'object' && 'message' in err && typeof err.message === 'string' ? err.message : 'Failed to update onboarding information'
+        toast.error(errorMessage)
+      } finally {
+        multipleLoading.setLoading('next', false)
       }
-      
-      multipleLoading.setLoading('next', false)
     } else {
       // Complete onboarding on step 6
       await handleComplete()
@@ -171,20 +191,32 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
   }
 
   const handleComplete = async () => {
-    multipleLoading.setLoading('complete', true)
+    multipleLoading.setLoading('complete', true);
     
-    const { error } = await withErrorHandling(
-      () => authManager.updateOnboarding(6, formData),
-      'Complete Onboarding',
-      'Onboarding completed!'
-    )
-    
-    if (!error) {
-      onComplete()
+    try {
+      console.log('[Onboarding] Starting onboarding completion process');
+      const { error } = await withErrorHandling(
+        () => authManager.updateOnboarding(6, formData, true),
+        'Complete Onboarding',
+        'Onboarding completed!'
+      );
+      
+      if (!error) {
+        console.log('[Onboarding] Onboarding completed successfully, calling onComplete callback');
+        // Force a small delay to ensure state updates are processed
+        setTimeout(() => {
+          console.log('[Onboarding] Executing onComplete callback after delay');
+          onComplete();
+        }, 1000); // Increased delay to ensure state updates are processed
+      }
+    } catch (err) {
+      console.error('[Onboarding] Error during completion:', err);
+      const errorMessage = err && typeof err === 'object' && 'message' in err && typeof err.message === 'string' ? err.message : 'Failed to complete onboarding';
+      toast.error(errorMessage);
+    } finally {
+      multipleLoading.setLoading('complete', false);
     }
-    
-    multipleLoading.setLoading('complete', false)
-  }
+  };
 
   const handleBack = () => {
     if (currentStep > 1) {
@@ -386,10 +418,9 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                   
                   <div className="flex space-x-3">
                     <LoadingButton
-                      onClick={generateBrandingSuggestions}
+                      onClick={handleGenerateBranding}
                       isLoading={brandingOperation.isLoading}
                       className="btn-outline flex-1"
-                      loadingText="Generating..."
                     >
                       Regenerate
                     </LoadingButton>
@@ -407,11 +438,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                     Generate AI-powered branding suggestions based on your company name
                   </p>
                   <LoadingButton
-                    onClick={generateBrandingSuggestions}
+                    onClick={handleGenerateBranding}
                     isLoading={brandingOperation.isLoading}
-                    disabled={!formData.companyName}
+                    disabled={!formData.company}
                     className="btn-primary"
-                    loadingText="Generating..."
                   >
                     Generate Branding
                   </LoadingButton>
@@ -637,7 +667,6 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                 onClick={handleNext}
                 isLoading={multipleLoading.isLoading('next') || multipleLoading.isLoading('complete')}
                 className="btn-primary flex items-center space-x-2"
-                loadingText={currentStep === 6 ? 'Completing...' : 'Saving...'}
               >
                 <span>{currentStep === 6 ? 'Complete Onboarding' : 'Next Step'}</span>
                 <ArrowRightIcon className="w-4 h-4" />
