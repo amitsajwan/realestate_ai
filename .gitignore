@@ -38,6 +38,8 @@ generated_images/
 
 # Temporary/Debug files
 check_user.py
+*.log
+*-cloudflared.log
 
 # Next.js specific
 nextjs-app/.next/
@@ -48,4 +50,20 @@ nextjs-app/.swc/
 # Testing
 playwright-report/
 test-results/
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 .nyc_output/
