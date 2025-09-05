@@ -564,7 +564,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                 Almost Done!
               </h4>
               <p className="text-green-700 text-sm">
-                Click "Complete Setup" to finish your onboarding and start using PropertyAI.
+                Click &quot;Complete Setup&quot; to finish your onboarding and start using PropertyAI.
               </p>
             </div>
           </div>

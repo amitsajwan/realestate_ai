@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import Image from 'next/image'
 import {
   BuildingOfficeIcon,
   MapPinIcon,
@@ -414,10 +415,12 @@ export default function Properties({ onAddProperty, properties: propProperties =
             <div className={`relative overflow-hidden ${
                viewMode === 'list' ? 'h-48 sm:h-32 sm:w-48 flex-shrink-0' : 'h-48'
              }`}>
-               <img
-                 src={property.image}
+               <Image
+                 src={property.image || '/placeholder-property.jpg'}
                  alt={property.title}
-                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                 fill
+                 className="object-cover group-hover:scale-105 transition-transform duration-500"
+                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                />
                <div className="absolute top-3 left-3 flex items-center gap-2">
                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-sm ${
@@ -592,10 +595,12 @@ export default function Properties({ onAddProperty, properties: propProperties =
              <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
                {/* Property Image */}
                <div className="relative h-80 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                 <img
-                   src={selectedProperty.image}
+                 <Image
+                   src={selectedProperty.image || '/placeholder-property.jpg'}
                    alt={selectedProperty.title}
-                   className="w-full h-full object-cover"
+                   fill
+                   className="object-cover"
+                   sizes="90vw"
                    onError={(e) => {
                      e.currentTarget.style.display = 'none'
                      const nextElement = e.currentTarget.nextElementSibling as HTMLElement;

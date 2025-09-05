@@ -179,7 +179,7 @@ ${formData.aiPrompt}
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
                 <SparklesIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-500">
-                  Generated content will appear here after you click "Generate Content"
+                  Generated content will appear here after you click &quot;Generate Content&quot;
                 </p>
               </div>
             )}

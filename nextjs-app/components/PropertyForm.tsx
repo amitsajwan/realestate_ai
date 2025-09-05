@@ -25,6 +25,7 @@ interface PropertyFormProps {
 export default function PropertyForm({ onSuccess }: PropertyFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [isAILoading, setIsAILoading] = useState(false)
+  const [agentProfile, setAgentProfile] = useState<any>(null)
   
   const {
     register,
@@ -35,6 +36,22 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
     resolver: zodResolver(propertySchema),
     mode: 'onBlur'
   })
+
+  // Fetch agent profile on component mount
+  React.useEffect(() => {
+    const fetchAgentProfile = async () => {
+      try {
+        const response = await apiService.getAgentProfile()
+        if (response.success && response.data) {
+          setAgentProfile(response.data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch agent profile:', error)
+      }
+    }
+    
+    fetchAgentProfile()
+  }, [])
 
   const onSubmit = async (data: PropertyFormData) => {
     setIsLoading(true)
@@ -78,7 +95,8 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
         property_type: 'Apartment',
         location: 'City Center',
         budget: '₹75,00,000',
-        requirements: 'Modern amenities'
+        requirements: 'Modern amenities',
+        agent_profile: agentProfile
       })
 
       if (response.success && response.data && response.data.length > 0) {

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { UserIcon, CheckIcon, SparklesIcon } from '@heroicons/react/24/outline'
 import { authManager } from '@/lib/auth'
 import { apiService } from '@/lib/api'
@@ -83,11 +83,7 @@ export default function ProfileSettings() {
     'Kannada', 'Malayalam', 'Bengali', 'Punjabi', 'Urdu', 'Other'
   ]
 
-  useEffect(() => {
-    loadUserProfile()
-  }, [])
-
-  const loadUserProfile = async () => {
+  const loadUserProfile = useCallback(async () => {
     await profileOperation.execute(async () => {
       // Get current user from auth manager
       const authState = authManager.getState()
@@ -135,7 +131,11 @@ export default function ProfileSettings() {
       
       return mergedData
     })
-  }
+  }, [profileOperation])
+
+  useEffect(() => {
+    loadUserProfile()
+  }, [loadUserProfile])
 
   const handleInputChange = (field: keyof UserProfile, value: any) => {
     const updatedData = {

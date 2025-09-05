@@ -22,7 +22,7 @@ export interface AuthResult {
 
 // RegisterData is now imported from '../types/user'
 
-class AuthManager {
+export class AuthManager {
   private state: AuthState = {
     isAuthenticated: false,
     user: null,

@@ -2,6 +2,7 @@
 
 // Enhanced API service with comprehensive error handling and logging
 import { errorHandler, AppError } from './error-handler';
+import { logger, logApiCall } from './logger';
 import {
   LoginRequest,
   RegisterRequest,
@@ -57,31 +58,42 @@ export class APIService {
    * Get API base URL from environment variables
    */
   private getAPIBaseURL(): string {
-    // Prefer explicit BASE_URL variables, fall back to legacy names, then default
-    const browserEnvUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL;
-    const serverEnvUrl = process.env.API_BASE_URL || process.env.API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL;
-
-    // Use a consistent default URL for both client and server
-    const defaultUrl = 'http://localhost:8000';
+    const envUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
     
-    if (typeof window !== 'undefined') {
-      return browserEnvUrl || defaultUrl;
-    } else {
-      return serverEnvUrl || defaultUrl;
+    // If environment variable is explicitly defined (including empty string), use it
+    if (envUrl !== undefined) {
+      return envUrl;
     }
+    
+    // Default behavior when no environment variable is set: detect environment
+    // In development (localhost), use direct backend connection
+    // In production/container, use relative paths through nginx proxy
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'http://localhost:8000';
+      }
+      // In production/container, use relative paths through nginx proxy
+      return '';
+    }
+    
+    // Server-side: use relative paths by default (works with nginx proxy)
+    return '';
   }
 
   /**
    * Log API configuration for debugging
    */
   private logConfiguration(): void {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[APIService] Configuration:', {
+    logger.info('APIService initialized', {
+      component: 'APIService',
+      action: 'initialization',
+      metadata: {
         baseURL: this.baseURL,
         timeout: this.requestTimeout,
         environment: process.env.NODE_ENV
-      });
-    }
+      }
+    });
   }
 
   /**
@@ -89,9 +101,11 @@ export class APIService {
    */
   setToken(token: string | null): void {
     this.token = token;
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[APIService] Token updated:', !!token);
-    }
+    logger.debug('Token updated', {
+      component: 'APIService',
+      action: 'token_update',
+      metadata: { hasToken: !!token }
+    });
   }
 
   /**
@@ -99,9 +113,10 @@ export class APIService {
    */
   clearToken(): void {
     this.token = null;
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[APIService] Token cleared');
-    }
+    logger.debug('Token cleared', {
+      component: 'APIService',
+      action: 'token_clear'
+    });
   }
 
   /**
@@ -116,12 +131,18 @@ export class APIService {
    */
   private async makeRequest<T>(endpoint: string, options: RequestInit = {}, requiresAuth: boolean = false, retryCount: number = 0): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
+    const method = options.method || 'GET';
     const startTime = Date.now();
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Initialize API call logging
+    const apiLog = logApiCall(method, endpoint);
 
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'X-Request-ID': requestId,
         ...(options.headers as Record<string, string> || {})
       };
 
@@ -138,28 +159,44 @@ export class APIService {
         signal: controller.signal
       };
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[APIService] Request:', {
-          method: options.method || 'GET',
+      // Log request details
+      logger.debug('Making API request', {
+        component: 'APIService',
+        action: 'api_request',
+        requestId,
+        method,
+        endpoint,
+        metadata: {
           url,
+          requiresAuth,
+          retryCount,
           headers: this.sanitizeHeaders(headers),
-          body: options.body ? JSON.parse(options.body as string) : undefined
-        });
-      }
+          bodySize: options.body ? (options.body as string).length : 0
+        }
+      });
 
       const response = await fetch(url, requestOptions);
       clearTimeout(timeoutId);
 
       const responseTime = Date.now() - startTime;
+      const responseId = response.headers.get('X-Response-ID') || 'unknown';
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[APIService] Response:', {
-          status: response.status,
+      // Log response details
+      logger.debug('Received API response', {
+        component: 'APIService',
+        action: 'api_response',
+        requestId,
+        method,
+        endpoint,
+        statusCode: response.status,
+        duration: responseTime,
+        metadata: {
+          url,
           statusText: response.statusText,
-          responseTime: `${responseTime}ms`,
-          url
-        });
-      }
+          responseId,
+          contentType: response.headers.get('content-type')
+        }
+      });
 
       let responseData: any;
       const contentType = response.headers.get('content-type');
@@ -170,30 +207,54 @@ export class APIService {
       }
 
       if (!response.ok) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('[APIService] Error Response:', {
-            status: response.status,
+        // Log API call as error
+        apiLog.error({
+          status: response.status,
+          response: responseData,
+          message: this.extractErrorMessage(responseData)
+        }, {
+          requestId,
+          statusCode: response.status,
+          duration: responseTime,
+          metadata: {
             statusText: response.statusText,
-            data: responseData,
-            url
-          });
-        }
+            responseData: typeof responseData === 'object' ? responseData : { raw: responseData }
+          }
+        });
 
         // Handle 401 Unauthorized - attempt token refresh and retry
         if (response.status === 401 && requiresAuth && retryCount === 0) {
-          console.log('[APIService] 401 detected, attempting token refresh...');
+          logger.info('401 Unauthorized detected, attempting token refresh', {
+            component: 'APIService',
+            action: 'token_refresh_attempt',
+            requestId,
+            method,
+            endpoint
+          });
           
           // Import authManager dynamically to avoid circular dependency
           const { authManager } = await import('./auth');
           const refreshSuccess = await authManager.refreshAccessToken();
           
           if (refreshSuccess) {
-            console.log('[APIService] Token refreshed, retrying request...');
+            logger.info('Token refreshed successfully, retrying request', {
+              component: 'APIService',
+              action: 'token_refresh_success',
+              requestId,
+              method,
+              endpoint
+            });
             // Update token and retry the request
             this.setToken(authManager.getToken());
             return this.makeRequest<T>(endpoint, options, requiresAuth, retryCount + 1);
           } else {
-            console.log('[APIService] Token refresh failed, request will fail');
+            logger.warn('Token refresh failed, request will fail', {
+              component: 'APIService',
+              action: 'token_refresh_failed',
+              requestId,
+              method,
+              endpoint
+            });
           }
         }
 
@@ -209,50 +270,127 @@ export class APIService {
         throw apiError;
       }
 
+      // Log successful API call
+      apiLog.success(response.status, {
+        requestId,
+        duration: responseTime,
+        metadata: {
+          responseSize: JSON.stringify(responseData).length,
+          contentType: response.headers.get('content-type')
+        }
+      });
+
       return responseData as T;
     } catch (error: any) {
       const responseTime = Date.now() - startTime;
 
       if (error.name === 'AbortError') {
-        console.error('[APIService] Timeout Error:', {
-          message: 'Request timed out.',
-          url,
-          responseTime: `${responseTime}ms`
-        });
         const timeoutError = {
           code: 'TIMEOUT_ERROR',
           message: 'Request timed out'
         };
+        
+        apiLog.error(timeoutError, {
+          requestId,
+          duration: responseTime,
+          metadata: {
+            errorType: 'timeout',
+            timeout: this.requestTimeout
+          }
+        });
+        
+        logger.error('API request timed out', {
+          component: 'APIService',
+          action: 'api_timeout',
+          requestId,
+          method,
+          endpoint,
+          duration: responseTime,
+          metadata: {
+            url,
+            timeout: this.requestTimeout
+          }
+        }, error);
+        
         throw timeoutError;
       }
       
       // If it's already a structured error, re-throw it
       if (error.response || error.code) {
+        apiLog.error(error, {
+          requestId,
+          duration: responseTime,
+          metadata: {
+            errorType: 'structured_error',
+            hasResponse: !!error.response,
+            hasCode: !!error.code
+          }
+        });
         throw error;
       }
 
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        console.error('[APIService] Network Error:', {
-          message: error.message,
-          url,
-          responseTime: `${responseTime}ms`
-        });
         const networkError = {
           code: 'NETWORK_ERROR',
-          message: 'Network connection error'
+          message: error.message
         };
+        
+        apiLog.error(networkError, {
+          requestId,
+          duration: responseTime,
+          metadata: {
+            errorType: 'network_error',
+            originalMessage: error.message
+          }
+        });
+        
+        logger.error('Network error during API request', {
+          component: 'APIService',
+          action: 'api_network_error',
+          requestId,
+          method,
+          endpoint,
+          duration: responseTime,
+          metadata: {
+            url,
+            originalError: error.message
+          }
+        }, error);
+        
         throw networkError;
       }
 
-      console.error('[APIService] Unexpected Error:', {
-        message: error.message,
-        url,
-        responseTime: `${responseTime}ms`
-      });
+      // Handle unexpected errors
       const unexpectedError = {
         code: 'UNEXPECTED_ERROR',
         message: 'Unexpected error occurred'
       };
+      
+      apiLog.error(unexpectedError, {
+        requestId,
+        duration: responseTime,
+        metadata: {
+          errorType: 'unexpected_error',
+          originalMessage: error.message,
+          errorName: error.name
+        }
+      });
+      
+      logger.error('Unexpected error during API request', {
+        component: 'APIService',
+        action: 'api_unexpected_error',
+        requestId,
+        method,
+        endpoint,
+        duration: responseTime,
+        metadata: {
+          url,
+          originalError: error.message,
+          errorName: error.name,
+          stack: error.stack
+        }
+      }, error);
+      
       throw unexpectedError;
     }
   }
@@ -549,6 +687,12 @@ export class APIService {
     }, true);
   }
 
+  async getAgentProfile(): Promise<any> {
+    return this.makeRequest('/api/v1/agent/profile', {
+      method: 'GET'
+    }, true);
+  }
+
   async getBrandingSuggestions(data: { company_name: string; agent_name?: string; position?: string }): Promise<any> {
     return this.post('/api/v1/agent/branding-suggest', data, false);
   }
@@ -615,6 +759,37 @@ export class APIService {
       data: response.data,
       message: response.message
     };
+  }
+
+  async generatePropertyContent(propertyData: any): Promise<any> {
+    const apiLog = logApiCall('POST', '/api/generate-property');
+    
+    try {
+      logger.info('Generating property content', {
+        metadata: { propertyData }
+      });
+      
+      const response = await this.makeRequest('/api/generate-property', {
+        method: 'POST',
+        body: JSON.stringify(propertyData)
+      });
+      
+      apiLog.success(200);
+      
+      return {
+        success: true,
+        data: response,
+        message: 'Property content generated successfully'
+      };
+    } catch (error) {
+      apiLog.error(error);
+      
+      logger.error('Failed to generate property content', {
+        errorDetails: error,
+        metadata: { propertyData }
+      });
+      throw error;
+    }
   }
 }
 
