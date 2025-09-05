@@ -327,14 +327,14 @@ export function usePropertyForm(options: UsePropertyFormOptions = {}): UseProper
         user_id: '1', // TODO: Get from auth context
         title: data.title,
         type: data.propertyType || 'Apartment',
-        bedrooms: data.bedrooms,
-        bathrooms: data.bathrooms,
+        bedrooms: Number(data.bedrooms),
+        bathrooms: Number(data.bathrooms),
         price: typeof data.price === 'string' 
           ? parseFloat(data.price.replace(/[₹,]/g, '')) 
           : data.price,
         price_unit: 'INR',
         city: 'Mumbai', // TODO: Extract from address
-        area: data.area,
+        area: Number(data.area),
         address: data.address,
         description: data.description,
         amenities: data.amenities ? data.amenities.split(',').map(a => a.trim()) : []
