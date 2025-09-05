@@ -397,7 +397,7 @@ async def get_current_user_info(
         
     except Exception as e:
         logger.error(f"Error retrieving user info: {str(e)}", extra={
-            "user_id": str(current_user["_id"]),
+            "user_id": str(current_user["id"]),
             "ip_address": client_ip,
             "error": str(e)
         })
@@ -428,7 +428,7 @@ async def change_password(
     """Change user password."""
     client_ip = get_remote_address(request)
     logger.info(f"Password change request from IP: {client_ip}", extra={
-        "user_id": str(current_user["_id"]),
+        "user_id": str(current_user["id"]),
         "ip_address": client_ip,
         "endpoint": "/change-password"
     })
@@ -436,13 +436,13 @@ async def change_password(
     try:
         # Change password
         success = await auth_service.change_password(
-            user_id=str(current_user["_id"]),
+            user_id=str(current_user["id"]),
             current_password=password_data.current_password,
             new_password=password_data.new_password
         )
         
         if not success:
-            logger.warning(f"Failed password change attempt: {str(current_user['_id'])}", extra={
+            logger.warning(f"Failed password change attempt: {str(current_user['id'])}", extra={
                 "user_id": str(current_user["_id"]),
                 "ip_address": client_ip,
                 "reason": "invalid_current_password"
@@ -572,7 +572,7 @@ async def logout(
     """Logout user (invalidate tokens)."""
     client_ip = get_remote_address(request)
     logger.info(f"Logout request from IP: {client_ip}", extra={
-        "user_id": str(current_user["_id"]),
+        "user_id": str(current_user["id"]),
         "ip_address": client_ip,
         "endpoint": "/logout"
     })

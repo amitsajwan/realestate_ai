@@ -187,7 +187,6 @@ async def comprehensive_logging_middleware(request: Request, call_next: Callable
         
         # Log response
         response_data = {
-            "request_id": request_id,
             "client_ip": client_ip,
             "response_size": response.headers.get("content-length", 0)
         }
@@ -199,6 +198,7 @@ async def comprehensive_logging_middleware(request: Request, call_next: Callable
             response.status_code,
             duration,
             user_id=user_id,
+            request_id=request_id,
             **response_data
         )
         
@@ -523,7 +523,7 @@ async def ai_property_suggest(request: Request):
             description_suffix = ""
             market_data = {}
             
-            if areas_served and location.lower() in areas_served.lower():
+            if areas_served and location and location.lower() in areas_served.lower():
                 score = 9.2
                 description_suffix = " Agent has extensive local market knowledge in this area."
                 market_data = {
