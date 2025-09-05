@@ -2,8 +2,9 @@
 
 import { APIService } from './api';
 import { errorHandler, handleError, showSuccess } from './error-handler';
+import { logger } from './logger';
 import { User, LoginRequest, RegisterRequest, AuthResponse, UserDataTransformer, RegisterData } from '../types/user';
-import * as React from 'react';
+import React, { useState, useEffect } from 'react';
 
 export interface AuthState {
   isAuthenticated: boolean;
@@ -84,7 +85,10 @@ export class AuthManager {
       if (user) {
         // Ensure user ID is properly set
         if (!user.id) {
-          console.error('[AuthManager] User ID is missing in getCurrentUser response');
+          logger.error('[AuthManager] User ID is missing in getCurrentUser response', {
+            component: 'AuthManager',
+            action: 'user_validation'
+          });
         }
         
         this.setState({
@@ -101,7 +105,11 @@ export class AuthManager {
         this.setState({ isLoading: false });
       }
     } catch (error) {
-      console.error('[AuthManager] Init error:', error);
+      logger.error('[AuthManager] Init error', {
+        component: 'AuthManager',
+        action: 'init',
+        errorDetails: error
+      }, error as Error);
       this.clearAuth();
       this.setState({ isLoading: false, error: 'Authentication initialization failed' });
     }
@@ -124,7 +132,11 @@ export class AuthManager {
       }
       
       const credentials: LoginRequest = { email: email.trim(), password };
-      console.log('Attempting login with:', email);
+      logger.info('Attempting login', {
+        component: 'AuthManager',
+        action: 'login_attempt',
+        metadata: { email: email.trim() }
+      });
       
       const response: AuthResponse = await this.apiService.login(credentials);
       
@@ -150,11 +162,19 @@ export class AuthManager {
         
         return { success: true, user: response.user };
       } else {
-        console.error('Invalid login response format:', response);
+        logger.error('Invalid login response format', {
+          component: 'AuthManager',
+          action: 'login_response_validation',
+          metadata: { response }
+        });
         throw new Error('Invalid response format from server');
       }
     } catch (error: any) {
-      console.error('Login error:', error);
+      logger.error('Login error', {
+        component: 'AuthManager',
+        action: 'login',
+        errorDetails: error
+      }, error);
       const appError = handleError(error, 'Login');
       this.setState({ isLoading: false, error: appError.message });
       return { success: false, error: appError.message };
@@ -216,7 +236,11 @@ export class AuthManager {
         await this.apiService.logout();
       }
     } catch (error) {
-      console.error('[AuthManager] Logout error:', error);
+      logger.error('[AuthManager] Logout error', {
+        component: 'AuthManager',
+        action: 'logout',
+        errorDetails: error
+      }, error as Error);
     } finally {
       this.clearAuth();
       this.setState({
@@ -241,7 +265,11 @@ export class AuthManager {
       const user = await this.apiService.getCurrentUser();
       return user;
     } catch (error) {
-      console.error('[AuthManager] Get current user error:', error);
+      logger.error('[AuthManager] Get current user error', {
+        component: 'AuthManager',
+        action: 'get_current_user',
+        errorDetails: error
+      }, error as Error);
       return null;
     }
   }
@@ -271,13 +299,19 @@ export class AuthManager {
     
     // Validate refresh token exists and is not expired
     if (!refreshToken) {
-      console.warn('[AuthManager] No refresh token available');
+      logger.warn('[AuthManager] No refresh token available', {
+        component: 'AuthManager',
+        action: 'token_refresh'
+      });
       await this.handleRefreshFailure('No refresh token available');
       return false;
     }
     
     if (this.isTokenExpired(refreshToken)) {
-      console.warn('[AuthManager] Refresh token expired');
+      logger.warn('[AuthManager] Refresh token expired', {
+        component: 'AuthManager',
+        action: 'token_refresh'
+      });
       await this.handleRefreshFailure('Refresh token expired');
       return false;
     }
@@ -288,7 +322,11 @@ export class AuthManager {
   private async attemptTokenRefreshWithRetry(refreshToken: string): Promise<boolean> {
     for (let attempt = 1; attempt <= this.maxRefreshRetries; attempt++) {
       try {
-        console.log(`[AuthManager] Token refresh attempt ${attempt}/${this.maxRefreshRetries}`);
+        logger.info(`[AuthManager] Token refresh attempt ${attempt}/${this.maxRefreshRetries}`, {
+          component: 'AuthManager',
+          action: 'token_refresh_attempt',
+          metadata: { attempt, maxRetries: this.maxRefreshRetries }
+        });
         
         const response = await this.apiService.refreshToken(refreshToken);
         
@@ -308,31 +346,50 @@ export class AuthManager {
           });
           
           this.scheduleTokenRefresh();
-          console.log('[AuthManager] Token refresh successful');
+          logger.info('[AuthManager] Token refresh successful', {
+            component: 'AuthManager',
+            action: 'token_refresh_success'
+          });
           return true;
         } else {
           throw new Error('Invalid refresh response - no access token');
         }
       } catch (error: any) {
-        console.error(`[AuthManager] Token refresh attempt ${attempt} failed:`, error);
+        logger.error(`[AuthManager] Token refresh attempt ${attempt} failed`, {
+          component: 'AuthManager',
+          action: 'token_refresh_attempt',
+          metadata: { attempt },
+          errorDetails: error
+        }, error);
         
         // Check if this is a permanent failure (401, 403)
         if (error?.response?.status === 401 || error?.response?.status === 403) {
-          console.warn('[AuthManager] Refresh token invalid - permanent failure');
+          logger.warn('[AuthManager] Refresh token invalid - permanent failure', {
+            component: 'AuthManager',
+            action: 'token_refresh_permanent_failure'
+          });
           await this.handleRefreshFailure('Invalid refresh token');
           return false;
         }
         
         // If this is the last attempt, handle failure
         if (attempt === this.maxRefreshRetries) {
-          console.error('[AuthManager] All refresh attempts failed');
+          logger.error('[AuthManager] All refresh attempts failed', {
+            component: 'AuthManager',
+            action: 'token_refresh_all_attempts_failed',
+            metadata: { maxRetries: this.maxRefreshRetries }
+          });
           await this.handleRefreshFailure(`Token refresh failed after ${this.maxRefreshRetries} attempts`);
           return false;
         }
         
         // Wait before retrying (exponential backoff)
         const delay = this.refreshRetryDelay * Math.pow(2, attempt - 1);
-        console.log(`[AuthManager] Waiting ${delay}ms before retry...`);
+        logger.info(`[AuthManager] Waiting ${delay}ms before retry`, {
+          component: 'AuthManager',
+          action: 'token_refresh_retry_wait',
+          metadata: { delay, attempt }
+        });
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
@@ -341,7 +398,11 @@ export class AuthManager {
   }
 
   private async handleRefreshFailure(reason: string): Promise<void> {
-    console.error(`[AuthManager] Token refresh failed: ${reason}`);
+    logger.error(`[AuthManager] Token refresh failed: ${reason}`, {
+      component: 'AuthManager',
+      action: 'token_refresh_failure',
+      metadata: { reason }
+    });
     
     // Clear invalid tokens
     this.clearAuth();
@@ -626,9 +687,9 @@ export const authManager = new AuthManager();
 
 // React hook for using auth state
 export function useAuth() {
-  const [state, setState] = React.useState<AuthState>(authManager.getState());
+  const [state, setState] = useState<AuthState>(authManager.getState());
 
-  React.useEffect(() => {
+  useEffect(() => {
     const unsubscribe = authManager.subscribe(setState);
     return unsubscribe;
   }, []);

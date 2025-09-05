@@ -1,8 +1,9 @@
 'use client'
 
-import React, { Component, ErrorInfo, ReactNode } from 'react'
+import React, { Component, ErrorInfo, ReactNode, useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
+import { logger } from '../lib/logger'
 
 interface Props {
   children: ReactNode
@@ -91,10 +92,14 @@ export class ErrorBoundary extends Component<Props, State> {
 
 // Hook for functional components to handle errors
 export function useErrorHandler() {
-  const [error, setError] = React.useState<Error | null>(null)
+  const [error, setError] = useState<Error | null>(null)
 
-  const handleError = React.useCallback((error: Error) => {
-  console.error('[ErrorBoundary] Error caught by useErrorHandler:', error)
+  const handleError = useCallback((error: Error) => {
+    logger.error('[ErrorBoundary] Error caught by useErrorHandler', {
+      component: 'ErrorBoundary',
+      action: 'error_handling',
+      errorDetails: error
+    }, error)
     setError(error)
   }, [])
 

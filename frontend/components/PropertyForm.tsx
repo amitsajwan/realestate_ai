@@ -205,15 +205,16 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
                     <input
                       type="text"
                       {...register('title', { required: 'Title is required' })}
-                      className={`w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border-2 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                        errors.title ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500'
-                      }`}
+                      aria-label="Property title"
+                      aria-describedby="title-error"
+                      aria-invalid={!!errors.title}
+                      className={`w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border-2 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${getFieldErrorClass(errors, 'title')}`}
                       placeholder="e.g., Luxury 3BHK Apartment in Downtown"
                     />
                   </div>
                   {errors.title && (
-                    <div className="flex items-center space-x-1 text-red-600 dark:text-red-400 text-sm">
-                      <InformationCircleIcon className="w-4 h-4" />
+                    <div id="title-error" className="flex items-center space-x-1 text-red-600 dark:text-red-400 text-sm" role="alert">
+                      <InformationCircleIcon className="w-4 h-4" aria-hidden="true" />
                       <span>{errors.title.message}</span>
                     </div>
                   )}
@@ -230,15 +231,16 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
                     <input
                       type="text"
                       {...register('price')}
-                      className={`w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-slate-700 border-2 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                        getFieldError(errors, 'price') ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500'
-                      }`}
+                      aria-label="Property price in rupees"
+                      aria-describedby="price-error"
+                      aria-invalid={!!getFieldError(errors, 'price')}
+                      className={`w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-slate-700 border-2 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${getFieldErrorClass(errors, 'price')}`}
                       placeholder="₹50,00,000"
                     />
                   </div>
                   {getFieldError(errors, 'price') && (
-                    <div className="flex items-center space-x-1 text-red-600 dark:text-red-400 text-sm">
-                      <InformationCircleIcon className="w-4 h-4" />
+                    <div id="price-error" className="flex items-center space-x-1 text-red-600 dark:text-red-400 text-sm" role="alert">
+                      <InformationCircleIcon className="w-4 h-4" aria-hidden="true" />
                       <span>{getFieldError(errors, 'price')}</span>
                     </div>
                   )}
