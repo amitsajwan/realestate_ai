@@ -3,12 +3,14 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.services.auth_service import AuthService
 from app.repositories.user_repository import UserRepository
 from app.core.exceptions import AuthenticationError
+from app.core.database import get_database
 
 security = HTTPBearer()
 
 def get_auth_service() -> AuthService:
     """Get authentication service instance"""
-    user_repo = UserRepository()
+    db = get_database()
+    user_repo = UserRepository(db)
     return AuthService(user_repo)
 
 async def get_current_user(
