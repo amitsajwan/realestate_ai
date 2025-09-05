@@ -38,18 +38,24 @@ export default function FacebookIntegration() {
   const handleConnectFacebook = async () => {
     setIsLoading(true)
     try {
-      // Get Facebook OAuth URL from backend
-      const response = await fetch('/api/v1/facebook/oauth')
+      // Build API base safely (avoid 'undefined' in URL)
+      const rawBase = (process.env.NEXT_PUBLIC_API_BASE_URL as string | undefined) ?? ''
+      const base = (!rawBase || rawBase === 'undefined' || rawBase === 'null')
+        ? ''
+        : rawBase.replace(/\/+$/, '')
+
+      // Get Facebook OAuth URL from auth endpoint
+      const response = await fetch(`${base}/api/v1/auth/facebook/login`)
       const data = await response.json()
       
-      if (data.success && data.oauth_url) {
+      if (data.auth_url) {
         // Redirect to Facebook OAuth
-        window.location.href = data.oauth_url
+        window.location.href = data.auth_url
       } else {
         toast.error('Failed to initiate Facebook connection')
       }
     } catch (error) {
-  console.error('[FacebookIntegration] Facebook connection error:', error)
+      console.error('[FacebookIntegration] Facebook connection error:', error)
       toast.error('Facebook connection failed. Please try again.')
     } finally {
       setIsLoading(false)

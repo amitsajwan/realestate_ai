@@ -20,7 +20,7 @@ import {
 import { authManager } from '@/lib/auth'
 import { apiService } from '@/lib/api'
 import DashboardStats from '@/components/DashboardStats'
-import PropertyForm from '@/components/PropertyForm'
+import ConsolidatedPropertyForm from '@/components/property/ConsolidatedPropertyForm'
 import Properties from '@/components/Properties'
 import AIContentGenerator from '@/components/AIContentGenerator'
 import Analytics from '@/components/Analytics'
@@ -33,6 +33,7 @@ const navigation = [
   { name: 'Dashboard', icon: HomeIcon, id: 'dashboard' },
   { name: 'Properties', icon: BuildingOfficeIcon, id: 'properties' },
   { name: 'Add Property', icon: PlusIcon, id: 'property-form' },
+  { name: 'Smart Form Demo', icon: SparklesIcon, id: 'smart-form-demo', isNew: true },
   { name: 'AI Tools', icon: SparklesIcon, id: 'ai-content' },
   { name: 'Analytics', icon: ChartBarIcon, id: 'analytics' },
   { name: 'CRM', icon: UsersIcon, id: 'crm' },
@@ -201,7 +202,17 @@ export default function Dashboard() {
       case 'properties':
         return <Properties onAddProperty={() => setActiveSection('property-form')} properties={properties} setProperties={setProperties} />
       case 'property-form':
-        return <PropertyForm />
+        return (
+          <ConsolidatedPropertyForm
+            variant="simple"
+            enableAI={true}
+            onSuccess={() => setActiveSection('properties')}
+          />
+        )
+      case 'smart-form-demo':
+        // Navigate to the GenAI demo page
+        router.push('/demo/smart-form')
+        return null
       case 'ai-content':
         return <AIContentGenerator />
       case 'analytics':
@@ -215,7 +226,13 @@ export default function Dashboard() {
       default:
         return (
           <div>
-            <DashboardStats stats={stats} />
+            <DashboardStats 
+          stats={stats} 
+          onAddProperty={() => setActiveSection('property-form')}
+          onNavigateToAI={() => setActiveSection('ai-content')}
+          onNavigateToAnalytics={() => setActiveSection('analytics')}
+          onNavigateToSmartForm={() => setActiveSection('smart-form-demo')}
+        />
             <div className="mt-4 p-4 bg-yellow-100 border border-yellow-300 rounded-lg">
               <h3 className="text-lg font-semibold mb-2">Theme Debug Tools</h3>
               <button
@@ -271,11 +288,11 @@ export default function Dashboard() {
 
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center space-x-1">
-              {navigation.slice(0, 4).map((item) => (
+              {navigation.slice(0, 5).map((item) => (
                 <button
                   key={item.id}
                   onClick={() => setActiveSection(item.id)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  className={`relative flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                     activeSection === item.id
                       ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-sm'
                       : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white'
@@ -283,6 +300,11 @@ export default function Dashboard() {
                 >
                   <item.icon className="w-4 h-4" />
                   <span className="hidden xl:block">{item.name}</span>
+                  {item.isNew && (
+                    <span className="absolute -top-1 -right-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full font-bold shadow-lg animate-pulse">
+                      NEW
+                    </span>
+                  )}
                 </button>
               ))}
             </nav>
@@ -329,7 +351,7 @@ export default function Dashboard() {
                   <button
                     key={item.id}
                     onClick={() => setActiveSection(item.id)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200 group hover-lift click-shrink ${
+                    className={`relative w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200 group hover-lift click-shrink ${
                       activeSection === item.id
                         ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-[1.02] animate-scale-in'
                         : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white hover:transform hover:scale-[1.01]'
@@ -339,7 +361,12 @@ export default function Dashboard() {
                       activeSection === item.id ? 'text-white' : ''
                     }`} />
                     <span className="font-medium">{item.name}</span>
-                    {activeSection === item.id && (
+                    {item.isNew && activeSection !== item.id && (
+                      <span className="ml-auto bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full font-bold shadow-lg animate-pulse">
+                        NEW
+                      </span>
+                    )}
+                    {activeSection === item.id && !item.isNew && (
                       <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse" />
                     )}
                   </button>
@@ -376,7 +403,7 @@ export default function Dashboard() {
                           setActiveSection(item.id)
                           setIsMobileMenuOpen(false)
                         }}
-                        className={`w-full flex items-center space-x-4 px-4 py-4 rounded-xl text-left transition-all duration-200 ${
+                        className={`relative w-full flex items-center space-x-4 px-4 py-4 rounded-xl text-left transition-all duration-200 ${
                           activeSection === item.id
                             ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
                             : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10'
@@ -384,6 +411,11 @@ export default function Dashboard() {
                       >
                         <item.icon className="w-6 h-6" />
                         <span className="font-medium text-lg">{item.name}</span>
+                        {item.isNew && (
+                          <span className="ml-auto bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs px-2 py-1 rounded-full font-bold shadow-lg animate-pulse">
+                            NEW
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>

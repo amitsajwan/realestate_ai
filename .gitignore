@@ -1,3 +1,63 @@
+# Node / Next.js
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+*.tsbuildinfo
+.vercel/
+.turbo/
+
+# VS Code
+.vscode/
+.vscode-test/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.env
+.env.*
+!.env.template
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Logs and reports
+logs/
+**/logs/
+*.log
+*.log.*
+**/playwright-report/
+**/test-results/
+**/test-results.json
+**/test-results.log
+**/test-output.log
+**/test-failures.txt
+
+# Docker / runtime
+docker-data/
+*.pid
+
+# OS / Misc
+.DS_Store
+Thumbs.db
+
+# Keys and certs
+*.key
+*.pem
+*.crt
+*.cert
 # Python
 __pycache__/
 *.pyc

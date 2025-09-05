@@ -53,12 +53,49 @@ const LoginPage: React.FC = () => {
   // Check if user is already authenticated
   const isInitialMount = useRef(true);
   
+  const handleFacebookCallback = async (accessToken: string, refreshToken: string) => {
+    try {
+      // Store tokens in localStorage to be picked up by authManager
+      localStorage.setItem('authState', JSON.stringify({ accessToken, refreshToken }));
+      
+      // Initialize auth state
+      await authManager.init();
+      const authState = authManager.getState();
+      
+      // Clear URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Show success message
+      showSuccess('Successfully logged in with Facebook!');
+      
+      // Redirect to dashboard or onboarding
+      if (authState.user?.onboardingCompleted) {
+        router.push('/dashboard');
+      } else {
+        router.push('/onboarding');
+      }
+    } catch (error) {
+      handleError(error, 'Facebook login failed.');
+    }
+  };
+  
   useEffect(() => {
     // Skip the authentication check on the initial server-side render
     // This prevents hydration mismatch between server and client
     if (isInitialMount.current) {
       isInitialMount.current = false;
-      return;
+      
+      // Check for Facebook authentication callback
+      const urlParams = new URLSearchParams(window.location.search);
+      const accessToken = urlParams.get('access_token');
+      const refreshToken = urlParams.get('refresh_token');
+      const facebookLogin = urlParams.get('facebook_login');
+      
+      if (accessToken && refreshToken && facebookLogin === 'true') {
+        // Handle Facebook authentication callback
+        handleFacebookCallback(accessToken, refreshToken);
+        return;
+      }
     }
     
     const checkAuth = async () => {
@@ -68,28 +105,13 @@ const LoginPage: React.FC = () => {
           router.push('/dashboard');
         }
       } catch (error) {
-  console.error('[LoginPage] Auth check failed:', error);
+        console.error('[LoginPage] Auth check failed:', error);
       }
     };
     checkAuth();
   }, [router]);
-
-  // Real-time validation and password strength
-  useEffect(() => {
-    // Calculate password strength for registration
-    if (!isLogin && formData.password) {
-      const strength = calculatePasswordStrength(formData.password);
-      setPasswordStrength(strength);
-    }
-  }, [formData.password, isLogin]);
-
-  // Reset validator when switching between login/register
-  useEffect(() => {
-    loginValidator.reset();
-    registerValidator.reset();
-  }, [isLogin, loginValidator, registerValidator]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
@@ -174,7 +196,11 @@ const LoginPage: React.FC = () => {
 
   const handleFacebookLogin = async () => {
     await submit(async () => {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/facebook/login`);
+      const rawBase = (process.env.NEXT_PUBLIC_API_BASE_URL as string | undefined) ?? ''
+      const base = (!rawBase || rawBase === 'undefined' || rawBase === 'null')
+        ? ''
+        : rawBase.replace(/\/+$/, '')
+      const response = await fetch(`${base}/api/v1/auth/facebook/login`);
       const data = await response.json();
       
       if (data.auth_url) {
@@ -244,7 +270,7 @@ const LoginPage: React.FC = () => {
                         } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 text-base sm:text-sm transition-all duration-200 hover-lift`}
                         placeholder="First Name"
                         value={formData.firstName}
-                        onChange={handleInputChange}
+                        onChange={handleChange}
                         onBlur={() => handleBlur('firstName')}
                         aria-describedby={currentValidator.hasFieldError('firstName') ? 'firstName-error' : undefined}
                       />
@@ -278,7 +304,7 @@ const LoginPage: React.FC = () => {
                         } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 text-base sm:text-sm transition-all duration-200 hover-lift`}
                         placeholder="Last Name"
                         value={formData.lastName}
-                        onChange={handleInputChange}
+                        onChange={handleChange}
                         onBlur={() => handleBlur('lastName')}
                         aria-describedby={currentValidator.hasFieldError('lastName') ? 'lastName-error' : undefined}
                       />
@@ -312,7 +338,7 @@ const LoginPage: React.FC = () => {
                       } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 text-base sm:text-sm transition-all duration-200 hover-lift`}
                       placeholder="Phone Number (Optional)"
                       value={formData.phone}
-                      onChange={handleInputChange}
+                      onChange={handleChange}
                       onBlur={() => handleBlur('phone')}
                       aria-describedby={currentValidator.hasFieldError('phone') ? 'phone-error' : undefined}
                     />
@@ -349,7 +375,7 @@ const LoginPage: React.FC = () => {
                   } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 text-base sm:text-sm transition-all duration-200 hover-lift`}
                   placeholder="Email address"
                   value={formData.email}
-                  onChange={handleInputChange}
+                  onChange={handleChange}
                   onBlur={() => handleBlur('email')}
                   aria-describedby={currentValidator.hasFieldError('email') ? 'email-error' : undefined}
                 />
@@ -384,7 +410,7 @@ const LoginPage: React.FC = () => {
                   } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 text-base sm:text-sm transition-all duration-200 hover-lift`}
                   placeholder="Password"
                   value={formData.password}
-                  onChange={handleInputChange}
+                  onChange={handleChange}
                   onBlur={() => handleBlur('password')}
                   aria-describedby={currentValidator.hasFieldError('password') ? 'password-error' : undefined}
                 />
@@ -463,7 +489,7 @@ const LoginPage: React.FC = () => {
                     } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 text-base sm:text-sm transition-all duration-200 hover-lift`}
                     placeholder="Confirm Password"
                     value={formData.confirmPassword}
-                    onChange={handleInputChange}
+                    onChange={handleChange}
                     onBlur={() => handleBlur('confirmPassword')}
                     aria-describedby={currentValidator.hasFieldError('confirmPassword') ? 'confirmPassword-error' : undefined}
                   />

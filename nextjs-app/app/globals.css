@@ -86,6 +86,20 @@ body {
     filter: brightness(0.9);
   }
   
+  .btn-success {
+    background-color: var(--success);
+    color: white;
+    @apply font-medium py-3 px-6 rounded-lg transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5;
+  }
+  
+  .btn-success:hover {
+    filter: brightness(0.9);
+  }
+  
+  .btn-sm {
+    @apply font-medium py-2 px-4 text-sm rounded-lg transition-all duration-200;
+  }
+  
   .border-brand {
     border-color: var(--brand-primary);
   }

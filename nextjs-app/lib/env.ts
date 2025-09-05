@@ -11,7 +11,7 @@ interface EnvironmentConfig {
 
 // Required environment variables
 const requiredEnvVars = [
-  'NEXT_PUBLIC_API_BASE_URL',
+  // NEXT_PUBLIC_API_BASE_URL is optional; defaults to '' (relative API via nginx)
   'NEXT_PUBLIC_APP_NAME',
   'NEXT_PUBLIC_APP_VERSION'
 ] as const
@@ -30,7 +30,8 @@ function validateEnvironment(): EnvironmentConfig {
 
   return {
     NODE_ENV: (process.env.NODE_ENV as EnvironmentConfig['NODE_ENV']) || 'development',
-    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL!,
+    // Default to '' to use relative API routes when behind nginx
+    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL ?? '',
     NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME!,
     NEXT_PUBLIC_APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION!,
     NEXT_PUBLIC_FACEBOOK_APP_ID: process.env.NEXT_PUBLIC_FACEBOOK_APP_ID,

@@ -16,12 +16,12 @@ const nameSchema = z.string()
   .regex(/^[a-zA-Z\s'-]+$/, 'Name can only contain letters, spaces, hyphens, and apostrophes')
 
 const phoneSchema = z.string()
-  .regex(/^[\+]?[1-9][\d]{0,15}$/, 'Please enter a valid phone number')
+  .regex(/^[\+]?[1-9]\d{9,14}$/, 'Please enter a valid phone number')
   .optional()
 
 // New: Allow empty-string for optional phone fields in forms where phone is not required
 const optionalPhoneEmptySchema = z.union([
-  z.string().regex(/^[\+]?[1-9][\d]{0,15}$/, 'Please enter a valid phone number'),
+  z.string().regex(/^[\+]?[1-9]\d{9,14}$/, 'Please enter a valid phone number'),
   z.literal('')
 ]).optional()
 
@@ -166,20 +166,25 @@ export function calculatePasswordStrength(password: string): PasswordStrength {
   let score = 0
   const feedback: string[] = []
 
-  if (password.length >= 8) score += 1
-  else feedback.push('At least 8 characters')
+  const hasLength = password.length >= 8
+  const hasLower = /[a-z]/.test(password)
+  const hasUpper = /[A-Z]/.test(password)
+  const hasNumber = /\d/.test(password)
+  const hasSpecial = /[^\w\s]/.test(password)
 
-  if (/[a-z]/.test(password)) score += 1
-  else feedback.push('One lowercase letter')
+  // Calculate score based on individual criteria
+  if (hasLength) score += 1
+  if (hasLower) score += 1
+  if (hasUpper) score += 1
+  if (hasNumber) score += 1
+  if (hasSpecial) score += 1
 
-  if (/[A-Z]/.test(password)) score += 1
-  else feedback.push('One uppercase letter')
-
-  if (/\d/.test(password)) score += 1
-  else feedback.push('One number')
-
-  if (/[^\w\s]/.test(password)) score += 1
-  else feedback.push('One special character')
+  // Add feedback for missing criteria
+  if (!hasLength) feedback.push('At least 8 characters')
+  if (!hasLower) feedback.push('One lowercase letter')
+  if (!hasUpper) feedback.push('One uppercase letter')
+  if (!hasNumber) feedback.push('One number')
+  if (!hasSpecial) feedback.push('One special character')
 
   const strengthMap = {
     0: { color: 'bg-gray-200', label: 'Very Weak' },
@@ -290,7 +295,7 @@ export class FormValidator {
   }
 
   hasFieldError(fieldName: string): boolean {
-    return this.touched[fieldName] && !!this.errors[fieldName]
+    return !!this.errors[fieldName]
   }
 
   isFieldValid(fieldName: string): boolean {
