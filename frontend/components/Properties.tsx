@@ -24,6 +24,7 @@ import {
   HeartIcon as HeartSolidIcon
 } from '@heroicons/react/24/solid'
 import { apiService } from '@/lib/api'
+import toast from 'react-hot-toast'
 
 interface Property {
   id: string
@@ -167,6 +168,70 @@ export default function Properties({ onAddProperty, properties: propProperties =
     // Navigate to property details or show property modal
     setSelectedProperty(property)
   console.debug('[Properties] View property:', property)
+  }
+
+  const handlePostToFacebook = async (property: Property) => {
+    try {
+      // Check if Facebook is connected first
+      const fbStatusResponse = await fetch('/api/facebook/status')
+      const fbStatus = await fbStatusResponse.json()
+      
+      if (!fbStatus.success || !fbStatus.status?.connected) {
+        toast.error('Please connect your Facebook page first')
+        return
+      }
+
+      // Generate content for Facebook posting
+      const contentResponse = await fetch('/api/v1/listings/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          address: property.address,
+          city: property.address.split(',')[1]?.trim() || 'Mumbai',
+          state: 'Maharashtra',
+          price: property.price,
+          property_type: property.type,
+          bedrooms: property.bedrooms,
+          bathrooms: property.bathrooms,
+          features: [], // Could be expanded to include amenities
+          template: 'just_listed',
+          language: 'en'
+        })
+      })
+
+      if (!contentResponse.ok) {
+        throw new Error('Failed to generate content')
+      }
+
+      const contentData = await contentResponse.json()
+
+      // Post to Facebook
+      const postResponse = await fetch('/api/facebook/post', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          property_id: property.id,
+          tone: 'professional',
+          language: 'en',
+          message: contentData.caption + '\n\n' + (contentData.hashtags || []).join(' '),
+          image_url: null
+        })
+      })
+
+      if (postResponse.ok) {
+        const postResult = await postResponse.json()
+        toast.success(`Posted to Facebook successfully!`)
+      } else {
+        throw new Error('Failed to post to Facebook')
+      }
+    } catch (error) {
+      console.error('Facebook posting error:', error)
+      toast.error('Failed to post to Facebook. Please try again.')
+    }
   }
 
   if (loading) {
@@ -515,6 +580,15 @@ export default function Properties({ onAddProperty, properties: propProperties =
                    className="flex-1 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 py-2 px-3 rounded-lg font-medium transition-all duration-200 text-sm hover-lift click-shrink"
                  >
                    Edit
+                 </button>
+                 <button
+                   onClick={() => handlePostToFacebook(property)}
+                   className="bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 py-2 px-3 rounded-lg font-medium transition-all duration-200 text-sm flex items-center justify-center"
+                   title="Post to Facebook"
+                 >
+                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                     <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                   </svg>
                  </button>
                  <button
                    onClick={() => {
