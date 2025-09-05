@@ -63,7 +63,8 @@ export default function ConsolidatedPropertyForm({
     onSuccess,
     enableAI,
     enableMarketInsights,
-    enableQualityScoring
+    enableQualityScoring,
+    mode: 'onSubmit' // Changed from default 'onBlur' to 'onSubmit' to prevent premature validation
   })
 
   const getVariantTitle = () => {
