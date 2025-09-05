@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mongodb:
     image: mongo:7.0
@@ -23,7 +21,7 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: ../backend
       dockerfile: Dockerfile
     container_name: crm_backend
     restart: always
@@ -54,7 +52,7 @@ services:
   frontend:
     container_name: crm_frontend
     build:
-      context: ./nextjs-app
+      context: ../frontend
       dockerfile: Dockerfile.frontend
     environment:
       NEXT_PUBLIC_API_BASE_URL: "http://nginx"

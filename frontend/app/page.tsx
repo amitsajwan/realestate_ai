@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, lazy, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { 
@@ -22,12 +22,14 @@ import { apiService } from '@/lib/api'
 import DashboardStats from '@/components/DashboardStats'
 import ConsolidatedPropertyForm from '@/components/property/ConsolidatedPropertyForm'
 import Properties from '@/components/Properties'
-import AIContentGenerator from '@/components/AIContentGenerator'
-import Analytics from '@/components/Analytics'
 import CRM from '@/components/CRM'
 import FacebookIntegration from '@/components/FacebookIntegration'
 import ProfileSettings from '@/components/ProfileSettings'
 import { loadBrandTheme, applyBrandTheme } from '@/lib/theme'
+
+// Lazy load heavy components
+const AIContentGenerator = lazy(() => import('@/components/AIContentGenerator'))
+const Analytics = lazy(() => import('@/components/Analytics'))
 
 const navigation = [
   { name: 'Dashboard', icon: HomeIcon, id: 'dashboard' },
@@ -214,9 +216,25 @@ export default function Dashboard() {
         router.push('/demo/smart-form')
         return null
       case 'ai-content':
-        return <AIContentGenerator />
+        return (
+          <Suspense fallback={
+            <div className="flex items-center justify-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          }>
+            <AIContentGenerator />
+          </Suspense>
+        )
       case 'analytics':
-        return <Analytics properties={properties} />
+        return (
+          <Suspense fallback={
+            <div className="flex items-center justify-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          }>
+            <Analytics properties={properties} />
+          </Suspense>
+        )
       case 'crm':
         return <CRM />
       case 'facebook':
@@ -287,7 +305,7 @@ export default function Dashboard() {
             </div>
 
             {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center space-x-1">
+            <nav id="navigation" className="hidden lg:flex items-center space-x-1">
               {navigation.slice(0, 5).map((item) => (
                 <button
                   key={item.id}
@@ -344,7 +362,7 @@ export default function Dashboard() {
       <div className="flex">
         {/* Desktop Sidebar */}
         <aside className="hidden lg:flex lg:flex-col lg:w-64 xl:w-72">
-          <nav className="flex-1 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-r border-gray-200 dark:border-white/20">
+          <nav id="navigation" className="flex-1 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-r border-gray-200 dark:border-white/20">
             <div className="p-6">
               <div className="space-y-1">
                 {navigation.map((item) => (
@@ -426,7 +444,7 @@ export default function Dashboard() {
         </AnimatePresence>
 
         {/* Main Content */}
-        <main className="flex-1 min-h-screen">
+        <main id="main-content" className="flex-1 min-h-screen">
           <div className="p-4 sm:p-6 lg:p-8">
             <motion.div
               key={activeSection}

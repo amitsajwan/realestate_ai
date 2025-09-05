@@ -3,6 +3,8 @@
  * Ensures consistency between frontend and backend data models
  */
 
+import { logger } from '../lib/logger';
+
 // Base user interface matching backend User model
 export interface User {
   id: string;
@@ -176,9 +178,13 @@ export class UserDataTransformer {
       }
     }
     
-    console.log('[UserDataTransformer] Transforming backend user:', { 
-      backendId: backendUser._id || backendUser.id,
-      transformedId: userId 
+    logger.debug('[UserDataTransformer] Transforming backend user', {
+      component: 'UserDataTransformer',
+      action: 'user_transformation',
+      metadata: {
+        backendId: backendUser._id || backendUser.id,
+        transformedId: userId
+      }
     });
     
     return {

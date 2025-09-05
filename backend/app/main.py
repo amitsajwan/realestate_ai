@@ -104,6 +104,7 @@ else:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
+        "https://776674ff2a3f.ngrok-free.app",
         "http://localhost:3000",  # Next.js frontend
         "http://localhost:3001",  # Next.js frontend (alt port)
         "http://localhost:3002",  # Next.js frontend (alt port)
@@ -637,6 +638,7 @@ async def get_agent_profile(current_user: dict = Depends(get_current_user)):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
 
 
 

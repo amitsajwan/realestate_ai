@@ -50,10 +50,18 @@ module.exports = {
       },
       boxShadow: {
         '3xl': '0 35px 60px -12px rgba(0, 0, 0, 0.25)',
+        'focus': '0 0 0 3px rgba(59, 130, 246, 0.5)',
+        'focus-inset': 'inset 0 0 0 3px rgba(59, 130, 246, 0.5)',
+        'focus-accessible': '0 0 0 2px rgba(59, 130, 246, 0.8)',
+        'focus-error': '0 0 0 2px rgba(239, 68, 68, 0.8)',
+        'focus-success': '0 0 0 2px rgba(34, 197, 94, 0.8)',
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',
         'slide-up': 'slideUp 0.3s ease-out',
+        'pulse-slow': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'bounce-subtle': 'bounceSubtle 0.6s ease-in-out',
+        'scale-in': 'scaleIn 0.2s ease-out',
       },
       keyframes: {
         fadeIn: {
@@ -64,6 +72,20 @@ module.exports = {
           '0%': { transform: 'translateY(10px)', opacity: '0' },
           '100%': { transform: 'translateY(0)', opacity: '1' },
         },
+        bounceSubtle: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-2px)' },
+        },
+        scaleIn: {
+          '0%': { transform: 'scale(0.95)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+      },
+      minHeight: {
+        'touch-target': '44px', // Minimum touch target size
+      },
+      minWidth: {
+        'touch-target': '44px', // Minimum touch target size
       },
     },
   },

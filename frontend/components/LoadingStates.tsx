@@ -86,6 +86,7 @@ export const LoadingButton: React.FC<{
       type={type}
       onClick={onClick}
       disabled={isDisabled}
+      aria-label={isLoading ? 'Loading, please wait' : undefined}
       className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className} ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
     >
       {isLoading && (
@@ -111,7 +112,12 @@ export const LoadingOverlay: React.FC<{
     <div className={`relative ${className}`}>
       {children}
       {isLoading && (
-        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10">
+        <div 
+          className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10"
+          role="status"
+          aria-live="polite"
+          aria-label="Loading content"
+        >
           <div className="flex flex-col items-center space-y-2">
             <LoadingSpinner size="lg" />
             <p className="text-gray-600 text-sm">{message}</p>
@@ -128,7 +134,12 @@ export const LoadingCard: React.FC<{
   className?: string;
 }> = ({ message = 'Loading...', className = '' }) => {
   return (
-    <div className={`bg-white rounded-lg shadow-md p-6 flex flex-col items-center justify-center space-y-4 ${className}`}>
+    <div 
+      className={`bg-white rounded-lg shadow-md p-6 flex flex-col items-center justify-center space-y-4 ${className}`}
+      role="status"
+      aria-live="polite"
+      aria-label="Loading content"
+    >
       <LoadingSpinner size="lg" />
       <p className="text-gray-600 text-center">{message}</p>
     </div>
