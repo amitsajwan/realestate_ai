@@ -4,6 +4,109 @@
 
 This guide provides comprehensive instructions for implementing the enhanced authentication system for PropertyAI. The system includes secure password hashing, JWT token management, real-time form validation, and production-ready security features.
 
+# Smart Property Form Implementation Guide
+
+This guide provides step-by-step instructions for implementing and testing the AI-enhanced property form with intelligent suggestions and progressive disclosure.
+
+## 🎯 Overview
+
+The Smart Property Form introduces:
+- **Progressive Disclosure**: Multi-step form with contextual guidance
+- **AI-Powered Suggestions**: Intelligent content generation and market insights
+- **Real-time Validation**: Step-by-step validation with immediate feedback
+- **Market Intelligence**: Dynamic pricing recommendations and competitor analysis
+- **User Experience Optimization**: Adaptive interface based on user behavior
+
+## 📁 Files Created
+
+### Core Components
+- `components/SmartPropertyForm.tsx` - Main smart form component
+- `PROPERTY_UX_AI_STRATEGY.md` - Comprehensive UX strategy document
+- `USER_TESTING_PLAN.md` - Detailed user testing methodology
+
+## 🚀 Integration Steps
+
+### Step 1: Install Required Dependencies
+
+```bash
+cd nextjs-app
+npm install framer-motion @heroicons/react react-hook-form @hookform/resolvers/zod
+```
+
+### Step 2: Update API Service
+
+Add the following method to `lib/api.ts`:
+
+```typescript
+// Add to APIService class
+async getMarketInsights(data: {
+  address: string
+  property_type: string
+  area: number
+}): Promise<APIResponse<MarketInsight>> {
+  return this.request('/api/v1/property/market_insights', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  })
+}
+
+async getUserProfile(): Promise<APIResponse<UserProfile>> {
+  return this.request('/api/v1/user/profile')
+}
+```
+
+### Step 3: Backend API Endpoints
+
+Add these endpoints to your FastAPI backend:
+
+```python
+# In main.py or property routes
+@app.post("/api/v1/property/market_insights")
+async def get_market_insights(request: MarketInsightRequest):
+    """Get market insights for property location and type"""
+    # Implement market analysis logic
+    insights = {
+        "average_price": 3200000,
+        "price_range": [2800000, 4200000],
+        "market_trend": "rising",
+        "competitor_count": 12,
+        "trend_percentage": 8.5
+    }
+    return {"success": True, "data": insights}
+
+@app.get("/api/v1/user/profile")
+async def get_user_profile(current_user: User = Depends(get_current_user)):
+    """Get user profile for personalized suggestions"""
+    profile = {
+        "experience_level": "intermediate",
+        "specialization": "residential",
+        "price_range": "mid-range"
+    }
+    return {"success": True, "data": profile}
+```
+
+### Step 4: Replace Existing Property Form
+
+Update your property addition page to use the new smart form:
+
+```typescript
+// In pages/properties/add.tsx or app/properties/add/page.tsx
+import SmartPropertyForm from '@/components/SmartPropertyForm'
+
+export default function AddPropertyPage() {
+  const handleSuccess = () => {
+    // Handle successful property creation
+    router.push('/properties')
+  }
+
+  return (
+    <div>
+      <SmartPropertyForm onSuccess={handleSuccess} />
+    </div>
+  )
+}
+```
+
 ## 🔧 Prerequisites
 
 - Python 3.8+

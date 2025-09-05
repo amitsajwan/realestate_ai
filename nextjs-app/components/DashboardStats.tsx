@@ -24,7 +24,7 @@ import {
   CurrencyRupeeIcon as CurrencyRupeeSolid
 } from '@heroicons/react/24/solid'
 
-interface StatsProps {
+interface DashboardStatsProps {
   stats: {
     total_properties: number
     active_listings: number
@@ -34,6 +34,10 @@ interface StatsProps {
     monthly_leads: number
     revenue: string
   }
+  onAddProperty?: () => void
+  onNavigateToAI?: () => void
+  onNavigateToAnalytics?: () => void
+  onNavigateToSmartForm?: () => void
 }
 
 const statCards = [
@@ -87,7 +91,7 @@ const statCards = [
   }
 ]
 
-const DashboardStats = React.memo(function DashboardStats({ stats }: StatsProps) {
+const DashboardStats = React.memo(function DashboardStats({ stats, onAddProperty, onNavigateToAI, onNavigateToAnalytics, onNavigateToSmartForm }: DashboardStatsProps) {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [isHovered, setIsHovered] = useState<string | null>(null)
 
@@ -122,7 +126,7 @@ const DashboardStats = React.memo(function DashboardStats({ stats }: StatsProps)
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
             <div>
               <div className="flex items-center space-x-2 mb-2">
-                <FireIcon className="w-6 h-6 text-yellow-300" />
+                <FireIcon className="w-6 h-6 text-yellow-300" data-testid="fire-icon" />
                 <h1 className="text-2xl sm:text-3xl font-bold">
                   {getGreeting()}!
                 </h1>
@@ -144,7 +148,7 @@ const DashboardStats = React.memo(function DashboardStats({ stats }: StatsProps)
                 </div>
               </div>
               <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                <CalendarDaysIcon className="w-6 h-6" />
+                <CalendarDaysIcon className="w-6 h-6" data-testid="calendar-days-icon" />
               </div>
             </div>
           </div>
@@ -174,7 +178,7 @@ const DashboardStats = React.memo(function DashboardStats({ stats }: StatsProps)
       {/* Enhanced Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {statCards.map((card, index) => {
-          const Icon = isHovered === card.title ? card.solidIcon : card.icon
+          const Icon = (isHovered === card.title && card.solidIcon) ? card.solidIcon : card.icon
           const TrendIcon = card.trendType === 'up' ? ArrowTrendingUpIcon : ArrowTrendingDownIcon
           
           return (
@@ -194,14 +198,14 @@ const DashboardStats = React.memo(function DashboardStats({ stats }: StatsProps)
                 {/* Header with Icon and Trend */}
                 <div className="flex items-center justify-between mb-4">
                   <div className={`p-3 rounded-xl ${card.bgColor} ${card.textColor} group-hover:scale-110 transition-transform duration-300`}>
-                    <Icon className="w-6 h-6" />
+                    <Icon className="w-6 h-6" data-testid={`${card.title.replace(/\s/g, '-')}-icon`} />
                   </div>
                   <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${
                     card.trendType === 'up' 
                       ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' 
                       : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
                   }`}>
-                    <TrendIcon className="w-3 h-3" />
+                    <TrendIcon className="w-3 h-3" data-testid={`${card.title.replace(/\s/g, '-')}-trend-icon`} />
                     <span>{card.trend}</span>
                   </div>
                 </div>
@@ -239,12 +243,12 @@ const DashboardStats = React.memo(function DashboardStats({ stats }: StatsProps)
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Get started with these essential tasks</p>
           </div>
           <div className="hidden sm:flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-            <BellIcon className="w-4 h-4" />
+            <BellIcon className="w-4 h-4" data-testid="bell-icon" />
             <span>3 pending tasks</span>
           </div>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -257,7 +261,7 @@ const DashboardStats = React.memo(function DashboardStats({ stats }: StatsProps)
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-300">
-                  <HomeIcon className="w-6 h-6" />
+                  <HomeIcon className="w-6 h-6" data-testid="add-property-icon" />
                 </div>
                 <div className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-full font-medium">
                   Popular
@@ -271,8 +275,11 @@ const DashboardStats = React.memo(function DashboardStats({ stats }: StatsProps)
                 Start listing your properties with AI-powered descriptions and market insights
               </p>
               
-              <button className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 px-4 rounded-xl font-semibold flex items-center justify-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]">
-                <PlusIcon className="w-5 h-5" />
+              <button 
+                onClick={onAddProperty}
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 px-4 rounded-xl font-semibold flex items-center justify-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+              >
+                <PlusIcon className="w-5 h-5" data-testid="plus-icon" />
                 <span>Add Property</span>
               </button>
             </div>
@@ -304,7 +311,10 @@ const DashboardStats = React.memo(function DashboardStats({ stats }: StatsProps)
                 Generate compelling content, market analysis, and property descriptions automatically
               </p>
               
-              <button className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white py-3 px-4 rounded-xl font-semibold flex items-center justify-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]">
+              <button 
+                onClick={onNavigateToAI}
+                className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white py-3 px-4 rounded-xl font-semibold flex items-center justify-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+              >
                 <SparklesIcon className="w-5 h-5" />
                 <span>Explore AI</span>
               </button>
@@ -315,7 +325,7 @@ const DashboardStats = React.memo(function DashboardStats({ stats }: StatsProps)
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="group relative overflow-hidden bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-200 dark:border-slate-700 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer sm:col-span-2 lg:col-span-1"
+            className="group relative overflow-hidden bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-200 dark:border-slate-700 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer"
           >
             {/* Background Pattern */}
             <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/10 rounded-full -translate-y-10 translate-x-10 group-hover:scale-150 transition-transform duration-500"></div>
@@ -337,9 +347,48 @@ const DashboardStats = React.memo(function DashboardStats({ stats }: StatsProps)
                 Track performance metrics, lead conversion rates, and market trends
               </p>
               
-              <button className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white py-3 px-4 rounded-xl font-semibold flex items-center justify-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]">
-                <ChartBarIcon className="w-5 h-5" />
+              <button 
+                onClick={onNavigateToAnalytics}
+                className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white py-3 px-4 rounded-xl font-semibold flex items-center justify-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+              >
+                <ChartBarIcon className="w-5 h-5" data-testid="view-analytics-icon" />
                 <span>View Analytics</span>
+              </button>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="group relative overflow-hidden bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-200 dark:border-slate-700 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer"
+          >
+            {/* Background Pattern */}
+            <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/10 rounded-full -translate-y-10 translate-x-10 group-hover:scale-150 transition-transform duration-500"></div>
+            
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-xl text-orange-600 dark:text-orange-400 group-hover:scale-110 transition-transform duration-300">
+                  <SparklesIcon className="w-6 h-6" />
+                </div>
+                <div className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-2 py-1 rounded-full font-medium">
+                  NEW
+                </div>
+              </div>
+              
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors duration-300">
+                Smart Form Demo
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                Experience our intelligent property form with step-by-step guidance and AI assistance
+              </p>
+              
+              <button 
+                onClick={onNavigateToSmartForm}
+                className="w-full bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white py-3 px-4 rounded-xl font-semibold flex items-center justify-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+              >
+                <SparklesIcon className="w-5 h-5" />
+                <span>Try Demo</span>
               </button>
             </div>
           </motion.div>

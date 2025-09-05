@@ -1,6 +1,35 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+// Get API base URL with support for empty string (Docker/proxy setup)
+const getAPIBaseURL = (): string => {
+  const envUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  
+  // If explicitly set to empty string, use relative paths (for Docker/nginx proxy)
+  if (envUrl === '') {
+    return '';
+  }
+  
+  // If environment variable is set to a specific URL, use it
+  if (envUrl) {
+    return envUrl;
+  }
+  
+  // Default behavior: detect environment
+  // In browser context, check hostname to determine if we're in development
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:8000';
+    }
+    // In production/container, use relative paths through nginx proxy
+    return '';
+  }
+  
+  // Server-side: use relative paths by default (works with nginx proxy)
+  return '';
+};
+
+const API_BASE_URL = getAPIBaseURL();
 
 export const getOnboardingStep = async (userId: string) => {
   try {
