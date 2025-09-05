@@ -131,12 +131,19 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
     setIsGeneratingAI(true)
     try {
       const formData = watch()
+      const processedData = {
+        ...formData,
+        bedrooms: Number(formData.bedrooms),
+        bathrooms: Number(formData.bathrooms),
+        area: Number(formData.area)
+      }
+      
       const response = await apiService.getAIPropertySuggestions({
-        address: formData.address,
-        property_type: formData.propertyType,
-        bedrooms: formData.bedrooms,
-        bathrooms: formData.bathrooms,
-        area: formData.area,
+        address: processedData.address,
+        property_type: processedData.propertyType,
+        bedrooms: processedData.bedrooms,
+        bathrooms: processedData.bathrooms,
+        area: processedData.area,
         user_profile: userProfile,
         agent_profile: agentProfile
       })
@@ -211,7 +218,15 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
   const onSubmit = async (data: PropertyFormData) => {
     setIsLoading(true)
     try {
-      const response = await apiService.createProperty(data)
+      // Ensure bedrooms and bathrooms are numbers
+      const processedData = {
+        ...data,
+        bedrooms: Number(data.bedrooms),
+        bathrooms: Number(data.bathrooms),
+        area: Number(data.area)
+      }
+      
+      const response = await apiService.createProperty(processedData)
       if (response.success) {
         toast.success('Property created successfully!')
         onSuccess?.()

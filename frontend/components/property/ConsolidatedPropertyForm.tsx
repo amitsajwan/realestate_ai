@@ -31,12 +31,12 @@ const propertyTypeOptions = [
 ]
 
 const bedroomOptions = Array.from({ length: 5 }, (_, i) => ({
-  value: (i + 1).toString(),
+  value: (i + 1),
   label: `${i + 1} Bedroom${i > 0 ? 's' : ''}`
 }))
 
 const bathroomOptions = Array.from({ length: 5 }, (_, i) => ({
-  value: (i + 1).toString(),
+  value: (i + 1),
   label: `${i + 1} Bathroom${i > 0 ? 's' : ''}`
 }))
 

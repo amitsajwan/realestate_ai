@@ -1,6 +1,6 @@
 'use client';
 
-import { APIService } from './api';
+import { APIService, apiService } from './api';
 import { errorHandler, handleError, showSuccess } from './error-handler';
 import { logger } from './logger';
 import { User, LoginRequest, RegisterRequest, AuthResponse, UserDataTransformer, RegisterData } from '../types/user';
@@ -99,6 +99,12 @@ export class AuthManager {
           isLoading: false,
           error: null
         });
+        
+        // Set token in API service
+        this.apiService.setToken(this.getStoredToken());
+        // Also set token in global apiService for components that use it
+        apiService.setToken(this.getStoredToken());
+        
         this.scheduleTokenRefresh();
       } else {
         this.clearAuth();
@@ -146,6 +152,11 @@ export class AuthManager {
         if (response.refreshToken) {
           this.setStoredRefreshToken(response.refreshToken);
         }
+        
+        // Set token in API service
+        this.apiService.setToken(response.accessToken);
+        // Also set token in global apiService for components that use it
+        apiService.setToken(response.accessToken);
         
         // Update state
         this.setState({
@@ -198,6 +209,11 @@ export class AuthManager {
           if (response.refreshToken) {
             this.setStoredRefreshToken(response.refreshToken);
           }
+          
+          // Set token in API service
+          this.apiService.setToken(response.accessToken);
+          // Also set token in global apiService for components that use it
+          apiService.setToken(response.accessToken);
           
           this.setState({
             isAuthenticated: true,
@@ -261,6 +277,11 @@ export class AuthManager {
     try {
       const token = this.getStoredToken();
       if (!token) return null;
+      
+      // Ensure token is set in API service
+      this.apiService.setToken(token);
+      // Also set token in global apiService for components that use it
+      apiService.setToken(token);
       
       const user = await this.apiService.getCurrentUser();
       return user;
@@ -338,6 +359,11 @@ export class AuthManager {
           if (response.refreshToken) {
             this.setStoredRefreshToken(response.refreshToken);
           }
+          
+          // Set new token in API service
+          this.apiService.setToken(response.accessToken);
+          // Also set token in global apiService for components that use it
+          apiService.setToken(response.accessToken);
           
           this.setState({
             token: response.accessToken,
@@ -639,6 +665,11 @@ export class AuthManager {
     if (typeof window === 'undefined') return;
     localStorage.removeItem('auth_token');
     localStorage.removeItem('refresh_token');
+    
+    // Clear token from API service
+    this.apiService.clearToken();
+    // Also clear token from global apiService for components that use it
+    apiService.clearToken();
     
     if (this.refreshTimer) {
       clearTimeout(this.refreshTimer);

@@ -61,11 +61,12 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
         user_id: '1', // TODO: Get from auth context
         title: data.title,
         type: 'Apartment', // Default type
-        bedrooms: data.bedrooms,
+        bedrooms: Number(data.bedrooms),
+        bathrooms: Number(data.bathrooms),
         price: parseFloat(data.price.replace(/[₹,]/g, '')),
         price_unit: 'INR',
         city: 'Mumbai', // Default city
-        area: data.area,
+        area: Number(data.area),
         address: data.address,
         description: data.description,
         amenities: data.amenities ? data.amenities.split(',').map(a => a.trim()) : []

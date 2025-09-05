@@ -11,7 +11,7 @@ interface PropertyFieldInputProps {
   type?: 'text' | 'number' | 'select' | 'textarea'
   placeholder?: string
   icon?: React.ComponentType<{ className?: string }>
-  options?: Array<{ value: string; label: string }>
+  options?: Array<{ value: string | number; label: string }>
   register: UseFormRegister<PropertyFormData>
   errors: FieldErrors<PropertyFormData>
   required?: boolean
@@ -51,7 +51,7 @@ export default function PropertyFieldInput({
   const renderInput = () => {
     const commonProps = {
       ...register(name, { 
-        valueAsNumber: type === 'number' ? true : false 
+        valueAsNumber: (type === 'number' || name === 'bedrooms' || name === 'bathrooms' || name === 'area') ? true : false 
       }),
       className: baseInputClasses,
       placeholder,
