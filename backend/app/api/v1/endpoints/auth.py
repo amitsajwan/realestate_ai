@@ -624,7 +624,7 @@ async def facebook_login_initiate(request: Request):
             "client_id": settings.FB_APP_ID,
             "redirect_uri": f"{settings.get_base_url()}/api/v1/auth/facebook/callback",
             "state": state,
-            "scope": "public_profile",  # Temporarily use only public_profile
+            "scope": "public_profile,email",  # Include email scope for complete user profile
             "response_type": "code"
         }
         
