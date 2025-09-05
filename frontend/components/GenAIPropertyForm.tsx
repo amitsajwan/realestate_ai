@@ -14,9 +14,9 @@ interface PropertyFormData {
   description: string
   price: string
   location: string
-  bedrooms: string
-  bathrooms: string
-  area: string
+  bedrooms: number
+  bathrooms: number
+  area: number
   propertyType: string
   language: string
 }
@@ -31,9 +31,9 @@ export default function GenAIPropertyForm({ onSuccess }: GenAIPropertyFormProps)
     description: '',
     price: '',
     location: '',
-    bedrooms: '2',
-    bathrooms: '2',
-    area: '',
+    bedrooms: 2,
+    bathrooms: 2,
+    area: 0,
     propertyType: 'apartment',
     language: 'English'
   })
@@ -41,7 +41,14 @@ export default function GenAIPropertyForm({ onSuccess }: GenAIPropertyFormProps)
   const generateOperation = useAsyncOperation()
 
   const handleInputChange = (field: keyof PropertyFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    let processedValue: string | number = value
+    
+    // Convert numeric fields to numbers
+    if (field === 'bedrooms' || field === 'bathrooms' || field === 'area') {
+      processedValue = value === '' ? 0 : Number(value)
+    }
+    
+    setFormData(prev => ({ ...prev, [field]: processedValue }))
   }
 
   const handleGenerate = async () => {
@@ -60,8 +67,8 @@ export default function GenAIPropertyForm({ onSuccess }: GenAIPropertyFormProps)
           description: formData.description,
           price: formData.price,
           location: formData.location,
-          bedrooms: parseInt(formData.bedrooms),
-          bathrooms: parseInt(formData.bathrooms),
+          bedrooms: formData.bedrooms,
+          bathrooms: formData.bathrooms,
           area: formData.area,
           property_type: formData.propertyType
         }
@@ -168,12 +175,12 @@ export default function GenAIPropertyForm({ onSuccess }: GenAIPropertyFormProps)
               Bedrooms
             </label>
             <select
-              value={formData.bedrooms}
+              value={formData.bedrooms.toString()}
               onChange={(e) => handleInputChange('bedrooms', e.target.value)}
               className="form-input"
             >
               {[1, 2, 3, 4, 5].map(num => (
-                <option key={num} value={num.toString()}>{num}</option>
+                <option key={num} value={num}>{num}</option>
               ))}
             </select>
           </div>
@@ -183,12 +190,12 @@ export default function GenAIPropertyForm({ onSuccess }: GenAIPropertyFormProps)
               Bathrooms
             </label>
             <select
-              value={formData.bathrooms}
+              value={formData.bathrooms.toString()}
               onChange={(e) => handleInputChange('bathrooms', e.target.value)}
               className="form-input"
             >
               {[1, 2, 3, 4, 5].map(num => (
-                <option key={num} value={num.toString()}>{num}</option>
+                <option key={num} value={num}>{num}</option>
               ))}
             </select>
           </div>
