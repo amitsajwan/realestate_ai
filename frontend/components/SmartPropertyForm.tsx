@@ -75,7 +75,7 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
     trigger
   } = useForm<PropertyFormData>({
     resolver: zodResolver(propertySchema),
-    mode: 'onBlur'
+    mode: 'onSubmit' // Changed from 'onBlur' to 'onSubmit' to prevent premature validation
   })
 
   const watchedAddress = watch('address')
@@ -218,15 +218,8 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
   const onSubmit = async (data: PropertyFormData) => {
     setIsLoading(true)
     try {
-      // Ensure bedrooms and bathrooms are numbers
-      const processedData = {
-        ...data,
-        bedrooms: Number(data.bedrooms),
-        bathrooms: Number(data.bathrooms),
-        area: Number(data.area)
-      }
-      
-      const response = await apiService.createProperty(processedData)
+      // Data is already properly typed with z.coerce.number()
+      const response = await apiService.createProperty(data)
       if (response.success) {
         toast.success('Property created successfully!')
         onSuccess?.()

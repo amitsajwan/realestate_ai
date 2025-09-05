@@ -284,7 +284,7 @@ app.include_router(api_router, prefix="/api/v1")
 app.include_router(simple_auth.router)
 
 # Add generate-property endpoint directly for frontend compatibility
-from app.api.v1.endpoints.smart_properties import SmartPropertyCreate, SmartPropertyResponse, generate_simple_ai_content
+from app.api.v1.endpoints.smart_properties import SmartPropertyCreate, SmartPropertyResponse, generate_simple_ai_content, get_smart_property_service
 
 @app.post("/api/generate-property", response_model=SmartPropertyResponse)
 async def generate_property_direct(
@@ -294,35 +294,31 @@ async def generate_property_direct(
     """Generate property content - direct endpoint for frontend compatibility"""
     try:
         logger.info(f"Generating property content for user: {current_user.get('username', 'anonymous')}")
-        
-        prop_dict = prop.model_dump()
+
+        # Get user ID
+        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+
+        # Generate AI content if requested
         ai_content = None
-        
         if prop.ai_generate:
-            ai_content = generate_simple_ai_content(prop_dict, prop.template, prop.language)
-        
-        # Create property record
-        from app.api.v1.endpoints.smart_properties import smart_properties_db
-        property_id = str(len(smart_properties_db) + 1)
-        current_user_id = current_user.get("username", "demo_user")
-        
-        property_record = {
-            "id": property_id,
-            **prop_dict,
-            "ai_content": ai_content,
-            "status": "active",
-            "created_at": datetime.now().isoformat(),
-            "user_id": current_user_id
-        }
-        
-        smart_properties_db.append(property_record)
-        
-        logger.info(f"Created property with ID: {property_id}")
-        return SmartPropertyResponse(**property_record)
-        
+            ai_content = generate_simple_ai_content(prop.model_dump(), prop.template, prop.language)
+
+        # Create property data with AI content
+        property_data = prop.model_dump()
+        property_data["ai_content"] = ai_content
+
+        # Use the proper MongoDB service
+        result = await get_smart_property_service().create_smart_property(
+            SmartPropertyCreate(**property_data),
+            user_id
+        )
+
+        logger.info(f"Property generated successfully with ID: {result.id}")
+        return result
+
     except Exception as e:
         logger.error(f"Error generating property: {e}")
-        raise HTTPException(status_code=500, detail="Failed to generate property")
+        raise HTTPException(status_code=500, detail=f"Failed to generate property: {str(e)}")
 
 @app.get("/health")
 async def health_check():

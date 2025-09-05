@@ -12,6 +12,9 @@ from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import JSONResponse
 from typing import Dict, Any, List, Optional
 import json
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from bson import ObjectId
+from pymongo.errors import ConnectionFailure
 
 logger = logging.getLogger(__name__)
 
@@ -276,76 +279,101 @@ class LeadScoringService:
 lead_scoring = LeadScoringService()
 
 class CRMService:
-    """Advanced CRM service"""
+    """Advanced CRM service with MongoDB persistence"""
     
-    def __init__(self):
-        # In-memory storage (use database in production)
-        self.leads = []
-        self.deals = []
-        self.activities = []
-        self._initialize_demo_data()
-    
-    def _initialize_demo_data(self):
-        """Initialize with demo data"""
-        self.leads = [
-            {
-                'id': 1,
-                'name': 'Rajesh Kumar',
-                'email': 'rajesh@email.com',
-                'phone': '+919876543210',
-                'budget': 5000000,
-                'property_type_preference': 'Apartment',
-                'preferred_locations': ['Mumbai', 'Thane'],
-                'timeline': '3 months',
-                'urgency_level': 'medium',
-                'source': 'Website',
-                'status': 'New',
-                'created_at': datetime.utcnow() - timedelta(days=2),
-                'last_contact': datetime.utcnow() - timedelta(days=1)
-            },
-            {
-                'id': 2,
-                'name': 'Priya Sharma',
-                'email': 'priya@email.com',
-                'phone': '+919876543211',
-                'budget': 8000000,
-                'property_type_preference': 'Villa',
-                'preferred_locations': ['Pune', 'Hinjewadi'],
-                'timeline': 'ASAP',
-                'urgency_level': 'high',
-                'source': 'Referral',
-                'status': 'Qualified',
-                'created_at': datetime.utcnow() - timedelta(days=5),
-                'last_contact': datetime.utcnow()
-            }
-        ]
+    def __init__(self, db = None):
+        self.db = db
+        self.leads_collection = None
+        self.deals_collection = None
+        self.activities_collection = None
         
-        self.deals = [
-            {
-                'id': 1,
-                'lead_id': 2,
-                'property_id': 1,
-                'value': 7500000,
-                'stage': 'Negotiation',
-                'probability': 80,
-                'expected_close': datetime.utcnow() + timedelta(days=30),
-                'created_at': datetime.utcnow() - timedelta(days=3)
-            }
-        ]
+        if self.db is not None:
+            self.leads_collection = self.db.leads
+            self.deals_collection = self.db.deals
+            self.activities_collection = self.db.activities
+            # Initialize demo data in MongoDB
+            self._initialize_demo_data()
     
-    def get_lead_analytics(self) -> Dict[str, Any]:
+    async def _initialize_demo_data(self):
+        """Initialize with demo data in MongoDB"""
+        try:
+            # Check if demo data already exists
+            existing_leads = await self.leads_collection.count_documents({})
+            if existing_leads > 0:
+                return
+                
+            # Insert demo leads
+            demo_leads = [
+                {
+                    'name': 'Rajesh Kumar',
+                    'email': 'rajesh@email.com',
+                    'phone': '+919876543210',
+                    'budget': 5000000,
+                    'property_type_preference': 'Apartment',
+                    'preferred_locations': ['Mumbai', 'Thane'],
+                    'timeline': '3 months',
+                    'urgency_level': 'medium',
+                    'source': 'Website',
+                    'status': 'New',
+                    'created_at': datetime.utcnow() - timedelta(days=2),
+                    'last_contact': datetime.utcnow() - timedelta(days=1)
+                },
+                {
+                    'name': 'Priya Sharma',
+                    'email': 'priya@email.com',
+                    'phone': '+919876543211',
+                    'budget': 8000000,
+                    'property_type_preference': 'Villa',
+                    'preferred_locations': ['Pune', 'Hinjewadi'],
+                    'timeline': 'ASAP',
+                    'urgency_level': 'high',
+                    'source': 'Referral',
+                    'status': 'Qualified',
+                    'created_at': datetime.utcnow() - timedelta(days=5),
+                    'last_contact': datetime.utcnow()
+                }
+            ]
+            
+            await self.leads_collection.insert_many(demo_leads)
+            
+            # Insert demo deals
+            demo_deals = [
+                {
+                    'lead_id': (await self.leads_collection.find_one({'name': 'Priya Sharma'}))['_id'],
+                    'property_id': ObjectId(),  # Placeholder
+                    'value': 7500000,
+                    'stage': 'Negotiation',
+                    'probability': 80,
+                    'expected_close': datetime.utcnow() + timedelta(days=30),
+                    'created_at': datetime.utcnow() - timedelta(days=3)
+                }
+            ]
+            
+            await self.deals_collection.insert_many(demo_deals)
+            
+        except Exception as e:
+            logger.error(f"Error initializing demo data: {e}")
+    
+    async def get_lead_analytics(self) -> Dict[str, Any]:
         """Get comprehensive lead analytics"""
         try:
-            total_leads = len(self.leads)
-            qualified_leads = len([l for l in self.leads if l['status'] == 'Qualified'])
+            if not self.leads_collection:
+                return {'error': 'Database not connected'}
+                
+            total_leads = await self.leads_collection.count_documents({})
+            qualified_leads = await self.leads_collection.count_documents({'status': 'Qualified'})
             conversion_rate = (qualified_leads / total_leads * 100) if total_leads > 0 else 0
+            
+            # Get all leads for scoring analysis
+            leads_cursor = self.leads_collection.find({})
+            leads = await leads_cursor.to_list(length=None)
             
             # Lead scoring analysis
             lead_scores = []
-            for lead in self.leads:
+            for lead in leads:
                 score_data = lead_scoring.calculate_lead_score(lead)
                 lead_scores.append({
-                    'lead_id': lead['id'],
+                    'lead_id': str(lead['_id']),
                     'name': lead['name'],
                     'score': score_data['total_score'],
                     'quality': score_data['quality'],
@@ -368,16 +396,22 @@ class CRMService:
             logger.error(f"Lead analytics error: {e}")
             return {'error': str(e)}
     
-    def get_deal_pipeline(self) -> Dict[str, Any]:
+    async def get_deal_pipeline(self) -> Dict[str, Any]:
         """Get deal pipeline analysis"""
         try:
-            total_deals = len(self.deals)
-            total_value = sum(deal['value'] for deal in self.deals)
-            weighted_value = sum(deal['value'] * deal['probability'] / 100 for deal in self.deals)
+            if not self.deals_collection:
+                return {'error': 'Database not connected'}
+                
+            deals_cursor = self.deals_collection.find({})
+            deals = await deals_cursor.to_list(length=None)
+            
+            total_deals = len(deals)
+            total_value = sum(deal['value'] for deal in deals)
+            weighted_value = sum(deal['value'] * deal['probability'] / 100 for deal in deals)
             
             # Stage breakdown
             stages = {}
-            for deal in self.deals:
+            for deal in deals:
                 stage = deal['stage']
                 if stage not in stages:
                     stages[stage] = {'count': 0, 'value': 0}
@@ -397,7 +431,15 @@ class CRMService:
             return {'error': str(e)}
 
 # Initialize CRM service
-crm_service = CRMService()
+from app.core.database import get_database
+
+async def get_crm_service():
+    """Get CRM service with database connection"""
+    db = await get_database()
+    return CRMService(db)
+
+# For backward compatibility, create a global instance
+crm_service = None
 
 @router.get("/crm/analytics")
 async def get_crm_analytics(request: Request):
@@ -413,9 +455,12 @@ async def get_crm_analytics(request: Request):
         if not payload:
             raise HTTPException(status_code=401, detail="Invalid token")
         
+        # Get CRM service with database connection
+        crm_svc = await get_crm_service()
+        
         # Get analytics
-        lead_analytics = crm_service.get_lead_analytics()
-        deal_pipeline = crm_service.get_deal_pipeline()
+        lead_analytics = await crm_svc.get_lead_analytics()
+        deal_pipeline = await crm_svc.get_deal_pipeline()
         
         return JSONResponse(content={
             "success": True,
@@ -447,12 +492,20 @@ async def get_crm_leads(request: Request):
         if not payload:
             raise HTTPException(status_code=401, detail="Invalid token")
         
+        # Get CRM service with database connection
+        crm_svc = await get_crm_service()
+        
         # Get leads with scoring
+        leads_cursor = crm_svc.leads_collection.find({})
+        leads = await leads_cursor.to_list(length=None)
+        
         leads_with_scores = []
-        for lead in crm_service.leads:
+        for lead in leads:
             score_data = lead_scoring.calculate_lead_score(lead)
             lead_with_score = lead.copy()
+            lead_with_score['_id'] = str(lead['_id'])  # Convert ObjectId to string
             lead_with_score['scoring'] = score_data
+            leads_with_scores.append(lead_with_score)
             leads_with_scores.append(lead_with_score)
         
         # Sort by score
@@ -490,9 +543,11 @@ async def create_crm_lead(request: Request):
         # Parse request body
         body = await request.json()
         
+        # Get CRM service with database connection
+        crm_svc = await get_crm_service()
+        
         # Create new lead
         new_lead = {
-            'id': len(crm_service.leads) + 1,
             'name': body.get('name', ''),
             'email': body.get('email', ''),
             'phone': body.get('phone', ''),
@@ -507,7 +562,9 @@ async def create_crm_lead(request: Request):
             'last_contact': datetime.utcnow()
         }
         
-        crm_service.leads.append(new_lead)
+        # Insert into MongoDB
+        result = await crm_svc.leads_collection.insert_one(new_lead)
+        new_lead['_id'] = str(result.inserted_id)
         
         # Calculate score for new lead
         score_data = lead_scoring.calculate_lead_score(new_lead)
@@ -542,10 +599,23 @@ async def get_crm_deals(request: Request):
         if not payload:
             raise HTTPException(status_code=401, detail="Invalid token")
         
+        # Get CRM service with database connection
+        crm_svc = await get_crm_service()
+        
+        # Get deals from MongoDB
+        deals_cursor = crm_svc.deals_collection.find({})
+        deals = await deals_cursor.to_list(length=None)
+        
+        # Convert ObjectIds to strings
+        for deal in deals:
+            deal['_id'] = str(deal['_id'])
+            if 'lead_id' in deal and isinstance(deal['lead_id'], ObjectId):
+                deal['lead_id'] = str(deal['lead_id'])
+        
         return JSONResponse(content={
             "success": True,
-            "deals": crm_service.deals,
-            "count": len(crm_service.deals)
+            "deals": deals,
+            "count": len(deals)
         })
         
     except HTTPException:
