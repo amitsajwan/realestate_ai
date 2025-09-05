@@ -791,6 +791,73 @@ export class APIService {
       throw error;
     }
   }
+
+  async uploadImages(formData: FormData): Promise<{success: boolean, files?: any[], message?: string, error?: string}> {
+    const apiLog = logApiCall('POST', '/api/v1/uploads/images');
+
+    try {
+      logger.info('Uploading property images', {
+        metadata: { fileCount: formData.getAll('files').length }
+      });
+
+      // Create request with FormData (no JSON headers)
+      const response = await this.makeRequest('/api/v1/uploads/images', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          // Don't set Content-Type, let browser set it with boundary
+        }
+      }, true);
+
+      apiLog.success(200);
+
+      return {
+        success: true,
+        files: response.files,
+        message: response.message
+      };
+    } catch (error) {
+      apiLog.error(error);
+
+      logger.error('Failed to upload images', {
+        errorDetails: error
+      });
+      throw error;
+    }
+  }
+
+  async uploadDocuments(formData: FormData): Promise<{success: boolean, files?: any[], message?: string, error?: string}> {
+    const apiLog = logApiCall('POST', '/api/v1/uploads/documents');
+
+    try {
+      logger.info('Uploading documents', {
+        metadata: { fileCount: formData.getAll('files').length }
+      });
+
+      const response = await this.makeRequest('/api/v1/uploads/documents', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          // Don't set Content-Type, let browser set it with boundary
+        }
+      }, true);
+
+      apiLog.success(200);
+
+      return {
+        success: true,
+        files: response.files,
+        message: response.message
+      };
+    } catch (error) {
+      apiLog.error(error);
+
+      logger.error('Failed to upload documents', {
+        errorDetails: error
+      });
+      throw error;
+    }
+  }
 }
 
 export { APIError };

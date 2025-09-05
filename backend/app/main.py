@@ -22,6 +22,7 @@ from app.core.config import settings
 from app.core.database import connect_to_mongo, close_mongo_connection
 from app.services.agent_profile_service import AgentProfileService
 from app.dependencies import get_current_user
+from app.core.rate_limiting import setup_rate_limiting
 from app.logging_config import (
     setup_comprehensive_logging, 
     get_logger, 
@@ -46,6 +47,9 @@ app = FastAPI(
     description="AI-powered real estate platform API",
     version="2.0.0"
 )
+
+# Setup rate limiting
+app = setup_rate_limiting(app)
 
 # Dynamic CORS origins function
 def get_cors_origins():
@@ -282,6 +286,10 @@ app.include_router(api_router, prefix="/api/v1")
 
 # Include simple auth router for demo login
 app.include_router(simple_auth.router)
+
+# Mount static files for uploads
+from fastapi.staticfiles import StaticFiles
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Add generate-property endpoint directly for frontend compatibility
 from app.api.v1.endpoints.smart_properties import SmartPropertyCreate, SmartPropertyResponse, generate_simple_ai_content, get_smart_property_service
