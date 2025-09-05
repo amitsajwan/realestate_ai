@@ -34,7 +34,7 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
     formState: { errors }
   } = useForm<PropertyFormData>({
     resolver: zodResolver(propertySchema),
-    mode: 'onBlur'
+    mode: 'onSubmit' // Changed from 'onBlur' to 'onSubmit' to prevent premature validation
   })
 
   // Fetch agent profile on component mount
@@ -61,12 +61,12 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
         user_id: '1', // TODO: Get from auth context
         title: data.title,
         type: 'Apartment', // Default type
-        bedrooms: Number(data.bedrooms),
-        bathrooms: Number(data.bathrooms),
+        bedrooms: data.bedrooms, // Already coerced to number by Zod
+        bathrooms: data.bathrooms, // Already coerced to number by Zod
         price: parseFloat(data.price.replace(/[₹,]/g, '')),
         price_unit: 'INR',
         city: 'Mumbai', // Default city
-        area: Number(data.area),
+        area: data.area, // Already coerced to number by Zod
         address: data.address,
         description: data.description,
         amenities: data.amenities ? data.amenities.split(',').map(a => a.trim()) : []
@@ -296,7 +296,7 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
                     Bedrooms
                   </label>
                   <select 
-                    {...register('bedrooms')} 
+                    {...register('bedrooms', { valueAsNumber: true })} 
                     className={`w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border-2 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       getFieldError(errors, 'bedrooms') ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500'
                     }`}
@@ -320,7 +320,7 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
                     Bathrooms
                   </label>
                   <select 
-                    {...register('bathrooms')} 
+                    {...register('bathrooms', { valueAsNumber: true })} 
                     className={`w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border-2 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       getFieldError(errors, 'bathrooms') ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500'
                     }`}
@@ -346,7 +346,7 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
                   <div className="relative">
                     <input
                       type="number"
-                      {...register('area')}
+                      {...register('area', { valueAsNumber: true })}
                       className={`w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border-2 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                         getFieldError(errors, 'area') ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500'
                       }`}
