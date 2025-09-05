@@ -34,6 +34,7 @@ interface DashboardStatsProps {
     monthly_leads: number
     revenue: string
   }
+  userName?: string
   onAddProperty?: () => void
   onNavigateToAI?: () => void
   onNavigateToAnalytics?: () => void
@@ -91,7 +92,7 @@ const statCards = [
   }
 ]
 
-const DashboardStats = React.memo(function DashboardStats({ stats, onAddProperty, onNavigateToAI, onNavigateToAnalytics, onNavigateToSmartForm }: DashboardStatsProps) {
+const DashboardStats = React.memo(function DashboardStats({ stats, userName, onAddProperty, onNavigateToAI, onNavigateToAnalytics, onNavigateToSmartForm }: DashboardStatsProps) {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [isHovered, setIsHovered] = useState<string | null>(null)
 
@@ -102,9 +103,13 @@ const DashboardStats = React.memo(function DashboardStats({ stats, onAddProperty
 
   const getGreeting = () => {
     const hour = currentTime.getHours()
-    if (hour < 12) return 'Good Morning'
-    if (hour < 17) return 'Good Afternoon'
-    return 'Good Evening'
+    const timeEmoji = hour < 12 ? '🌅' : hour < 17 ? '☀️' : '🌙'
+    const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening'
+    
+    if (userName) {
+      return `${greeting}, ${userName}! ${timeEmoji}`
+    }
+    return `${greeting}! ${timeEmoji}`
   }
 
   return (
@@ -277,9 +282,10 @@ const DashboardStats = React.memo(function DashboardStats({ stats, onAddProperty
               
               <button 
                 onClick={onAddProperty}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 px-4 rounded-xl font-semibold flex items-center justify-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+                aria-label="Add new property listing"
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 px-4 rounded-xl font-semibold flex items-center justify-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
-                <PlusIcon className="w-5 h-5" data-testid="plus-icon" />
+                <PlusIcon className="w-5 h-5" data-testid="plus-icon" aria-hidden="true" />
                 <span>Add Property</span>
               </button>
             </div>

@@ -5,6 +5,7 @@ import './globals.css'
 import { Toaster } from 'react-hot-toast'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import ThemeProvider from '@/components/ThemeProvider'
+import { SkipLink } from '@/lib/accessibility'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -23,10 +24,12 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider>
           <ErrorBoundary>
+            <SkipLink href="#main-content">Skip to main content</SkipLink>
+            <SkipLink href="#navigation">Skip to navigation</SkipLink>
             {children}
           </ErrorBoundary>
         </ThemeProvider>
-        <Toaster 
+        <Toaster
           position="top-right"
           toastOptions={{
             duration: 4000,
