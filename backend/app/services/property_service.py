@@ -7,7 +7,7 @@ from typing import List
 from datetime import datetime
 
 from app.repositories.property_repository import PropertyRepository
-from app.schemas.property import PropertyCreate, PropertyUpdate, PropertyResponse
+from app.schemas.unified_property import PropertyCreate, PropertyUpdate, PropertyResponse
 from app.core.exceptions import NotFoundError
 import logging
 

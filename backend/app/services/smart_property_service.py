@@ -3,11 +3,11 @@ from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorCollection
 from bson import ObjectId
 
-from app.schemas.smart_property import (
-    SmartPropertyDocument,
-    SmartPropertyCreate,
-    SmartPropertyUpdate,
-    SmartPropertyResponse
+from app.schemas.unified_property import (
+    PropertyDocument as SmartPropertyDocument,
+    PropertyCreate as SmartPropertyCreate,
+    PropertyUpdate as SmartPropertyUpdate,
+    PropertyResponse as SmartPropertyResponse
 )
 from app.core.database import get_database
 

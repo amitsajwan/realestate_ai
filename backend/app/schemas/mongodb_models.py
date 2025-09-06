@@ -57,59 +57,20 @@ class User(UserBase):
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
 
-# Property Models
-class PropertyBase(BaseModel):
-    title: str
-    description: str
-    location: str
-    price: str
-    bedrooms: int
-    bathrooms: int
-    amenities: str
-    status: str = "available"
-    propertyType: str
-    areaSqft: Optional[int] = None
+# Import unified property models
+from app.schemas.unified_property import (
+    PropertyBase,
+    PropertyCreate,
+    PropertyDocument as Property,
+    PropertyResponse,
+    PropertyUpdate
+)
 
-class PropertyCreate(PropertyBase):
-    agent_id: PyObjectId
-
-class Property(PropertyBase):
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    agent_id: PyObjectId
-    createdAt: Optional[str] = None
-
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
-
-# Smart Property Models
-class SmartPropertyBase(BaseModel):
-    address: str
-    price: str
-    property_type: str
-    bedrooms: int
-    bathrooms: float
-    features: str
-    ai_generate: bool = True
-    template: str
-    language: str = "en"
-    ai_content: str
-    status: str = "active"
-    user_email: str
-
-class SmartPropertyCreate(SmartPropertyBase):
-    pass
-
-class SmartProperty(SmartPropertyBase):
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
+# Legacy aliases for backward compatibility
+SmartProperty = Property
+SmartPropertyCreate = PropertyCreate
+SmartPropertyUpdate = PropertyUpdate
+SmartPropertyResponse = PropertyResponse
 
 # Lead Models
 class LeadBase(BaseModel):
