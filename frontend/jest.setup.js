@@ -25,13 +25,16 @@ const localStorageMock = (() => {
 Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 Object.defineProperty(window, 'sessionStorage', { value: localStorageMock });
 
-// Mock setTimeout and clearTimeout for Jest environment
-global.setTimeout = jest.fn((fn, delay) => {
-  return setTimeout(fn, delay || 0);
-});
-global.clearTimeout = jest.fn((id) => {
-  clearTimeout(id);
-});
+// Note: Removed problematic setTimeout mocking that was causing recursion
+
+// Mock clipboard API globally to avoid conflicts
+global.navigator = {
+  ...global.navigator,
+  clipboard: {
+    writeText: jest.fn(() => Promise.resolve()),
+    readText: jest.fn(() => Promise.resolve('')),
+  },
+}
 
 // Mock Next.js router
 jest.mock('next/navigation', () => ({
