@@ -443,7 +443,7 @@ async def change_password(
         
         if not success:
             logger.warning(f"Failed password change attempt: {str(current_user['id'])}", extra={
-                "user_id": str(current_user["_id"]),
+                "user_id": str(current_user["id"]),
                 "ip_address": client_ip,
                 "reason": "invalid_current_password"
             })
@@ -452,8 +452,8 @@ async def change_password(
                 detail="Current password is incorrect"
             )
         
-        logger.info(f"Password changed successfully: {str(current_user['_id'])}", extra={
-            "user_id": str(current_user["_id"]),
+        logger.info(f"Password changed successfully: {str(current_user['id'])}", extra={
+            "user_id": str(current_user["id"]),
             "ip_address": client_ip
         })
         
@@ -466,7 +466,7 @@ async def change_password(
         raise
     except ValidationError as e:
         logger.warning(f"Validation error during password change: {str(e)}", extra={
-            "user_id": str(current_user["_id"]),
+            "user_id": str(current_user["id"]),
             "ip_address": client_ip
         })
         raise HTTPException(
@@ -475,7 +475,7 @@ async def change_password(
         )
     except Exception as e:
         logger.error(f"Password change error: {str(e)}", extra={
-            "user_id": str(current_user["_id"]),
+            "user_id": str(current_user["id"]),
             "ip_address": client_ip,
             "error": str(e)
         })
@@ -583,8 +583,8 @@ async def logout(
         # 2. Store revoked tokens in Redis or database
         # 3. Check blacklist during token verification
         
-        logger.info(f"User logged out successfully: {str(current_user['_id'])}", extra={
-            "user_id": str(current_user["_id"]),
+        logger.info(f"User logged out successfully: {str(current_user['id'])}", extra={
+            "user_id": str(current_user["id"]),
             "ip_address": client_ip
         })
         
@@ -595,7 +595,7 @@ async def logout(
         
     except Exception as e:
         logger.error(f"Logout error: {str(e)}", extra={
-            "user_id": str(current_user["_id"]),
+            "user_id": str(current_user["id"]),
             "ip_address": client_ip,
             "error": str(e)
         })

@@ -6,6 +6,7 @@ from app.dependencies import get_current_user
 from models.listing import ListingTemplate, ListingDetails, GeneratedListingPost
 from services.listing_templates import generate_listing_post
 from repositories.agent_repository import AgentRepository, get_agent_repository
+from app.core.database import get_database
  
 router = APIRouter(prefix="/api/v1/listings", tags=["ai-listing"])
 logger = logging.getLogger(__name__)
@@ -62,7 +63,8 @@ async def generate_listing_post_endpoint(
         # Get agent profile for branding context
         try:
             from repositories.user_repository import UserRepository
-            user_repo = UserRepository()
+            db = get_database()
+            user_repo = UserRepository(db)
             user = await user_repo.get_user(current_user["username"])
             
             agent_brand = None
@@ -99,7 +101,8 @@ async def generate_and_post_listing(
         # Get agent's Facebook page token
         try:
             from repositories.user_repository import UserRepository
-            user_repo = UserRepository()
+            db = get_database()
+            user_repo = UserRepository(db)
             user = await user_repo.get_user(current_user["username"])
             
             if not user:

@@ -61,6 +61,7 @@ def get_cors_origins():
         "http://localhost:3000",  # Next.js frontend
         "http://localhost:3001",  # Next.js frontend (alternative port)
         "http://localhost:8000",  # Backend
+        "http://localhost"  # For e2e tests
     ]
     
     # Add custom origins from environment variable
@@ -78,6 +79,7 @@ def is_allowed_origin(origin: str) -> bool:
     allowed_patterns = [
         r"^https://[a-zA-Z0-9-]+\.ngrok-free\.app$",
         r"^https://[a-zA-Z0-9-]+\.ngrok\.io$",
+        r"^http://localhost$",
         r"^http://localhost:\d+$",
     ]
     
@@ -104,21 +106,10 @@ if os.getenv("ENVIRONMENT") == "production":
         allow_headers=["*"],
     )
 else:
-    # Development: Allow all origins for easier development
+    # Development: Allow localhost any port and ngrok any subdomain
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-        "https://776674ff2a3f.ngrok-free.app",
-        "http://localhost:3000",  # Next.js frontend
-        "http://localhost:3001",  # Next.js frontend (alt port)
-        "http://localhost:3002",  # Next.js frontend (alt port)
-        "http://localhost:3003",  # Next.js frontend (alt port)
-        "http://localhost:3004",  # Next.js frontend (current port)
-        "http://127.0.0.1:3000",  # Alternative localhost
-        "http://127.0.0.1:3004",  # Alternative localhost (current port)
-        "http://localhost:8000",  # Backend self-reference
-        "http://127.0.0.1:8000"
-    ],
+        allow_origin_regex=r"^https://[a-zA-Z0-9-]+\.(ngrok-free\.app|ngrok\.io)$|^http://localhost(:\d+)?$|^http://127\.0\.0\.1(:\d+)?$",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -396,10 +387,10 @@ async def ai_property_suggest(request: Request):
             raise HTTPException(status_code=400, detail="Request body is required")
         
         logger.info("Extracting basic property details")
-        property_type = body.get("property_type", "Apartment")
-        location = body.get("location", "City Center")
-        budget = body.get("budget", "₹50,00,000")
-        requirements = body.get("requirements", "Modern amenities")
+        property_type = body.get("property_type", "Apartment") if body else "Apartment"
+        location = body.get("location", "City Center") if body else "City Center"
+        budget = body.get("budget", "₹50,00,000") if body else "₹50,00,000"
+        requirements = body.get("requirements", "Modern amenities") if body else "Modern amenities"
         logger.info(f"Basic details - Type: {property_type}, Location: {location}, Budget: {budget}, Requirements: {requirements}")
         
         # Get agent profile data for personalized suggestions
