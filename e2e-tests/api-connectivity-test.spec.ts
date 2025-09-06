@@ -4,7 +4,7 @@ test.describe('API Connectivity Test', () => {
   test('should be able to connect to backend API', async ({ page }) => {
     // Navigate to login page to initialize the app
     await page.goto('/login');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('load');
 
     // Check if we can make a direct API call from the browser
     const apiResponse = await page.evaluate(async () => {
@@ -47,7 +47,7 @@ test.describe('API Connectivity Test', () => {
   test('should validate /me endpoint returns onboarding_completed field', async ({ page }) => {
     // First register and login a test user
     await page.goto('/login');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('load');
 
     // Switch to register mode
     await page.click('text=Sign up');
