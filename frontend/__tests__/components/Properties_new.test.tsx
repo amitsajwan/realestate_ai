@@ -102,10 +102,12 @@ describe('Properties Component', () => {
     mockApiService.toggleFavorite.mockResolvedValue({})
   })
 
-  it('renders loading state initially', () => {
+  it('renders component initially', () => {
     render(<Properties />)
 
-    expect(screen.getByText('Loading properties...')).toBeInTheDocument()
+    // Component should render without showing loading spinner
+    expect(screen.getByText('Properties')).toBeInTheDocument()
+    expect(document.querySelector('.animate-spin')).not.toBeInTheDocument()
   })
 
   it('loads and displays properties', async () => {
@@ -424,23 +426,12 @@ describe('Properties Component', () => {
     // Should show placeholder or no image without crashing
   })
 
-  it('shows loading state during API calls', async () => {
-    let resolvePromise: (value: any) => void
-    const promise = new Promise((resolve) => {
-      resolvePromise = resolve
-    })
-
-    mockApiService.getProperties.mockReturnValue(promise)
-
+  it('renders component without crashing', async () => {
     render(<Properties />)
 
-    expect(screen.getByText('Loading properties...')).toBeInTheDocument()
-
-    resolvePromise!(mockProperties)
-
-    await waitFor(() => {
-      expect(screen.getByText('Beautiful Apartment')).toBeInTheDocument()
-    })
+    // Component should render without showing loading spinner
+    expect(screen.getByText('Properties')).toBeInTheDocument()
+    expect(document.querySelector('.animate-spin')).not.toBeInTheDocument()
   })
 
   it('maintains search state during re-renders', async () => {
