@@ -6,14 +6,14 @@ import { useRouter } from 'next/navigation'
 import ConsolidatedPropertyForm from '@/components/property/ConsolidatedPropertyForm'
 
 export default function SmartFormDemoPage() {
-   const router = useRouter()
- 
+  const router = useRouter()
+
   const handleSuccess = (_response?: any) => {
-     // Handle successful property creation
-     console.log('Property created successfully!')
-     // In a real app, you might redirect to the properties list
-     // router.push('/properties')
-   }
+    // Handle successful property creation
+    console.log('Property created successfully!')
+    // In a real app, you might redirect to the properties list
+    // router.push('/properties')
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">

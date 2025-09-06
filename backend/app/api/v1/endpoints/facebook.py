@@ -8,6 +8,7 @@ from app.dependencies import get_current_user, get_current_user_id
 from app.services.facebook_service import FacebookService
 from app.repositories.user_repository import UserRepository
 from app.core.exceptions import FacebookError
+from app.core.database import get_database
 
 import logging
 
@@ -85,7 +86,8 @@ class PromotionStatusResponse(BaseModel):
         }
 
 def get_facebook_service() -> FacebookService:
-    user_repo = UserRepository()
+    db = get_database()
+    user_repo = UserRepository(db)
     return FacebookService(user_repo)
 
 # --- Additional Schemas for optimization/history ---
