@@ -454,18 +454,21 @@ describe('PropertyForm Component', () => {
       expect(require('@hookform/resolvers/zod').zodResolver).toHaveBeenCalled()
     })
   })
-})
-    render(<PropertyForm onSuccess={mockOnSuccess} />);
 
-    expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/location/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/address/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/bedrooms/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/bathrooms/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/area/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/price/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/property type/i)).toBeInTheDocument();
+  describe('Form Rendering', () => {
+    it('renders all form fields correctly', () => {
+      render(<PropertyForm onSuccess={mockOnSuccess} />);
+
+      expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/location/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/address/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/bedrooms/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/bathrooms/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/area/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/price/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/property type/i)).toBeInTheDocument();
+    });
   });
 
   it('shows ZodError when bedrooms is submitted as string instead of number', async () => {

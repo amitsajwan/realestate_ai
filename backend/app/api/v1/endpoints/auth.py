@@ -1,105 +1,11 @@
-from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import ValidationError
-import structlog
-import time
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
+"""
+Authentication Endpoints
+======================
+Legacy auth endpoints - consider migrating to auth_router.py
+"""
 
-from app.core.config import settings
-from app.schemas.user import (
-    UserCreate, UserLogin, UserResponse, UserSecureResponse, Token, 
-    PasswordChangeRequest, PasswordResetRequest, PasswordResetConfirm,
-    ErrorResponse, SuccessResponse, FacebookLogin
-)
-from app.services.auth_service import AuthService
-from app.repositories.user_repository import UserRepository
-from app.core.database import get_database
-from app.utils import verify_jwt_token, sanitize_user_input
-from app.core.exceptions import ValidationError as AppValidationError, ConflictError
-from app.services.facebook_auth_service import FacebookAuthService
-import httpx
-import secrets
-from urllib.parse import urlencode
-from fastapi.responses import RedirectResponse, HTMLResponse
-
-# Configure structured logging
-logger = structlog.get_logger(__name__)
-
-# Rate limiting setup
-limiter = Limiter(key_func=get_remote_address)
-router = APIRouter()
-# Note: Rate limiting setup removed for compatibility with newer FastAPI versions
-
-# Security
-security = HTTPBearer(auto_error=False)
-
-# Initialize services - will be created per request
-
-
-def get_auth_service() -> AuthService:
-    """Dependency to get auth service instance."""
-    user_repo = get_user_repository()
-    return AuthService(user_repo)
-
-
-def get_user_repository() -> UserRepository:
-    """Dependency to get user repository instance."""
-    db = get_database()
-    return UserRepository(db)
-
-
-async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    user_repo: UserRepository = Depends(get_user_repository)
-) -> Dict[str, Any]:
-    """Get current authenticated user from JWT token."""
-    if not credentials:
-        logger.warning("Authentication attempt without credentials")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication credentials required",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
-    
-    try:
-        # Verify JWT token
-        payload = verify_jwt_token(credentials.credentials)
-        user_id = payload.get("user_id")
-        token_type = payload.get("type")
-        
-        if not user_id or token_type != "access_token":
-            logger.warning(f"Invalid token payload: user_id={user_id}, type={token_type}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication token",
-                headers={"WWW-Authenticate": "Bearer"}
-            )
-    except ValueError as e:
-        logger.error(f"JWT verification error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authentication token: {str(e)}",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Authentication error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication failed",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
-    
-    # Get user from database
-    user = await user_repo.get_by_id(user_id)
-    if not user:
-        logger.warning(f"User not found for token: {user_id}")
-        raise HTTPException(
+# Re-export everything from the new clean router
+from .auth_router import *
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"}
