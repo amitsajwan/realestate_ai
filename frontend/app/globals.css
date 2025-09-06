@@ -21,11 +21,29 @@
   --dark-bg-secondary: #1a1a2e;
   --dark-text-primary: #ffffff;
   --dark-text-secondary: #a1a1aa;
-  
-  /* Brand Theme Variables */
+
+  /* Enhanced Brand Theme Variables */
   --brand-primary: #3b82f6;
   --brand-secondary: #64748b;
   --brand-accent: #10b981;
+
+  /* Status Colors - Enhanced Semantic System */
+  --property-for-sale: #10b981;
+  --property-sold: #6b7280;
+  --property-for-rent: #3b82f6;
+  --property-pending: #f59e0b;
+
+  /* Data Visualization */
+  --chart-primary: #3b82f6;
+  --chart-secondary: #8b5cf6;
+  --trend-up: #10b981;
+  --trend-down: #ef4444;
+  --trend-neutral: #6b7280;
+
+  /* Interactive States */
+  --hover-lift: translateY(-2px);
+  --click-shrink: scale(0.98);
+  --glow-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
 }
 
 * {

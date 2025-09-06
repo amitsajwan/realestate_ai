@@ -52,31 +52,8 @@ const statCards = [
     textColor: 'text-blue-600 dark:text-blue-400',
     trend: '+12%',
     trendType: 'up' as const,
-    description: 'Listed this month'
-  },
-  {
-    title: 'Property Views',
-    value: 'total_views',
-    icon: EyeIcon,
-    solidIcon: EyeSolid,
-    color: 'from-emerald-500 to-emerald-600',
-    bgColor: 'bg-emerald-50 dark:bg-emerald-900/20',
-    textColor: 'text-emerald-600 dark:text-emerald-400',
-    trend: '+24%',
-    trendType: 'up' as const,
-    description: 'vs last month'
-  },
-  {
-    title: 'Active Leads',
-    value: 'total_leads',
-    icon: UserGroupIcon,
-    solidIcon: UserGroupSolid,
-    color: 'from-purple-500 to-purple-600',
-    bgColor: 'bg-purple-50 dark:bg-purple-900/20',
-    textColor: 'text-purple-600 dark:text-purple-400',
-    trend: '+8%',
-    trendType: 'up' as const,
-    description: 'New this week'
+    description: 'Listed this month',
+    size: 'large' as const
   },
   {
     title: 'Revenue',
@@ -88,7 +65,34 @@ const statCards = [
     textColor: 'text-amber-600 dark:text-amber-400',
     trend: '+18%',
     trendType: 'up' as const,
-    description: 'This quarter'
+    description: 'This quarter',
+    size: 'large' as const
+  },
+  {
+    title: 'Property Views',
+    value: 'total_views',
+    icon: EyeIcon,
+    solidIcon: EyeSolid,
+    color: 'from-emerald-500 to-emerald-600',
+    bgColor: 'bg-emerald-50 dark:bg-emerald-900/20',
+    textColor: 'text-emerald-600 dark:text-emerald-400',
+    trend: '+24%',
+    trendType: 'up' as const,
+    description: 'vs last month',
+    size: 'medium' as const
+  },
+  {
+    title: 'Active Leads',
+    value: 'total_leads',
+    icon: UserGroupIcon,
+    solidIcon: UserGroupSolid,
+    color: 'from-purple-500 to-purple-600',
+    bgColor: 'bg-purple-50 dark:bg-purple-900/20',
+    textColor: 'text-purple-600 dark:text-purple-400',
+    trend: '+8%',
+    trendType: 'up' as const,
+    description: 'New this week',
+    size: 'medium' as const
   }
 ]
 
@@ -180,12 +184,17 @@ const DashboardStats = React.memo(function DashboardStats({ stats, userName, onA
         </div>
       </motion.div>
 
-      {/* Enhanced Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      {/* Enhanced Stats Grid with Varied Sizes */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-12">
         {statCards.map((card, index) => {
           const Icon = (isHovered === card.title && card.solidIcon) ? card.solidIcon : card.icon
           const TrendIcon = card.trendType === 'up' ? ArrowTrendingUpIcon : ArrowTrendingDownIcon
-          
+
+          // Dynamic sizing based on card size property
+          const cardSizeClasses = card.size === 'large'
+            ? 'col-span-1 sm:col-span-2 lg:col-span-2' // Large cards span 2 columns
+            : 'col-span-1' // Medium cards span 1 column
+
           return (
             <motion.div
               key={card.title}
@@ -194,11 +203,11 @@ const DashboardStats = React.memo(function DashboardStats({ stats, userName, onA
               transition={{ delay: index * 0.1 }}
               onHoverStart={() => setIsHovered(card.title)}
               onHoverEnd={() => setIsHovered(null)}
-              className={`group relative overflow-hidden bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-200 dark:border-slate-700 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:scale-[1.02] ${card.bgColor}`}
+              className={`${cardSizeClasses} group relative overflow-hidden bg-white dark:bg-slate-800 rounded-2xl p-6 border border-gray-200 dark:border-slate-700 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:scale-[1.02] hover:-translate-y-1 ${card.bgColor}`}
             >
               {/* Background Gradient */}
               <div className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}></div>
-              
+
               <div className="relative z-10">
                 {/* Header with Icon and Trend */}
                 <div className="flex items-center justify-between mb-4">
@@ -206,32 +215,36 @@ const DashboardStats = React.memo(function DashboardStats({ stats, userName, onA
                     <Icon className="w-6 h-6" data-testid={`${card.title.replace(/\s/g, '-')}-icon`} />
                   </div>
                   <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${
-                    card.trendType === 'up' 
-                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' 
+                    card.trendType === 'up'
+                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
                       : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
                   }`}>
                     <TrendIcon className="w-3 h-3" data-testid={`${card.title.replace(/\s/g, '-')}-trend-icon`} />
                     <span>{card.trend}</span>
                   </div>
                 </div>
-                
+
                 {/* Main Value */}
                 <div className="mb-2">
-                  <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 transition-all duration-300">
+                  <div className={`font-bold text-gray-900 dark:text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 transition-all duration-300 ${
+                    card.size === 'large' ? 'text-3xl sm:text-4xl' : 'text-2xl sm:text-3xl'
+                  }`}>
                     {card.value === 'revenue' ? stats[card.value as keyof typeof stats] : stats[card.value as keyof typeof stats].toLocaleString()}
                   </div>
                 </div>
-                
+
                 {/* Title and Description */}
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  <h3 className={`font-semibold text-gray-700 dark:text-gray-300 mb-1 ${
+                    card.size === 'large' ? 'text-base' : 'text-sm'
+                  }`}>
                     {card.title}
                   </h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {card.description}
                   </p>
                 </div>
-                
+
                 {/* Hover Effect Bar */}
                 <div className={`absolute bottom-0 left-0 h-1 bg-gradient-to-r ${card.color} transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left`}></div>
               </div>
