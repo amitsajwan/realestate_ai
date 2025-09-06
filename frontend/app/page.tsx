@@ -243,22 +243,90 @@ export default function Dashboard() {
         return <ProfileSettings />
       default:
         return (
-          <div>
-            <DashboardStats 
-          stats={stats} 
-          onAddProperty={() => setActiveSection('property-form')}
-          onNavigateToAI={() => setActiveSection('ai-content')}
-          onNavigateToAnalytics={() => setActiveSection('analytics')}
-          onNavigateToSmartForm={() => setActiveSection('smart-form-demo')}
-        />
-            <div className="mt-4 p-4 bg-yellow-100 border border-yellow-300 rounded-lg">
-              <h3 className="text-lg font-semibold mb-2">Theme Debug Tools</h3>
-              <button
-                onClick={testThemePersistence}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
-              >
-                Test Theme Persistence
-              </button>
+          <div className="space-y-8">
+            <DashboardStats
+              stats={stats}
+              onAddProperty={() => setActiveSection('property-form')}
+              onNavigateToAI={() => setActiveSection('ai-content')}
+              onNavigateToAnalytics={() => setActiveSection('analytics')}
+              onNavigateToSmartForm={() => setActiveSection('smart-form-demo')}
+            />
+
+            {/* Quick Actions Section with Enhanced Spacing */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Quick Actions</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <button
+                  onClick={() => setActiveSection('property-form')}
+                  className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] hover:-translate-y-1"
+                >
+                  <PlusIcon className="w-6 h-6 mx-auto mb-2" />
+                  Add Property
+                </button>
+                <button
+                  onClick={() => setActiveSection('ai-content')}
+                  className="p-4 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] hover:-translate-y-1"
+                >
+                  <SparklesIcon className="w-6 h-6 mx-auto mb-2" />
+                  AI Content
+                </button>
+                <button
+                  onClick={() => setActiveSection('analytics')}
+                  className="p-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] hover:-translate-y-1"
+                >
+                  <ChartBarIcon className="w-6 h-6 mx-auto mb-2" />
+                  Analytics
+                </button>
+                <button
+                  onClick={() => setActiveSection('crm')}
+                  className="p-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] hover:-translate-y-1"
+                >
+                  <UsersIcon className="w-6 h-6 mx-auto mb-2" />
+                  CRM
+                </button>
+              </div>
+            </div>
+
+            {/* Recent Properties Preview with Enhanced Spacing */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Recent Properties</h2>
+                <button
+                  onClick={() => setActiveSection('properties')}
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors"
+                >
+                  View All →
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {properties.slice(0, 3).map((property, index) => (
+                  <motion.div
+                    key={property.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="bg-gray-50 dark:bg-slate-700 rounded-xl p-4 hover:shadow-md transition-all duration-200 cursor-pointer"
+                    onClick={() => setActiveSection('properties')}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold text-gray-900 dark:text-white truncate">{property.title}</h3>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        property.status === 'for-sale'
+                          ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                          : property.status === 'for-rent'
+                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                      }`}>
+                        {property.status === 'for-sale' ? 'For Sale' : property.status === 'for-rent' ? 'For Rent' : property.status}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+                      <span>₹{property.price.toLocaleString()}</span>
+                      <span>{property.bedrooms} bed • {property.bathrooms} bath</span>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
             </div>
           </div>
         )
