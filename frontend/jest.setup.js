@@ -27,10 +27,10 @@ Object.defineProperty(window, 'sessionStorage', { value: localStorageMock });
 
 // Mock setTimeout and clearTimeout for Jest environment
 global.setTimeout = jest.fn((fn, delay) => {
-  return setImmediate(fn);
+  return setTimeout(fn, delay || 0);
 });
 global.clearTimeout = jest.fn((id) => {
-  clearImmediate(id);
+  clearTimeout(id);
 });
 
 // Mock Next.js router
