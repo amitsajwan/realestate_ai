@@ -16,7 +16,8 @@ const customJestConfig = {
   testPathIgnorePatterns: [
     '<rootDir>/.next/',
     '<rootDir>/node_modules/',
-    '<rootDir>/tests/', // Ignore Playwright E2E tests
+    '<rootDir>/coverage/',
+    '<rootDir>/test-results/',
   ],
   collectCoverageFrom: [
     'components/**/*.{js,jsx,ts,tsx}',
@@ -36,13 +37,20 @@ const customJestConfig = {
     },
   },
   testMatch: [
-    '**/__tests__/**/*.(test|spec).(js|jsx|ts|tsx)',
-    '**/*.(test|spec).(js|jsx|ts|tsx)',
+    '<rootDir>/__tests__/**/*.(test|spec).(js|jsx|ts|tsx)',
+    '<rootDir>/**/*.(test|spec).(js|jsx|ts|tsx)',
   ],
   transform: {
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
+  // Add explicit test discovery
+  roots: ['<rootDir>'],
+  testEnvironmentOptions: {
+    customExportConditions: [''],
+  },
+  // Ensure proper module resolution
+  moduleDirectories: ['node_modules', '<rootDir>'],
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async

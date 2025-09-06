@@ -34,10 +34,8 @@ global.fetch = mockFetch
 const mockLocation = {
   href: '',
 }
-Object.defineProperty(window, 'location', {
-  value: mockLocation,
-  writable: true,
-})
+delete (window as any).location
+;(window as any).location = mockLocation
 
 describe('FacebookIntegration Component', () => {
   beforeEach(() => {

@@ -19,7 +19,10 @@ jest.mock('@heroicons/react/24/outline', () => ({
 // Mock window.location.reload
 const mockReload = jest.fn()
 delete (window as any).location
-window.location = { ...window.location, reload: mockReload } as any
+Object.defineProperty(window, 'location', {
+  value: { ...window.location, reload: mockReload },
+  writable: true,
+})
 
 // Component that throws an error for testing
 const ThrowError = ({ shouldThrow }: { shouldThrow: boolean }) => {
