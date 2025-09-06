@@ -1,5 +1,6 @@
 from typing import List, Dict, Any
 from app.repositories.base_repository import BaseRepository
+from app.schemas.unified_property import PropertyDocument, PropertyCreate, PropertyUpdate
 
 
 class PropertyRepository(BaseRepository):
