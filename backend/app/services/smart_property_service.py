@@ -2,6 +2,7 @@ from typing import List, Optional
 from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorCollection
 from bson import ObjectId
+import logging
 
 from app.schemas.smart_property import (
     SmartPropertyDocument,
@@ -10,6 +11,9 @@ from app.schemas.smart_property import (
     SmartPropertyResponse
 )
 from app.core.database import get_database
+from app.core.exceptions import PropertyNotFoundError, DatabaseError
+
+logger = logging.getLogger(__name__)
 
 
 class SmartPropertyService:
@@ -22,38 +26,57 @@ class SmartPropertyService:
         smart_property: SmartPropertyCreate,
         user_id: str
     ) -> SmartPropertyDocument:
-        """Create a new smart property document."""
-        smart_property_doc = SmartPropertyDocument(
-            **smart_property.dict(),
-            user_id=user_id,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
+        """Create a new smart property document with proper error handling."""
+        try:
+            logger.info(f"Creating smart property for user {user_id}")
 
-        result = await self.collection.insert_one(smart_property_doc.dict(by_alias=True))
-        smart_property_doc.id = result.inserted_id
+            smart_property_doc = SmartPropertyDocument(
+                **smart_property.dict(),
+                user_id=user_id,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
 
-        return smart_property_doc
+            result = await self.collection.insert_one(smart_property_doc.dict(by_alias=True))
+            smart_property_doc.id = result.inserted_id
+
+            logger.info(f"Smart property created successfully with ID: {result.inserted_id}")
+            return smart_property_doc
+
+        except Exception as e:
+            logger.error(f"Failed to create smart property: {e}")
+            raise DatabaseError(f"Failed to create smart property: {str(e)}")
 
     async def get_smart_property(
         self,
         smart_property_id: str,
         user_id: str
     ) -> Optional[SmartPropertyDocument]:
-        """Get a smart property by ID for the specified user."""
+        """Get a smart property by ID for the specified user with proper error handling."""
         try:
-            obj_id = ObjectId(smart_property_id)
-        except:
-            return None
+            logger.info(f"Fetching smart property {smart_property_id} for user {user_id}")
 
-        doc = await self.collection.find_one({
-            "_id": obj_id,
-            "user_id": user_id
-        })
+            try:
+                obj_id = ObjectId(smart_property_id)
+            except Exception:
+                logger.warning(f"Invalid ObjectId format: {smart_property_id}")
+                return None
 
-        if doc:
-            return SmartPropertyDocument(**doc)
-        return None
+            doc = await self.collection.find_one({
+                "_id": obj_id,
+                "user_id": user_id
+            })
+
+            if doc:
+                logger.info(f"Smart property found: {smart_property_id}")
+                return SmartPropertyDocument(**doc)
+            else:
+                logger.info(f"Smart property not found: {smart_property_id}")
+                return None
+
+        except Exception as e:
+            logger.error(f"Failed to get smart property {smart_property_id}: {e}")
+            raise DatabaseError(f"Failed to retrieve smart property: {str(e)}")
 
     async def get_smart_properties_by_user(
         self,
