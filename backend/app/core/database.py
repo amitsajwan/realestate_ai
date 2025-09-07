@@ -33,9 +33,15 @@ class MockCollection:
     
     async def find_one(self, filter_dict: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Mock find_one operation"""
+        print(f"DEBUG: MockCollection.find_one called with filter: {filter_dict}")
+        print(f"DEBUG: MockCollection data keys: {list(self.data.keys())}")
+        print(f"DEBUG: MockCollection data values: {list(self.data.values())}")
+        
         for doc in self.data.values():
             if all(doc.get(k) == v for k, v in filter_dict.items()):
+                print(f"DEBUG: Found matching document: {doc}")
                 return doc
+        print(f"DEBUG: No matching document found")
         return None
     
     async def find(self, filter_dict: Dict[str, Any] = None) -> List[Dict[str, Any]]:
