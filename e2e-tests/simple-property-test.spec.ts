@@ -70,10 +70,10 @@ test.describe('Property Form Evidence', () => {
     const addressField = page.locator('input[placeholder*="address"], input[placeholder*="Address"]').first();
     await addressField.fill('456 Demo Avenue, Delhi');
     
-    // Look for property type field
-    const typeField = page.locator('input[placeholder*="type"], input[placeholder*="Type"], select').first();
+    // Look for property type field (it's a select dropdown)
+    const typeField = page.locator('select[name="propertyType"]').first();
     if (await typeField.isVisible()) {
-      await typeField.fill('Villa');
+      await typeField.selectOption('Villa');
     }
     
     // Click Next button
