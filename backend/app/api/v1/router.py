@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.dashboard import router as dashboard_router
 from app.api.v1.endpoints.facebook import router as facebook_router
+from app.api.v1.endpoints.mock_facebook import router as mock_facebook_router
 from app.api.v1.endpoints.leads import router as leads_router
 from app.api.v1.endpoints.unified_properties import router as unified_properties_router
 from app.api.v1.endpoints.smart_properties import router as smart_properties_router
@@ -25,6 +26,7 @@ api_router = APIRouter()
 api_router.include_router(auth_router, prefix="/auth", tags=["authentication"]) 
 api_router.include_router(dashboard_router, prefix="/dashboard", tags=["dashboard"])
 api_router.include_router(facebook_router, prefix="/facebook", tags=["facebook"])
+api_router.include_router(mock_facebook_router, prefix="/mock-facebook", tags=["mock-facebook"])
 api_router.include_router(leads_router, prefix="/leads", tags=["leads"])
 api_router.include_router(unified_properties_router, tags=["properties"])
 api_router.include_router(smart_properties_router, tags=["smart-properties"])
