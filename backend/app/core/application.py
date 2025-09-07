@@ -48,6 +48,12 @@ def create_application() -> FastAPI:
         try:
             await connect_to_mongo()
             logger.info("🚀 MongoDB connected successfully")
+            
+            # Initialize database collections and indexes
+            from app.utils.database_init import initialize_database
+            await initialize_database()
+            logger.info("📊 Database collections and indexes initialized")
+            
         except Exception as e:
             logger.error(f"❌ Failed to connect to MongoDB: {e}")
             raise

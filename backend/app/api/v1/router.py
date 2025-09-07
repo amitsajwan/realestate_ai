@@ -11,6 +11,7 @@ from app.api.v1.endpoints.dashboard import router as dashboard_router
 from app.api.v1.endpoints.facebook import router as facebook_router
 from app.api.v1.endpoints.leads import router as leads_router
 from app.api.v1.endpoints.unified_properties import router as unified_properties_router
+from app.api.v1.endpoints.smart_properties import router as smart_properties_router
 from app.api.v1.endpoints.user_profile import router as user_profile_router
 from app.api.v1.endpoints.agent_onboarding import router as agent_onboarding_router
 from app.api.v1.endpoints.onboarding import router as onboarding_router
@@ -26,6 +27,7 @@ api_router.include_router(dashboard_router, prefix="/dashboard", tags=["dashboar
 api_router.include_router(facebook_router, prefix="/facebook", tags=["facebook"])
 api_router.include_router(leads_router, prefix="/leads", tags=["leads"])
 api_router.include_router(unified_properties_router, tags=["properties"])
+api_router.include_router(smart_properties_router, tags=["smart-properties"])
 api_router.include_router(user_profile_router, prefix="/user", tags=["user"])
 api_router.include_router(demo_router, tags=["demo"])
 api_router.include_router(agent_onboarding_router, tags=["agent-onboarding"]) 
