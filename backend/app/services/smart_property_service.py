@@ -3,11 +3,11 @@ from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorCollection
 from bson import ObjectId
 
-from app.schemas.unified_property import (
-    PropertyDocument as SmartPropertyDocument,
-    PropertyCreate as SmartPropertyCreate,
-    PropertyUpdate as SmartPropertyUpdate,
-    PropertyResponse as SmartPropertyResponse
+from app.schemas.smart_property import (
+    SmartPropertyDocument,
+    SmartPropertyCreate,
+    SmartPropertyUpdate,
+    SmartPropertyResponse
 )
 from app.core.database import get_database
 
@@ -122,3 +122,12 @@ class SmartPropertyService:
 
         docs = await cursor.to_list(length=None)
         return [SmartPropertyDocument(**doc) for doc in docs]
+    
+    async def get_user_smart_properties(
+        self,
+        user_id: str,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[SmartPropertyDocument]:
+        """Alias for get_smart_properties_by_user for backward compatibility."""
+        return await self.get_smart_properties_by_user(user_id, skip, limit)
