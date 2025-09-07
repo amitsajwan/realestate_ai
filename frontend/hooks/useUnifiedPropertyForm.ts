@@ -11,9 +11,9 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import toast from 'react-hot-toast'
 
-import { propertySchema, PropertyFormData } from '@/lib/validation'
-import { apiService, APIError } from '@/lib/api'
-import { useABTesting } from '@/utils/featureFlags'
+import { propertySchema, PropertyFormData } from '../lib/validation'
+import { apiService, APIError } from '../lib/api'
+import { useABTesting } from '../utils/featureFlags'
 import {
   FormVariant,
   FormConfig,
@@ -26,7 +26,7 @@ import {
   UseFormReturn,
   AISuggestion,
   FormEvent
-} from '@/types/PropertyFormTypes'
+} from '../types/PropertyFormTypes'
 
 /**
  * Default form configuration

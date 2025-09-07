@@ -25,8 +25,8 @@ import {
   BuildingOfficeIcon
 } from '@heroicons/react/24/outline'
 
-import { useUnifiedPropertyForm } from '@/hooks/useUnifiedPropertyForm'
-import { useFeatureFlags, useABTesting } from '@/utils/featureFlags'
+import { useUnifiedPropertyForm } from '../../hooks/useUnifiedPropertyForm'
+import { useFeatureFlags, useABTesting } from '../../utils/featureFlags'
 import PropertyFieldInput from './shared/PropertyFieldInput'
 import {
   UnifiedPropertyFormProps,
@@ -34,7 +34,7 @@ import {
   FormConfig,
   AISuggestion,
   MarketInsight
-} from '@/types/PropertyFormTypes'
+} from '../../types/PropertyFormTypes'
 
 /**
  * Form section configuration

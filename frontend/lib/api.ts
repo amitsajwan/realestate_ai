@@ -858,6 +858,71 @@ export class APIService {
       throw error;
     }
   }
+
+  // Unified Property Form API Methods
+  async createUnifiedProperty(propertyData: any): Promise<any> {
+    return this.makeRequest('/api/v1/properties/', {
+      method: 'POST',
+      body: JSON.stringify(propertyData)
+    }, true);
+  }
+
+  async getUnifiedProperties(skip: number = 0, limit: number = 100): Promise<any> {
+    return this.makeRequest(`/api/v1/properties/?skip=${skip}&limit=${limit}`, {
+      method: 'GET'
+    }, true);
+  }
+
+  async getUnifiedProperty(propertyId: string): Promise<any> {
+    return this.makeRequest(`/api/v1/properties/${propertyId}`, {
+      method: 'GET'
+    }, true);
+  }
+
+  async updateUnifiedProperty(propertyId: string, propertyData: any): Promise<any> {
+    return this.makeRequest(`/api/v1/properties/${propertyId}`, {
+      method: 'PUT',
+      body: JSON.stringify(propertyData)
+    }, true);
+  }
+
+  async deleteUnifiedProperty(propertyId: string): Promise<any> {
+    return this.makeRequest(`/api/v1/properties/${propertyId}`, {
+      method: 'DELETE'
+    }, true);
+  }
+
+  async generateAISuggestions(propertyId: string): Promise<any> {
+    return this.makeRequest(`/api/v1/properties/${propertyId}/ai-suggestions`, {
+      method: 'POST'
+    }, true);
+  }
+
+  async generateMarketInsights(propertyId: string): Promise<any> {
+    return this.makeRequest(`/api/v1/properties/${propertyId}/market-insights`, {
+      method: 'POST'
+    }, true);
+  }
+
+  async getPropertyAnalytics(propertyId: string): Promise<any> {
+    return this.makeRequest(`/api/v1/properties/${propertyId}/analytics`, {
+      method: 'GET'
+    }, true);
+  }
+
+  async searchProperties(query: string, filters?: any): Promise<any> {
+    const params = new URLSearchParams({ q: query });
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          params.append(key, String(value));
+        }
+      });
+    }
+    return this.makeRequest(`/api/v1/properties/search?${params}`, {
+      method: 'GET'
+    }, true);
+  }
 }
 
 export { APIError };

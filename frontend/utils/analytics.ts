@@ -6,7 +6,7 @@
  * unified property form system.
  */
 
-import { FormEvent, FormAnalytics } from '@/types/PropertyFormTypes'
+import { FormEvent, FormAnalytics } from '../types/PropertyFormTypes'
 
 /**
  * Analytics service interface
