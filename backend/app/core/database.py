@@ -25,8 +25,10 @@ class MockCollection:
     async def insert_one(self, document: Dict[str, Any]) -> MockInsertOneResult:
         """Mock insert_one operation"""
         doc_id = str(len(self.data) + 1)
-        document['_id'] = doc_id
-        self.data[doc_id] = document
+        # Create a copy to avoid modifying the original document
+        doc_copy = document.copy()
+        doc_copy['_id'] = doc_id
+        self.data[doc_id] = doc_copy
         return MockInsertOneResult(doc_id)
     
     async def find_one(self, filter_dict: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -96,6 +98,7 @@ logger = logging.getLogger(__name__)
 class Database:
     client: Optional[motor.motor_asyncio.AsyncIOMotorClient] = None
     database: Optional[motor.motor_asyncio.AsyncIOMotorDatabase] = None
+    _mock_database: Optional[MockDatabase] = None
 
 db = Database()
 
@@ -122,7 +125,9 @@ async def connect_to_mongo():
             raise
         # Otherwise fallback to mock DB for development
         logger.warning("⚠️ Falling back to in-memory MockDatabase. Set FAIL_ON_DB_ERROR=true to fail-fast.")
-        db.database = MockDatabase()
+        if db._mock_database is None:
+            db._mock_database = MockDatabase()
+        db.database = db._mock_database
 
 async def close_mongo_connection():
     """Close database connection"""
