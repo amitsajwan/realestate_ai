@@ -20,7 +20,7 @@ import {
 import { authManager } from '@/lib/auth'
 import { apiService } from '@/lib/api'
 import DashboardStats from '@/components/DashboardStats'
-import ConsolidatedPropertyForm from '@/components/property/ConsolidatedPropertyForm'
+import SmartPropertyForm from '@/components/SmartPropertyForm'
 import Properties from '@/components/Properties'
 import CRM from '@/components/CRM'
 import FacebookIntegration from '@/components/FacebookIntegration'
@@ -205,9 +205,7 @@ export default function Dashboard() {
         return <Properties onAddProperty={() => setActiveSection('property-form')} properties={properties} setProperties={setProperties} />
       case 'property-form':
         return (
-          <ConsolidatedPropertyForm
-            variant="simple"
-            enableAI={true}
+          <SmartPropertyForm
             onSuccess={() => setActiveSection('properties')}
           />
         )

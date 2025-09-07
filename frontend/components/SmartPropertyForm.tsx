@@ -218,10 +218,22 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
   const onSubmit = async (data: PropertyFormData) => {
     setIsLoading(true)
     try {
-      // Data is already properly typed with z.coerce.number()
-      const response = await apiService.createProperty(data)
-      if (response.success) {
-        toast.success('Property created successfully!')
+      // Transform data for unified property service
+      const propertyData = {
+        ...data,
+        ai_generate: true, // Always enable AI features
+        market_analysis: true, // Always enable market insights
+        property_type: data.propertyType || 'Apartment',
+        location: data.location || data.address,
+        price: parseFloat(data.price.replace(/[₹,]/g, '')) || 0,
+        bedrooms: Number(data.bedrooms) || 0,
+        bathrooms: Number(data.bathrooms) || 0,
+        area_sqft: Number(data.area) || 0
+      }
+      
+      const response = await apiService.createProperty(propertyData)
+      if (response.success || response.id) {
+        toast.success('AI-powered property created successfully!')
         onSuccess?.()
       }
     } catch (error) {
