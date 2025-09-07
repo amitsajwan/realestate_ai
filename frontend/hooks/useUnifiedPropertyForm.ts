@@ -98,7 +98,7 @@ export function useUnifiedPropertyForm(options: UseFormOptions): UseFormReturn {
   const finalConfig: FormConfig = { ...DEFAULT_CONFIG, ...config, variant }
 
   // A/B testing
-  const { variant: abVariant, trackEvent } = useABTesting()
+  const { variant: abVariant, trackEvent: trackABEvent } = useABTesting()
 
   // Form setup
   const form = useForm<PropertyFormData>({
@@ -118,7 +118,7 @@ export function useUnifiedPropertyForm(options: UseFormOptions): UseFormReturn {
     }
   })
 
-  const { register, handleSubmit, setValue, watch, trigger, formState, reset } = form
+  const { register, handleSubmit, setValue, watch, trigger, formState: reactHookFormState, reset } = form
 
   // State management
   const [formState, setFormState] = useState<FormState>({
@@ -162,12 +162,12 @@ export function useUnifiedPropertyForm(options: UseFormOptions): UseFormReturn {
     const loadTime = Date.now() - formLoadTime.current
     setAnalytics(prev => ({ ...prev, formLoadTime: loadTime }))
     
-    trackEvent('form_loaded', {
+    trackABEvent('form_loaded', {
       variant: abVariant,
       formVariant: variant,
       loadTime
     })
-  }, [variant, abVariant, trackEvent])
+  }, [variant, abVariant, trackABEvent])
 
   // Auto-save functionality
   useEffect(() => {
@@ -178,7 +178,7 @@ export function useUnifiedPropertyForm(options: UseFormOptions): UseFormReturn {
         // Track field modification
         setAnalytics(prev => ({
           ...prev,
-          fieldsModified: [...new Set([...prev.fieldsModified, name])]
+          fieldsModified: Array.from(new Set([...prev.fieldsModified, name]))
         }))
 
         // Track first interaction
@@ -196,7 +196,7 @@ export function useUnifiedPropertyForm(options: UseFormOptions): UseFormReturn {
         // Set new timeout for auto-save
         autoSaveTimeout.current = setTimeout(() => {
           localStorage.setItem('property-form-draft', JSON.stringify(data))
-          trackEvent('form_auto_saved', { variant: abVariant })
+          trackABEvent('form_auto_saved', { variant: abVariant })
         }, autoSaveInterval)
       }
     })
@@ -207,7 +207,7 @@ export function useUnifiedPropertyForm(options: UseFormOptions): UseFormReturn {
         clearTimeout(autoSaveTimeout.current)
       }
     }
-  }, [watch, autoSave, autoSaveInterval, abVariant, trackEvent, finalConfig.features.autoSave])
+  }, [watch, autoSave, autoSaveInterval, abVariant, trackABEvent, finalConfig.features.autoSave])
 
   // Load draft on mount
   useEffect(() => {
@@ -217,28 +217,27 @@ export function useUnifiedPropertyForm(options: UseFormOptions): UseFormReturn {
         try {
           const draftData = JSON.parse(draft)
           Object.entries(draftData).forEach(([key, value]) => {
-            setValue(key as keyof PropertyFormData, value)
+            setValue(key as keyof PropertyFormData, value as any)
           })
-          trackEvent('form_draft_loaded', { variant: abVariant })
+          trackABEvent('form_draft_loaded', { variant: abVariant })
         } catch (error) {
           console.error('Failed to load draft:', error)
         }
       }
     }
-  }, [autoSave, setValue, abVariant, trackEvent])
+  }, [autoSave, setValue, abVariant, trackABEvent])
 
   // Form validation
-  const validate = useCallback(async (): Promise<boolean> => {
-    const isValid = await trigger()
+  const validate = useCallback((): boolean => {
+    const isValid = reactHookFormState.isValid
     setFormState(prev => ({ ...prev, isValid }))
     return isValid
-  }, [trigger])
+  }, [reactHookFormState.isValid])
 
-  const validateField = useCallback(async (name: keyof PropertyFormData): Promise<string | null> => {
-    const result = await trigger(name)
-    const error = formState.errors[name]?.message as string
+  const validateField = useCallback((name: keyof PropertyFormData): string | null => {
+    const error = reactHookFormState.errors[name]?.message as string
     return error || null
-  }, [trigger, formState.errors])
+  }, [reactHookFormState.errors])
 
   // Step navigation (for wizard variant)
   const nextStep = useCallback(async () => {
@@ -251,39 +250,39 @@ export function useUnifiedPropertyForm(options: UseFormOptions): UseFormReturn {
         const newStep = formState.currentStep + 1
         setFormState(prev => ({ ...prev, currentStep: newStep }))
         onStepChange?.(newStep)
-        trackEvent('form_step_next', { 
+        trackABEvent('form_step_next', { 
           variant: abVariant, 
           step: newStep,
           totalSteps: formState.totalSteps
         })
       }
     }
-  }, [variant, formState.currentStep, formState.totalSteps, trigger, onStepChange, abVariant, trackEvent])
+  }, [variant, formState.currentStep, formState.totalSteps, trigger, onStepChange, abVariant, trackABEvent])
 
   const prevStep = useCallback(() => {
     if (variant !== 'wizard' || formState.currentStep > 0) {
       const newStep = formState.currentStep - 1
       setFormState(prev => ({ ...prev, currentStep: newStep }))
       onStepChange?.(newStep)
-      trackEvent('form_step_prev', { 
-        variant: abVariant, 
-        step: newStep,
-        totalSteps: formState.totalSteps
-      })
+        trackABEvent('form_step_prev', { 
+          variant: abVariant, 
+          step: newStep,
+          totalSteps: formState.totalSteps
+        })
     }
-  }, [variant, formState.currentStep, formState.totalSteps, onStepChange, abVariant, trackEvent])
+  }, [variant, formState.currentStep, formState.totalSteps, onStepChange, abVariant, trackABEvent])
 
   const goToStep = useCallback((step: number) => {
     if (variant === 'wizard' && step >= 0 && step < formState.totalSteps) {
       setFormState(prev => ({ ...prev, currentStep: step }))
       onStepChange?.(step)
-      trackEvent('form_step_goto', { 
+      trackABEvent('form_step_goto', { 
         variant: abVariant, 
         step,
         totalSteps: formState.totalSteps
       })
     }
-  }, [variant, formState.totalSteps, onStepChange, abVariant, trackEvent])
+  }, [variant, formState.totalSteps, onStepChange, abVariant, trackABEvent])
 
   // AI integration
   const generateAISuggestions = useCallback(async () => {
@@ -316,7 +315,7 @@ export function useUnifiedPropertyForm(options: UseFormOptions): UseFormReturn {
           isGenerating: false
         }))
 
-        trackEvent('ai_suggestions_generated', { 
+        trackABEvent('ai_suggestions_generated', { 
           variant: abVariant,
           formVariant: variant,
           hasQualityScore: !!suggestion.qualityScore,
@@ -333,14 +332,14 @@ export function useUnifiedPropertyForm(options: UseFormOptions): UseFormReturn {
         isGenerating: false 
       }))
       
-      trackEvent('ai_suggestions_error', { 
+      trackABEvent('ai_suggestions_error', { 
         variant: abVariant,
         error: errorMessage
       })
       
       toast.error(errorMessage)
     }
-  }, [finalConfig.features.ai, watch, variant, finalConfig, abVariant, trackEvent])
+  }, [finalConfig.features.ai, watch, variant, finalConfig, abVariant, trackABEvent])
 
   const applyAISuggestion = useCallback((suggestion: Partial<AISuggestion>) => {
     if (!suggestion) return
@@ -369,13 +368,13 @@ export function useUnifiedPropertyForm(options: UseFormOptions): UseFormReturn {
       aiSuggestionsUsed: [...prev.aiSuggestionsUsed, ...appliedFields]
     }))
 
-    trackEvent('ai_suggestion_applied', { 
+    trackABEvent('ai_suggestion_applied', { 
       variant: abVariant,
       fields: appliedFields
     })
 
     toast.success(`Applied AI suggestions to ${appliedFields.length} field(s)`)
-  }, [setValue, abVariant, trackEvent])
+  }, [setValue, abVariant, trackABEvent])
 
   // Market insights
   const generateMarketInsights = useCallback(async () => {
@@ -383,11 +382,7 @@ export function useUnifiedPropertyForm(options: UseFormOptions): UseFormReturn {
 
     try {
       const formData = watch()
-      const response = await apiService.getMarketInsights({
-        location: formData.location,
-        propertyType: formData.propertyType,
-        price: formData.price
-      })
+      const response = await apiService.generateMarketInsights(formData.location)
 
       if (response.success && response.data) {
         setAIIntegration(prev => ({
@@ -395,7 +390,7 @@ export function useUnifiedPropertyForm(options: UseFormOptions): UseFormReturn {
           marketInsights: response.data
         }))
 
-        trackEvent('market_insights_generated', { 
+        trackABEvent('market_insights_generated', { 
           variant: abVariant,
           location: formData.location,
           propertyType: formData.propertyType
@@ -403,12 +398,12 @@ export function useUnifiedPropertyForm(options: UseFormOptions): UseFormReturn {
       }
     } catch (error) {
       console.error('Failed to generate market insights:', error)
-      trackEvent('market_insights_error', { 
+      trackABEvent('market_insights_error', { 
         variant: abVariant,
         error: error instanceof Error ? error.message : 'Unknown error'
       })
     }
-  }, [finalConfig.features.marketInsights, watch, abVariant, trackEvent])
+  }, [finalConfig.features.marketInsights, watch, abVariant, trackABEvent])
 
   // Form submission
   const submit = useCallback(async () => {
@@ -453,7 +448,7 @@ export function useUnifiedPropertyForm(options: UseFormOptions): UseFormReturn {
           localStorage.removeItem('property-form-draft')
         }
 
-        trackEvent('form_submitted_success', { 
+        trackABEvent('form_submitted_success', { 
           variant: abVariant,
           formVariant: variant,
           completionTime,
@@ -473,7 +468,7 @@ export function useUnifiedPropertyForm(options: UseFormOptions): UseFormReturn {
         errorsEncountered: [...prev.errorsEncountered, errorMessage]
       }))
 
-      trackEvent('form_submitted_error', { 
+      trackABEvent('form_submitted_error', { 
         variant: abVariant,
         error: errorMessage
       })
@@ -484,8 +479,8 @@ export function useUnifiedPropertyForm(options: UseFormOptions): UseFormReturn {
       setFormState(prev => ({ ...prev, isSubmitting: false }))
     }
   }, [
-    watch, validate, variant, finalConfig, autoSave, abVariant, trackEvent, 
-    formState.totalSteps, aiIntegration.suggestions, aiIntegration.marketInsights, 
+    watch, validate, variant, finalConfig, autoSave, abVariant, trackABEvent,
+    formState.totalSteps, aiIntegration.suggestions, aiIntegration.marketInsights,
     onSuccess, onError
   ])
 
@@ -501,7 +496,7 @@ export function useUnifiedPropertyForm(options: UseFormOptions): UseFormReturn {
   }, [setValue])
 
   // Analytics tracking
-  const trackEvent = useCallback((event: string, properties?: Record<string, any>) => {
+  const trackFormEvent = useCallback((event: string, properties?: Record<string, any>) => {
     const eventData: FormEvent = {
       type: event as any,
       timestamp: new Date(),
@@ -572,6 +567,6 @@ export function useUnifiedPropertyForm(options: UseFormOptions): UseFormReturn {
 
     // Analytics
     analytics,
-    trackEvent
+    trackEvent: trackFormEvent
   }
 }

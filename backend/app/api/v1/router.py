@@ -13,6 +13,7 @@ from app.api.v1.endpoints.leads import router as leads_router
 from app.api.v1.endpoints.properties import router as properties_router
 from app.api.v1.endpoints.smart_properties import router as smart_properties_router
 from app.api.v1.endpoints.unified_properties import router as unified_properties_router
+from app.api.v1.endpoints.ai_property_analysis import router as ai_analysis_router
 from app.api.v1.endpoints.user_profile import router as user_profile_router
 from app.api.v1.endpoints.agent_onboarding import router as agent_onboarding_router
 from app.api.v1.endpoints.onboarding import router as onboarding_router
@@ -30,6 +31,7 @@ api_router.include_router(leads_router, prefix="/leads", tags=["leads"])
 api_router.include_router(properties_router, prefix="/properties", tags=["properties"])
 api_router.include_router(smart_properties_router, tags=["smart-properties"])
 api_router.include_router(unified_properties_router, tags=["unified-properties"])
+api_router.include_router(ai_analysis_router, tags=["ai-analysis"])
 api_router.include_router(user_profile_router, prefix="/user", tags=["user"])
 api_router.include_router(demo_router, tags=["demo"])
 api_router.include_router(agent_onboarding_router, tags=["agent-onboarding"]) 

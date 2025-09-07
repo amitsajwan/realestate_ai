@@ -813,8 +813,8 @@ export class APIService {
 
       return {
         success: true,
-        files: response.files,
-        message: response.message
+        files: (response as any).files,
+        message: (response as any).message
       };
     } catch (error) {
       apiLog.error(error);
@@ -846,8 +846,8 @@ export class APIService {
 
       return {
         success: true,
-        files: response.files,
-        message: response.message
+        files: (response as any).files,
+        message: (response as any).message
       };
     } catch (error) {
       apiLog.error(error);

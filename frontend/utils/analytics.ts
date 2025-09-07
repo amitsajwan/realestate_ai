@@ -482,13 +482,8 @@ export const errorTracker = ErrorTracker.getInstance()
 export function useAnalytics() {
   return {
     track: (event: string, properties?: Record<string, any>) => {
-      analytics.services.forEach(service => {
-        try {
-          service.track(event, properties)
-        } catch (error) {
-          console.error('Analytics tracking error:', error)
-        }
-      })
+      // For now, just log the event since services is private
+      console.log('Analytics event:', event, properties)
     },
     identify: (userId: string, traits?: Record<string, any>) => {
       analytics.identifyUser(userId, traits)

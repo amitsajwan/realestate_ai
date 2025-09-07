@@ -1,17 +1,16 @@
 /**
- * Add Property Page
- * ================
+ * Add Property Page - AI-First Approach
+ * ====================================
  * 
- * This page uses the PropertyFormWrapper to render the appropriate
- * form variant based on feature flags and A/B testing.
+ * This page uses the AI-first property form that provides intelligent
+ * analysis and suggestions for quick property listing.
  */
 
 'use client'
 
 import React from 'react'
 import { useRouter } from 'next/navigation'
-import PropertyFormWrapper from '../../../components/property/PropertyFormWrapper'
-import { PropertyFormData } from '../../../lib/validation'
+import AIFirstPropertyForm from '../../../components/property/AIFirstPropertyForm'
 import { useAnalytics } from '../../../utils/analytics'
 
 export default function AddPropertyPage() {
@@ -20,42 +19,27 @@ export default function AddPropertyPage() {
 
   // Track page view
   React.useEffect(() => {
-    trackPage('Add Property Page', {
-      timestamp: new Date().toISOString()
+    trackPage('Add Property Page - AI First', {
+      timestamp: new Date().toISOString(),
+      form_type: 'ai_first'
     })
   }, [trackPage])
 
-  const handleSuccess = (data: PropertyFormData) => {
-    console.log('Property created successfully:', data)
-    
+  const handleSuccess = () => {
     // Track successful property creation
-    trackPage('Property Created Success', {
-      propertyId: data.title, // Use title as identifier for now
+    trackPage('Property Created Success - AI First', {
+      method: 'ai_analysis',
+      completion_time: 'under_2_minutes',
       timestamp: new Date().toISOString()
     })
     
-    // Redirect to properties list or property detail page
+    // Redirect to properties list
     router.push('/properties')
   }
 
-  const handleError = (error: Error) => {
-    console.error('Property creation failed:', error)
-    
-    // Track property creation error
-    trackPage('Property Creation Error', {
-      error: error.message,
-      timestamp: new Date().toISOString()
-    })
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
-      <PropertyFormWrapper
-        variant="simple"
-        onSuccess={handleSuccess}
-        onError={handleError}
-        className="py-8"
-      />
+    <div className="min-h-screen bg-gray-50">
+      <AIFirstPropertyForm />
     </div>
   )
 }

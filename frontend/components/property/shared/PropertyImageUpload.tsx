@@ -57,8 +57,8 @@ export default function PropertyImageUpload({
 
       if (response.success) {
         const newImages = response.files
-        setUploadedImages(prev => [...prev, ...newImages])
-        onImagesUploaded?.(newImages)
+        setUploadedImages(prev => [...prev, ...(newImages || [])])
+        onImagesUploaded?.(newImages || [])
 
         // Clear progress
         acceptedFiles.forEach(file => {
@@ -69,7 +69,7 @@ export default function PropertyImageUpload({
           })
         })
 
-        toast.success(`Successfully uploaded ${newImages.length} image(s)`)
+        toast.success(`Successfully uploaded ${(newImages || []).length} image(s)`)
       } else {
         throw new Error(response.message || 'Upload failed')
       }
