@@ -276,19 +276,19 @@ const LoginPage: React.FC = () => {
                         autoComplete="given-name"
                         required={!isLogin}
                         className={`appearance-none relative block w-full px-3 py-3 sm:py-2 pl-10 pr-10 border ${
-                          currentValidator.hasFieldError('firstName') ? 'border-red-300' : currentValidator.isFieldValid('firstName') ? 'border-green-300' : 'border-gray-300'
+                          isClient && currentValidator.hasFieldError('firstName') ? 'border-red-300' : isClient && currentValidator.isFieldValid('firstName') ? 'border-green-300' : 'border-gray-300'
                         } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 text-base sm:text-sm transition-all duration-200 hover-lift`}
                         placeholder="First Name"
                         value={formData.firstName}
                         onChange={handleChange}
                         onBlur={() => handleBlur('firstName')}
-                        aria-describedby={currentValidator.hasFieldError('firstName') ? 'firstName-error' : undefined}
+                        aria-describedby={isClient && currentValidator.hasFieldError('firstName') ? 'firstName-error' : undefined}
                       />
                       <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                         {getFieldValidationIcon('firstName')}
                       </div>
                     </div>
-                    {currentValidator.hasFieldError('firstName') && (
+                    {isClient && currentValidator.hasFieldError('firstName') && (
                       <p id="firstName-error" className="mt-1 text-sm text-red-600" role="alert">
                         {currentValidator.getFieldError('firstName')}
                       </p>
@@ -310,19 +310,19 @@ const LoginPage: React.FC = () => {
                         autoComplete="family-name"
                         required={!isLogin}
                         className={`appearance-none relative block w-full px-3 py-3 sm:py-2 pl-10 pr-10 border ${
-                          currentValidator.hasFieldError('lastName') ? 'border-red-300' : currentValidator.isFieldValid('lastName') ? 'border-green-300' : 'border-gray-300'
+                          isClient && currentValidator.hasFieldError('lastName') ? 'border-red-300' : isClient && currentValidator.isFieldValid('lastName') ? 'border-green-300' : 'border-gray-300'
                         } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 text-base sm:text-sm transition-all duration-200 hover-lift`}
                         placeholder="Last Name"
                         value={formData.lastName}
                         onChange={handleChange}
                         onBlur={() => handleBlur('lastName')}
-                        aria-describedby={currentValidator.hasFieldError('lastName') ? 'lastName-error' : undefined}
+                        aria-describedby={isClient && currentValidator.hasFieldError('lastName') ? 'lastName-error' : undefined}
                       />
                       <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                         {getFieldValidationIcon('lastName')}
                       </div>
                     </div>
-                    {currentValidator.hasFieldError('lastName') && (
+                    {isClient && currentValidator.hasFieldError('lastName') && (
                       <p id="lastName-error" className="mt-1 text-sm text-red-600" role="alert">
                         {currentValidator.getFieldError('lastName')}
                       </p>
@@ -343,24 +343,24 @@ const LoginPage: React.FC = () => {
                       name="phone"
                       type="tel"
                       autoComplete="tel"
-                      className={`appearance-none relative block w-full px-3 py-3 sm:py-2 pl-10 pr-10 border ${
-                        currentValidator.hasFieldError('phone') ? 'border-red-300' : currentValidator.isFieldValid('phone') && formData.phone ? 'border-green-300' : 'border-gray-300'
-                      } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 text-base sm:text-sm transition-all duration-200 hover-lift`}
+                        className={`appearance-none relative block w-full px-3 py-3 sm:py-2 pl-10 pr-10 border ${
+                        isClient && currentValidator.hasFieldError('phone') ? 'border-red-300' : isClient && currentValidator.isFieldValid('phone') && formData.phone ? 'border-green-300' : 'border-gray-300'
+                        } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 text-base sm:text-sm transition-all duration-200 hover-lift`}
                       placeholder="Phone Number (Optional)"
                       value={formData.phone}
                       onChange={handleChange}
                       onBlur={() => handleBlur('phone')}
-                      aria-describedby={currentValidator.hasFieldError('phone') ? 'phone-error' : undefined}
+                      aria-describedby={isClient && currentValidator.hasFieldError('phone') ? 'phone-error' : undefined}
                     />
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                       {getFieldValidationIcon('phone')}
                     </div>
                   </div>
-                  {currentValidator.hasFieldError('phone') && (
-                    <p id="phone-error" className="mt-1 text-sm text-red-600" role="alert">
-                      {currentValidator.getFieldError('phone')}
-                    </p>
-                  )}
+                    {isClient && currentValidator.hasFieldError('phone') && (
+                      <p id="phone-error" className="mt-1 text-sm text-red-600" role="alert">
+                        {currentValidator.getFieldError('phone')}
+                      </p>
+                    )}
                 </div>
               </>
             )}
@@ -380,24 +380,24 @@ const LoginPage: React.FC = () => {
                   type="email"
                   autoComplete="email"
                   required
-                  className={`appearance-none relative block w-full px-3 py-3 sm:py-2 pl-10 pr-10 border ${
-                    currentValidator.hasFieldError('email') ? 'border-red-300' : currentValidator.isFieldValid('email') ? 'border-green-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 text-base sm:text-sm transition-all duration-200 hover-lift`}
+                    className={`appearance-none relative block w-full px-3 py-3 sm:py-2 pl-10 pr-10 border ${
+                    isClient && currentValidator.hasFieldError('email') ? 'border-red-300' : isClient && currentValidator.isFieldValid('email') ? 'border-green-300' : 'border-gray-300'
+                    } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 text-base sm:text-sm transition-all duration-200 hover-lift`}
                   placeholder="Email address"
                   value={formData.email}
                   onChange={handleChange}
                   onBlur={() => handleBlur('email')}
-                  aria-describedby={currentValidator.hasFieldError('email') ? 'email-error' : undefined}
+                  aria-describedby={isClient && currentValidator.hasFieldError('email') ? 'email-error' : undefined}
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                   {getFieldValidationIcon('email')}
                 </div>
               </div>
-              {currentValidator.hasFieldError('email') && (
-                <p id="email-error" className="mt-1 text-sm text-red-600" role="alert">
-                  {currentValidator.getFieldError('email')}
-                </p>
-              )}
+                {isClient && currentValidator.hasFieldError('email') && (
+                  <p id="email-error" className="mt-1 text-sm text-red-600" role="alert">
+                    {currentValidator.getFieldError('email')}
+                  </p>
+                )}
             </div>
 
             {/* Password Field */}
@@ -415,14 +415,14 @@ const LoginPage: React.FC = () => {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete={isLogin ? 'current-password' : 'new-password'}
                   required
-                  className={`appearance-none relative block w-full px-3 py-3 sm:py-2 pl-10 pr-10 border ${
-                    currentValidator.hasFieldError('password') ? 'border-red-300' : currentValidator.isFieldValid('password') ? 'border-green-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 text-base sm:text-sm transition-all duration-200 hover-lift`}
+                    className={`appearance-none relative block w-full px-3 py-3 sm:py-2 pl-10 pr-10 border ${
+                    isClient && currentValidator.hasFieldError('password') ? 'border-red-300' : isClient && currentValidator.isFieldValid('password') ? 'border-green-300' : 'border-gray-300'
+                    } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 text-base sm:text-sm transition-all duration-200 hover-lift`}
                   placeholder="Password"
                   value={formData.password}
                   onChange={handleChange}
                   onBlur={() => handleBlur('password')}
-                  aria-describedby={currentValidator.hasFieldError('password') ? 'password-error' : undefined}
+                  aria-describedby={isClient && currentValidator.hasFieldError('password') ? 'password-error' : undefined}
                 />
                 <button
                   type="button"
@@ -437,11 +437,11 @@ const LoginPage: React.FC = () => {
                   )}
                 </button>
               </div>
-              {currentValidator.hasFieldError('password') && (
-                <p id="password-error" className="mt-1 text-sm text-red-600" role="alert">
-                  {currentValidator.getFieldError('password')}
-                </p>
-              )}
+                {isClient && currentValidator.hasFieldError('password') && (
+                  <p id="password-error" className="mt-1 text-sm text-red-600" role="alert">
+                    {currentValidator.getFieldError('password')}
+                  </p>
+                )}
               
               {/* Password Strength Indicator */}
               {!isLogin && formData.password && (
@@ -494,14 +494,14 @@ const LoginPage: React.FC = () => {
                     type={showConfirmPassword ? 'text' : 'password'}
                     autoComplete="new-password"
                     required={!isLogin}
-                    className={`appearance-none relative block w-full px-3 py-3 sm:py-2 pl-10 pr-10 border ${
-                      currentValidator.hasFieldError('confirmPassword') ? 'border-red-300' : currentValidator.isFieldValid('confirmPassword') ? 'border-green-300' : 'border-gray-300'
-                    } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 text-base sm:text-sm transition-all duration-200 hover-lift`}
+                      className={`appearance-none relative block w-full px-3 py-3 sm:py-2 pl-10 pr-10 border ${
+                      isClient && currentValidator.hasFieldError('confirmPassword') ? 'border-red-300' : isClient && currentValidator.isFieldValid('confirmPassword') ? 'border-green-300' : 'border-gray-300'
+                      } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 text-base sm:text-sm transition-all duration-200 hover-lift`}
                     placeholder="Confirm Password"
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     onBlur={() => handleBlur('confirmPassword')}
-                    aria-describedby={currentValidator.hasFieldError('confirmPassword') ? 'confirmPassword-error' : undefined}
+                    aria-describedby={isClient && currentValidator.hasFieldError('confirmPassword') ? 'confirmPassword-error' : undefined}
                   />
                   <button
                     type="button"
@@ -516,11 +516,11 @@ const LoginPage: React.FC = () => {
                     )}
                   </button>
                 </div>
-                {currentValidator.hasFieldError('confirmPassword') && (
-                  <p id="confirmPassword-error" className="mt-1 text-sm text-red-600" role="alert">
-                    {currentValidator.getFieldError('confirmPassword')}
-                  </p>
-                )}
+                    {isClient && currentValidator.hasFieldError('confirmPassword') && (
+                      <p id="confirmPassword-error" className="mt-1 text-sm text-red-600" role="alert">
+                        {currentValidator.getFieldError('confirmPassword')}
+                      </p>
+                    )}
               </div>
             )}
           </div>
