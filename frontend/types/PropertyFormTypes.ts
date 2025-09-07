@@ -231,7 +231,7 @@ export interface UseFormReturn {
   validation: FormValidation
   
   // Form actions
-  submit: () => Promise<void>
+  submit: () => void
   nextStep: () => void
   prevStep: () => void
   goToStep: (step: number) => void
@@ -246,14 +246,14 @@ export interface UseFormReturn {
   generateMarketInsights: () => Promise<void>
   
   // Form fields
-  register: (name: keyof PropertyFormData) => any
+  register: any
   setValue: (name: keyof PropertyFormData, value: any) => void
   getValue: (name: keyof PropertyFormData) => any
-  watch: (name?: keyof PropertyFormData) => any
+  watch: any
   
   // Validation
-  validate: () => boolean
-  validateField: (name: keyof PropertyFormData) => string | null
+  validate: () => Promise<boolean> | boolean
+  validateField: (name: keyof PropertyFormData) => Promise<string | null>
   
   // Analytics
   analytics: FormAnalytics

@@ -450,7 +450,7 @@ export default function Properties({ onAddProperty, properties: propProperties =
                   {property.status === 'for-sale' ? 'FOR SALE' :
                    property.status === 'for-rent' ? 'FOR RENT' :
                    property.status === 'sold' ? 'SOLD' :
-                   property.status.toUpperCase()}
+                   'UNKNOWN'}
                 </span>
               </div>
 
