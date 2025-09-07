@@ -19,13 +19,22 @@ def verify_jwt_token(token: str):
         logger.error(f"Token verification error: {e}")
         raise ValueError(f"Token verification failed: {e}")
 
-def sanitize_user_input(data: str, max_length: int = 1000) -> str:
+def sanitize_user_input(data, max_length: int = 1000):
     import logging
     logger = logging.getLogger(__name__)
-    logger.debug(f"Sanitizing user input: {data[:30]}... (max_length={max_length})")
-    """Placeholder for user input sanitization"""
-    # This will be implemented properly when we fix the circular import
-    return data[:max_length] if data else ""
+    
+    # Handle different data types
+    if isinstance(data, str):
+        logger.debug(f"Sanitizing string input: {data[:30]}... (max_length={max_length})")
+        return data[:max_length] if data else ""
+    elif isinstance(data, dict):
+        logger.debug(f"Sanitizing dict input with {len(data)} keys")
+        # For dictionaries, just return as-is for now
+        # TODO: Implement proper dict sanitization
+        return data
+    else:
+        logger.debug(f"Sanitizing input of type: {type(data)}")
+        return data
 
 __all__ = [
     "validate_password_strength",

@@ -231,12 +231,13 @@ class AuthService:
             raise ValidationError("Invalid email format")
         
         # Check if user already exists
-        logger.debug(f"Checking if user already exists: {user_data.email}")
-        existing_user = await self.user_repository.get_by_email(user_data.email)
+        normalized_email = user_data.email.lower().strip()
+        logger.debug(f"Checking if user already exists: {normalized_email}")
+        existing_user = await self.user_repository.get_by_email(normalized_email)
         if existing_user:
-            logger.warning(f"Registration attempt with existing email: {user_data.email}")
-            logger.debug(f"User already exists with email: {user_data.email}")
-            raise ConflictError(message="User with this email already exists")
+            logger.warning(f"Registration attempt with existing email: {normalized_email}")
+            logger.debug(f"User already exists with email: {normalized_email}")
+            raise ConflictError(message=f"User with email {normalized_email} already exists")
         
         # Validate password strength
         logger.debug("Validating password strength")
@@ -251,9 +252,9 @@ class AuthService:
         
         # Create user data
         logger.debug("Preparing user data for database creation")
-        user_dict = user_data.dict()
+        user_dict = user_data.model_dump()
         user_dict["password"] = hashed_password
-        user_dict["email"] = user_dict["email"].lower()  # Normalize email
+        user_dict["email"] = normalized_email  # Use already normalized email
         user_dict["created_at"] = datetime.now(timezone.utc)
         user_dict["updated_at"] = datetime.now(timezone.utc)
         user_dict["facebook_connected"] = False
@@ -274,8 +275,11 @@ class AuthService:
             raise ValidationError("Failed to create user account")
     
     @debug_log
-    async def authenticate_user(self, email: str, password: str) -> Optional[tuple]:
+    async def authenticate_user(self, user_credentials: UserLogin) -> Optional[tuple]:
         """Enhanced user authentication with security logging"""
+        email = user_credentials.email
+        password = user_credentials.password
+        
         if not email or not password:
             logger.warning("Missing email or password in login attempt")
             return None

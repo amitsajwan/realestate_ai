@@ -12,8 +12,8 @@ import os
 # Add the app directory to the Python path
 sys.path.insert(0, os.path.dirname(__file__))
 
-from app.services.smart_property_service import SmartPropertyService
-from app.schemas.smart_property import SmartPropertyCreate, SmartPropertyDocument
+from app.services.unified_property_service import UnifiedPropertyService
+from app.schemas.unified_property import PropertyCreate, PropertyDocument
 from app.core.database import connect_to_mongo
 
 async def test_migration():
@@ -28,49 +28,42 @@ async def test_migration():
 
         # Test 1: Schema validation
         print("Test 1: Validating schemas...")
-        test_data = SmartPropertyCreate(
-            property_id='test_property_123',
-            smart_features={
-                'address': '123 Test Street, Mumbai, Maharashtra',
-                'price': '₹50,00,000',
-                'property_type': 'Apartment',
-                'bedrooms': 2,
-                'bathrooms': 2,
-                'features': 'Swimming pool, Gym, Parking'
-            },
-            ai_insights={
-                'market_value': '₹52,00,000',
-                'roi': '8.5%',
-                'demand_score': 85
-            },
-            recommendations=[
-                'Consider price adjustment based on market analysis',
-                'Highlight premium amenities in listing'
-            ]
+        test_data = PropertyCreate(
+            title='Test Property',
+            description='A beautiful test property',
+            property_type='Apartment',
+            price=5000000.0,
+            location='Mumbai, Maharashtra',
+            bedrooms=2,
+            bathrooms=2.0,
+            area_sqft=1200,
+            features=['Swimming pool', 'Gym', 'Parking'],
+            amenities='Swimming pool, Gym, Parking',
+            ai_generate=True,
+            market_analysis=True
         )
         print("Schema validation successful")
 
         # Test 2: Service instantiation
         print("\nTest 2: Testing service instantiation...")
-        service = SmartPropertyService()
+        from app.core.database import get_database
+        db = get_database()
+        service = UnifiedPropertyService(db)
         print("Service instantiation successful")
 
         # Test 3: Document creation
         print("\nTest 3: Testing document creation...")
         from datetime import datetime
-        doc = SmartPropertyDocument(
-            property_id='test_property_123',
-            user_id='test_user_123',
-            smart_features=test_data.smart_features,
-            ai_insights=test_data.ai_insights,
-            recommendations=test_data.recommendations,
+        doc = PropertyDocument(
+            **test_data.model_dump(),
+            agent_id='test_user_123',
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
         print("Document creation successful")
 
         print("\n" + "=" * 50)
-        print("ALL TESTS PASSED! Smart Properties migration code is valid!")
+        print("ALL TESTS PASSED! Unified Property Service is valid!")
         print("- Schema validation: PASSED")
         print("- Service instantiation: PASSED")
         print("- Document creation: PASSED")

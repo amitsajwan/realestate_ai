@@ -13,11 +13,41 @@ class AnalyticsService:
     """Service for tracking and managing analytics data"""
     
     def __init__(self):
-        self.db = get_database()
-        self.views_collection = self.db.property_views
-        self.inquiries_collection = self.db.property_inquiries
-        self.shares_collection = self.db.property_shares
-        self.favorites_collection = self.db.property_favorites
+        self._db = None
+        self._views_collection = None
+        self._inquiries_collection = None
+        self._shares_collection = None
+        self._favorites_collection = None
+    
+    @property
+    def db(self):
+        if self._db is None:
+            self._db = get_database()
+        return self._db
+    
+    @property
+    def views_collection(self):
+        if self._views_collection is None:
+            self._views_collection = self.db.property_views
+        return self._views_collection
+    
+    @property
+    def inquiries_collection(self):
+        if self._inquiries_collection is None:
+            self._inquiries_collection = self.db.property_inquiries
+        return self._inquiries_collection
+    
+    @property
+    def shares_collection(self):
+        if self._shares_collection is None:
+            self._shares_collection = self.db.property_shares
+        return self._shares_collection
+    
+    @property
+    def favorites_collection(self):
+        if self._favorites_collection is None:
+            self._favorites_collection = self.db.property_favorites
+        return self._favorites_collection
     
     async def track_property_view(
         self,

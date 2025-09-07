@@ -111,14 +111,11 @@ async def register_user(
 ):
     """Register a new user account."""
     try:
-        # Sanitize input data
-        sanitized_data = sanitize_user_input(user_data.dict())
+        # Register user (user_data is already a validated Pydantic model)
+        user = await auth_service.register_user(user_data)
 
-        # Register user
-        user = await auth_service.register_user(sanitized_data)
-
-        logger.info(f"User registered successfully: {user.get('email', 'unknown')}")
-        return UserResponse(**user)
+        logger.info(f"User registered successfully: {user.email}")
+        return user
 
     except ConflictError as e:
         logger.warning(f"Registration conflict: {str(e)}")
@@ -148,14 +145,26 @@ async def login_user(
 ):
     """Authenticate user and return access tokens."""
     try:
-        # Sanitize input data
-        sanitized_data = sanitize_user_input(user_credentials.dict())
-
-        # Authenticate user
-        tokens = await auth_service.authenticate_user(sanitized_data)
-
+        # Authenticate user (user_credentials is already a validated Pydantic model)
+        result = await auth_service.authenticate_user(user_credentials)
+        
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
+        
+        user, tokens = result
         logger.info(f"User logged in successfully: {user_credentials.email}")
-        return tokens
+        
+        # Create Token response with user information
+        token_response = {
+            "access_token": tokens["access_token"],
+            "token_type": "bearer",
+            "expires_in": tokens["expires_in"],
+            "user": user
+        }
+        return token_response
 
     except HTTPException:
         raise

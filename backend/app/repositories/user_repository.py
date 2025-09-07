@@ -151,6 +151,20 @@ class UserRepository:
             "account_locked": False
         }
         
+        # Generate unique username if not provided
+        if "username" not in prepared_data:
+            # Use email prefix as username, or generate a unique one
+            email = prepared_data.get("email", "")
+            if email:
+                username = email.split("@")[0]  # Use part before @ as username
+                # Add timestamp to make it unique
+                import time
+                username = f"{username}_{int(time.time())}"
+            else:
+                import time
+                username = f"user_{int(time.time())}"
+            prepared_data["username"] = username
+        
         for key, value in defaults.items():
             if key not in prepared_data:
                 prepared_data[key] = value
