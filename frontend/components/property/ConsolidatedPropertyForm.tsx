@@ -206,7 +206,7 @@ export default function ConsolidatedPropertyForm({
             disabled={isSubmitting}
             className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           >
-            {isSubmitting ? 'Creating...' : 'Create Property'}
+            {isSubmitting ? 'Adding Property...' : 'Add Property'}
           </button>
         </form>
       </div>
@@ -413,7 +413,7 @@ export default function ConsolidatedPropertyForm({
               disabled={isSubmitting}
               className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
             >
-              {isSubmitting ? 'Creating...' : 'Create Property'}
+              {isSubmitting ? 'Adding Property...' : 'Add Property'}
             </button>
           )}
         </div>
