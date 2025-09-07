@@ -43,18 +43,29 @@ export default function OnboardingPage() {
     setCurrentStep(step);
   };
 
-  const handleOnboardingComplete = () => {
+  const handleOnboardingComplete = async () => {
     console.log('[OnboardingPage] Onboarding completed, redirecting to dashboard');
-    // Force a refresh of auth state before redirecting
-    authManager.init().then(() => {
+    try {
+      // Force a refresh of auth state before redirecting
+      await authManager.init();
       console.log('[OnboardingPage] Auth state refreshed, redirecting to dashboard');
-      // Use replace instead of push to prevent back navigation to onboarding
-      router.replace('/dashboard');
-    }).catch(err => {
+      
+      // Check if user is now marked as onboarding completed
+      const state = authManager.getState();
+      if (state.user?.onboardingCompleted) {
+        console.log('[OnboardingPage] User onboarding confirmed as completed, redirecting to dashboard');
+        // Use replace instead of push to prevent back navigation to onboarding
+        router.replace('/dashboard');
+      } else {
+        console.warn('[OnboardingPage] User onboarding not marked as completed, forcing redirect');
+        // Fallback to direct navigation if state is inconsistent
+        window.location.href = '/dashboard';
+      }
+    } catch (err) {
       console.error('[OnboardingPage] Error refreshing auth state:', err);
       // Fallback to direct navigation if refresh fails
       window.location.href = '/dashboard';
-    });
+    }
   };
 
   if (isLoading) {

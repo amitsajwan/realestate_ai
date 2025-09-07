@@ -3,6 +3,7 @@
 import motor.motor_asyncio
 from typing import Optional, Dict, Any, List
 import logging
+import secrets
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,8 @@ class MockCollection:
     
     async def insert_one(self, document: Dict[str, Any]) -> MockInsertOneResult:
         """Mock insert_one operation"""
-        doc_id = str(len(self.data) + 1)
+        # Generate a 24-character hex string to mimic MongoDB ObjectId
+        doc_id = secrets.token_hex(12)
         document['_id'] = doc_id
         self.data[doc_id] = document
         return MockInsertOneResult(doc_id)
@@ -32,7 +34,17 @@ class MockCollection:
     async def find_one(self, filter_dict: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Mock find_one operation"""
         for doc in self.data.values():
-            if all(doc.get(k) == v for k, v in filter_dict.items()):
+            match = True
+            for k, v in filter_dict.items():
+                if k == '_id' and hasattr(v, '__str__'):
+                    # Handle ObjectId-like lookups
+                    if str(doc.get(k)) != str(v):
+                        match = False
+                        break
+                elif doc.get(k) != v:
+                    match = False
+                    break
+            if match:
                 return doc
         return None
     
@@ -52,7 +64,17 @@ class MockCollection:
         matched = 0
         modified = 0
         for doc_id, doc in self.data.items():
-            if all(doc.get(k) == v for k, v in filter_dict.items()):
+            match = True
+            for k, v in filter_dict.items():
+                if k == '_id' and hasattr(v, '__str__'):
+                    # Handle ObjectId-like lookups
+                    if str(doc.get(k)) != str(v):
+                        match = False
+                        break
+                elif doc.get(k) != v:
+                    match = False
+                    break
+            if match:
                 matched += 1
                 before = dict(self.data[doc_id])
                 self.data[doc_id].update(update_dict.get('$set', {}))
