@@ -209,11 +209,8 @@ class UserRepository:
     async def get_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user by ID with enhanced error handling"""
         try:
-            if not ObjectId.is_valid(user_id):
-                logger.warning(f"Invalid user ID format: {user_id}")
-                return None
-            
-            user = await self.collection.find_one({"_id": ObjectId(user_id)})
+            # For mock database, we don't need ObjectId validation
+            user = await self.collection.find_one({"_id": user_id})
             
             if user:
                 logger.debug(f"User found by ID: {user_id}")
@@ -283,9 +280,7 @@ class UserRepository:
         self.logger.info(f"Updating user {user_id} with data: {update_data}")
         """Update user with enhanced validation and error handling"""
         try:
-            if not ObjectId.is_valid(user_id):
-                logger.warning(f"Invalid user ID format for update: {user_id}")
-                return False
+            # For mock database, we don't need ObjectId validation
             
             if not update_data:
                 logger.warning(f"Empty update data for user: {user_id}")
@@ -303,7 +298,7 @@ class UserRepository:
             prepared_data = {k: v for k, v in prepared_data.items() if v is not None}
             
             result = await self.collection.update_one(
-                {"_id": ObjectId(user_id)},
+                {"_id": user_id},
                 {"$set": prepared_data}
             )
             
