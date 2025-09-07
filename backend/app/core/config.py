@@ -7,10 +7,13 @@ Centralized configuration for URLs, environment variables, and settings
 
 import os
 from typing import Optional
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables
+# Prefer repo-level .env; also load .env.production if present without overriding
+# This makes local runs from the backend folder pick up root env files.
+load_dotenv(find_dotenv(filename=".env", usecwd=True))
+load_dotenv(find_dotenv(filename=".env.production", usecwd=True), override=False)
 
 class Settings:
     """Application settings and configuration"""
