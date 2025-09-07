@@ -111,7 +111,7 @@ export default function UnifiedPropertyForm({
 }: UnifiedPropertyFormProps) {
   // Feature flags and A/B testing
   const featureFlags = useFeatureFlags()
-  const { variant: abVariant, trackEvent } = useABTesting(userId)
+  const { variant: abVariant } = useABTesting(userId)
 
   // Form configuration
   const formConfig: FormConfig = {

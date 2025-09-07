@@ -680,6 +680,10 @@ export class APIService {
     }, true);
   }
 
+  async deleteProperty(propertyId: string): Promise<{ message?: string } | any> {
+    return this.delete(`/api/v1/properties/${propertyId}`, true);
+  }
+
   async getAIPropertySuggestions(data: any): Promise<any> {
     return this.makeRequest('/api/v1/property/ai_suggest', {
       method: 'POST',
@@ -695,6 +699,15 @@ export class APIService {
 
   async getBrandingSuggestions(data: { company_name: string; agent_name?: string; position?: string }): Promise<any> {
     return this.post('/api/v1/agent/branding-suggest', data, false);
+  }
+
+  async getMarketInsights(params: { location: string; propertyType: string; price: string | number }): Promise<any> {
+    const query = new URLSearchParams({
+      location: String(params.location || ''),
+      property_type: String(params.propertyType || ''),
+      price: String(params.price ?? '')
+    }).toString();
+    return this.get(`/api/v1/properties/market-insights?${query}`, false);
   }
 
   async updateOnboarding(userId: string, data: OnboardingUpdateRequest): Promise<ApiResponse<User>> {
@@ -801,7 +814,7 @@ export class APIService {
       });
 
       // Create request with FormData (no JSON headers)
-      const response = await this.makeRequest('/api/v1/uploads/images', {
+      const response: any = await this.makeRequest('/api/v1/uploads/images', {
         method: 'POST',
         body: formData,
         headers: {
@@ -813,8 +826,8 @@ export class APIService {
 
       return {
         success: true,
-        files: response.files,
-        message: response.message
+        files: (response as any).files,
+        message: (response as any).message
       };
     } catch (error) {
       apiLog.error(error);
@@ -834,7 +847,7 @@ export class APIService {
         metadata: { fileCount: formData.getAll('files').length }
       });
 
-      const response = await this.makeRequest('/api/v1/uploads/documents', {
+      const response: any = await this.makeRequest('/api/v1/uploads/documents', {
         method: 'POST',
         body: formData,
         headers: {
@@ -846,8 +859,8 @@ export class APIService {
 
       return {
         success: true,
-        files: response.files,
-        message: response.message
+        files: (response as any).files,
+        message: (response as any).message
       };
     } catch (error) {
       apiLog.error(error);

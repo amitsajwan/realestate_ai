@@ -56,7 +56,7 @@ export default function PropertyImageUpload({
       const response = await apiService.uploadImages(formData)
 
       if (response.success) {
-        const newImages = response.files
+        const newImages = (response.files ?? []) as UploadedImage[]
         setUploadedImages(prev => [...prev, ...newImages])
         onImagesUploaded?.(newImages)
 
