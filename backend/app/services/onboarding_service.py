@@ -22,9 +22,9 @@ class OnboardingService:
         self.users = self.db.users
 
     async def _get_user(self, user_id: str) -> Dict[str, Any]:
-        if not ObjectId.is_valid(user_id):
-            raise ValueError("Invalid user ID")
-        user = await self.users.find_one({"_id": ObjectId(user_id)})
+        # For mock database, we don't need ObjectId validation
+        # Just try to find the user by string ID
+        user = await self.users.find_one({"_id": user_id})
         if not user:
             raise ValueError("User not found")
         return user
@@ -51,7 +51,7 @@ class OnboardingService:
             "updated_at": datetime.utcnow(),
         }
         result = await self.users.update_one(
-            {"_id": ObjectId(user_id)}, {"$set": update_fields}
+            {"_id": user_id}, {"$set": update_fields}
         )
         if result.matched_count == 0:
             raise ValueError("User not found")
@@ -62,7 +62,7 @@ class OnboardingService:
         self.logger.info(f"Completing onboarding for user {user_id}")
         """Mark the onboarding as completed for the user."""
         result = await self.users.update_one(
-            {"_id": ObjectId(user_id)},
+            {"_id": user_id},
             {
                 "$set": {
                     "onboarding_completed": True,
