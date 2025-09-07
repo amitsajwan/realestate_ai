@@ -2,6 +2,7 @@ from typing import List, Optional
 from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorCollection
 from bson import ObjectId
+import logging
 
 from app.schemas.unified_property import (
     PropertyDocument as SmartPropertyDocument,
@@ -10,6 +11,9 @@ from app.schemas.unified_property import (
     PropertyResponse as SmartPropertyResponse
 )
 from app.core.database import get_database
+from app.core.exceptions import PropertyNotFoundError, DatabaseError
+
+logger = logging.getLogger(__name__)
 
 
 class SmartPropertyService:
@@ -22,18 +26,26 @@ class SmartPropertyService:
         smart_property: SmartPropertyCreate,
         user_id: str
     ) -> SmartPropertyDocument:
-        """Create a new smart property document."""
-        smart_property_doc = SmartPropertyDocument(
-            **smart_property.dict(),
-            user_id=user_id,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
+        """Create a new smart property document with proper error handling."""
+        try:
+            logger.info(f"Creating smart property for user {user_id}")
+            
+            smart_property_doc = SmartPropertyDocument(
+                **smart_property.dict(),
+                user_id=user_id,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
 
-        result = await self.collection.insert_one(smart_property_doc.dict(by_alias=True))
-        smart_property_doc.id = result.inserted_id
+            result = await self.collection.insert_one(smart_property_doc.dict(by_alias=True))
+            smart_property_doc.id = result.inserted_id
 
-        return smart_property_doc
+            logger.info(f"Smart property created successfully with ID: {result.inserted_id}")
+            return smart_property_doc
+            
+        except Exception as e:
+            logger.error(f"Failed to create smart property: {e}")
+            raise DatabaseError(f"Failed to create smart property: {str(e)}")
 
     async def get_smart_property(
         self,
@@ -122,3 +134,12 @@ class SmartPropertyService:
 
         docs = await cursor.to_list(length=None)
         return [SmartPropertyDocument(**doc) for doc in docs]
+
+    async def get_user_smart_properties(
+        self,
+        user_id: str,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[SmartPropertyDocument]:
+        """Get all smart properties for a user - alias for get_smart_properties_by_user."""
+        return await self.get_smart_properties_by_user(user_id, skip, limit)
