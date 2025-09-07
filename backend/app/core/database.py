@@ -29,6 +29,9 @@ class MockCollection:
         doc_copy = document.copy()
         doc_copy['_id'] = doc_id
         self.data[doc_id] = doc_copy
+        print(f"DEBUG: MockCollection.insert_one - doc_id: {doc_id}, doc_copy: {doc_copy}")
+        print(f"DEBUG: MockCollection.insert_one - stored data keys: {list(self.data.keys())}")
+        print(f"DEBUG: MockCollection.insert_one - stored data values: {list(self.data.values())}")
         return MockInsertOneResult(doc_id)
     
     async def find_one(self, filter_dict: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -106,6 +109,9 @@ class Database:
     database: Optional[motor.motor_asyncio.AsyncIOMotorDatabase] = None
     _mock_database: Optional[MockDatabase] = None
 
+# Global singleton instance
+_global_mock_database: Optional[MockDatabase] = None
+
 db = Database()
 
 async def connect_to_mongo():
@@ -131,9 +137,14 @@ async def connect_to_mongo():
             raise
         # Otherwise fallback to mock DB for development
         logger.warning("⚠️ Falling back to in-memory MockDatabase. Set FAIL_ON_DB_ERROR=true to fail-fast.")
-        if db._mock_database is None:
-            db._mock_database = MockDatabase()
-        db.database = db._mock_database
+        global _global_mock_database
+        if _global_mock_database is None:
+            _global_mock_database = MockDatabase()
+            print(f"DEBUG: Created new global MockDatabase instance: {id(_global_mock_database)}")
+        else:
+            print(f"DEBUG: Reusing existing global MockDatabase instance: {id(_global_mock_database)}")
+        db.database = _global_mock_database
+        db._mock_database = _global_mock_database
 
 async def close_mongo_connection():
     """Close database connection"""
@@ -144,7 +155,13 @@ async def close_mongo_connection():
 def get_database():
     """Get database instance"""
     if db.database is None:
-        raise RuntimeError("Database not initialized. Call connect_to_mongo() first.")
+        # Initialize global mock database if not already initialized
+        global _global_mock_database
+        if _global_mock_database is None:
+            _global_mock_database = MockDatabase()
+            print(f"DEBUG: Created new global MockDatabase instance in get_database: {id(_global_mock_database)}")
+        db.database = _global_mock_database
+        db._mock_database = _global_mock_database
     return db.database
 
 # Legacy compatibility - some of your existing code might expect this

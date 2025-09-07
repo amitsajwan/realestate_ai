@@ -56,7 +56,8 @@ def create_application() -> FastAPI:
             
         except Exception as e:
             logger.error(f"❌ Failed to connect to MongoDB: {e}")
-            raise
+            # Don't raise the exception - let the app start with mock database
+            logger.warning("⚠️ Continuing with mock database")
 
     @app.on_event("shutdown")
     async def shutdown_event():

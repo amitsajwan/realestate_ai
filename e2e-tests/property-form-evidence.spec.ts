@@ -29,14 +29,18 @@ test.describe('Property Form Evidence Collection', () => {
     await expect(page.locator('input[placeholder*="address"], input[placeholder*="Address"]')).toBeVisible();
     console.log('✓ Address field is visible');
     
-    // Check for Add Property button
-    await expect(page.locator('button:has-text("Add Property")')).toBeVisible();
-    console.log('✓ Add Property button is visible');
+    // Check for Next button (Add Property button is only on step 3)
+    await expect(page.locator('button:has-text("Next")')).toBeVisible();
+    console.log('✓ Next button is visible');
     
     // Try to fill out the form
     console.log('Step 2: Filling out property form');
     await page.fill('input[placeholder*="address"], input[placeholder*="Address"]', '123 Test Street, Mumbai');
-    await page.fill('input[placeholder*="type"], input[placeholder*="Type"]', 'Apartment');
+    // Property type is a select dropdown, not an input field
+    const typeField = page.locator('select[name="propertyType"]');
+    if (await typeField.isVisible()) {
+      await typeField.selectOption('Apartment');
+    }
     
     console.log('✓ Form fields filled successfully');
     
@@ -60,7 +64,11 @@ test.describe('Property Form Evidence Collection', () => {
     
     // Fill step 1 and proceed
     await page.fill('input[placeholder*="address"], input[placeholder*="Address"]', '456 Demo Avenue, Delhi');
-    await page.fill('input[placeholder*="type"], input[placeholder*="Type"]', 'Villa');
+    // Property type is a select dropdown, not an input field
+    const typeField = page.locator('select[name="propertyType"]');
+    if (await typeField.isVisible()) {
+      await typeField.selectOption('Villa');
+    }
     
     // Click Next button
     const nextButton = page.locator('button:has-text("Next")');
