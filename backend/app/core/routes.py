@@ -6,7 +6,7 @@ All route definitions and endpoint setup
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
-from app.api.v1.endpoints.smart_properties import SmartPropertyCreate, SmartPropertyResponse, generate_simple_ai_content, get_smart_property_service
+# Removed duplicate smart_properties import - using unified_properties now
 from app.dependencies import get_current_user
 
 
@@ -26,46 +26,8 @@ def setup_routes(app: FastAPI):
 
 def setup_additional_endpoints(app: FastAPI):
     """Setup additional endpoints that don't fit in the main API router"""
-
-    # Add generate-property endpoint directly for frontend compatibility
-    @app.post("/api/generate-property", response_model=SmartPropertyResponse)
-    async def generate_property_direct(
-        prop: SmartPropertyCreate,
-        current_user: dict = Depends(get_current_user)
-    ):
-        """Generate property content - direct endpoint for frontend compatibility"""
-        try:
-            from app.logging_config import get_logger
-            logger = get_logger(__name__)
-
-            logger.info(f"Generating property content for user: {current_user.get('username', 'anonymous')}")
-
-            # Get user ID
-            user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
-
-            # Generate AI content if requested
-            ai_content = None
-            if prop.ai_generate:
-                ai_content = generate_simple_ai_content(prop.model_dump(), prop.template, prop.language)
-
-            # Create property data with AI content
-            property_data = prop.model_dump()
-            property_data["ai_content"] = ai_content
-
-            # Use the proper MongoDB service
-            result = await get_smart_property_service().create_smart_property(
-                SmartPropertyCreate(**property_data),
-                user_id
-            )
-
-            logger.info(f"Property generated successfully with ID: {result.id}")
-            return result
-
-        except Exception as e:
-            from app.logging_config import get_logger
-            logger = get_logger(__name__)
-            logger.error(f"Error generating property: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to generate property: {str(e)}")
+    
+    # Removed duplicate generate-property endpoint - using unified properties now
 
     @app.get("/health")
     async def health_check():
