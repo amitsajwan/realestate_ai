@@ -34,8 +34,11 @@ global.fetch = mockFetch
 const mockLocation = {
   href: '',
 }
-delete (window as any).location
-;(window as any).location = mockLocation
+// Use Object.defineProperty to avoid the "Cannot redefine property" error
+Object.defineProperty(window, 'location', {
+  value: mockLocation,
+  writable: true,
+})
 
 describe('FacebookIntegration Component', () => {
   beforeEach(() => {

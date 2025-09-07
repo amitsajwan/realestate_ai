@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
   ChartBarIcon,
@@ -29,12 +29,15 @@ interface StatCard {
 export default function Analytics({ properties = [] }: AnalyticsProps) {
   const [mockProperties, setMockProperties] = useState<any[]>([])
   
+  // Memoize properties to prevent infinite re-renders
+  const memoizedProperties = useMemo(() => properties, [properties.length, JSON.stringify(properties)])
+  
   // Use provided properties or load mock data
-  const activeProperties = properties.length > 0 ? properties : mockProperties
+  const activeProperties = memoizedProperties.length > 0 ? memoizedProperties : mockProperties
 
   useEffect(() => {
     // Load mock properties if none provided
-    if (properties.length === 0) {
+    if (memoizedProperties.length === 0) {
       const mockData = [
         {
           id: 1,
@@ -71,7 +74,7 @@ export default function Analytics({ properties = [] }: AnalyticsProps) {
       ]
       setMockProperties(mockData)
     }
-  }, [properties])
+  }, [memoizedProperties.length])
 
   // Calculate analytics from properties data
   const totalProperties = activeProperties.length
