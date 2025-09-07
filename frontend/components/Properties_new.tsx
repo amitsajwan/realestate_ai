@@ -150,6 +150,24 @@ export default function Properties({ onAddProperty, properties: propProperties =
     // You can implement edit modal or navigate to edit page here
   }
 
+  const handleDeleteProperty = async (propertyId: string) => {
+    // For now, use window.confirm as in the tests
+    const confirmed = window.confirm('Are you sure you want to delete this property?')
+    if (confirmed) {
+      try {
+        // Call the delete API
+        await apiService.deleteProperty(propertyId)
+        // Update local state by removing the property
+        const updatedProperties = properties.filter(p => p.id !== propertyId)
+        setProperties(updatedProperties)
+        toast.success('Property deleted successfully')
+      } catch (error) {
+        console.error('Error deleting property:', error)
+        toast.error('Failed to delete property')
+      }
+    }
+  }
+
   const handleShare = async (property: Property) => {
     try {
       const shareData = {
@@ -391,6 +409,8 @@ export default function Properties({ onAddProperty, properties: propProperties =
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: index * 0.05 }}
+            role="article"
+            aria-label={`Property: ${property.title}`}
             className={`bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden hover:shadow-xl dark:hover:shadow-slate-900/20 transition-all duration-300 group card-hover hover-glow hover:-translate-y-1 ${
               viewMode === 'list' ? 'flex flex-col sm:flex-row' : ''
             }`}
@@ -516,6 +536,14 @@ export default function Properties({ onAddProperty, properties: propProperties =
                   title="Edit Property"
                 >
                   <PencilIcon className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleDeleteProperty(property.id)}
+                  className="p-2.5 bg-red-100 dark:bg-red-900/20 hover:bg-red-200 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg transition-all duration-200 hover-lift click-shrink"
+                  title="Delete Property"
+                  data-testid="trash-icon"
+                >
+                  <TrashIcon className="w-4 h-4" />
                 </button>
               </div>
             </div>
