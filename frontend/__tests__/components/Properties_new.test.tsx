@@ -111,7 +111,7 @@ describe('Properties Component', () => {
   })
 
   it('loads and displays properties', async () => {
-    render(<Properties />)
+    render(<Properties properties={mockProperties} />)
 
     await waitFor(() => {
       expect(screen.getByText('Beautiful Apartment')).toBeInTheDocument()
@@ -122,7 +122,7 @@ describe('Properties Component', () => {
   })
 
   it('displays property details correctly', async () => {
-    render(<Properties />)
+    render(<Properties properties={mockProperties} />)
 
     await waitFor(() => {
       expect(screen.getByText('Beautiful Apartment')).toBeInTheDocument()
@@ -136,7 +136,7 @@ describe('Properties Component', () => {
   })
 
   it('shows property images when available', async () => {
-    render(<Properties />)
+    render(<Properties properties={mockProperties} />)
 
     await waitFor(() => {
       expect(screen.getByText('Beautiful Apartment')).toBeInTheDocument()
@@ -149,7 +149,7 @@ describe('Properties Component', () => {
   })
 
   it('displays property status badges', async () => {
-    render(<Properties />)
+    render(<Properties properties={mockProperties} />)
 
     await waitFor(() => {
       expect(screen.getByText('For Sale')).toBeInTheDocument()
@@ -158,7 +158,7 @@ describe('Properties Component', () => {
   })
 
   it('shows add property button when onAddProperty is provided', async () => {
-    render(<Properties onAddProperty={mockOnAddProperty} />)
+    render(<Properties onAddProperty={mockOnAddProperty} properties={mockProperties} />)
 
     await waitFor(() => {
       expect(screen.getByText('Beautiful Apartment')).toBeInTheDocument()
@@ -170,7 +170,7 @@ describe('Properties Component', () => {
 
   it('calls onAddProperty when add button is clicked', async () => {
     const user = userEvent.setup()
-    render(<Properties onAddProperty={mockOnAddProperty} />)
+    render(<Properties onAddProperty={mockOnAddProperty} properties={mockProperties} />)
 
     await waitFor(() => {
       expect(screen.getByText('Beautiful Apartment')).toBeInTheDocument()
@@ -183,18 +183,18 @@ describe('Properties Component', () => {
   })
 
   it('shows search input', async () => {
-    render(<Properties />)
+    render(<Properties properties={mockProperties} />)
 
     await waitFor(() => {
       expect(screen.getByText('Beautiful Apartment')).toBeInTheDocument()
     })
 
-    expect(screen.getByPlaceholderText('Search properties...')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Search by title, location, or description...')).toBeInTheDocument()
   })
 
   it('filters properties based on search', async () => {
     const user = userEvent.setup()
-    render(<Properties />)
+    render(<Properties properties={mockProperties} />)
 
     await waitFor(() => {
       expect(screen.getByText('Beautiful Apartment')).toBeInTheDocument()
@@ -436,27 +436,27 @@ describe('Properties Component', () => {
 
   it('maintains search state during re-renders', async () => {
     const user = userEvent.setup()
-    const { rerender } = render(<Properties />)
+    const { rerender } = render(<Properties properties={mockProperties} />)
 
     await waitFor(() => {
       expect(screen.getByText('Beautiful Apartment')).toBeInTheDocument()
     })
 
-    const searchInput = screen.getByPlaceholderText('Search properties...')
+    const searchInput = screen.getByPlaceholderText('Search by title, location, or description...')
     await user.type(searchInput, 'Beautiful')
 
     expect(screen.getByText('Beautiful Apartment')).toBeInTheDocument()
     expect(screen.queryByText('Spacious House')).not.toBeInTheDocument()
 
     // Re-render should maintain search
-    rerender(<Properties />)
+    rerender(<Properties properties={mockProperties} />)
 
     expect(screen.getByText('Beautiful Apartment')).toBeInTheDocument()
     expect(screen.queryByText('Spacious House')).not.toBeInTheDocument()
   })
 
   it('has proper accessibility attributes', async () => {
-    render(<Properties />)
+    render(<Properties properties={mockProperties} />)
 
     await waitFor(() => {
       expect(screen.getByText('Beautiful Apartment')).toBeInTheDocument()
@@ -472,7 +472,7 @@ describe('Properties Component', () => {
 
   it('supports keyboard navigation', async () => {
     const user = userEvent.setup()
-    render(<Properties onAddProperty={mockOnAddProperty} />)
+    render(<Properties onAddProperty={mockOnAddProperty} properties={mockProperties} />)
 
     await waitFor(() => {
       expect(screen.getByText('Beautiful Apartment')).toBeInTheDocument()
@@ -489,7 +489,7 @@ describe('Properties Component', () => {
 
   it('handles rapid clicks on action buttons', async () => {
     const user = userEvent.setup()
-    render(<Properties />)
+    render(<Properties properties={mockProperties} />)
 
     await waitFor(() => {
       expect(screen.getByText('Beautiful Apartment')).toBeInTheDocument()
@@ -508,7 +508,7 @@ describe('Properties Component', () => {
 
   it('updates property list after deletion', async () => {
     const user = userEvent.setup()
-    render(<Properties />)
+    render(<Properties properties={mockProperties} />)
 
     await waitFor(() => {
       expect(screen.getByText('Beautiful Apartment')).toBeInTheDocument()
@@ -530,7 +530,7 @@ describe('Properties Component', () => {
     // Mock window.confirm
     const mockConfirm = jest.spyOn(window, 'confirm').mockReturnValue(true)
 
-    render(<Properties />)
+    render(<Properties properties={mockProperties} />)
 
     await waitFor(() => {
       expect(screen.getByText('Beautiful Apartment')).toBeInTheDocument()
@@ -550,7 +550,7 @@ describe('Properties Component', () => {
     // Mock window.confirm to return false
     const mockConfirm = jest.spyOn(window, 'confirm').mockReturnValue(false)
 
-    render(<Properties />)
+    render(<Properties properties={mockProperties} />)
 
     await waitFor(() => {
       expect(screen.getByText('Beautiful Apartment')).toBeInTheDocument()
