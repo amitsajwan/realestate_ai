@@ -5,6 +5,7 @@ from core.auth import get_current_agent
 from core.database import get_database
 from datetime import datetime, timedelta
 import logging
+from app.services.email_service import email_service
 
 router = APIRouter()
 
@@ -26,7 +27,18 @@ async def register_agent(agent_data: AgentCreate, db=Depends(get_database)):
     )
     result = await db.agents.insert_one(agent.dict())
     agent.agent_id = str(result.inserted_id)
-    # TODO: send welcome email
+    
+    # Send welcome email
+    try:
+        await email_service.send_welcome_email(
+            agent_email=agent.contact_email,
+            agent_name=agent.business_name
+        )
+        logging.info(f"Welcome email sent to {agent.contact_email}")
+    except Exception as e:
+        logging.error(f"Failed to send welcome email: {e}")
+        # Don't fail the registration if email fails
+    
     return AgentOut(**agent.dict())
 
 @router.get("/agents/me", response_model=AgentOut)
