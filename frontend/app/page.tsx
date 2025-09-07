@@ -63,8 +63,10 @@ export default function Dashboard() {
   useEffect(() => {
     const initAuth = async () => {
   console.debug('[DashboardPage] Checking authentication...')
-  console.debug('[DashboardPage] Current URL:', window.location.href)
-  console.debug('[DashboardPage] URL params:', Object.fromEntries(new URLSearchParams(window.location.search).entries()))
+  if (typeof window !== 'undefined') {
+    console.debug('[DashboardPage] Current URL:', window.location.href)
+    console.debug('[DashboardPage] URL params:', Object.fromEntries(new URLSearchParams(window.location.search).entries()))
+  }
       
       await authManager.init()
       const state = authManager.getState()

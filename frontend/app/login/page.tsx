@@ -52,18 +52,22 @@ const LoginPage: React.FC = () => {
 
   // Check if user is already authenticated
   const isInitialMount = useRef(true);
+  const [isClient, setIsClient] = useState(false);
   
   const handleFacebookCallback = async (accessToken: string, refreshToken: string) => {
     try {
-      // Store tokens in localStorage to be picked up by authManager
-      localStorage.setItem('authState', JSON.stringify({ accessToken, refreshToken }));
+      // Only run client-side code
+      if (typeof window !== 'undefined') {
+        // Store tokens in localStorage to be picked up by authManager
+        localStorage.setItem('authState', JSON.stringify({ accessToken, refreshToken }));
+        
+        // Clear URL parameters
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
       
       // Initialize auth state
       await authManager.init();
       const authState = authManager.getState();
-      
-      // Clear URL parameters
-      window.history.replaceState({}, document.title, window.location.pathname);
       
       // Show success message
       showSuccess('Successfully logged in with Facebook!');
@@ -80,21 +84,27 @@ const LoginPage: React.FC = () => {
   };
   
   useEffect(() => {
+    // Set client flag after hydration
+    setIsClient(true);
+    
     // Skip the authentication check on the initial server-side render
     // This prevents hydration mismatch between server and client
     if (isInitialMount.current) {
       isInitialMount.current = false;
       
-      // Check for Facebook authentication callback
-      const urlParams = new URLSearchParams(window.location.search);
-      const accessToken = urlParams.get('access_token');
-      const refreshToken = urlParams.get('refresh_token');
-      const facebookLogin = urlParams.get('facebook_login');
-      
-      if (accessToken && refreshToken && facebookLogin === 'true') {
-        // Handle Facebook authentication callback
-        handleFacebookCallback(accessToken, refreshToken);
-        return;
+      // Only run client-side code after hydration
+      if (typeof window !== 'undefined') {
+        // Check for Facebook authentication callback
+        const urlParams = new URLSearchParams(window.location.search);
+        const accessToken = urlParams.get('access_token');
+        const refreshToken = urlParams.get('refresh_token');
+        const facebookLogin = urlParams.get('facebook_login');
+        
+        if (accessToken && refreshToken && facebookLogin === 'true') {
+          // Handle Facebook authentication callback
+          handleFacebookCallback(accessToken, refreshToken);
+          return;
+        }
       }
     }
     
@@ -127,7 +137,7 @@ const LoginPage: React.FC = () => {
   };
 
   const getFieldValidationIcon = (field: keyof LoginFormData) => {
-    if (!currentValidator.isTouched(field) || !formData[field]) return null;
+    if (!isClient || !currentValidator.isTouched(field) || !formData[field]) return null;
     
     const hasError = currentValidator.hasFieldError(field);
     if (hasError) {
@@ -203,7 +213,7 @@ const LoginPage: React.FC = () => {
       const response = await fetch(`${base}/api/v1/auth/facebook/login`);
       const data = await response.json();
       
-      if (data.auth_url) {
+      if (data.auth_url && typeof window !== 'undefined') {
         window.location.href = data.auth_url;
       } else {
         toast.error('Facebook login is not available');

@@ -59,12 +59,20 @@ export default function OnboardingPage() {
       } else {
         console.warn('[OnboardingPage] User onboarding not marked as completed, forcing redirect');
         // Fallback to direct navigation if state is inconsistent
-        window.location.href = '/dashboard';
+        if (typeof window !== 'undefined') {
+          window.location.href = '/dashboard';
+        } else {
+          router.replace('/dashboard');
+        }
       }
     } catch (err) {
       console.error('[OnboardingPage] Error refreshing auth state:', err);
       // Fallback to direct navigation if refresh fails
-      window.location.href = '/dashboard';
+      if (typeof window !== 'undefined') {
+        window.location.href = '/dashboard';
+      } else {
+        router.replace('/dashboard');
+      }
     }
   };
 
