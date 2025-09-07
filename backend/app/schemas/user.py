@@ -7,10 +7,13 @@ from app.utils.validation import validate_password_strength, validate_email_form
 class UserBase(BaseModel):
     """Base user model with common fields"""
     email: str = Field(..., description="User's email address")
-    first_name: Optional[str] = Field(None, min_length=1, max_length=50, description="User's first name")
-    last_name: Optional[str] = Field(None, min_length=1, max_length=50, description="User's last name")
+    first_name: Optional[str] = Field(None, min_length=1, max_length=50, description="User's first name", alias="firstName")
+    last_name: Optional[str] = Field(None, min_length=1, max_length=50, description="User's last name", alias="lastName")
     phone: Optional[str] = Field(None, max_length=20, description="User's phone number")
     is_active: bool = Field(True, description="Whether the user account is active")
+    
+    class Config:
+        allow_population_by_field_name = True
     
     @validator('first_name', 'last_name')
     def validate_names(cls, v):

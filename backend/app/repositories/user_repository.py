@@ -212,6 +212,11 @@ class UserRepository:
             # For mock database, we don't need ObjectId validation
             user = await self.collection.find_one({"_id": user_id})
             
+            # Debug: Check what's in the database
+            all_users = await self.collection.find({})
+            logger.info(f"All users in database: {[u.get('_id') for u in all_users]}")
+            logger.info(f"Looking for user_id: {user_id}")
+            
             if user:
                 logger.debug(f"User found by ID: {user_id}")
             else:
