@@ -52,20 +52,31 @@ class SmartPropertyService:
         smart_property_id: str,
         user_id: str
     ) -> Optional[SmartPropertyDocument]:
-        """Get a smart property by ID for the specified user."""
+        """Get a smart property by ID for the specified user with proper error handling."""
         try:
-            obj_id = ObjectId(smart_property_id)
-        except:
-            return None
+            logger.info(f"Fetching smart property {smart_property_id} for user {user_id}")
+            
+            try:
+                obj_id = ObjectId(smart_property_id)
+            except Exception:
+                logger.warning(f"Invalid ObjectId format: {smart_property_id}")
+                return None
 
-        doc = await self.collection.find_one({
-            "_id": obj_id,
-            "user_id": user_id
-        })
+            doc = await self.collection.find_one({
+                "_id": obj_id,
+                "user_id": user_id
+            })
 
-        if doc:
-            return SmartPropertyDocument(**doc)
-        return None
+            if doc:
+                logger.info(f"Smart property found: {smart_property_id}")
+                return SmartPropertyDocument(**doc)
+            else:
+                logger.info(f"Smart property not found: {smart_property_id}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Failed to get smart property {smart_property_id}: {e}")
+            raise DatabaseError(f"Failed to retrieve smart property: {str(e)}")
 
     async def get_smart_properties_by_user(
         self,

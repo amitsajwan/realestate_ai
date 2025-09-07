@@ -30,3 +30,14 @@ class ConflictError(CRMException):
 class FacebookError(CRMException):
     def __init__(self, message: str = "Facebook API error"):
         super().__init__(message, "FACEBOOK_ERROR")
+
+class DatabaseError(CRMException):
+    def __init__(self, message: str = "Database operation failed"):
+        super().__init__(message, "DATABASE_ERROR")
+
+class PropertyNotFoundError(NotFoundError):
+    def __init__(self, property_id: str = None):
+        if property_id:
+            super().__init__(f"Property with ID '{property_id}' not found")
+        else:
+            super().__init__("Property not found")
