@@ -28,6 +28,17 @@ class SmartPropertyCreate(BaseModel):
     market_analysis: Optional[Dict[str, Any]] = None
     recommendations: Optional[List[str]] = None
     automation_rules: Optional[List[Dict[str, Any]]] = None
+    # Additional fields for API compatibility
+    address: Optional[str] = None
+    price: Optional[str] = None
+    property_type: Optional[str] = None
+    bedrooms: Optional[int] = None
+    bathrooms: Optional[int] = None
+    features: Optional[str] = None
+    template: Optional[str] = "just_listed"
+    language: Optional[str] = "en"
+    ai_generate: Optional[bool] = True
+    ai_content: Optional[str] = None
 
 
 class SmartPropertyUpdate(BaseModel):

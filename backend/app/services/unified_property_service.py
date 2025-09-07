@@ -19,6 +19,7 @@ from app.schemas.unified_property import (
     PropertyDocument
 )
 from app.core.exceptions import NotFoundError, ValidationError
+from app.services.analytics_service import analytics_service
 
 logger = logging.getLogger(__name__)
 
@@ -234,17 +235,23 @@ class UnifiedPropertyService:
         if not property_data:
             raise NotFoundError("Property not found")
         
-        # Calculate analytics based on property data
+        # Get analytics from analytics service
+        property_analytics = await analytics_service.get_property_analytics(
+            property_id=str(property_data.id),
+            days=30
+        )
+        
         analytics = {
-            "views": 0,  # TODO: Implement view tracking
-            "inquiries": 0,  # TODO: Implement inquiry tracking
-            "shares": 0,  # TODO: Implement share tracking
-            "favorites": 0,  # TODO: Implement favorite tracking
+            "views": property_analytics["metrics"].get("views", 0),
+            "inquiries": property_analytics["metrics"].get("inquiries", 0),
+            "shares": property_analytics["metrics"].get("shares", 0),
+            "favorites": property_analytics["metrics"].get("favorites", 0),
             "created_at": property_data.created_at,
             "updated_at": property_data.updated_at,
             "ai_generated": bool(property_data.ai_content),
             "market_insights": bool(property_data.market_analysis),
-            "quality_score": self._calculate_quality_score(property_data)
+            "quality_score": self._calculate_quality_score(property_data),
+            "engagement_rate": property_analytics.get("engagement_rate", 0.0)
         }
         
         return analytics
