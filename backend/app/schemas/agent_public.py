@@ -57,17 +57,24 @@ class AgentPublicProfileCreate(AgentPublicProfileBase):
 
 class AgentPublicProfileUpdate(BaseModel):
     """Schema for updating agent public profile"""
-    agent_name: Optional[str] = Field(None, min_length=2, max_length=100)
-    bio: Optional[str] = Field(None, max_length=1000)
-    photo: Optional[str] = None
-    phone: Optional[str] = Field(None, max_length=20)
-    email: Optional[str] = None
-    office_address: Optional[str] = Field(None, max_length=200)
-    specialties: Optional[List[str]] = None
-    experience: Optional[str] = Field(None, max_length=500)
-    languages: Optional[List[str]] = None
-    is_active: Optional[bool] = None
-    is_public: Optional[bool] = None
+    agent_name: Optional[str] = Field(None, min_length=2, max_length=100, description="Agent's display name")
+    bio: Optional[str] = Field(None, max_length=1000, description="Agent's professional bio")
+    photo: Optional[str] = Field(None, description="Agent's profile photo URL")
+    phone: Optional[str] = Field(None, max_length=20, description="Contact phone number")
+    email: Optional[str] = Field(None, description="Contact email address")
+    office_address: Optional[str] = Field(None, max_length=200, description="Office address")
+    specialties: Optional[List[str]] = Field(None, description="Property specialties")
+    experience: Optional[str] = Field(None, max_length=500, description="Years of experience")
+    languages: Optional[List[str]] = Field(None, description="Languages spoken")
+    is_active: Optional[bool] = Field(None, description="Whether profile is active")
+    is_public: Optional[bool] = Field(None, description="Whether profile is publicly visible")
+
+    @validator('email')
+    def validate_email(cls, v):
+        """Validate email format"""
+        if v and '@' not in v:
+            raise ValueError('Invalid email format')
+        return v
 
 
 class AgentPublicProfile(AgentPublicProfileBase):

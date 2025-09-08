@@ -15,7 +15,8 @@ import {
   BuildingOfficeIcon,
   Bars3Icon,
   XMarkIcon,
-  BellIcon
+  BellIcon,
+  GlobeAltIcon
 } from '@heroicons/react/24/outline'
 import { authManager } from '@/lib/auth'
 import { apiService } from '@/lib/api'
@@ -30,6 +31,7 @@ import { loadBrandTheme, applyBrandTheme } from '@/lib/theme'
 // Lazy load heavy components
 const AIContentGenerator = lazy(() => import('@/components/AIContentGenerator'))
 const Analytics = lazy(() => import('@/components/Analytics'))
+const PublicWebsiteManagement = lazy(() => import('@/components/PublicWebsiteManagement'))
 
 const navigation = [
   { name: 'Dashboard', icon: HomeIcon, id: 'dashboard' },
@@ -37,6 +39,7 @@ const navigation = [
   { name: 'Add Property', icon: PlusIcon, id: 'property-form' },
   { name: 'Smart Form Demo', icon: SparklesIcon, id: 'smart-form-demo', isNew: true },
   { name: 'AI Tools', icon: SparklesIcon, id: 'ai-content' },
+  { name: 'Public Website', icon: GlobeAltIcon, id: 'public-website' },
   { name: 'Analytics', icon: ChartBarIcon, id: 'analytics' },
   { name: 'CRM', icon: UsersIcon, id: 'crm' },
   { name: 'Facebook', icon: CogIcon, id: 'facebook' },
@@ -241,6 +244,16 @@ export default function Dashboard() {
         return <FacebookIntegration />
       case 'profile':
         return <ProfileSettings />
+      case 'public-website':
+        return (
+          <Suspense fallback={
+            <div className="flex items-center justify-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          }>
+            <PublicWebsiteManagement />
+          </Suspense>
+        )
       default:
         return (
           <div className="space-y-8">
