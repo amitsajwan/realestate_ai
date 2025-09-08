@@ -58,12 +58,22 @@ jest.mock('../../components/LoadingStates', () => ({
   LoadingOverlay: ({ children }: any) => <div>{children}</div>
 }));
 
-jest.mock('../../lib/form-validation', () => ({
-  profileSettingsSchema: {
-    parse: jest.fn((data) => data)
-  },
-  FormValidator: jest.fn()
-}));
+jest.mock('../../lib/form-validation', () => {
+  const mockValidatorInstance = {
+    validateField: jest.fn(() => true),
+    hasFieldError: jest.fn(() => false),
+    isFieldValid: jest.fn(() => true),
+    validateAll: jest.fn(() => true),
+    getErrors: jest.fn(() => ({})),
+    touch: jest.fn(),
+  }
+  return {
+    profileSettingsSchema: {
+      parse: jest.fn((data) => data)
+    },
+    FormValidator: jest.fn(() => mockValidatorInstance),
+  }
+});
 
 
 

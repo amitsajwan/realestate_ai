@@ -587,17 +587,18 @@ describe('Properties Component', () => {
     })
 
     it('falls back to clipboard when native share is not available', async () => {
-      // Remove existing share and set to undefined if configurable
-      try {
-        Object.defineProperty(window.navigator, 'share', {
-          configurable: true,
-        })
-      } catch {}
-      ;(window.navigator as any).share = undefined
+      // Make share unavailable
+      Object.defineProperty(window.navigator, 'share', {
+        configurable: true,
+        get: () => undefined,
+      })
 
-      // Create a proper spy for clipboard.writeText
+      // Spy on clipboard
       const writeTextSpy = jest.fn().mockResolvedValue(undefined)
-      ;(window.navigator as any).clipboard = { writeText: writeTextSpy }
+      Object.defineProperty(window.navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: writeTextSpy },
+      })
 
       const user = userEvent.setup()
       render(
@@ -608,8 +609,9 @@ describe('Properties Component', () => {
         />
       )
 
-      const shareButtons = screen.getAllByTestId('share-icon')
-      await user.click(shareButtons[0])
+      const shareIcons = screen.getAllByTestId('share-icon')
+      const shareButton = shareIcons[0].closest('button') as HTMLButtonElement
+      await user.click(shareButton)
 
       await waitFor(() => {
         expect(writeTextSpy).toHaveBeenCalled()
