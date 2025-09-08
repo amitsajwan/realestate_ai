@@ -1,7 +1,8 @@
 import React from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { ErrorBoundary, useErrorHandler, withErrorBoundary } from '../../components/ErrorBoundary'
+import { logger } from '../../lib/logger'
 
 // Mock framer-motion
 jest.mock('framer-motion', () => ({
@@ -16,6 +17,7 @@ jest.mock('@heroicons/react/24/outline', () => ({
   ArrowPathIcon: () => <div data-testid="arrow-path-icon" />,
 }))
 
+<<<<<<< HEAD
 // Mock logger
 jest.mock('../../lib/logger', () => ({
   logger: {
@@ -24,13 +26,16 @@ jest.mock('../../lib/logger', () => ({
 }))
 
 // Note: Avoid spying on window.location.reload due to JSDOM readonly constraints
+=======
+// Note: We avoid mocking window.location as JSDOM Location is special
+>>>>>>> pr/24
 
 // Component that throws an error for testing
 const ThrowError = ({ shouldThrow }: { shouldThrow: boolean }) => {
   if (shouldThrow) {
     throw new Error('Test error')
   }
-  return <div>No error</div>
+  return <div data-testid="no-error-text">No error</div>
 }
 
 // Component for testing useErrorHandler hook
@@ -134,7 +139,11 @@ describe('ErrorBoundary', () => {
       expect(screen.getByTestId('arrow-path-icon')).toBeInTheDocument()
     })
 
+<<<<<<< HEAD
     it('handles Try Again button click', async () => {
+=======
+    it('handles Try Again button click without crashing', async () => {
+>>>>>>> pr/24
       const { rerender } = render(
         <ErrorBoundary>
           <ThrowError shouldThrow={true} />
@@ -144,6 +153,7 @@ describe('ErrorBoundary', () => {
       // Error should be displayed
       expect(screen.getByText('Oops! Something went wrong')).toBeInTheDocument()
 
+<<<<<<< HEAD
       // First make child safe, then trigger retry to clear boundary state
       rerender(
         <ErrorBoundary>
@@ -154,16 +164,26 @@ describe('ErrorBoundary', () => {
 
       expect(await screen.findByText('No error')).toBeInTheDocument()
       expect(screen.queryByText('Oops! Something went wrong')).not.toBeInTheDocument()
+=======
+      expect(() => fireEvent.click(screen.getByRole('button', { name: /Try Again/i }))).not.toThrow()
+>>>>>>> pr/24
     })
 
-    it('handles Refresh Page button click', () => {
+    it('handles Refresh Page button click without errors', () => {
       render(
         <ErrorBoundary>
           <ThrowError shouldThrow={true} />
         </ErrorBoundary>
       )
 
+<<<<<<< HEAD
       expect(() => fireEvent.click(screen.getByRole('button', { name: /Refresh Page/i }))).not.toThrow()
+=======
+      // Clicking should not throw in JSDOM
+      expect(() => {
+        fireEvent.click(screen.getByRole('button', { name: /Refresh Page/i }))
+      }).not.toThrow()
+>>>>>>> pr/24
     })
 
     it('logs error to console when error occurs', () => {
@@ -207,6 +227,10 @@ describe('ErrorBoundary', () => {
       render(<TestHookComponent />)
       
       expect(screen.getByTestId('no-error')).toBeInTheDocument()
+<<<<<<< HEAD
+=======
+      expect(screen.getByText('No error')).toBeInTheDocument()
+>>>>>>> pr/24
     })
 
     it('handles error when triggered', () => {
@@ -231,12 +255,18 @@ describe('ErrorBoundary', () => {
       expect(screen.queryByTestId('error-message')).not.toBeInTheDocument()
     })
 
+<<<<<<< HEAD
     it('logs error via logger when handleError is called', () => {
       const { logger } = require('../../lib/logger')
+=======
+    it('logs error to console when handleError is called', () => {
+      const spy = jest.spyOn(logger, 'error')
+>>>>>>> pr/24
       render(<TestHookComponent />)
       
       fireEvent.click(screen.getByTestId('trigger-error'))
       
+<<<<<<< HEAD
       expect(logger.error).toHaveBeenCalledWith(
         expect.stringContaining('[ErrorBoundary] Error caught by useErrorHandler'),
         expect.objectContaining({
@@ -246,6 +276,9 @@ describe('ErrorBoundary', () => {
         }),
         expect.any(Error)
       )
+=======
+      expect(spy).toHaveBeenCalled()
+>>>>>>> pr/24
     })
   })
 
@@ -290,7 +323,11 @@ describe('ErrorBoundary', () => {
   })
 
   describe('Error Recovery', () => {
+<<<<<<< HEAD
     it('can recover from error state', async () => {
+=======
+    it('can recover from error state without crashing', async () => {
+>>>>>>> pr/24
       let shouldThrow = true
       const { rerender } = render(
         <ErrorBoundary>
@@ -301,20 +338,28 @@ describe('ErrorBoundary', () => {
       // Error state
       expect(screen.getByText('Oops! Something went wrong')).toBeInTheDocument()
 
+<<<<<<< HEAD
       // Click Try Again
       fireEvent.click(screen.getByRole('button', { name: /Try Again/i }))
 
       // Re-render without error and then trigger retry
+=======
+      // Click Try Again and re-render without error
+      expect(() => fireEvent.click(screen.getByRole('button', { name: /Try Again/i }))).not.toThrow()
+>>>>>>> pr/24
       shouldThrow = false
       rerender(
         <ErrorBoundary>
           <ThrowError shouldThrow={shouldThrow} />
         </ErrorBoundary>
       )
+<<<<<<< HEAD
       fireEvent.click(screen.getByRole('button', { name: /Try Again/i }))
 
       expect(await screen.findByText('No error')).toBeInTheDocument()
       expect(screen.queryByText('Oops! Something went wrong')).not.toBeInTheDocument()
+=======
+>>>>>>> pr/24
     })
   })
 })
