@@ -204,9 +204,25 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
       );
       
       if (!error) {
-        console.log('[Onboarding] Onboarding completed successfully, calling onComplete callback');
-        // Call onComplete immediately without delay to prevent state issues
-        onComplete();
+        console.log('[Onboarding] Onboarding completed successfully');
+        
+        // Add a small delay to allow auth state to update, then verify
+        setTimeout(() => {
+          const updatedState = authManager.getState();
+          console.log('[Onboarding] Checking updated auth state:', {
+            onboardingCompleted: updatedState.user?.onboarding_completed,
+            onboardingStep: updatedState.user?.onboarding_step
+          });
+          
+          if (updatedState.user?.onboarding_completed) {
+            console.log('[Onboarding] User state confirmed as completed, calling onComplete callback');
+            onComplete();
+          } else {
+            console.warn('[Onboarding] User state not yet updated, but proceeding with onComplete');
+            // Still call onComplete - the auth manager fix should handle the state refresh
+            onComplete();
+          }
+        }, 500); // Small delay to allow state updates to propagate
       }
     } catch (err) {
       console.error('[Onboarding] Error during completion:', err);
