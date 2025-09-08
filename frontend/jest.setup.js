@@ -135,6 +135,16 @@ jest.mock('@heroicons/react/24/outline', () => {
     StarIcon: createMockIcon('StarIcon'),
     ClockIcon: createMockIcon('ClockIcon'),
     ChevronDownIcon: createMockIcon('ChevronDownIcon'),
+    GlobeAltIcon: createMockIcon('GlobeAltIcon'),
+    LinkIcon: createMockIcon('LinkIcon'),
+    EnvelopeIcon: createMockIcon('EnvelopeIcon'),
+    ExclamationTriangleIcon: createMockIcon('ExclamationTriangleIcon'),
+    UserIcon: createMockIcon('UserIcon'),
+    CheckIcon: createMockIcon('CheckIcon'),
+    HeartSolidIcon: createMockIcon('HeartSolidIcon'),
+    CogIcon: createMockIcon('CogIcon'),
+    Bars3Icon: createMockIcon('Bars3Icon'),
+    ArrowRightOnRectangleIcon: createMockIcon('ArrowRightOnRectangleIcon'),
   }
 })
 

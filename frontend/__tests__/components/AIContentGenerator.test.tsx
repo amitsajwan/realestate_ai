@@ -20,6 +20,7 @@ jest.mock('@heroicons/react/24/outline', () => ({
   SparklesIcon: (props: any) => <div data-testid="sparkles-icon" {...props} />,
   ClipboardDocumentIcon: (props: any) => <div data-testid="clipboard-icon" {...props} />,
   ArrowPathIcon: (props: any) => <div data-testid="arrow-path-icon" {...props} />,
+  ArrowLeftIcon: (props: any) => <div data-testid="arrow-left-icon" {...props} />,
   CheckCircleIcon: (props: any) => <div data-testid="check-circle-icon" {...props} />,
   ExclamationTriangleIcon: (props: any) => <div data-testid="exclamation-icon" {...props} />,
   PhotoIcon: (props: any) => <div data-testid="photo-icon" {...props} />,
@@ -36,17 +37,21 @@ jest.mock('@heroicons/react/24/solid', () => ({
 const mockToast = require('react-hot-toast').default
 
 // Mock clipboard API
-Object.assign(navigator, {
-  clipboard: {
-    writeText: jest.fn(),
+// Mock navigator.clipboard
+const mockWriteText = jest.fn().mockResolvedValue(undefined)
+Object.defineProperty(navigator, 'clipboard', {
+  value: {
+    writeText: mockWriteText,
   },
+  writable: true,
+  configurable: true,
 })
 
 describe('AIContentGenerator Component', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     // Reset clipboard mock
-    ;(navigator.clipboard.writeText as jest.Mock).mockResolvedValue(undefined)
+    mockWriteText.mockClear()
   })
 
   describe('Basic Rendering', () => {

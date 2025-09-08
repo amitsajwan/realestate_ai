@@ -18,12 +18,17 @@ jest.mock('@heroicons/react/24/outline', () => ({
 
 // Mock window.location.reload
 const mockReload = jest.fn()
-// Use Object.defineProperty to avoid the "Cannot redefine property" error
-Object.defineProperty(window, 'location', {
-  value: { ...window.location, reload: mockReload },
-  writable: true,
-  configurable: true,
-})
+// Mock window.location using a different approach
+const originalLocation = window.location;
+delete (window as any).location;
+window.location = {
+  ...originalLocation,
+  reload: mockReload,
+  href: 'http://localhost:3000',
+  assign: jest.fn(),
+  replace: jest.fn(),
+  toString: () => 'http://localhost:3000'
+} as any;
 
 // Component that throws an error for testing
 const ThrowError = ({ shouldThrow }: { shouldThrow: boolean }) => {
