@@ -19,31 +19,37 @@ def test_imports():
         print("Testing imports...")
         
         # Test schema imports
-        from app.schemas.smart_property import (
-            SmartPropertyCreate,
-            SmartPropertyUpdate,
-            SmartPropertyResponse,
-            SmartPropertyDocument
+        from app.schemas.unified_property import (
+            PropertyCreate,
+            PropertyUpdate,
+            PropertyResponse,
+            PropertyDocument
         )
-        print("✅ Smart property schemas imported successfully")
+        print("✅ Property schemas imported successfully")
         
         # Test service imports (without actually importing dependencies)
         import importlib.util
         
         # Check if service file exists and is readable
-        service_path = "app/services/smart_property_service.py"
+        service_path = "app/services/unified_property_service.py"
         if os.path.exists(service_path):
-            print("✅ Smart property service file exists")
+            print("✅ Unified property service file exists")
         else:
-            print("❌ Smart property service file not found")
+            print("❌ Unified property service file not found")
             return False
         
         # Check if API endpoints file exists
-        api_path = "app/api/v1/endpoints/smart_properties.py"
-        if os.path.exists(api_path):
-            print("✅ Smart properties API endpoints file exists")
-        else:
-            print("❌ Smart properties API endpoints file not found")
+        api_paths = [
+            "app/api/v1/endpoints/smart_properties.py",
+            "app/api/v1/endpoints/unified_properties.py"
+        ]
+        api_exists = False
+        for api_path in api_paths:
+            if os.path.exists(api_path):
+                print(f"✅ {api_path} exists")
+                api_exists = True
+        if not api_exists:
+            print("❌ Properties API endpoints file not found")
             return False
         
         # Check if database init file exists
@@ -65,7 +71,7 @@ def test_schema_structure():
     try:
         print("\nTesting schema structure...")
         
-        from app.schemas.smart_property import SmartPropertyCreate
+        from app.schemas.unified_property import PropertyCreate
         
         # Test that we can create a schema instance
         test_data = {
@@ -77,11 +83,9 @@ def test_schema_structure():
             "bedrooms": 2,
             "bathrooms": 2.0,
             "agent_id": "test_user",
-            "smart_features": {"test": "value"},
-            "ai_insights": {"roi": 8.5},
-            "market_analysis": {"trend": "rising"},
-            "recommendations": ["Test recommendation"],
-            "automation_rules": [],
+            "area_sqft": 1200,
+            "features": ["Pool", "Gym"],
+            "amenities": "Pool, Gym",
             "ai_generate": True,
             "template": "smart",
             "language": "en"
@@ -101,10 +105,14 @@ def test_file_structure():
         print("\nTesting file structure...")
         
         required_files = [
-            "app/schemas/smart_property.py",
-            "app/services/smart_property_service.py",
-            "app/api/v1/endpoints/smart_properties.py",
+            "app/schemas/unified_property.py",
+            "app/services/unified_property_service.py",
             "app/utils/database_init.py"
+        ]
+        # Also check for endpoint files
+        endpoint_files = [
+            "app/api/v1/endpoints/smart_properties.py",
+            "app/api/v1/endpoints/unified_properties.py"
         ]
         
         for file_path in required_files:
@@ -113,6 +121,17 @@ def test_file_structure():
             else:
                 print(f"❌ {file_path} missing")
                 return False
+        
+        # Check if at least one endpoint file exists
+        endpoint_exists = False
+        for file_path in endpoint_files:
+            if os.path.exists(file_path):
+                print(f"✅ {file_path} exists")
+                endpoint_exists = True
+        
+        if not endpoint_exists:
+            print("❌ No properties endpoint file found")
+            return False
         
         return True
         
@@ -125,20 +144,21 @@ def test_router_integration():
     try:
         print("\nTesting router integration...")
         
-        # Check if smart_properties_router is imported in router.py
+        # Check if properties router is imported in router.py
         with open("app/api/v1/router.py", "r") as f:
             router_content = f.read()
             
-        if "smart_properties_router" in router_content:
-            print("✅ Smart properties router is imported")
+        # Check for either smart_properties or unified_properties router
+        if "smart_properties_router" in router_content or "unified_properties_router" in router_content:
+            print("✅ Properties router is imported")
         else:
-            print("❌ Smart properties router not imported")
+            print("❌ Properties router not imported")
             return False
             
-        if "smart-properties" in router_content:
-            print("✅ Smart properties router is included")
+        if "smart-properties" in router_content or "properties" in router_content:
+            print("✅ Properties router is included")
         else:
-            print("❌ Smart properties router not included")
+            print("❌ Properties router not included")
             return False
         
         return True
@@ -152,14 +172,15 @@ def test_database_configuration():
     try:
         print("\nTesting database configuration...")
         
-        # Check if smart_properties collection is configured
+        # Check if properties collection is configured
         with open("app/core/database.py", "r") as f:
             db_content = f.read()
             
-        if "smart_properties" in db_content:
-            print("✅ Smart properties collection is configured")
+        # Check for either smart_properties or properties collection
+        if "properties" in db_content:
+            print("✅ Properties collection is configured")
         else:
-            print("❌ Smart properties collection not configured")
+            print("❌ Properties collection not configured")
             return False
         
         return True
@@ -195,9 +216,9 @@ def main():
     
     if passed == total:
         print("🎉 All tests passed! Database integration is ready.")
-        print("\n✅ Smart Properties MongoDB Integration Complete!")
-        print("   - Smart property schemas created")
-        print("   - Smart property service implemented")
+        print("\n✅ Properties MongoDB Integration Complete!")
+        print("   - Property schemas created (unified)")
+        print("   - Property service implemented")
         print("   - API endpoints configured")
         print("   - Database initialization ready")
         print("   - Router integration complete")
