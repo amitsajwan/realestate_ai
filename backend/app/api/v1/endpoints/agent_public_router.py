@@ -16,8 +16,8 @@ from app.schemas.agent_public import (
     ContactInquiry
 )
 from app.services.agent_public_service import AgentPublicService
-from app.core.auth import get_current_user_optional
-from app.models.user import User
+# from app.core.auth import get_current_user_optional  # TODO: Implement auth
+# from app.models.user import User  # TODO: Implement user model
 import logging
 
 logger = logging.getLogger(__name__)
@@ -255,7 +255,7 @@ async def get_agent_about_info(
 @router.get("/{agent_slug}/stats")
 async def get_agent_public_stats(
     agent_slug: str = Path(..., description="Agent's URL slug"),
-    current_user: Optional[User] = Depends(get_current_user_optional),
+    # current_user: Optional[User] = Depends(get_current_user_optional),  # TODO: Implement auth
     db: AsyncSession = Depends(get_database)
 ):
     """
