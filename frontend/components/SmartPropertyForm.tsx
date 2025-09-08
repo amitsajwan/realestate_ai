@@ -14,7 +14,10 @@ import {
   ExclamationTriangleIcon,
   LightBulbIcon,
   ArrowRightIcon,
-  ArrowLeftIcon
+  ArrowLeftIcon,
+  PhotoIcon,
+  CloudArrowUpIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { propertySchema, PropertyFormData, stepSchemas } from '@/lib/validation'
@@ -50,6 +53,7 @@ const FORM_STEPS = [
   { id: 'address', title: 'Location', icon: MapPinIcon },
   { id: 'basic', title: 'Basic Info', icon: HomeIcon },
   { id: 'pricing', title: 'Pricing', icon: CurrencyDollarIcon },
+  { id: 'images', title: 'Images', icon: PhotoIcon },
   { id: 'description', title: 'Description', icon: DocumentTextIcon }
 ]
 
@@ -65,6 +69,8 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
     priceRange: 'mid-range'
   })
   const [agentProfile, setAgentProfile] = useState<any>(null)
+  const [uploadedImages, setUploadedImages] = useState<string[]>([])
+  const [uploadingImages, setUploadingImages] = useState(false)
 
   const {
     register,
@@ -84,12 +90,13 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
       location: '',
       address: '',
       area: undefined,
-      price: '',
+      price: 0,
       bedrooms: undefined,
       bathrooms: undefined,
       amenities: '',
       status: 'available',
-      propertyType: ''
+      propertyType: '',
+      images: []
     }
   })
 
@@ -167,7 +174,7 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
         const suggestion: AIPropertySuggestion = {
           title: response.data[0]?.title || `Beautiful ${formData.propertyType} in ${formData.location}`,
           description: response.data[0]?.description || 'AI-generated description will appear here',
-          price: response.data[0]?.price || formData.price,
+          price: response.data[0]?.price || formData.price.toString(),
           amenities: response.data[0]?.amenities || 'Modern amenities included',
           marketInsights: marketInsights || {
             averagePrice: 3200000,
@@ -199,10 +206,45 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
     
     setValue('title', aiSuggestions.title)
     setValue('description', aiSuggestions.description)
-    setValue('price', aiSuggestions.price)
+    setValue('price', parseFloat(aiSuggestions.price) || 0)
     setValue('amenities', aiSuggestions.amenities)
     
     toast.success('AI suggestions applied to form!')
+  }
+
+  const handleImageUpload = async (files: FileList) => {
+    if (!files || files.length === 0) return
+
+    setUploadingImages(true)
+    try {
+      const formData = new FormData()
+      Array.from(files).forEach(file => {
+        formData.append('files', file)
+      })
+
+      const response = await apiService.uploadImages(formData)
+      
+      if (response.success && response.files) {
+        const newImageUrls = response.files.map((file: any) => file.url || file.path)
+        const updatedImages = [...uploadedImages, ...newImageUrls]
+        setUploadedImages(updatedImages)
+        setValue('images', updatedImages)
+        toast.success(`${files.length} image(s) uploaded successfully!`)
+      } else {
+        toast.error('Failed to upload images')
+      }
+    } catch (error) {
+      console.error('Error uploading images:', error)
+      toast.error('Failed to upload images. Please try again.')
+    } finally {
+      setUploadingImages(false)
+    }
+  }
+
+  const removeImage = (index: number) => {
+    const updatedImages = uploadedImages.filter((_, i) => i !== index)
+    setUploadedImages(updatedImages)
+    setValue('images', updatedImages)
   }
 
   const validateCurrentStep = async (step: number): Promise<boolean> => {
@@ -221,7 +263,8 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
       case 0: stepSchema = stepSchemas.address; break
       case 1: stepSchema = stepSchemas.basic; break
       case 2: stepSchema = stepSchemas.pricing; break
-      case 3: stepSchema = stepSchemas.description; break
+      case 3: stepSchema = stepSchemas.images; break
+      case 4: stepSchema = stepSchemas.description; break
       default: return true
     }
     
@@ -262,7 +305,8 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
       case 0: return ['address', 'location']
       case 1: return ['propertyType', 'bedrooms', 'bathrooms', 'area']
       case 2: return ['price']
-      case 3: return ['title', 'description']
+      case 3: return ['images']
+      case 4: return ['title', 'description']
       default: return []
     }
   }
@@ -305,10 +349,11 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
         market_analysis: {}, // Market analysis as dictionary (will be populated by backend)
         property_type: data.propertyType || 'Apartment',
         location: data.location || data.address,
-        price: typeof data.price === 'string' ? parseFloat(data.price.replace(/[₹,]/g, '')) || 0 : Number(data.price) || 0,
+        price: Number(data.price) || 0,
         bedrooms: Number(data.bedrooms) || 0,
         bathrooms: Number(data.bathrooms) || 0,
         area_sqft: Number(data.area) || 0,
+        images: uploadedImages,
         agent_id: agentId
       }
       
@@ -551,9 +596,10 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
                   <input
-                    {...register('price')}
-                    type="text"
-                    placeholder="e.g., 3,20,00,000"
+                    {...register('price', { valueAsNumber: true })}
+                    type="number"
+                    min="1"
+                    placeholder="e.g., 3200000"
                     className="w-full pl-8 pr-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                   />
                 </div>
@@ -584,6 +630,91 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
         )
 
       case 3:
+        return (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="space-y-6"
+          >
+            <div className="text-center mb-8">
+              <PhotoIcon className="w-16 h-16 text-indigo-500 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                Add Property Images
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400">
+                Upload high-quality images to showcase your property.
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              {/* Image Upload Area */}
+              <div className="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-8 text-center hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={(e) => e.target.files && handleImageUpload(e.target.files)}
+                  className="hidden"
+                  id="image-upload"
+                  disabled={uploadingImages}
+                />
+                <label
+                  htmlFor="image-upload"
+                  className={`cursor-pointer flex flex-col items-center space-y-4 ${
+                    uploadingImages ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  <CloudArrowUpIcon className="w-12 h-12 text-gray-400" />
+                  <div>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {uploadingImages ? 'Uploading...' : 'Click to upload images'}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      PNG, JPG, JPEG up to 10MB each
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              {/* Uploaded Images Grid */}
+              {uploadedImages.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {uploadedImages.map((imageUrl, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={imageUrl}
+                        alt={`Property image ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
+                      <button
+                        onClick={() => removeImage(index)}
+                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <XMarkIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Image Tips */}
+              <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-4 border border-indigo-200 dark:border-indigo-800">
+                <div className="flex items-center space-x-2 mb-2">
+                  <LightBulbIcon className="w-5 h-5 text-indigo-600" />
+                  <span className="font-semibold text-indigo-900 dark:text-indigo-100">Image Tips</span>
+                </div>
+                <ul className="text-sm text-indigo-800 dark:text-indigo-200 space-y-1">
+                  <li>• Use high-resolution images (at least 1920x1080)</li>
+                  <li>• Include exterior, interior, and key features</li>
+                  <li>• Ensure good lighting and clean spaces</li>
+                  <li>• Upload 5-10 images for best results</li>
+                </ul>
+              </div>
+            </div>
+          </motion.div>
+        )
+
+      case 4:
         return (
           <motion.div
             initial={{ opacity: 0, x: 20 }}
