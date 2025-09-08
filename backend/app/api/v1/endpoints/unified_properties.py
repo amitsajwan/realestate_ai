@@ -42,10 +42,10 @@ async def create_unified_property(
     provided data and feature flags.
     """
     try:
-        logger.info(f"Creating unified property for user: {current_user.get('username', 'anonymous')}")
+        logger.info(f"Creating unified property for user: {getattr(current_user, 'id', 'anonymous')}")
         
         # Get user ID
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         # Create property using unified service
         service = get_unified_property_service()
@@ -77,7 +77,7 @@ async def get_unified_properties(
     Get all properties for the current user with unified functionality.
     """
     try:
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         service = get_unified_property_service()
         properties = await service.get_properties_by_user(user_id, skip=skip, limit=limit)
@@ -101,7 +101,7 @@ async def get_unified_property(
     Get a specific property by ID with unified functionality.
     """
     try:
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         service = get_unified_property_service()
         property_data = await service.get_property(property_id, user_id)
@@ -136,7 +136,7 @@ async def update_unified_property(
     Update a property with unified functionality.
     """
     try:
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         service = get_unified_property_service()
         result = await service.update_property(property_id, property_data, user_id)
@@ -176,7 +176,7 @@ async def delete_unified_property(
     Delete a property with unified functionality.
     """
     try:
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         service = get_unified_property_service()
         success = await service.delete_property(property_id, user_id)
@@ -211,7 +211,7 @@ async def generate_ai_suggestions(
     Generate AI suggestions for a property.
     """
     try:
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         service = get_unified_property_service()
         suggestions = await service.generate_ai_suggestions(property_id, user_id)
@@ -243,7 +243,7 @@ async def generate_market_insights(
     Generate market insights for a property.
     """
     try:
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         service = get_unified_property_service()
         insights = await service.generate_market_insights(property_id, user_id)
@@ -275,7 +275,7 @@ async def get_property_analytics(
     Get analytics for a property.
     """
     try:
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         service = get_unified_property_service()
         analytics = await service.get_property_analytics(property_id, user_id)
@@ -307,7 +307,7 @@ async def batch_create_properties(
     Create multiple properties in a batch operation.
     """
     try:
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         service = get_unified_property_service()
         results = await service.batch_create_properties(properties_data, user_id)
@@ -340,7 +340,7 @@ async def search_properties(
     Search properties with advanced filtering.
     """
     try:
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         service = get_unified_property_service()
         results = await service.search_properties(

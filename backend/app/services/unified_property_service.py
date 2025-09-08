@@ -31,6 +31,13 @@ class UnifiedPropertyService:
         self.collection = db.properties
         self.logger = logging.getLogger(__name__)
     
+    def _convert_doc_to_response(self, doc: dict) -> PropertyResponse:
+        """Convert MongoDB document to PropertyResponse, handling ObjectId conversion"""
+        if doc and '_id' in doc:
+            doc['id'] = str(doc['_id'])
+            doc.pop('_id', None)  # Remove the ObjectId field
+        return PropertyResponse(**doc)
+    
     async def create_property(
         self,
         property_data: PropertyCreate,
@@ -46,8 +53,12 @@ class UnifiedPropertyService:
             self.logger.info(f"Creating property for user {user_id}")
             
             # Create property document
+            property_dict = property_data.model_dump()
+            # Remove agent_id from property data to avoid duplicate keyword argument
+            property_dict.pop('agent_id', None)
+            
             property_doc = PropertyDocument(
-                **property_data.model_dump(),
+                **property_dict,
                 agent_id=user_id,  # Map user_id to agent_id for compatibility
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
@@ -70,7 +81,9 @@ class UnifiedPropertyService:
             self.logger.info(f"Property created successfully with ID: {property_doc.id}")
             
             # Convert to response format
-            return PropertyResponse(**property_doc.model_dump())
+            property_data = property_doc.model_dump()
+            property_data['id'] = str(property_doc.id)  # Convert ObjectId to string
+            return self._convert_doc_to_response(property_data)
             
         except Exception as e:
             self.logger.error(f"Error creating property: {e}")
@@ -95,7 +108,7 @@ class UnifiedPropertyService:
         })
         
         if doc:
-            return PropertyResponse(**doc)
+            return self._convert_doc_to_response(doc)
         return None
     
     async def get_properties_by_user(
@@ -110,7 +123,7 @@ class UnifiedPropertyService:
         cursor = self.collection.find({"agent_id": user_id}).skip(skip).limit(limit)
         docs = await cursor.to_list(length=None)
         
-        return [PropertyResponse(**doc) for doc in docs]
+        return [self._convert_doc_to_response(doc) for doc in docs]
     
     async def update_property(
         self,
@@ -326,7 +339,7 @@ class UnifiedPropertyService:
         cursor = self.collection.find(search_query).skip(skip).limit(limit)
         docs = await cursor.to_list(length=None)
         
-        return [PropertyResponse(**doc) for doc in docs]
+        return [self._convert_doc_to_response(doc) for doc in docs]
     
     async def _generate_ai_content(self, property_doc: PropertyDocument) -> str:
         """

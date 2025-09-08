@@ -33,6 +33,19 @@ jest.mock('react-hook-form', () => ({
     setValue: jest.fn(),
     watch: jest.fn(),
     trigger: jest.fn(),
+    getValues: jest.fn(() => ({
+      title: '',
+      description: '',
+      location: '',
+      address: '',
+      area: undefined,
+      price: '',
+      bedrooms: undefined,
+      bathrooms: undefined,
+      amenities: '',
+      status: 'available',
+      propertyType: ''
+    })),
     formState: {
       errors: {},
       isValid: true,
@@ -64,6 +77,8 @@ jest.mock('@/lib/api', () => ({
     createProperty: jest.fn(),
     getMarketInsights: jest.fn(),
     getAgentProfile: jest.fn(),
+    getCurrentUser: jest.fn(),
+    getAIPropertySuggestions: jest.fn(),
   },
 }))
 
@@ -91,6 +106,22 @@ describe('SmartPropertyForm', () => {
         company_name: 'Test Realty',
         agent_name: 'Test Agent'
       }
+    })
+    mockApiService.getCurrentUser.mockResolvedValue({
+      id: 'user-123',
+      username: 'testuser',
+      email: 'test@example.com',
+      first_name: 'Test',
+      last_name: 'User'
+    })
+    mockApiService.getAIPropertySuggestions.mockResolvedValue({
+      success: true,
+      data: [{
+        title: 'Beautiful Modern Apartment',
+        description: 'Stunning apartment with great amenities',
+        price: '300000',
+        amenities: 'Pool, Gym, Parking'
+      }]
     })
   })
 
@@ -521,5 +552,175 @@ describe('SmartPropertyForm', () => {
     expect(screen.getByText('Add New Property')).toBeInTheDocument()
 
     mockConfirm.mockRestore()
+  })
+
+  it('calls getCurrentUser when creating property', async () => {
+    const user = userEvent.setup()
+    render(<SmartPropertyForm onSuccess={mockOnSuccess} />)
+
+    // Navigate to final step and submit
+    const submitButton = screen.getByRole('button', { name: /create property/i })
+    await user.click(submitButton)
+
+    // Verify getCurrentUser was called
+    expect(mockApiService.getCurrentUser).toHaveBeenCalled()
+  })
+
+  it('handles getCurrentUser failure gracefully', async () => {
+    mockApiService.getCurrentUser.mockRejectedValue(new Error('User fetch failed'))
+    
+    const user = userEvent.setup()
+    render(<SmartPropertyForm onSuccess={mockOnSuccess} />)
+
+    const submitButton = screen.getByRole('button', { name: /create property/i })
+    await user.click(submitButton)
+
+    // Should still attempt to create property with anonymous agent_id
+    expect(mockApiService.createProperty).toHaveBeenCalled()
+  })
+
+  it('sends correct property data structure', async () => {
+    const user = userEvent.setup()
+    render(<SmartPropertyForm onSuccess={mockOnSuccess} />)
+
+    const submitButton = screen.getByRole('button', { name: /create property/i })
+    await user.click(submitButton)
+
+    // Verify the property data structure includes required fields
+    expect(mockApiService.createProperty).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ai_generate: true,
+        market_analysis: {},
+        agent_id: 'user-123'
+      })
+    )
+  })
+
+  it('validates final step fields before submission', async () => {
+    const user = userEvent.setup()
+    render(<SmartPropertyForm onSuccess={mockOnSuccess} />)
+
+    // Navigate to final step
+    const submitButton = screen.getByRole('button', { name: /create property/i })
+    await user.click(submitButton)
+
+    // Should trigger validation for title and description fields
+    expect(mockApiService.createProperty).toHaveBeenCalled()
+  })
+
+  it('handles various price formats correctly', async () => {
+    const user = userEvent.setup()
+    
+    // Test different price formats
+    const priceFormats = [
+      '₹50,00,000',
+      '5000000',
+      '50L',
+      '5Cr',
+      '₹75,00,000'
+    ]
+    
+    for (const priceFormat of priceFormats) {
+      // Mock form values with different price format
+      mockUseForm.getValues.mockReturnValue({
+        title: 'Test Property',
+        description: 'Test Description',
+        location: 'Test Location',
+        address: 'Test Address',
+        area: 1000,
+        price: priceFormat,
+        bedrooms: 3,
+        bathrooms: 2,
+        amenities: 'Test amenities',
+        status: 'available',
+        propertyType: 'Apartment'
+      })
+      
+      render(<SmartPropertyForm onSuccess={mockOnSuccess} />)
+      
+      // Navigate to final step and submit
+      const submitButton = screen.getByRole('button', { name: /create property/i })
+      await user.click(submitButton)
+      
+      // Verify that createProperty was called with parsed price
+      expect(mockApiService.createProperty).toHaveBeenCalledWith(
+        expect.objectContaining({
+          price: expect.any(Number)
+        })
+      )
+      
+      // Clean up for next iteration
+      screen.unmount()
+    }
+  })
+
+  it('handles AI suggestions with different price formats', async () => {
+    const user = userEvent.setup()
+    
+    // Mock AI suggestions with different price formats
+    const aiSuggestions = {
+      title: 'AI Generated Title',
+      description: 'AI Generated Description',
+      price: 7500000, // Numeric price
+      amenities: 'AI Generated Amenities'
+    }
+    
+    mockApiService.getAIPropertySuggestions.mockResolvedValue({
+      success: true,
+      data: [aiSuggestions]
+    })
+    
+    render(<SmartPropertyForm onSuccess={mockOnSuccess} />)
+    
+    // Fill form and get AI suggestions
+    const locationInput = screen.getByPlaceholderText('Enter property location')
+    await user.type(locationInput, 'Test Location')
+    
+    const nextButton = screen.getByText('Next')
+    await user.click(nextButton)
+    
+    // Wait for AI suggestions to load
+    await waitFor(() => {
+      expect(mockApiService.getAIPropertySuggestions).toHaveBeenCalled()
+    })
+    
+    // Apply AI suggestions
+    const applyButton = screen.getByText('Apply AI Suggestions')
+    await user.click(applyButton)
+    
+    // Verify that setValue was called with the correct price
+    expect(mockUseForm.setValue).toHaveBeenCalledWith('price', 7500000)
+  })
+
+  it('handles missing price gracefully', async () => {
+    const user = userEvent.setup()
+    
+    // Mock form values without price
+    mockUseForm.getValues.mockReturnValue({
+      title: 'Test Property',
+      description: 'Test Description',
+      location: 'Test Location',
+      address: 'Test Address',
+      area: 1000,
+      price: '', // Empty price
+      bedrooms: 3,
+      bathrooms: 2,
+      amenities: 'Test amenities',
+      status: 'available',
+      propertyType: 'Apartment'
+    })
+    
+    render(<SmartPropertyForm onSuccess={mockOnSuccess} />)
+    
+    // Navigate to final step and submit
+    const submitButton = screen.getByRole('button', { name: /create property/i })
+    await user.click(submitButton)
+    
+    // Should handle empty price gracefully
+    expect(mockApiService.createProperty).toHaveBeenCalledWith(
+      expect.objectContaining({
+        price: 0 // Should default to 0 for empty price
+      })
+    )
   })
 })

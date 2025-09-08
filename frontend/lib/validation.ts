@@ -156,15 +156,36 @@ export const getFieldErrorClass = (errors: Record<string, any>, fieldName: strin
 
 import { z } from 'zod';
 
+// Step-by-step validation schemas
+export const stepSchemas = {
+  address: z.object({
+    address: z.string().min(1, 'Address is required'),
+    location: z.string().min(1, 'Location is required')
+  }),
+  basic: z.object({
+    propertyType: z.string().min(1, 'Property type is required'),
+    bedrooms: z.coerce.number().min(1, 'At least 1 bedroom is required').refine(val => !isNaN(val) && val > 0, 'Bedrooms must be a valid number greater than 0'),
+    bathrooms: z.coerce.number().min(1, 'At least 1 bathroom is required').refine(val => !isNaN(val) && val > 0, 'Bathrooms must be a valid number greater than 0'),
+    area: z.coerce.number().min(1, 'Area is required').refine(val => !isNaN(val) && val > 0, 'Area must be a valid number greater than 0')
+  }),
+  pricing: z.object({
+    price: z.string().min(1, 'Price is required')
+  }),
+  description: z.object({
+    title: z.string().min(1, 'Title is required'),
+    description: z.string().min(1, 'Description is required')
+  })
+};
+
 export const propertySchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().min(1, 'Description is required'),
   location: z.string().min(1, 'Location is required'),
   address: z.string().min(1, 'Address is required'),
-  area: z.coerce.number().min(1, 'Area is required').refine(val => !isNaN(val), 'Area must be a valid number'),
+  area: z.coerce.number().min(1, 'Area is required').refine(val => !isNaN(val) && val > 0, 'Area must be a valid number greater than 0'),
   price: z.string().min(1, 'Price is required'),
-  bedrooms: z.coerce.number().min(1, 'At least 1 bedroom is required').refine(val => !isNaN(val), 'Bedrooms must be a valid number'),
-  bathrooms: z.coerce.number().min(1, 'At least 1 bathroom is required').refine(val => !isNaN(val), 'Bathrooms must be a valid number'),
+  bedrooms: z.coerce.number().min(1, 'At least 1 bedroom is required').refine(val => !isNaN(val) && val > 0, 'Bedrooms must be a valid number greater than 0'),
+  bathrooms: z.coerce.number().min(1, 'At least 1 bathroom is required').refine(val => !isNaN(val) && val > 0, 'Bathrooms must be a valid number greater than 0'),
   amenities: z.string().optional(),
   status: z.string().default('available'),
   propertyType: z.string().min(1, 'Property type is required')

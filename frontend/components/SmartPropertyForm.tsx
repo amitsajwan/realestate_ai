@@ -17,7 +17,7 @@ import {
   ArrowLeftIcon
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
-import { propertySchema, PropertyFormData } from '@/lib/validation'
+import { propertySchema, PropertyFormData, stepSchemas } from '@/lib/validation'
 import { apiService } from '@/lib/api'
 
 interface MarketInsight {
@@ -72,19 +72,21 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
     setValue,
     watch,
     formState: { errors },
-    trigger
+    trigger,
+    getValues
   } = useForm<PropertyFormData>({
     resolver: zodResolver(propertySchema),
-    mode: 'onSubmit', // Changed from 'onBlur' to 'onSubmit' to prevent premature validation
+    mode: 'onSubmit', // Only validate on submit
+    reValidateMode: 'onSubmit', // Only re-validate on submit
     defaultValues: {
       title: '',
       description: '',
       location: '',
       address: '',
-      area: 0,
+      area: undefined,
       price: '',
-      bedrooms: 0,
-      bathrooms: 0,
+      bedrooms: undefined,
+      bathrooms: undefined,
       amenities: '',
       status: 'available',
       propertyType: ''
@@ -203,27 +205,48 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
     toast.success('AI suggestions applied to form!')
   }
 
+  const validateCurrentStep = async (step: number): Promise<boolean> => {
+    const fieldsToValidate = getFieldsForStep(step)
+    const currentValues = watch()
+    
+    // Create a subset of values for the current step
+    const stepValues: any = {}
+    fieldsToValidate.forEach(field => {
+      stepValues[field] = currentValues[field]
+    })
+    
+    // Get the appropriate schema for this step
+    let stepSchema
+    switch (step) {
+      case 0: stepSchema = stepSchemas.address; break
+      case 1: stepSchema = stepSchemas.basic; break
+      case 2: stepSchema = stepSchemas.pricing; break
+      case 3: stepSchema = stepSchemas.description; break
+      default: return true
+    }
+    
+    try {
+      stepSchema.parse(stepValues)
+      return true
+    } catch (error) {
+      return false
+    }
+  }
+
   const nextStep = async () => {
     const fieldsToValidate = getFieldsForStep(currentStep)
     
-    // Get current form values to check if they're empty
-    const currentValues = watch()
-    const hasEmptyRequiredFields = fieldsToValidate.some(field => {
-      const value = currentValues[field]
-      if (field === 'area' || field === 'bedrooms' || field === 'bathrooms') {
-        return !value || isNaN(Number(value)) || Number(value) <= 0
-      }
-      return !value || value.toString().trim() === ''
-    })
+    // Check if current step is valid
+    const isValid = await validateCurrentStep(currentStep)
     
-    if (hasEmptyRequiredFields) {
-      // Don't proceed if required fields are empty
+    if (!isValid) {
+      // Show validation errors for empty fields
+      await trigger(fieldsToValidate)
       return
     }
     
-    const isValid = await trigger(fieldsToValidate)
-    
-    if (isValid && currentStep < FORM_STEPS.length - 1) {
+    // If current step is valid, move to next step
+    if (currentStep < FORM_STEPS.length - 1) {
       setCurrentStep(currentStep + 1)
     }
   }
@@ -244,20 +267,49 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
     }
   }
 
-  const onSubmit = async (data: PropertyFormData) => {
+  const handleFormSubmit = async () => {
     setIsLoading(true)
     try {
+      // Get current form values
+      const data = getValues()
+      
+      // Check if we're on the final step and validate required fields
+      if (currentStep === FORM_STEPS.length - 1) {
+        const finalStepFields = getFieldsForStep(currentStep)
+        const hasEmptyRequiredFields = finalStepFields.some(field => {
+          const value = data[field]
+          return !value || value.toString().trim() === ''
+        })
+        
+        if (hasEmptyRequiredFields) {
+          // Trigger validation for the final step fields
+          await trigger(finalStepFields)
+          setIsLoading(false)
+          return
+        }
+      }
+      
+      // Get current user for agent_id
+      let agentId = "anonymous"
+      try {
+        const currentUser = await apiService.getCurrentUser()
+        agentId = currentUser.id || currentUser.username || "anonymous"
+      } catch (error) {
+        console.warn('Could not get current user, using anonymous agent_id:', error)
+      }
+      
       // Transform data for unified property service
       const propertyData = {
         ...data,
         ai_generate: true, // Always enable AI features
-        market_analysis: true, // Always enable market insights
+        market_analysis: {}, // Market analysis as dictionary (will be populated by backend)
         property_type: data.propertyType || 'Apartment',
         location: data.location || data.address,
-        price: parseFloat(data.price.replace(/[₹,]/g, '')) || 0,
+        price: typeof data.price === 'string' ? parseFloat(data.price.replace(/[₹,]/g, '')) || 0 : Number(data.price) || 0,
         bedrooms: Number(data.bedrooms) || 0,
         bathrooms: Number(data.bathrooms) || 0,
-        area_sqft: Number(data.area) || 0
+        area_sqft: Number(data.area) || 0,
+        agent_id: agentId
       }
       
       const response = await apiService.createProperty(propertyData)
@@ -271,6 +323,12 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const onSubmit = async (data: PropertyFormData) => {
+    // This function is kept for compatibility but won't be used
+    // The actual submission is handled by handleFormSubmit
+    await handleFormSubmit()
   }
 
   const renderStepContent = () => {
@@ -389,6 +447,7 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
                 <input
                   {...register('area', { valueAsNumber: true })}
                   type="number"
+                  min="1"
                   placeholder="e.g., 1200"
                   className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                 />
@@ -729,7 +788,7 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
         </div>
 
         {/* Form Content */}
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={(e) => { e.preventDefault(); handleFormSubmit(); }}>
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700">
             <div className="p-6 sm:p-8">
               {renderStepContent()}

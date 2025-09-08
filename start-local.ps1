@@ -124,8 +124,9 @@ function Start-Backend {
         
         # Start the backend
         Write-Step "BACKEND" "Starting FastAPI server..."
+        $backendPath = (Get-Location).Path
         $backendJob = Start-Job -ScriptBlock {
-            Set-Location $using:PWD
+            Set-Location $using:backendPath
             & .\.venv\Scripts\Activate.ps1
             uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
         }
@@ -173,8 +174,9 @@ function Start-Frontend {
         
         # Start the frontend
         Write-Step "FRONTEND" "Starting Next.js development server..."
+        $frontendPath = (Get-Location).Path
         $frontendJob = Start-Job -ScriptBlock {
-            Set-Location $using:PWD
+            Set-Location $using:frontendPath
             npm run dev
         }
         
