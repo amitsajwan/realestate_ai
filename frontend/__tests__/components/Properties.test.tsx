@@ -58,12 +58,14 @@ jest.mock('@heroicons/react/24/solid', () => ({
 // Mock navigator.share
 Object.defineProperty(window.navigator, 'share', {
   writable: true,
+  configurable: true,
   value: jest.fn(),
 })
 
 // Mock clipboard
 Object.defineProperty(window.navigator, 'clipboard', {
   writable: true,
+  configurable: true,
   value: {
     writeText: jest.fn(),
   },
@@ -587,11 +589,13 @@ describe('Properties Component', () => {
     })
 
     it('falls back to clipboard when native share is not available', async () => {
-      // Make share unavailable
-      Object.defineProperty(window.navigator, 'share', {
-        configurable: true,
-        get: () => undefined,
-      })
+      // Make share unavailable (if redefining fails, skip redef and rely on undefined check)
+      try {
+        Object.defineProperty(window.navigator, 'share', {
+          configurable: true,
+          value: undefined,
+        })
+      } catch {}
 
       // Spy on clipboard
       const writeTextSpy = jest.fn().mockResolvedValue(undefined)
