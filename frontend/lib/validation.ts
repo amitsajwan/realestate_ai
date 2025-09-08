@@ -169,7 +169,10 @@ export const stepSchemas = {
     area: z.coerce.number().min(1, 'Area is required').refine(val => !isNaN(val) && val > 0, 'Area must be a valid number greater than 0')
   }),
   pricing: z.object({
-    price: z.string().min(1, 'Price is required')
+    price: z.coerce.number().min(1, 'Price is required').refine(val => !isNaN(val) && val > 0, 'Price must be a valid number greater than 0')
+  }),
+  images: z.object({
+    images: z.array(z.string()).optional()
   }),
   description: z.object({
     title: z.string().min(1, 'Title is required'),
@@ -183,12 +186,13 @@ export const propertySchema = z.object({
   location: z.string().min(1, 'Location is required'),
   address: z.string().min(1, 'Address is required'),
   area: z.coerce.number().min(1, 'Area is required').refine(val => !isNaN(val) && val > 0, 'Area must be a valid number greater than 0'),
-  price: z.string().min(1, 'Price is required'),
+  price: z.coerce.number().min(1, 'Price is required').refine(val => !isNaN(val) && val > 0, 'Price must be a valid number greater than 0'),
   bedrooms: z.coerce.number().min(1, 'At least 1 bedroom is required').refine(val => !isNaN(val) && val > 0, 'Bedrooms must be a valid number greater than 0'),
   bathrooms: z.coerce.number().min(1, 'At least 1 bathroom is required').refine(val => !isNaN(val) && val > 0, 'Bathrooms must be a valid number greater than 0'),
   amenities: z.string().optional(),
   status: z.string().default('available'),
-  propertyType: z.string().min(1, 'Property type is required')
+  propertyType: z.string().min(1, 'Property type is required'),
+  images: z.array(z.string()).optional()
 });
 
 export type PropertyFormData = z.infer<typeof propertySchema>;

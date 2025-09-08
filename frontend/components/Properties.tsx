@@ -40,6 +40,7 @@ interface Property {
   status: 'for-sale' | 'for-rent' | 'sold'
   dateAdded: string
   image?: string
+  images?: string[]
 }
 
 interface PropertiesProps {
@@ -420,9 +421,9 @@ export default function Properties({
                viewMode === 'list' ? 'h-48 sm:h-32 sm:w-48 flex-shrink-0' : 'h-48'
              }`}>
               <div className="h-full bg-gradient-to-br from-blue-500 to-purple-600 relative">
-                {property.image ? (
+                {(property.images && property.images.length > 0) || property.image ? (
                   <Image
-                    src={property.image}
+                    src={property.images?.[0] || property.image || ''}
                     alt={property.title}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-500"
@@ -594,7 +595,7 @@ export default function Properties({
               {/* Property Image */}
               <div className="relative h-80 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                 <Image
-                  src={selectedProperty.image || '/placeholder-property.jpg'}
+                  src={selectedProperty.images?.[0] || selectedProperty.image || '/placeholder-property.jpg'}
                   alt={selectedProperty.title}
                   fill
                   className="object-cover"
