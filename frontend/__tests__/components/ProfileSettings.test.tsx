@@ -68,13 +68,13 @@ jest.mock('../../lib/form-validation', () => ({
 
 
 describe('ProfileSettings', () => {
-  it.skip('renders the profile settings form correctly', () => {
+  it('renders the profile settings form correctly', () => {
     render(<ProfileSettings />);
     
     expect(screen.getByText('Profile Settings')).toBeInTheDocument();
-    expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/full name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/phone/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument();
   });
 });

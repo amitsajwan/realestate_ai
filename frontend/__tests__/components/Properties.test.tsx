@@ -575,8 +575,9 @@ describe('Properties Component', () => {
         />
       )
 
-      const shareButtons = screen.getAllByTestId('share-icon')
-      await user.click(shareButtons[0])
+      const shareIcons = screen.getAllByTestId('share-icon')
+      const shareButton = shareIcons[0].closest('button') as HTMLButtonElement
+      await user.click(shareButton)
 
       expect(window.navigator.share).toHaveBeenCalledWith({
         title: 'Beautiful 3BR Apartment',
@@ -585,20 +586,18 @@ describe('Properties Component', () => {
       })
     })
 
-    it.skip('falls back to clipboard when native share is not available', async () => {
-      // Mock navigator.share as undefined
-      Object.defineProperty(window.navigator, 'share', {
-        writable: true,
-        value: undefined,
-      })
+    it('falls back to clipboard when native share is not available', async () => {
+      // Remove existing share and set to undefined if configurable
+      try {
+        Object.defineProperty(window.navigator, 'share', {
+          configurable: true,
+        })
+      } catch {}
+      ;(window.navigator as any).share = undefined
 
       // Create a proper spy for clipboard.writeText
       const writeTextSpy = jest.fn().mockResolvedValue(undefined)
-      Object.defineProperty(global.navigator, 'clipboard', {
-        value: { writeText: writeTextSpy },
-        writable: true,
-        configurable: true,
-      })
+      ;(window.navigator as any).clipboard = { writeText: writeTextSpy }
 
       const user = userEvent.setup()
       render(
@@ -612,7 +611,9 @@ describe('Properties Component', () => {
       const shareButtons = screen.getAllByTestId('share-icon')
       await user.click(shareButtons[0])
 
-      expect(writeTextSpy).toHaveBeenCalled()
+      await waitFor(() => {
+        expect(writeTextSpy).toHaveBeenCalled()
+      })
     })
   })
 
