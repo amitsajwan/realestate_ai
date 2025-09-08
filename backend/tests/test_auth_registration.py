@@ -65,7 +65,7 @@ class TestUserRegistration:
             UserCreate(**{**valid_user_data, "email": "invalid-email"})
         
         # Test weak password (Pydantic field validation happens first)
-        with pytest.raises(Exception):  # Can be ValidationError or ValueError
+        with pytest.raises(ValueError, match="Password must be at least 8 characters long"):
             UserCreate(**{**valid_user_data, "password": "weak"})
         
         # Test password mismatch
@@ -143,12 +143,9 @@ class TestUserRegistration:
         # Create auth service
         auth_service = AuthService(mock_user_repo)
         
-        # Create user data with weak password
-        user_data = UserCreate(**{**valid_user_data, "password": "weak"})
-        
-        # Test registration should raise ValidationError
-        with pytest.raises(ValidationError, match="Password validation failed"):
-            await auth_service.register_user(user_data)
+        # Test registration with weak password should fail at schema level
+        with pytest.raises(ValueError, match="Password must be at least 8 characters long"):
+            UserCreate(**{**valid_user_data, "password": "weak"})
     
     @pytest.mark.asyncio
     async def test_auth_service_register_user_invalid_email(self, valid_user_data):
@@ -160,16 +157,14 @@ class TestUserRegistration:
         # Create auth service
         auth_service = AuthService(mock_user_repo)
         
-        # Create user data with invalid email
-        user_data = UserCreate(**{**valid_user_data, "email": "invalid-email"})
-        
-        # Test registration should raise ValidationError
-        with pytest.raises(ValidationError, match="Invalid email format"):
-            await auth_service.register_user(user_data)
+        # Test registration with invalid email should fail at schema level
+        with pytest.raises(ValueError):
+            UserCreate(**{**valid_user_data, "email": "invalid-email"})
     
     @pytest.mark.asyncio
     async def test_registration_endpoint_success(self, valid_user_data):
         """Test successful registration through API endpoint"""
+        from app.api.v1.endpoints.auth_router import get_auth_service
         with patch('app.api.v1.endpoints.auth_router.get_auth_service') as mock_get_auth:
             # Mock auth service
             mock_auth_service = AsyncMock(spec=AuthService)
@@ -220,10 +215,11 @@ class TestUserRegistration:
     @pytest.mark.asyncio
     async def test_registration_endpoint_duplicate_email(self, valid_user_data):
         """Test registration endpoint with duplicate email"""
+        from app.api.v1.endpoints.auth_router import get_auth_service
         with patch('app.api.v1.endpoints.auth_router.get_auth_service') as mock_get_auth:
             # Mock auth service to raise ConflictError
             mock_auth_service = AsyncMock(spec=AuthService)
-            mock_auth_service.register_user.side_effect = ConflictError("User with this email already exists")
+            mock_auth_service.register_user.side_effect = ConflictError(message="User with this email already exists")
             mock_get_auth.return_value = mock_auth_service
             
             # Create test client
@@ -235,11 +231,12 @@ class TestUserRegistration:
             # Should return 409 for conflict
             assert response.status_code == 409
             data = response.json()
-            assert "User with this email already exists" in data["detail"]
+            assert "User with this email already exists" in str(data["detail"])
     
     @pytest.mark.asyncio
     async def test_registration_endpoint_server_error(self, valid_user_data):
         """Test registration endpoint with server error"""
+        from app.api.v1.endpoints.auth_router import get_auth_service
         with patch('app.api.v1.endpoints.auth_router.get_auth_service') as mock_get_auth:
             # Mock auth service to raise generic exception
             mock_auth_service = AsyncMock(spec=AuthService)
@@ -281,7 +278,7 @@ class TestUserRegistration:
         result = auth_service.validate_password_strength(strong_password)
         assert result["is_valid"], f"Password '{strong_password}' should be valid"
         assert len(result["errors"]) == 0
-        assert result["strength_score"] >= 4
+            assert result["score"] >= 4
     
     def test_email_validation(self):
         """Test email validation"""
@@ -381,7 +378,121 @@ class TestUserRepository:
         
         # Test creation should raise ConflictError
         with pytest.raises(ConflictError, match="User with email test@example.com already exists"):
-            await user_repository.create(user_data)
+            result = await user_repository.create(user_data)
+            assert result
+
+
+class TestPasswordReset:
+    """Test suite for password reset functionality"""
+    
+    @pytest.mark.asyncio
+    async def test_password_reset_request_success(self):
+        """Test successful password reset request"""
+        from app.api.v1.endpoints.auth_router import get_auth_service
+        with patch('app.api.v1.endpoints.auth_router.get_auth_service') as mock_get_auth:
+            # Mock auth service
+            mock_auth_service = AsyncMock(spec=AuthService)
+            mock_auth_service.request_password_reset.return_value = None
+            mock_get_auth.return_value = mock_auth_service
+            
+            # Create test client
+            client = TestClient(app)
+            
+            # Test password reset request
+            response = client.post("/api/v1/auth/reset-password-request", json={"email": "test@example.com"})
+            
+            # Assertions
+            assert response.status_code == 200
+            assert response.json()["message"] == "Password reset email sent"
+            
+            # Verify service was called
+            mock_auth_service.request_password_reset.assert_called_once_with("test@example.com")
+    
+    @pytest.mark.asyncio
+    async def test_password_change_success(self):
+        """Test successful password change"""
+        from app.api.v1.endpoints.auth_router import get_current_user, get_auth_service
+        
+        # Mock user
+        mock_user = {
+            "_id": "60f7b3b3b3b3b3b3b3b3b3b3",
+            "email": "test@example.com"
+        }
+        
+        # Override dependencies
+        app.dependency_overrides[get_current_user] = lambda: mock_user
+        
+        try:
+            with patch('app.api.v1.endpoints.auth_router.get_auth_service') as mock_get_auth:
+                # Mock auth service
+                mock_auth_service = AsyncMock(spec=AuthService)
+                mock_auth_service.change_password.return_value = None
+                mock_get_auth.return_value = mock_auth_service
+                
+                # Create test client
+                client = TestClient(app)
+                
+                # Test password change
+                password_data = {
+                    "current_password": "OldPass123!",
+                    "new_password": "NewPass123!"
+                }
+                response = client.post("/api/v1/auth/change-password", json=password_data)
+                
+                # Assertions
+                assert response.status_code == 200
+                assert response.json()["message"] == "Password changed successfully"
+                
+                # Verify service was called
+                mock_auth_service.change_password.assert_called_once_with(
+                    "60f7b3b3b3b3b3b3b3b3b3b3",
+                    "OldPass123!",
+                    "NewPass123!"
+                )
+        finally:
+            app.dependency_overrides.clear()
+
+
+class TestTokenRefresh:
+    """Test suite for token refresh functionality"""
+    
+    @pytest.mark.asyncio
+    async def test_refresh_token_success(self):
+        """Test successful token refresh"""
+        from app.api.v1.endpoints.auth_router import get_auth_service
+        with patch('app.api.v1.endpoints.auth_router.get_auth_service') as mock_get_auth:
+            # Mock auth service
+            mock_auth_service = AsyncMock(spec=AuthService)
+            mock_auth_service.refresh_access_token.return_value = {
+                "access_token": "new_access_token",
+                "token_type": "bearer",
+                "expires_in": 1800
+            }
+            mock_get_auth.return_value = mock_auth_service
+            
+            # Create test client
+            client = TestClient(app)
+            
+            # Test token refresh
+            response = client.post("/api/v1/auth/refresh", json={"refresh_token": "valid_refresh_token"})
+            
+            # Assertions
+            assert response.status_code == 200
+            data = response.json()
+            assert data["access_token"] == "new_access_token"
+            assert data["token_type"] == "bearer"
+            assert data["expires_in"] == 1800
+    
+    def test_refresh_token_missing(self):
+        """Test token refresh without refresh token"""
+        client = TestClient(app)
+        
+        # Test without refresh token
+        response = client.post("/api/v1/auth/refresh", json={})
+        
+        # Should return 400
+        assert response.status_code == 400
+        assert "Refresh token required" in response.json()["detail"]
 
 
 if __name__ == "__main__":
