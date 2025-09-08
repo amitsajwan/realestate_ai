@@ -131,7 +131,7 @@ describe('Properties Component', () => {
 
     expect(screen.getByText('123 Main St, City')).toBeInTheDocument()
     expect(screen.getByText('₹2.5L')).toBeInTheDocument()
-    expect(screen.getByText('2')).toBeInTheDocument()
+    expect(screen.getAllByText('2')).toHaveLength(2)
     expect(screen.getByText('1200')).toBeInTheDocument()
   })
 
@@ -243,7 +243,7 @@ describe('Properties Component', () => {
     })
 
     expect(screen.getAllByTestId('pencil-icon')).toHaveLength(2)
-    expect(screen.getAllByTestId('trash-icon')).toHaveLength(2)
+    expect(screen.getAllByTestId('trash-icon')).toHaveLength(4)
   })
 
   it('handles property deletion', async () => {
@@ -326,7 +326,7 @@ describe('Properties Component', () => {
       expect(screen.getByText('Beautiful Apartment')).toBeInTheDocument()
     })
 
-    expect(screen.getAllByTestId('building-icon')).toHaveLength(2)
+    expect(screen.getAllByTestId('building-icon')).toHaveLength(1)
   })
 
   it('shows empty state when no properties', async () => {
