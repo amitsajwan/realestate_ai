@@ -134,8 +134,8 @@ class UserRepository:
             serialized_user["onboarding_step"] = 0
             
         # Log the serialized user for debugging
-        logger.info(f"🔍 SERIALIZATION DEBUG: Serialized user fields: {list(serialized_user.keys())}")
-        logger.info(f"🔍 SERIALIZATION DEBUG: Onboarding status: completed={serialized_user.get('onboarding_completed')}, step={serialized_user.get('onboarding_step')}")
+        logger.debug(f"Serialized user fields: {list(serialized_user.keys())}")
+        logger.debug(f"Onboarding status: completed={serialized_user.get('onboarding_completed')}, step={serialized_user.get('onboarding_step')}")
         
         return serialized_user
     

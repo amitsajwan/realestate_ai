@@ -674,6 +674,12 @@ export class APIService {
     }, true);
   }
 
+  async getProperties(): Promise<any> {
+    return this.makeRequest('/api/v1/properties/', {
+      method: 'GET'
+    }, true);
+  }
+
   async deleteProperty(propertyId: string): Promise<{ message?: string } | any> {
     return this.delete(`/api/v1/properties/${propertyId}`, true);
   }

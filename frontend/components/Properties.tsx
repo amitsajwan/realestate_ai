@@ -18,7 +18,8 @@ import {
   ShareIcon,
   AdjustmentsHorizontalIcon,
   Squares2X2Icon,
-  ListBulletIcon
+  ListBulletIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline'
 import {
   HeartIcon as HeartSolidIcon
@@ -45,12 +46,14 @@ interface PropertiesProps {
   onAddProperty?: () => void
   properties?: Property[]
   setProperties?: (properties: Property[]) => void
+  onRefresh?: () => void
 }
 
 export default function Properties({ 
   onAddProperty, 
   properties: propProperties = [], 
-  setProperties: propSetProperties 
+  setProperties: propSetProperties,
+  onRefresh
 }: PropertiesProps) {
   // State management
   const [searchTerm, setSearchTerm] = useState('')
@@ -223,13 +226,25 @@ export default function Properties({
             Manage your property listings • {properties.length} properties
           </p>
         </div>
-        <button
-          onClick={onAddProperty}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-semibold flex items-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
-        >
-          <PlusIcon className="w-5 h-5" />
-          <span>Add Property</span>
-        </button>
+        <div className="flex gap-3">
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              className="bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 px-4 py-3 rounded-xl font-semibold flex items-center space-x-2 transition-all duration-200"
+              title="Refresh Properties"
+            >
+              <ArrowPathIcon className="w-5 h-5" />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+          )}
+          <button
+            onClick={onAddProperty}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-semibold flex items-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+          >
+            <PlusIcon className="w-5 h-5" />
+            <span>Add Property</span>
+          </button>
+        </div>
       </div>
 
       {/* Search and Filters */}

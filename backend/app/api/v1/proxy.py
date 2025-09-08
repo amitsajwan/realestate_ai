@@ -111,12 +111,12 @@ async def proxy_delete_lead(request: Request):
 @router.get("/api/properties")
 async def proxy_get_properties(request: Request):
     # Forward to the versioned path your main app expects
-    return await _forward("GET", "/api/v1/properties", request)
+    return await _forward("GET", "/api/v1/properties/", request)
 
 @router.post("/api/properties")
 async def proxy_post_property(request: Request):
     # Forward to the versioned path your main app expects
-    return await _forward("POST", "/api/v1/properties", request)
+    return await _forward("POST", "/api/v1/properties/", request)
 
 @router.put("/api/properties/{property_id}")
 async def proxy_put_property(request: Request):

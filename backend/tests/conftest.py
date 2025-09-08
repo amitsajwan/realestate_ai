@@ -83,3 +83,4 @@ def invalid_user_data():
         "phone": "invalid-phone",
         "is_active": True
     }
+
