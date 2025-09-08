@@ -666,12 +666,6 @@ export class APIService {
     return { baseURL: this.baseURL, timeout: this.requestTimeout, hasToken: !!this.token };
   }
 
-  /**
-   * Get default user profile
-   */
-  async getDefaultUserProfile(): Promise<User> {
-    return await this.makeRequest<User>("/api/v1/auth/default-profile", { method: "GET" });
-  }
 
   async createProperty(propertyData: any): Promise<any> {
     return this.makeRequest('/api/v1/properties/', {
