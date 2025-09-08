@@ -732,8 +732,8 @@ describe('Properties Component', () => {
       )
 
       // Check for responsive classes
-      const container = screen.getByText('Properties').closest('div')?.parentElement
-      expect(container).toHaveClass('space-y-4')
+      const container = screen.getByText('Properties').closest('div')?.parentElement?.parentElement
+      expect(container).toHaveClass('space-y-4', 'sm:space-y-6')
     })
   })
 

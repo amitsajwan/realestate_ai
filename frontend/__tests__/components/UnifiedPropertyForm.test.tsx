@@ -31,6 +31,22 @@ jest.mock('@/utils/analytics', () => ({
   }
 }))
 
+// Mock heroicons
+jest.mock('@heroicons/react/24/outline', () => ({
+  SparklesIcon: (props: any) => <div data-testid="sparkles-icon" {...props} />,
+  MapPinIcon: (props: any) => <div data-testid="map-pin-icon" {...props} />,
+  HomeIcon: (props: any) => <div data-testid="home-icon" {...props} />,
+  CurrencyDollarIcon: (props: any) => <div data-testid="currency-dollar-icon" {...props} />,
+  DocumentTextIcon: (props: any) => <div data-testid="document-text-icon" {...props} />,
+  CheckCircleIcon: (props: any) => <div data-testid="check-circle-icon" {...props} />,
+  ExclamationTriangleIcon: (props: any) => <div data-testid="exclamation-triangle-icon" {...props} />,
+  LightBulbIcon: (props: any) => <div data-testid="light-bulb-icon" {...props} />,
+  ArrowRightIcon: (props: any) => <div data-testid="arrow-right-icon" {...props} />,
+  ArrowLeftIcon: (props: any) => <div data-testid="arrow-left-icon" {...props} />,
+  EyeIcon: (props: any) => <div data-testid="eye-icon" {...props} />,
+  EyeSlashIcon: (props: any) => <div data-testid="eye-slash-icon" {...props} />,
+}))
+
 jest.mock('react-hot-toast', () => ({
   success: jest.fn(),
   error: jest.fn()

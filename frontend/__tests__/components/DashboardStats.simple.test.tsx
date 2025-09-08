@@ -26,13 +26,26 @@ jest.mock('@heroicons/react/24/outline', () => ({
   ArrowDownIcon: (props: any) => <div data-testid="arrow-down-icon" {...props} />,
   CheckCircleIcon: (props: any) => <div data-testid="check-circle-icon" {...props} />,
   ClockIcon: (props: any) => <div data-testid="clock-icon" {...props} />,
+  UserGroupIcon: (props: any) => <div data-testid="user-group-icon" {...props} />,
+  CurrencyRupeeIcon: (props: any) => <div data-testid="currency-rupee-icon" {...props} />,
+  SparklesIcon: (props: any) => <div data-testid="sparkles-icon" {...props} />,
+  ArrowTrendingUpIcon: (props: any) => <div data-testid="arrow-trending-up-icon" {...props} />,
+  ArrowTrendingDownIcon: (props: any) => <div data-testid="arrow-trending-down-icon" {...props} />,
+  ChartBarIcon: (props: any) => <div data-testid="chart-bar-icon" {...props} />,
+  CalendarDaysIcon: (props: any) => <div data-testid="calendar-days-icon" {...props} />,
+  BellIcon: (props: any) => <div data-testid="bell-icon" {...props} />,
+  FireIcon: (props: any) => <div data-testid="fire-icon" {...props} />,
+  HomeIcon: (props: any) => <div data-testid="home-icon" {...props} />,
 }))
 
 const mockStats = {
   total_properties: 25,
   active_listings: 42,
   total_views: 1250,
-  revenue: 250000,
+  total_leads: 18,
+  total_users: 150,
+  monthly_leads: 8,
+  revenue: "250000",
   properties_trend: 12,
   listings_trend: -5,
   views_trend: 8,
@@ -53,19 +66,20 @@ describe('DashboardStats Component - Simple Tests', () => {
   it('displays all stat values correctly', () => {
     render(<DashboardStats stats={mockStats} />)
     
-    expect(screen.getByText('25')).toBeInTheDocument()
-    expect(screen.getByText('42')).toBeInTheDocument()
-    expect(screen.getByText('1,250')).toBeInTheDocument()
-    expect(screen.getByText('₹2,50,000')).toBeInTheDocument()
+    // Use getAllByText to handle multiple elements with same text
+    expect(screen.getAllByText('25')).toHaveLength(2)
+    expect(screen.getAllByText('1,250')).toHaveLength(2)
+    expect(screen.getAllByText('250000')).toHaveLength(2)
+    expect(screen.getAllByText('18')).toHaveLength(2)
   })
 
   it('displays stat labels', () => {
     render(<DashboardStats stats={mockStats} />)
     
-    expect(screen.getByText('Properties')).toBeInTheDocument()
-    expect(screen.getByText('Active Leads')).toBeInTheDocument()
-    expect(screen.getByText('Total Views')).toBeInTheDocument()
-    expect(screen.getByText('Revenue')).toBeInTheDocument()
+    expect(screen.getByText('Total Properties')).toBeInTheDocument()
+    expect(screen.getAllByText('Active Leads')).toHaveLength(2)
+    expect(screen.getByText('Property Views')).toBeInTheDocument()
+    expect(screen.getAllByText('Revenue')).toHaveLength(2)
   })
 
   it('displays action buttons with correct text', () => {

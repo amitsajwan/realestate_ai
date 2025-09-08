@@ -18,17 +18,8 @@ jest.mock('@heroicons/react/24/outline', () => ({
 
 // Mock window.location.reload
 const mockReload = jest.fn()
-// Mock window.location using a different approach
-const originalLocation = window.location;
-delete (window as any).location;
-window.location = {
-  ...originalLocation,
-  reload: mockReload,
-  href: 'http://localhost:3000',
-  assign: jest.fn(),
-  replace: jest.fn(),
-  toString: () => 'http://localhost:3000'
-} as any;
+// Simple mock for window.location.reload
+(window.location as any).reload = mockReload;
 
 // Component that throws an error for testing
 const ThrowError = ({ shouldThrow }: { shouldThrow: boolean }) => {
@@ -159,7 +150,7 @@ describe('ErrorBoundary', () => {
         </ErrorBoundary>
       )
 
-      expect(screen.getByText('No error')).toBeInTheDocument()
+      expect(screen.getByText('Test Component')).toBeInTheDocument()
       expect(screen.queryByText('Oops! Something went wrong')).not.toBeInTheDocument()
     })
 
@@ -171,7 +162,7 @@ describe('ErrorBoundary', () => {
       )
 
       fireEvent.click(screen.getByRole('button', { name: /Refresh Page/i }))
-      expect(window.location.reload).toHaveBeenCalledTimes(1)
+      expect(mockReload).toHaveBeenCalledTimes(1)
     })
 
     it('logs error to console when error occurs', () => {
@@ -196,7 +187,7 @@ describe('ErrorBoundary', () => {
       )
 
       // Initially no error
-      expect(screen.getByText('No error')).toBeInTheDocument()
+      expect(screen.getByText('Test Component')).toBeInTheDocument()
 
       // Trigger error
       rerender(
@@ -215,7 +206,7 @@ describe('ErrorBoundary', () => {
       render(<TestHookComponent />)
       
       expect(screen.getByTestId('no-error')).toBeInTheDocument()
-      expect(screen.getByText('No error')).toBeInTheDocument()
+      expect(screen.getByText('Test Component')).toBeInTheDocument()
     })
 
     it('handles error when triggered', () => {
@@ -315,7 +306,7 @@ describe('ErrorBoundary', () => {
         </ErrorBoundary>
       )
 
-      expect(screen.getByText('No error')).toBeInTheDocument()
+      expect(screen.getByText('Test Component')).toBeInTheDocument()
       expect(screen.queryByText('Oops! Something went wrong')).not.toBeInTheDocument()
     })
   })

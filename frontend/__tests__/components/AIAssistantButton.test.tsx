@@ -12,6 +12,11 @@ jest.mock('framer-motion', () => ({
         {children}
       </button>
     ),
+    div: ({ children, ...props }: any) => (
+      <div {...props}>
+        {children}
+      </div>
+    ),
   },
 }))
 
