@@ -229,15 +229,15 @@ async def logout_user(
         )
 
 
-@router.get("/me", response_model=UserSecureResponse)
+@router.get("/me", response_model=UserResponse)
 async def get_current_user_profile(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Get current authenticated user's profile."""
-    return UserSecureResponse(**current_user)
+    return UserResponse(**current_user)
 
 
-@router.put("/me", response_model=UserSecureResponse)
+@router.put("/me", response_model=UserResponse)
 async def update_current_user_profile(
     user_data: Dict[str, Any],
     current_user: Dict[str, Any] = Depends(get_current_user),
@@ -252,7 +252,7 @@ async def update_current_user_profile(
         updated_user = await auth_service.update_user_profile(current_user["_id"], sanitized_data)
 
         logger.info(f"User profile updated: {current_user.get('email', 'unknown')}")
-        return UserSecureResponse(**updated_user)
+        return UserResponse(**updated_user)
 
     except AppValidationError as e:
         logger.warning(f"Profile update validation error: {str(e)}")
