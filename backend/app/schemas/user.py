@@ -194,6 +194,7 @@ class UserResponse(BaseModel):
     login_attempts: int = Field(0, description="Number of failed login attempts")
     is_verified: bool = Field(False, description="Whether the user's email is verified")
     onboarding_completed: bool = Field(False, description="Whether user completed onboarding")
+    onboarding_step: int = Field(0, description="Current onboarding step")
     
     @property
     def full_name(self) -> str:
@@ -220,7 +221,8 @@ class UserResponse(BaseModel):
                 "last_login": "2023-01-01T00:00:00Z",
                 "login_attempts": 0,
                 "is_verified": True,
-                "onboarding_completed": True
+                "onboarding_completed": True,
+                "onboarding_step": 6
             }
         }
 
