@@ -257,7 +257,7 @@ describe('AgentContactPage', () => {
       expect(screen.getByText('Agent Not Found')).toBeInTheDocument()
     })
 
-    expect(screen.getByText("The agent profile you're looking for doesn't exist or is not public.")).toBeInTheDocument()
+    expect(screen.getByText('Agent not found')).toBeInTheDocument()
     expect(screen.getByText('Back to Home')).toBeInTheDocument()
   })
 
@@ -333,8 +333,8 @@ describe('AgentContactPage', () => {
       expect(screen.getByText('John Doe')).toBeInTheDocument()
     })
 
-    // Should render default user icon instead of photo
-    expect(screen.getByRole('img', { hidden: true })).toBeInTheDocument()
+    // Should render default placeholder instead of photo
+    expect(screen.getByText('AG')).toBeInTheDocument()
   })
 
   it('displays navigation links correctly', async () => {
