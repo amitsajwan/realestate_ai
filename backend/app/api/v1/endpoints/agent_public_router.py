@@ -37,23 +37,23 @@ async def get_current_agent_public_profile(
         service = AgentPublicService(db)
         
         # TODO: Get current user from auth
-        # For now, return mock data
+        # For now, return mock data with some fields filled in
         mock_profile = {
             "id": "mock-agent-id",
-            "agent_name": "Demo Agent",
-            "slug": "demo-agent",
-            "bio": "Experienced real estate professional with 10+ years in the industry.",
+            "agent_name": "John Doe",
+            "slug": "john-doe",
+            "bio": "Experienced real estate professional with 10+ years in the industry. Specializing in residential and commercial properties, helping clients find their perfect home or investment opportunity.",
             "photo": "",
             "phone": "+1 (555) 123-4567",
-            "email": "demo@example.com",
-            "office_address": "123 Main St, City, State",
-            "specialties": ["Residential", "Commercial"],
-            "experience": "10+ years in real estate",
+            "email": "john@example.com",
+            "office_address": "123 Main St, New York, NY 10001",
+            "specialties": ["Residential", "Commercial", "Investment"],
+            "experience": "10+ years in real estate, Certified Realtor",
             "languages": ["English", "Spanish"],
             "is_active": True,
-            "is_public": True,
-            "view_count": 150,
-            "contact_count": 25,
+                "is_public": True,  # Set to True so public website works
+            "view_count": 0,
+            "contact_count": 0,
             "created_at": "2024-01-01T00:00:00Z",
             "updated_at": "2024-01-15T00:00:00Z"
         }
@@ -96,12 +96,12 @@ async def get_current_agent_public_stats(
         service = AgentPublicService(db)
         
         # TODO: Get stats for current user
-        # For now, return mock data
+        # For now, return mock data with zero stats for inactive profile
         mock_stats = {
-            "total_views": 150,
-            "total_contacts": 25,
-            "properties_count": 12,
-            "recent_inquiries": 5
+            "total_views": 0,
+            "total_contacts": 0,
+            "properties_count": 0,
+            "recent_inquiries": 0
         }
         
         return mock_stats

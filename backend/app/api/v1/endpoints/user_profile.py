@@ -135,7 +135,16 @@ async def get_default_user_profile():
             "about": "Experienced real estate agent with 5+ years in the industry",
             "city": "New York",
             "state": "NY",
-            "languages": ["English", "Spanish"]
+            "languages": ["English", "Spanish"],
+            "brandingSuggestions": {
+                "tagline": "Your trusted real estate partner",
+                "about": "Experienced real estate agent with 5+ years in the industry, specializing in residential and commercial properties. Committed to helping clients find their perfect home or investment opportunity.",
+                "colors": {
+                    "primary": "#3B82F6",
+                    "secondary": "#1E40AF", 
+                    "accent": "#F59E0B"
+                }
+            }
         }
         
         return {

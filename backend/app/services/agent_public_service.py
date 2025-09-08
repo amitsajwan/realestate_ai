@@ -30,21 +30,26 @@ class AgentPublicService:
         """Get agent public profile by slug"""
         try:
             # Mock data for now - replace with actual database query later
-            return AgentPublicProfile(
-                id="1",
-                agent_name="John Doe",
-                slug=slug,
-                bio="Experienced real estate agent with 10+ years in the market",
-                photo="https://example.com/photo.jpg",
-                phone="+1234567890",
-                email="john@example.com",
-                office_address="123 Main St, City, State",
-                specialties=["Residential", "Commercial"],
-                experience="10+ years",
-                languages=["English", "Spanish"],
-                is_active=True,
-                is_public=True
-            )
+            # Only return data for the specific slug we're using
+            if slug == "john-doe":
+                return AgentPublicProfile(
+                    id="mock-agent-id",
+                    agent_name="John Doe",
+                    slug="john-doe",
+                    bio="Experienced real estate professional with 10+ years in the industry. Specializing in residential and commercial properties, helping clients find their perfect home or investment opportunity.",
+                    photo="",
+                    phone="+1 (555) 123-4567",
+                    email="john@example.com",
+                    office_address="123 Main St, New York, NY 10001",
+                    specialties=["Residential", "Commercial", "Investment"],
+                    experience="10+ years in real estate, Certified Realtor",
+                    languages=["English", "Spanish"],
+                    is_active=True,
+                    is_public=True  # Set to True so the public page works
+                )
+            else:
+                # Return None for other slugs (agent not found)
+                return None
         except Exception as e:
             logger.error(f"Error getting agent by slug {slug}: {e}")
             return None

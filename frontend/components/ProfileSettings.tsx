@@ -110,23 +110,24 @@ export default function ProfileSettings() {
       
       // Merge onboarding data with profile data, prioritizing profile data
       const mergedData = {
-        user_id: profileData?.id || 'default_user',
-        name: profileData?.firstName && profileData?.lastName ? `${profileData.firstName} ${profileData.lastName}`.trim() : (currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() : ''),
+        user_id: profileData?.user_id || 'default_user',
+        name: profileData?.name || (currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() : ''),
         email: profileData?.email || currentUser?.email || '',
         phone: profileData?.phone || currentUser?.phone || '',
-        whatsapp: currentUser?.phone || '',
-        company: '',
-        experience_years: '0',
-        specialization_areas: '',
-        tagline: '',
-        social_bio: '',
-        about: '',
-        address: '',
-        city: '',
-        state: '',
-        pincode: '',
-        languages: [],
-        logo_url: ''
+        whatsapp: profileData?.phone || currentUser?.phone || '',
+        company: profileData?.company || '',
+        experience_years: profileData?.experience_years || '0',
+        specialization_areas: profileData?.specialization_areas || '',
+        tagline: profileData?.tagline || '',
+        social_bio: profileData?.about || '',
+        about: profileData?.about || '',
+        address: profileData?.address || '',
+        city: profileData?.city || '',
+        state: profileData?.state || '',
+        pincode: profileData?.pincode || '',
+        languages: profileData?.languages || [],
+        logo_url: profileData?.logo_url || '',
+        brandingSuggestions: profileData?.brandingSuggestions || null
       }
       
       setFormData(mergedData)

@@ -70,11 +70,12 @@ export default function PublicWebsiteManagement() {
   const loadPublicProfile = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch('/api/v1/agent-public/profile')
+      const response = await fetch('http://localhost:8000/api/v1/agent-public/profile')
       if (response.ok) {
         const data = await response.json()
+        console.log('Public profile data:', data) // Debug log
         setProfile(data)
-        setEditForm({
+        const formData = {
           agent_name: data.agent_name || '',
           bio: data.bio || '',
           phone: data.phone || '',
@@ -84,9 +85,15 @@ export default function PublicWebsiteManagement() {
           experience: data.experience || '',
           languages: data.languages || [],
           is_public: data.is_public || false
-        })
+        }
+        console.log('Setting editForm with:', formData) // Debug log
+        setEditForm(formData)
+      } else {
+        console.error('Failed to load public profile:', response.status, response.statusText)
+        toast.error('Failed to load public profile')
       }
     } catch (error) {
+      console.error('Error loading public profile:', error)
       toast.error('Failed to load public profile')
     } finally {
       setIsLoading(false)
@@ -95,10 +102,13 @@ export default function PublicWebsiteManagement() {
 
   const loadStats = async () => {
     try {
-      const response = await fetch('/api/v1/agent-public/stats')
+      const response = await fetch('http://localhost:8000/api/v1/agent-public/stats')
       if (response.ok) {
         const data = await response.json()
+        console.log('Public stats data:', data) // Debug log
         setStats(data)
+      } else {
+        console.error('Failed to load stats:', response.status, response.statusText)
       }
     } catch (error) {
       console.error('Failed to load stats:', error)
@@ -107,7 +117,7 @@ export default function PublicWebsiteManagement() {
 
   const handleSaveProfile = async () => {
     try {
-      const response = await fetch('/api/v1/agent-public/profile', {
+      const response = await fetch('http://localhost:8000/api/v1/agent-public/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editForm)
@@ -189,7 +199,23 @@ export default function PublicWebsiteManagement() {
             </a>
           )}
           <button
-            onClick={() => setIsEditing(!isEditing)}
+            onClick={() => {
+              if (!isEditing && profile) {
+                // When entering edit mode, populate form with current profile data
+                setEditForm({
+                  agent_name: profile.agent_name || '',
+                  bio: profile.bio || '',
+                  phone: profile.phone || '',
+                  email: profile.email || '',
+                  office_address: profile.office_address || '',
+                  specialties: profile.specialties || [],
+                  experience: profile.experience || '',
+                  languages: profile.languages || [],
+                  is_public: profile.is_public || false
+                })
+              }
+              setIsEditing(!isEditing)
+            }}
             className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <PencilIcon className="w-4 h-4 mr-2" />
@@ -279,9 +305,10 @@ export default function PublicWebsiteManagement() {
             <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
-                checked={editForm.is_public}
+                checked={isEditing ? editForm.is_public : (profile?.is_public || false)}
                 onChange={(e) => setEditForm(prev => ({ ...prev, is_public: e.target.checked }))}
                 className="sr-only peer"
+                disabled={!isEditing}
               />
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
@@ -295,10 +322,11 @@ export default function PublicWebsiteManagement() {
               </label>
               <input
                 type="text"
-                value={editForm.agent_name}
+                value={isEditing ? editForm.agent_name : (profile?.agent_name || '')}
                 onChange={(e) => setEditForm(prev => ({ ...prev, agent_name: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Your professional name"
+                readOnly={!isEditing}
               />
             </div>
             <div>
@@ -307,10 +335,11 @@ export default function PublicWebsiteManagement() {
               </label>
               <input
                 type="email"
-                value={editForm.email}
+                value={isEditing ? editForm.email : (profile?.email || '')}
                 onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="your.email@example.com"
+                readOnly={!isEditing}
               />
             </div>
           </div>
@@ -322,10 +351,11 @@ export default function PublicWebsiteManagement() {
               </label>
               <input
                 type="tel"
-                value={editForm.phone}
+                value={isEditing ? editForm.phone : (profile?.phone || '')}
                 onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="+1 (555) 123-4567"
+                readOnly={!isEditing}
               />
             </div>
             <div>
@@ -334,10 +364,11 @@ export default function PublicWebsiteManagement() {
               </label>
               <input
                 type="text"
-                value={editForm.office_address}
+                value={isEditing ? editForm.office_address : (profile?.office_address || '')}
                 onChange={(e) => setEditForm(prev => ({ ...prev, office_address: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="123 Main St, City, State"
+                readOnly={!isEditing}
               />
             </div>
           </div>
@@ -349,10 +380,11 @@ export default function PublicWebsiteManagement() {
             </label>
             <textarea
               rows={4}
-              value={editForm.bio}
+              value={isEditing ? editForm.bio : (profile?.bio || '')}
               onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Tell visitors about your experience, specialties, and what makes you unique..."
+              readOnly={!isEditing}
             />
           </div>
 
@@ -363,10 +395,11 @@ export default function PublicWebsiteManagement() {
             </label>
             <input
               type="text"
-              value={editForm.experience}
+              value={isEditing ? editForm.experience : (profile?.experience || '')}
               onChange={(e) => setEditForm(prev => ({ ...prev, experience: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="e.g., 10+ years in real estate, Certified Realtor"
+              readOnly={!isEditing}
             />
           </div>
 
@@ -380,9 +413,10 @@ export default function PublicWebsiteManagement() {
                 <label key={specialty} className="flex items-center">
                   <input
                     type="checkbox"
-                    checked={editForm.specialties.includes(specialty)}
+                    checked={isEditing ? editForm.specialties.includes(specialty) : (profile?.specialties?.includes(specialty) || false)}
                     onChange={(e) => handleSpecialtyChange(specialty, e.target.checked)}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    disabled={!isEditing}
                   />
                   <span className="ml-2 text-sm text-gray-700">{specialty}</span>
                 </label>
@@ -400,9 +434,10 @@ export default function PublicWebsiteManagement() {
                 <label key={language} className="flex items-center">
                   <input
                     type="checkbox"
-                    checked={editForm.languages.includes(language)}
+                    checked={isEditing ? editForm.languages.includes(language) : (profile?.languages?.includes(language) || false)}
                     onChange={(e) => handleLanguageChange(language, e.target.checked)}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    disabled={!isEditing}
                   />
                   <span className="ml-2 text-sm text-gray-700">{language}</span>
                 </label>
