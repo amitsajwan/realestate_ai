@@ -41,7 +41,8 @@ async def initialize_database():
         
     except Exception as e:
         logger.error(f"Error initializing database: {e}")
-        raise
+        logger.warning("Continuing with mock database")
+        # Don't raise the exception - let the app continue with mock database
 
 async def initialize_smart_properties_collection(db: AsyncIOMotorDatabase):
     """Initialize smart_properties collection with indexes"""

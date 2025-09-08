@@ -18,6 +18,8 @@ from app.api.v1.endpoints.agent_onboarding import router as agent_onboarding_rou
 from app.api.v1.endpoints.onboarding import router as onboarding_router
 from app.api.v1.endpoints.demo_endpoints import router as demo_router
 from app.api.v1.endpoints.uploads import router as uploads_router
+from app.api.v1.endpoints.agent_public_router import router as agent_public_router
+from app.api.v1.endpoints.agent_dashboard_router import router as agent_dashboard_router
 
 # Create main API router
 api_router = APIRouter()
@@ -36,6 +38,8 @@ api_router.include_router(agent_onboarding_router, tags=["agent-onboarding"])
 # Add onboarding routes under /api/v1/onboarding/*
 api_router.include_router(onboarding_router, prefix="/onboarding", tags=["onboarding"])
 api_router.include_router(uploads_router, prefix="/uploads", tags=["uploads"])
+api_router.include_router(agent_public_router, tags=["agent-public"])
+api_router.include_router(agent_dashboard_router, tags=["agent-dashboard"])
 
 # Health check for API v1
 @api_router.get("/health")

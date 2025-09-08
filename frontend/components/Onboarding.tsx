@@ -205,11 +205,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
       
       if (!error) {
         console.log('[Onboarding] Onboarding completed successfully, calling onComplete callback');
-        // Force a small delay to ensure state updates are processed
-        setTimeout(() => {
-          console.log('[Onboarding] Executing onComplete callback after delay');
-          onComplete();
-        }, 1000); // Increased delay to ensure state updates are processed
+        // Call onComplete immediately without delay to prevent state issues
+        onComplete();
       }
     } catch (err) {
       console.error('[Onboarding] Error during completion:', err);
