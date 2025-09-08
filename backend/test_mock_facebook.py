@@ -10,10 +10,12 @@ This script tests the mock service without requiring real Facebook credentials.
 import sys
 import os
 import asyncio
+import pytest
 
 # Add the app directory to the Python path
 sys.path.insert(0, os.path.dirname(__file__))
 
+@pytest.mark.asyncio
 async def test_mock_facebook_service():
     """Test the mock Facebook service"""
     print("🧪 Testing Mock Facebook Service...")
@@ -110,6 +112,7 @@ async def test_mock_facebook_service():
         traceback.print_exc()
         return False
 
+@pytest.mark.asyncio
 async def test_mock_endpoints():
     """Test mock Facebook endpoints"""
     print("\n🧪 Testing Mock Facebook Endpoints...")

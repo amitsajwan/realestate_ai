@@ -15,8 +15,10 @@ global.fetch = jest.fn()
 
 // Mock toast
 jest.mock('react-hot-toast', () => ({
-  error: jest.fn(),
-  success: jest.fn()
+  toast: {
+    error: jest.fn(),
+    success: jest.fn()
+  }
 }))
 
 // Mock framer-motion
@@ -93,7 +95,7 @@ describe('AgentPublicPage', () => {
     expect(screen.getByText('Loading agent profile...')).toBeInTheDocument()
   })
 
-  it.skip('renders agent profile successfully', async () => {
+  it('renders agent profile successfully', async () => {
     ;(fetch as jest.Mock)
       .mockResolvedValueOnce({
         ok: true,
@@ -120,7 +122,7 @@ describe('AgentPublicPage', () => {
     expect(screen.getByText('English, Spanish')).toBeInTheDocument()
   })
 
-  it.skip('displays agent statistics', async () => {
+  it('displays agent statistics', async () => {
     ;(fetch as jest.Mock)
       .mockResolvedValueOnce({
         ok: true,
@@ -139,7 +141,7 @@ describe('AgentPublicPage', () => {
     })
   })
 
-  it.skip('renders featured properties section', async () => {
+  it('renders featured properties section', async () => {
     ;(fetch as jest.Mock)
       .mockResolvedValueOnce({
         ok: true,
@@ -162,7 +164,7 @@ describe('AgentPublicPage', () => {
     expect(screen.getByText('₹15,000,000')).toBeInTheDocument()
   })
 
-  it.skip('handles agent not found error', async () => {
+  it('handles agent not found error', async () => {
     ;(fetch as jest.Mock).mockResolvedValueOnce({
       ok: false,
       status: 404
@@ -178,7 +180,7 @@ describe('AgentPublicPage', () => {
     expect(screen.getByText('Back to Home')).toBeInTheDocument()
   })
 
-  it.skip('handles network error gracefully', async () => {
+  it('handles network error gracefully', async () => {
     ;(fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'))
 
     render(<AgentPublicPage params={{ agentName: 'john-doe' }} />)
