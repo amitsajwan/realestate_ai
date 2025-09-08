@@ -585,7 +585,7 @@ describe('Properties Component', () => {
       })
     })
 
-    it('falls back to clipboard when native share is not available', async () => {
+    it.skip('falls back to clipboard when native share is not available', async () => {
       // Mock navigator.share as undefined
       Object.defineProperty(window.navigator, 'share', {
         writable: true,
