@@ -140,11 +140,15 @@ export class APIService {
 
     try {
       const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
         'Accept': 'application/json',
         'X-Request-ID': requestId,
         ...(options.headers as Record<string, string> || {})
       };
+
+      // Only set Content-Type for JSON requests, not for FormData
+      if (!(options.body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+      }
 
       if (requiresAuth && this.token) {
         headers['Authorization'] = `Bearer ${this.token}`;
