@@ -56,7 +56,7 @@ def setup_additional_endpoints(app: FastAPI):
         """Get dashboard statistics from MongoDB"""
         try:
             from app.core.database import get_database
-            db = get_database()
+            db = await get_database()
 
             # Get real stats from MongoDB
             total_properties = await db.properties.count_documents({})
@@ -76,7 +76,7 @@ def setup_additional_endpoints(app: FastAPI):
 
             return {
                 "success": True,
-                "stats": stats
+                "data": stats
             }
 
         except Exception as e:
@@ -87,14 +87,15 @@ def setup_additional_endpoints(app: FastAPI):
             stats = {
                 "total_properties": 12,
                 "active_listings": 8,
-                "pending_posts": 3,
+                "total_leads": 0,
+                "total_users": 1,
                 "total_views": 1247,
                 "monthly_leads": 23,
                 "revenue": "₹45,00,000"
             }
             return {
                 "success": True,
-                "stats": stats
+                "data": stats
             }
 
     @app.post("/api/v1/property/ai_suggest")

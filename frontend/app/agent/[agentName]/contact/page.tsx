@@ -55,7 +55,7 @@ export default function AgentContactPage({ params }: AgentContactPageProps) {
       setIsLoading(true)
       setError(null)
 
-      const response = await fetch(`/api/v1/agent-public/${params.agentName}`)
+      const response = await fetch(`http://localhost:8000/api/v1/agent-public/${params.agentName}`)
       if (!response.ok) {
         throw new Error('Agent not found')
       }
@@ -82,7 +82,7 @@ export default function AgentContactPage({ params }: AgentContactPageProps) {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch(`/api/v1/agent-public/${params.agentName}/contact`, {
+      const response = await fetch(`http://localhost:8000/api/v1/agent-public/${params.agentName}/contact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
