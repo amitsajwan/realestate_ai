@@ -75,7 +75,20 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
     trigger
   } = useForm<PropertyFormData>({
     resolver: zodResolver(propertySchema),
-    mode: 'onSubmit' // Changed from 'onBlur' to 'onSubmit' to prevent premature validation
+    mode: 'onSubmit', // Changed from 'onBlur' to 'onSubmit' to prevent premature validation
+    defaultValues: {
+      title: '',
+      description: '',
+      location: '',
+      address: '',
+      area: 0,
+      price: '',
+      bedrooms: 0,
+      bathrooms: 0,
+      amenities: '',
+      status: 'available',
+      propertyType: ''
+    }
   })
 
   const watchedAddress = watch('address')
@@ -192,6 +205,22 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
 
   const nextStep = async () => {
     const fieldsToValidate = getFieldsForStep(currentStep)
+    
+    // Get current form values to check if they're empty
+    const currentValues = watch()
+    const hasEmptyRequiredFields = fieldsToValidate.some(field => {
+      const value = currentValues[field]
+      if (field === 'area' || field === 'bedrooms' || field === 'bathrooms') {
+        return !value || isNaN(Number(value)) || Number(value) <= 0
+      }
+      return !value || value.toString().trim() === ''
+    })
+    
+    if (hasEmptyRequiredFields) {
+      // Don't proceed if required fields are empty
+      return
+    }
+    
     const isValid = await trigger(fieldsToValidate)
     
     if (isValid && currentStep < FORM_STEPS.length - 1) {
