@@ -66,6 +66,7 @@ export default function ProfileSettings() {
   })
 
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
+  const [isProfileLoaded, setIsProfileLoaded] = useState(false)
   
   // Use loading hooks for consistent state management
   const profileOperation = useAsyncOperation<UserProfile>()
@@ -84,7 +85,14 @@ export default function ProfileSettings() {
   ]
 
   const loadUserProfile = useCallback(async () => {
-    await profileOperation.execute(async () => {
+    // Prevent multiple simultaneous calls
+    if (isProfileLoaded) {
+      return
+    }
+    
+    setIsProfileLoaded(true)
+    
+    try {
       // Get current user from auth manager
       const authState = authManager.getState()
       const currentUser = authState.user
@@ -97,7 +105,7 @@ export default function ProfileSettings() {
           profileData = response.profile;
         }
       } catch (error) {
-  console.info('[ProfileSettings] No existing profile found, will use onboarding data')
+        console.info('[ProfileSettings] No existing profile found, will use onboarding data')
       }
       
       // Merge onboarding data with profile data, prioritizing profile data
@@ -130,8 +138,10 @@ export default function ProfileSettings() {
       }
       
       return mergedData
-    })
-  }, [profileOperation])
+    } finally {
+      setIsProfileLoaded(false)
+    }
+  }, [isProfileLoaded])
 
   useEffect(() => {
     loadUserProfile()
