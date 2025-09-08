@@ -114,17 +114,30 @@ class UserRepository:
         if not user:
             return None
             
+        # Create a copy to avoid modifying the original
+        serialized_user = user.copy()
+            
         # Convert ObjectId to string
-        if "_id" in user:
-            user["id"] = str(user["_id"])
-            del user["_id"]
+        if "_id" in serialized_user:
+            serialized_user["id"] = str(serialized_user["_id"])
+            del serialized_user["_id"]
         
         # Ensure datetime objects are timezone-aware
-        for field in ["created_at", "updated_at", "last_login", "password_changed_at"]:
-            if field in user and user[field] and not user[field].tzinfo:
-                user[field] = user[field].replace(tzinfo=timezone.utc)
+        for field in ["created_at", "updated_at", "last_login", "password_changed_at", "onboarding_completed_at"]:
+            if field in serialized_user and serialized_user[field] and not serialized_user[field].tzinfo:
+                serialized_user[field] = serialized_user[field].replace(tzinfo=timezone.utc)
         
-        return user
+        # Ensure onboarding fields are properly included
+        if "onboarding_completed" not in serialized_user:
+            serialized_user["onboarding_completed"] = False
+        if "onboarding_step" not in serialized_user:
+            serialized_user["onboarding_step"] = 0
+            
+        # Log the serialized user for debugging
+        logger.debug(f"Serialized user fields: {list(serialized_user.keys())}")
+        logger.debug(f"Onboarding status: completed={serialized_user.get('onboarding_completed')}, step={serialized_user.get('onboarding_step')}")
+        
+        return serialized_user
     
     @debug_log
     def _prepare_user_data(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -209,13 +222,19 @@ class UserRepository:
     async def get_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user by ID with enhanced error handling"""
         try:
-            # For mock database, we don't need ObjectId validation
-            user = await self.collection.find_one({"_id": user_id})
+            # Convert string ID to ObjectId for MongoDB query
+            try:
+                object_id = ObjectId(user_id)
+            except Exception as e:
+                logger.error(f"Invalid ObjectId format: {user_id}")
+                return None
+            
+            user = await self.collection.find_one({"_id": object_id})
             
             # Debug: Check what's in the database
-            all_users = await self.collection.find({})
+            all_users = await self.collection.find({}).to_list(length=None)
             logger.info(f"All users in database: {[u.get('_id') for u in all_users]}")
-            logger.info(f"Looking for user_id: {user_id}")
+            logger.info(f"Looking for user_id: {user_id} (converted to ObjectId: {object_id})")
             
             if user:
                 logger.debug(f"User found by ID: {user_id}")
@@ -285,7 +304,12 @@ class UserRepository:
         self.logger.info(f"Updating user {user_id} with data: {update_data}")
         """Update user with enhanced validation and error handling"""
         try:
-            # For mock database, we don't need ObjectId validation
+            # Convert string ID to ObjectId for MongoDB query
+            try:
+                object_id = ObjectId(user_id)
+            except Exception as e:
+                logger.error(f"Invalid ObjectId format: {user_id}")
+                return False
             
             if not update_data:
                 logger.warning(f"Empty update data for user: {user_id}")
@@ -303,7 +327,7 @@ class UserRepository:
             prepared_data = {k: v for k, v in prepared_data.items() if v is not None}
             
             result = await self.collection.update_one(
-                {"_id": user_id},
+                {"_id": object_id},
                 {"$set": prepared_data}
             )
             

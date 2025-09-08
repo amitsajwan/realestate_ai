@@ -63,7 +63,7 @@ async def get_current_user(
     try:
         # Verify JWT token
         payload = verify_jwt_token(credentials.credentials)
-        user_id = payload.get("user_id")
+        user_id = payload.get("sub") or payload.get("user_id")
         token_type = payload.get("type")
 
         if not user_id or token_type != "access_token":
@@ -302,7 +302,7 @@ async def request_password_reset(
 ):
     """Request password reset for a user."""
     try:
-        await auth_service.request_password_reset(reset_data.email)
+        await auth_service.initiate_password_reset(reset_data.email)
 
         logger.info(f"Password reset requested for: {reset_data.email}")
         return {"message": "Password reset email sent"}

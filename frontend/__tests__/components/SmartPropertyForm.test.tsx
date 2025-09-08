@@ -63,6 +63,7 @@ jest.mock('@/lib/api', () => ({
   apiService: {
     createProperty: jest.fn(),
     getMarketInsights: jest.fn(),
+    getAgentProfile: jest.fn(),
   },
 }))
 
@@ -81,6 +82,15 @@ describe('SmartPropertyForm', () => {
       marketTrend: 'rising',
       competitorCount: 15,
       trendPercentage: 5.2,
+    })
+    mockApiService.getAgentProfile.mockResolvedValue({
+      success: true,
+      data: {
+        experience_level: 'intermediate',
+        specialization: 'residential',
+        company_name: 'Test Realty',
+        agent_name: 'Test Agent'
+      }
     })
   })
 

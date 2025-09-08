@@ -3,7 +3,7 @@
 import React from 'react'
 import { Toaster } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
-import ConsolidatedPropertyForm from '@/components/property/ConsolidatedPropertyForm'
+import SmartPropertyForm from '@/components/SmartPropertyForm'
 
 export default function SmartFormDemoPage() {
   const router = useRouter()
@@ -116,14 +116,10 @@ export default function SmartFormDemoPage() {
         </div>
       </div>
 
-      {/* Smart Property Form (Consolidated) */}
-      <ConsolidatedPropertyForm
-        variant="wizard"
-        enableAI={true}
-        enableMarketInsights={true}
-        enableQualityScoring={true}
-        onSuccess={handleSuccess}
-      />
+      {/* Smart Property Form */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <SmartPropertyForm onSuccess={handleSuccess} />
+      </div>
 
       {/* Demo Footer */}
       <div className="bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 mt-12">
