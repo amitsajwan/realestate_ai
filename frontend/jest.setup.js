@@ -27,13 +27,17 @@ Object.defineProperty(window, 'sessionStorage', { value: localStorageMock });
 // Note: Removed problematic setTimeout mocking that was causing recursion
 
 // Mock clipboard API globally to avoid conflicts
-global.navigator = {
-  ...global.navigator,
-  clipboard: {
-    writeText: jest.fn(() => Promise.resolve()),
-    readText: jest.fn(() => Promise.resolve('')),
+const mockWriteText = jest.fn(() => Promise.resolve())
+const mockReadText = jest.fn(() => Promise.resolve(''))
+
+Object.defineProperty(global.navigator, 'clipboard', {
+  value: {
+    writeText: mockWriteText,
+    readText: mockReadText,
   },
-}
+  writable: true,
+  configurable: true,
+})
 
 // Mock Next.js router
 jest.mock('next/navigation', () => ({
