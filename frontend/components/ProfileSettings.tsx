@@ -257,8 +257,9 @@ export default function ProfileSettings() {
               </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Full Name *</label>
+                  <label htmlFor="profile-name" className="block text-sm font-medium text-gray-300 mb-2">Full Name *</label>
                   <input
+                    id="profile-name"
                     type="text"
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
@@ -276,8 +277,9 @@ export default function ProfileSettings() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Email *</label>
+                  <label htmlFor="profile-email" className="block text-sm font-medium text-gray-300 mb-2">Email *</label>
                   <input
+                    id="profile-email"
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
@@ -295,8 +297,9 @@ export default function ProfileSettings() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Phone</label>
+                  <label htmlFor="profile-phone" className="block text-sm font-medium text-gray-300 mb-2">Phone</label>
                   <input
+                    id="profile-phone"
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => handleInputChange('phone', e.target.value)}
