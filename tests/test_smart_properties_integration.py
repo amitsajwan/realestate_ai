@@ -13,7 +13,7 @@ from bson import ObjectId
 
 from app.main import app
 from app.dependencies import get_current_user
-from app.schemas.unified_property import SmartPropertyCreate
+from app.schemas.unified_property import PropertyCreate as SmartPropertyCreate, PropertyResponse as SmartPropertyResponse
 
 
 class TestSmartPropertiesIntegration:
@@ -64,11 +64,21 @@ class TestSmartPropertiesIntegration:
 
         try:
             # Mock the database operations
-            with patch('app.services.smart_property_service.SmartPropertyService.create_smart_property') as mock_create:
+            with patch('app.services.unified_property_service.UnifiedPropertyService.create_property') as mock_create:
                 mock_property = Mock()
-                mock_property.id = ObjectId("507f1f77bcf86cd799439012")
-                mock_property.user_id = mock_user["username"]
+                mock_property.id = str(ObjectId("507f1f77bcf86cd799439012"))
+                mock_property.agent_id = mock_user["username"]
                 mock_property.title = sample_property_data["title"]
+                mock_property.description = sample_property_data["description"]
+                mock_property.property_type = sample_property_data["property_type"]
+                mock_property.bedrooms = sample_property_data["bedrooms"]
+                mock_property.bathrooms = sample_property_data["bathrooms"]
+                mock_property.area_sqft = sample_property_data["area"]
+                mock_property.price = float(sample_property_data["price"])
+                mock_property.location = sample_property_data["address"]
+                mock_property.features = ["Parking", "Gym", "Pool"]
+                mock_property.amenities = sample_property_data["amenities"]
+                mock_property.status = "active"
                 mock_property.created_at = datetime.utcnow()
                 mock_property.updated_at = datetime.utcnow()
                 mock_create.return_value = mock_property
@@ -80,7 +90,7 @@ class TestSmartPropertiesIntegration:
                 assert response.status_code == 200
                 response_data = response.json()
                 assert response_data["title"] == sample_property_data["title"]
-                assert response_data["user_id"] == mock_user["username"]
+                assert response_data["agent_id"] == mock_user["username"]
                 assert "id" in response_data
                 assert "created_at" in response_data
                 assert "updated_at" in response_data
@@ -100,10 +110,10 @@ class TestSmartPropertiesIntegration:
         app.dependency_overrides[get_current_user] = lambda: mock_user
 
         try:
-            with patch('app.services.smart_property_service.SmartPropertyService.create_smart_property') as mock_create:
+            with patch('app.services.unified_property_service.UnifiedPropertyService.create_property') as mock_create:
                 mock_property = Mock()
                 mock_property.id = ObjectId("507f1f77bcf86cd799439012")
-                mock_property.user_id = mock_user["username"]
+                mock_property.agent_id = mock_user["username"]
                 mock_property.title = sample_property_data["title"]
                 mock_property.ai_content = "🏠 JUST LISTED! Beautiful Apartment at 123 Main Street, Mumbai!"
                 mock_property.created_at = datetime.utcnow()
@@ -128,18 +138,18 @@ class TestSmartPropertiesIntegration:
         app.dependency_overrides[get_current_user] = lambda: mock_user
 
         try:
-            with patch('app.services.smart_property_service.SmartPropertyService.get_user_smart_properties') as mock_get:
+            with patch('app.services.unified_property_service.UnifiedPropertyService.get_properties_by_user') as mock_get:
                 mock_properties = [
                     Mock(
-                        id=ObjectId("507f1f77bcf86cd799439012"),
-                        user_id=mock_user["username"],
+                        id=str(ObjectId("507f1f77bcf86cd799439012")),
+                        agent_id=mock_user["username"],
                         title="Property 1",
                         created_at=datetime.utcnow(),
                         updated_at=datetime.utcnow()
                     ),
                     Mock(
-                        id=ObjectId("507f1f77bcf86cd799439013"),
-                        user_id=mock_user["username"],
+                        id=str(ObjectId("507f1f77bcf86cd799439013")),
+                        agent_id=mock_user["username"],
                         title="Property 2",
                         created_at=datetime.utcnow(),
                         updated_at=datetime.utcnow()
@@ -171,10 +181,10 @@ class TestSmartPropertiesIntegration:
         property_id = "507f1f77bcf86cd799439012"
 
         try:
-            with patch('app.services.smart_property_service.SmartPropertyService.get_smart_property') as mock_get:
+            with patch('app.services.unified_property_service.UnifiedPropertyService.get_property') as mock_get:
                 mock_property = Mock(
-                    id=ObjectId(property_id),
-                    user_id=mock_user["username"],
+                    id=property_id,
+                    agent_id=mock_user["username"],
                     title="Test Property",
                     description="Test Description",
                     created_at=datetime.utcnow(),
@@ -205,7 +215,7 @@ class TestSmartPropertiesIntegration:
         property_id = "507f1f77bcf86cd799439999"
 
         try:
-            with patch('app.services.smart_property_service.SmartPropertyService.get_smart_property') as mock_get:
+            with patch('app.services.unified_property_service.UnifiedPropertyService.get_property') as mock_get:
                 mock_get.return_value = None
 
                 # Make API request
@@ -248,7 +258,7 @@ class TestSmartPropertiesIntegration:
         app.dependency_overrides[get_current_user] = lambda: mock_user
 
         try:
-            with patch('app.services.smart_property_service.SmartPropertyService.create_smart_property') as mock_create:
+            with patch('app.services.unified_property_service.UnifiedPropertyService.create_property') as mock_create:
                 mock_create.side_effect = Exception("Database connection failed")
 
                 # Make API request
@@ -278,11 +288,21 @@ class TestSmartPropertiesIntegration:
         app.dependency_overrides[get_current_user] = lambda: mock_user
 
         try:
-            with patch('app.services.smart_property_service.SmartPropertyService.create_smart_property') as mock_create:
+            with patch('app.services.unified_property_service.UnifiedPropertyService.create_property') as mock_create:
                 mock_property = Mock()
-                mock_property.id = ObjectId("507f1f77bcf86cd799439012")
-                mock_property.user_id = mock_user["username"]
+                mock_property.id = str(ObjectId("507f1f77bcf86cd799439012"))
+                mock_property.agent_id = mock_user["username"]
                 mock_property.title = sample_property_data["title"]
+                mock_property.description = sample_property_data["description"]
+                mock_property.property_type = sample_property_data["property_type"]
+                mock_property.bedrooms = sample_property_data["bedrooms"]
+                mock_property.bathrooms = sample_property_data["bathrooms"]
+                mock_property.area_sqft = sample_property_data["area"]
+                mock_property.price = float(sample_property_data["price"])
+                mock_property.location = sample_property_data["address"]
+                mock_property.features = ["Parking", "Gym", "Pool"]
+                mock_property.amenities = sample_property_data["amenities"]
+                mock_property.status = "active"
                 mock_property.created_at = datetime.utcnow()
                 mock_property.updated_at = datetime.utcnow()
                 mock_create.return_value = mock_property
@@ -304,11 +324,11 @@ class TestSmartPropertiesIntegration:
         app.dependency_overrides[get_current_user] = lambda: mock_user
 
         try:
-            with patch('app.services.smart_property_service.SmartPropertyService.create_smart_property') as mock_create:
+            with patch('app.services.unified_property_service.UnifiedPropertyService.create_property') as mock_create:
                 # Mock property with AI content
                 mock_property = Mock()
                 mock_property.id = ObjectId("507f1f77bcf86cd799439012")
-                mock_property.user_id = mock_user["username"]
+                mock_property.agent_id = mock_user["username"]
                 mock_property.title = sample_property_data["title"]
                 mock_property.ai_content = "🏠 JUST LISTED! Beautiful Apartment at 123 Main Street, Mumbai!\n\n💰 Price: ₹50,00,000\n🛏️ 2 bedrooms • 🚿 2 bathrooms\n✨ Features: Parking, Gym, Pool\n\n📞 Contact us for viewing! #RealEstate #JustListed #PropertyForSale"
                 mock_property.created_at = datetime.utcnow()
@@ -335,8 +355,8 @@ class TestSmartPropertiesIntegration:
         app.dependency_overrides[get_current_user] = lambda: mock_user
 
         try:
-            with patch('app.services.smart_property_service.SmartPropertyService.get_user_smart_properties') as mock_get:
-                mock_properties = [Mock(id=ObjectId(), user_id=mock_user["username"], title=f"Property {i}") for i in range(5)]
+            with patch('app.services.unified_property_service.UnifiedPropertyService.get_properties_by_user') as mock_get:
+                mock_properties = [Mock(id=str(ObjectId()), agent_id=mock_user["username"], title=f"Property {i}") for i in range(5)]
                 mock_get.return_value = mock_properties
 
                 # Make API request with pagination parameters
@@ -350,5 +370,94 @@ class TestSmartPropertiesIntegration:
                 # Verify service was called with pagination parameters
                 mock_get.assert_called_once_with(mock_user["username"], 10, 5)
 
+        finally:
+            app.dependency_overrides.clear()
+    
+    @pytest.mark.asyncio
+    async def test_create_property_database_error(self, client, mock_user, sample_property_data):
+        """Test property creation when database fails"""
+        app.dependency_overrides[get_current_user] = lambda: mock_user
+        
+        try:
+            with patch('app.services.unified_property_service.UnifiedPropertyService.create_property') as mock_create:
+                # Mock database error
+                mock_create.side_effect = Exception("Database connection failed")
+                
+                # Make API request
+                response = client.post("/api/v1/smart-properties", json=sample_property_data)
+                
+                # Should return server error
+                assert response.status_code == 500
+                response_data = response.json()
+                assert "detail" in response_data
+                assert "Failed to create smart property" in response_data["detail"]
+                
+        finally:
+            app.dependency_overrides.clear()
+    
+    @pytest.mark.asyncio
+    async def test_update_property(self, client, mock_user):
+        """Test updating a property"""
+        app.dependency_overrides[get_current_user] = lambda: mock_user
+        property_id = "507f1f77bcf86cd799439012"
+        
+        try:
+            with patch('app.services.unified_property_service.UnifiedPropertyService.update_property') as mock_update:
+                # Mock updated property
+                mock_property = Mock(
+                    id=property_id,
+                    agent_id=mock_user["username"],
+                    title="Updated Property",
+                    description="Updated description",
+                    price=6000000.0,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow()
+                )
+                mock_update.return_value = mock_property
+                
+                # Update data
+                update_data = {
+                    "title": "Updated Property",
+                    "price": "6000000",
+                    "description": "Updated description"
+                }
+                
+                # Make API request
+                response = client.put(f"/api/v1/smart-properties/{property_id}", json=update_data)
+                
+                # Assertions
+                assert response.status_code == 200
+                response_data = response.json()
+                assert response_data["title"] == "Updated Property"
+                assert response_data["price"] == 6000000.0
+                
+                # Verify service was called
+                mock_update.assert_called_once()
+                
+        finally:
+            app.dependency_overrides.clear()
+    
+    @pytest.mark.asyncio
+    async def test_delete_property(self, client, mock_user):
+        """Test deleting a property"""
+        app.dependency_overrides[get_current_user] = lambda: mock_user
+        property_id = "507f1f77bcf86cd799439012"
+        
+        try:
+            with patch('app.services.unified_property_service.UnifiedPropertyService.delete_property') as mock_delete:
+                # Mock successful deletion
+                mock_delete.return_value = True
+                
+                # Make API request
+                response = client.delete(f"/api/v1/smart-properties/{property_id}")
+                
+                # Assertions
+                assert response.status_code == 200
+                response_data = response.json()
+                assert response_data["message"] == "Property deleted successfully"
+                
+                # Verify service was called
+                mock_delete.assert_called_once_with(property_id, mock_user["username"])
+                
         finally:
             app.dependency_overrides.clear()
