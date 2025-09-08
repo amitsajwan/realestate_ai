@@ -67,6 +67,12 @@ export default function PublicWebsiteManagement() {
     loadStats()
   }, [])
 
+  // Debug effect to log profile changes
+  useEffect(() => {
+    console.log('Profile state changed:', profile)
+    console.log('isEditing state:', isEditing)
+  }, [profile, isEditing])
+
   const loadPublicProfile = async () => {
     try {
       setIsLoading(true)
@@ -75,6 +81,7 @@ export default function PublicWebsiteManagement() {
         const data = await response.json()
         console.log('Public profile data:', data) // Debug log
         setProfile(data)
+        console.log('Profile state set, current profile:', data) // Debug log
         const formData = {
           agent_name: data.agent_name || '',
           bio: data.bio || '',
@@ -88,6 +95,7 @@ export default function PublicWebsiteManagement() {
         }
         console.log('Setting editForm with:', formData) // Debug log
         setEditForm(formData)
+        console.log('Form should now show data. Profile:', data.agent_name, 'isEditing:', false) // Debug log
       } else {
         console.error('Failed to load public profile:', response.status, response.statusText)
         toast.error('Failed to load public profile')
@@ -305,7 +313,7 @@ export default function PublicWebsiteManagement() {
             <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
-                checked={isEditing ? editForm.is_public : (profile?.is_public || false)}
+                checked={isEditing ? editForm.is_public : (profile?.is_public || editForm.is_public || false)}
                 onChange={(e) => setEditForm(prev => ({ ...prev, is_public: e.target.checked }))}
                 className="sr-only peer"
                 disabled={!isEditing}
@@ -322,11 +330,13 @@ export default function PublicWebsiteManagement() {
               </label>
               <input
                 type="text"
-                value={isEditing ? editForm.agent_name : (profile?.agent_name || '')}
+                value={isEditing ? editForm.agent_name : (profile?.agent_name || editForm.agent_name || '')}
                 onChange={(e) => setEditForm(prev => ({ ...prev, agent_name: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Your professional name"
                 readOnly={!isEditing}
+                data-debug-profile={profile?.agent_name}
+                data-debug-editing={isEditing}
               />
             </div>
             <div>
@@ -335,7 +345,7 @@ export default function PublicWebsiteManagement() {
               </label>
               <input
                 type="email"
-                value={isEditing ? editForm.email : (profile?.email || '')}
+                value={isEditing ? editForm.email : (profile?.email || editForm.email || '')}
                 onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="your.email@example.com"
@@ -351,7 +361,7 @@ export default function PublicWebsiteManagement() {
               </label>
               <input
                 type="tel"
-                value={isEditing ? editForm.phone : (profile?.phone || '')}
+                value={isEditing ? editForm.phone : (profile?.phone || editForm.phone || '')}
                 onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="+1 (555) 123-4567"
@@ -364,7 +374,7 @@ export default function PublicWebsiteManagement() {
               </label>
               <input
                 type="text"
-                value={isEditing ? editForm.office_address : (profile?.office_address || '')}
+                value={isEditing ? editForm.office_address : (profile?.office_address || editForm.office_address || '')}
                 onChange={(e) => setEditForm(prev => ({ ...prev, office_address: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="123 Main St, City, State"
@@ -380,7 +390,7 @@ export default function PublicWebsiteManagement() {
             </label>
             <textarea
               rows={4}
-              value={isEditing ? editForm.bio : (profile?.bio || '')}
+              value={isEditing ? editForm.bio : (profile?.bio || editForm.bio || '')}
               onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Tell visitors about your experience, specialties, and what makes you unique..."
@@ -395,7 +405,7 @@ export default function PublicWebsiteManagement() {
             </label>
             <input
               type="text"
-              value={isEditing ? editForm.experience : (profile?.experience || '')}
+              value={isEditing ? editForm.experience : (profile?.experience || editForm.experience || '')}
               onChange={(e) => setEditForm(prev => ({ ...prev, experience: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="e.g., 10+ years in real estate, Certified Realtor"
@@ -413,7 +423,7 @@ export default function PublicWebsiteManagement() {
                 <label key={specialty} className="flex items-center">
                   <input
                     type="checkbox"
-                    checked={isEditing ? editForm.specialties.includes(specialty) : (profile?.specialties?.includes(specialty) || false)}
+                    checked={isEditing ? editForm.specialties.includes(specialty) : (profile?.specialties?.includes(specialty) || editForm.specialties.includes(specialty) || false)}
                     onChange={(e) => handleSpecialtyChange(specialty, e.target.checked)}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     disabled={!isEditing}
@@ -434,7 +444,7 @@ export default function PublicWebsiteManagement() {
                 <label key={language} className="flex items-center">
                   <input
                     type="checkbox"
-                    checked={isEditing ? editForm.languages.includes(language) : (profile?.languages?.includes(language) || false)}
+                    checked={isEditing ? editForm.languages.includes(language) : (profile?.languages?.includes(language) || editForm.languages.includes(language) || false)}
                     onChange={(e) => handleLanguageChange(language, e.target.checked)}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     disabled={!isEditing}
