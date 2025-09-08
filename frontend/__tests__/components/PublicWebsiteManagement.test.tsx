@@ -14,24 +14,22 @@ jest.mock('react-hot-toast', () => ({
   },
 }))
 
-// Mock window.location.origin
-delete (window as any).location;
-(window as any).location = { origin: 'http://localhost:3000' };
+// Use JSDOM default window.location.origin
 
-describe.skip('PublicWebsiteManagement', () => {
+describe('PublicWebsiteManagement', () => {
   beforeEach(() => {
     (fetch as jest.Mock).mockClear()
   })
 
-  test.skip('should render loading state initially', () => {
+  test('should render loading spinner initially', () => {
     (fetch as jest.Mock).mockImplementation(() => new Promise(() => {})) // Never resolves
     
     render(<PublicWebsiteManagement />)
     
-    expect(screen.getByText('Loading...')).toBeInTheDocument()
+    expect(screen.getByTestId('loading-spinner')).toBeInTheDocument()
   })
 
-  test.skip('should render public website management interface', async () => {
+  test('should render public website management interface', async () => {
     const mockProfile = {
       id: '1',
       agent_name: 'John Doe',
@@ -49,14 +47,14 @@ describe.skip('PublicWebsiteManagement', () => {
       contact_count: 25,
       created_at: '2023-01-01T00:00:00Z',
       updated_at: '2023-01-01T00:00:00Z'
-    }
+    };
 
     const mockStats = {
       total_views: 100,
       total_contacts: 25,
       properties_count: 10,
       recent_inquiries: 5
-    }
+    };
 
     (fetch as jest.Mock)
       .mockResolvedValueOnce({
@@ -99,7 +97,7 @@ describe.skip('PublicWebsiteManagement', () => {
       contact_count: 25,
       created_at: '2023-01-01T00:00:00Z',
       updated_at: '2023-01-01T00:00:00Z'
-    }
+    };
 
     (fetch as jest.Mock)
       .mockResolvedValueOnce({
@@ -138,7 +136,7 @@ describe.skip('PublicWebsiteManagement', () => {
       contact_count: 0,
       created_at: '2023-01-01T00:00:00Z',
       updated_at: '2023-01-01T00:00:00Z'
-    }
+    };
 
     (fetch as jest.Mock)
       .mockResolvedValueOnce({
@@ -186,7 +184,7 @@ describe.skip('PublicWebsiteManagement', () => {
       contact_count: 0,
       created_at: '2023-01-01T00:00:00Z',
       updated_at: '2023-01-01T00:00:00Z'
-    }
+    };
 
     (fetch as jest.Mock)
       .mockResolvedValueOnce({
@@ -235,7 +233,7 @@ describe.skip('PublicWebsiteManagement', () => {
       contact_count: 0,
       created_at: '2023-01-01T00:00:00Z',
       updated_at: '2023-01-01T00:00:00Z'
-    }
+    };
 
     (fetch as jest.Mock)
       .mockResolvedValueOnce({
@@ -284,7 +282,7 @@ describe.skip('PublicWebsiteManagement', () => {
       contact_count: 0,
       created_at: '2023-01-01T00:00:00Z',
       updated_at: '2023-01-01T00:00:00Z'
-    }
+    };
 
     (fetch as jest.Mock)
       .mockResolvedValueOnce({
@@ -324,7 +322,7 @@ describe.skip('PublicWebsiteManagement', () => {
       contact_count: 0,
       created_at: '2023-01-01T00:00:00Z',
       updated_at: '2023-01-01T00:00:00Z'
-    }
+    };
 
     (fetch as jest.Mock)
       .mockResolvedValueOnce({
@@ -369,7 +367,7 @@ describe.skip('PublicWebsiteManagement', () => {
       contact_count: 0,
       created_at: '2023-01-01T00:00:00Z',
       updated_at: '2023-01-01T00:00:00Z'
-    }
+    };
 
     (fetch as jest.Mock)
       .mockResolvedValueOnce({
@@ -429,7 +427,7 @@ describe.skip('PublicWebsiteManagement', () => {
       contact_count: 25,
       created_at: '2023-01-01T00:00:00Z',
       updated_at: '2023-01-01T00:00:00Z'
-    }
+    };
 
     (fetch as jest.Mock)
       .mockResolvedValueOnce({
@@ -448,7 +446,8 @@ describe.skip('PublicWebsiteManagement', () => {
     })
 
     const viewButton = screen.getByText('View Public Site')
-    expect(viewButton.closest('a')).toHaveAttribute('href', 'http://localhost:3000/agent/john-doe')
+    const origin = window.location.origin
+    expect(viewButton.closest('a')).toHaveAttribute('href', `${origin}/agent/john-doe`)
     expect(viewButton.closest('a')).toHaveAttribute('target', '_blank')
   })
 })
