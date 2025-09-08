@@ -22,9 +22,14 @@ class OnboardingService:
         self.users = self.db.users
 
     async def _get_user(self, user_id: str) -> Dict[str, Any]:
-        # For mock database, we don't need ObjectId validation
-        # Just try to find the user by string ID
-        user = await self.users.find_one({"_id": user_id})
+        # Convert string ID to ObjectId for MongoDB query
+        try:
+            object_id = ObjectId(user_id)
+        except Exception as e:
+            self.logger.error(f"Invalid ObjectId format: {user_id}")
+            raise ValueError("Invalid user ID format")
+        
+        user = await self.users.find_one({"_id": object_id})
         if not user:
             raise ValueError("User not found")
         return user
@@ -44,6 +49,13 @@ class OnboardingService:
         if step_number < 1 or step_number > 6:
             raise ValueError("Invalid step number")
 
+        # Convert string ID to ObjectId for MongoDB query
+        try:
+            object_id = ObjectId(user_id)
+        except Exception as e:
+            self.logger.error(f"Invalid ObjectId format: {user_id}")
+            raise ValueError("Invalid user ID format")
+        
         # Upsert the per-step data and current step
         update_fields: Dict[str, Any] = {
             "onboarding_step": step_number,
@@ -51,7 +63,7 @@ class OnboardingService:
             "updated_at": datetime.utcnow(),
         }
         result = await self.users.update_one(
-            {"_id": user_id}, {"$set": update_fields}
+            {"_id": object_id}, {"$set": update_fields}
         )
         if result.matched_count == 0:
             raise ValueError("User not found")
@@ -61,8 +73,15 @@ class OnboardingService:
     async def complete_onboarding(self, user_id: str) -> OnboardingComplete:
         self.logger.info(f"Completing onboarding for user {user_id}")
         """Mark the onboarding as completed for the user."""
+        # Convert string ID to ObjectId for MongoDB query
+        try:
+            object_id = ObjectId(user_id)
+        except Exception as e:
+            self.logger.error(f"Invalid ObjectId format: {user_id}")
+            raise ValueError("Invalid user ID format")
+        
         result = await self.users.update_one(
-            {"_id": user_id},
+            {"_id": object_id},
             {
                 "$set": {
                     "onboarding_completed": True,

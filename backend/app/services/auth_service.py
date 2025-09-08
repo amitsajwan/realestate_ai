@@ -220,6 +220,43 @@ class AuthService:
             raise AuthenticationError("Token verification failed")
     
     @debug_log
+    async def refresh_access_token(self, refresh_token: str) -> Dict[str, Any]:
+        """Refresh access token using refresh token"""
+        try:
+            # Verify the refresh token
+            payload = jwt.decode(refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            
+            # Verify token type
+            if payload.get("type") != "refresh_token":
+                raise AuthenticationError("Invalid refresh token type")
+            
+            # Check expiration
+            exp = payload.get("exp")
+            if exp and datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(timezone.utc):
+                raise AuthenticationError("Refresh token has expired")
+            
+            # Get user data from token
+            user_id = payload.get("sub")
+            if not user_id:
+                raise AuthenticationError("Invalid refresh token")
+            
+            # Create new access token
+            access_token = self.create_access_token(data={"sub": user_id})
+            
+            return {
+                "access_token": access_token,
+                "token_type": "bearer",
+                "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+            }
+            
+        except JWTError as e:
+            logger.warning(f"Refresh token verification failed: {e}")
+            raise AuthenticationError("Invalid refresh token")
+        except Exception as e:
+            logger.error(f"Token refresh error: {e}")
+            raise AuthenticationError("Token refresh failed")
+    
+    @debug_log
     async def register_user(self, user_data: UserCreate) -> UserResponse:
         """Enhanced user registration with comprehensive validation"""
         logger.debug(f"Starting user registration process for email: {user_data.email}")
@@ -314,12 +351,12 @@ class AuthService:
         refresh_token_expires = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
         
         access_token = self.create_access_token(
-            data={"user_id": user["id"], "email": user["email"], "type": "access_token"},
+            data={"sub": user["id"], "email": user["email"], "type": "access_token"},
             expires_delta=access_token_expires
         )
         
         refresh_token = self.create_access_token(
-            data={"user_id": user["id"], "email": user["email"], "type": "refresh_token"},
+            data={"sub": user["id"], "email": user["email"], "type": "refresh_token"},
             expires_delta=refresh_token_expires
         )
         
@@ -336,7 +373,7 @@ class AuthService:
     async def get_current_user(self, token: str) -> UserResponse:
         """Get current user from token with enhanced validation"""
         payload = self.verify_token(token)
-        user_id = payload.get("user_id")
+        user_id = payload.get("sub") or payload.get("user_id")
         
         if not user_id:
             raise AuthenticationError("Invalid token payload: missing user_id")

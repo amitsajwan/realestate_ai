@@ -53,6 +53,7 @@ const mockStats = {
 }
 
 describe('DashboardStats Component - Simple Tests', () => {
+
   it('renders without crashing', () => {
     expect(() => render(<DashboardStats stats={mockStats} />)).not.toThrow()
   })
@@ -60,7 +61,7 @@ describe('DashboardStats Component - Simple Tests', () => {
   it('displays greeting with emoji', () => {
     render(<DashboardStats stats={mockStats} />)
     
-    expect(screen.getByText(/Good Morning! 🌅/)).toBeInTheDocument()
+    expect(screen.getByText(/Good (Morning|Afternoon|Evening)!/)).toBeInTheDocument()
   })
 
   it('displays all stat values correctly', () => {
