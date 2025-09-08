@@ -161,10 +161,10 @@ export const propertySchema = z.object({
   description: z.string().min(1, 'Description is required'),
   location: z.string().min(1, 'Location is required'),
   address: z.string().min(1, 'Address is required'),
-  area: z.coerce.number().min(1, 'Area is required'),
+  area: z.coerce.number().min(1, 'Area is required').refine(val => !isNaN(val), 'Area must be a valid number'),
   price: z.string().min(1, 'Price is required'),
-  bedrooms: z.coerce.number().min(1, 'At least 1 bedroom is required'),
-  bathrooms: z.coerce.number().min(1, 'At least 1 bathroom is required'),
+  bedrooms: z.coerce.number().min(1, 'At least 1 bedroom is required').refine(val => !isNaN(val), 'Bedrooms must be a valid number'),
+  bathrooms: z.coerce.number().min(1, 'At least 1 bathroom is required').refine(val => !isNaN(val), 'Bathrooms must be a valid number'),
   amenities: z.string().optional(),
   status: z.string().default('available'),
   propertyType: z.string().min(1, 'Property type is required')

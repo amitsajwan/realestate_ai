@@ -37,7 +37,6 @@ const navigation = [
   { name: 'Dashboard', icon: HomeIcon, id: 'dashboard' },
   { name: 'Properties', icon: BuildingOfficeIcon, id: 'properties' },
   { name: 'Add Property', icon: PlusIcon, id: 'property-form' },
-  { name: 'Smart Form Demo', icon: SparklesIcon, id: 'smart-form-demo', isNew: true },
   { name: 'AI Tools', icon: SparklesIcon, id: 'ai-content' },
   { name: 'Public Website', icon: GlobeAltIcon, id: 'public-website' },
   { name: 'Analytics', icon: ChartBarIcon, id: 'analytics' },
@@ -214,10 +213,6 @@ export default function Dashboard() {
             onSuccess={() => setActiveSection('properties')}
           />
         )
-      case 'smart-form-demo':
-        // Navigate to the GenAI demo page
-        router.push('/demo/smart-form')
-        return null
       case 'ai-content':
         return (
           <Suspense fallback={
@@ -262,7 +257,6 @@ export default function Dashboard() {
               onAddProperty={() => setActiveSection('property-form')}
               onNavigateToAI={() => setActiveSection('ai-content')}
               onNavigateToAnalytics={() => setActiveSection('analytics')}
-              onNavigateToSmartForm={() => setActiveSection('smart-form-demo')}
             />
 
             {/* Quick Actions Section with Enhanced Spacing */}
