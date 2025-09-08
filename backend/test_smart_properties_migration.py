@@ -8,6 +8,7 @@ Test script to verify the Smart Properties migration code structure
 import asyncio
 import sys
 import os
+import pytest
 
 # Add the app directory to the Python path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -16,6 +17,7 @@ from app.services.unified_property_service import UnifiedPropertyService
 from app.schemas.unified_property import PropertyCreate, PropertyDocument
 from app.core.database import connect_to_mongo
 
+@pytest.mark.asyncio
 async def test_migration():
     """Test the Smart Properties MongoDB migration code structure"""
     try:
