@@ -701,6 +701,17 @@ export class APIService {
     return this.post('/api/v1/agent/branding-suggest', data, false);
   }
 
+  async getDefaultUserProfile(): Promise<any> {
+    return this.makeRequest('/api/v1/user/profile/default_user', { method: 'GET' }, false);
+  }
+
+  async updateUserProfile(profileData: any): Promise<any> {
+    return this.makeRequest('/api/v1/user/profile', {
+      method: 'POST',
+      body: JSON.stringify(profileData)
+    }, false);
+  }
+
   async getMarketInsights(params: { location: string; propertyType: string; price: string | number }): Promise<any> {
     const query = new URLSearchParams({
       location: String(params.location || ''),
