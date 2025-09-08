@@ -4,7 +4,7 @@ Agent Public Profile Schemas
 Pydantic schemas for agent public website profiles
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -35,14 +35,16 @@ class AgentPublicProfileBase(BaseModel):
     is_active: bool = Field(True, description="Whether profile is active")
     is_public: bool = Field(True, description="Whether profile is publicly visible")
 
-    @validator('slug')
+    @field_validator('slug')
+    @classmethod
     def validate_slug(cls, v):
         """Validate slug format"""
         if not v.replace('-', '').replace('_', '').isalnum():
             raise ValueError('Slug must contain only alphanumeric characters, hyphens, and underscores')
         return v.lower()
 
-    @validator('email')
+    @field_validator('email')
+    @classmethod
     def validate_email(cls, v):
         """Validate email format"""
         if v and '@' not in v:
@@ -69,7 +71,8 @@ class AgentPublicProfileUpdate(BaseModel):
     is_active: Optional[bool] = Field(None, description="Whether profile is active")
     is_public: Optional[bool] = Field(None, description="Whether profile is publicly visible")
 
-    @validator('email')
+    @field_validator('email')
+    @classmethod
     def validate_email(cls, v):
         """Validate email format"""
         if v and '@' not in v:
