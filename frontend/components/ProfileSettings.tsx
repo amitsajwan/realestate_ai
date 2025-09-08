@@ -93,8 +93,8 @@ export default function ProfileSettings() {
       let profileData = null
       try {
         const response = await apiService.getDefaultUserProfile()
-        if (response) {
-          profileData = response;
+        if (response && response.success && response.profile) {
+          profileData = response.profile;
         }
       } catch (error) {
   console.info('[ProfileSettings] No existing profile found, will use onboarding data')
@@ -179,7 +179,7 @@ export default function ProfileSettings() {
     multipleLoading.setLoading('saveProfile', true)
     
     try {
-      await apiService.updateProfile({ ...formData })
+      await apiService.updateUserProfile({ ...formData })
       showSuccess('Profile saved successfully!')
     } catch (error) {
       handleError(error, 'Failed to save profile')
