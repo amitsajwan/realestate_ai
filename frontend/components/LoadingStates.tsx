@@ -25,7 +25,7 @@ export const LoadingSpinner: React.FC<{
   };
 
   return (
-    <div className={`inline-block animate-spin ${sizeClasses[size]} ${colorClasses[color]} ${className}`}>
+    <div className={`inline-block animate-spin ${sizeClasses[size]} ${colorClasses[color]} ${className}`} data-testid="loading-spinner">
       <svg className="w-full h-full" fill="none" viewBox="0 0 24 24">
         <circle
           className="opacity-25"
@@ -96,7 +96,7 @@ export const LoadingButton: React.FC<{
           className="mr-2"
         />
       )}
-      {children}
+      {!isLoading && children}
     </button>
   );
 };
@@ -152,9 +152,9 @@ export const SkeletonLoader: React.FC<{
   className?: string;
 }> = ({ lines = 3, className = '' }) => {
   return (
-    <div className={`animate-pulse space-y-3 ${className}`}>
+    <div className={`animate-pulse space-y-3 ${className}`} data-testid="skeleton-container">
       {Array.from({ length: lines }).map((_, index) => (
-        <div key={index} className="flex space-x-4">
+        <div key={index} className="flex space-x-4" data-testid="skeleton-line">
           <div className="rounded-full bg-gray-300 h-10 w-10"></div>
           <div className="flex-1 space-y-2 py-1">
             <div className="h-4 bg-gray-300 rounded w-3/4"></div>
@@ -263,11 +263,19 @@ export const ProgressBar: React.FC<{
   const clampedProgress = Math.min(100, Math.max(0, progress));
 
   return (
-    <div className={`w-full ${className}`}>
-      <div className={`bg-gray-200 rounded-full ${sizeClasses[size]}`}>
+    <div className={`w-full ${className}`} data-testid="progress-bar-container">
+      <div 
+        className={`bg-gray-200 rounded-full ${sizeClasses[size]}`}
+        role="progressbar"
+        aria-valuenow={clampedProgress}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`Progress: ${Math.round(clampedProgress)}%`}
+      >
         <div
           className={`${colorClasses[color]} ${sizeClasses[size]} rounded-full transition-all duration-300 ease-out`}
           style={{ width: `${clampedProgress}%` }}
+          data-testid="progress-bar-fill"
         />
       </div>
       {showPercentage && (

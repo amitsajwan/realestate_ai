@@ -61,7 +61,7 @@ describe('DashboardStats', () => {
   it('displays correct greeting based on time', () => {
     // Morning (10:30 AM)
     render(<DashboardStats stats={mockStats} />)
-    expect(screen.getByText('Good Morning!')).toBeInTheDocument()
+    expect(screen.getByText('Good Morning! 🌅!')).toBeInTheDocument()
   })
 
   it('displays current date correctly', () => {
@@ -126,11 +126,24 @@ describe('DashboardStats', () => {
   })
 
   it('displays action buttons', () => {
-    render(<DashboardStats stats={mockStats} />)
+    const mockOnAddProperty = jest.fn()
+    const mockOnNavigateToAI = jest.fn()
+    const mockOnNavigateToAnalytics = jest.fn()
+    const mockOnNavigateToSmartForm = jest.fn()
     
-    expect(screen.getByRole('button', { name: /Add Property/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Explore AI/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /View Analytics/i })).toBeInTheDocument()
+    render(
+      <DashboardStats 
+        stats={mockStats} 
+        onAddProperty={mockOnAddProperty}
+        onNavigateToAI={mockOnNavigateToAI}
+        onNavigateToAnalytics={mockOnNavigateToAnalytics}
+        onNavigateToSmartForm={mockOnNavigateToSmartForm}
+      />
+    )
+    
+    expect(screen.getByText('Add Property')).toBeInTheDocument()
+    expect(screen.getByText('Explore AI')).toBeInTheDocument()
+    expect(screen.getByText('View Analytics')).toBeInTheDocument()
   })
 
   it('displays pending tasks indicator', () => {

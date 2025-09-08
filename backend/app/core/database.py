@@ -25,15 +25,26 @@ class MockCollection:
     async def insert_one(self, document: Dict[str, Any]) -> MockInsertOneResult:
         """Mock insert_one operation"""
         doc_id = str(len(self.data) + 1)
-        document['_id'] = doc_id
-        self.data[doc_id] = document
+        # Create a copy to avoid modifying the original document
+        doc_copy = document.copy()
+        doc_copy['_id'] = doc_id
+        self.data[doc_id] = doc_copy
+        print(f"DEBUG: MockCollection.insert_one - doc_id: {doc_id}, doc_copy: {doc_copy}")
+        print(f"DEBUG: MockCollection.insert_one - stored data keys: {list(self.data.keys())}")
+        print(f"DEBUG: MockCollection.insert_one - stored data values: {list(self.data.values())}")
         return MockInsertOneResult(doc_id)
     
     async def find_one(self, filter_dict: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Mock find_one operation"""
+        print(f"DEBUG: MockCollection.find_one called with filter: {filter_dict}")
+        print(f"DEBUG: MockCollection data keys: {list(self.data.keys())}")
+        print(f"DEBUG: MockCollection data values: {list(self.data.values())}")
+        
         for doc in self.data.values():
             if all(doc.get(k) == v for k, v in filter_dict.items()):
+                print(f"DEBUG: Found matching document: {doc}")
                 return doc
+        print(f"DEBUG: No matching document found")
         return None
     
     async def find(self, filter_dict: Dict[str, Any] = None) -> List[Dict[str, Any]]:
@@ -96,6 +107,10 @@ logger = logging.getLogger(__name__)
 class Database:
     client: Optional[motor.motor_asyncio.AsyncIOMotorClient] = None
     database: Optional[motor.motor_asyncio.AsyncIOMotorDatabase] = None
+    _mock_database: Optional[MockDatabase] = None
+
+# Global singleton instance
+_global_mock_database: Optional[MockDatabase] = None
 
 db = Database()
 
@@ -122,7 +137,14 @@ async def connect_to_mongo():
             raise
         # Otherwise fallback to mock DB for development
         logger.warning("⚠️ Falling back to in-memory MockDatabase. Set FAIL_ON_DB_ERROR=true to fail-fast.")
-        db.database = MockDatabase()
+        global _global_mock_database
+        if _global_mock_database is None:
+            _global_mock_database = MockDatabase()
+            print(f"DEBUG: Created new global MockDatabase instance: {id(_global_mock_database)}")
+        else:
+            print(f"DEBUG: Reusing existing global MockDatabase instance: {id(_global_mock_database)}")
+        db.database = _global_mock_database
+        db._mock_database = _global_mock_database
 
 async def close_mongo_connection():
     """Close database connection"""
@@ -133,7 +155,13 @@ async def close_mongo_connection():
 def get_database():
     """Get database instance"""
     if db.database is None:
-        raise RuntimeError("Database not initialized. Call connect_to_mongo() first.")
+        # Initialize global mock database if not already initialized
+        global _global_mock_database
+        if _global_mock_database is None:
+            _global_mock_database = MockDatabase()
+            print(f"DEBUG: Created new global MockDatabase instance in get_database: {id(_global_mock_database)}")
+        db.database = _global_mock_database
+        db._mock_database = _global_mock_database
     return db.database
 
 # Legacy compatibility - some of your existing code might expect this

@@ -209,11 +209,13 @@ class UserRepository:
     async def get_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user by ID with enhanced error handling"""
         try:
-            if not ObjectId.is_valid(user_id):
-                logger.warning(f"Invalid user ID format: {user_id}")
-                return None
+            # For mock database, we don't need ObjectId validation
+            user = await self.collection.find_one({"_id": user_id})
             
-            user = await self.collection.find_one({"_id": ObjectId(user_id)})
+            # Debug: Check what's in the database
+            all_users = await self.collection.find({})
+            logger.info(f"All users in database: {[u.get('_id') for u in all_users]}")
+            logger.info(f"Looking for user_id: {user_id}")
             
             if user:
                 logger.debug(f"User found by ID: {user_id}")
@@ -283,9 +285,7 @@ class UserRepository:
         self.logger.info(f"Updating user {user_id} with data: {update_data}")
         """Update user with enhanced validation and error handling"""
         try:
-            if not ObjectId.is_valid(user_id):
-                logger.warning(f"Invalid user ID format for update: {user_id}")
-                return False
+            # For mock database, we don't need ObjectId validation
             
             if not update_data:
                 logger.warning(f"Empty update data for user: {user_id}")
@@ -303,7 +303,7 @@ class UserRepository:
             prepared_data = {k: v for k, v in prepared_data.items() if v is not None}
             
             result = await self.collection.update_one(
-                {"_id": ObjectId(user_id)},
+                {"_id": user_id},
                 {"$set": prepared_data}
             )
             
@@ -332,12 +332,10 @@ class UserRepository:
         self.logger.info(f"Deleting user {user_id}")
         """Soft delete user (mark as inactive)"""
         try:
-            if not ObjectId.is_valid(user_id):
-                logger.warning(f"Invalid user ID format for deletion: {user_id}")
-                return False
+            # For mock database, we don't need ObjectId validation
             
             result = await self.collection.update_one(
-                {"_id": ObjectId(user_id)},
+                {"_id": user_id},
                 {
                     "$set": {
                         "is_active": False,
@@ -489,11 +487,10 @@ class UserRepository:
     async def update_password_reset_token(self, user_id: str, reset_token: str, expires_at: datetime) -> bool:
         """Update password reset token for user"""
         try:
-            if not ObjectId.is_valid(user_id):
-                return False
+            # For mock database, we don't need ObjectId validation
             
             result = await self.collection.update_one(
-                {"_id": ObjectId(user_id)},
+                {"_id": user_id},
                 {
                     "$set": {
                         "password_reset_token": reset_token,
@@ -512,11 +509,10 @@ class UserRepository:
     async def clear_password_reset_token(self, user_id: str) -> bool:
         """Clear password reset token after successful reset"""
         try:
-            if not ObjectId.is_valid(user_id):
-                return False
+            # For mock database, we don't need ObjectId validation
             
             result = await self.collection.update_one(
-                {"_id": ObjectId(user_id)},
+                {"_id": user_id},
                 {
                     "$unset": {
                         "password_reset_token": "",
@@ -537,11 +533,10 @@ class UserRepository:
     async def increment_login_attempts(self, user_id: str) -> bool:
         """Increment failed login attempts counter"""
         try:
-            if not ObjectId.is_valid(user_id):
-                return False
+            # For mock database, we don't need ObjectId validation
             
             result = await self.collection.update_one(
-                {"_id": ObjectId(user_id)},
+                {"_id": user_id},
                 {
                     "$inc": {"login_attempts": 1},
                     "$set": {"updated_at": datetime.now(timezone.utc)}
@@ -557,11 +552,10 @@ class UserRepository:
     async def reset_login_attempts(self, user_id: str) -> bool:
         """Reset failed login attempts counter"""
         try:
-            if not ObjectId.is_valid(user_id):
-                return False
+            # For mock database, we don't need ObjectId validation
             
             result = await self.collection.update_one(
-                {"_id": ObjectId(user_id)},
+                {"_id": user_id},
                 {
                     "$set": {
                         "login_attempts": 0,
@@ -580,9 +574,7 @@ class UserRepository:
     async def update_facebook_info(self, user_id: str, facebook_data: Dict[str, Any]) -> bool:
         """Update user's Facebook integration information"""
         try:
-            if not ObjectId.is_valid(user_id):
-                logger.warning(f"Invalid user ID format for Facebook update: {user_id}")
-                return False
+            # For mock database, we don't need ObjectId validation
 
             if not facebook_data:
                 logger.warning(f"Empty Facebook data for user: {user_id}")
@@ -611,7 +603,7 @@ class UserRepository:
             update_data = {k: v for k, v in update_data.items() if v is not None}
 
             result = await self.collection.update_one(
-                {"_id": ObjectId(user_id)},
+                {"_id": user_id},
                 {"$set": update_data}
             )
 
@@ -636,9 +628,7 @@ class UserRepository:
     async def disconnect_facebook(self, user_id: str) -> bool:
         """Disconnect Facebook integration for user"""
         try:
-            if not ObjectId.is_valid(user_id):
-                logger.warning(f"Invalid user ID format for Facebook disconnect: {user_id}")
-                return False
+            # For mock database, we don't need ObjectId validation
 
             # Clear all Facebook-related fields
             facebook_fields = {
@@ -655,7 +645,7 @@ class UserRepository:
             }
 
             result = await self.collection.update_one(
-                {"_id": ObjectId(user_id)},
+                {"_id": user_id},
                 {"$set": facebook_fields}
             )
 

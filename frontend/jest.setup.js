@@ -27,13 +27,21 @@ Object.defineProperty(window, 'sessionStorage', { value: localStorageMock });
 // Note: Removed problematic setTimeout mocking that was causing recursion
 
 // Mock clipboard API globally to avoid conflicts
-global.navigator = {
-  ...global.navigator,
-  clipboard: {
-    writeText: jest.fn(() => Promise.resolve()),
-    readText: jest.fn(() => Promise.resolve('')),
+const mockWriteText = jest.fn(() => Promise.resolve())
+const mockReadText = jest.fn(() => Promise.resolve(''))
+
+// Make sure the mock functions are properly configured as spies
+mockWriteText.mockResolvedValue = jest.fn()
+mockReadText.mockResolvedValue = jest.fn()
+
+Object.defineProperty(global.navigator, 'clipboard', {
+  value: {
+    writeText: mockWriteText,
+    readText: mockReadText,
   },
-}
+  writable: true,
+  configurable: true,
+})
 
 // Mock Next.js router
 jest.mock('next/navigation', () => ({
@@ -78,15 +86,28 @@ jest.mock('framer-motion', () => {
 })
 
 // Mock react-hot-toast
-jest.mock('react-hot-toast', () => ({
-  toast: {
-    success: jest.fn(),
-    error: jest.fn(),
-    loading: jest.fn(),
-    dismiss: jest.fn(),
-  },
-  Toaster: () => null,
-}))
+jest.mock('react-hot-toast', () => {
+  const mockToast = jest.fn()
+  mockToast.success = jest.fn()
+  mockToast.error = jest.fn()
+  mockToast.loading = jest.fn()
+  mockToast.dismiss = jest.fn()
+  
+  // Make the default export work as both a function and an object
+  const defaultExport = Object.assign(mockToast, {
+    success: mockToast.success,
+    error: mockToast.error,
+    loading: mockToast.loading,
+    dismiss: mockToast.dismiss,
+  })
+  
+  return {
+    __esModule: true,
+    default: defaultExport,
+    toast: defaultExport,
+    Toaster: () => null,
+  }
+})
 
 // Mock Heroicons with proper React components
 jest.mock('@heroicons/react/24/outline', () => {
@@ -135,6 +156,16 @@ jest.mock('@heroicons/react/24/outline', () => {
     StarIcon: createMockIcon('StarIcon'),
     ClockIcon: createMockIcon('ClockIcon'),
     ChevronDownIcon: createMockIcon('ChevronDownIcon'),
+    GlobeAltIcon: createMockIcon('GlobeAltIcon'),
+    LinkIcon: createMockIcon('LinkIcon'),
+    EnvelopeIcon: createMockIcon('EnvelopeIcon'),
+    ExclamationTriangleIcon: createMockIcon('ExclamationTriangleIcon'),
+    UserIcon: createMockIcon('UserIcon'),
+    CheckIcon: createMockIcon('CheckIcon'),
+    HeartSolidIcon: createMockIcon('HeartSolidIcon'),
+    CogIcon: createMockIcon('CogIcon'),
+    Bars3Icon: createMockIcon('Bars3Icon'),
+    ArrowRightOnRectangleIcon: createMockIcon('ArrowRightOnRectangleIcon'),
   }
 })
 

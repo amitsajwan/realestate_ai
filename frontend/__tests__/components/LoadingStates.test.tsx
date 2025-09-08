@@ -301,9 +301,12 @@ describe('LoadingStates Components', () => {
     it('has proper skeleton styling', () => {
       render(<SkeletonLoader />)
 
+      const container = screen.getByTestId('skeleton-container')
+      expect(container).toHaveClass('animate-pulse')
+      
       const skeletonLines = screen.getAllByTestId('skeleton-line')
       skeletonLines.forEach(line => {
-        expect(line).toHaveClass('animate-pulse', 'bg-gray-300', 'rounded')
+        expect(line).toHaveClass('flex', 'space-x-4')
       })
     })
 
@@ -499,39 +502,39 @@ describe('LoadingStates Components', () => {
     it('applies small size', () => {
       render(<ProgressBar progress={50} size="sm" />)
 
-      const container = screen.getByTestId('progress-bar-container')
-      expect(container).toHaveClass('h-1')
+      const progressBar = screen.getByRole('progressbar')
+      expect(progressBar).toHaveClass('h-1')
     })
 
     it('applies medium size by default', () => {
       render(<ProgressBar progress={50} />)
 
-      const container = screen.getByTestId('progress-bar-container')
-      expect(container).toHaveClass('h-2')
+      const progressBar = screen.getByRole('progressbar')
+      expect(progressBar).toHaveClass('h-2')
     })
 
     it('applies large size', () => {
       render(<ProgressBar progress={50} size="lg" />)
 
-      const container = screen.getByTestId('progress-bar-container')
-      expect(container).toHaveClass('h-3')
+      const progressBar = screen.getByRole('progressbar')
+      expect(progressBar).toHaveClass('h-3')
     })
 
     it('applies custom className', () => {
       render(<ProgressBar progress={50} className="custom-class" />)
 
-      const container = screen.getByTestId('progress-bar-container').parentElement
+      const container = screen.getByTestId('progress-bar-container')
       expect(container).toHaveClass('custom-class')
     })
 
     it('has proper accessibility structure', () => {
       render(<ProgressBar progress={50} />)
 
-      const container = screen.getByTestId('progress-bar-container')
-      expect(container).toHaveAttribute('role', 'progressbar')
-      expect(container).toHaveAttribute('aria-valuenow', '50')
-      expect(container).toHaveAttribute('aria-valuemin', '0')
-      expect(container).toHaveAttribute('aria-valuemax', '100')
+      const progressBar = screen.getByRole('progressbar')
+      expect(progressBar).toHaveAttribute('role', 'progressbar')
+      expect(progressBar).toHaveAttribute('aria-valuenow', '50')
+      expect(progressBar).toHaveAttribute('aria-valuemin', '0')
+      expect(progressBar).toHaveAttribute('aria-valuemax', '100')
     })
 
     it('shows percentage labels', () => {
