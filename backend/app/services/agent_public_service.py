@@ -44,8 +44,14 @@ class AgentPublicService:
             }
             print(f"DEBUG: Query: {query}")
             
+            # First, let's check what's actually in the database
+            all_properties = await properties_collection.find({"agent_id": agent_id}).to_list(length=None)
+            print(f"DEBUG: All properties for agent: {len(all_properties)}")
+            for prop in all_properties:
+                print(f"DEBUG: Property {prop.get('_id')}: status={prop.get('publishing_status')}")
+            
             properties_docs = await properties_collection.find(query).to_list(length=None)
-            print(f"DEBUG: Found {len(properties_docs)} properties")
+            print(f"DEBUG: Found {len(properties_docs)} published properties")
             
             properties = []
             for doc in properties_docs:
@@ -81,19 +87,11 @@ class AgentPublicService:
     async def get_agent_by_slug(self, slug: str) -> Optional[AgentPublicProfile]:
         """Get agent public profile by slug"""
         try:
-            # First check if we have a real agent profile stored
-            if slug in _global_agent_profiles:
-                profile = _global_agent_profiles[slug]
-                # Fetch properties for this agent
-                properties = await self._get_agent_properties_from_db(profile.agent_id)
-                # Add properties to the profile
-                profile_dict = profile.model_dump()
-                profile_dict['properties'] = [prop.model_dump() for prop in properties]
-                return AgentPublicProfile(**profile_dict)
-            
-            # Check database for agent profile
+            # Always check database first for fresh data
+            print(f"DEBUG: Looking up agent profile for slug: {slug}")
             agents_collection = self.db.get_collection("agent_public_profiles")
             agent_doc = await agents_collection.find_one({"slug": slug})
+            print(f"DEBUG: Database lookup result: {agent_doc is not None}")
             if agent_doc:
                 # Create profile from database
                 profile = AgentPublicProfile(
@@ -117,6 +115,16 @@ class AgentPublicService:
                     contact_count=agent_doc.get("contact_count", 0)
                 )
                 
+                # Fetch properties for this agent
+                properties = await self._get_agent_properties_from_db(profile.agent_id)
+                # Add properties to the profile
+                profile_dict = profile.model_dump()
+                profile_dict['properties'] = [prop.model_dump() for prop in properties]
+                return AgentPublicProfile(**profile_dict)
+            
+            # Fallback to global cache if not in database
+            if slug in _global_agent_profiles:
+                profile = _global_agent_profiles[slug]
                 # Fetch properties for this agent
                 properties = await self._get_agent_properties_from_db(profile.agent_id)
                 # Add properties to the profile
@@ -204,7 +212,16 @@ class AgentPublicService:
             agents_collection = self.db.get_collection("agent_public_profiles")
             profile_dict = profile.model_dump()
             profile_dict['_id'] = agent_id  # Use agent_id as _id for consistency
-            await agents_collection.insert_one(profile_dict)
+            
+            print(f"DEBUG: Storing agent profile in database: {profile_dict}")
+            try:
+                result = await agents_collection.insert_one(profile_dict)
+                print(f"DEBUG: Database insert result: {result.inserted_id}")
+            except Exception as e:
+                print(f"DEBUG: Database insert error: {e}")
+                # Try to update if already exists
+                await agents_collection.replace_one({"_id": agent_id}, profile_dict, upsert=True)
+                print(f"DEBUG: Database upsert completed")
             
             logger.info(f"Created agent profile: {profile.agent_name} with slug: {slug}")
             return profile
