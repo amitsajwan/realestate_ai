@@ -78,6 +78,7 @@ class MockCollection:
 
     async def count_documents(self, filter_dict: Dict[str, Any] | None = None) -> int:
         """Mock count_documents operation"""
+        print(f"DEBUG: MockCollection.count_documents - collection: {self.name}, data keys: {list(self.data.keys())}, data count: {len(self.data)}")
         if not filter_dict:
             return len(self.data)
         count = 0

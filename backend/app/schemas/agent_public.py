@@ -52,9 +52,19 @@ class AgentPublicProfileBase(BaseModel):
         return v
 
 
-class AgentPublicProfileCreate(AgentPublicProfileBase):
+class AgentPublicProfileCreate(BaseModel):
     """Schema for creating agent public profile"""
-    pass
+    agent_name: str = Field(..., min_length=2, max_length=100, description="Agent's display name")
+    bio: Optional[str] = Field(None, max_length=1000, description="Agent's professional bio")
+    photo: Optional[str] = Field(None, description="Agent's profile photo URL")
+    phone: Optional[str] = Field(None, max_length=20, description="Contact phone number")
+    email: Optional[str] = Field(None, description="Contact email address")
+    office_address: Optional[str] = Field(None, max_length=200, description="Office address")
+    specialties: List[str] = Field(default_factory=list, description="Property specialties")
+    experience: Optional[str] = Field(None, max_length=500, description="Years of experience")
+    languages: List[str] = Field(default_factory=list, description="Languages spoken")
+    is_active: bool = Field(True, description="Whether profile is active")
+    is_public: bool = Field(True, description="Whether profile is publicly visible")
 
 
 class AgentPublicProfileUpdate(BaseModel):

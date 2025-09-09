@@ -56,7 +56,7 @@ def setup_additional_endpoints(app: FastAPI):
         """Get dashboard statistics from database (MongoDB or Mock)"""
         try:
             from app.core.database import get_database
-            db = await get_database()
+            db = get_database()
 
             # Get real stats from database
             total_properties = await db.properties.count_documents({})

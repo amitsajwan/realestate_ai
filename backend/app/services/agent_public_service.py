@@ -20,17 +20,24 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+# Global storage for agent profiles (shared across all service instances)
+_global_agent_profiles = {}
+_global_agent_properties = {}
+
 class AgentPublicService:
     """Service for agent public website operations"""
     
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db):
         self.db = db
     
     async def get_agent_by_slug(self, slug: str) -> Optional[AgentPublicProfile]:
         """Get agent public profile by slug"""
         try:
-            # Mock data for now - replace with actual database query later
-            # Only return data for the specific slug we're using
+            # First check if we have a real agent profile stored
+            if slug in _global_agent_profiles:
+                return _global_agent_profiles[slug]
+            
+            # Fall back to mock data for john-doe
             if slug == "john-doe":
                 return AgentPublicProfile(
                     id="mock-agent-id",
@@ -62,6 +69,11 @@ class AgentPublicService:
     async def get_agent_by_id(self, agent_id: str) -> Optional[AgentPublicProfile]:
         """Get agent public profile by ID"""
         try:
+            # First check if we have a real agent profile stored
+            if agent_id in _global_agent_profiles:
+                return _global_agent_profiles[agent_id]
+            
+            # Fall back to mock data
             if agent_id == "mock-agent-id":
                 return await self.get_agent_by_slug("john-doe")
             return None
@@ -72,13 +84,17 @@ class AgentPublicService:
     async def create_agent_profile(self, agent_id: str, profile_data: AgentPublicProfileCreate) -> Optional[AgentPublicProfile]:
         """Create agent public profile"""
         try:
-            # Mock implementation
-            return AgentPublicProfile(
+            # Generate slug from agent name
+            slug = profile_data.agent_name.lower().replace(" ", "-").replace(".", "-").replace("_", "-")
+            
+            # Create the profile
+            profile = AgentPublicProfile(
                 id=agent_id,
+                agent_id=agent_id,
                 agent_name=profile_data.agent_name,
-                slug=profile_data.agent_name.lower().replace(" ", "-"),
+                slug=slug,
                 bio=profile_data.bio,
-                photo=profile_data.photo,
+                photo=profile_data.photo or "",
                 phone=profile_data.phone,
                 email=profile_data.email,
                 office_address=profile_data.office_address,
@@ -86,8 +102,19 @@ class AgentPublicService:
                 experience=profile_data.experience,
                 languages=profile_data.languages,
                 is_active=True,
-                is_public=True
+                is_public=profile_data.is_public,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                view_count=0,
+                contact_count=0
             )
+            
+            # Store the profile in global memory
+            _global_agent_profiles[slug] = profile
+            _global_agent_profiles[agent_id] = profile  # Also store by ID for lookup
+            
+            logger.info(f"Created agent profile: {profile.agent_name} with slug: {slug}")
+            return profile
         except Exception as e:
             logger.error(f"Error creating agent profile: {e}")
             return None
