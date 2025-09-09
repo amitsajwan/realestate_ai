@@ -23,6 +23,7 @@ import { apiService } from '@/lib/api'
 import DashboardStats from '@/components/DashboardStats'
 import SmartPropertyForm from '@/components/SmartPropertyForm'
 import Properties from '@/components/Properties'
+import PropertyManagement from '@/components/PropertyManagement'
 import CRM from '@/components/CRM'
 import FacebookIntegration from '@/components/FacebookIntegration'
 import ProfileSettings from '@/components/ProfileSettings'
@@ -36,6 +37,7 @@ const PublicWebsiteManagement = lazy(() => import('@/components/PublicWebsiteMan
 const navigation = [
   { name: 'Dashboard', icon: HomeIcon, id: 'dashboard' },
   { name: 'Properties', icon: BuildingOfficeIcon, id: 'properties' },
+  { name: 'Property Management', icon: BuildingOfficeIcon, id: 'property-management' },
   { name: 'Add Property', icon: PlusIcon, id: 'property-form' },
   { name: 'AI Tools', icon: SparklesIcon, id: 'ai-content' },
   { name: 'Public Website', icon: GlobeAltIcon, id: 'public-website' },
@@ -177,6 +179,10 @@ export default function Dashboard() {
           properties={properties} 
           setProperties={setProperties}
           onRefresh={loadProperties}
+        />
+      case 'property-management':
+        return <PropertyManagement 
+          onAddProperty={() => setActiveSection('property-form')} 
         />
       case 'property-form':
         return (
