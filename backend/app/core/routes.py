@@ -53,12 +53,12 @@ def setup_additional_endpoints(app: FastAPI):
 
     @app.get("/api/v1/dashboard/stats")
     async def get_dashboard_stats():
-        """Get dashboard statistics from MongoDB"""
+        """Get dashboard statistics from database (MongoDB or Mock)"""
         try:
             from app.core.database import get_database
             db = await get_database()
 
-            # Get real stats from MongoDB
+            # Get real stats from database
             total_properties = await db.properties.count_documents({})
             active_listings = await db.properties.count_documents({"status": "available"})
             total_leads = await db.leads.count_documents({})
@@ -83,15 +83,15 @@ def setup_additional_endpoints(app: FastAPI):
             from app.logging_config import get_logger
             logger = get_logger(__name__)
             logger.error(f"Error getting dashboard stats: {e}")
-            # Fallback to mock data if MongoDB fails
+            # Return empty stats if database fails
             stats = {
-                "total_properties": 12,
-                "active_listings": 8,
+                "total_properties": 0,
+                "active_listings": 0,
                 "total_leads": 0,
-                "total_users": 1,
-                "total_views": 1247,
-                "monthly_leads": 23,
-                "revenue": "₹45,00,000"
+                "total_users": 0,
+                "total_views": 0,
+                "monthly_leads": 0,
+                "revenue": "₹0"
             }
             return {
                 "success": True,
