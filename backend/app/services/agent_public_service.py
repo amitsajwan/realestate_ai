@@ -30,12 +30,56 @@ class AgentPublicService:
     def __init__(self, db):
         self.db = db
     
+    async def _get_agent_properties_from_db(self, agent_id: str) -> List[PublicProperty]:
+        """Get properties for an agent from the database"""
+        try:
+            # Query properties from the database where agent_id matches
+            properties_collection = self.db.get_collection("properties")
+            properties_docs = await properties_collection.find({"agent_id": agent_id}).to_list(length=None)
+            
+            properties = []
+            for doc in properties_docs:
+                property_obj = PublicProperty(
+                    id=str(doc.get("_id", "")),
+                    agent_id=doc.get("agent_id", ""),
+                    title=doc.get("title", ""),
+                    description=doc.get("description", ""),
+                    price=doc.get("price", 0),
+                    property_type=doc.get("property_type", ""),
+                    status=doc.get("status", ""),
+                    bedrooms=doc.get("bedrooms", 0),
+                    bathrooms=doc.get("bathrooms", 0),
+                    area_sqft=doc.get("area", 0),
+                    location=doc.get("location", ""),
+                    address=doc.get("address", ""),
+                    city=doc.get("city", ""),
+                    state=doc.get("state", ""),
+                    zip_code=doc.get("zip_code", ""),
+                    features=doc.get("features", []),
+                    amenities=doc.get("amenities", []),
+                    images=doc.get("images", []),
+                    created_at=doc.get("created_at", datetime.now()),
+                    updated_at=doc.get("updated_at", datetime.now())
+                )
+                properties.append(property_obj)
+            
+            return properties
+        except Exception as e:
+            logger.error(f"Error fetching properties for agent {agent_id}: {e}")
+            return []
+    
     async def get_agent_by_slug(self, slug: str) -> Optional[AgentPublicProfile]:
         """Get agent public profile by slug"""
         try:
             # First check if we have a real agent profile stored
             if slug in _global_agent_profiles:
-                return _global_agent_profiles[slug]
+                profile = _global_agent_profiles[slug]
+                # Fetch properties for this agent
+                properties = await self._get_agent_properties_from_db(profile.agent_id)
+                # Add properties to the profile
+                profile_dict = profile.model_dump()
+                profile_dict['properties'] = [prop.model_dump() for prop in properties]
+                return AgentPublicProfile(**profile_dict)
             
             # Fall back to mock data for john-doe
             if slug == "john-doe":

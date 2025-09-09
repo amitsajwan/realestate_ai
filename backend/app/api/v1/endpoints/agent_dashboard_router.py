@@ -8,8 +8,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_database
-# from app.core.auth import get_current_user  # TODO: Implement auth
-# from app.models.user import User  # TODO: Implement user model
+from app.dependencies import get_current_user
 from app.schemas.agent_public import AgentPublicProfileUpdate
 from app.services.agent_public_service import AgentPublicService
 import logging
@@ -175,25 +174,30 @@ async def get_agent_inquiries(
 @router.post("/create-profile")
 async def create_agent_public_profile(
     profile_data: dict,
-    # current_user: User = Depends(get_current_user),  # TODO: Implement auth
+    current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_database)
 ):
     """
     Create initial public profile for agent
     """
     try:
+        logger.info(f"Creating agent profile for user: {current_user.id}")
         service = AgentPublicService(db)
         
-        # For now, use a mock agent ID since auth is not implemented
-        agent_id = "agent-1"
+        # Use the actual user ID from the authenticated user
+        agent_id = current_user.id
+        logger.info(f"Using agent_id: {agent_id}")
         
         # Check if profile already exists
         existing_profile = await service.get_agent_by_id(agent_id)
         if existing_profile:
+            logger.info(f"Profile already exists for agent_id: {agent_id}")
             raise HTTPException(status_code=400, detail="Profile already exists")
         
         # Create profile from request data
         from app.schemas.agent_public import AgentPublicProfileCreate
+        logger.info(f"Creating profile with data: {profile_data}")
+        
         profile_create = AgentPublicProfileCreate(
             agent_name=profile_data.get("agent_name", "Real Estate Agent"),
             bio=profile_data.get("bio", ""),
@@ -202,13 +206,16 @@ async def create_agent_public_profile(
             email=profile_data.get("email", "agent@example.com"),
             office_address=profile_data.get("office_address", ""),
             specialties=profile_data.get("specialties", []),
-            experience=profile_data.get("experience", ""),
+            experience=str(profile_data.get("years_experience", profile_data.get("experience", ""))),
             languages=profile_data.get("languages", []),
             is_active=True,
             is_public=profile_data.get("is_public", True)
         )
         
+        logger.info(f"Profile create object created successfully")
         created_profile = await service.create_agent_profile(agent_id, profile_create)
+        logger.info(f"Profile creation result: {created_profile}")
+        
         if not created_profile:
             raise HTTPException(status_code=500, detail="Failed to create profile")
         

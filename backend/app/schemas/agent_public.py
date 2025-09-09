@@ -98,6 +98,7 @@ class AgentPublicProfile(AgentPublicProfileBase):
     updated_at: datetime = Field(..., description="Profile last update timestamp")
     view_count: int = Field(0, description="Total profile views")
     contact_count: int = Field(0, description="Total contact form submissions")
+    properties: List['PublicProperty'] = Field(default_factory=list, description="Agent's properties")
 
     class Config:
         from_attributes = True
