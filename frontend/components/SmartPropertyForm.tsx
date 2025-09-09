@@ -337,7 +337,7 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
       let agentId = "anonymous"
       try {
         const currentUser = await apiService.getCurrentUser()
-        agentId = currentUser.id || currentUser.username || "anonymous"
+        agentId = currentUser.id || currentUser.email || "anonymous"
       } catch (error) {
         console.warn('Could not get current user, using anonymous agent_id:', error)
       }

@@ -210,11 +210,11 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
         setTimeout(() => {
           const updatedState = authManager.getState();
           console.log('[Onboarding] Checking updated auth state:', {
-            onboardingCompleted: updatedState.user?.onboarding_completed,
-            onboardingStep: updatedState.user?.onboarding_step
+            onboardingCompleted: updatedState.user?.onboardingCompleted,
+            onboardingStep: updatedState.user?.onboardingStep
           });
           
-          if (updatedState.user?.onboarding_completed) {
+          if (updatedState.user?.onboardingCompleted) {
             console.log('[Onboarding] User state confirmed as completed, calling onComplete callback');
             onComplete();
           } else {

@@ -8,15 +8,14 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_database
-# from app.core.auth import get_current_user  # TODO: Implement auth
-# from app.models.user import User  # TODO: Implement user model
+from app.dependencies import get_current_user
 from app.schemas.agent_public import AgentPublicProfileUpdate
 from app.services.agent_public_service import AgentPublicService
 import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/agent-public", tags=["agent-dashboard"])
+router = APIRouter(prefix="/agent-dashboard", tags=["agent-dashboard"])
 
 @router.get("/profile")
 async def get_agent_public_profile_for_dashboard(
@@ -174,38 +173,52 @@ async def get_agent_inquiries(
 
 @router.post("/create-profile")
 async def create_agent_public_profile(
-    # current_user: User = Depends(get_current_user),  # TODO: Implement auth
+    profile_data: dict,
+    current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_database)
 ):
     """
     Create initial public profile for agent
     """
     try:
+        logger.info(f"Creating agent profile for user: {current_user.id}")
         service = AgentPublicService(db)
         
+        # Use the actual user ID from the authenticated user
+        agent_id = current_user.id
+        logger.info(f"Using agent_id: {agent_id}")
+        
         # Check if profile already exists
-        existing_profile = await service.get_agent_by_id(current_user.id)
+        existing_profile = await service.get_agent_by_id(agent_id)
         if existing_profile:
+            logger.info(f"Profile already exists for agent_id: {agent_id}")
             raise HTTPException(status_code=400, detail="Profile already exists")
         
-        # Create default profile
+        # Create profile from request data
         from app.schemas.agent_public import AgentPublicProfileCreate
-        default_profile = AgentPublicProfileCreate(
-            agent_name=current_user.first_name + " " + current_user.last_name if current_user.first_name and current_user.last_name else current_user.email,
-            slug=current_user.email.split('@')[0].lower().replace('.', '-').replace('_', '-'),
-            bio="",
-            photo=None,
-            phone=None,
-            email=current_user.email,
-            office_address="",
-            specialties=[],
-            experience="",
-            languages=[],
+        logger.info(f"Creating profile with data: {profile_data}")
+        
+        profile_create = AgentPublicProfileCreate(
+            agent_name=profile_data.get("agent_name", "Real Estate Agent"),
+            bio=profile_data.get("bio", ""),
+            photo=profile_data.get("photo"),
+            phone=profile_data.get("phone"),
+            email=profile_data.get("email", "agent@example.com"),
+            office_address=profile_data.get("office_address", ""),
+            specialties=profile_data.get("specialties", []),
+            experience=str(profile_data.get("years_experience", profile_data.get("experience", ""))),
+            languages=profile_data.get("languages", []),
             is_active=True,
-            is_public=False
+            is_public=profile_data.get("is_public", True)
         )
         
-        created_profile = await service.create_agent_profile(current_user.id, default_profile)
+        logger.info(f"Profile create object created successfully")
+        created_profile = await service.create_agent_profile(agent_id, profile_create)
+        logger.info(f"Profile creation result: {created_profile}")
+        
+        if not created_profile:
+            raise HTTPException(status_code=500, detail="Failed to create profile")
+        
         return created_profile
         
     except HTTPException:
