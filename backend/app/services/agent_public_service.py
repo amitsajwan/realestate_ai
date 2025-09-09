@@ -35,10 +35,17 @@ class AgentPublicService:
         try:
             # Query only published properties from the database where agent_id matches
             properties_collection = self.db.get_collection("properties")
-            properties_docs = await properties_collection.find({
+            
+            # Debug logging
+            print(f"DEBUG: Querying properties for agent_id: {agent_id}")
+            query = {
                 "agent_id": agent_id,
                 "publishing_status": "published"  # Only get published properties
-            }).to_list(length=None)
+            }
+            print(f"DEBUG: Query: {query}")
+            
+            properties_docs = await properties_collection.find(query).to_list(length=None)
+            print(f"DEBUG: Found {len(properties_docs)} properties")
             
             properties = []
             for doc in properties_docs:
@@ -77,6 +84,39 @@ class AgentPublicService:
             # First check if we have a real agent profile stored
             if slug in _global_agent_profiles:
                 profile = _global_agent_profiles[slug]
+                # Fetch properties for this agent
+                properties = await self._get_agent_properties_from_db(profile.agent_id)
+                # Add properties to the profile
+                profile_dict = profile.model_dump()
+                profile_dict['properties'] = [prop.model_dump() for prop in properties]
+                return AgentPublicProfile(**profile_dict)
+            
+            # Check database for agent profile
+            agents_collection = self.db.get_collection("agent_public_profiles")
+            agent_doc = await agents_collection.find_one({"slug": slug})
+            if agent_doc:
+                # Create profile from database
+                profile = AgentPublicProfile(
+                    id=str(agent_doc.get("_id", "")),
+                    agent_id=agent_doc.get("agent_id", ""),
+                    agent_name=agent_doc.get("agent_name", ""),
+                    slug=agent_doc.get("slug", ""),
+                    bio=agent_doc.get("bio", ""),
+                    photo=agent_doc.get("photo", ""),
+                    phone=agent_doc.get("phone", ""),
+                    email=agent_doc.get("email", ""),
+                    office_address=agent_doc.get("office_address", ""),
+                    specialties=agent_doc.get("specialties", []),
+                    experience=agent_doc.get("experience", ""),
+                    languages=agent_doc.get("languages", []),
+                    is_active=agent_doc.get("is_active", True),
+                    is_public=agent_doc.get("is_public", True),
+                    created_at=agent_doc.get("created_at", datetime.now()),
+                    updated_at=agent_doc.get("updated_at", datetime.now()),
+                    view_count=agent_doc.get("view_count", 0),
+                    contact_count=agent_doc.get("contact_count", 0)
+                )
+                
                 # Fetch properties for this agent
                 properties = await self._get_agent_properties_from_db(profile.agent_id)
                 # Add properties to the profile
@@ -159,6 +199,12 @@ class AgentPublicService:
             # Store the profile in global memory
             _global_agent_profiles[slug] = profile
             _global_agent_profiles[agent_id] = profile  # Also store by ID for lookup
+            
+            # Store the profile in database
+            agents_collection = self.db.get_collection("agent_public_profiles")
+            profile_dict = profile.model_dump()
+            profile_dict['_id'] = agent_id  # Use agent_id as _id for consistency
+            await agents_collection.insert_one(profile_dict)
             
             logger.info(f"Created agent profile: {profile.agent_name} with slug: {slug}")
             return profile
