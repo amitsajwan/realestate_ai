@@ -603,16 +603,16 @@ export class AuthManager {
           console.log('[AuthManager] Onboarding completed - refreshing user data from server');
           try {
             const userResponse = await this.apiService.getCurrentUser();
-            if (userResponse.success && userResponse.data) {
+            if (userResponse) {
               this.setState({
-                user: userResponse.data,
+                user: userResponse,
                 isLoading: false,
                 error: null
               });
-              console.log('[AuthManager] Refreshed user state after onboarding completion:', userResponse.data);
+              console.log('[AuthManager] Refreshed user state after onboarding completion:', userResponse);
               console.log('[AuthManager] User onboarding status:', {
-                onboardingCompleted: userResponse.data.onboarding_completed,
-                onboardingStep: userResponse.data.onboarding_step
+                onboardingCompleted: userResponse.onboardingCompleted,
+                onboardingStep: userResponse.onboardingStep
               });
             } else {
               throw new Error('Failed to refresh user data after onboarding completion');
@@ -661,7 +661,7 @@ export class AuthManager {
           }
         }
       } else {
-        throw new Error(response.error || 'Failed to update onboarding');
+        throw new Error(JSON.stringify(response.errors) || 'Failed to update onboarding');
       }
       
       console.log('[AuthManager] Onboarding update successful');

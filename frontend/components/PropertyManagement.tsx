@@ -60,8 +60,8 @@ export default function PropertyManagement({ onAddProperty }: PropertyManagement
   const loadProperties = async () => {
     try {
       setIsLoading(true)
-      const response = await apiService.get('/properties/')
-      setProperties(response.data || [])
+      const response = await apiService.getProperties()
+      setProperties(response || [])
     } catch (error) {
       console.error('Error loading properties:', error)
       toast.error('Failed to load properties')
@@ -74,7 +74,7 @@ export default function PropertyManagement({ onAddProperty }: PropertyManagement
     if (!confirm('Are you sure you want to delete this property?')) return
 
     try {
-      await apiService.delete(`/properties/${propertyId}`)
+      await apiService.deleteProperty(propertyId)
       toast.success('Property deleted successfully')
       loadProperties()
     } catch (error) {

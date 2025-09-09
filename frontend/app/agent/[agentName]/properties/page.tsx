@@ -17,7 +17,7 @@ interface Property {
   title: string
   description: string
   price: number
-  property_type: PropertyType
+  property_type: string
   bedrooms: number
   bathrooms: number
   area: number
@@ -31,7 +31,7 @@ interface SearchFilters {
   location: string
   min_price: number | null
   max_price: number | null
-  property_type: PropertyType | ''
+  property_type: string
   min_bedrooms: number | null
   min_bathrooms: number | null
   min_area: number | null

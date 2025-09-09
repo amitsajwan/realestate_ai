@@ -165,9 +165,9 @@ class AnalyticsManager {
     const properties = {
       event_type: event.type,
       timestamp: event.timestamp.toISOString(),
-      variant: event.metadata.variant,
-      user_id: event.metadata.userId,
-      session_id: event.metadata.sessionId,
+      variant: event.metadata?.variant,
+      user_id: event.metadata?.userId,
+      session_id: event.metadata?.sessionId,
       ...event.data
     }
 

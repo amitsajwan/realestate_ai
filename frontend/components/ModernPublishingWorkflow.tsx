@@ -53,12 +53,6 @@ interface PublishingStatus {
   analytics_data: Record<string, any>
 }
 
-interface LanguagePreference {
-  language_code: string
-  is_primary: boolean
-  facebook_page_id?: string
-}
-
 interface ModernPublishingWorkflowProps {
   properties: Property[]
   onRefresh: () => void
@@ -87,43 +81,17 @@ const SUPPORTED_CHANNELS = [
 export default function ModernPublishingWorkflow({ properties, onRefresh }: ModernPublishingWorkflowProps) {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
   const [publishingStatus, setPublishingStatus] = useState<PublishingStatus | null>(null)
-  const [languagePreferences, setLanguagePreferences] = useState<LanguagePreference[]>([])
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(['en'])
   const [selectedChannels, setSelectedChannels] = useState<string[]>(['website'])
   const [facebookPageMappings, setFacebookPageMappings] = useState<Record<string, string>>({})
   const [isPublishing, setIsPublishing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Load language preferences on component mount
-  useEffect(() => {
-    loadLanguagePreferences()
-  }, [])
-
-  const loadLanguagePreferences = async () => {
-    try {
-      setIsLoading(true)
-      // This would be implemented when we have the user context
-      // const response = await apiService.get('/publishing/agents/{agent_id}/language-preferences')
-      // setLanguagePreferences(response.data.preferences)
-      
-      // For now, set default preferences
-      setLanguagePreferences([
-        { language_code: 'en', is_primary: true, facebook_page_id: 'facebook_page_english' },
-        { language_code: 'mr', is_primary: false, facebook_page_id: 'facebook_page_marathi' },
-        { language_code: 'hi', is_primary: false, facebook_page_id: 'facebook_page_hindi' }
-      ])
-    } catch (error) {
-      console.error('Error loading language preferences:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const loadPublishingStatus = async (propertyId: string) => {
     try {
       setIsLoading(true)
-      const response = await apiService.get(`/publishing/properties/${propertyId}/status`)
-      setPublishingStatus(response.data)
+      const response = await apiService.getPublishingStatus(propertyId)
+      setPublishingStatus(response)
     } catch (error) {
       console.error('Error loading publishing status:', error)
       toast.error('Failed to load publishing status')
@@ -151,14 +119,11 @@ export default function ModernPublishingWorkflow({ properties, onRefresh }: Mode
         auto_translate: true
       }
 
-      const response = await apiService.post(
-        `/publishing/properties/${selectedProperty.id}/publish`,
-        publishingRequest
-      )
+      const response = await apiService.publishProperty(selectedProperty.id, publishingRequest)
 
-      if (response.status === 200) {
+      if (response) {
         toast.success('Property published successfully!')
-        setPublishingStatus(response.data)
+        setPublishingStatus(response)
         onRefresh()
       }
     } catch (error) {
@@ -175,14 +140,11 @@ export default function ModernPublishingWorkflow({ properties, onRefresh }: Mode
     try {
       setIsPublishing(true)
       
-      const response = await apiService.post(
-        `/publishing/properties/${selectedProperty.id}/unpublish`,
-        {}
-      )
+      const response = await apiService.unpublishProperty(selectedProperty.id)
 
-      if (response.status === 200) {
+      if (response) {
         toast.success('Property unpublished successfully!')
-        setPublishingStatus(response.data)
+        setPublishingStatus(response)
         onRefresh()
       }
     } catch (error) {
