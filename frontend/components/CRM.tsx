@@ -17,52 +17,31 @@ import {
   CurrencyDollarIcon,
   MapPinIcon,
   ChevronDownIcon,
-  XMarkIcon
+  XMarkIcon,
+  ArrowPathIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline'
 import { 
   StarIcon as StarSolidIcon,
   PhoneIcon as PhoneSolidIcon,
   ChatBubbleLeftRightIcon as ChatSolidIcon
 } from '@heroicons/react/24/solid'
+import { crmApi, Lead, LeadStats, LeadSearchFilters } from '@/lib/crm-api'
 
-interface Lead {
-  id: number
-  name: string
-  email: string
-  phone: string
-  budget: number
-  propertyType: string
-  location: string
-  timeline: string
-  urgency: 'low' | 'medium' | 'high'
-  source: string
-  status: 'new' | 'contacted' | 'qualified' | 'negotiating' | 'converted' | 'lost'
-  score: number
-  lastContact: string
-  createdAt: string
-  notes?: string
-}
-
-interface CRMStats {
-  newLeads: number
-  pending: number
-  converted: number
-  callsToday: number
-  totalValue: number
-  conversionRate: number
+interface LeadActivity {
+  id: string
+  lead_id: string
+  activity_type: string
+  description: string
+  performed_by: string
+  timestamp: string
+  metadata?: Record<string, any>
 }
 
 export default function CRM() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [filteredLeads, setFilteredLeads] = useState<Lead[]>([])
-  const [stats, setStats] = useState<CRMStats>({
-    newLeads: 0,
-    pending: 0,
-    converted: 0,
-    callsToday: 0,
-    totalValue: 0,
-    conversionRate: 0
-  })
+  const [stats, setStats] = useState<LeadStats | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [urgencyFilter, setUrgencyFilter] = useState<string>('all')
@@ -70,59 +49,118 @@ export default function CRM() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
   const [showLeadModal, setShowLeadModal] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
 
-  // Mock data initialization
+  // Load data from API
   useEffect(() => {
+    loadData()
+  }, [currentPage, statusFilter, urgencyFilter, searchTerm])
+
+  const loadData = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+
+      // Load leads and stats in parallel
+      const [leadsResult, statsData] = await Promise.all([
+        loadLeads(),
+        loadStats()
+      ])
+
+      setLeads(leadsResult.leads)
+      setFilteredLeads(leadsResult.leads)
+      setTotalPages(leadsResult.total_pages)
+      setStats(statsData)
+
+    } catch (err) {
+      console.error('Error loading data:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load data')
+      
+      // Fallback to mock data if API fails
+      loadMockData()
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const loadLeads = async () => {
+    const filters: LeadSearchFilters = {}
+    
+    if (statusFilter !== 'all') {
+      filters.status = statusFilter
+    }
+    
+    if (urgencyFilter !== 'all') {
+      filters.urgency = urgencyFilter
+    }
+    
+    if (searchTerm) {
+      filters.search_term = searchTerm
+    }
+
+    return await crmApi.getLeads(filters, currentPage, 20)
+  }
+
+  const loadStats = async () => {
+    return await crmApi.getLeadStats()
+  }
+
+  const loadMockData = () => {
     const mockLeads: Lead[] = [
       {
-        id: 1,
+        id: '1',
         name: 'Rajesh Kumar',
         email: 'rajesh@email.com',
         phone: '+91 98765 43210',
         budget: 5000000,
-        propertyType: '3 BHK Apartment',
-        location: 'Mumbai, Thane',
+        property_type_preference: '3 BHK Apartment',
+        location_preference: 'Mumbai, Thane',
         timeline: '3 months',
         urgency: 'medium',
-        source: 'Website',
+        source: 'website',
         status: 'new',
         score: 85,
-        lastContact: '2 days ago',
-        createdAt: '2024-01-15',
+        last_contact_date: '2024-01-15',
+        created_at: '2024-01-15',
+        updated_at: '2024-01-15',
         notes: 'Interested in properties near IT parks'
       },
       {
-        id: 2,
+        id: '2',
         name: 'Priya Sharma',
         email: 'priya@email.com',
         phone: '+91 98765 43211',
         budget: 8000000,
-        propertyType: 'Villa',
-        location: 'Pune, Hinjewadi',
+        property_type_preference: 'Villa',
+        location_preference: 'Pune, Hinjewadi',
         timeline: 'ASAP',
         urgency: 'high',
-        source: 'Referral',
+        source: 'referral',
         status: 'qualified',
         score: 92,
-        lastContact: '1 day ago',
-        createdAt: '2024-01-10',
+        last_contact_date: '2024-01-10',
+        created_at: '2024-01-10',
+        updated_at: '2024-01-10',
         notes: 'Ready to close deal quickly'
       },
       {
-        id: 3,
+        id: '3',
         name: 'Amit Patel',
         email: 'amit@email.com',
         phone: '+91 98765 43212',
         budget: 3500000,
-        propertyType: '2 BHK Apartment',
-        location: 'Ahmedabad',
+        property_type_preference: '2 BHK Apartment',
+        location_preference: 'Ahmedabad',
         timeline: '6 months',
         urgency: 'low',
-        source: 'Social Media',
+        source: 'social_media',
         status: 'contacted',
         score: 68,
-        lastContact: '1 week ago',
-        createdAt: '2024-01-08',
+        last_contact_date: '2024-01-08',
+        created_at: '2024-01-08',
+        updated_at: '2024-01-08',
         notes: 'First-time buyer, needs guidance'
       }
     ]
@@ -130,47 +168,60 @@ export default function CRM() {
     setLeads(mockLeads)
     setFilteredLeads(mockLeads)
     
-    // Calculate stats
-    const newLeads = mockLeads.filter(lead => lead.status === 'new').length
-    const pending = mockLeads.filter(lead => ['contacted', 'qualified', 'negotiating'].includes(lead.status)).length
-    const converted = mockLeads.filter(lead => lead.status === 'converted').length
-    const totalValue = mockLeads.reduce((sum, lead) => sum + lead.budget, 0)
-    
+    // Mock stats
     setStats({
-      newLeads,
-      pending,
-      converted,
-      callsToday: 15,
-      totalValue,
-      conversionRate: converted > 0 ? Math.round((converted / mockLeads.length) * 100) : 0
+      total_leads: 3,
+      new_leads: 1,
+      contacted_leads: 1,
+      qualified_leads: 1,
+      converted_leads: 0,
+      lost_leads: 0,
+      conversion_rate: 0,
+      average_deal_value: 0,
+      total_pipeline_value: 16500000,
+      leads_this_month: 3,
+      leads_this_week: 2,
+      leads_today: 0
     })
-    
-    setIsLoading(false)
-  }, [])
+  }
 
-  // Filter leads based on search and filters
-  useEffect(() => {
-    let filtered = leads
-
-    if (searchTerm) {
-      filtered = filtered.filter(lead => 
-        lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.phone.includes(searchTerm) ||
-        lead.location.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+  // Handle lead updates
+  const handleLeadUpdate = async (leadId: string, updateData: Partial<Lead>) => {
+    try {
+      const updatedLead = await crmApi.updateLead(leadId, updateData)
+      
+      // Update local state
+      setLeads(prev => prev.map(lead => lead.id === leadId ? updatedLead : lead))
+      setFilteredLeads(prev => prev.map(lead => lead.id === leadId ? updatedLead : lead))
+      
+      // Reload stats
+      const newStats = await crmApi.getLeadStats()
+      setStats(newStats)
+      
+    } catch (err) {
+      console.error('Error updating lead:', err)
+      setError(err instanceof Error ? err.message : 'Failed to update lead')
     }
+  }
 
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(lead => lead.status === statusFilter)
+  // Handle lead creation
+  const handleCreateLead = async (leadData: Partial<Lead>) => {
+    try {
+      const newLead = await crmApi.createLead(leadData)
+      
+      // Add to local state
+      setLeads(prev => [newLead, ...prev])
+      setFilteredLeads(prev => [newLead, ...prev])
+      
+      // Reload stats
+      const newStats = await crmApi.getLeadStats()
+      setStats(newStats)
+      
+    } catch (err) {
+      console.error('Error creating lead:', err)
+      setError(err instanceof Error ? err.message : 'Failed to create lead')
     }
-
-    if (urgencyFilter !== 'all') {
-      filtered = filtered.filter(lead => lead.urgency === urgencyFilter)
-    }
-
-    setFilteredLeads(filtered)
-  }, [leads, searchTerm, statusFilter, urgencyFilter])
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -204,7 +255,28 @@ export default function CRM() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading CRM data...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <ExclamationTriangleIcon className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+          <button 
+            onClick={loadData}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 mx-auto"
+          >
+            <ArrowPathIcon className="w-4 h-4" />
+            <span>Retry</span>
+          </button>
+        </div>
       </div>
     )
   }
@@ -315,75 +387,77 @@ export default function CRM() {
         </div>
 
         {/* Enhanced Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <motion.div 
-            whileHover={{ scale: 1.02 }}
-            className="relative overflow-hidden bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-800/30"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-blue-500 rounded-xl">
-                <UsersIcon className="w-6 h-6 text-white" />
+        {stats && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              className="relative overflow-hidden bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-800/30"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-blue-500 rounded-xl">
+                  <UsersIcon className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.new_leads}</div>
+                  <div className="text-sm text-blue-600/70 dark:text-blue-400/70">+{stats.leads_this_week} this week</div>
+                </div>
               </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.newLeads}</div>
-                <div className="text-sm text-blue-600/70 dark:text-blue-400/70">+12% this week</div>
-              </div>
-            </div>
-            <div className="text-sm font-medium text-blue-700 dark:text-blue-300">New Leads</div>
-            <div className="absolute -bottom-2 -right-2 w-20 h-20 bg-blue-200/30 dark:bg-blue-700/20 rounded-full"></div>
-          </motion.div>
+              <div className="text-sm font-medium text-blue-700 dark:text-blue-300">New Leads</div>
+              <div className="absolute -bottom-2 -right-2 w-20 h-20 bg-blue-200/30 dark:bg-blue-700/20 rounded-full"></div>
+            </motion.div>
 
-          <motion.div 
-            whileHover={{ scale: 1.02 }}
-            className="relative overflow-hidden bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 rounded-2xl p-6 border border-yellow-200 dark:border-yellow-800/30"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-yellow-500 rounded-xl">
-                <ClockIcon className="w-6 h-6 text-white" />
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              className="relative overflow-hidden bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 rounded-2xl p-6 border border-yellow-200 dark:border-yellow-800/30"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-yellow-500 rounded-xl">
+                  <ClockIcon className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.contacted_leads + stats.qualified_leads}</div>
+                  <div className="text-sm text-yellow-600/70 dark:text-yellow-400/70">In Progress</div>
+                </div>
               </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.pending}</div>
-                <div className="text-sm text-yellow-600/70 dark:text-yellow-400/70">-5% this week</div>
-              </div>
-            </div>
-            <div className="text-sm font-medium text-yellow-700 dark:text-yellow-300">In Progress</div>
-            <div className="absolute -bottom-2 -right-2 w-20 h-20 bg-yellow-200/30 dark:bg-yellow-700/20 rounded-full"></div>
-          </motion.div>
+              <div className="text-sm font-medium text-yellow-700 dark:text-yellow-300">Active Leads</div>
+              <div className="absolute -bottom-2 -right-2 w-20 h-20 bg-yellow-200/30 dark:bg-yellow-700/20 rounded-full"></div>
+            </motion.div>
 
-          <motion.div 
-            whileHover={{ scale: 1.02 }}
-            className="relative overflow-hidden bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-2xl p-6 border border-green-200 dark:border-green-800/30"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-green-500 rounded-xl">
-                <StarSolidIcon className="w-6 h-6 text-white" />
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              className="relative overflow-hidden bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-2xl p-6 border border-green-200 dark:border-green-800/30"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-green-500 rounded-xl">
+                  <StarSolidIcon className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.converted_leads}</div>
+                  <div className="text-sm text-green-600/70 dark:text-green-400/70">{stats.conversion_rate}% rate</div>
+                </div>
               </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.converted}</div>
-                <div className="text-sm text-green-600/70 dark:text-green-400/70">{stats.conversionRate}% rate</div>
-              </div>
-            </div>
-            <div className="text-sm font-medium text-green-700 dark:text-green-300">Converted</div>
-            <div className="absolute -bottom-2 -right-2 w-20 h-20 bg-green-200/30 dark:bg-green-700/20 rounded-full"></div>
-          </motion.div>
+              <div className="text-sm font-medium text-green-700 dark:text-green-300">Converted</div>
+              <div className="absolute -bottom-2 -right-2 w-20 h-20 bg-green-200/30 dark:bg-green-700/20 rounded-full"></div>
+            </motion.div>
 
-          <motion.div 
-            whileHover={{ scale: 1.02 }}
-            className="relative overflow-hidden bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-2xl p-6 border border-purple-200 dark:border-purple-800/30"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-purple-500 rounded-xl">
-                <CurrencyDollarIcon className="w-6 h-6 text-white" />
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              className="relative overflow-hidden bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-2xl p-6 border border-purple-200 dark:border-purple-800/30"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-purple-500 rounded-xl">
+                  <CurrencyDollarIcon className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold text-purple-600 dark:text-purple-400">{formatCurrency(stats.total_pipeline_value / 10000000)}Cr</div>
+                  <div className="text-sm text-purple-600/70 dark:text-purple-400/70">Pipeline Value</div>
+                </div>
               </div>
-              <div className="text-right">
-                <div className="text-lg font-bold text-purple-600 dark:text-purple-400">{formatCurrency(stats.totalValue / 10000000)}Cr</div>
-                <div className="text-sm text-purple-600/70 dark:text-purple-400/70">Pipeline Value</div>
-              </div>
-            </div>
-            <div className="text-sm font-medium text-purple-700 dark:text-purple-300">Total Pipeline</div>
-            <div className="absolute -bottom-2 -right-2 w-20 h-20 bg-purple-200/30 dark:bg-purple-700/20 rounded-full"></div>
-          </motion.div>
-        </div>
+              <div className="text-sm font-medium text-purple-700 dark:text-purple-300">Total Pipeline</div>
+              <div className="absolute -bottom-2 -right-2 w-20 h-20 bg-purple-200/30 dark:bg-purple-700/20 rounded-full"></div>
+            </motion.div>
+          </div>
+        )}
 
         {/* Modern Leads List */}
         <div className="glass-card">
@@ -447,7 +521,7 @@ export default function CRM() {
                               </span>
                               <span className="flex items-center space-x-1">
                                 <MapPinIcon className="w-4 h-4" />
-                                <span>{lead.location}</span>
+                                <span>{lead.location_preference || 'Not specified'}</span>
                               </span>
                             </div>
                           </div>
@@ -477,15 +551,17 @@ export default function CRM() {
                         </div>
                         <div>
                           <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Property Type</span>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{lead.propertyType}</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{lead.property_type_preference || 'Not specified'}</p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Timeline</span>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{lead.timeline}</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{lead.timeline || 'Not specified'}</p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Last Contact</span>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{lead.lastContact}</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {lead.last_contact_date ? new Date(lead.last_contact_date).toLocaleDateString() : 'Never'}
+                          </p>
                         </div>
                       </div>
 

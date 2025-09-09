@@ -33,6 +33,7 @@ import { loadBrandTheme, applyBrandTheme } from '@/lib/theme'
 const AIContentGenerator = lazy(() => import('@/components/AIContentGenerator'))
 const Analytics = lazy(() => import('@/components/Analytics'))
 const PublicWebsiteManagement = lazy(() => import('@/components/PublicWebsiteManagement'))
+const TeamManagement = lazy(() => import('@/components/TeamManagement'))
 
 const navigation = [
   { name: 'Dashboard', icon: HomeIcon, id: 'dashboard' },
@@ -43,6 +44,7 @@ const navigation = [
   { name: 'Public Website', icon: GlobeAltIcon, id: 'public-website' },
   { name: 'Analytics', icon: ChartBarIcon, id: 'analytics' },
   { name: 'CRM', icon: UsersIcon, id: 'crm' },
+  { name: 'Team Management', icon: UsersIcon, id: 'team-management' },
   { name: 'Facebook', icon: CogIcon, id: 'facebook' },
   { name: 'Profile', icon: UserIcon, id: 'profile' },
 ]
@@ -215,6 +217,16 @@ export default function Dashboard() {
         )
       case 'crm':
         return <CRM />
+      case 'team-management':
+        return (
+          <Suspense fallback={
+            <div className="flex items-center justify-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          }>
+            <TeamManagement />
+          </Suspense>
+        )
       case 'facebook':
         return <FacebookIntegration />
       case 'profile':

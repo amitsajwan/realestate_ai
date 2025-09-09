@@ -10,8 +10,11 @@ import {
   ArrowTrendingDownIcon,
   EyeIcon,
   CalendarIcon,
-  MapPinIcon
+  MapPinIcon,
+  ArrowPathIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline'
+import { crmApi, DashboardMetrics, AnalyticsMetric } from '@/lib/crm-api'
 
 interface AnalyticsProps {
   properties?: any[]
@@ -27,112 +30,232 @@ interface StatCard {
 }
 
 export default function Analytics({ properties = [] }: AnalyticsProps) {
-  const [mockProperties, setMockProperties] = useState<any[]>([])
+  const [dashboardData, setDashboardData] = useState<DashboardMetrics | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedPeriod, setSelectedPeriod] = useState('this_month')
   
   // Memoize properties to prevent infinite re-renders
   const memoizedProperties = useMemo(() => properties, [properties.length, JSON.stringify(properties)])
-  
-  // Use provided properties or load mock data
-  const activeProperties = memoizedProperties.length > 0 ? memoizedProperties : mockProperties
 
   useEffect(() => {
-    // Load mock properties if none provided
-    if (memoizedProperties.length === 0) {
-      const mockData = [
+    loadAnalyticsData()
+  }, [selectedPeriod])
+
+  const loadAnalyticsData = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+
+      const data = await crmApi.getDashboardMetrics(selectedPeriod)
+      setDashboardData(data)
+
+    } catch (err) {
+      console.error('Error loading analytics:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load analytics')
+      
+      // Fallback to mock data
+      loadMockData()
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const loadMockData = () => {
+    // Mock data fallback
+    const mockData: DashboardMetrics = {
+      overview_metrics: [
         {
-          id: 1,
-          title: 'Modern Downtown Condo',
-          price: 450000,
-          status: 'for-sale',
-          type: 'Condo',
-          dateAdded: '2024-01-15'
+          name: 'Total Properties',
+          value: 4,
+          type: 'count',
+          description: 'Total number of properties'
         },
         {
-          id: 2,
-          title: 'Luxury Villa',
-          price: 850000,
-          status: 'sold',
-          type: 'House',
-          dateAdded: '2024-01-10'
+          name: 'Total Leads',
+          value: 12,
+          type: 'count',
+          description: 'Total number of leads'
         },
         {
-          id: 3,
-          title: 'Suburban House',
-          price: 320000,
-          status: 'for-rent',
-          type: 'House',
-          dateAdded: '2024-01-20'
+          name: 'Conversion Rate',
+          value: 25.0,
+          type: 'percentage',
+          unit: '%',
+          description: 'Lead conversion rate'
         },
         {
-          id: 4,
-          title: 'City Apartment',
-          price: 280000,
-          status: 'for-sale',
-          type: 'Apartment',
-          dateAdded: '2024-01-25'
+          name: 'Average Deal Value',
+          value: 475000,
+          type: 'sum',
+          unit: '$',
+          description: 'Average value of converted deals'
         }
-      ]
-      setMockProperties(mockData)
+      ],
+      property_analytics: {
+        total_properties: 4,
+        published_properties: 3,
+        draft_properties: 1,
+        archived_properties: 0,
+        average_price: 475000,
+        total_value: 1900000,
+        price_range_distribution: {},
+        property_type_distribution: {},
+        location_distribution: {},
+        status_distribution: {},
+        average_days_on_market: 30,
+        conversion_rate: 25,
+        top_performing_properties: [],
+        recent_activity: []
+      },
+      lead_analytics: {
+        total_leads: 12,
+        new_leads: 3,
+        contacted_leads: 4,
+        qualified_leads: 3,
+        converted_leads: 2,
+        lost_leads: 0,
+        conversion_rate: 16.67,
+        average_lead_score: 75,
+        lead_source_distribution: {},
+        urgency_distribution: {},
+        budget_distribution: {},
+        average_deal_value: 475000,
+        total_pipeline_value: 1900000,
+        lead_response_time: 2.5,
+        follow_up_completion_rate: 85,
+        top_performing_sources: [],
+        recent_activities: []
+      },
+      generated_at: new Date().toISOString(),
+      period: selectedPeriod,
+      date_range: {
+        start: new Date().toISOString().split('T')[0],
+        end: new Date().toISOString().split('T')[0]
+      }
     }
-  }, [memoizedProperties.length])
+    
+    setDashboardData(mockData)
+  }
 
-  // Calculate analytics from properties data
-  const totalProperties = activeProperties.length
-  const forSaleProperties = activeProperties.filter(p => p.status === 'for-sale').length
-  const forRentProperties = activeProperties.filter(p => p.status === 'for-rent').length
-  const soldProperties = activeProperties.filter(p => p.status === 'sold').length
-  
-  const averagePrice = activeProperties.length > 0 
-    ? Math.round(activeProperties.reduce((sum, p) => sum + p.price, 0) / activeProperties.length)
-    : 0
-  
-  const totalValue = activeProperties.reduce((sum, p) => sum + p.price, 0)
-  
-  const propertyTypes = activeProperties.reduce((acc, p) => {
-    acc[p.type] = (acc[p.type] || 0) + 1
-    return acc
-  }, {} as Record<string, number>)
-
-  const stats: StatCard[] = [
-    {
-      title: 'Total Properties',
-      value: totalProperties,
-      change: '+12%',
-      changeType: 'increase',
-      icon: HomeIcon,
-      color: 'bg-blue-500'
+  // Use dashboard data or fallback to properties
+  const analyticsData = dashboardData || {
+    overview_metrics: [],
+    property_analytics: {
+      total_properties: memoizedProperties.length,
+      published_properties: memoizedProperties.filter(p => p.status === 'for-sale').length,
+      draft_properties: memoizedProperties.filter(p => p.status === 'draft').length,
+      archived_properties: memoizedProperties.filter(p => p.status === 'archived').length,
+      average_price: memoizedProperties.length > 0 ? Math.round(memoizedProperties.reduce((sum, p) => sum + (p.price || 0), 0) / memoizedProperties.length) : 0,
+      total_value: memoizedProperties.reduce((sum, p) => sum + (p.price || 0), 0),
+      price_range_distribution: {},
+      property_type_distribution: {},
+      location_distribution: {},
+      status_distribution: {},
+      average_days_on_market: 30,
+      conversion_rate: 0,
+      top_performing_properties: [],
+      recent_activity: []
     },
-    {
-      title: 'Total Portfolio Value',
-      value: `$${totalValue.toLocaleString()}`,
-      change: '+8.2%',
-      changeType: 'increase',
-      icon: CurrencyDollarIcon,
-      color: 'bg-green-500'
-    },
-    {
-      title: 'Average Property Value',
-      value: `$${averagePrice.toLocaleString()}`,
-      change: '+5.1%',
-      changeType: 'increase',
-      icon: ArrowTrendingUpIcon,
-      color: 'bg-purple-500'
-    },
-    {
-      title: 'Properties Sold',
-      value: soldProperties,
-      change: '+15%',
-      changeType: 'increase',
-      icon: ChartBarIcon,
-      color: 'bg-orange-500'
+    lead_analytics: {
+      total_leads: 0,
+      new_leads: 0,
+      contacted_leads: 0,
+      qualified_leads: 0,
+      converted_leads: 0,
+      lost_leads: 0,
+      conversion_rate: 0,
+      average_lead_score: 0,
+      lead_source_distribution: {},
+      urgency_distribution: {},
+      budget_distribution: {},
+      average_deal_value: 0,
+      total_pipeline_value: 0,
+      lead_response_time: 0,
+      follow_up_completion_rate: 0,
+      top_performing_sources: [],
+      recent_activities: []
     }
-  ]
+  }
+
+  const stats: StatCard[] = analyticsData.overview_metrics.map(metric => ({
+    title: metric.name,
+    value: metric.unit ? `${metric.value}${metric.unit}` : metric.value,
+    change: metric.change_percentage ? `${metric.change_percentage > 0 ? '+' : ''}${metric.change_percentage}%` : undefined,
+    changeType: metric.change_direction === 'up' ? 'increase' : metric.change_direction === 'down' ? 'decrease' : 'neutral',
+    icon: getIconForMetric(metric.name),
+    color: getColorForMetric(metric.name)
+  }))
 
   const statusBreakdown = [
-    { label: 'For Sale', value: forSaleProperties, color: 'bg-blue-500', percentage: totalProperties > 0 ? Math.round((forSaleProperties / totalProperties) * 100) : 0 },
-    { label: 'For Rent', value: forRentProperties, color: 'bg-green-500', percentage: totalProperties > 0 ? Math.round((forRentProperties / totalProperties) * 100) : 0 },
-    { label: 'Sold', value: soldProperties, color: 'bg-gray-500', percentage: totalProperties > 0 ? Math.round((soldProperties / totalProperties) * 100) : 0 }
+    { 
+      label: 'Published', 
+      value: analyticsData.property_analytics.published_properties, 
+      color: 'bg-blue-500', 
+      percentage: analyticsData.property_analytics.total_properties > 0 ? Math.round((analyticsData.property_analytics.published_properties / analyticsData.property_analytics.total_properties) * 100) : 0 
+    },
+    { 
+      label: 'Draft', 
+      value: analyticsData.property_analytics.draft_properties, 
+      color: 'bg-yellow-500', 
+      percentage: analyticsData.property_analytics.total_properties > 0 ? Math.round((analyticsData.property_analytics.draft_properties / analyticsData.property_analytics.total_properties) * 100) : 0 
+    },
+    { 
+      label: 'Archived', 
+      value: analyticsData.property_analytics.archived_properties, 
+      color: 'bg-gray-500', 
+      percentage: analyticsData.property_analytics.total_properties > 0 ? Math.round((analyticsData.property_analytics.archived_properties / analyticsData.property_analytics.total_properties) * 100) : 0 
+    }
   ]
+
+  function getIconForMetric(name: string) {
+    switch (name.toLowerCase()) {
+      case 'total properties': return HomeIcon
+      case 'total leads': return ChartBarIcon
+      case 'conversion rate': return ArrowTrendingUpIcon
+      case 'average deal value': return CurrencyDollarIcon
+      default: return ChartBarIcon
+    }
+  }
+
+  function getColorForMetric(name: string) {
+    switch (name.toLowerCase()) {
+      case 'total properties': return 'bg-blue-500'
+      case 'total leads': return 'bg-green-500'
+      case 'conversion rate': return 'bg-purple-500'
+      case 'average deal value': return 'bg-orange-500'
+      default: return 'bg-gray-500'
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading analytics...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <ExclamationTriangleIcon className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+          <button 
+            onClick={loadAnalyticsData}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 mx-auto"
+          >
+            <ArrowPathIcon className="w-4 h-4" />
+            <span>Retry</span>
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <motion.div
