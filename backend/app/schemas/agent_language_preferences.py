@@ -5,7 +5,7 @@ Schema for managing agent language preferences and Facebook page mappings
 """
 
 from pydantic import BaseModel, Field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from datetime import datetime
 
 
@@ -66,7 +66,7 @@ class PublishingStatus(BaseModel):
     published_channels: List[str] = Field(default_factory=list)
     language_status: Dict[str, str] = Field(default_factory=dict)  # language -> status
     facebook_posts: Dict[str, str] = Field(default_factory=dict)  # language -> post_id
-    analytics_data: Dict[str, any] = Field(default_factory=dict)
+    analytics_data: Dict[str, Any] = Field(default_factory=dict)
 
 
 class FacebookPageInfo(BaseModel):

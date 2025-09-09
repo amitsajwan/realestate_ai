@@ -31,11 +31,14 @@ class AgentPublicService:
         self.db = db
     
     async def _get_agent_properties_from_db(self, agent_id: str) -> List[PublicProperty]:
-        """Get properties for an agent from the database"""
+        """Get published properties for an agent from the database"""
         try:
-            # Query properties from the database where agent_id matches
+            # Query only published properties from the database where agent_id matches
             properties_collection = self.db.get_collection("properties")
-            properties_docs = await properties_collection.find({"agent_id": agent_id}).to_list(length=None)
+            properties_docs = await properties_collection.find({
+                "agent_id": agent_id,
+                "publishing_status": "published"  # Only get published properties
+            }).to_list(length=None)
             
             properties = []
             for doc in properties_docs:

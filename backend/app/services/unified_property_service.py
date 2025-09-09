@@ -115,12 +115,38 @@ class UnifiedPropertyService:
         self,
         user_id: str,
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100,
+        publishing_status: Optional[str] = None
     ) -> List[PropertyResponse]:
         """
         Get all properties for a user with pagination.
+        Optionally filter by publishing status.
         """
-        cursor = self.collection.find({"agent_id": user_id}).skip(skip).limit(limit)
+        query = {"agent_id": user_id}
+        if publishing_status:
+            query["publishing_status"] = publishing_status
+            
+        cursor = self.collection.find(query).skip(skip).limit(limit)
+        docs = await cursor.to_list(length=None)
+        
+        return [self._convert_doc_to_response(doc) for doc in docs]
+    
+    async def get_published_properties_by_agent(
+        self,
+        agent_id: str,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[PropertyResponse]:
+        """
+        Get published properties for an agent (for public website display).
+        Only returns properties with publishing_status = 'published'.
+        """
+        query = {
+            "agent_id": agent_id,
+            "publishing_status": "published"
+        }
+        
+        cursor = self.collection.find(query).skip(skip).limit(limit)
         docs = await cursor.to_list(length=None)
         
         return [self._convert_doc_to_response(doc) for doc in docs]
