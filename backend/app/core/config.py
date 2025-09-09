@@ -24,7 +24,7 @@ class Settings:
     
     # MongoDB Configuration
     # Use Docker service name 'mongodb' in containers, localhost for local development
-    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://mongodb:27017")
+    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
     DATABASE_NAME: str = os.getenv("DATABASE_NAME", "realestate_crm")
     # Database behavior
     FAIL_ON_DB_ERROR: bool = os.getenv("FAIL_ON_DB_ERROR", "false").lower() == "true"

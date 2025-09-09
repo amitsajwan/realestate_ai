@@ -142,27 +142,31 @@ class AgentPublicService:
     async def get_agent_property(self, agent_id: str, property_id: str) -> Optional[PublicProperty]:
         """Get specific agent property"""
         try:
-            # Mock data
-            return PublicProperty(
-                id=property_id,
-                agent_id=agent_id,
-                title="Beautiful 3BR Apartment",
-                description="Spacious apartment in prime location",
-                price=2500000,
-                property_type="Apartment",
-                bedrooms=3,
-                bathrooms=2,
-                area=1200,
-                location="Mumbai, Maharashtra",
-                images=["https://example.com/image1.jpg"],
-                features=["Parking", "Gym", "Pool"],
-                is_active=True,
-                is_public=True,
-                created_at=datetime.now(),
-                updated_at=datetime.now(),
-                view_count=0,
-                inquiry_count=0
-            )
+            # Mock data - only return property for valid IDs
+            if property_id == "1":
+                return PublicProperty(
+                    id=property_id,
+                    agent_id=agent_id,
+                    title="Beautiful 3BR Apartment",
+                    description="Spacious apartment in prime location",
+                    price=2500000,
+                    property_type="Apartment",
+                    bedrooms=3,
+                    bathrooms=2,
+                    area=1200,
+                    location="Mumbai, Maharashtra",
+                    images=["https://example.com/image1.jpg"],
+                    features=["Parking", "Gym", "Pool"],
+                    is_active=True,
+                    is_public=True,
+                    created_at=datetime.now(),
+                    updated_at=datetime.now(),
+                    view_count=0,
+                    inquiry_count=0
+                )
+            else:
+                # Return None for invalid property IDs
+                return None
         except Exception as e:
             logger.error(f"Error getting agent property: {e}")
             return None
