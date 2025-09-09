@@ -20,6 +20,7 @@ from app.api.v1.endpoints.uploads import router as uploads_router
 from app.api.v1.endpoints.agent_public_router import router as agent_public_router
 from app.api.v1.endpoints.agent_dashboard_router import router as agent_dashboard_router
 from app.api.v1.endpoints.india_market import router as india_market_router
+from app.api.v1.endpoints.property_publishing import router as property_publishing_router
 
 # Create main API router
 api_router = APIRouter()
@@ -40,6 +41,7 @@ api_router.include_router(uploads_router, prefix="/uploads", tags=["uploads"])
 api_router.include_router(agent_public_router, tags=["agent-public"])
 api_router.include_router(agent_dashboard_router, tags=["agent-dashboard"])
 api_router.include_router(india_market_router, tags=["india-market"])
+api_router.include_router(property_publishing_router, tags=["property-publishing"])
 
 # Health check for API v1
 @api_router.get("/health")
