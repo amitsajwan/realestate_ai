@@ -20,10 +20,10 @@ export default function SmartFormDemo() {
   const [showForm, setShowForm] = useState(false)
   const [formResults, setFormResults] = useState<any[]>([])
 
-  const handleFormSuccess = (data: any) => {
+  const handleFormSuccess = () => {
     const result = {
       id: Date.now(),
-      data,
+      data: 'Property created successfully',
       timestamp: new Date().toISOString()
     }
     setFormResults(prev => [result, ...prev])

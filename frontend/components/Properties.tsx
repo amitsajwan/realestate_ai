@@ -125,7 +125,7 @@ export default function Properties({
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareData.url)
       }
-      toast.success(navigator.share ? 'Property shared successfully!' : 'Property link copied to clipboard!')
+      toast.success('Property shared successfully!')
     } catch (error) {
       console.error('Error sharing property:', error)
       toast.error('Failed to share property')

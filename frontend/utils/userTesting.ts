@@ -110,6 +110,8 @@ class UserTestingManager {
       completed: false,
       abandoned: false,
       analytics: {
+        formId: variant,
+        events: [],
         formLoadTime: 0,
         timeToFirstInteraction: 0,
         timeToComplete: 0,
@@ -117,7 +119,9 @@ class UserTestingManager {
         fieldsModified: [],
         aiSuggestionsUsed: [],
         errorsEncountered: [],
-        completionRate: 0
+        completionRate: 0,
+        averageTime: 0,
+        errorRate: 0
       },
       deviceInfo,
       browserInfo
@@ -149,16 +153,18 @@ class UserTestingManager {
   completeSession(analytics: FormAnalytics): void {
     if (!this.currentSession) return
 
-    this.currentSession.endTime = new Date()
-    this.currentSession.completed = true
-    this.currentSession.analytics = analytics
+    if (this.currentSession) {
+      this.currentSession.endTime = new Date()
+      this.currentSession.completed = true
+      this.currentSession.analytics = analytics
+    }
 
     this.trackEvent({
       type: 'form_complete',
       timestamp: new Date(),
       data: { analytics },
-      sessionId: this.currentSession.sessionId,
-      variant: this.currentSession.variant
+      sessionId: this.currentSession?.sessionId || '',
+      variant: this.currentSession?.variant || 'smart'
     })
 
     // Send to analytics service
@@ -427,29 +433,33 @@ class UserTestingManager {
 
     switch (event.type) {
       case 'field_interaction':
-        if (!this.currentSession.analytics.fieldsModified.includes(event.data.field)) {
+        if (this.currentSession?.analytics?.fieldsModified && !this.currentSession.analytics.fieldsModified.includes(event.data.field)) {
           this.currentSession.analytics.fieldsModified.push(event.data.field)
         }
-        if (this.currentSession.analytics.timeToFirstInteraction === 0) {
+        if (this.currentSession?.analytics && this.currentSession.analytics.timeToFirstInteraction === 0) {
           this.currentSession.analytics.timeToFirstInteraction = Date.now() - this.currentSession.startTime.getTime()
         }
         break
 
       case 'step_change':
-        this.currentSession.analytics.stepsCompleted = Math.max(
-          this.currentSession.analytics.stepsCompleted,
-          event.data.step
-        )
+        if (this.currentSession?.analytics) {
+          this.currentSession.analytics.stepsCompleted = Math.max(
+            this.currentSession.analytics.stepsCompleted || 0,
+            event.data.step
+          )
+        }
         break
 
       case 'ai_usage':
-        if (!this.currentSession.analytics.aiSuggestionsUsed.includes(event.data.type)) {
+        if (this.currentSession?.analytics?.aiSuggestionsUsed && !this.currentSession.analytics.aiSuggestionsUsed.includes(event.data.type)) {
           this.currentSession.analytics.aiSuggestionsUsed.push(event.data.type)
         }
         break
 
       case 'error':
-        this.currentSession.analytics.errorsEncountered.push(event.data.error)
+        if (this.currentSession?.analytics?.errorsEncountered) {
+          this.currentSession.analytics.errorsEncountered.push(event.data.error)
+        }
         break
     }
   }

@@ -688,6 +688,45 @@ export class APIService {
     return this.delete(`/api/v1/properties/${propertyId}`, true);
   }
 
+  // Publishing API
+  async publishProperty(propertyId: string, publishingRequest: any): Promise<any> {
+    return this.makeRequest(`/api/v1/publishing/properties/${propertyId}/publish`, {
+      method: 'POST',
+      body: JSON.stringify(publishingRequest)
+    }, true);
+  }
+
+  async unpublishProperty(propertyId: string): Promise<any> {
+    return this.makeRequest(`/api/v1/publishing/properties/${propertyId}/unpublish`, {
+      method: 'POST'
+    }, true);
+  }
+
+  async getPublishingStatus(propertyId: string): Promise<any> {
+    return this.makeRequest(`/api/v1/publishing/properties/${propertyId}/status`, {
+      method: 'GET'
+    }, true);
+  }
+
+  async setLanguagePreferences(agentId: string, preferences: any): Promise<any> {
+    return this.makeRequest(`/api/v1/publishing/agents/${agentId}/language-preferences`, {
+      method: 'PUT',
+      body: JSON.stringify(preferences)
+    }, true);
+  }
+
+  async getSupportedLanguages(): Promise<any> {
+    return this.makeRequest('/api/v1/publishing/languages/supported', {
+      method: 'GET'
+    }, true);
+  }
+
+  async getSupportedChannels(): Promise<any> {
+    return this.makeRequest('/api/v1/publishing/channels/supported', {
+      method: 'GET'
+    }, true);
+  }
+
   async getAIPropertySuggestions(data: any): Promise<any> {
     return this.makeRequest('/api/v1/property/ai_suggest', {
       method: 'POST',

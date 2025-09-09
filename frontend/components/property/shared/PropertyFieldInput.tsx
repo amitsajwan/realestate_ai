@@ -100,7 +100,7 @@ const PropertyFieldInput = forwardRef<HTMLInputElement | HTMLTextAreaElement | H
               className={baseClasses}
               data-testid={testId}
               aria-describedby={helpText ? `${fieldId}-help` : undefined}
-              aria-invalid={hasError}
+              aria-invalid={!!hasError}
               {...props}
             />
           )
@@ -118,7 +118,7 @@ const PropertyFieldInput = forwardRef<HTMLInputElement | HTMLTextAreaElement | H
               className={baseClasses}
               data-testid={testId}
               aria-describedby={helpText ? `${fieldId}-help` : undefined}
-              aria-invalid={hasError}
+              aria-invalid={!!hasError}
               {...props}
             >
               <option value="">{placeholder || 'Select an option'}</option>
@@ -150,7 +150,7 @@ const PropertyFieldInput = forwardRef<HTMLInputElement | HTMLTextAreaElement | H
               className={baseClasses}
               data-testid={testId}
               aria-describedby={helpText ? `${fieldId}-help` : undefined}
-              aria-invalid={hasError}
+              aria-invalid={!!hasError}
               {...props}
             />
           )

@@ -13,8 +13,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   XMarkIcon,
   StarIcon,
-  ThumbUpIcon,
-  ThumbDownIcon,
+  HandThumbUpIcon,
+  HandThumbDownIcon,
   ChatBubbleLeftRightIcon,
   LightBulbIcon
 } from '@heroicons/react/24/outline'
@@ -291,7 +291,7 @@ export default function UserFeedbackModal({
                           : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
                       }`}
                     >
-                      <ThumbUpIcon className="h-5 w-5" />
+                      <HandThumbUpIcon className="h-5 w-5" />
                       <span>Yes</span>
                     </button>
                     <button
@@ -303,7 +303,7 @@ export default function UserFeedbackModal({
                           : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
                       }`}
                     >
-                      <ThumbDownIcon className="h-5 w-5" />
+                      <HandThumbDownIcon className="h-5 w-5" />
                       <span>No</span>
                     </button>
                   </div>
