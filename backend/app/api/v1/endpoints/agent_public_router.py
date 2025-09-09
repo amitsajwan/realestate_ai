@@ -120,8 +120,10 @@ async def get_agent_public_profile(
     Get agent's public profile by slug
     """
     try:
+        print(f"DEBUG: Agent public router called with slug: {agent_slug}")
         service = AgentPublicService(db)
         agent = await service.get_agent_by_slug(agent_slug)
+        print(f"DEBUG: Agent service returned: {agent is not None}")
         
         if not agent:
             raise HTTPException(status_code=404, detail="Agent not found")

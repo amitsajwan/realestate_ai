@@ -29,6 +29,9 @@ class AgentPublicService:
     
     def __init__(self, db):
         self.db = db
+        # Clear global cache for debugging
+        global _global_agent_profiles
+        _global_agent_profiles.clear()
     
     async def _get_agent_properties_from_db(self, agent_id: str) -> List[PublicProperty]:
         """Get published properties for an agent from the database"""
@@ -93,6 +96,7 @@ class AgentPublicService:
             agent_doc = await agents_collection.find_one({"slug": slug})
             print(f"DEBUG: Database lookup result: {agent_doc is not None}")
             if agent_doc:
+                print(f"DEBUG: Found agent in database: {agent_doc.get('agent_name')}")
                 # Create profile from database
                 profile = AgentPublicProfile(
                     id=str(agent_doc.get("_id", "")),
@@ -116,21 +120,24 @@ class AgentPublicService:
                 )
                 
                 # Fetch properties for this agent
+                print(f"DEBUG: Fetching properties for agent_id: {profile.agent_id}")
                 properties = await self._get_agent_properties_from_db(profile.agent_id)
+                print(f"DEBUG: Found {len(properties)} properties")
                 # Add properties to the profile
                 profile_dict = profile.model_dump()
                 profile_dict['properties'] = [prop.model_dump() for prop in properties]
+                print(f"DEBUG: Returning profile with {len(profile_dict['properties'])} properties")
                 return AgentPublicProfile(**profile_dict)
             
-            # Fallback to global cache if not in database
-            if slug in _global_agent_profiles:
-                profile = _global_agent_profiles[slug]
-                # Fetch properties for this agent
-                properties = await self._get_agent_properties_from_db(profile.agent_id)
-                # Add properties to the profile
-                profile_dict = profile.model_dump()
-                profile_dict['properties'] = [prop.model_dump() for prop in properties]
-                return AgentPublicProfile(**profile_dict)
+            # Fallback to global cache if not in database (disabled for debugging)
+            # if slug in _global_agent_profiles:
+            #     profile = _global_agent_profiles[slug]
+            #     # Fetch properties for this agent
+            #     properties = await self._get_agent_properties_from_db(profile.agent_id)
+            #     # Add properties to the profile
+            #     profile_dict = profile.model_dump()
+            #     profile_dict['properties'] = [prop.model_dump() for prop in properties]
+            #     return AgentPublicProfile(**profile_dict)
             
             # Fall back to mock data for john-doe
             if slug == "john-doe":
@@ -164,9 +171,9 @@ class AgentPublicService:
     async def get_agent_by_id(self, agent_id: str) -> Optional[AgentPublicProfile]:
         """Get agent public profile by ID"""
         try:
-            # First check if we have a real agent profile stored
-            if agent_id in _global_agent_profiles:
-                return _global_agent_profiles[agent_id]
+            # Always check database first (disable global cache for debugging)
+            # if agent_id in _global_agent_profiles:
+            #     return _global_agent_profiles[agent_id]
             
             # Fall back to mock data
             if agent_id == "mock-agent-id":
@@ -204,9 +211,9 @@ class AgentPublicService:
                 contact_count=0
             )
             
-            # Store the profile in global memory
-            _global_agent_profiles[slug] = profile
-            _global_agent_profiles[agent_id] = profile  # Also store by ID for lookup
+            # Store the profile in global memory (but prioritize database lookup)
+            # _global_agent_profiles[slug] = profile
+            # _global_agent_profiles[agent_id] = profile  # Also store by ID for lookup
             
             # Store the profile in database
             agents_collection = self.db.get_collection("agent_public_profiles")

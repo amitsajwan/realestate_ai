@@ -15,7 +15,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/agent-public", tags=["agent-dashboard"])
+router = APIRouter(prefix="/agent-dashboard", tags=["agent-dashboard"])
 
 @router.get("/profile")
 async def get_agent_public_profile_for_dashboard(
