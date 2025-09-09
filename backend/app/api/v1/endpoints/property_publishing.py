@@ -23,7 +23,7 @@ from app.core.database import get_database
 from app.services.property_publishing_service import PropertyPublishingService
 from app.services.agent_language_service import AgentLanguageService
 
-router = APIRouter(prefix="/api/v1/publishing", tags=["property-publishing"])
+router = APIRouter(prefix="/publishing", tags=["property-publishing"])
 logger = logging.getLogger(__name__)
 
 

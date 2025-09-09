@@ -24,6 +24,18 @@ class PropertyPublishingService:
         self.properties_collection = db.get_collection("properties")
         self.publishing_history_collection = db.get_collection("publishing_history")
     
+    def _get_property_query(self, property_id: str):
+        """Get the correct query for property ID (handle both ObjectId and string)"""
+        from bson import ObjectId
+        try:
+            # Try to convert to ObjectId if it's a valid ObjectId string
+            if len(property_id) == 24:
+                return {"_id": ObjectId(property_id)}
+            else:
+                return {"_id": property_id}
+        except:
+            return {"_id": property_id}
+    
     async def publish_property(
         self, 
         property_id: str, 
@@ -33,13 +45,16 @@ class PropertyPublishingService:
         """Publish a property to selected channels and languages"""
         try:
             # Get property
-            property_doc = await self.properties_collection.find_one({"_id": property_id, "agent_id": agent_id})
+            property_query = self._get_property_query(property_id)
+            property_query["agent_id"] = agent_id
+            property_doc = await self.properties_collection.find_one(property_query)
             if not property_doc:
                 raise ValueError(f"Property {property_id} not found or access denied")
             
             # Update property status
+            update_query = self._get_property_query(property_id)
             await self.properties_collection.update_one(
-                {"_id": property_id},
+                update_query,
                 {
                     "$set": {
                         "publishing_status": "published",
@@ -112,7 +127,9 @@ class PropertyPublishingService:
         """Get publishing status for a property"""
         try:
             # Get property
-            property_doc = await self.properties_collection.find_one({"_id": property_id, "agent_id": agent_id})
+            property_query = self._get_property_query(property_id)
+            property_query["agent_id"] = agent_id
+            property_doc = await self.properties_collection.find_one(property_query)
             if not property_doc:
                 raise ValueError(f"Property {property_id} not found or access denied")
             
@@ -153,8 +170,10 @@ class PropertyPublishingService:
         """Unpublish a property (set status back to draft)"""
         try:
             # Update property status
+            update_query = self._get_property_query(property_id)
+            update_query["agent_id"] = agent_id
             await self.properties_collection.update_one(
-                {"_id": property_id, "agent_id": agent_id},
+                update_query,
                 {
                     "$set": {
                         "publishing_status": "draft",
