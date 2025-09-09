@@ -224,8 +224,15 @@ test.describe('Real Estate Platform - Simple Demo Tests', () => {
     // Test form validation
     console.log('✅ Testing form validation...');
     await page.click('button:has-text("Clear Form")');
+    
+    // Wait for form to be cleared
+    await page.waitForTimeout(500);
+    
+    // Try to submit empty form
     await page.click('button[type="submit"]');
     
+    // Wait for validation error to appear
+    await page.waitForSelector('#result .error', { timeout: 5000 });
     await expect(page.locator('#result .error')).toContainText('Please fill in all required fields');
     await page.screenshot({ path: 'simple-demo-05-validation-error.png', fullPage: true });
     console.log('✅ Form validation working');
@@ -317,34 +324,35 @@ test.describe('Real Estate Platform - Simple Demo Tests', () => {
   test('Demo: API Mock Testing', async ({ page }) => {
     console.log('🔌 Testing API Mock Functionality...');
     
-    // Mock API responses
-    await page.route('**/api/properties', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([
-          {
-            id: 'demo-1',
-            title: 'Mock Property 1',
-            price: 500000,
-            address: '123 Mock Street',
-            bedrooms: 3,
-            bathrooms: 2
-          },
-          {
-            id: 'demo-2',
-            title: 'Mock Property 2',
-            price: 350000,
-            address: '456 Mock Avenue',
-            bedrooms: 2,
-            bathrooms: 1
-          }
-        ])
-      });
-    });
-
-    await page.route('**/api/properties', async (route) => {
-      if (route.request().method() === 'POST') {
+    // Mock API responses with proper route matching
+    await page.route('**/api/properties**', async (route) => {
+      const url = route.request().url();
+      const method = route.request().method();
+      
+      if (method === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([
+            {
+              id: 'demo-1',
+              title: 'Mock Property 1',
+              price: 500000,
+              address: '123 Mock Street',
+              bedrooms: 3,
+              bathrooms: 2
+            },
+            {
+              id: 'demo-2',
+              title: 'Mock Property 2',
+              price: 350000,
+              address: '456 Mock Avenue',
+              bedrooms: 2,
+              bathrooms: 1
+            }
+          ])
+        });
+      } else if (method === 'POST') {
         await route.fulfill({
           status: 201,
           contentType: 'application/json',
@@ -353,6 +361,8 @@ test.describe('Real Estate Platform - Simple Demo Tests', () => {
             message: 'Property created successfully'
           })
         });
+      } else {
+        await route.continue();
       }
     });
 
@@ -423,7 +433,13 @@ test.describe('Real Estate Platform - Simple Demo Tests', () => {
 
     // Test loading properties
     await page.click('button:has-text("Load Properties")');
-    await page.waitForSelector('#properties .property', { timeout: 5000 });
+    
+    // Wait for the API call to complete and properties to be displayed
+    await page.waitForFunction(() => {
+      const properties = document.querySelectorAll('#properties .property');
+      return properties.length > 0;
+    }, { timeout: 10000 });
+    
     await page.screenshot({ path: 'api-mock-02-properties-loaded.png', fullPage: true });
     
     // Verify properties are displayed
