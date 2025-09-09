@@ -34,6 +34,7 @@ class AgentPublicService:
             if slug == "john-doe":
                 return AgentPublicProfile(
                     id="mock-agent-id",
+                    agent_id="mock-agent-id",
                     agent_name="John Doe",
                     slug="john-doe",
                     bio="Experienced real estate professional with 10+ years in the industry. Specializing in residential and commercial properties, helping clients find their perfect home or investment opportunity.",
@@ -45,7 +46,11 @@ class AgentPublicService:
                     experience="10+ years in real estate, Certified Realtor",
                     languages=["English", "Spanish"],
                     is_active=True,
-                    is_public=True  # Set to True so the public page works
+                    is_public=True,  # Set to True so the public page works
+                    created_at=datetime.now(),
+                    updated_at=datetime.now(),
+                    view_count=0,
+                    contact_count=0
                 )
             else:
                 # Return None for other slugs (agent not found)
@@ -57,7 +62,9 @@ class AgentPublicService:
     async def get_agent_by_id(self, agent_id: str) -> Optional[AgentPublicProfile]:
         """Get agent public profile by ID"""
         try:
-            return await self.get_agent_by_slug("john-doe")
+            if agent_id == "mock-agent-id":
+                return await self.get_agent_by_slug("john-doe")
+            return None
         except Exception as e:
             logger.error(f"Error getting agent by ID {agent_id}: {e}")
             return None
@@ -101,6 +108,7 @@ class AgentPublicService:
             properties = [
                 PublicProperty(
                     id="1",
+                    agent_id=agent_id,
                     title="Beautiful 3BR Apartment",
                     description="Spacious apartment in prime location",
                     price=2500000,
@@ -111,8 +119,12 @@ class AgentPublicService:
                     location="Mumbai, Maharashtra",
                     images=["https://example.com/image1.jpg"],
                     features=["Parking", "Gym", "Pool"],
-                    status="Available",
-                    agent_id=agent_id
+                    is_active=True,
+                    is_public=True,
+                    created_at=datetime.now(),
+                    updated_at=datetime.now(),
+                    view_count=0,
+                    inquiry_count=0
                 )
             ]
             
@@ -133,6 +145,7 @@ class AgentPublicService:
             # Mock data
             return PublicProperty(
                 id=property_id,
+                agent_id=agent_id,
                 title="Beautiful 3BR Apartment",
                 description="Spacious apartment in prime location",
                 price=2500000,
@@ -143,8 +156,12 @@ class AgentPublicService:
                 location="Mumbai, Maharashtra",
                 images=["https://example.com/image1.jpg"],
                 features=["Parking", "Gym", "Pool"],
-                status="Available",
-                agent_id=agent_id
+                is_active=True,
+                is_public=True,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                view_count=0,
+                inquiry_count=0
             )
         except Exception as e:
             logger.error(f"Error getting agent property: {e}")
@@ -163,8 +180,69 @@ class AgentPublicService:
                 message=inquiry_data.message,
                 inquiry_type=inquiry_data.inquiry_type,
                 property_id=inquiry_data.property_id,
-                created_at=datetime.now()
+                created_at=datetime.now(),
+                is_read=False,
+                is_responded=False
             )
         except Exception as e:
             logger.error(f"Error creating contact inquiry: {e}")
             return None
+    
+    async def increment_view_count(self, agent_id: str) -> bool:
+        """Increment agent view count"""
+        try:
+            # Mock implementation - in real app, update database
+            logger.info(f"Incremented view count for agent {agent_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error incrementing view count: {e}")
+            return False
+    
+    async def increment_contact_count(self, agent_id: str) -> bool:
+        """Increment agent contact count"""
+        try:
+            # Mock implementation - in real app, update database
+            logger.info(f"Incremented contact count for agent {agent_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error incrementing contact count: {e}")
+            return False
+    
+    async def increment_property_view_count(self, property_id: str) -> bool:
+        """Increment property view count"""
+        try:
+            # Mock implementation - in real app, update database
+            logger.info(f"Incremented view count for property {property_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error incrementing property view count: {e}")
+            return False
+    
+    async def track_contact_action(self, agent_id: str, action_data: dict) -> bool:
+        """Track contact-related actions"""
+        try:
+            # Mock implementation - in real app, log to database
+            logger.info(f"Tracked contact action for agent {agent_id}: {action_data}")
+            return True
+        except Exception as e:
+            logger.error(f"Error tracking contact action: {e}")
+            return False
+    
+    async def get_agent_stats(self, agent_id: str) -> dict:
+        """Get agent statistics"""
+        try:
+            # Mock implementation
+            return {
+                "total_views": 0,
+                "total_contacts": 0,
+                "properties_count": 1,
+                "recent_inquiries": 0
+            }
+        except Exception as e:
+            logger.error(f"Error getting agent stats: {e}")
+            return {
+                "total_views": 0,
+                "total_contacts": 0,
+                "properties_count": 0,
+                "recent_inquiries": 0
+            }
