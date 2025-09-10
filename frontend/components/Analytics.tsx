@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
+import '@/styles/components/analytics.css'
 import {
   ChartBarIcon,
   CurrencyDollarIcon,
