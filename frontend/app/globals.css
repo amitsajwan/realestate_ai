@@ -3,10 +3,9 @@
 @tailwind utilities;
 
 /* Import Design System */
-@import './styles/design-system.css';
+@import '../styles/design-system.css';
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-@import '../styles/design-system.css';
 
 :root {
   --primary: #2563eb;

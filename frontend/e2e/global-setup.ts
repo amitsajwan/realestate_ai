@@ -13,7 +13,7 @@ async function globalSetup(config: FullConfig) {
     await page.goto('http://localhost:3000')
     
     // Wait for the main content to load
-    await page.waitForSelector('[data-testid="main-content"]', { timeout: 30000 })
+    await page.waitForSelector('main', { timeout: 30000 })
     
     // Check if the application is responsive
     const isReady = await page.evaluate(() => {
