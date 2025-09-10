@@ -20,6 +20,8 @@ const customJestConfig = {
     '!**/*.d.ts',
     '!**/node_modules/**',
     '!**/.next/**',
+    '!**/styles/**', // Exclude CSS files from coverage
+    '!**/*.css',
   ],
   coverageThreshold: {
     global: {
