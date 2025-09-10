@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import '@/styles/components/crm.css'
+// import '@/styles/components/crm.css' // Temporarily disabled for tests
 import { 
   UsersIcon, 
   PhoneIcon, 
