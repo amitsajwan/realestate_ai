@@ -22,7 +22,7 @@ from app.services.lead_management_service import LeadManagementService
 from app.services.analytics_service import AnalyticsService
 from app.services.team_management_service import TeamManagementService
 from app.core.database import get_database
-from app.utils import verify_token
+from app.utils import verify_jwt_token
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -47,7 +47,7 @@ async def create_lead(
     """Create a new lead with automatic scoring"""
     try:
         # Verify token and get user info
-        user_info = await verify_token(request)
+        user_info = await verify_jwt_token(request)
         agent_id = user_info.get("user_id")
         team_id = user_info.get("team_id")
         
@@ -77,7 +77,7 @@ async def search_leads(
     """Search leads with filters"""
     try:
         # Verify token and get user info
-        user_info = await verify_token(request)
+        user_info = await verify_jwt_token(request)
         agent_id = user_info.get("user_id")
         
         if not agent_id:
@@ -109,7 +109,7 @@ async def get_lead(
     """Get lead by ID"""
     try:
         # Verify token
-        user_info = await verify_token(request)
+        user_info = await verify_jwt_token(request)
         if not user_info.get("user_id"):
             raise HTTPException(status_code=401, detail="Invalid token")
         
@@ -134,7 +134,7 @@ async def update_lead(
     """Update lead"""
     try:
         # Verify token and get user info
-        user_info = await verify_token(request)
+        user_info = await verify_jwt_token(request)
         agent_id = user_info.get("user_id")
         
         if not agent_id:
@@ -157,7 +157,7 @@ async def get_lead_stats(
     """Get lead statistics"""
     try:
         # Verify token and get user info
-        user_info = await verify_token(request)
+        user_info = await verify_jwt_token(request)
         agent_id = user_info.get("user_id")
         team_id = user_info.get("team_id")
         
@@ -185,7 +185,7 @@ async def get_dashboard_metrics(
     """Get comprehensive dashboard metrics"""
     try:
         # Verify token and get user info
-        user_info = await verify_token(request)
+        user_info = await verify_jwt_token(request)
         agent_id = user_info.get("user_id")
         team_id = user_info.get("team_id")
         
@@ -226,7 +226,7 @@ async def create_team(
     """Create a new team"""
     try:
         # Verify token and get user info
-        user_info = await verify_token(request)
+        user_info = await verify_jwt_token(request)
         user_id = user_info.get("user_id")
         
         if not user_id:
@@ -250,7 +250,7 @@ async def get_team(
     """Get team by ID"""
     try:
         # Verify token
-        user_info = await verify_token(request)
+        user_info = await verify_jwt_token(request)
         if not user_info.get("user_id"):
             raise HTTPException(status_code=401, detail="Invalid token")
         
@@ -275,7 +275,7 @@ async def update_team(
     """Update team"""
     try:
         # Verify token and get user info
-        user_info = await verify_token(request)
+        user_info = await verify_jwt_token(request)
         user_id = user_info.get("user_id")
         
         if not user_id:
@@ -300,7 +300,7 @@ async def invite_member(
     """Invite member to team"""
     try:
         # Verify token and get user info
-        user_info = await verify_token(request)
+        user_info = await verify_jwt_token(request)
         user_id = user_info.get("user_id")
         
         if not user_id:
@@ -324,7 +324,7 @@ async def accept_invitation(
     """Accept team invitation"""
     try:
         # Verify token and get user info
-        user_info = await verify_token(request)
+        user_info = await verify_jwt_token(request)
         user_id = user_info.get("user_id")
         
         if not user_id:
@@ -349,7 +349,7 @@ async def remove_member(
     """Remove member from team"""
     try:
         # Verify token and get user info
-        user_info = await verify_token(request)
+        user_info = await verify_jwt_token(request)
         user_id = user_info.get("user_id")
         
         if not user_id:
@@ -373,7 +373,7 @@ async def get_team_stats(
     """Get team statistics"""
     try:
         # Verify token
-        user_info = await verify_token(request)
+        user_info = await verify_jwt_token(request)
         if not user_info.get("user_id"):
             raise HTTPException(status_code=401, detail="Invalid token")
         
@@ -397,7 +397,7 @@ async def get_audit_logs(
     """Get team audit logs"""
     try:
         # Verify token
-        user_info = await verify_token(request)
+        user_info = await verify_jwt_token(request)
         if not user_info.get("user_id"):
             raise HTTPException(status_code=401, detail="Invalid token")
         

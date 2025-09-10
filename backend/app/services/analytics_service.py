@@ -577,3 +577,11 @@ class AnalyticsService:
         """Get team recent activity"""
         # This would need to be implemented based on your activity tracking
         return []
+
+# Create a global instance - this will be initialized when the database is available
+analytics_service: Optional[AnalyticsService] = None
+
+def initialize_analytics_service(db: AsyncIOMotorDatabase):
+    """Initialize the global analytics service instance"""
+    global analytics_service
+    analytics_service = AnalyticsService(db)

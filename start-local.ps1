@@ -1,22 +1,30 @@
 # =============================================================================
-# SIMPLE LOCAL DEVELOPMENT SCRIPT
+# SIMPLE LOCAL DEVELOPMENT SCRIPT - MULTI-TERMINAL VERSION
 # =============================================================================
-# This script starts the application locally without Docker or ngrok complexity
-# Perfect for development and testing
+# This script starts the application locally with separate terminal windows
+# Perfect for development and testing with better visibility
 
 param(
     [Parameter(Mandatory=$false)]
-    [ValidateSet("start", "stop", "restart", "status", "logs")]
+    [ValidateSet("start", "stop", "restart", "status", "logs", "backend", "frontend", "mongo")]
     [string]$Action = "start",
     
     [Parameter(Mandatory=$false)]
-    [switch]$SkipMongo = $false
+    [switch]$SkipMongo = $false,
+    
+    [Parameter(Mandatory=$false)]
+    [switch]$IntegratedTerminal = $false
 )
 
 # Configuration
 $BACKEND_PORT = 8000
 $FRONTEND_PORT = 3000
 $MONGO_PORT = 27017
+
+# Global variables for process tracking
+$Global:BackendProcess = $null
+$Global:FrontendProcess = $null
+$Global:MongoProcess = $null
 
 # Colors for output
 function Write-ColorOutput {
@@ -114,22 +122,31 @@ function Start-Backend {
             python -m venv .venv
         }
         
-        # Activate virtual environment
-        Write-Step "BACKEND" "Activating virtual environment..."
-        & .\.venv\Scripts\Activate.ps1
-        
         # Install dependencies
         Write-Step "BACKEND" "Installing Python dependencies..."
+        & .\.venv\Scripts\Activate.ps1
         pip install -r requirements.txt
         
-        # Start the backend
-        Write-Step "BACKEND" "Starting FastAPI server..."
-        $backendPath = (Get-Location).Path
-        $backendJob = Start-Job -ScriptBlock {
-            Set-Location $using:backendPath
-            & .\.venv\Scripts\Activate.ps1
-            uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-        }
+        # Create backend startup script
+        $backendScript = @"
+# PropertyAI Backend - FastAPI Server
+Write-Host "================================================================================" -ForegroundColor Cyan
+Write-Host "  PropertyAI Backend - FastAPI Server" -ForegroundColor Cyan
+Write-Host "================================================================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Starting FastAPI server on http://localhost:$BACKEND_PORT" -ForegroundColor Green
+Write-Host "Press Ctrl+C to stop the server" -ForegroundColor Yellow
+Write-Host ""
+Set-Location "$((Get-Location).Path)"
+& .\.venv\Scripts\Activate.ps1
+uvicorn app.main:app --host 127.0.0.1 --port $BACKEND_PORT --reload
+"@
+        
+        $backendScript | Out-File -FilePath "start_backend.ps1" -Encoding UTF8
+        
+        # Start backend in new terminal window
+        Write-Step "BACKEND" "Opening backend terminal window..."
+        $Global:BackendProcess = Start-Process -FilePath "powershell.exe" -ArgumentList "-ExecutionPolicy", "Bypass", "-File", "start_backend.ps1" -WindowStyle Normal
         
         # Wait for backend to start
         $timeout = 30
@@ -172,13 +189,25 @@ function Start-Frontend {
             npm install
         }
         
-        # Start the frontend
-        Write-Step "FRONTEND" "Starting Next.js development server..."
-        $frontendPath = (Get-Location).Path
-        $frontendJob = Start-Job -ScriptBlock {
-            Set-Location $using:frontendPath
-            npm run dev
-        }
+        # Create frontend startup script
+        $frontendScript = @"
+# PropertyAI Frontend - Next.js Server
+Write-Host "================================================================================" -ForegroundColor Cyan
+Write-Host "  PropertyAI Frontend - Next.js Server" -ForegroundColor Cyan
+Write-Host "================================================================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Starting Next.js development server on http://localhost:$FRONTEND_PORT" -ForegroundColor Green
+Write-Host "Press Ctrl+C to stop the server" -ForegroundColor Yellow
+Write-Host ""
+Set-Location "$((Get-Location).Path)"
+npm run dev
+"@
+        
+        $frontendScript | Out-File -FilePath "start_frontend.ps1" -Encoding UTF8
+        
+        # Start frontend in new terminal window
+        Write-Step "FRONTEND" "Opening frontend terminal window..."
+        $Global:FrontendProcess = Start-Process -FilePath "powershell.exe" -ArgumentList "-ExecutionPolicy", "Bypass", "-File", "start_frontend.ps1" -WindowStyle Normal
         
         # Wait for frontend to start
         $timeout = 30
@@ -204,19 +233,73 @@ function Start-Frontend {
     }
 }
 
+function Start-Backend-Only {
+    Write-Header "Starting Backend Only"
+    $backendStarted = Start-Backend
+    if ($backendStarted) {
+        Write-ColorOutput "Backend is running at http://localhost:$BACKEND_PORT" "Green"
+        Write-ColorOutput "API Documentation: http://localhost:$BACKEND_PORT/docs" "Cyan"
+    }
+}
+
+function Start-Frontend-Only {
+    Write-Header "Starting Frontend Only"
+    $frontendStarted = Start-Frontend
+    if ($frontendStarted) {
+        Write-ColorOutput "Frontend is running at http://localhost:$FRONTEND_PORT" "Green"
+    }
+}
+
 function Stop-Services {
     Write-Step "STOP" "Stopping all services..."
     
-    # Stop backend
+    # Stop backend processes more aggressively
+    Write-Step "STOP" "Stopping backend processes..."
     Get-Process -Name "uvicorn" -ErrorAction SilentlyContinue | Stop-Process -Force
     Get-Process -Name "python" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*uvicorn*" } | Stop-Process -Force
+    Get-Process -Name "python" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*app.main*" } | Stop-Process -Force
     
-    # Stop frontend
+    # Stop frontend processes more aggressively
+    Write-Step "STOP" "Stopping frontend processes..."
     Get-Process -Name "node" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*next*" } | Stop-Process -Force
+    Get-Process -Name "node" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*npm*" } | Stop-Process -Force
     
-    # Stop background jobs
-    Get-Job | Stop-Job
-    Get-Job | Remove-Job
+    # Stop PowerShell processes running our scripts
+    Write-Step "STOP" "Stopping PowerShell script processes..."
+    Get-Process -Name "powershell" -ErrorAction SilentlyContinue | Where-Object { 
+        $_.CommandLine -like "*start_backend.ps1*" -or 
+        $_.CommandLine -like "*start_frontend.ps1*" 
+    } | Stop-Process -Force
+    
+    # Stop terminal windows if they exist
+    if ($Global:BackendProcess -and !$Global:BackendProcess.HasExited) {
+        Write-Step "STOP" "Closing backend terminal window..."
+        $Global:BackendProcess.CloseMainWindow()
+        Start-Sleep -Seconds 2
+        if (!$Global:BackendProcess.HasExited) {
+            $Global:BackendProcess.Kill()
+        }
+    }
+    if ($Global:FrontendProcess -and !$Global:FrontendProcess.HasExited) {
+        Write-Step "STOP" "Closing frontend terminal window..."
+        $Global:FrontendProcess.CloseMainWindow()
+        Start-Sleep -Seconds 2
+        if (!$Global:FrontendProcess.HasExited) {
+            $Global:FrontendProcess.Kill()
+        }
+    }
+    
+    # Clean up PowerShell script files
+    Write-Step "STOP" "Cleaning up temporary files..."
+    if (Test-Path "backend/start_backend.ps1") {
+        Remove-Item "backend/start_backend.ps1" -Force
+    }
+    if (Test-Path "frontend/start_frontend.ps1") {
+        Remove-Item "frontend/start_frontend.ps1" -Force
+    }
+    
+    # Wait a moment for processes to fully stop
+    Start-Sleep -Seconds 2
     
     Write-Success "All services stopped"
 }
@@ -275,11 +358,11 @@ function Show-Logs {
 }
 
 # Main execution
-Write-Header "PropertyAI Local Development"
+Write-Header "PropertyAI Local Development - Multi-Terminal"
 
 switch ($Action) {
     "start" {
-        Write-Step "START" "Starting all services for local development..."
+        Write-Step "START" "Starting all services with separate terminal windows..."
         
         # Start MongoDB (unless skipped)
         if (!$SkipMongo) {
@@ -306,23 +389,29 @@ switch ($Action) {
         Write-Header "APPLICATION READY"
         Write-ColorOutput "🎉 All services started successfully!" "Green"
         Write-Host ""
+        Write-ColorOutput "Each service is running in its own terminal window:" "Cyan"
+        Write-Host "  Backend: FastAPI server with hot reload"
+        Write-Host "  Frontend: Next.js development server"
+        Write-Host ""
         Write-ColorOutput "Access your application:" "Cyan"
         Write-Host "  Frontend: http://localhost:$FRONTEND_PORT"
         Write-Host "  Backend API: http://localhost:$BACKEND_PORT"
         Write-Host "  API Documentation: http://localhost:$BACKEND_PORT/docs"
         Write-Host ""
-        Write-ColorOutput "Press Ctrl+C to stop all services" "Yellow"
-        
-        # Keep script running
-        try {
-            while ($true) {
-                Start-Sleep -Seconds 1
-            }
-        } catch {
-            Write-Host ""
-            Write-Step "STOP" "Shutting down services..."
-            Stop-Services
-        }
+        Write-ColorOutput "To stop services: .\start-local.ps1 -Action stop" "Yellow"
+        Write-ColorOutput "To check status: .\start-local.ps1 -Action status" "Yellow"
+    }
+    
+    "backend" {
+        Start-Backend-Only
+    }
+    
+    "frontend" {
+        Start-Frontend-Only
+    }
+    
+    "mongo" {
+        Start-MongoDB
     }
     
     "stop" {
@@ -348,19 +437,23 @@ switch ($Action) {
         Write-Host "Usage: .\start-local.ps1 -Action [action]"
         Write-Host ""
         Write-ColorOutput "Available Actions:" "Cyan"
-        Write-Host "  start    - Start all services (default)"
-        Write-Host "  stop     - Stop all services"
-        Write-Host "  restart  - Restart all services"
-        Write-Host "  status   - Show service status"
-        Write-Host "  logs     - Show recent logs"
+        Write-Host "  start      - Start all services in separate terminals (default)"
+        Write-Host "  backend    - Start only the backend service"
+        Write-Host "  frontend   - Start only the frontend service"
+        Write-Host "  mongo      - Start only MongoDB"
+        Write-Host "  stop       - Stop all services"
+        Write-Host "  restart    - Restart all services"
+        Write-Host "  status     - Show service status"
+        Write-Host "  logs       - Show recent logs"
         Write-Host ""
         Write-ColorOutput "Options:" "Cyan"
         Write-Host "  -SkipMongo - Skip MongoDB startup"
         Write-Host ""
         Write-ColorOutput "Examples:" "Cyan"
         Write-Host "  .\start-local.ps1                    # Start all services"
-        Write-Host "  .\start-local.ps1 -Action status     # Check status"
-        Write-Host "  .\start-local.ps1 -Action stop       # Stop services"
+        Write-Host "  .\start-local.ps1 -Action backend   # Start only backend"
+        Write-Host "  .\start-local.ps1 -Action status    # Check status"
+        Write-Host "  .\start-local.ps1 -Action stop      # Stop services"
     }
 }
 

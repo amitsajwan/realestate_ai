@@ -1,21 +1,18 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { 
-  GlobeAltIcon,
-  EyeIcon,
-  PencilIcon,
-  LinkIcon,
+import { apiService } from '@/lib/api'
+import {
+  BuildingOfficeIcon,
   ChartBarIcon,
-  EnvelopeIcon,
-  PhoneIcon,
-  MapPinIcon,
-  UserIcon,
   CheckCircleIcon,
+  EnvelopeIcon,
   ExclamationTriangleIcon,
-  BuildingOfficeIcon
+  EyeIcon,
+  GlobeAltIcon,
+  PencilIcon,
+  PhoneIcon
 } from '@heroicons/react/24/outline'
+import { useEffect, useState } from 'react'
 import { toast } from 'react-hot-toast'
 
 interface AgentPublicProfile {
@@ -67,21 +64,14 @@ export default function PublicWebsiteManagement() {
     loadStats()
   }, [])
 
-  // Debug effect to log profile changes
-  useEffect(() => {
-    console.log('Profile state changed:', profile)
-    console.log('isEditing state:', isEditing)
-  }, [profile, isEditing])
 
   const loadPublicProfile = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch('http://localhost:8000/api/v1/agent-public/profile')
-      if (response.ok) {
-        const data = await response.json()
-        console.log('Public profile data:', data) // Debug log
+      const response = await apiService.getAgentPublicProfile()
+      if (response.success) {
+        const data = response.data
         setProfile(data)
-        console.log('Profile state set, current profile:', data) // Debug log
         const formData = {
           agent_name: data.agent_name || '',
           bio: data.bio || '',
@@ -93,11 +83,9 @@ export default function PublicWebsiteManagement() {
           languages: data.languages || [],
           is_public: data.is_public || false
         }
-        console.log('Setting editForm with:', formData) // Debug log
         setEditForm(formData)
-        console.log('Form should now show data. Profile:', data.agent_name, 'isEditing:', false) // Debug log
       } else {
-        console.error('Failed to load public profile:', response.status, response.statusText)
+        console.error('Failed to load public profile:', response)
         toast.error('Failed to load public profile')
       }
     } catch (error) {
@@ -110,13 +98,13 @@ export default function PublicWebsiteManagement() {
 
   const loadStats = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/agent-public/stats')
-      if (response.ok) {
-        const data = await response.json()
+      const response = await apiService.getAgentPublicStats()
+      if (response.success) {
+        const data = response.data
         console.log('Public stats data:', data) // Debug log
         setStats(data)
       } else {
-        console.error('Failed to load stats:', response.status, response.statusText)
+        console.error('Failed to load stats:', response)
       }
     } catch (error) {
       console.error('Failed to load stats:', error)
@@ -125,13 +113,9 @@ export default function PublicWebsiteManagement() {
 
   const handleSaveProfile = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/agent-public/profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm)
-      })
+      const response = await apiService.updateAgentPublicProfile(editForm)
 
-      if (response.ok) {
+      if (response.success) {
         toast.success('Public profile updated successfully!')
         setIsEditing(false)
         loadPublicProfile()
@@ -232,6 +216,7 @@ export default function PublicWebsiteManagement() {
         </div>
       </div>
 
+
       {/* Status Banner */}
       <div className={`p-4 rounded-lg ${profile?.is_public ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
         <div className="flex items-center">
@@ -245,7 +230,7 @@ export default function PublicWebsiteManagement() {
               {profile?.is_public ? 'Public Website Active' : 'Public Website Inactive'}
             </h3>
             <p className={`text-sm ${profile?.is_public ? 'text-green-600' : 'text-yellow-600'}`}>
-              {profile?.is_public 
+              {profile?.is_public
                 ? 'Your public website is live and visible to visitors'
                 : 'Your public website is not visible to visitors. Enable it to start receiving leads.'
               }
@@ -330,13 +315,11 @@ export default function PublicWebsiteManagement() {
               </label>
               <input
                 type="text"
-                value={isEditing ? editForm.agent_name : (profile?.agent_name || editForm.agent_name || '')}
+                value={isEditing ? editForm.agent_name : (profile?.agent_name || '')}
                 onChange={(e) => setEditForm(prev => ({ ...prev, agent_name: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Your professional name"
                 readOnly={!isEditing}
-                data-debug-profile={profile?.agent_name}
-                data-debug-editing={isEditing}
               />
             </div>
             <div>
@@ -345,7 +328,7 @@ export default function PublicWebsiteManagement() {
               </label>
               <input
                 type="email"
-                value={isEditing ? editForm.email : (profile?.email || editForm.email || '')}
+                value={isEditing ? editForm.email : (profile?.email || '')}
                 onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="your.email@example.com"
@@ -361,7 +344,7 @@ export default function PublicWebsiteManagement() {
               </label>
               <input
                 type="tel"
-                value={isEditing ? editForm.phone : (profile?.phone || editForm.phone || '')}
+                value={isEditing ? editForm.phone : (profile?.phone || '')}
                 onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="+1 (555) 123-4567"
@@ -374,7 +357,7 @@ export default function PublicWebsiteManagement() {
               </label>
               <input
                 type="text"
-                value={isEditing ? editForm.office_address : (profile?.office_address || editForm.office_address || '')}
+                value={isEditing ? editForm.office_address : (profile?.office_address || '')}
                 onChange={(e) => setEditForm(prev => ({ ...prev, office_address: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="123 Main St, City, State"
@@ -390,7 +373,7 @@ export default function PublicWebsiteManagement() {
             </label>
             <textarea
               rows={4}
-              value={isEditing ? editForm.bio : (profile?.bio || editForm.bio || '')}
+              value={isEditing ? editForm.bio : (profile?.bio || '')}
               onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Tell visitors about your experience, specialties, and what makes you unique..."
@@ -405,7 +388,7 @@ export default function PublicWebsiteManagement() {
             </label>
             <input
               type="text"
-              value={isEditing ? editForm.experience : (profile?.experience || editForm.experience || '')}
+              value={isEditing ? editForm.experience : (profile?.experience || '')}
               onChange={(e) => setEditForm(prev => ({ ...prev, experience: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="e.g., 10+ years in real estate, Certified Realtor"

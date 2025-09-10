@@ -139,7 +139,7 @@ class AgentPublicService:
             #     profile_dict['properties'] = [prop.model_dump() for prop in properties]
             #     return AgentPublicProfile(**profile_dict)
             
-            # Fall back to mock data for john-doe
+            # Fall back to mock data for john-doe (for testing purposes only)
             if slug == "john-doe":
                 return AgentPublicProfile(
                     id="mock-agent-id",
@@ -171,40 +171,76 @@ class AgentPublicService:
     async def get_agent_by_id(self, agent_id: str) -> Optional[AgentPublicProfile]:
         """Get agent public profile by ID"""
         try:
-            # Always check database first (disable global cache for debugging)
-            # if agent_id in _global_agent_profiles:
-            #     return _global_agent_profiles[agent_id]
+            print(f"DEBUG: Looking up agent profile for ID: {agent_id}")
+            agents_collection = self.db.get_collection("agent_public_profiles")
+            agent_doc = await agents_collection.find_one({"_id": agent_id})
+            print(f"DEBUG: Database lookup result for ID: {agent_doc is not None}")
             
-            # Fall back to mock data
+            if agent_doc:
+                print(f"DEBUG: Found agent in database by ID: {agent_doc.get('agent_name')}")
+                # Create profile from database
+                profile = AgentPublicProfile(
+                    id=str(agent_doc.get("_id", "")),
+                    agent_id=agent_doc.get("agent_id", ""),
+                    agent_name=agent_doc.get("agent_name", ""),
+                    slug=agent_doc.get("slug", ""),
+                    bio=agent_doc.get("bio", ""),
+                    photo=agent_doc.get("photo", ""),
+                    phone=agent_doc.get("phone", ""),
+                    email=agent_doc.get("email", ""),
+                    office_address=agent_doc.get("office_address", ""),
+                    specialties=agent_doc.get("specialties", []),
+                    experience=agent_doc.get("experience", ""),
+                    languages=agent_doc.get("languages", []),
+                    is_active=agent_doc.get("is_active", True),
+                    is_public=agent_doc.get("is_public", True),
+                    created_at=agent_doc.get("created_at", datetime.now()),
+                    updated_at=agent_doc.get("updated_at", datetime.now()),
+                    view_count=agent_doc.get("view_count", 0),
+                    contact_count=agent_doc.get("contact_count", 0)
+                )
+                
+                # Fetch properties for this agent
+                print(f"DEBUG: Fetching properties for agent_id: {profile.agent_id}")
+                properties = await self._get_agent_properties_from_db(profile.agent_id)
+                print(f"DEBUG: Found {len(properties)} properties")
+                # Add properties to the profile
+                profile_dict = profile.model_dump()
+                profile_dict['properties'] = [prop.model_dump() for prop in properties]
+                print(f"DEBUG: Returning profile with {len(profile_dict['properties'])} properties")
+                return AgentPublicProfile(**profile_dict)
+            
+            # Fall back to mock data for testing
             if agent_id == "mock-agent-id":
                 return await self.get_agent_by_slug("john-doe")
+            
             return None
         except Exception as e:
             logger.error(f"Error getting agent by ID {agent_id}: {e}")
             return None
     
-    async def create_agent_profile(self, agent_id: str, profile_data: AgentPublicProfileCreate) -> Optional[AgentPublicProfile]:
+    async def create_agent_profile(self, agent_id: str, profile_data: dict) -> Optional[AgentPublicProfile]:
         """Create agent public profile"""
         try:
             # Generate slug from agent name
-            slug = profile_data.agent_name.lower().replace(" ", "-").replace(".", "-").replace("_", "-")
+            slug = profile_data["agent_name"].lower().replace(" ", "-").replace(".", "-").replace("_", "-")
             
             # Create the profile
             profile = AgentPublicProfile(
                 id=agent_id,
                 agent_id=agent_id,
-                agent_name=profile_data.agent_name,
+                agent_name=profile_data["agent_name"],
                 slug=slug,
-                bio=profile_data.bio,
-                photo=profile_data.photo or "",
-                phone=profile_data.phone,
-                email=profile_data.email,
-                office_address=profile_data.office_address,
-                specialties=profile_data.specialties,
-                experience=profile_data.experience,
-                languages=profile_data.languages,
+                bio=profile_data.get("bio", ""),
+                photo=profile_data.get("photo", ""),
+                phone=profile_data.get("phone", ""),
+                email=profile_data.get("email", ""),
+                office_address=profile_data.get("office_address", ""),
+                specialties=profile_data.get("specialties", []),
+                experience=profile_data.get("experience", ""),
+                languages=profile_data.get("languages", []),
                 is_active=True,
-                is_public=profile_data.is_public,
+                is_public=profile_data.get("is_public", True),
                 created_at=datetime.now(),
                 updated_at=datetime.now(),
                 view_count=0,

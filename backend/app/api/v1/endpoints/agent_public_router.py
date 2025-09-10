@@ -16,8 +16,7 @@ from app.schemas.agent_public import (
     ContactInquiry
 )
 from app.services.agent_public_service import AgentPublicService
-# from app.core.auth import get_current_user_optional  # TODO: Implement auth
-# from app.models.user import User  # TODO: Implement user model
+from app.api.v1.endpoints.auth import get_current_user
 import logging
 
 logger = logging.getLogger(__name__)
@@ -27,7 +26,7 @@ router = APIRouter(prefix="/agent-public", tags=["agent-public"])
 # Current agent management endpoints (must come before generic {agent_slug} routes)
 @router.get("/profile")
 async def get_current_agent_public_profile(
-    # current_user: User = Depends(get_current_user),  # TODO: Implement auth
+    current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_database)
 ):
     """
@@ -36,29 +35,53 @@ async def get_current_agent_public_profile(
     try:
         service = AgentPublicService(db)
         
-        # TODO: Get current user from auth
-        # For now, return mock data with some fields filled in
-        mock_profile = {
-            "id": "mock-agent-id",
-            "agent_name": "John Doe",
-            "slug": "john-doe",
-            "bio": "Experienced real estate professional with 10+ years in the industry. Specializing in residential and commercial properties, helping clients find their perfect home or investment opportunity.",
+        # Get current user's ID
+        user_id = current_user.get("id") or current_user.get("_id")
+        if isinstance(user_id, dict) and "$oid" in user_id:
+            user_id = user_id["$oid"]
+        
+        logger.info(f"Getting agent profile for user: {user_id}")
+        
+        # Try to get existing profile from database
+        agent_profile = await service.get_agent_by_id(user_id)
+        
+        if agent_profile:
+            logger.info(f"Found existing agent profile: {agent_profile.agent_name}")
+            return agent_profile.model_dump()
+        
+        # If no profile exists, create one from user data
+        logger.info(f"No existing profile found, creating new profile for user: {user_id}")
+        
+        # Extract user data
+        first_name = current_user.get("first_name", current_user.get("firstName", ""))
+        last_name = current_user.get("last_name", current_user.get("lastName", ""))
+        full_name = f"{first_name} {last_name}".strip()
+        if not full_name:
+            full_name = current_user.get("email", "Agent")
+        
+        # Create profile data
+        profile_data = {
+            "agent_name": full_name,
+            "bio": f"Real estate professional specializing in helping clients find their perfect property.",
             "photo": "",
-            "phone": "+1 (555) 123-4567",
-            "email": "john@example.com",
-            "office_address": "123 Main St, New York, NY 10001",
-            "specialties": ["Residential", "Commercial", "Investment"],
-            "experience": "10+ years in real estate, Certified Realtor",
-            "languages": ["English", "Spanish"],
-            "is_active": True,
-                "is_public": True,  # Set to True so public website works
-            "view_count": 0,
-            "contact_count": 0,
-            "created_at": "2024-01-01T00:00:00Z",
-            "updated_at": "2024-01-15T00:00:00Z"
+            "phone": current_user.get("phone", ""),
+            "email": current_user.get("email", ""),
+            "office_address": "",
+            "specialties": ["Residential"],
+            "experience": "",
+            "languages": ["English"],
+            "is_public": True
         }
         
-        return mock_profile
+        # Create the profile
+        created_profile = await service.create_agent_profile(user_id, profile_data)
+        
+        if created_profile:
+            logger.info(f"Created new agent profile: {created_profile.agent_name}")
+            return created_profile.model_dump()
+        else:
+            logger.error("Failed to create agent profile")
+            raise HTTPException(status_code=500, detail="Failed to create agent profile")
         
     except Exception as e:
         logger.error(f"Error getting current agent profile: {e}")

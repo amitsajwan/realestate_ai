@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import Onboarding from '@/components/Onboarding';
 import { authManager } from '@/lib/auth';
 import { User } from '@/types/user';
-import Onboarding from '@/components/Onboarding';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function OnboardingPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -16,7 +16,7 @@ export default function OnboardingPage() {
     const initAuth = async () => {
       await authManager.init();
       const state = authManager.getState();
-      
+
       console.log('[OnboardingPage] Auth state:', {
         isAuthenticated: state.isAuthenticated,
         user: state.user
@@ -49,19 +49,29 @@ export default function OnboardingPage() {
       // Force a refresh of auth state before redirecting
       await authManager.init();
       console.log('[OnboardingPage] Auth state refreshed, redirecting to dashboard');
-      
+
       // Check if user is now marked as onboarding completed
       const state = authManager.getState();
+      console.log('[OnboardingPage] Current auth state after refresh:', {
+        isAuthenticated: state.isAuthenticated,
+        hasUser: !!state.user,
+        onboardingCompleted: state.user?.onboardingCompleted,
+        onboardingStep: state.user?.onboardingStep
+      });
+
       if (state.user?.onboardingCompleted) {
         console.log('[OnboardingPage] User onboarding confirmed as completed, redirecting to dashboard');
         // Use replace instead of push to prevent back navigation to onboarding
         router.replace('/dashboard');
       } else {
         console.warn('[OnboardingPage] User onboarding not marked as completed, forcing redirect');
+        console.log('[OnboardingPage] User object:', state.user);
         // Fallback to direct navigation if state is inconsistent
         if (typeof window !== 'undefined') {
+          console.log('[OnboardingPage] Using window.location.href for redirect');
           window.location.href = '/dashboard';
         } else {
+          console.log('[OnboardingPage] Using router.replace for redirect');
           router.replace('/dashboard');
         }
       }
@@ -69,8 +79,10 @@ export default function OnboardingPage() {
       console.error('[OnboardingPage] Error refreshing auth state:', err);
       // Fallback to direct navigation if refresh fails
       if (typeof window !== 'undefined') {
+        console.log('[OnboardingPage] Error fallback: Using window.location.href for redirect');
         window.location.href = '/dashboard';
       } else {
+        console.log('[OnboardingPage] Error fallback: Using router.replace for redirect');
         router.replace('/dashboard');
       }
     }
