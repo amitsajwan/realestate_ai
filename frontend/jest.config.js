@@ -20,6 +20,8 @@ const customJestConfig = {
     '!**/*.d.ts',
     '!**/node_modules/**',
     '!**/.next/**',
+    '!**/styles/**', // Exclude CSS files from coverage
+    '!**/*.css',
   ],
   coverageThreshold: {
     global: {
@@ -33,9 +35,24 @@ const customJestConfig = {
     '<rootDir>/__tests__/**/*.(test|spec).(js|jsx|ts|tsx)',
     '<rootDir>/**/*.(test|spec).(js|jsx|ts|tsx)',
   ],
+  testPathIgnorePatterns: [
+    '<rootDir>/.next/',
+    '<rootDir>/node_modules/',
+    '<rootDir>/coverage/',
+    '<rootDir>/test-results/',
+    '<rootDir>/e2e/', // Exclude E2E tests from Jest
+  ],
   transform: {
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
   },
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/$1',
+    '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+    '\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$': 'identity-obj-proxy',
+  },
+  transformIgnorePatterns: [
+    'node_modules/(?!(.*\\.mjs$|@heroicons|framer-motion))',
+  ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   // Add explicit test discovery
   roots: ['<rootDir>'],
