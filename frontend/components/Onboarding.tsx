@@ -1,19 +1,17 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import toast from 'react-hot-toast';
-import { authManager } from '@/lib/auth'
-import { apiService } from '@/lib/api'
-import { handleError, showSuccess, withErrorHandling } from '@/lib/error-handler'
-import { BrandingSuggestion } from '@/types/user'
-import { useAsyncOperation, useMultipleLoading } from '@/hooks/useLoading'
-import { LoadingButton, LoadingOverlay } from '@/components/LoadingStates';
+import { LoadingButton } from '@/components/LoadingStates';
+import { useAsyncOperation, useMultipleLoading } from '@/hooks/useLoading';
+import { apiService } from '@/lib/api';
+import { authManager } from '@/lib/auth';
+import { withErrorHandling } from '@/lib/error-handler';
 import { applyBrandTheme } from '@/lib/theme';
-import { UserIcon, BuildingOfficeIcon, SparklesIcon, ShareIcon, DocumentTextIcon, PhotoIcon, CheckIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
-import { validatePassword } from '@/lib/validation';
+import { BrandingSuggestion } from '@/types/user';
+import { ArrowLeftIcon, ArrowRightIcon, BuildingOfficeIcon, CheckIcon, DocumentTextIcon, PhotoIcon, ShareIcon, SparklesIcon, UserIcon } from '@heroicons/react/24/outline';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { useRouter } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 
 const onboardingSteps = [
   { id: 1, title: 'Personal Info', icon: UserIcon },
@@ -71,7 +69,8 @@ interface OnboardingFormData {
 
 const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep, onStepChange, onComplete }) => {
   console.log('[Onboarding] User object:', user);
-  const [currentStep, setCurrentStep] = useState(user.onboardingStep || 1)
+  console.log('[Onboarding] Initial step:', initialStep);
+  const [currentStep, setCurrentStep] = useState(initialStep || 1)
   const [formData, setFormData] = useState<OnboardingFormData>({
     firstName: user.firstName || '',
     lastName: user.lastName || '',
@@ -90,18 +89,28 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
   })
   const [brandingSuggestions, setBrandingSuggestions] = useState<BrandingSuggestion[]>([])
   const [selectedBranding, setSelectedBranding] = useState<number | null>(null)
-  
+
   // Use loading hooks for consistent state management
   const brandingOperation = useAsyncOperation<BrandingSuggestion[]>()
   const multipleLoading = useMultipleLoading()
+
+  // Handle step changes from parent component
+  useEffect(() => {
+    if (initialStep && initialStep !== currentStep) {
+      console.log('[Onboarding] Step changed from parent:', initialStep);
+      setCurrentStep(initialStep);
+    }
+  }, [initialStep]);
+
+  // Notify parent of step changes
+  useEffect(() => {
+    if (onStepChange) {
+      onStepChange(currentStep);
+    }
+  }, [currentStep, onStepChange]);
   const router = useRouter()
 
-  // Sync currentStep with user prop changes
-  useEffect(() => {
-    if (user.onboardingStep && user.onboardingStep !== currentStep) {
-      setCurrentStep(user.onboardingStep)
-    }
-  }, [user.onboardingStep, currentStep])
+  // Note: Removed conflicting useEffect that was resetting step to user.onboardingStep
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
@@ -152,49 +161,73 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
           return false
         }
         break
+      case 6:
+        // Photo step - no validation required, user can skip
+        break
     }
     return true
   }
 
   const handleNext = async () => {
-  console.debug('[Onboarding] handleNext called - Current step:', currentStep)
-  console.debug('[Onboarding] Form data:', formData)
-    
+    console.debug('[Onboarding] handleNext called - Current step:', currentStep)
+    console.debug('[Onboarding] Form data:', formData)
+
     // Validate current step before proceeding
     if (!validateCurrentStep()) {
+      console.debug('[Onboarding] Validation failed, not proceeding')
       return
     }
-    
+
+    console.debug('[Onboarding] Validation passed, proceeding with step logic')
+
     if (currentStep < 6) {
+      console.debug('[Onboarding] Current step < 6, advancing to next step')
       multipleLoading.setLoading('next', true)
-      
+
       try {
+        // Try to save progress to backend, but don't block navigation if it fails
         const { error } = await withErrorHandling(
           () => authManager.updateOnboarding(currentStep + 1, formData),
           'Save Onboarding Progress',
           'Progress saved!'
         )
-        
+
         if (!error) {
           console.info('[Onboarding] updateOnboarding successful, updating step to:', currentStep + 1)
-          setCurrentStep(currentStep + 1)
+        } else {
+          console.warn('[Onboarding] updateOnboarding failed, but continuing with step navigation')
         }
+
+        // Always update the step, regardless of backend save result
+        console.debug('[Onboarding] Setting currentStep to:', currentStep + 1)
+        setCurrentStep(currentStep + 1)
+
       } catch (err) {
         console.error('[Onboarding] Error during update:', err)
-        const errorMessage = err && typeof err === 'object' && 'message' in err && typeof err.message === 'string' ? err.message : 'Failed to update onboarding information'
-        toast.error(errorMessage)
+        console.warn('[Onboarding] Backend save failed, but continuing with step navigation')
+
+        // Still update the step even if backend save fails
+        console.debug('[Onboarding] Setting currentStep to (error case):', currentStep + 1)
+        setCurrentStep(currentStep + 1)
+
+        // Show a warning but don't block the user
+        toast.error('Progress not saved to server, but you can continue')
       } finally {
         multipleLoading.setLoading('next', false)
       }
-    } else {
+    } else if (currentStep === 6) {
+      console.debug('[Onboarding] Current step is 6, completing onboarding')
       // Complete onboarding on step 6
       await handleComplete()
+    } else {
+      console.debug('[Onboarding] Unexpected step:', currentStep)
     }
   }
 
   const handleComplete = async () => {
+    console.debug('[Onboarding] handleComplete called')
     multipleLoading.setLoading('complete', true);
-    
+
     try {
       console.log('[Onboarding] Starting onboarding completion process');
       const { error } = await withErrorHandling(
@@ -202,10 +235,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
         'Complete Onboarding',
         'Onboarding completed!'
       );
-      
+
       if (!error) {
         console.log('[Onboarding] Onboarding completed successfully');
-        
+
         // Add a small delay to allow auth state to update, then verify
         setTimeout(() => {
           const updatedState = authManager.getState();
@@ -213,7 +246,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
             onboardingCompleted: updatedState.user?.onboardingCompleted,
             onboardingStep: updatedState.user?.onboardingStep
           });
-          
+
           if (updatedState.user?.onboardingCompleted) {
             console.log('[Onboarding] User state confirmed as completed, calling onComplete callback');
             onComplete();
@@ -234,7 +267,9 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
   };
 
   const handleBack = () => {
+    console.debug('[Onboarding] handleBack called - Current step:', currentStep)
     if (currentStep > 1) {
+      console.debug('[Onboarding] Setting currentStep to:', currentStep - 1)
       setCurrentStep(currentStep - 1)
     }
   }
@@ -262,7 +297,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
         errorMessage: 'Failed to generate branding suggestions'
       }
     )
-    
+
     if (suggestions) {
       handleInputChange('brandingSuggestions', suggestions)
     }
@@ -277,7 +312,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
       secondary: formData.brandingSuggestions.colors.secondary,
       accent: formData.brandingSuggestions.colors.accent
     }
-    
+
     applyBrandTheme(brandTheme) // Now persists by default
     toast.success('Branding applied and saved successfully!')
   }
@@ -381,7 +416,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                 <SparklesIcon className="w-5 h-5 mr-2 text-purple-600" />
                 AI Branding Suggestions
               </h3>
-              
+
               {formData.brandingSuggestions ? (
                 <div className="space-y-4">
                   <div>
@@ -392,7 +427,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                       <p className="text-gray-800 font-medium">{formData.brandingSuggestions.tagline}</p>
                     </div>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       About Description
@@ -401,28 +436,28 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                       <p className="text-gray-700">{formData.brandingSuggestions.about}</p>
                     </div>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Brand Colors
                     </label>
                     <div className="flex space-x-4">
                       <div className="text-center">
-                        <div 
+                        <div
                           className="w-12 h-12 rounded-full border-2 border-gray-300 mx-auto mb-1"
                           style={{ backgroundColor: formData.brandingSuggestions.colors.primary }}
                         ></div>
                         <span className="text-xs text-gray-600">Primary</span>
                       </div>
                       <div className="text-center">
-                        <div 
+                        <div
                           className="w-12 h-12 rounded-full border-2 border-gray-300 mx-auto mb-1"
                           style={{ backgroundColor: formData.brandingSuggestions.colors.secondary }}
                         ></div>
                         <span className="text-xs text-gray-600">Secondary</span>
                       </div>
                       <div className="text-center">
-                        <div 
+                        <div
                           className="w-12 h-12 rounded-full border-2 border-gray-300 mx-auto mb-1"
                           style={{ backgroundColor: formData.brandingSuggestions.colors.accent }}
                         ></div>
@@ -430,7 +465,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex space-x-3">
                     <LoadingButton
                       onClick={handleGenerateBranding}
@@ -468,7 +503,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                 </div>
               )}
             </div>
-            
+
             {/* AI Content Preferences */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -505,27 +540,27 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
           </div>
         )
 
-             case 4:
-         return (
-           <div className="space-y-6">
-             <div className="text-center">
-               <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                 <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                   <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                 </svg>
-               </div>
-               <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                 Connect Facebook
-               </h3>
-               <p className="text-gray-600 mb-6">
-                 Connect your Facebook page to automatically post properties and engage with leads.
-               </p>
-               <button className="btn-primary">
-                 Connect Facebook Page
-               </button>
-             </div>
-           </div>
-         )
+      case 4:
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                Connect Facebook
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Connect your Facebook page to automatically post properties and engage with leads.
+              </p>
+              <button className="btn-primary">
+                Connect Facebook Page
+              </button>
+            </div>
+          </div>
+        )
 
       case 5:
         return (
@@ -572,7 +607,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                 Upload Photo
               </button>
             </div>
-            
+
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
               <CheckIcon className="w-8 h-8 text-green-600 mx-auto mb-2" />
               <h4 className="text-lg font-semibold text-green-800 mb-1">
@@ -581,6 +616,19 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
               <p className="text-green-700 text-sm">
                 Click &quot;Complete Setup&quot; to finish your onboarding and start using PropertyAI.
               </p>
+              <div className="mt-4 space-x-2">
+                <button
+                  onClick={() => {
+                    console.log('[Onboarding] Force redirect to dashboard');
+                    if (typeof window !== 'undefined') {
+                      window.location.href = '/dashboard';
+                    }
+                  }}
+                  className="btn-outline text-sm"
+                >
+                  Force Redirect (Debug)
+                </button>
+              </div>
             </div>
           </div>
         )
@@ -606,18 +654,17 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                 Step {currentStep} of 6
               </span>
             </div>
-            
+
             {/* Progress Steps */}
             <div className="flex justify-between items-center">
               {onboardingSteps.map((step, index) => (
                 <div key={step.id} className="flex flex-col items-center">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${
-                    currentStep > step.id 
-                      ? 'bg-green-500 text-white' 
-                      : currentStep === step.id 
-                        ? 'bg-blue-500 text-white' 
-                        : 'bg-gray-200 text-gray-500'
-                  }`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${currentStep > step.id
+                    ? 'bg-green-500 text-white'
+                    : currentStep === step.id
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 text-gray-500'
+                    }`}>
                     {currentStep > step.id ? (
                       <CheckIcon className="w-5 h-5" />
                     ) : (
@@ -645,28 +692,28 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
             </motion.div>
           </AnimatePresence>
 
-                     {/* Navigation */}
-           <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
-             <div className="flex space-x-3">
-               <button
-                 onClick={handleBack}
-                 disabled={currentStep === 1}
-                 className="btn-outline flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-               >
-                 <ArrowLeftIcon className="w-4 h-4" />
-                 <span>Back</span>
-               </button>
-               
-               <button
-                 onClick={() => {
-                   authManager.logout()
-                   router.push('/login')
-                 }}
-                 className="text-gray-500 hover:text-gray-700 font-medium"
-               >
-                 Logout
-               </button>
-             </div>
+          {/* Navigation */}
+          <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
+            <div className="flex space-x-3">
+              <button
+                onClick={handleBack}
+                disabled={currentStep === 1}
+                className="btn-outline flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ArrowLeftIcon className="w-4 h-4" />
+                <span>Back</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  authManager.logout()
+                  router.push('/login')
+                }}
+                className="text-gray-500 hover:text-gray-700 font-medium"
+              >
+                Logout
+              </button>
+            </div>
 
             <div className="flex space-x-3">
               {currentStep < 6 && (
@@ -677,7 +724,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                   Skip
                 </button>
               )}
-              
+
               <LoadingButton
                 onClick={handleNext}
                 isLoading={multipleLoading.isLoading('next') || multipleLoading.isLoading('complete')}

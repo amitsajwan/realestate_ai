@@ -31,7 +31,7 @@ if curl -s http://localhost:8000/health > /dev/null; then
     echo "✅ Backend server started successfully"
 else
     echo "❌ Backend server failed to start"
-    kill $BACKEND_PID
+    kill $BACKEND_PID 2>/dev/null
     exit 1
 fi
 

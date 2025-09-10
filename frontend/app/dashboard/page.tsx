@@ -1,9 +1,9 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { authManager } from '@/lib/auth'
 import { logger } from '@/lib/logger'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import Dashboard from '../page'
 
 export default function DashboardPage() {
@@ -18,7 +18,7 @@ export default function DashboardPage() {
       })
       await authManager.init()
       const state = authManager.getState()
-      
+
       logger.debug('[DashboardPage] Auth state', {
         component: 'DashboardPage',
         action: 'auth_check',
@@ -28,7 +28,7 @@ export default function DashboardPage() {
           onboardingCompleted: state.user?.onboardingCompleted
         }
       })
-      
+
       if (!state.isAuthenticated) {
         logger.info('[DashboardPage] Not authenticated, redirecting to login', {
           component: 'DashboardPage',
@@ -41,7 +41,12 @@ export default function DashboardPage() {
       if (!state.user?.onboardingCompleted) {
         logger.info('[DashboardPage] Onboarding not completed, redirecting to onboarding', {
           component: 'DashboardPage',
-          action: 'redirect_onboarding'
+          action: 'redirect_onboarding',
+          metadata: {
+            onboardingCompleted: state.user?.onboardingCompleted,
+            onboardingStep: state.user?.onboardingStep,
+            userObject: state.user
+          }
         })
         router.replace('/onboarding')
         return

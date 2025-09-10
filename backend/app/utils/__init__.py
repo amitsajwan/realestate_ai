@@ -1,13 +1,31 @@
 from app.utils.validation import validate_password_strength, validate_email_format, validate_phone_number
 
 # JWT token verification function
-def verify_jwt_token(token: str):
+def verify_jwt_token(request_or_token):
     import logging
     from jose import jwt, JWTError
     from app.core.config import settings
+    from fastapi import Request
     
     logger = logging.getLogger(__name__)
-    logger.debug(f"Verifying JWT token: {token}")
+    
+    # Handle both Request object and token string
+    if isinstance(request_or_token, Request):
+        # Extract token from Authorization header
+        auth_header = request_or_token.headers.get("Authorization")
+        if not auth_header:
+            raise ValueError("No Authorization header found")
+        
+        # Extract token from "Bearer <token>" format
+        try:
+            token = auth_header.split(" ")[1]  # Split by space and take the second part
+        except IndexError:
+            raise ValueError("Invalid Authorization header format")
+    else:
+        # Assume it's a token string
+        token = request_or_token
+    
+    logger.debug(f"Verifying JWT token: {token[:20]}...")
     
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
