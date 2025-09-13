@@ -1,5 +1,5 @@
 """
-Authentication Backend for FastAPI Users 14.0.1
+Authentication Backend for FastAPI Users 13.0.0
 ===============================================
 Following the official FastAPI Users documentation
 """
