@@ -6,7 +6,8 @@ Centralized configuration management for the Real Estate Platform
 
 import os
 from typing import List, Optional, Dict, Any
-from pydantic import BaseSettings, validator
+from pydantic_settings import BaseSettings
+from pydantic import validator
 from functools import lru_cache
 import logging
 

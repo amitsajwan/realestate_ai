@@ -1,0 +1,15 @@
+{
+  "success": false,
+  "total_tests": 6,
+  "passed": 5,
+  "failed": 1,
+  "duration": 6.897668123245239,
+  "results": [
+    "TestResult(test_name='Frontend Accessibility', status='PASS', duration=0.07937502861022949, error_message=None, details={'checks_passed': 7, 'total_checks': 7})",
+    "TestResult(test_name='Responsive Design', status='PASS', duration=0.10797309875488281, error_message=None, details={'tests_passed': 5, 'total_tests': 5})",
+    "TestResult(test_name='Performance', status='PASS', duration=0.020880699157714844, error_message=None, details={'frontend_duration': 0.020813703536987305})",
+    "TestResult(test_name='Error Handling', status='PASS', duration=2.022926092147827, error_message=None, details=None)",
+    "TestResult(test_name='Static Assets', status='PASS', duration=0.028528213500976562, error_message=None, details={'assets_loaded': 3, 'total_assets': 3})",
+    "TestResult(test_name='Security Headers', status='FAIL', duration=0.0491788387298584, error_message='Only 0/5 security headers found', details=None)"
+  ]
+}

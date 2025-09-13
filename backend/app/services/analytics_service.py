@@ -577,3 +577,6 @@ class AnalyticsService:
         """Get team recent activity"""
         # This would need to be implemented based on your activity tracking
         return []
+
+# Create service instance (will be initialized in application.py)
+analytics_service = None
