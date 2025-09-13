@@ -1,12 +1,13 @@
 """
-Authentication Backend
-=====================
+Authentication Backend for FastAPI Users 14.0.1
+===============================================
 Following the official FastAPI Users documentation
 """
 
 from fastapi_users import FastAPIUsers, BaseUserManager
 from fastapi_users.authentication import JWTStrategy, AuthenticationBackend
 from fastapi_users.authentication.transport import BearerTransport
+from fastapi_users.password import PasswordHelper
 from app.models.user import User, UserCreate
 from app.core.user_db import get_user_db
 from app.core.config import settings
@@ -20,9 +21,15 @@ SECRET_KEY = settings.jwt_secret_key
 ALGORITHM = settings.jwt_algorithm
 LIFETIME_SECONDS = settings.jwt_expire_minutes * 60
 
+# Password helper
+password_helper = PasswordHelper()
+
 # UserManager
 class UserManager(BaseUserManager[User, str]):
     """Custom UserManager for our application"""
+    
+    def __init__(self, user_db):
+        super().__init__(user_db, password_helper)
     
     async def create(self, user_create: UserCreate, safe: bool = False, request: Optional = None):
         """Create a new user"""

@@ -1,6 +1,6 @@
 """
-User Model for FastAPI Users
-===========================
+User Model for FastAPI Users 14.0.1
+===================================
 Following the official FastAPI Users documentation
 """
 
@@ -12,7 +12,7 @@ from pydantic import EmailStr, Field
 
 
 class User(Document):
-    """User model for Beanie ODM"""
+    """User model for Beanie ODM compatible with FastAPI Users 14.0.1"""
     
     # Required fields from BaseUser
     email: EmailStr
@@ -52,7 +52,7 @@ class UserUpdate(schemas.BaseUserUpdate):
     company: Optional[str] = None
 
 
-class UserRead(schemas.BaseUser):
+class UserRead(schemas.BaseUser[str]):
     """User read model"""
     id: str
     first_name: Optional[str] = None
