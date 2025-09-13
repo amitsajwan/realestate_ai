@@ -6,7 +6,8 @@ from fastapi import APIRouter, HTTPException, Request, Depends
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import json
-from app.api.v1.endpoints.auth import get_current_user
+from app.core.auth_backend import current_active_user
+from app.models.user import User
 
 router = APIRouter()
 
@@ -84,7 +85,7 @@ DEMO_PROPERTIES = [
 ]
 
 @router.get("/demo/leads")
-async def get_demo_leads(current_user: Dict[str, Any] = Depends(get_current_user)):
+async def get_demo_leads(current_user: User = Depends(current_active_user)):
     """Get demo leads data - working endpoint"""
     
     # Get current user
@@ -98,7 +99,7 @@ async def get_demo_leads(current_user: Dict[str, Any] = Depends(get_current_user
     }
 
 @router.post("/demo/leads")
-async def create_demo_lead(request: Request, current_user: Dict[str, Any] = Depends(get_current_user)):
+async def create_demo_lead(request: Request, current_user: User = Depends(current_active_user)):
     """Create new demo lead"""
     
     user = current_user
@@ -130,7 +131,7 @@ async def create_demo_lead(request: Request, current_user: Dict[str, Any] = Depe
         raise HTTPException(status_code=400, detail=f"Invalid request data: {e}")
 
 @router.get("/demo/properties")
-async def get_demo_properties(current_user: Dict[str, Any] = Depends(get_current_user)):
+async def get_demo_properties(current_user: User = Depends(current_active_user)):
     """Get demo properties data - working endpoint"""
     
     user = current_user
@@ -143,7 +144,7 @@ async def get_demo_properties(current_user: Dict[str, Any] = Depends(get_current
     }
 
 @router.post("/demo/properties") 
-async def create_demo_property(request: Request, current_user: Dict[str, Any] = Depends(get_current_user)):
+async def create_demo_property(request: Request, current_user: User = Depends(current_active_user)):
     """Create new demo property"""
     
     user = current_user
@@ -176,7 +177,7 @@ async def create_demo_property(request: Request, current_user: Dict[str, Any] = 
         raise HTTPException(status_code=400, detail=f"Invalid request data: {e}")
 
 @router.get("/demo/dashboard")
-async def get_demo_dashboard(current_user: Dict[str, Any] = Depends(get_current_user)):
+async def get_demo_dashboard(current_user: User = Depends(current_active_user)):
     """Get demo dashboard data"""
     
     user = current_user

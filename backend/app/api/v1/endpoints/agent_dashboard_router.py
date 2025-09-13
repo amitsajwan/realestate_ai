@@ -8,7 +8,8 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.database import get_database
-from app.dependencies import get_current_user
+from app.core.auth_backend import current_active_user
+from app.models.user import User
 from app.schemas.agent_public import AgentPublicProfileUpdate
 from app.services.agent_public_service import AgentPublicService
 import logging
@@ -174,7 +175,7 @@ async def get_agent_inquiries(
 @router.post("/create-profile")
 async def create_agent_public_profile(
     profile_data: dict,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(current_active_user),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """

@@ -16,7 +16,8 @@ from app.schemas.agent_public import (
     ContactInquiry
 )
 from app.services.agent_public_service import AgentPublicService
-from app.api.v1.endpoints.auth import get_current_user
+from app.core.auth_backend import current_active_user
+from app.models.user import User
 import logging
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ router = APIRouter(prefix="/agent-public", tags=["agent-public"])
 # Current agent management endpoints (must come before generic {agent_slug} routes)
 @router.get("/profile")
 async def get_current_agent_public_profile(
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(current_active_user),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """

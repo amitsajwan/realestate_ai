@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     # =============================================================================
     mongodb_url: str = "mongodb://localhost:27017"
     database_name: str = "real_estate_platform"
+    fail_on_db_error: bool = False
     
     # =============================================================================
     # AUTHENTICATION & SECURITY
@@ -109,6 +110,7 @@ class Settings(BaseSettings):
     # EXTERNAL SERVICES
     # =============================================================================
     openai_api_key: Optional[str] = None
+    groq_api_key: Optional[str] = None
     google_maps_api_key: Optional[str] = None
     
     # =============================================================================
@@ -127,10 +129,12 @@ class Settings(BaseSettings):
     test_database_name: str = "real_estate_platform_test"
     test_jwt_secret_key: str = "test-secret-key"
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive": False,
+        "extra": "allow"
+    }
     
     @validator("allowed_origins", pre=True)
     def parse_allowed_origins(cls, v):

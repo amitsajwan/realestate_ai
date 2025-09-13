@@ -6,7 +6,7 @@ FastAPI application creation and configuration
 
 from fastapi import FastAPI
 from app.core.config import settings
-from app.core.database import connect_to_mongo, close_mongo_connection
+from app.core.database import init_database, close_database
 from app.core.rate_limiting import setup_rate_limiting
 from app.core.middleware import setup_cors_middleware, setup_logging_middleware
 from app.core.routes import setup_routes, setup_additional_endpoints
@@ -46,7 +46,7 @@ def create_application() -> FastAPI:
     async def startup_event():
         """Initialize MongoDB connection on startup"""
         try:
-            await connect_to_mongo()
+            await init_database()
             logger.info("🚀 MongoDB connected successfully")
             
             # Initialize database collections and indexes
@@ -71,7 +71,7 @@ def create_application() -> FastAPI:
     async def shutdown_event():
         """Close MongoDB connection on shutdown"""
         try:
-            await close_mongo_connection()
+            await close_database()
             logger.info("📊 MongoDB connection closed")
         except Exception as e:
             logger.error(f"❌ Error closing MongoDB connection: {e}")
