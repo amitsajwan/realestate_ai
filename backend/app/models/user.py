@@ -61,3 +61,16 @@ class UserRead(schemas.BaseUser[str]):
     company: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    
+    @classmethod
+    def model_validate(cls, obj, **kwargs):
+        """Override to handle ObjectId conversion"""
+        if hasattr(obj, 'id') and hasattr(obj.id, '__str__'):
+            # Convert ObjectId to string
+            if hasattr(obj, 'model_dump'):
+                obj_dict = obj.model_dump()
+            else:
+                obj_dict = obj.__dict__.copy()
+            obj_dict['id'] = str(obj.id)
+            return super().model_validate(obj_dict, **kwargs)
+        return super().model_validate(obj, **kwargs)
