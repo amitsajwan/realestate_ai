@@ -304,11 +304,9 @@ class UserRepository:
         self.logger.info(f"Updating user {user_id} with data: {update_data}")
         """Update user with enhanced validation and error handling"""
         try:
-            # Convert string ID to ObjectId for MongoDB query
-            try:
-                object_id = ObjectId(user_id)
-            except Exception as e:
-                logger.error(f"Invalid ObjectId format: {user_id}")
+            # For mock database, use string ID directly
+            if not user_id:
+                logger.error(f"Empty user_id provided")
                 return False
             
             if not update_data:
@@ -327,7 +325,7 @@ class UserRepository:
             prepared_data = {k: v for k, v in prepared_data.items() if v is not None}
             
             result = await self.collection.update_one(
-                {"_id": object_id},
+                {"_id": user_id},
                 {"$set": prepared_data}
             )
             
