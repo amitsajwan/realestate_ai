@@ -1,0 +1,22 @@
+{
+  "success": false,
+  "total_tests": 12,
+  "passed": 3,
+  "failed": 9,
+  "skipped": 7,
+  "duration": 0.5883183479309082,
+  "results": [
+    "TestResult(test_name='Authentication Flow', status='FAIL', duration=0.43880653381347656, error_message='Login failed: {\"detail\":\"Login failed\"}', details=None)",
+    "TestResult(test_name='Onboarding Workflow', status='SKIP', duration=2.384185791015625e-07, error_message='No auth token', details=None)",
+    "TestResult(test_name='Property Management', status='SKIP', duration=2.384185791015625e-07, error_message='No auth token', details=None)",
+    "TestResult(test_name='Publishing Workflow', status='SKIP', duration=2.384185791015625e-07, error_message='No auth token', details=None)",
+    "TestResult(test_name='AI Features', status='SKIP', duration=2.384185791015625e-07, error_message='No auth token', details=None)",
+    "TestResult(test_name='Analytics Dashboard', status='SKIP', duration=2.384185791015625e-07, error_message='No auth token', details=None)",
+    "TestResult(test_name='CRM Features', status='SKIP', duration=2.384185791015625e-07, error_message='No auth token', details=None)",
+    "TestResult(test_name='Facebook Integration', status='SKIP', duration=0.0, error_message='No auth token', details=None)",
+    "TestResult(test_name='Responsive Design', status='PASS', duration=0.07462906837463379, error_message=None, details={'tests_passed': 5, 'total_tests': 5})",
+    "TestResult(test_name='Accessibility', status='FAIL', duration=0.014824867248535156, error_message='Only 1/5 accessibility checks passed', details=None)",
+    "TestResult(test_name='Performance', status='PASS', duration=0.014248371124267578, error_message=None, details={'frontend_duration': 0.01220250129699707, 'api_duration': 0.0017914772033691406})",
+    "TestResult(test_name='Error Handling', status='PASS', duration=0.018532991409301758, error_message=None, details=None)"
+  ]
+}

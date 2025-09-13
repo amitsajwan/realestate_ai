@@ -1,0 +1,150 @@
+version: '3.8'
+
+services:
+  # MongoDB Database for Development
+  mongodb:
+    image: mongo:7
+    container_name: real-estate-mongodb-dev
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: real_estate_platform_dev
+    volumes:
+      - mongodb_dev_data:/data/db
+      - ./docker/mongo-init-dev.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - real-estate-dev-network
+
+  # Redis Cache for Development
+  redis:
+    image: redis:7-alpine
+    container_name: real-estate-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+    networks:
+      - real-estate-dev-network
+
+  # Backend API for Development
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: real-estate-backend-dev
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # Database
+      - MONGODB_URL=mongodb://mongodb:27017
+      - DATABASE_NAME=real_estate_platform_dev
+      
+      # Authentication
+      - JWT_SECRET_KEY=dev-secret-key-not-for-production
+      - JWT_ALGORITHM=HS256
+      - JWT_EXPIRE_MINUTES=30
+      - BCRYPT_ROUNDS=4
+      
+      # Server
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEBUG=True
+      
+      # CORS
+      - ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+      
+      # Rate Limiting (relaxed for development)
+      - RATE_LIMIT_REQUESTS=1000
+      - RATE_LIMIT_WINDOW=60
+      
+      # Feature Flags
+      - ENABLE_MULTILANGUAGE=True
+      - ENABLE_FACEBOOK_INTEGRATION=False
+      - ENABLE_EMAIL_NOTIFICATIONS=False
+      - ENABLE_ANALYTICS=False
+      - ENABLE_AI_FEATURES=True
+      
+      # Logging
+      - LOG_LEVEL=DEBUG
+      - LOG_FILE=logs/app-dev.log
+      
+      # Security (relaxed for development)
+      - SECURE_SSL_REDIRECT=False
+      - SESSION_COOKIE_SECURE=False
+      - SESSION_COOKIE_HTTPONLY=False
+      - SESSION_COOKIE_SAMESITE=Lax
+      
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - real-estate-dev-network
+    volumes:
+      - ./backend:/app
+      - ./backend/uploads:/app/uploads
+      - ./backend/logs:/app/logs
+    command: ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  # Frontend Application for Development
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: real-estate-frontend-dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # API Configuration
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      
+      # Environment
+      - NODE_ENV=development
+      
+      # Feature Flags
+      - NEXT_PUBLIC_ENABLE_MULTILANGUAGE=true
+      - NEXT_PUBLIC_ENABLE_FACEBOOK_INTEGRATION=false
+      - NEXT_PUBLIC_ENABLE_AI_FEATURES=true
+      - NEXT_PUBLIC_ENABLE_ANALYTICS=false
+      
+      # Application Settings
+      - NEXT_PUBLIC_APP_NAME=PropertyAI Dev
+      - NEXT_PUBLIC_APP_VERSION=1.0.0-dev
+      - NEXT_PUBLIC_DEFAULT_LANGUAGE=en
+      
+      # UI Configuration
+      - NEXT_PUBLIC_DEFAULT_THEME=light
+      - NEXT_PUBLIC_ENABLE_DARK_MODE=true
+      - NEXT_PUBLIC_ENABLE_ANIMATIONS=true
+      
+      # Development Settings
+      - NEXT_PUBLIC_DEBUG=true
+      - NEXT_PUBLIC_ENABLE_DEV_TOOLS=true
+      - NEXT_PUBLIC_MOCK_API=false
+      
+      # Security (relaxed for development)
+      - NEXT_PUBLIC_FORCE_HTTPS=false
+      
+    depends_on:
+      - backend
+    networks:
+      - real-estate-dev-network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: ["npm", "run", "dev"]
+
+volumes:
+  mongodb_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+
+networks:
+  real-estate-dev-network:
+    driver: bridge
