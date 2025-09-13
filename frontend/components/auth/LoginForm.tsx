@@ -5,7 +5,7 @@ import { useFormSubmission } from '@/hooks/useLoading';
 import { FormValidator, loginSchema } from '@/lib/form-validation';
 import { LoginFormData } from '@/types/user';
 import { CheckCircle, Eye, EyeOff, Lock, Mail, XCircle } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface LoginFormProps {
     onSubmit: (email: string, password: string) => Promise<void>;
@@ -24,6 +24,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, isLoading = false }) =>
     const [showPassword, setShowPassword] = useState(false);
     const [validator] = useState(() => new FormValidator(loginSchema));
     const { submit } = useFormSubmission();
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -51,12 +56,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, isLoading = false }) =>
     const getFieldClassName = (field: keyof LoginFormData) => {
         const baseClass = "appearance-none relative block w-full px-3 py-3 sm:py-2 pl-10 pr-10 border placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 text-base sm:text-sm transition-all duration-200 hover-lift";
 
-        if (validator.hasFieldError(field)) {
-            return `${baseClass} border-red-300`;
-        }
-        if (validator.isFieldValid(field)) {
-            return `${baseClass} border-green-300`;
-        }
+        // Always return the same class to prevent hydration mismatch
         return `${baseClass} border-gray-300`;
     };
 
@@ -73,6 +73,10 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, isLoading = false }) =>
             errorMessage: 'Login failed'
         });
     };
+
+    if (!isClient) {
+        return <div>Loading...</div>;
+    }
 
     return (
         <form className="mt-6 sm:mt-8 space-y-5 sm:space-y-6 animate-fade-in" onSubmit={handleSubmit}>
@@ -97,7 +101,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, isLoading = false }) =>
                             value={formData.email}
                             onChange={handleChange}
                             onBlur={() => handleBlur('email')}
-                            aria-describedby={validator.hasFieldError('email') ? 'email-error' : undefined}
+                            aria-describedby="email-error"
                         />
                         <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                             {getFieldValidationIcon('email')}
@@ -130,7 +134,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, isLoading = false }) =>
                             value={formData.password}
                             onChange={handleChange}
                             onBlur={() => handleBlur('password')}
-                            aria-describedby={validator.hasFieldError('password') ? 'password-error' : undefined}
+                            aria-describedby="password-error"
                         />
                         <button
                             type="button"

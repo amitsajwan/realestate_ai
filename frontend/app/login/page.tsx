@@ -43,7 +43,7 @@ const LoginPage: React.FC = () => {
 
       // Redirect to dashboard or onboarding
       if (authState.user?.onboardingCompleted) {
-        router.push('/dashboard');
+        router.push('/');
       } else {
         router.push('/onboarding');
       }
@@ -63,6 +63,14 @@ const LoginPage: React.FC = () => {
 
       // Only run client-side code after hydration
       if (typeof window !== 'undefined') {
+        // Initialize AuthManager in browser context
+        console.log('🔧 Initializing AuthManager in browser context');
+        authManager.init().then(() => {
+          console.log('✅ AuthManager initialized successfully');
+        }).catch(error => {
+          console.error('❌ AuthManager initialization failed:', error);
+        });
+
         // Check for Facebook authentication callback
         const urlParams = new URLSearchParams(window.location.search);
         const accessToken = urlParams.get('access_token');
@@ -81,7 +89,7 @@ const LoginPage: React.FC = () => {
       try {
         const isAuthenticated = await authManager.isAuthenticated();
         if (isAuthenticated) {
-          router.push('/dashboard');
+          router.push('/');
         }
       } catch (error) {
         console.error('[LoginPage] Auth check failed:', error);
@@ -91,18 +99,36 @@ const LoginPage: React.FC = () => {
   }, [router]);
 
   const handleLogin = async (email: string, password: string) => {
-    const result = await authManager.login(email, password);
-    if (result.success) {
-      // Wait for auth state to be fully updated before redirecting
+    try {
+      console.log('[LoginPage] Attempting login for:', email);
+      
+      // Ensure authManager is initialized
       await authManager.init();
-      const authState = authManager.getState();
+      console.log('[LoginPage] AuthManager initialized');
+      
+      const result = await authManager.login(email, password);
+      console.log('[LoginPage] Login result:', result);
+      
+      if (result.success) {
+        console.log('[LoginPage] Login successful, checking auth state...');
+        const authState = authManager.getState();
+        console.log('[LoginPage] Auth state:', authState);
 
-      // Check onboarding status and redirect accordingly
-      if (authState.user?.onboardingCompleted) {
-        router.push('/dashboard');
+        // Check onboarding status and redirect accordingly
+        if (authState.user?.onboardingCompleted) {
+          console.log('[LoginPage] Redirecting to dashboard...');
+          router.push('/');
+        } else {
+          console.log('[LoginPage] Redirecting to onboarding...');
+          router.push('/onboarding');
+        }
       } else {
-        router.push('/onboarding');
+        console.log('[LoginPage] Login failed:', result.error);
+        toast.error(result.error || 'Login failed');
       }
+    } catch (error) {
+      console.error('[LoginPage] Login error:', error);
+      toast.error('Login failed. Please try again.');
     }
   };
 

@@ -64,7 +64,7 @@ export default function AgentPublicPage({ params }: AgentPublicPageProps) {
       setError(null)
 
       // Load agent profile
-      const agentResponse = await fetch(`http://localhost:8000/api/v1/agent-public/${params.agentName}`)
+      const agentResponse = await fetch(`http://localhost:8000/api/v1/agent/public/agent-public/${params.agentName}`)
       if (!agentResponse.ok) {
         throw new Error('Agent not found')
       }
@@ -73,7 +73,7 @@ export default function AgentPublicPage({ params }: AgentPublicPageProps) {
       setAgent(agentData)
 
       // Load agent's public properties
-      const propertiesResponse = await fetch(`http://localhost:8000/api/v1/agent-public/${params.agentName}/properties?limit=6`)
+      const propertiesResponse = await fetch(`http://localhost:8000/api/v1/agent/public/agent-public/${params.agentName}/properties?limit=6`)
       if (propertiesResponse.ok) {
         const propertiesData = await propertiesResponse.json()
         setProperties(propertiesData.properties || [])
@@ -90,7 +90,7 @@ export default function AgentPublicPage({ params }: AgentPublicPageProps) {
   const handleContactClick = () => {
     // Track contact button click
     if (agent) {
-      fetch(`http://localhost:8000/api/v1/agent-public/${agent.slug}/track-contact`, {
+      fetch(`http://localhost:8000/api/v1/agent/public/agent-public/${agent.slug}/track-contact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'contact_button_click' })

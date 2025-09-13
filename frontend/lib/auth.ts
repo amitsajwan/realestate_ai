@@ -756,6 +756,12 @@ export class AuthManager {
 // Export singleton instance
 export const authManager = new AuthManager();
 
+// Make AuthManager available globally in browser context
+if (typeof window !== 'undefined') {
+  (window as any).authManager = authManager;
+  console.log('🔧 AuthManager initialized in browser context');
+}
+
 // React hook for using auth state
 export function useAuth() {
   const [state, setState] = useState<AuthState>(authManager.getState());
