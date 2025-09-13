@@ -65,7 +65,7 @@ async def generate_listing_post_endpoint(
         try:
             from repositories.user_repository import UserRepository
             db = get_database()
-            user_repo = UserRepository(db)
+            user_repo = UserRepository()
             user = await user_repo.get_user(current_user["username"])
             
             agent_brand = None
@@ -103,7 +103,7 @@ async def generate_and_post_listing(
         try:
             from repositories.user_repository import UserRepository
             db = get_database()
-            user_repo = UserRepository(db)
+            user_repo = UserRepository()
             user = await user_repo.get_user(current_user["username"])
             
             if not user:

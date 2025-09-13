@@ -1,0 +1,46 @@
+{
+  "timestamp": "2025-09-13T11:47:13.971362",
+  "tests": {
+    "User Registration": {
+      "status": "FAIL",
+      "details": "Status: 201",
+      "timestamp": "2025-09-13T11:47:14.031749"
+    },
+    "User Login": {
+      "status": "FAIL",
+      "details": "Status: No response",
+      "timestamp": "2025-09-13T11:47:14.034781"
+    },
+    "Get Current User": {
+      "status": "FAIL",
+      "details": "Status: No response",
+      "timestamp": "2025-09-13T11:47:14.037077"
+    },
+    "Onboarding Step": {
+      "status": "FAIL",
+      "details": "Status: No response",
+      "timestamp": "2025-09-13T11:47:14.039516"
+    },
+    "Lead Creation": {
+      "status": "FAIL",
+      "details": "Status: No response",
+      "timestamp": "2025-09-13T11:47:14.041640"
+    },
+    "Demo Property Creation": {
+      "status": "FAIL",
+      "details": "Status: No response",
+      "timestamp": "2025-09-13T11:47:14.043476"
+    },
+    "Agent Profile": {
+      "status": "FAIL",
+      "details": "Status: No response",
+      "timestamp": "2025-09-13T11:47:14.045291"
+    }
+  },
+  "summary": {
+    "total_tests": 7,
+    "passed": 0,
+    "failed": 7,
+    "success_rate": "0.0%"
+  }
+}

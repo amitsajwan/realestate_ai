@@ -42,49 +42,7 @@ router.include_router(
     tags=["users"]
 )
 
-# Frontend-compatible endpoints
-class LoginRequest(BaseModel):
-    """Login request model"""
-    email: str
-    password: str
-
-@router.post("/login")
-async def login_for_access_token(
-    login_data: LoginRequest,
-    user_manager = Depends(get_user_manager)
-):
-    """
-    Frontend-compatible login endpoint
-    Expected by frontend: POST /api/v1/auth/login
-    """
-    from app.core.auth_backend import jwt_strategy
-    
-    # Authenticate user using FastAPI Users method
-    # FastAPI Users uses 'username' field for email
-    user = await user_manager.authenticate(
-        credentials={"username": login_data.email, "password": login_data.password}
-    )
-    
-    if not user or not user.is_active:
-        raise HTTPException(
-            status_code=401,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # Create access token
-    access_token = await jwt_strategy.write_token(user)
-    
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": user
-    }
-
-@router.get("/me", response_model=UserRead)
-async def get_current_user_info(user: User = Depends(current_active_user)):
-    """Get current user information"""
-    return user
+# Health check endpoint
 
 @router.get("/health")
 async def auth_health():

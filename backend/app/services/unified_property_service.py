@@ -59,7 +59,7 @@ class UnifiedPropertyService:
             
             property_doc = PropertyDocument(
                 **property_dict,
-                agent_id=user_id,  # Map user_id to agent_id for compatibility
+                agent_id=str(user_id),  # Convert ObjectId to string for compatibility
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
             )
@@ -104,7 +104,7 @@ class UnifiedPropertyService:
         
         doc = await self.collection.find_one({
             "_id": obj_id,
-            "agent_id": user_id
+            "agent_id": str(user_id)
         })
         
         if doc:
@@ -122,7 +122,7 @@ class UnifiedPropertyService:
         Get all properties for a user with pagination.
         Optionally filter by publishing status.
         """
-        query = {"agent_id": user_id}
+        query = {"agent_id": str(user_id)}
         if publishing_status:
             query["publishing_status"] = publishing_status
             

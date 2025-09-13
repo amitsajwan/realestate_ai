@@ -484,10 +484,17 @@ export class APIService {
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     console.log('[APIService] Attempting login for:', credentials.email);
 
-    // Backend returns only tokens for /login; fetch user afterwards
-    const tokenResp = await this.makeRequest<any>('/api/v1/auth/login', {
+    // Use FastAPI Users JWT login endpoint (form-encoded)
+    const formData = new URLSearchParams();
+    formData.append('username', credentials.email);
+    formData.append('password', credentials.password);
+    
+    const tokenResp = await this.makeRequest<any>('/api/v1/auth/jwt/login', {
       method: 'POST',
-      body: JSON.stringify(credentials),
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formData.toString(),
     });
 
     console.log('[APIService] Login tokens received');
@@ -570,13 +577,13 @@ export class APIService {
   }
 
   async getCurrentUser(): Promise<User> {
-    const raw = await this.makeRequest<any>('/api/v1/auth/me', { method: 'GET' }, true);
+    const raw = await this.makeRequest<any>('/api/v1/auth/users/me', { method: 'GET' }, true);
     return UserDataTransformer.fromBackend(raw);
   }
 
   async updateProfile(userData: Partial<User>): Promise<User> {
-    const raw = await this.makeRequest<any>('/api/v1/auth/me', {
-      method: 'PUT',
+    const raw = await this.makeRequest<any>('/api/v1/auth/users/me', {
+      method: 'PATCH',
       body: JSON.stringify(userData)
     }, true);
     return UserDataTransformer.fromBackend(raw);

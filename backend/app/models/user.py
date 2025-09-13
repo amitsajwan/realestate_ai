@@ -1,6 +1,6 @@
 """
-User Model for FastAPI Users
-===========================
+User Model for FastAPI Users 14.0.1
+===================================
 Following the official FastAPI Users documentation
 """
 
@@ -8,15 +8,14 @@ from typing import Optional
 from datetime import datetime
 from beanie import Document
 from fastapi_users import schemas
-from pydantic import EmailStr
+from pydantic import EmailStr, Field
 
 
 class User(Document):
-    """User model for Beanie ODM"""
+    """User model for Beanie ODM compatible with FastAPI Users 14.0.1"""
     
     # Required fields from BaseUser
     email: EmailStr
-    username: Optional[str] = None  # Add username field for compatibility
     hashed_password: str
     is_active: bool = True
     is_superuser: bool = False
@@ -29,8 +28,8 @@ class User(Document):
     company: Optional[str] = None
     
     # Timestamps
-    created_at: datetime = datetime.utcnow()
-    updated_at: datetime = datetime.utcnow()
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     class Settings:
         name = "users"
@@ -53,7 +52,7 @@ class UserUpdate(schemas.BaseUserUpdate):
     company: Optional[str] = None
 
 
-class UserRead(schemas.BaseUser):
+class UserRead(schemas.BaseUser[str]):
     """User read model"""
     id: str
     first_name: Optional[str] = None
@@ -62,3 +61,16 @@ class UserRead(schemas.BaseUser):
     company: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    
+    @classmethod
+    def model_validate(cls, obj, **kwargs):
+        """Override to handle ObjectId conversion"""
+        if hasattr(obj, 'id') and hasattr(obj.id, '__str__'):
+            # Convert ObjectId to string
+            if hasattr(obj, 'model_dump'):
+                obj_dict = obj.model_dump()
+            else:
+                obj_dict = obj.__dict__.copy()
+            obj_dict['id'] = str(obj.id)
+            return super().model_validate(obj_dict, **kwargs)
+        return super().model_validate(obj, **kwargs)
