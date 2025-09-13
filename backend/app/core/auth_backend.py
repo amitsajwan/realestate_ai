@@ -8,6 +8,7 @@ from fastapi_users import FastAPIUsers, BaseUserManager
 from fastapi_users.authentication import JWTStrategy, AuthenticationBackend
 from fastapi_users.authentication.transport import BearerTransport
 from fastapi_users.password import PasswordHelper
+from beanie import PydanticObjectId
 from app.models.user import User, UserCreate
 from app.core.user_db import get_user_db
 from app.core.config import settings
@@ -25,11 +26,15 @@ LIFETIME_SECONDS = settings.jwt_expire_minutes * 60
 password_helper = PasswordHelper()
 
 # UserManager
-class UserManager(BaseUserManager[User, str]):
+class UserManager(BaseUserManager[User, PydanticObjectId]):
     """Custom UserManager for our application"""
     
     def __init__(self, user_db):
         super().__init__(user_db, password_helper)
+    
+    def parse_id(self, value: str) -> PydanticObjectId:
+        """Parse user ID from string to PydanticObjectId"""
+        return PydanticObjectId(value)
     
     async def create(self, user_create: UserCreate, safe: bool = False, request: Optional = None):
         """Create a new user"""
