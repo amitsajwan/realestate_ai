@@ -488,8 +488,8 @@ export class APIService {
     const formData = new URLSearchParams();
     formData.append('username', credentials.email);
     formData.append('password', credentials.password);
-    
-    const tokenResp = await this.makeRequest<any>('/api/v1/auth/jwt/login', {
+
+    const tokenResp = await this.makeRequest<any>('/api/v1/auth/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -577,12 +577,12 @@ export class APIService {
   }
 
   async getCurrentUser(): Promise<User> {
-    const raw = await this.makeRequest<any>('/api/v1/auth/users/me', { method: 'GET' }, true);
+    const raw = await this.makeRequest<any>('/api/v1/auth/me', { method: 'GET' }, true);
     return UserDataTransformer.fromBackend(raw);
   }
 
   async updateProfile(userData: Partial<User>): Promise<User> {
-    const raw = await this.makeRequest<any>('/api/v1/auth/users/me', {
+    const raw = await this.makeRequest<any>('/api/v1/auth/me', {
       method: 'PATCH',
       body: JSON.stringify(userData)
     }, true);

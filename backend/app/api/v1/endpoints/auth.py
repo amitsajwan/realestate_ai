@@ -26,14 +26,14 @@ router = APIRouter()
 # Include FastAPI Users routes with proper prefixes
 router.include_router(
     fastapi_users.get_auth_router(auth_backend),
-    prefix="/jwt",
-    tags=["auth"]
+    prefix="/login",
+    tags=["authentication"]
 )
 
 router.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
-    prefix="",
-    tags=["auth"]
+    prefix="/register",
+    tags=["authentication"]
 )
 
 router.include_router(
@@ -42,8 +42,13 @@ router.include_router(
     tags=["users"]
 )
 
-# Health check endpoint
+# Current user endpoint (alias for /users/me)
+@router.get("/me")
+async def get_current_user_info(current_user: User = Depends(current_active_user)):
+    """Get current user information"""
+    return current_user
 
+# Health check endpoint
 @router.get("/health")
 async def auth_health():
     """Authentication service health check"""

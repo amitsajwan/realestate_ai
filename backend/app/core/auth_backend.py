@@ -13,7 +13,7 @@ from app.models.user import User, UserCreate
 from fastapi import Depends
 
 from app.core.config import settings
-from app.core.simple_user_db import get_simple_user_db
+from app.core.simple_user_db import get_user_db
 import logging
 from typing import Optional
 
@@ -41,12 +41,24 @@ class UserManager(BaseUserManager[User, PydanticObjectId]):
     async def create(self, user_create: UserCreate, safe: bool = False, request: Optional = None):
         """Create a new user"""
         logger.info(f"Creating user: {user_create.email}")
-        return await super().create(user_create, safe, request)
+        
+        # Create user using parent method
+        user = await super().create(user_create, safe, request)
+        
+        # Ensure user is verified and active for immediate login
+        # In production, you might want to implement email verification
+        user.is_verified = True
+        user.is_active = True
+        
+        # Update the user in the database
+        await self.user_db.update(user)
+        
+        return user
 
 # UserManager dependency
 async def get_user_manager():
     """Get user manager instance"""
-    async for user_db in get_simple_user_db():
+    async for user_db in get_user_db():
         yield UserManager(user_db)
 
 # Bearer token transport
@@ -67,7 +79,7 @@ auth_backend = AuthenticationBackend(
 )
 
 # FastAPI Users instance
-fastapi_users = FastAPIUsers[User, str](
+fastapi_users = FastAPIUsers[User, PydanticObjectId](
     get_user_manager,
     [auth_backend]
 )
