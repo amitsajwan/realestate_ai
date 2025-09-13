@@ -5,7 +5,7 @@ Service layer for agent public website functionality
 """
 
 from typing import List, Dict, Any, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.schemas.agent_public import AgentPublicProfile, PublicProperty, ContactInquiry
 from app.schemas.agent_public import (
     AgentPublicProfileCreate,
