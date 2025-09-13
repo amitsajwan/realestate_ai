@@ -141,8 +141,8 @@ export class APIService {
         ...(options.headers as Record<string, string> || {})
       };
 
-      // Only set Content-Type for JSON requests, not for FormData
-      if (!(options.body instanceof FormData)) {
+      // Only set Content-Type for JSON requests, not for FormData or when already specified
+      if (!(options.body instanceof FormData) && !options.headers?.['Content-Type']) {
         headers['Content-Type'] = 'application/json';
       }
 
@@ -483,11 +483,14 @@ export class APIService {
 
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     console.log('[APIService] Attempting login for:', credentials.email);
+    console.log('[APIService] Credentials:', credentials);
 
     // Use FastAPI Users JWT login endpoint (form-encoded)
     const formData = new URLSearchParams();
     formData.append('username', credentials.email);
     formData.append('password', credentials.password);
+
+    console.log('[APIService] Form data:', formData.toString());
 
     const tokenResp = await this.makeRequest<any>('/api/v1/auth/login', {
       method: 'POST',
@@ -675,57 +678,57 @@ export class APIService {
 
 
   async createProperty(propertyData: any): Promise<any> {
-    return this.makeRequest('/api/v1/properties/', {
+    return this.makeRequest('/api/v1/properties/properties/', {
       method: 'POST',
       body: JSON.stringify(propertyData)
     }, true);
   }
 
   async getProperties(): Promise<any> {
-    return this.makeRequest('/api/v1/properties/', {
+    return this.makeRequest('/api/v1/properties/properties/', {
       method: 'GET'
     }, true);
   }
 
   async deleteProperty(propertyId: string): Promise<{ message?: string } | any> {
-    return this.delete(`/api/v1/properties/${propertyId}`, true);
+    return this.delete(`/api/v1/properties/properties/${propertyId}`, true);
   }
 
   // Publishing API
   async publishProperty(propertyId: string, publishingRequest: any): Promise<any> {
-    return this.makeRequest(`/api/v1/publishing/properties/${propertyId}/publish`, {
+    return this.makeRequest(`/api/v1/properties/publishing/publishing/properties/${propertyId}/publish`, {
       method: 'POST',
       body: JSON.stringify(publishingRequest)
     }, true);
   }
 
   async unpublishProperty(propertyId: string): Promise<any> {
-    return this.makeRequest(`/api/v1/publishing/properties/${propertyId}/unpublish`, {
+    return this.makeRequest(`/api/v1/properties/publishing/publishing/properties/${propertyId}/unpublish`, {
       method: 'POST'
     }, true);
   }
 
   async getPublishingStatus(propertyId: string): Promise<any> {
-    return this.makeRequest(`/api/v1/publishing/properties/${propertyId}/status`, {
+    return this.makeRequest(`/api/v1/properties/publishing/publishing/properties/${propertyId}/status`, {
       method: 'GET'
     }, true);
   }
 
   async setLanguagePreferences(agentId: string, preferences: any): Promise<any> {
-    return this.makeRequest(`/api/v1/publishing/agents/${agentId}/language-preferences`, {
+    return this.makeRequest(`/api/v1/properties/publishing/publishing/agents/${agentId}/language-preferences`, {
       method: 'PUT',
       body: JSON.stringify(preferences)
     }, true);
   }
 
   async getSupportedLanguages(): Promise<any> {
-    return this.makeRequest('/api/v1/publishing/languages/supported', {
+    return this.makeRequest('/api/v1/properties/publishing/publishing/languages/supported', {
       method: 'GET'
     }, true);
   }
 
   async getSupportedChannels(): Promise<any> {
-    return this.makeRequest('/api/v1/publishing/channels/supported', {
+    return this.makeRequest('/api/v1/properties/publishing/publishing/channels/supported', {
       method: 'GET'
     }, true);
   }
@@ -741,6 +744,38 @@ export class APIService {
     return this.makeRequest('/api/v1/agent/profile', {
       method: 'GET'
     }, true);
+  }
+
+  // Agent Public API
+  async getAgentPublicProfile(): Promise<any> {
+    return this.makeRequest('/api/v1/agent/public/agent-public/profile', {
+      method: 'GET'
+    }, true);
+  }
+
+  async updateAgentPublicProfile(profileData: any): Promise<any> {
+    return this.makeRequest('/api/v1/agent/public/agent-public/profile', {
+      method: 'PUT',
+      body: JSON.stringify(profileData)
+    }, true);
+  }
+
+  async getAgentPublicStats(): Promise<any> {
+    return this.makeRequest('/api/v1/agent/public/agent-public/stats', {
+      method: 'GET'
+    }, true);
+  }
+
+  async getAgentPublicWebsite(agentSlug: string): Promise<any> {
+    return this.makeRequest(`/api/v1/agent/public/agent-public/${agentSlug}`, {
+      method: 'GET'
+    }, false);
+  }
+
+  async getAgentPublicProperties(agentSlug: string): Promise<any> {
+    return this.makeRequest(`/api/v1/agent/public/agent-public/${agentSlug}/properties`, {
+      method: 'GET'
+    }, false);
   }
 
   async getBrandingSuggestions(data: { company_name: string; agent_name?: string; position?: string }): Promise<any> {
@@ -764,7 +799,7 @@ export class APIService {
       property_type: String(params.propertyType || ''),
       price: String(params.price ?? '')
     }).toString();
-    return this.get(`/api/v1/properties/market-insights?${query}`, false);
+    return this.get(`/api/v1/properties/properties/market-insights?${query}`, false);
   }
 
   async updateOnboarding(userId: string, data: OnboardingUpdateRequest): Promise<ApiResponse<User>> {

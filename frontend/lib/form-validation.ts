@@ -4,11 +4,10 @@ import { ValidationErrors } from '@/types/user'
 // Base validation schemas
 const emailSchema = z.string().email('Please enter a valid email address')
 const passwordSchema = z.string()
-  .min(8, 'Password must be at least 8 characters')
+  .min(6, 'Password must be at least 6 characters')
   .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
   .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
   .regex(/\d/, 'Password must contain at least one number')
-  .regex(/[^\w\s]/, 'Password must contain at least one special character')
 
 const nameSchema = z.string()
   .min(2, 'Name must be at least 2 characters')
@@ -49,7 +48,7 @@ export const registerSchema = z.object({
   firstName: nameSchema,
   lastName: nameSchema,
   phone: optionalPhoneEmptySchema,
-  confirmPassword: z.string()
+  confirmPassword: z.string().min(1, 'Please confirm your password')
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Passwords do not match',
   path: ['confirmPassword']
