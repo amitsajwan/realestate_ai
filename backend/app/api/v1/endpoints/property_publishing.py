@@ -9,7 +9,8 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import logging
 
-from app.dependencies import get_current_user
+from app.core.auth_backend import current_active_user
+from app.models.user import User
 from app.schemas.agent_language_preferences import (
     AgentLanguagePreferences,
     LanguagePreferenceCreate,
@@ -43,7 +44,7 @@ def get_language_service() -> AgentLanguageService:
 async def publish_property(
     property_id: str,
     publishing_request: PublishingRequest,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """
     Publish a property to selected channels and languages.
@@ -93,7 +94,7 @@ async def publish_property(
 @router.get("/properties/{property_id}/status", response_model=PublishingStatus)
 async def get_publishing_status(
     property_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Get publishing status for a property"""
     try:
@@ -115,7 +116,7 @@ async def get_publishing_status(
 @router.post("/properties/{property_id}/unpublish")
 async def unpublish_property(
     property_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Unpublish a property (set status back to draft)"""
     try:
@@ -137,7 +138,7 @@ async def unpublish_property(
 @router.get("/agents/{agent_id}/language-preferences", response_model=AgentLanguagePreferences)
 async def get_agent_language_preferences(
     agent_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Get agent language preferences and Facebook page mappings"""
     try:
@@ -168,7 +169,7 @@ async def get_agent_language_preferences(
 async def update_agent_language_preferences(
     agent_id: str,
     preferences: LanguagePreferenceUpdate,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Update agent language preferences and Facebook page mappings"""
     try:
@@ -197,7 +198,7 @@ async def update_agent_language_preferences(
 
 @router.get("/facebook/pages", response_model=List[FacebookPageInfo])
 async def get_facebook_pages(
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Get connected Facebook pages for the current user"""
     try:
@@ -220,7 +221,7 @@ async def get_facebook_pages(
 async def connect_facebook_page(
     page_id: str,
     language: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Connect a Facebook page for a specific language"""
     try:

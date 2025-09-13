@@ -9,7 +9,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 # Removed duplicate smart_properties import - using unified_properties now
-from app.dependencies import get_current_user
+from app.core.auth_backend import current_active_user
+from app.models.user import User
 
 
 class AIPropertySuggestRequest(BaseModel):
@@ -32,10 +33,11 @@ def setup_routes(app: FastAPI):
 
     # Include all API V1 routers
     from app.api.v1.router import api_router
-    from app.api.v1.endpoints import simple_auth
+    # Temporarily disable simple_auth to focus on FastAPI Users
+    # from app.api.v1.endpoints import simple_auth
 
     app.include_router(api_router, prefix="/api/v1")
-    app.include_router(simple_auth.router)
+    # app.include_router(simple_auth.router)
 
     # Mount static files for uploads
     app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
@@ -359,7 +361,7 @@ def setup_additional_endpoints(app: FastAPI):
             raise HTTPException(status_code=500, detail="Internal server error")
 
     @app.get("/api/v1/agent/profile")
-    async def get_agent_profile(current_user: dict = Depends(get_current_user)):
+    async def get_agent_profile(current_user: User = Depends(current_active_user)):
         """Get agent profile for current user"""
         try:
             from app.services.agent_profile_service import AgentProfileService

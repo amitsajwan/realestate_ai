@@ -74,7 +74,7 @@ if [ -d "venv" ]; then
     rm -rf venv
 fi
 
-python3 -m venv venv
+python -m venv venv
 print_success "Virtual environment created"
 
 # Activate virtual environment

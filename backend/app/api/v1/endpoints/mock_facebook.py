@@ -12,7 +12,9 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
-from app.dependencies import get_current_user, get_current_user_id
+from app.core.auth_backend import current_active_user
+from app.core.fastapi_users_deps import get_current_user_id
+from app.models.user import User
 from app.services.mock_facebook_service import MockFacebookService
 from app.repositories.user_repository import UserRepository
 from app.core.exceptions import FacebookError

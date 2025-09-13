@@ -95,12 +95,13 @@ async def initialize_users_collection(db: AsyncIOMotorDatabase):
     try:
         collection = db.users
         
-        # Create indexes for users
+        # Create indexes for users (FastAPI Users compatible)
         await collection.create_index("email", unique=True)
-        await collection.create_index("username", unique=True)
         await collection.create_index("created_at")
         await collection.create_index("is_active")
-        await collection.create_index("onboarding_completed")
+        await collection.create_index("is_verified")
+        await collection.create_index("is_superuser")
+        # Remove username unique index as FastAPI Users uses email as primary identifier
         
         logger.info("Users collection initialized with indexes")
         
