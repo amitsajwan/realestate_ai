@@ -50,8 +50,8 @@ class UserManager(BaseUserManager[User, PydanticObjectId]):
         user.is_verified = True
         user.is_active = True
         
-        # Update the user in the database
-        await self.user_db.update(user)
+        # Save the updated user directly
+        await user.save()
         
         return user
 
@@ -62,7 +62,7 @@ async def get_user_manager():
         yield UserManager(user_db)
 
 # Bearer token transport
-bearer_transport = BearerTransport(tokenUrl="auth/jwt/login")
+bearer_transport = BearerTransport(tokenUrl="auth/login")
 
 # JWT Strategy
 jwt_strategy = JWTStrategy(
