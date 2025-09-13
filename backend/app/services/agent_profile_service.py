@@ -124,8 +124,8 @@ class AgentProfileService:
         # This could be enhanced with more sophisticated logic
         # For now, we'll use simple heuristics or default values
         
-        bio = profile.get("bio", "").lower()
-        specialization = profile.get("specialization", "").lower()
+        bio = (profile.get("bio") or "").lower()
+        specialization = (profile.get("specialization") or "").lower()
         
         # Simple keyword-based experience detection
         if any(word in bio for word in ["senior", "expert", "veteran", "20+ years", "experienced"]):

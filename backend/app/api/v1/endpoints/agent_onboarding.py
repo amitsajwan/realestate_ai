@@ -33,7 +33,7 @@ async def agent_onboard(
         email=email, name=name, whatsapp=whatsapp,
         profile_photo_url=profile_photo_url, tagline=tagline, about=about
     )
-    agent = svc.onboard(onboarding_data)
+    agent = await svc.onboard(onboarding_data)
     return {"success": True, "agent": agent.dict()}
 
 @router.options("/branding-suggest")

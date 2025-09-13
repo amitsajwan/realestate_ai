@@ -16,6 +16,7 @@ from app.schemas.agent_language_preferences import (
     LanguagePreferenceCreate,
     LanguagePreferenceUpdate,
     PublishingRequest,
+    PublishingRequestBody,
     PublishingStatus,
     FacebookPageInfo
 )
@@ -43,7 +44,7 @@ def get_language_service() -> AgentLanguageService:
 @router.post("/properties/{property_id}/publish", response_model=PublishingStatus)
 async def publish_property(
     property_id: str,
-    publishing_request: PublishingRequest,
+    publishing_request: PublishingRequestBody,
     current_user: User = Depends(current_active_user)
 ):
     """
@@ -64,7 +65,7 @@ async def publish_property(
         language_service = get_language_service()
         
         # Get agent language preferences
-        language_prefs = await language_service.get_agent_preferences(user_id)
+        language_prefs = await language_service.get_agent_preferences(str(user_id))
         
         # Update publishing request with agent preferences if not specified
         if not publishing_request.target_languages:
@@ -73,11 +74,21 @@ async def publish_property(
         if not publishing_request.facebook_page_mappings:
             publishing_request.facebook_page_mappings = language_prefs.facebook_page_mappings
         
+        # Create full publishing request with property_id
+        full_publishing_request = PublishingRequest(
+            property_id=property_id,
+            target_languages=publishing_request.target_languages,
+            publishing_channels=publishing_request.publishing_channels,
+            facebook_page_mappings=publishing_request.facebook_page_mappings,
+            schedule_publish=publishing_request.schedule_publish,
+            auto_translate=publishing_request.auto_translate
+        )
+        
         # Publish property
         result = await publishing_service.publish_property(
             property_id=property_id,
             agent_id=user_id,
-            publishing_request=publishing_request
+            publishing_request=full_publishing_request
         )
         
         logger.info(f"Property {property_id} published successfully")

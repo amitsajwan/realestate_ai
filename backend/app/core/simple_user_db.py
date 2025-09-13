@@ -28,6 +28,10 @@ class SimpleUserDatabase:
             return None
         return await User.get(user_id)
     
+    async def get(self, user_id: str) -> Optional[User]:
+        """Get user by ID (alias for get_by_id)"""
+        return await self.get_by_id(user_id)
+    
     async def create(self, user: User) -> User:
         """Create a new user"""
         if self.database is None:
