@@ -354,7 +354,7 @@ export default function Analytics({ properties = [] }: AnalyticsProps) {
             Property Types
           </h3>
           <div className="space-y-4">
-            {Object.entries(propertyTypes).map(([type, count], index) => {
+            {Object.entries(propertyTypes || {}).map(([type, count], index) => {
               const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500']
               const countNum = Number(count)
               const percentage = totalProperties > 0 ? Math.round((countNum / totalProperties) * 100) : 0
