@@ -63,8 +63,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, isLoading = false }) =>
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!validator.validateAll(formData)) {
-            return;
+        // Only validate if user has entered something
+        if (formData.email || formData.password) {
+            if (!validator.validateAll(formData)) {
+                return;
+            }
         }
 
         await submit(async () => {
@@ -161,7 +164,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, isLoading = false }) =>
                 <LoadingButton
                     type="submit"
                     isLoading={isLoading}
-                    disabled={!validator.validateAll(formData)}
+                    disabled={false}
                     className="group relative w-full flex justify-center py-3 sm:py-2 px-4 border border-transparent text-base sm:text-sm font-medium rounded-lg text-white min-h-[48px] bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 hover-lift click-shrink transition-all duration-200 ease-in-out"
                 >
                     Sign in
