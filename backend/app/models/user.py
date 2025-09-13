@@ -8,7 +8,7 @@ from typing import Optional
 from datetime import datetime
 from beanie import Document
 from fastapi_users import schemas
-from pydantic import EmailStr
+from pydantic import EmailStr, Field
 
 
 class User(Document):
@@ -16,7 +16,6 @@ class User(Document):
     
     # Required fields from BaseUser
     email: EmailStr
-    username: Optional[str] = None  # Add username field for compatibility
     hashed_password: str
     is_active: bool = True
     is_superuser: bool = False
@@ -29,8 +28,8 @@ class User(Document):
     company: Optional[str] = None
     
     # Timestamps
-    created_at: datetime = datetime.utcnow()
-    updated_at: datetime = datetime.utcnow()
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
     
     class Settings:
         name = "users"
