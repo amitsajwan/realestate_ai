@@ -1,5 +1,5 @@
 """
-User Model for FastAPI Users 14.0.1
+User Model for FastAPI Users 13.0.0
 ===================================
 Following the official FastAPI Users documentation
 """
@@ -27,6 +27,10 @@ class User(Document):
     phone: Optional[str] = None
     company: Optional[str] = None
     
+    # Onboarding fields
+    onboarding_completed: bool = False
+    onboarding_step: int = 0
+    
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -52,12 +56,32 @@ class UserUpdate(schemas.BaseUserUpdate):
     company: Optional[str] = None
 
 
-class UserRead(schemas.BaseUser[PydanticObjectId]):
+class UserRead(schemas.BaseUser[str]):
     """User read model"""
-    id: PydanticObjectId
+    id: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     phone: Optional[str] = None
     company: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    
+    @classmethod
+    def model_validate(cls, obj, **kwargs):
+        """Override to handle ObjectId conversion to string"""
+        # Handle both object and dictionary inputs
+        if isinstance(obj, dict):
+            # If it's already a dict, convert id if it's an ObjectId
+            if 'id' in obj and hasattr(obj['id'], '__str__') and not isinstance(obj['id'], str):
+                obj = obj.copy()
+                obj['id'] = str(obj['id'])
+        elif hasattr(obj, 'id') and hasattr(obj.id, '__str__'):
+            # Convert ObjectId to string
+            if hasattr(obj, 'model_dump'):
+                obj_dict = obj.model_dump()
+            else:
+                obj_dict = obj.__dict__.copy()
+            obj_dict['id'] = str(obj.id)
+            obj = obj_dict
+        
+        return super().model_validate(obj, **kwargs)
