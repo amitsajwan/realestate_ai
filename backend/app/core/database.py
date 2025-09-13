@@ -33,7 +33,10 @@ async def init_database():
         
     except Exception as e:
         logger.error(f"❌ Failed to initialize database: {e}")
-        raise
+        # Set database to None to indicate mock mode
+        database = None
+        client = None
+        logger.warning("⚠️ Running in mock database mode")
 
 
 async def close_database():
