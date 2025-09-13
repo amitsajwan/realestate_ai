@@ -48,7 +48,7 @@ class MockFacebookResponse(BaseModel):
 def get_mock_facebook_service() -> MockFacebookService:
     """Get mock Facebook service instance"""
     db = get_database()
-    user_repository = UserRepository(db)
+    user_repository = UserRepository()
     return MockFacebookService(user_repository)
 
 @router.get("/mock-auth", response_model=Dict[str, str])

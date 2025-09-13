@@ -89,7 +89,7 @@ class PromotionStatusResponse(BaseModel):
 
 def get_facebook_service() -> FacebookService:
     db = get_database()
-    user_repo = UserRepository(db)
+    user_repo = UserRepository()
     return FacebookService(user_repo)
 
 # --- Additional Schemas for optimization/history ---
