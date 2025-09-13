@@ -47,16 +47,39 @@ class MockCollection:
         print(f"DEBUG: No matching document found")
         return None
     
-    async def find(self, filter_dict: Dict[str, Any] = None) -> List[Dict[str, Any]]:
-        """Mock find operation"""
+    async def find(self, filter_dict: Dict[str, Any] = None):
+        """Mock find operation - returns a cursor-like object"""
         if not filter_dict:
-            return list(self.data.values())
+            results = list(self.data.values())
+        else:
+            results = []
+            for doc in self.data.values():
+                if all(doc.get(k) == v for k, v in filter_dict.items()):
+                    results.append(doc)
         
-        results = []
-        for doc in self.data.values():
-            if all(doc.get(k) == v for k, v in filter_dict.items()):
-                results.append(doc)
-        return results
+        # Return a cursor-like object
+        class MockCursor:
+            def __init__(self, data):
+                self.data = data
+            
+            async def to_list(self, length=None):
+                return self.data[:length] if length else self.data
+            
+            def skip(self, n):
+                self.data = self.data[n:]
+                return self
+            
+            def limit(self, n):
+                self.data = self.data[:n]
+                return self
+            
+            def sort(self, field, direction):
+                # Simple sort implementation
+                if isinstance(field, str):
+                    self.data.sort(key=lambda x: x.get(field, ''), reverse=(direction == -1))
+                return self
+        
+        return MockCursor(results)
     
     async def update_one(self, filter_dict: Dict[str, Any], update_dict: Dict[str, Any]) -> MockUpdateResult:
         """Mock update_one operation"""
@@ -104,6 +127,9 @@ class MockDatabase:
         return self.__getitem__(collection_name)
 
 logger = logging.getLogger(__name__)
+
+# Global mock database instance
+_global_mock_database = None
 
 class Database:
     client: Optional[motor.motor_asyncio.AsyncIOMotorClient] = None

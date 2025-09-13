@@ -6,7 +6,7 @@ Public-facing endpoints for agent websites
 
 from fastapi import APIRouter, HTTPException, Depends, Query, Path
 from typing import List, Optional
-from sqlalchemy.ext.asyncio import AsyncSession
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.database import get_database
 from app.schemas.agent_public import (
     AgentPublicProfile,
@@ -28,7 +28,7 @@ router = APIRouter(prefix="/agent-public", tags=["agent-public"])
 @router.get("/profile")
 async def get_current_agent_public_profile(
     # current_user: User = Depends(get_current_user),  # TODO: Implement auth
-    db: AsyncSession = Depends(get_database)
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     Get current agent's public profile for management
@@ -68,7 +68,7 @@ async def get_current_agent_public_profile(
 async def update_current_agent_public_profile(
     profile_data: dict,
     # current_user: User = Depends(get_current_user),  # TODO: Implement auth
-    db: AsyncSession = Depends(get_database)
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     Update current agent's public profile
@@ -87,7 +87,7 @@ async def update_current_agent_public_profile(
 @router.get("/stats")
 async def get_current_agent_public_stats(
     # current_user: User = Depends(get_current_user),  # TODO: Implement auth
-    db: AsyncSession = Depends(get_database)
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     Get current agent's public statistics
@@ -114,7 +114,7 @@ async def get_current_agent_public_stats(
 @router.get("/{agent_slug}", response_model=AgentPublicProfile)
 async def get_agent_public_profile(
     agent_slug: str = Path(..., description="Agent's URL slug"),
-    db: AsyncSession = Depends(get_database)
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     Get agent's public profile by slug
@@ -158,7 +158,7 @@ async def get_agent_public_properties(
     sort_order: str = Query("desc", description="Sort order (asc/desc)"),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(12, ge=1, le=50, description="Items per page"),
-    db: AsyncSession = Depends(get_database)
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     Get agent's public properties with filtering and pagination
@@ -210,7 +210,7 @@ async def get_agent_public_properties(
 async def get_agent_public_property(
     agent_slug: str = Path(..., description="Agent's URL slug"),
     property_id: str = Path(..., description="Property ID"),
-    db: AsyncSession = Depends(get_database)
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     Get specific property details from agent's public profile
@@ -246,7 +246,7 @@ async def get_agent_public_property(
 async def submit_contact_inquiry(
     agent_slug: str = Path(..., description="Agent's URL slug"),
     inquiry: ContactInquiryCreate = ...,
-    db: AsyncSession = Depends(get_database)
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     Submit contact inquiry to agent
@@ -283,7 +283,7 @@ async def submit_contact_inquiry(
 async def track_contact_action(
     agent_slug: str = Path(..., description="Agent's URL slug"),
     action_data: dict = ...,
-    db: AsyncSession = Depends(get_database)
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     Track contact-related actions (button clicks, form views, etc.)
@@ -310,7 +310,7 @@ async def track_contact_action(
 @router.get("/{agent_slug}/about")
 async def get_agent_about_info(
     agent_slug: str = Path(..., description="Agent's URL slug"),
-    db: AsyncSession = Depends(get_database)
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     Get agent's about information for about page
@@ -345,7 +345,7 @@ async def get_agent_about_info(
 async def get_agent_public_stats(
     agent_slug: str = Path(..., description="Agent's URL slug"),
     # current_user: Optional[User] = Depends(get_current_user_optional),  # TODO: Implement auth
-    db: AsyncSession = Depends(get_database)
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     Get agent's public statistics (only accessible by the agent themselves)

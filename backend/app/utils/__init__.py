@@ -10,7 +10,7 @@ def verify_jwt_token(token: str):
     logger.debug(f"Verifying JWT token: {token}")
     
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
         return payload
     except JWTError as e:
         logger.error(f"JWT verification failed: {e}")

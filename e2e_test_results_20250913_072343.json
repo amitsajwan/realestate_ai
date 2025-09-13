@@ -1,0 +1,22 @@
+{
+  "success": false,
+  "total_tests": 12,
+  "passed": 7,
+  "failed": 5,
+  "skipped": 0,
+  "duration": 0.6172199249267578,
+  "results": [
+    "TestResult(test_name='Authentication Flow', status='FAIL', duration=0.44263148307800293, error_message='Token validation failed: {\"detail\":\"Invalid authentication token: Token verification failed: \\'Settings\\' object has no attribute \\'SECRET_KEY\\'\"}', details=None)",
+    "TestResult(test_name='Onboarding Workflow', status='FAIL', duration=0.0017628669738769531, error_message='Onboarding failed: {\"detail\":\"Not Found\"}', details=None)",
+    "TestResult(test_name='Property Management', status='FAIL', duration=0.004884481430053711, error_message='Property creation failed: {\"detail\":\"Token verification failed\"}', details=None)",
+    "TestResult(test_name='Publishing Workflow', status='FAIL', duration=0.0044612884521484375, error_message='Property creation failed: {\"detail\":\"Token verification failed\"}', details=None)",
+    "TestResult(test_name='AI Features', status='PASS', duration=0.00498199462890625, error_message=None, details=None)",
+    "TestResult(test_name='Analytics Dashboard', status='PASS', duration=0.0053827762603759766, error_message=None, details=None)",
+    "TestResult(test_name='CRM Features', status='PASS', duration=0.0022935867309570312, error_message=None, details=None)",
+    "TestResult(test_name='Facebook Integration', status='PASS', duration=0.003682851791381836, error_message=None, details=None)",
+    "TestResult(test_name='Responsive Design', status='PASS', duration=0.07005786895751953, error_message=None, details={'tests_passed': 5, 'total_tests': 5})",
+    "TestResult(test_name='Accessibility', status='FAIL', duration=0.012402772903442383, error_message='Only 1/5 accessibility checks passed', details=None)",
+    "TestResult(test_name='Performance', status='PASS', duration=0.014802694320678711, error_message=None, details={'frontend_duration': 0.012938261032104492, 'api_duration': 0.0017876625061035156})",
+    "TestResult(test_name='Error Handling', status='PASS', duration=0.017457246780395508, error_message=None, details=None)"
+  ]
+}

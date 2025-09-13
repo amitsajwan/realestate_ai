@@ -6,7 +6,7 @@ Dashboard-specific endpoints for agent public website management
 
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
-from sqlalchemy.ext.asyncio import AsyncSession
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.database import get_database
 from app.dependencies import get_current_user
 from app.schemas.agent_public import AgentPublicProfileUpdate
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/agent-dashboard", tags=["agent-dashboard"])
 @router.get("/profile")
 async def get_agent_public_profile_for_dashboard(
     # current_user: User = Depends(get_current_user),  # TODO: Implement auth
-    db: AsyncSession = Depends(get_database)
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     Get agent's public profile for dashboard management
@@ -62,7 +62,7 @@ async def get_agent_public_profile_for_dashboard(
 async def update_agent_public_profile(
     profile_data: AgentPublicProfileUpdate,
     # current_user: User = Depends(get_current_user),  # TODO: Implement auth
-    db: AsyncSession = Depends(get_database)
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     Update agent's public profile
@@ -107,7 +107,7 @@ async def update_agent_public_profile(
 @router.get("/stats")
 async def get_agent_public_stats(
     # current_user: User = Depends(get_current_user),  # TODO: Implement auth
-    db: AsyncSession = Depends(get_database)
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     Get agent's public website statistics
@@ -144,7 +144,7 @@ async def get_agent_inquiries(
     page: int = 1,
     limit: int = 20,
     # current_user: User = Depends(get_current_user),  # TODO: Implement auth
-    db: AsyncSession = Depends(get_database)
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     Get agent's contact inquiries
@@ -175,7 +175,7 @@ async def get_agent_inquiries(
 async def create_agent_public_profile(
     profile_data: dict,
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_database)
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     Create initial public profile for agent
