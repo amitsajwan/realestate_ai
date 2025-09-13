@@ -41,7 +41,7 @@ class PropertyBase(BaseModel):
     features: Optional[List[str]] = Field(default_factory=list)
     amenities: Optional[str] = None
     status: str = "active"  # active, sold, pending, inactive
-    agent_id: str
+    agent_id: Optional[str] = None  # Will be set from user_id in service
     images: Optional[List[str]] = Field(default_factory=list)
     
     # Smart property features (optional)
@@ -67,7 +67,8 @@ class PropertyBase(BaseModel):
 
 class PropertyCreate(PropertyBase):
     """Schema for creating a new property"""
-    pass
+    # agent_id is automatically set from user_id in the service
+    agent_id: Optional[str] = None
 
 
 class PropertyUpdate(BaseModel):

@@ -58,6 +58,15 @@ class PublishingRequest(BaseModel):
     auto_translate: bool = True
 
 
+class PublishingRequestBody(BaseModel):
+    """Schema for property publishing request body (without property_id)"""
+    target_languages: List[str] = Field(default_factory=list)
+    publishing_channels: List[str] = Field(default_factory=list)  # website, facebook, instagram, etc.
+    facebook_page_mappings: Optional[Dict[str, str]] = None
+    schedule_publish: Optional[datetime] = None
+    auto_translate: bool = True
+
+
 class PublishingStatus(BaseModel):
     """Schema for publishing status response"""
     property_id: str

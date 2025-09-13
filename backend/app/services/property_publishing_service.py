@@ -44,11 +44,28 @@ class PropertyPublishingService:
     ) -> PublishingStatus:
         """Publish a property to selected channels and languages"""
         try:
+            # Debug: Check database connection
+            if self.db is None:
+                raise ValueError("Database connection is None")
+            
             # Get property
             property_query = self._get_property_query(property_id)
-            property_query["agent_id"] = agent_id
+            property_query["agent_id"] = str(agent_id)  # Ensure agent_id is a string
+            
+            # Debug: Log the query
+            logger.info(f"Looking for property with query: {property_query}")
+            
+            # Ensure agent_id is a string for the query
+            property_query["agent_id"] = str(agent_id)
+            
             property_doc = await self.properties_collection.find_one(property_query)
             if not property_doc:
+                # Debug: Try without agent_id filter
+                property_doc_no_agent = await self.properties_collection.find_one(self._get_property_query(property_id))
+                if property_doc_no_agent:
+                    logger.error(f"Property found but agent_id mismatch. Expected: {agent_id}, Found: {property_doc_no_agent.get('agent_id')}")
+                else:
+                    logger.error(f"Property not found at all with ID: {property_id}")
                 raise ValueError(f"Property {property_id} not found or access denied")
             
             # Update property status
@@ -128,7 +145,7 @@ class PropertyPublishingService:
         try:
             # Get property
             property_query = self._get_property_query(property_id)
-            property_query["agent_id"] = agent_id
+            property_query["agent_id"] = str(agent_id)  # Ensure agent_id is a string
             property_doc = await self.properties_collection.find_one(property_query)
             if not property_doc:
                 raise ValueError(f"Property {property_id} not found or access denied")
@@ -171,7 +188,7 @@ class PropertyPublishingService:
         try:
             # Update property status
             update_query = self._get_property_query(property_id)
-            update_query["agent_id"] = agent_id
+            update_query["agent_id"] = str(agent_id)  # Ensure agent_id is a string
             await self.properties_collection.update_one(
                 update_query,
                 {

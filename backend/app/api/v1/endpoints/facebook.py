@@ -4,8 +4,8 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 from datetime import datetime
 
-from app.core.auth_backend import current_active_user
-from app.core.fastapi_users_deps import get_current_user_id
+from app.core.auth_backend import current_active_user, get_current_user_id
+
 from app.models.user import User
 from app.services.facebook_service import FacebookService
 from app.repositories.user_repository import UserRepository
@@ -89,7 +89,7 @@ class PromotionStatusResponse(BaseModel):
 
 def get_facebook_service() -> FacebookService:
     db = get_database()
-    user_repo = UserRepository(db)
+    user_repo = UserRepository()
     return FacebookService(user_repo)
 
 # --- Additional Schemas for optimization/history ---
@@ -122,7 +122,7 @@ class PromotionHistoryResponse(BaseModel):
  
 @router.get("/config")
 async def get_facebook_config(
-    current_user = Depends(get_current_user),
+    current_user = Depends(current_active_user),
     facebook_service: FacebookService = Depends(get_facebook_service)
 ):
     """Get Facebook connection status and config"""
@@ -144,7 +144,7 @@ async def get_facebook_config(
 
 @router.get("/login")
 async def facebook_login_redirect(
-    current_user = Depends(get_current_user),
+    current_user = Depends(current_active_user),
     facebook_service: FacebookService = Depends(get_facebook_service)
 ):
     """Initiate Facebook OAuth flow"""
@@ -175,7 +175,7 @@ async def facebook_callback(
 
 @router.get("/pages")
 async def get_facebook_pages(
-    current_user = Depends(get_current_user),
+    current_user = Depends(current_active_user),
     facebook_service: FacebookService = Depends(get_facebook_service)
 ):
     """Get user's Facebook pages"""
@@ -191,7 +191,7 @@ async def get_facebook_pages(
 @router.post("/select-page")
 async def select_facebook_page(
     page_data: dict,
-    current_user = Depends(get_current_user),
+    current_user = Depends(current_active_user),
     facebook_service: FacebookService = Depends(get_facebook_service)
 ):
     """Select a Facebook page for posting"""
@@ -214,7 +214,7 @@ async def select_facebook_page(
 @router.post("/post-property/{property_id}")
 async def post_property_to_facebook(
     property_id: str,
-    current_user = Depends(get_current_user),
+    current_user = Depends(current_active_user),
     facebook_service: FacebookService = Depends(get_facebook_service)
 ):
     """Post a property to Facebook"""
@@ -229,7 +229,7 @@ async def post_property_to_facebook(
 
 @router.post("/disconnect")
 async def disconnect_facebook(
-    current_user = Depends(get_current_user),
+    current_user = Depends(current_active_user),
     facebook_service: FacebookService = Depends(get_facebook_service)
 ):
     """Disconnect Facebook account"""
@@ -246,7 +246,7 @@ async def disconnect_facebook(
 @router.post("/promote-post", response_model=PromotePostResponse)
 async def promote_facebook_post(
     request: PromotePostRequest,
-    current_user = Depends(get_current_user),
+    current_user = Depends(current_active_user),
     facebook_service: FacebookService = Depends(get_facebook_service)
 ):
     """Create a Facebook ad campaign to promote a post"""
@@ -290,7 +290,7 @@ async def promote_facebook_post(
 @router.get("/promotion-status", response_model=PromotionStatusResponse)
 async def get_promotion_status(
     campaign_id: str = Query(..., description="Facebook campaign ID to get analytics for"),
-    current_user = Depends(get_current_user),
+    current_user = Depends(current_active_user),
     facebook_service: FacebookService = Depends(get_facebook_service)
 ):
     """Get analytics for a Facebook ad campaign"""
@@ -337,7 +337,7 @@ async def get_promotion_status(
 async def optimize_campaign(
     campaign_id: str,
     request: OptimizeCampaignRequest,
-    current_user = Depends(get_current_user),
+    current_user = Depends(current_active_user),
     facebook_service: FacebookService = Depends(get_facebook_service)
 ):
     """Apply optimization strategy to a campaign (stub implementation)."""
@@ -360,7 +360,7 @@ async def optimize_campaign(
 @router.get("/properties/{property_id}/promotion-history", response_model=PromotionHistoryResponse)
 async def get_property_promotion_history(
     property_id: str,
-    current_user = Depends(get_current_user),
+    current_user = Depends(current_active_user),
     facebook_service: FacebookService = Depends(get_facebook_service)
 ):
     """Get promotion history for a property (stub implementation)."""
