@@ -186,7 +186,7 @@ class E2ETestSuite:
             }
             
             onboarding_response = self.session.post(
-                f"{self.api_url}/api/v1/auth/complete-onboarding",
+                f"{self.api_url}/api/v1/onboarding/{self.user_id}",
                 json=onboarding_data,
                 headers=headers,
                 timeout=10
@@ -201,9 +201,10 @@ class E2ETestSuite:
             self.log("✅ Onboarding workflow completed")
             
             # Test AI branding suggestions
-            branding_response = self.session.get(
-                f"{self.api_url}/api/v1/ai/branding-suggestions",
+            branding_response = self.session.post(
+                f"{self.api_url}/api/v1/agent/branding-suggest",
                 headers=headers,
+                json={"user_id": self.user_id},
                 timeout=10
             )
             
@@ -493,7 +494,7 @@ class E2ETestSuite:
             }
             
             ai_response = self.session.post(
-                f"{self.api_url}/api/v1/ai/generate-content",
+                f"{self.api_url}/api/v1/properties/{property_id}/ai-suggestions",
                 json=content_data,
                 headers=headers,
                 timeout=15
@@ -508,9 +509,10 @@ class E2ETestSuite:
             
             # Test 2: Market Insights
             self.log("Testing market insights...")
-            insights_response = self.session.get(
-                f"{self.api_url}/api/v1/ai/market-insights?location=Test+City",
+            insights_response = self.session.post(
+                f"{self.api_url}/api/v1/properties/{property_id}/market-insights",
                 headers=headers,
+                json={"location": "Test City"},
                 timeout=10
             )
             
@@ -556,7 +558,7 @@ class E2ETestSuite:
             # Test 1: Dashboard Stats
             self.log("Testing dashboard stats...")
             stats_response = self.session.get(
-                f"{self.api_url}/api/v1/analytics/dashboard-stats",
+                f"{self.api_url}/api/v1/dashboard/dashboard/metrics",
                 headers=headers,
                 timeout=10
             )
@@ -571,7 +573,7 @@ class E2ETestSuite:
             # Test 2: Property Analytics
             self.log("Testing property analytics...")
             property_analytics_response = self.session.get(
-                f"{self.api_url}/api/v1/analytics/properties",
+                f"{self.api_url}/api/v1/properties/{property_id}/analytics",
                 headers=headers,
                 timeout=10
             )
