@@ -26,13 +26,13 @@ router = APIRouter()
 # Include FastAPI Users routes with proper prefixes
 router.include_router(
     fastapi_users.get_auth_router(auth_backend),
-    prefix="/login",
+    prefix="",  # No additional prefix since we're already in /auth
     tags=["authentication"]
 )
 
 router.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
-    prefix="/register",
+    prefix="",  # No additional prefix since we're already in /auth
     tags=["authentication"]
 )
 

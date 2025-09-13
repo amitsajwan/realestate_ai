@@ -6,7 +6,7 @@ Following the official FastAPI Users documentation
 
 from typing import Optional
 from datetime import datetime
-from beanie import Document
+from beanie import Document, PydanticObjectId
 from fastapi_users import schemas
 from pydantic import EmailStr, Field
 
@@ -52,25 +52,12 @@ class UserUpdate(schemas.BaseUserUpdate):
     company: Optional[str] = None
 
 
-class UserRead(schemas.BaseUser[str]):
+class UserRead(schemas.BaseUser[PydanticObjectId]):
     """User read model"""
-    id: str
+    id: PydanticObjectId
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     phone: Optional[str] = None
     company: Optional[str] = None
     created_at: datetime
     updated_at: datetime
-    
-    @classmethod
-    def model_validate(cls, obj, **kwargs):
-        """Override to handle ObjectId conversion"""
-        if hasattr(obj, 'id') and hasattr(obj.id, '__str__'):
-            # Convert ObjectId to string
-            if hasattr(obj, 'model_dump'):
-                obj_dict = obj.model_dump()
-            else:
-                obj_dict = obj.__dict__.copy()
-            obj_dict['id'] = str(obj.id)
-            return super().model_validate(obj_dict, **kwargs)
-        return super().model_validate(obj, **kwargs)
