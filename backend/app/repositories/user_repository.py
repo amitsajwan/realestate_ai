@@ -6,7 +6,7 @@ Repository for user operations using FastAPI Users
 
 from typing import Optional, Dict, Any
 from app.models.user import User
-from app.core.user_db import get_user_db
+
 from app.core.database import get_database
 import logging
 
