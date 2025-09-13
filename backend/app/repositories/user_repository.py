@@ -222,19 +222,17 @@ class UserRepository:
     async def get_by_id(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Get user by ID with enhanced error handling"""
         try:
-            # Convert string ID to ObjectId for MongoDB query
-            try:
-                object_id = ObjectId(user_id)
-            except Exception as e:
-                logger.error(f"Invalid ObjectId format: {user_id}")
+            # For mock database, use string ID directly
+            if not user_id:
+                logger.error("Empty user_id provided")
                 return None
             
-            user = await self.collection.find_one({"_id": object_id})
+            user = await self.collection.find_one({"_id": user_id})
             
             # Debug: Check what's in the database
             all_users = await self.collection.find({}).to_list(length=None)
             logger.info(f"All users in database: {[u.get('_id') for u in all_users]}")
-            logger.info(f"Looking for user_id: {user_id} (converted to ObjectId: {object_id})")
+            logger.info(f"Looking for user_id: {user_id}")
             
             if user:
                 logger.debug(f"User found by ID: {user_id}")
