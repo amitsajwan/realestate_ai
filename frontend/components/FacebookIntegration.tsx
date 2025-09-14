@@ -4,6 +4,7 @@ import { CogIcon } from '@heroicons/react/24/outline'
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { toast } from 'react-hot-toast'
+import { apiService } from '@/lib/api'
 
 interface FacebookPage {
   id: string
@@ -24,8 +25,7 @@ export default function FacebookIntegration() {
 
   const checkFacebookStatus = async () => {
     try {
-      const response = await fetch('/api/facebook/status')
-      const data = await response.json()
+      const data = await apiService.getFacebookStatus()
       if (data.success && data.status?.connected) {
         setIsConnected(true)
         setFacebookPages(data.status.pages || [])
@@ -38,15 +38,8 @@ export default function FacebookIntegration() {
   const handleConnectFacebook = async () => {
     setIsLoading(true)
     try {
-      // Build API base safely (avoid 'undefined' in URL)
-      const rawBase = (process.env.NEXT_PUBLIC_API_BASE_URL as string | undefined) ?? ''
-      const base = (!rawBase || rawBase === 'undefined' || rawBase === 'null')
-        ? ''
-        : rawBase.replace(/\/+$/, '')
-
-      // Get Facebook OAuth URL from auth endpoint
-      const response = await fetch(`${base}/api/v1/facebook/login`)
-      const data = await response.json()
+      // Get Facebook OAuth URL from API service
+      const data = await apiService.getFacebookLoginUrl()
 
       if (data.auth_url) {
         // Redirect to Facebook OAuth

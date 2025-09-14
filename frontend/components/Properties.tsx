@@ -148,7 +148,7 @@ export default function Properties({
     try {
       setLoading(true)
       // Call API to delete property
-      // await apiService.deleteProperty(propertyToDelete)
+      await apiService.deleteProperty(propertyToDelete)
       console.log('Deleting property:', propertyToDelete)
       
       // Update local state
