@@ -87,6 +87,52 @@ class AgentPublicService:
             logger.error(f"Error fetching properties for agent {agent_id}: {e}")
             return []
     
+    def _apply_property_filters(self, properties: List[PublicProperty], filters: PropertySearchFilters) -> List[PublicProperty]:
+        """Apply search filters to properties"""
+        filtered = properties
+        
+        # Location filter
+        if filters.location:
+            filtered = [p for p in filtered if filters.location.lower() in p.location.lower()]
+        
+        # Price filters
+        if filters.min_price is not None:
+            filtered = [p for p in filtered if p.price >= filters.min_price]
+        if filters.max_price is not None:
+            filtered = [p for p in filtered if p.price <= filters.max_price]
+        
+        # Property type filter
+        if filters.property_type:
+            filtered = [p for p in filtered if p.property_type.lower() == filters.property_type.lower()]
+        
+        # Bedrooms filter
+        if filters.min_bedrooms is not None:
+            filtered = [p for p in filtered if p.bedrooms >= filters.min_bedrooms]
+        
+        # Bathrooms filter
+        if filters.min_bathrooms is not None:
+            filtered = [p for p in filtered if p.bathrooms >= filters.min_bathrooms]
+        
+        # Area filters
+        if filters.min_area is not None:
+            filtered = [p for p in filtered if p.area_sqft >= filters.min_area]
+        if filters.max_area is not None:
+            filtered = [p for p in filtered if p.area_sqft <= filters.max_area]
+        
+        # Features filter
+        if filters.features:
+            filtered = [p for p in filtered if any(feature.lower() in [f.lower() for f in p.features] for feature in filters.features)]
+        
+        # Sort properties
+        if filters.sort_by == "price":
+            filtered.sort(key=lambda x: x.price, reverse=(filters.sort_order == "desc"))
+        elif filters.sort_by == "created_at":
+            filtered.sort(key=lambda x: x.created_at, reverse=(filters.sort_order == "desc"))
+        elif filters.sort_by == "area":
+            filtered.sort(key=lambda x: x.area_sqft, reverse=(filters.sort_order == "desc"))
+        
+        return filtered
+    
     async def get_agent_by_slug(self, slug: str) -> Optional[AgentPublicProfile]:
         """Get agent public profile by slug"""
         try:
@@ -284,36 +330,23 @@ class AgentPublicService:
     async def get_agent_properties(self, agent_id: str, query_filters: PropertySearchFilters, page: int = 1, limit: int = 10) -> Dict[str, Any]:
         """Get agent properties with filters and pagination"""
         try:
-            # Mock data
-            properties = [
-                PublicProperty(
-                    id="1",
-                    agent_id=agent_id,
-                    title="Beautiful 3BR Apartment",
-                    description="Spacious apartment in prime location",
-                    price=2500000,
-                    property_type="Apartment",
-                    bedrooms=3,
-                    bathrooms=2,
-                    area=1200,
-                    location="Mumbai, Maharashtra",
-                    images=["https://example.com/image1.jpg"],
-                    features=["Parking", "Gym", "Pool"],
-                    is_active=True,
-                    is_public=True,
-                    created_at=datetime.now(),
-                    updated_at=datetime.now(),
-                    view_count=0,
-                    inquiry_count=0
-                )
-            ]
+            # Get real properties from database
+            properties = await self._get_agent_properties_from_db(agent_id)
+            
+            # Apply filters
+            filtered_properties = self._apply_property_filters(properties, query_filters)
+            
+            # Apply pagination
+            start_index = (page - 1) * limit
+            end_index = start_index + limit
+            paginated_properties = filtered_properties[start_index:end_index]
             
             return {
-                "properties": properties,
-                "total": len(properties),
+                "properties": paginated_properties,
+                "total": len(filtered_properties),
                 "page": page,
                 "limit": limit,
-                "total_pages": 1
+                "total_pages": (len(filtered_properties) + limit - 1) // limit
             }
         except Exception as e:
             logger.error(f"Error getting agent properties: {e}")
@@ -322,31 +355,43 @@ class AgentPublicService:
     async def get_agent_property(self, agent_id: str, property_id: str) -> Optional[PublicProperty]:
         """Get specific agent property"""
         try:
-            # Mock data - only return property for valid IDs
-            if property_id == "1":
+            # Get property from database
+            properties_collection = self.db.get_collection("properties")
+            
+            # Query for the specific property
+            query = {
+                "_id": property_id,
+                "agent_id": agent_id,
+                "publishing_status": "published"
+            }
+            
+            property_doc = await properties_collection.find_one(query)
+            
+            if property_doc:
                 return PublicProperty(
-                    id=property_id,
-                    agent_id=agent_id,
-                    title="Beautiful 3BR Apartment",
-                    description="Spacious apartment in prime location",
-                    price=2500000,
-                    property_type="Apartment",
-                    bedrooms=3,
-                    bathrooms=2,
-                    area=1200,
-                    location="Mumbai, Maharashtra",
-                    images=["https://example.com/image1.jpg"],
-                    features=["Parking", "Gym", "Pool"],
-                    is_active=True,
-                    is_public=True,
-                    created_at=datetime.now(),
-                    updated_at=datetime.now(),
-                    view_count=0,
-                    inquiry_count=0
+                    id=str(property_doc.get("_id", "")),
+                    agent_id=property_doc.get("agent_id", ""),
+                    title=property_doc.get("title", ""),
+                    description=property_doc.get("description", ""),
+                    price=property_doc.get("price", 0),
+                    property_type=property_doc.get("property_type", ""),
+                    status=property_doc.get("status", ""),
+                    bedrooms=property_doc.get("bedrooms", 0),
+                    bathrooms=property_doc.get("bathrooms", 0),
+                    area_sqft=property_doc.get("area", 0),
+                    location=property_doc.get("location", ""),
+                    address=property_doc.get("address", ""),
+                    city=property_doc.get("city", ""),
+                    state=property_doc.get("state", ""),
+                    zip_code=property_doc.get("zip_code", ""),
+                    features=property_doc.get("features", []),
+                    amenities=property_doc.get("amenities", []),
+                    images=property_doc.get("images", []),
+                    created_at=property_doc.get("created_at", datetime.now()),
+                    updated_at=property_doc.get("updated_at", datetime.now())
                 )
-            else:
-                # Return None for invalid property IDs
-                return None
+            
+            return None
         except Exception as e:
             logger.error(f"Error getting agent property: {e}")
             return None
