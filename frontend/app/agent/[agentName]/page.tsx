@@ -43,9 +43,9 @@ interface PropertySummary {
 }
 
 interface AgentPublicPageProps {
-  params: {
+  params: Promise<{
     agentName: string
-  }
+  }>
 }
 
 export default function AgentPublicPage({ params }: AgentPublicPageProps) {
@@ -55,16 +55,20 @@ export default function AgentPublicPage({ params }: AgentPublicPageProps) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    loadAgentData()
-  }, [params.agentName])
+    const initializeParams = async () => {
+      const resolvedParams = await params
+      loadAgentData(resolvedParams.agentName)
+    }
+    initializeParams()
+  }, [params])
 
-  const loadAgentData = async () => {
+  const loadAgentData = async (agentName: string) => {
     try {
       setIsLoading(true)
       setError(null)
 
       // Load agent profile
-      const agentResponse = await fetch(`http://localhost:8000/api/v1/agent/public/agent-public/${params.agentName}`)
+      const agentResponse = await fetch(`http://localhost:8000/api/v1/agent/public/agent-public/${agentName}`)
       if (!agentResponse.ok) {
         throw new Error('Agent not found')
       }
@@ -73,7 +77,7 @@ export default function AgentPublicPage({ params }: AgentPublicPageProps) {
       setAgent(agentData)
 
       // Load agent's public properties
-      const propertiesResponse = await fetch(`http://localhost:8000/api/v1/agent/public/agent-public/${params.agentName}/properties?limit=6`)
+      const propertiesResponse = await fetch(`http://localhost:8000/api/v1/agent/public/agent-public/${agentName}/properties?limit=6`)
       if (propertiesResponse.ok) {
         const propertiesData = await propertiesResponse.json()
         setProperties(propertiesData.properties || [])
