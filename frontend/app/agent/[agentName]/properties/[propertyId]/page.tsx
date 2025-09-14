@@ -31,10 +31,10 @@ interface AgentInfo {
 }
 
 interface PropertyDetailPageProps {
-  params: {
+  params: Promise<{
     agentName: string
     propertyId: string
-  }
+  }>
 }
 
 export default function PropertyDetailPage({ params }: PropertyDetailPageProps) {
@@ -42,18 +42,24 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
   const [agent, setAgent] = useState<AgentInfo | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [agentName, setAgentName] = useState<string>('')
 
   useEffect(() => {
-    loadPropertyData()
-  }, [params.agentName, params.propertyId])
+    const initializeParams = async () => {
+      const resolvedParams = await params
+      setAgentName(resolvedParams.agentName)
+      loadPropertyData(resolvedParams.agentName, resolvedParams.propertyId)
+    }
+    initializeParams()
+  }, [params])
 
-  const loadPropertyData = async () => {
+  const loadPropertyData = async (agentName: string, propertyId: string) => {
     try {
       setIsLoading(true)
       setError(null)
 
       // Load property details
-      const propertyResponse = await fetch(`/api/v1/agent-public/${params.agentName}/properties/${params.propertyId}`)
+      const propertyResponse = await fetch(`/api/v1/agent-public/${agentName}/properties/${propertyId}`)
       if (!propertyResponse.ok) {
         throw new Error('Property not found')
       }
@@ -61,7 +67,7 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
       setProperty(propertyData)
 
       // Load agent info
-      const agentResponse = await fetch(`/api/v1/agent-public/${params.agentName}`)
+      const agentResponse = await fetch(`/api/v1/agent-public/${agentName}`)
       if (agentResponse.ok) {
         const agentData = await agentResponse.json()
         setAgent(agentData)
@@ -103,13 +109,13 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
           <p className="text-gray-600 mb-6">{error || 'The property you\'re looking for doesn\'t exist or is not public.'}</p>
           <div className="space-x-4">
             <Link 
-              href={`/agent/${params.agentName}/properties`}
+              href={`/agent/${agentName}/properties`}
               className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               View All Properties
             </Link>
             <Link 
-              href={`/agent/${params.agentName}`}
+              href={`/agent/${agentName}`}
               className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             >
               Agent Profile
@@ -131,11 +137,11 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
                 PropertyAI
               </Link>
               <nav className="flex items-center space-x-2 text-sm text-gray-600 mt-1">
-                <Link href={`/agent/${params.agentName}`} className="hover:text-gray-900">
+                <Link href={`/agent/${agentName}`} className="hover:text-gray-900">
                   {agent?.agent_name}
                 </Link>
                 <span>›</span>
-                <Link href={`/agent/${params.agentName}/properties`} className="hover:text-gray-900">
+                <Link href={`/agent/${agentName}/properties`} className="hover:text-gray-900">
                   Properties
                 </Link>
                 <span>›</span>
@@ -286,7 +292,7 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
                     Send Message
                   </button>
                   <Link
-                    href={`/agent/${params.agentName}`}
+                    href={`/agent/${agentName}`}
                     className="w-full border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 transition-colors text-center block"
                   >
                     View Agent Profile
