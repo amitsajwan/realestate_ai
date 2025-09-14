@@ -42,9 +42,9 @@ interface SearchFilters {
 }
 
 interface AgentPropertiesPageProps {
-  params: Promise<{
+  params: {
     agentName: string
-  }>
+  }
 }
 
 export default function AgentPropertiesPage({ params }: AgentPropertiesPageProps) {
@@ -72,31 +72,20 @@ export default function AgentPropertiesPage({ params }: AgentPropertiesPageProps
   })
 
   useEffect(() => {
-    const initializeParams = async () => {
-      const resolvedParams = await params
-      setAgentName(resolvedParams.agentName)
-      loadProperties(resolvedParams.agentName)
-    }
-    initializeParams()
-  }, [params])
-
-  useEffect(() => {
-    if (agentName) {
-      loadProperties(agentName)
-    }
-  }, [agentName, currentPage])
+    loadProperties()
+  }, [params.agentName, currentPage])
 
   useEffect(() => {
     applyFilters()
   }, [properties, filters])
 
-  const loadProperties = async (agentName: string) => {
+  const loadProperties = async () => {
     try {
       setIsLoading(true)
       setError(null)
 
       const response = await fetch(
-        `/api/v1/agent-public/${agentName}/properties?page=${currentPage}&limit=12`
+        `/api/v1/agent-public/${params.agentName}/properties?page=${currentPage}&limit=12`
       )
       
       if (!response.ok) {
@@ -250,7 +239,7 @@ export default function AgentPropertiesPage({ params }: AgentPropertiesPageProps
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Error Loading Properties</h1>
           <p className="text-gray-600 mb-6">{error}</p>
           <button
-            onClick={() => loadProperties(agentName)}
+            onClick={loadProperties}
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Try Again
@@ -276,13 +265,13 @@ export default function AgentPropertiesPage({ params }: AgentPropertiesPageProps
             </div>
             <div className="flex items-center space-x-4">
               <Link 
-                href={`/agent/${agentName}`}
+                href={`/agent/${params.agentName}`}
                 className="text-gray-600 hover:text-gray-900"
               >
                 Agent Profile
               </Link>
               <Link 
-                href={`/agent/${agentName}/contact`}
+                href={`/agent/${params.agentName}/contact`}
                 className="text-gray-600 hover:text-gray-900"
               >
                 Contact
@@ -442,7 +431,7 @@ export default function AgentPropertiesPage({ params }: AgentPropertiesPageProps
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow"
               >
-                <Link href={`/agent/${agentName}/properties/${property.id}`}>
+                <Link href={`/agent/${params.agentName}/properties/${property.id}`}>
                   {property.images.length > 0 && (
                     <div className="aspect-w-16 aspect-h-9">
                       <img
