@@ -466,7 +466,7 @@ export default function CRM() {
             <div>
               <h3 className="text-xl font-bold text-gray-800 dark:text-white">Leads Management</h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                {filteredLeads.length} of {leads.length} leads
+                {filteredLeads?.length || 0} of {leads?.length || 0} leads
               </p>
             </div>
             <div className="flex items-center space-x-2">
@@ -480,7 +480,7 @@ export default function CRM() {
             </div>
           </div>
 
-          {filteredLeads.length === 0 ? (
+          {filteredLeads?.length === 0 ? (
             <div className="text-center py-12">
               <UsersIcon className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No leads found</h3>
@@ -497,7 +497,7 @@ export default function CRM() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredLeads.map((lead, index) => (
+              {filteredLeads?.map((lead, index) => (
                 <motion.div
                   key={lead.id}
                   initial={{ opacity: 0, y: 20 }}
