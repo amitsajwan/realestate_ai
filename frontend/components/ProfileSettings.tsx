@@ -142,11 +142,11 @@ export default function ProfileSettings() {
     } finally {
       setIsProfileLoaded(false)
     }
-  }, [isProfileLoaded])
+  }, []) // Remove isProfileLoaded dependency to prevent infinite loop
 
   useEffect(() => {
     loadUserProfile()
-  }, [loadUserProfile])
+  }, []) // Run only once on mount
 
   const handleInputChange = (field: keyof UserProfile, value: any) => {
     const updatedData = {
