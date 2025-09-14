@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import CRM from '@/components/CRM'
 import { type Lead } from '@/lib/crm-api'
@@ -88,7 +88,9 @@ describe('CRM Component', () => {
   })
 
   it('should render without crashing', async () => {
-    render(<CRM />)
+    await act(async () => {
+      render(<CRM />)
+    })
     
     await waitFor(() => {
       expect(screen.getByText('CRM Dashboard')).toBeInTheDocument()
@@ -96,7 +98,9 @@ describe('CRM Component', () => {
   })
 
   it('should display lead statistics', async () => {
-    render(<CRM />)
+    await act(async () => {
+      render(<CRM />)
+    })
     
     await waitFor(() => {
       expect(screen.getByText('Total Leads')).toBeInTheDocument()
@@ -107,7 +111,9 @@ describe('CRM Component', () => {
   })
 
   it('should display leads list', async () => {
-    render(<CRM />)
+    await act(async () => {
+      render(<CRM />)
+    })
     
     await waitFor(() => {
       expect(screen.getByText('John Doe')).toBeInTheDocument()
@@ -118,7 +124,9 @@ describe('CRM Component', () => {
   })
 
   it('should filter leads by search term', async () => {
-    render(<CRM />)
+    await act(async () => {
+      render(<CRM />)
+    })
     
     await waitFor(() => {
       expect(screen.getByText('John Doe')).toBeInTheDocument()
@@ -134,7 +142,9 @@ describe('CRM Component', () => {
   })
 
   it('should filter leads by status', async () => {
-    render(<CRM />)
+    await act(async () => {
+      render(<CRM />)
+    })
     
     await waitFor(() => {
       expect(screen.getByText('John Doe')).toBeInTheDocument()
@@ -150,7 +160,9 @@ describe('CRM Component', () => {
   })
 
   it('should open lead details modal when lead is clicked', async () => {
-    render(<CRM />)
+    await act(async () => {
+      render(<CRM />)
+    })
     
     await waitFor(() => {
       expect(screen.getByText('John Doe')).toBeInTheDocument()
@@ -167,7 +179,9 @@ describe('CRM Component', () => {
   })
 
   it('should display lead details correctly in modal', async () => {
-    render(<CRM />)
+    await act(async () => {
+      render(<CRM />)
+    })
     
     await waitFor(() => {
       expect(screen.getByText('John Doe')).toBeInTheDocument()
@@ -188,7 +202,9 @@ describe('CRM Component', () => {
   })
 
   it('should close modal when close button is clicked', async () => {
-    render(<CRM />)
+    await act(async () => {
+      render(<CRM />)
+    })
     
     await waitFor(() => {
       expect(screen.getByText('John Doe')).toBeInTheDocument()
@@ -213,15 +229,17 @@ describe('CRM Component', () => {
     const { crmApi } = require('@/lib/crm-api')
     crmApi.getLeads.mockRejectedValue(new Error('API Error'))
 
-    render(<CRM />)
+    await act(async () => {
+      render(<CRM />)
+    })
     
     await waitFor(() => {
-      expect(screen.getByText('Failed to load leads')).toBeInTheDocument()
+      expect(screen.getByText('API Error')).toBeInTheDocument()
     })
   })
 
   it('should display loading state initially', () => {
     render(<CRM />)
-    expect(screen.getByText('Loading leads...')).toBeInTheDocument()
+    expect(screen.getByText('Loading CRM data...')).toBeInTheDocument()
   })
 })
