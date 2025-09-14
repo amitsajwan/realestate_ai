@@ -136,8 +136,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # API Configuration
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      # API Configuration - Use relative paths for single URL deployment
+      - NEXT_PUBLIC_API_BASE_URL=
       - NEXT_PUBLIC_APP_URL=http://localhost:3000
       
       # Environment
