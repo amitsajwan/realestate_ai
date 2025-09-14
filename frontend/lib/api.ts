@@ -142,7 +142,7 @@ export class APIService {
       };
 
       // Only set Content-Type for JSON requests, not for FormData or when already specified
-      if (!(options.body instanceof FormData) && !options.headers?.['Content-Type']) {
+      if (!(options.body instanceof FormData) && !(options.headers as Record<string, string>)?.['Content-Type']) {
         headers['Content-Type'] = 'application/json';
       }
 

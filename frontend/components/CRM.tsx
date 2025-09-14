@@ -717,14 +717,14 @@ export default function CRM() {
                         <MapPinIcon className="w-5 h-5 text-purple-500" />
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Location</span>
                       </div>
-                      <p className="text-gray-900 dark:text-white font-medium">{selectedLead.location}</p>
+                      <p className="text-gray-900 dark:text-white font-medium">{selectedLead.location_preference || 'Not specified'}</p>
                     </div>
                     <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
                       <div className="flex items-center space-x-2 mb-2">
                         <UsersIcon className="w-5 h-5 text-blue-500" />
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Property Type</span>
                       </div>
-                      <p className="text-gray-900 dark:text-white font-medium">{selectedLead.propertyType}</p>
+                      <p className="text-gray-900 dark:text-white font-medium">{selectedLead.property_type_preference || 'Not specified'}</p>
                     </div>
                     <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
                       <div className="flex items-center space-x-2 mb-2">

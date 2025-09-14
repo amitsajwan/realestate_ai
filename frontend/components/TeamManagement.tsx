@@ -32,7 +32,7 @@ export default function TeamManagement({ teamId }: TeamManagementProps) {
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null)
   const [inviteData, setInviteData] = useState({
     email: '',
-    role: 'agent' as const,
+    role: 'agent' as 'agent' | 'admin' | 'viewer',
     message: ''
   })
 
@@ -65,7 +65,10 @@ export default function TeamManagement({ teamId }: TeamManagementProps) {
     if (!teamId) return
 
     try {
-      await crmApi.inviteMember(teamId, inviteData)
+      await crmApi.inviteMember(teamId, {
+        ...inviteData,
+        permissions: inviteData.role === 'admin' ? ['all'] : ['read', 'write']
+      })
       setShowInviteModal(false)
       setInviteData({ email: '', role: 'agent', message: '' })
       loadTeam() // Reload team data
@@ -330,7 +333,7 @@ export default function TeamManagement({ teamId }: TeamManagementProps) {
                   </label>
                   <select
                     value={inviteData.role}
-                    onChange={(e) => setInviteData(prev => ({ ...prev, role: e.target.value as any }))}
+                    onChange={(e) => setInviteData(prev => ({ ...prev, role: e.target.value as 'agent' | 'admin' | 'viewer' }))}
                     className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="agent">Agent</option>
