@@ -127,112 +127,118 @@ export default function AgentPublicPage({ params }: AgentPublicPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      {/* Modern Header */}
-      <header className="bg-white/95 backdrop-blur-lg shadow-lg border-b border-gray-200/50 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-white">
+      {/* Professional Header */}
+      <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
             <Link href="/" className="flex items-center space-x-3 group">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
-                <UserIcon className="w-6 h-6 text-white" />
+              <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center group-hover:bg-slate-700 transition-colors">
+                <UserIcon className="w-5 h-5 text-white" />
               </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <span className="text-xl font-bold text-slate-900">
                 PropertyAI
               </span>
             </Link>
+            
+            {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
               <Link 
                 href={`/agent/${agent.slug}/properties`}
-                className="text-gray-600 hover:text-blue-600 font-medium transition-colors relative group"
+                className="text-slate-600 hover:text-slate-900 font-medium transition-colors text-sm"
               >
                 Properties
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 group-hover:w-full transition-all duration-300"></span>
               </Link>
               <Link 
                 href={`/agent/${agent.slug}/contact`}
-                className="text-gray-600 hover:text-blue-600 font-medium transition-colors relative group"
+                className="text-slate-600 hover:text-slate-900 font-medium transition-colors text-sm"
               >
                 Contact
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 group-hover:w-full transition-all duration-300"></span>
               </Link>
               <Link
                 href={`/agent/${agent.slug}/contact`}
                 onClick={handleContactClick}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-full hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium"
+                className="bg-slate-900 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition-colors text-sm font-medium"
               >
                 Get Started
               </Link>
             </nav>
+            
+            {/* Mobile Menu Button */}
+            <button className="md:hidden p-2 text-slate-600 hover:text-slate-900">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
           </div>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-indigo-600/10"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-center"
-          >
-            <div className="inline-flex items-center justify-center w-32 h-32 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full shadow-2xl mb-8 relative">
+      <section className="bg-slate-50 py-16 md:py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            {/* Agent Photo */}
+            <div className="inline-block relative mb-8">
               {agent.photo ? (
                 <img
                   src={agent.photo}
                   alt={agent.agent_name}
-                  className="w-28 h-28 rounded-full object-cover border-4 border-white"
+                  className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-white shadow-lg"
                 />
               ) : (
-                <div className="w-28 h-28 bg-white/20 rounded-full flex items-center justify-center">
-                  <UserIcon className="w-16 h-16 text-white" />
+                <div className="w-24 h-24 md:w-32 md:h-32 bg-slate-200 rounded-full flex items-center justify-center border-4 border-white shadow-lg">
+                  <UserIcon className="w-12 h-12 md:w-16 md:h-16 text-slate-400" />
                 </div>
               )}
-              <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full border-4 border-white flex items-center justify-center">
-                <div className="w-3 h-3 bg-white rounded-full"></div>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 md:w-8 md:h-8 bg-green-500 rounded-full border-4 border-white flex items-center justify-center">
+                <div className="w-2 h-2 md:w-3 md:w-3 bg-white rounded-full"></div>
               </div>
             </div>
             
-            <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 bg-clip-text text-transparent mb-4">
+            {/* Agent Name */}
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-slate-900 mb-4">
               {agent.agent_name}
             </h1>
             
-            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
+            {/* Bio */}
+            <p className="text-lg md:text-xl text-slate-600 mb-8 max-w-3xl mx-auto leading-relaxed">
               {agent.bio || "Professional Real Estate Agent helping you find your dream property"}
             </p>
             
-            <div className="flex flex-wrap items-center justify-center gap-6 mb-12">
-              <div className="flex items-center bg-white/80 backdrop-blur-sm rounded-full px-6 py-3 shadow-lg">
-                <EyeIcon className="w-5 h-5 text-blue-600 mr-2" />
-                <span className="font-semibold text-gray-700">{agent.view_count} Profile Views</span>
+            {/* Stats */}
+            <div className="flex flex-wrap items-center justify-center gap-4 md:gap-8 mb-12">
+              <div className="flex items-center bg-white rounded-lg px-4 py-3 shadow-sm">
+                <EyeIcon className="w-5 h-5 text-slate-600 mr-2" />
+                <span className="text-sm font-medium text-slate-700">{agent.view_count} Views</span>
               </div>
-              <div className="flex items-center bg-white/80 backdrop-blur-sm rounded-full px-6 py-3 shadow-lg">
-                <ChatBubbleLeftRightIcon className="w-5 h-5 text-green-600 mr-2" />
-                <span className="font-semibold text-gray-700">{agent.contact_count} Happy Clients</span>
+              <div className="flex items-center bg-white rounded-lg px-4 py-3 shadow-sm">
+                <ChatBubbleLeftRightIcon className="w-5 h-5 text-slate-600 mr-2" />
+                <span className="text-sm font-medium text-slate-700">{agent.contact_count} Clients</span>
               </div>
-              <div className="flex items-center bg-white/80 backdrop-blur-sm rounded-full px-6 py-3 shadow-lg">
+              <div className="flex items-center bg-white rounded-lg px-4 py-3 shadow-sm">
                 <StarIcon className="w-5 h-5 text-yellow-500 mr-2" />
-                <span className="font-semibold text-gray-700">5.0 ⭐ Rating</span>
+                <span className="text-sm font-medium text-slate-700">5.0 Rating</span>
               </div>
             </div>
             
-            <div className="flex flex-wrap justify-center gap-4">
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 href={`/agent/${agent.slug}/contact`}
                 onClick={handleContactClick}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-full hover:shadow-xl hover:scale-105 transition-all duration-200 font-semibold text-lg"
+                className="bg-slate-900 text-white px-8 py-3 rounded-lg hover:bg-slate-800 transition-colors font-medium text-sm"
               >
                 Get In Touch
               </Link>
               <Link
                 href={`/agent/${agent.slug}/properties`}
-                className="bg-white text-gray-700 px-8 py-4 rounded-full hover:shadow-xl hover:scale-105 transition-all duration-200 font-semibold text-lg border-2 border-gray-200"
+                className="bg-white text-slate-900 px-8 py-3 rounded-lg hover:bg-slate-50 transition-colors font-medium text-sm border border-slate-200"
               >
                 View Properties
               </Link>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
