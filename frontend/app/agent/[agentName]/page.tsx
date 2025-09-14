@@ -127,77 +127,126 @@ export default function AgentPublicPage({ params }: AgentPublicPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      {/* Modern Header */}
+      <header className="bg-white/95 backdrop-blur-lg shadow-lg border-b border-gray-200/50 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/" className="text-xl font-bold text-blue-600">
-              PropertyAI
+            <Link href="/" className="flex items-center space-x-3 group">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+                <UserIcon className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                PropertyAI
+              </span>
             </Link>
-            <div className="flex items-center space-x-4">
+            <nav className="hidden md:flex items-center space-x-8">
               <Link 
                 href={`/agent/${agent.slug}/properties`}
-                className="text-gray-600 hover:text-gray-900"
+                className="text-gray-600 hover:text-blue-600 font-medium transition-colors relative group"
               >
                 Properties
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 group-hover:w-full transition-all duration-300"></span>
               </Link>
               <Link 
                 href={`/agent/${agent.slug}/contact`}
-                className="text-gray-600 hover:text-gray-900"
+                className="text-gray-600 hover:text-blue-600 font-medium transition-colors relative group"
               >
                 Contact
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 group-hover:w-full transition-all duration-300"></span>
               </Link>
-            </div>
+              <Link
+                href={`/agent/${agent.slug}/contact`}
+                onClick={handleContactClick}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-full hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium"
+              >
+                Get Started
+              </Link>
+            </nav>
           </div>
         </div>
       </header>
 
-      {/* Agent Profile Section */}
-      <section className="bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-indigo-600/10"></div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-center"
+          >
+            <div className="inline-flex items-center justify-center w-32 h-32 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full shadow-2xl mb-8 relative">
+              {agent.photo ? (
+                <img
+                  src={agent.photo}
+                  alt={agent.agent_name}
+                  className="w-28 h-28 rounded-full object-cover border-4 border-white"
+                />
+              ) : (
+                <div className="w-28 h-28 bg-white/20 rounded-full flex items-center justify-center">
+                  <UserIcon className="w-16 h-16 text-white" />
+                </div>
+              )}
+              <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full border-4 border-white flex items-center justify-center">
+                <div className="w-3 h-3 bg-white rounded-full"></div>
+              </div>
+            </div>
+            
+            <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 bg-clip-text text-transparent mb-4">
+              {agent.agent_name}
+            </h1>
+            
+            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
+              {agent.bio || "Professional Real Estate Agent helping you find your dream property"}
+            </p>
+            
+            <div className="flex flex-wrap items-center justify-center gap-6 mb-12">
+              <div className="flex items-center bg-white/80 backdrop-blur-sm rounded-full px-6 py-3 shadow-lg">
+                <EyeIcon className="w-5 h-5 text-blue-600 mr-2" />
+                <span className="font-semibold text-gray-700">{agent.view_count} Profile Views</span>
+              </div>
+              <div className="flex items-center bg-white/80 backdrop-blur-sm rounded-full px-6 py-3 shadow-lg">
+                <ChatBubbleLeftRightIcon className="w-5 h-5 text-green-600 mr-2" />
+                <span className="font-semibold text-gray-700">{agent.contact_count} Happy Clients</span>
+              </div>
+              <div className="flex items-center bg-white/80 backdrop-blur-sm rounded-full px-6 py-3 shadow-lg">
+                <StarIcon className="w-5 h-5 text-yellow-500 mr-2" />
+                <span className="font-semibold text-gray-700">5.0 ⭐ Rating</span>
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap justify-center gap-4">
+              <Link
+                href={`/agent/${agent.slug}/contact`}
+                onClick={handleContactClick}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-full hover:shadow-xl hover:scale-105 transition-all duration-200 font-semibold text-lg"
+              >
+                Get In Touch
+              </Link>
+              <Link
+                href={`/agent/${agent.slug}/properties`}
+                className="bg-white text-gray-700 px-8 py-4 rounded-full hover:shadow-xl hover:scale-105 transition-all duration-200 font-semibold text-lg border-2 border-gray-200"
+              >
+                View Properties
+              </Link>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Agent Details Section */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="grid grid-cols-1 lg:grid-cols-3 gap-12"
           >
             {/* Agent Info */}
-            <div className="lg:col-span-2">
-              <div className="flex items-start space-x-6">
-                <div className="flex-shrink-0">
-                  {agent.photo ? (
-                    <img
-                      src={agent.photo}
-                      alt={agent.agent_name}
-                      className="w-24 h-24 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center">
-                      <UserIcon className="w-12 h-12 text-gray-400" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                    {agent.agent_name}
-                  </h1>
-                  <div className="flex items-center space-x-4 text-sm text-gray-600 mb-4">
-                    <div className="flex items-center">
-                      <EyeIcon className="w-4 h-4 mr-1" />
-                      {agent.view_count} profile views
-                    </div>
-                    <div className="flex items-center">
-                      <ChatBubbleLeftRightIcon className="w-4 h-4 mr-1" />
-                      {agent.contact_count} inquiries
-                    </div>
-                  </div>
-                  {agent.bio && (
-                    <p className="text-gray-700 leading-relaxed mb-6">
-                      {agent.bio}
-                    </p>
-                  )}
-                </div>
-              </div>
+            <div className="lg:col-span-2 space-y-8">
 
               {/* Specialties */}
               {agent.specialties.length > 0 && (
