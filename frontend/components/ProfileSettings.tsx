@@ -67,6 +67,7 @@ export default function ProfileSettings() {
 
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
   const [isProfileLoaded, setIsProfileLoaded] = useState(false)
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false)
   
   // Use loading hooks for consistent state management
   const profileOperation = useAsyncOperation<UserProfile>()
@@ -76,7 +77,7 @@ export default function ProfileSettings() {
   // Form validation
   const validator = new FormValidator(profileSettingsSchema)
   
-  const isLoading = profileOperation.isLoading
+  const isLoading = isLoadingProfile || profileOperation.isLoading
   const isSaving = multipleLoading.isLoading('saveProfile')
 
   const availableLanguages = [
@@ -86,11 +87,11 @@ export default function ProfileSettings() {
 
   const loadUserProfile = useCallback(async () => {
     // Prevent multiple simultaneous calls
-    if (isProfileLoaded) {
+    if (isProfileLoaded || isLoadingProfile) {
       return
     }
     
-    setIsProfileLoaded(true)
+    setIsLoadingProfile(true)
     
     try {
       // Get current user from auth manager
@@ -132,6 +133,7 @@ export default function ProfileSettings() {
       
       setFormData(mergedData)
       setSelectedLanguages(mergedData.languages || [])
+      setIsProfileLoaded(true)
       
       // If we have onboarding data but no profile, show a message
       if (currentUser && !profileData) {
@@ -139,14 +141,20 @@ export default function ProfileSettings() {
       }
       
       return mergedData
+    } catch (error) {
+      console.error('[ProfileSettings] Error loading profile:', error)
+      toast.error('Failed to load profile data')
     } finally {
-      setIsProfileLoaded(false)
+      setIsLoadingProfile(false)
     }
-  }, []) // Remove isProfileLoaded dependency to prevent infinite loop
+  }, [isProfileLoaded, isLoadingProfile]) // Proper dependencies
 
   useEffect(() => {
-    loadUserProfile()
-  }, []) // Run only once on mount
+    // Only load if not already loaded and not currently loading
+    if (!isProfileLoaded && !isLoadingProfile) {
+      loadUserProfile()
+    }
+  }, [loadUserProfile, isProfileLoaded, isLoadingProfile])
 
   const handleInputChange = (field: keyof UserProfile, value: any) => {
     const updatedData = {
