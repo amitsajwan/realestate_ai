@@ -26,6 +26,7 @@ venv/
 .env
 .env.*
 !.env.template
+!.env.local.example
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
