@@ -26,9 +26,9 @@ interface ContactForm {
 }
 
 interface AgentContactPageProps {
-  params: Promise<{
+  params: {
     agentName: string
-  }>
+  }
 }
 
 export default function AgentContactPage({ params }: AgentContactPageProps) {
@@ -48,20 +48,15 @@ export default function AgentContactPage({ params }: AgentContactPageProps) {
   })
 
   useEffect(() => {
-    const initializeParams = async () => {
-      const resolvedParams = await params
-      setAgentName(resolvedParams.agentName)
-      loadAgentData(resolvedParams.agentName)
-    }
-    initializeParams()
-  }, [params])
+    loadAgentData()
+  }, [params.agentName])
 
-  const loadAgentData = async (agentName: string) => {
+  const loadAgentData = async () => {
     try {
       setIsLoading(true)
       setError(null)
 
-      const response = await fetch(`http://localhost:8000/api/v1/agent-public/${agentName}`)
+      const response = await fetch(`http://localhost:8000/api/v1/agent-public/${params.agentName}`)
       if (!response.ok) {
         throw new Error('Agent not found')
       }
@@ -88,7 +83,7 @@ export default function AgentContactPage({ params }: AgentContactPageProps) {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/agent-public/${agentName}/contact`, {
+      const response = await fetch(`http://localhost:8000/api/v1/agent-public/${params.agentName}/contact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
