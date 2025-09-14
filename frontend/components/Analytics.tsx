@@ -354,10 +354,10 @@ export default function Analytics({ properties = [] }: AnalyticsProps) {
             Property Types
           </h3>
           <div className="space-y-4">
-            {Object.entries(propertyTypes || {}).map(([type, count], index) => {
+            {Object.entries(analyticsData.property_analytics.property_type_distribution || {}).map(([type, count], index) => {
               const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500']
               const countNum = Number(count)
-              const percentage = totalProperties > 0 ? Math.round((countNum / totalProperties) * 100) : 0
+              const percentage = analyticsData.property_analytics.total_properties > 0 ? Math.round((countNum / analyticsData.property_analytics.total_properties) * 100) : 0
               
               return (
                 <div key={index} className="flex items-center justify-between">
