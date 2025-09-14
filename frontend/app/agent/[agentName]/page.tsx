@@ -250,33 +250,54 @@ export default function AgentPublicPage({ params }: AgentPublicPageProps) {
 
               {/* Specialties */}
               {agent.specialties.length > 0 && (
-                <div className="mt-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Specialties</h3>
-                  <div className="flex flex-wrap gap-2">
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-8">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                    <SparklesIcon className="w-6 h-6 text-blue-600 mr-3" />
+                    Specialties
+                  </h3>
+                  <div className="flex flex-wrap gap-3">
                     {agent.specialties.map((specialty, index) => (
-                      <span
+                      <motion.span
                         key={index}
-                        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full text-sm font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
                       >
                         {specialty}
-                      </span>
+                      </motion.span>
                     ))}
                   </div>
                 </div>
               )}
 
               {/* Experience & Languages */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {agent.experience && (
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Experience</h3>
-                    <p className="text-gray-700">{agent.experience}</p>
+                  <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+                    <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                      <StarIcon className="w-6 h-6 text-yellow-500 mr-3" />
+                      Experience
+                    </h3>
+                    <p className="text-gray-700 text-lg leading-relaxed">{agent.experience}</p>
                   </div>
                 )}
                 {agent.languages.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Languages</h3>
-                    <p className="text-gray-700">{agent.languages.join(', ')}</p>
+                  <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+                    <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                      <ChatBubbleLeftRightIcon className="w-6 h-6 text-green-500 mr-3" />
+                      Languages
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {agent.languages.map((language, index) => (
+                        <span
+                          key={index}
+                          className="px-4 py-2 bg-green-100 text-green-800 rounded-lg text-sm font-medium"
+                        >
+                          {language}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -284,53 +305,77 @@ export default function AgentPublicPage({ params }: AgentPublicPageProps) {
 
             {/* Contact Card */}
             <div className="lg:col-span-1">
-              <div className="bg-gray-50 rounded-lg p-6 sticky top-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h3>
+              <div className="bg-gradient-to-br from-white to-gray-50 rounded-3xl p-8 shadow-2xl border border-gray-100 sticky top-6">
+                <h3 className="text-2xl font-bold text-gray-900 mb-8 text-center">Get In Touch</h3>
                 
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {agent.phone && (
-                    <div className="flex items-center">
-                      <PhoneIcon className="w-5 h-5 text-gray-400 mr-3" />
-                      <a 
-                        href={`tel:${agent.phone}`}
-                        className="text-gray-700 hover:text-blue-600"
-                      >
-                        {agent.phone}
-                      </a>
-                    </div>
+                    <motion.div 
+                      className="flex items-center bg-white rounded-xl p-4 shadow-md hover:shadow-lg transition-all duration-200"
+                      whileHover={{ scale: 1.02 }}
+                    >
+                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                        <PhoneIcon className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Phone</p>
+                        <a 
+                          href={`tel:${agent.phone}`}
+                          className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors"
+                        >
+                          {agent.phone}
+                        </a>
+                      </div>
+                    </motion.div>
                   )}
                   
                   {agent.email && (
-                    <div className="flex items-center">
-                      <EnvelopeIcon className="w-5 h-5 text-gray-400 mr-3" />
-                      <a 
-                        href={`mailto:${agent.email}`}
-                        className="text-gray-700 hover:text-blue-600"
-                      >
-                        {agent.email}
-                      </a>
-                    </div>
+                    <motion.div 
+                      className="flex items-center bg-white rounded-xl p-4 shadow-md hover:shadow-lg transition-all duration-200"
+                      whileHover={{ scale: 1.02 }}
+                    >
+                      <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mr-4">
+                        <EnvelopeIcon className="w-6 h-6 text-purple-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Email</p>
+                        <a 
+                          href={`mailto:${agent.email}`}
+                          className="text-lg font-semibold text-gray-900 hover:text-purple-600 transition-colors"
+                        >
+                          {agent.email}
+                        </a>
+                      </div>
+                    </motion.div>
                   )}
                   
                   {agent.office_address && (
-                    <div className="flex items-start">
-                      <MapPinIcon className="w-5 h-5 text-gray-400 mr-3 mt-0.5" />
-                      <span className="text-gray-700">{agent.office_address}</span>
-                    </div>
+                    <motion.div 
+                      className="flex items-start bg-white rounded-xl p-4 shadow-md hover:shadow-lg transition-all duration-200"
+                      whileHover={{ scale: 1.02 }}
+                    >
+                      <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-4 mt-1">
+                        <MapPinIcon className="w-6 h-6 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Office</p>
+                        <span className="text-lg font-semibold text-gray-900">{agent.office_address}</span>
+                      </div>
+                    </motion.div>
                   )}
                 </div>
 
-                <div className="mt-6 space-y-3">
+                <div className="mt-8 space-y-4">
                   <Link
                     href={`/agent/${agent.slug}/contact`}
                     onClick={handleContactClick}
-                    className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-center block"
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-xl hover:shadow-xl hover:scale-105 transition-all duration-200 text-center block font-semibold text-lg"
                   >
                     Send Message
                   </Link>
                   <Link
                     href={`/agent/${agent.slug}/properties`}
-                    className="w-full border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 transition-colors text-center block"
+                    className="w-full border-2 border-gray-200 text-gray-700 py-4 px-6 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 text-center block font-semibold text-lg"
                   >
                     View Properties
                   </Link>
