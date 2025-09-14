@@ -746,37 +746,9 @@ export class APIService {
     }, true);
   }
 
-  // Agent Public API
-  async getAgentPublicProfile(): Promise<any> {
-    return this.makeRequest('/api/v1/agent/public/agent-public/profile', {
-      method: 'GET'
-    }, true);
-  }
+  // Agent Public API - First implementation (removed duplicate)
 
-  async updateAgentPublicProfile(profileData: any): Promise<any> {
-    return this.makeRequest('/api/v1/agent/public/agent-public/profile', {
-      method: 'PUT',
-      body: JSON.stringify(profileData)
-    }, true);
-  }
-
-  async getAgentPublicStats(): Promise<any> {
-    return this.makeRequest('/api/v1/agent/public/agent-public/stats', {
-      method: 'GET'
-    }, true);
-  }
-
-  async getAgentPublicWebsite(agentSlug: string): Promise<any> {
-    return this.makeRequest(`/api/v1/agent/public/agent-public/${agentSlug}`, {
-      method: 'GET'
-    }, false);
-  }
-
-  async getAgentPublicProperties(agentSlug: string): Promise<any> {
-    return this.makeRequest(`/api/v1/agent/public/agent-public/${agentSlug}/properties`, {
-      method: 'GET'
-    }, false);
-  }
+  // Agent Public API functions moved to proper section below
 
   async getBrandingSuggestions(data: { company_name: string; agent_name?: string; position?: string }): Promise<any> {
     return this.post('/api/v1/agent/branding-suggest', data, false);
