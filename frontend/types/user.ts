@@ -170,14 +170,22 @@ export class UserDataTransformer {
   static fromBackend(backendUser: any): User {
     // Extract ID from MongoDB object if needed
     let userId = backendUser._id || backendUser.id;
-    
+
     // Handle MongoDB ObjectId format if present
     if (typeof userId === 'object' && userId !== null) {
       if ('$oid' in userId) {
         userId = userId.$oid;
       }
     }
-    
+
+    console.log('[UserDataTransformer] RAW BACKEND USER DATA:', backendUser);
+    console.log('[UserDataTransformer] Backend onboarding fields:', {
+      onboarding_completed: backendUser.onboarding_completed,
+      onboardingCompleted: backendUser.onboardingCompleted,
+      onboarding_step: backendUser.onboarding_step,
+      onboardingStep: backendUser.onboardingStep
+    });
+
     logger.debug('[UserDataTransformer] Transforming backend user', {
       component: 'UserDataTransformer',
       action: 'user_transformation',
@@ -186,8 +194,8 @@ export class UserDataTransformer {
         transformedId: userId
       }
     });
-    
-    return {
+
+    const transformedUser = {
       id: userId,
       email: backendUser.email,
       firstName: backendUser.first_name || backendUser.firstName,
@@ -196,14 +204,22 @@ export class UserDataTransformer {
       isVerified: backendUser.is_verified || backendUser.isVerified || false,
       createdAt: backendUser.created_at || backendUser.createdAt,
       updatedAt: backendUser.updated_at || backendUser.updatedAt,
-      // For testing purposes, set onboarding as completed if user exists
-      onboardingCompleted: backendUser.onboarding_completed || backendUser.onboardingCompleted || true,
+      // Use actual backend onboarding status
+      onboardingCompleted: backendUser.onboarding_completed || backendUser.onboardingCompleted || false,
       onboardingStep: backendUser.onboarding_step || backendUser.onboardingStep || 0,
       companyName: backendUser.company_name || backendUser.companyName,
       businessType: backendUser.business_type || backendUser.businessType,
       targetAudience: backendUser.target_audience || backendUser.targetAudience,
       brandingPreferences: backendUser.branding_preferences || backendUser.brandingPreferences,
     };
+
+    console.log('[UserDataTransformer] FINAL TRANSFORMED USER:', transformedUser);
+    console.log('[UserDataTransformer] Final onboarding status:', {
+      onboardingCompleted: transformedUser.onboardingCompleted,
+      onboardingStep: transformedUser.onboardingStep
+    });
+
+    return transformedUser;
   }
 
   /**
@@ -247,7 +263,7 @@ export class UserDataTransformer {
       branding_suggestions: data.brandingSuggestions
     };
   }
-  
+
   /**
    * Transform register data for backend submission
    */
@@ -265,7 +281,7 @@ export class UserDataTransformer {
 
 // Type guards for runtime type checking
 export const isUser = (obj: any): obj is User => {
-  return obj && 
+  return obj &&
     typeof obj.id === 'string' &&
     typeof obj.email === 'string' &&
     typeof obj.firstName === 'string' &&

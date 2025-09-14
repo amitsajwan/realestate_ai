@@ -31,6 +31,11 @@ class User(Document):
     onboarding_completed: bool = False
     onboarding_step: int = 0
     
+    # Alias for frontend compatibility
+    @property
+    def onboardingCompleted(self) -> bool:
+        return self.onboarding_completed
+    
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -63,8 +68,15 @@ class UserRead(schemas.BaseUser[str]):
     last_name: Optional[str] = None
     phone: Optional[str] = None
     company: Optional[str] = None
+    onboarding_completed: bool = False
+    onboarding_step: int = 0
     created_at: datetime
     updated_at: datetime
+    
+    # Alias for frontend compatibility
+    @property
+    def onboardingCompleted(self) -> bool:
+        return self.onboarding_completed
     
     @classmethod
     def model_validate(cls, obj, **kwargs):

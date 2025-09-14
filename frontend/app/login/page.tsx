@@ -101,18 +101,23 @@ const LoginPage: React.FC = () => {
   const handleLogin = async (email: string, password: string) => {
     try {
       console.log('[LoginPage] Attempting login for:', email);
-      
+
       // Ensure authManager is initialized
       await authManager.init();
       console.log('[LoginPage] AuthManager initialized');
-      
+
       const result = await authManager.login(email, password);
       console.log('[LoginPage] Login result:', result);
-      
+
       if (result.success) {
         console.log('[LoginPage] Login successful, checking auth state...');
         const authState = authManager.getState();
         console.log('[LoginPage] Auth state:', authState);
+        console.log('[LoginPage] User onboarding status:', {
+          onboardingCompleted: authState.user?.onboardingCompleted,
+          onboardingStep: authState.user?.onboardingStep,
+          fullUser: authState.user
+        });
 
         // Check onboarding status and redirect accordingly
         if (authState.user?.onboardingCompleted) {
@@ -133,12 +138,52 @@ const LoginPage: React.FC = () => {
   };
 
   const handleRegister = async (registerData: any) => {
-    // The registerData is already in the correct format for RegisterData
-    const result = await authManager.register(registerData);
+    try {
+      console.log('[LoginPage] Attempting registration...');
 
-    if (result.success) {
-      setIsLogin(true);
-      toast.success('Registration successful! Please sign in.');
+      // Ensure authManager is initialized
+      await authManager.init();
+      console.log('[LoginPage] AuthManager initialized for registration');
+
+      // The registerData is already in the correct format for RegisterData
+      const result = await authManager.register(registerData);
+      console.log('[LoginPage] Registration result:', result);
+
+      if (result.success) {
+        // Check if user was automatically authenticated during registration
+        const authState = authManager.getState();
+        console.log('[LoginPage] Auth state after registration:', {
+          isAuthenticated: authState.isAuthenticated,
+          hasUser: !!authState.user,
+          onboardingCompleted: authState.user?.onboardingCompleted,
+          fullUser: authState.user
+        });
+
+        if (authState.isAuthenticated && authState.user) {
+          // User was automatically logged in during registration
+          console.log('[LoginPage] User automatically authenticated, checking onboarding status...');
+
+          // Check onboarding status and redirect accordingly
+          if (authState.user.onboardingCompleted) {
+            console.log('[LoginPage] Redirecting to dashboard...');
+            router.push('/');
+          } else {
+            console.log('[LoginPage] Redirecting to onboarding...');
+            router.push('/onboarding');
+          }
+        } else {
+          // User was not automatically logged in, show login form
+          console.log('[LoginPage] User not automatically authenticated, showing login form');
+          setIsLogin(true);
+          toast.success('Registration successful! Please sign in.');
+        }
+      } else {
+        console.log('[LoginPage] Registration failed:', result.error);
+        toast.error(result.error || 'Registration failed');
+      }
+    } catch (error) {
+      console.error('[LoginPage] Registration error:', error);
+      toast.error('Registration failed. Please try again.');
     }
   };
 
