@@ -37,9 +37,7 @@ async def get_current_agent_public_profile(
         service = AgentPublicService(db)
         
         # Get current user's ID
-        user_id = current_user.get("id") or current_user.get("_id")
-        if isinstance(user_id, dict) and "$oid" in user_id:
-            user_id = user_id["$oid"]
+        user_id = str(current_user.id)
         
         logger.info(f"Getting agent profile for user: {user_id}")
         
@@ -54,19 +52,19 @@ async def get_current_agent_public_profile(
         logger.info(f"No existing profile found, creating new profile for user: {user_id}")
         
         # Extract user data
-        first_name = current_user.get("first_name", current_user.get("firstName", ""))
-        last_name = current_user.get("last_name", current_user.get("lastName", ""))
+        first_name = current_user.first_name or ""
+        last_name = current_user.last_name or ""
         full_name = f"{first_name} {last_name}".strip()
         if not full_name:
-            full_name = current_user.get("email", "Agent")
+            full_name = current_user.email or "Agent"
         
         # Create profile data
         profile_data = {
             "agent_name": full_name,
             "bio": f"Real estate professional specializing in helping clients find their perfect property.",
             "photo": "",
-            "phone": current_user.get("phone", ""),
-            "email": current_user.get("email", ""),
+            "phone": current_user.phone or "",
+            "email": current_user.email or "",
             "office_address": "",
             "specialties": ["Residential"],
             "experience": "",
