@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PropertyAI - Properties Page Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <!-- Header -->
+    <header class="bg-white/95 backdrop-blur-lg border-b border-gray-200 shadow-sm sticky top-0 z-50">
+        <div class="px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                        <i class="fas fa-home text-white"></i>
+                    </div>
+                    <h1 class="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        PropertyAI
+                    </h1>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                        <span class="text-white text-sm font-medium">P</span>
+                    </div>
+                    <span class="text-sm font-medium text-gray-700">Property Test User</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="hidden lg:flex lg:flex-col lg:w-64 xl:w-72">
+            <nav class="flex-1 bg-white/80 backdrop-blur-lg border-r border-gray-200">
+                <div class="p-6">
+                    <div class="space-y-1">
+                        <button class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left text-gray-700 hover:bg-gray-100">
+                            <i class="fas fa-home w-5 h-5"></i>
+                            <span class="font-medium">Dashboard</span>
+                        </button>
+                        <button class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg">
+                            <i class="fas fa-building w-5 h-5"></i>
+                            <span class="font-medium">Properties</span>
+                            <div class="ml-auto w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                        </button>
+                        <button class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left text-gray-700 hover:bg-gray-100">
+                            <i class="fas fa-plus w-5 h-5"></i>
+                            <span class="font-medium">Add Property</span>
+                        </button>
+                        <button class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left text-gray-700 hover:bg-gray-100">
+                            <i class="fas fa-chart-bar w-5 h-5"></i>
+                            <span class="font-medium">Analytics</span>
+                        </button>
+                    </div>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 min-h-screen">
+            <div class="p-4 sm:p-6 lg:p-8">
+                <div class="max-w-7xl mx-auto">
+                    <!-- Page Header -->
+                    <div class="mb-8">
+                        <h2 class="text-3xl font-bold text-gray-900 mb-2">Properties</h2>
+                        <p class="text-gray-600">Manage your property listings and publishing status</p>
+                    </div>
+
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                        <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Total Properties</p>
+                                    <p class="text-2xl font-bold text-gray-900">1</p>
+                                </div>
+                                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-building text-blue-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Published</p>
+                                    <p class="text-2xl font-bold text-green-600">1</p>
+                                </div>
+                                <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-check-circle text-green-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Draft</p>
+                                    <p class="text-2xl font-bold text-yellow-600">0</p>
+                                </div>
+                                <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-edit text-yellow-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Total Value</p>
+                                    <p class="text-2xl font-bold text-gray-900">₹15L</p>
+                                </div>
+                                <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-rupee-sign text-purple-600"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Search and Filter Bar -->
+                    <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-6">
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <div class="flex-1">
+                                <div class="relative">
+                                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                                    <input type="text" placeholder="Search properties..." 
+                                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <select class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <option>All Types</option>
+                                    <option>Apartment</option>
+                                    <option>House</option>
+                                    <option>Commercial</option>
+                                </select>
+                                <select class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <option>All Status</option>
+                                    <option>Published</option>
+                                    <option>Draft</option>
+                                    <option>Archived</option>
+                                </select>
+                                <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                    <i class="fas fa-plus mr-2"></i>Add Property
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Properties Grid -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                        <!-- Property Card 1 - Created Property -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
+                            <div class="h-48 bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
+                                <i class="fas fa-building text-white text-4xl"></i>
+                            </div>
+                            <div class="p-6">
+                                <div class="flex items-start justify-between mb-3">
+                                    <h3 class="text-lg font-semibold text-gray-900">Beautiful 3BHK Apartment in Downtown</h3>
+                                    <span class="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                                        Published
+                                    </span>
+                                </div>
+                                <p class="text-gray-600 text-sm mb-4 line-clamp-2">
+                                    Spacious 3 bedroom apartment with modern amenities, located in the heart of the city with excellent connectivity.
+                                </p>
+                                <div class="space-y-2 mb-4">
+                                    <div class="flex items-center text-sm text-gray-600">
+                                        <i class="fas fa-map-marker-alt mr-2 text-gray-400"></i>
+                                        Downtown Mumbai, Maharashtra
+                                    </div>
+                                    <div class="flex items-center text-sm text-gray-600">
+                                        <i class="fas fa-bed mr-2 text-gray-400"></i>
+                                        3 bed • 2 bath • 1200 sqft
+                                    </div>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div class="text-2xl font-bold text-gray-900">₹15,00,000</div>
+                                    <div class="flex space-x-2">
+                                        <button class="p-2 text-gray-400 hover:text-blue-600 transition-colors">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="p-2 text-gray-400 hover:text-red-600 transition-colors">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        <button class="p-2 text-gray-400 hover:text-green-600 transition-colors">
+                                            <i class="fas fa-share"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- Publishing Status -->
+                                <div class="mt-4 pt-4 border-t border-gray-100">
+                                    <div class="flex items-center justify-between text-xs text-gray-500">
+                                        <span>Published Channels:</span>
+                                        <div class="flex space-x-1">
+                                            <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded">Website</span>
+                                            <span class="px-2 py-1 bg-green-100 text-green-700 rounded">Facebook</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center justify-between text-xs text-gray-500 mt-1">
+                                        <span>Languages:</span>
+                                        <div class="flex space-x-1">
+                                            <span class="px-1 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">EN</span>
+                                            <span class="px-1 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">MR</span>
+                                            <span class="px-1 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">HI</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Empty State Card -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden border-dashed">
+                            <div class="h-48 bg-gray-50 flex items-center justify-center">
+                                <div class="text-center">
+                                    <i class="fas fa-plus-circle text-gray-300 text-4xl mb-2"></i>
+                                    <p class="text-gray-500 text-sm">Add your first property</p>
+                                </div>
+                            </div>
+                            <div class="p-6 text-center">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-2">No properties yet</h3>
+                                <p class="text-gray-600 text-sm mb-4">Start building your property portfolio by adding your first listing.</p>
+                                <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                    <i class="fas fa-plus mr-2"></i>Add Property
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="mt-8 flex items-center justify-between">
+                        <div class="text-sm text-gray-700">
+                            Showing 1 of 1 properties
+                        </div>
+                        <div class="flex space-x-2">
+                            <button class="px-3 py-2 border border-gray-300 rounded-lg text-gray-500 cursor-not-allowed">
+                                Previous
+                            </button>
+                            <button class="px-3 py-2 bg-blue-600 text-white rounded-lg">
+                                1
+                            </button>
+                            <button class="px-3 py-2 border border-gray-300 rounded-lg text-gray-500 cursor-not-allowed">
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
+        <div class="flex items-center">
+            <i class="fas fa-check-circle mr-2"></i>
+            <span>Property created successfully!</span>
+        </div>
+    </div>
+
+    <script>
+        // Simulate loading and interactions
+        setTimeout(() => {
+            document.querySelector('.fixed.top-4.right-4').style.display = 'none';
+        }, 3000);
+    </script>
+</body>
+</html>
