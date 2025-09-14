@@ -51,40 +51,19 @@ export class APIService {
   }
 
   /**
-   * Get API base URL from environment variables with intelligent fallback
-   * This handles all deployment scenarios: localhost, Docker, ngrok, production
+   * Get API base URL from environment variables
+   * Simplified approach: Use explicit configuration for reliability
    */
   private getAPIBaseURL(): string {
     const envUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-    // If environment variable is explicitly defined (including empty string), use it
+    // If environment variable is explicitly defined, use it
     if (envUrl !== undefined) {
       return envUrl;
     }
 
-    // Intelligent URL resolution based on environment
-    if (typeof window !== 'undefined') {
-      const { protocol, hostname, port } = window.location;
-      
-      // Development scenarios
-      if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        // Check if we're in Docker (port 3000) or local development
-        if (port === '3000' || port === '') {
-          // Docker or production-like environment - use relative paths
-          return '';
-        }
-        // Local development - use direct backend connection
-        return 'http://localhost:8000';
-      }
-      
-      // Production/ngrok/Docker scenarios
-      // Use relative paths so API calls go through the same domain
-      // This works with nginx proxy, ngrok, and any reverse proxy
-      return '';
-    }
-
-    // Server-side rendering: use relative paths by default
-    // This works with nginx proxy and any reverse proxy setup
+    // Default: Use relative paths for single URL deployment
+    // This works with nginx proxy, ngrok, and any reverse proxy
     return '';
   }
 
