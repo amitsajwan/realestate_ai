@@ -16,9 +16,10 @@ import {
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline'
 import { crmApi, DashboardMetrics, AnalyticsMetric } from '@/lib/crm-api'
+import { transformPropertiesToAnalytics, safePropertyAccess, calculatePercentage, formatCurrency, type Property } from '@/lib/data-transformers'
 
 interface AnalyticsProps {
-  properties?: any[]
+  properties?: Property[]
 }
 
 interface StatCard {
@@ -139,25 +140,15 @@ export default function Analytics({ properties = [] }: AnalyticsProps) {
     setDashboardData(mockData)
   }
 
-  // Use dashboard data or fallback to properties
+  // Transform properties data using our robust transformer
+  const transformedAnalytics = useMemo(() => {
+    return transformPropertiesToAnalytics(memoizedProperties)
+  }, [memoizedProperties])
+
+  // Use dashboard data or fallback to transformed properties data
   const analyticsData = dashboardData || {
     overview_metrics: [],
-    property_analytics: {
-      total_properties: memoizedProperties.length,
-      published_properties: memoizedProperties.filter(p => p.status === 'for-sale').length,
-      draft_properties: memoizedProperties.filter(p => p.status === 'draft').length,
-      archived_properties: memoizedProperties.filter(p => p.status === 'archived').length,
-      average_price: memoizedProperties.length > 0 ? Math.round(memoizedProperties.reduce((sum, p) => sum + (p.price || 0), 0) / memoizedProperties.length) : 0,
-      total_value: memoizedProperties.reduce((sum, p) => sum + (p.price || 0), 0),
-      price_range_distribution: {},
-      property_type_distribution: {},
-      location_distribution: {},
-      status_distribution: {},
-      average_days_on_market: 30,
-      conversion_rate: 0,
-      top_performing_properties: [],
-      recent_activity: []
-    },
+    property_analytics: transformedAnalytics,
     lead_analytics: {
       total_leads: 0,
       new_leads: 0,
@@ -354,10 +345,11 @@ export default function Analytics({ properties = [] }: AnalyticsProps) {
             Property Types
           </h3>
           <div className="space-y-4">
-            {Object.entries(analyticsData.property_analytics.property_type_distribution || {}).map(([type, count], index) => {
+            {Object.entries(safePropertyAccess(analyticsData, 'property_analytics.property_type_distribution', {})).map(([type, count], index) => {
               const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500']
               const countNum = Number(count)
-              const percentage = analyticsData.property_analytics.total_properties > 0 ? Math.round((countNum / analyticsData.property_analytics.total_properties) * 100) : 0
+              const totalProperties = safePropertyAccess(analyticsData, 'property_analytics.total_properties', 0)
+              const percentage = calculatePercentage(countNum, totalProperties)
               
               return (
                 <div key={index} className="flex items-center justify-between">
