@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
-import { UserIcon, CheckIcon, SparklesIcon } from '@heroicons/react/24/outline'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { UserIcon, CheckIcon, SparklesIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { authManager } from '@/lib/auth'
 import { apiService } from '@/lib/api'
 import { applyBrandTheme } from '@/lib/theme'
@@ -68,6 +68,13 @@ export default function ProfileSettings() {
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
   const [isProfileLoaded, setIsProfileLoaded] = useState(false)
   const [isLoadingProfile, setIsLoadingProfile] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
+  
+  // Refs for cleanup and race condition prevention
+  const isMountedRef = useRef(true)
+  const isLoadingRef = useRef(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
   
   // Use loading hooks for consistent state management
   const profileOperation = useAsyncOperation<UserProfile>()
@@ -79,34 +86,85 @@ export default function ProfileSettings() {
   
   const isLoading = isLoadingProfile || profileOperation.isLoading
   const isSaving = multipleLoading.isLoading('saveProfile')
+  
+  // Constants
+  const MAX_RETRIES = 3
+  const RETRY_DELAY = 1000 // 1 second
 
   const availableLanguages = [
     'English', 'Hindi', 'Marathi', 'Gujarati', 'Tamil', 'Telugu', 
     'Kannada', 'Malayalam', 'Bengali', 'Punjabi', 'Urdu', 'Other'
   ]
 
-  const loadUserProfile = useCallback(async () => {
-    // Prevent multiple simultaneous calls
-    if (isProfileLoaded || isLoadingProfile) {
+  // Cleanup function
+  const cleanup = useCallback(() => {
+    isMountedRef.current = false
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
+  }, [])
+
+  // Retry with exponential backoff
+  const retryWithBackoff = useCallback(async (fn: () => Promise<any>, retries: number = MAX_RETRIES): Promise<any> => {
+    try {
+      return await fn()
+    } catch (error) {
+      if (retries > 0 && isMountedRef.current) {
+        const delay = RETRY_DELAY * Math.pow(2, MAX_RETRIES - retries)
+        console.warn(`[ProfileSettings] Retrying in ${delay}ms... (${retries} retries left)`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+        return retryWithBackoff(fn, retries - 1)
+      }
+      throw error
+    }
+  }, [])
+
+  const loadUserProfile = useCallback(async (isRetry: boolean = false) => {
+    // Prevent multiple simultaneous calls using ref
+    if (isLoadingRef.current || isProfileLoaded) {
       return
     }
-    
+
+    // Don't retry if component is unmounted
+    if (!isMountedRef.current) {
+      return
+    }
+
+    isLoadingRef.current = true
     setIsLoadingProfile(true)
-    
+    setLoadError(null)
+
+    // Create abort controller for this request
+    abortControllerRef.current = new AbortController()
+
     try {
       // Get current user from auth manager
       const authState = authManager.getState()
       const currentUser = authState.user
       
-      // Try to load from backend API first
+      // Try to load from backend API with retry logic
       let profileData = null
       try {
-        const response = await apiService.getDefaultUserProfile()
+        const response = await retryWithBackoff(async () => {
+          return await apiService.getDefaultUserProfile()
+        })
+        
         if (response && response.success && response.profile) {
-          profileData = response.profile;
+          profileData = response.profile
         }
       } catch (error) {
-        console.info('[ProfileSettings] No existing profile found, will use onboarding data')
+        // Only log as info if it's a 404 or similar (no profile exists)
+        if (error instanceof Error && error.message.includes('404')) {
+          console.info('[ProfileSettings] No existing profile found, will use onboarding data')
+        } else {
+          console.warn('[ProfileSettings] API error, using fallback data:', error)
+        }
+      }
+      
+      // Don't update state if component is unmounted
+      if (!isMountedRef.current) {
+        return
       }
       
       // Merge onboarding data with profile data, prioritizing profile data
@@ -134,6 +192,7 @@ export default function ProfileSettings() {
       setFormData(mergedData)
       setSelectedLanguages(mergedData.languages || [])
       setIsProfileLoaded(true)
+      setRetryCount(0) // Reset retry count on success
       
       // If we have onboarding data but no profile, show a message
       if (currentUser && !profileData) {
@@ -143,18 +202,48 @@ export default function ProfileSettings() {
       return mergedData
     } catch (error) {
       console.error('[ProfileSettings] Error loading profile:', error)
-      toast.error('Failed to load profile data')
-    } finally {
-      setIsLoadingProfile(false)
-    }
-  }, [isProfileLoaded, isLoadingProfile]) // Proper dependencies
+      
+      if (!isMountedRef.current) {
+        return
+      }
 
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load profile data'
+      setLoadError(errorMessage)
+      
+      if (!isRetry && retryCount < MAX_RETRIES) {
+        setRetryCount(prev => prev + 1)
+        console.warn(`[ProfileSettings] Will retry loading profile (attempt ${retryCount + 1}/${MAX_RETRIES})`)
+        // Retry after a delay
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            loadUserProfile(true)
+          }
+        }, RETRY_DELAY)
+      } else {
+        toast.error(`Failed to load profile data${retryCount >= MAX_RETRIES ? ' after multiple attempts' : ''}`)
+      }
+    } finally {
+      if (isMountedRef.current) {
+        isLoadingRef.current = false
+        setIsLoadingProfile(false)
+      }
+      abortControllerRef.current = null
+    }
+  }, [isProfileLoaded, retryCount, retryWithBackoff])
+
+  // Load profile on mount
   useEffect(() => {
-    // Only load if not already loaded and not currently loading
-    if (!isProfileLoaded && !isLoadingProfile) {
+    if (!isProfileLoaded && !isLoadingRef.current) {
       loadUserProfile()
     }
-  }, [loadUserProfile, isProfileLoaded, isLoadingProfile])
+  }, []) // Empty dependency array - only run on mount
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanup()
+    }
+  }, [cleanup])
 
   const handleInputChange = (field: keyof UserProfile, value: any) => {
     const updatedData = {
@@ -258,6 +347,34 @@ export default function ProfileSettings() {
           <div className="flex justify-center items-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             <span className="ml-3 text-white">Loading profile...</span>
+          </div>
+        )}
+
+        {loadError && !isLoading && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center">
+              <ExclamationTriangleIcon className="w-5 h-5 text-red-500 mr-2" />
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-red-800">Failed to load profile</h3>
+                <p className="text-sm text-red-600 mt-1">{loadError}</p>
+                {retryCount < MAX_RETRIES && (
+                  <p className="text-xs text-red-500 mt-1">
+                    Retrying... (Attempt {retryCount + 1}/{MAX_RETRIES})
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setLoadError(null)
+                  setRetryCount(0)
+                  loadUserProfile()
+                }}
+                className="ml-4 px-3 py-1 bg-red-100 text-red-800 text-sm rounded hover:bg-red-200 transition-colors"
+                disabled={isLoading}
+              >
+                Retry
+              </button>
+            </div>
           </div>
         )}
         
@@ -646,7 +763,12 @@ export default function ProfileSettings() {
             <div className="flex space-x-4">
               <button
                 type="button"
-                onClick={loadUserProfile}
+                onClick={() => {
+                  setLoadError(null)
+                  setRetryCount(0)
+                  setIsProfileLoaded(false)
+                  loadUserProfile()
+                }}
                 className="btn-outline px-6 py-2"
                 disabled={isLoading || isSaving}
               >
