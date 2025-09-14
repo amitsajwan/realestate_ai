@@ -971,10 +971,10 @@ export class APIService {
 
   // Agent Public Profile methods
   async getAgentPublicProfile(): Promise<ApiResponse<any>> {
-    const apiLog = logApiCall('GET', '/api/v1/agent-public/profile');
+    const apiLog = logApiCall('GET', '/api/v1/agent/public/agent-public/profile');
 
     try {
-      const response = await this.makeRequest('/api/v1/agent-public/profile', {
+      const response = await this.makeRequest('/api/v1/agent/public/agent-public/profile', {
         method: 'GET'
       }, true);
 
@@ -992,10 +992,10 @@ export class APIService {
   }
 
   async updateAgentPublicProfile(profileData: any): Promise<ApiResponse<any>> {
-    const apiLog = logApiCall('PUT', '/api/v1/agent-public/profile');
+    const apiLog = logApiCall('PUT', '/api/v1/agent/public/agent-public/profile');
 
     try {
-      const response = await this.makeRequest('/api/v1/agent-public/profile', {
+      const response = await this.makeRequest('/api/v1/agent/public/agent-public/profile', {
         method: 'PUT',
         body: JSON.stringify(profileData),
         headers: {
@@ -1017,10 +1017,10 @@ export class APIService {
   }
 
   async getAgentPublicStats(): Promise<ApiResponse<any>> {
-    const apiLog = logApiCall('GET', '/api/v1/agent-public/stats');
+    const apiLog = logApiCall('GET', '/api/v1/agent/public/agent-public/stats');
 
     try {
-      const response = await this.makeRequest('/api/v1/agent-public/stats', {
+      const response = await this.makeRequest('/api/v1/agent/public/agent-public/stats', {
         method: 'GET'
       }, true);
 
