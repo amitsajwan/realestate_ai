@@ -684,6 +684,13 @@ export class APIService {
     }, true);
   }
 
+  async updateProperty(propertyId: string, propertyData: any): Promise<any> {
+    return this.makeRequest(`/api/v1/properties/properties/${propertyId}`, {
+      method: 'PUT',
+      body: JSON.stringify(propertyData)
+    }, true);
+  }
+
   async getProperties(): Promise<any> {
     return this.makeRequest('/api/v1/properties/properties/', {
       method: 'GET'
@@ -749,6 +756,42 @@ export class APIService {
   // Agent Public API - First implementation (removed duplicate)
 
   // Agent Public API functions moved to proper section below
+
+  // Facebook Integration API
+  async getFacebookStatus(): Promise<any> {
+    return this.makeRequest('/api/facebook/status', {
+      method: 'GET'
+    }, true);
+  }
+
+  async getFacebookLoginUrl(): Promise<any> {
+    return this.makeRequest('/api/v1/facebook/login', {
+      method: 'GET'
+    }, true);
+  }
+
+  async disconnectFacebook(): Promise<any> {
+    return this.makeRequest('/api/v1/facebook/disconnect', {
+      method: 'POST'
+    }, true);
+  }
+
+  async getFacebookPages(): Promise<any> {
+    return this.makeRequest('/api/v1/facebook/pages', {
+      method: 'GET'
+    }, true);
+  }
+
+  async publishToFacebook(propertyId: string, pageId: string, message?: string): Promise<any> {
+    return this.makeRequest('/api/v1/facebook/publish', {
+      method: 'POST',
+      body: JSON.stringify({
+        property_id: propertyId,
+        page_id: pageId,
+        message: message
+      })
+    }, true);
+  }
 
   async getBrandingSuggestions(data: { company_name: string; agent_name?: string; position?: string }): Promise<any> {
     return this.post('/api/v1/agent/branding-suggest', data, false);

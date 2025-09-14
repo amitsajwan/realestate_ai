@@ -87,7 +87,7 @@ export function transformPropertiesToAnalytics(properties: Property[]): Property
 
   // Calculate basic metrics
   const totalProperties = properties.length
-  const publishedProperties = properties.filter(p => p.status === 'for-sale' || p.status === 'active').length
+  const publishedProperties = properties.filter(p => p.status === 'for-sale' || p.status === 'for-rent' || p.status === 'active').length
   const draftProperties = properties.filter(p => p.status === 'draft').length
   const archivedProperties = properties.filter(p => p.status === 'archived').length
   
@@ -126,7 +126,13 @@ export function transformPropertiesToAnalytics(properties: Property[]): Property
     
     acc[range] = (acc[range] || 0) + 1
     return acc
-  }, {} as Record<string, number>)
+  }, {
+    'Under 10L': 0,
+    '10L - 20L': 0,
+    '20L - 50L': 0,
+    '50L - 1Cr': 0,
+    'Above 1Cr': 0
+  } as Record<string, number>)
 
   // Calculate average days on market (simplified)
   const now = new Date()
