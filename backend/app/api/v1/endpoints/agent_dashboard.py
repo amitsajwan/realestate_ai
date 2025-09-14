@@ -107,7 +107,7 @@ async def update_agent_public_profile(
 
 @router.get("/stats")
 async def get_agent_public_stats(
-    # current_user: User = Depends(get_current_user),  # TODO: Implement auth
+    current_user: User = Depends(current_active_user),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
