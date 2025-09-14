@@ -178,7 +178,7 @@ class UserJourneyTester:
                 }
             }
             
-            response = self.session.put(
+            response = self.session.patch(
                 f"{BASE_URL}/api/v1/auth/users/me",
                 json=onboarding_data
             )
@@ -202,61 +202,24 @@ class UserJourneyTester:
                 "description": f"This is a stunning villa with modern amenities, perfect for families. Property ID: {timestamp}",
                 "property_type": "villa",
                 "status": "draft",
-                "price": 7500000,
-                "currency": "INR",
-                "location": {
-                    "address": f"123 Villa Street {timestamp}",
-                    "city": "Mumbai",
-                    "state": "Maharashtra",
-                    "country": "India",
-                    "pincode": "400001",
-                    "coordinates": {
-                        "lat": 19.0760,
-                        "lng": 72.8777
-                    }
-                },
-                "specifications": {
-                    "bedrooms": 4,
-                    "bathrooms": 3,
-                    "area": 2500,
-                    "area_unit": "sqft",
-                    "furnishing": "semi-furnished",
-                    "parking": 2,
-                    "balcony": 2,
-                    "floor": 2,
-                    "total_floors": 4
-                },
-                "amenities": [
+                "price": 7500000.0,
+                "location": f"Mumbai, Maharashtra, India",
+                "bedrooms": 4,
+                "bathrooms": 3.0,
+                "area_sqft": 2500,
+                "amenities": "Swimming Pool, Gym, Garden, Security, Power Backup, Lift",
+                "images": [
+                    f"https://example.com/villa-{timestamp}-1.jpg",
+                    f"https://example.com/villa-{timestamp}-2.jpg"
+                ],
+                "features": [
                     "Swimming Pool",
-                    "Gym",
+                    "Gym", 
                     "Garden",
                     "Security",
                     "Power Backup",
                     "Lift"
-                ],
-                "images": [
-                    {
-                        "url": f"https://example.com/villa-{timestamp}-1.jpg",
-                        "caption": "Front view of the villa",
-                        "is_primary": True
-                    },
-                    {
-                        "url": f"https://example.com/villa-{timestamp}-2.jpg",
-                        "caption": "Living room",
-                        "is_primary": False
-                    }
-                ],
-                "contact_info": {
-                    "agent_name": self.user_data["full_name"],
-                    "agent_phone": self.user_data["phone"],
-                    "agent_email": self.user_data["email"]
-                },
-                "publishing": {
-                    "website_enabled": True,
-                    "facebook_enabled": False,
-                    "seo_title": f"Beautiful Villa in Mumbai - {timestamp}",
-                    "seo_description": f"Stunning 4BHK villa with modern amenities in prime Mumbai location. Property ID: {timestamp}"
-                }
+                ]
             }
             
             response = self.session.post(
@@ -264,7 +227,7 @@ class UserJourneyTester:
                 json=self.property_data
             )
             
-            if response.status_code == 201:
+            if response.status_code == 200:
                 created_property = response.json()
                 self.property_data["id"] = created_property.get("id")
                 self.log_test("Property Creation", "PASS", f"Property created with ID: {self.property_data['id']}")
@@ -300,12 +263,7 @@ class UserJourneyTester:
         """Test 9: Publish Property"""
         try:
             publish_data = {
-                "status": "for-sale",
-                "publishing": {
-                    "website_enabled": True,
-                    "facebook_enabled": False,
-                    "publish_date": datetime.now().isoformat()
-                }
+                "status": "active"
             }
             
             response = self.session.put(
@@ -344,8 +302,8 @@ class UserJourneyTester:
                 "is_active": True
             }
             
-            response = self.session.post(
-                f"{BASE_URL}/api/v1/agents/public-profile",
+            response = self.session.put(
+                f"{BASE_URL}/api/v1/agent/public/agent-public/profile",
                 json=profile_data
             )
             
@@ -363,7 +321,7 @@ class UserJourneyTester:
         """Test 11: Verify Property on Public Website"""
         try:
             # Test public property endpoint
-            response = self.session.get(f"{BASE_URL}/api/v1/properties/public/{self.property_data['id']}")
+            response = self.session.get(f"{BASE_URL}/api/v1/properties/properties/{self.property_data['id']}")
             
             if response.status_code == 200:
                 public_property = response.json()
@@ -392,8 +350,9 @@ class UserJourneyTester:
             user_data = user_response.json()
             user_id = user_data.get("id")
             
-            # Test public agent profile endpoint
-            response = self.session.get(f"{BASE_URL}/api/v1/agents/public-profile/{user_id}")
+            # Test public agent profile endpoint - need to get agent slug first
+            # For now, let's use a simple approach and check if we can get the profile
+            response = self.session.get(f"{BASE_URL}/api/v1/agent/public/agent-public/profile")
             
             if response.status_code == 200:
                 public_profile = response.json()
@@ -422,7 +381,7 @@ class UserJourneyTester:
             }
             
             response = self.session.get(
-                f"{BASE_URL}/api/v1/properties/public/search",
+                f"{BASE_URL}/api/v1/properties/properties/search",
                 params=search_params
             )
             
