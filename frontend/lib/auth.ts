@@ -597,31 +597,71 @@ export class AuthManager {
       
       const response = await this.apiService.updateOnboarding(currentUser.id, updateRequest);
       
-      // Update user state if response contains updated user data
-      if (response.success && response.data) {
-        this.setState({
-          user: response.data,
-          isLoading: false,
-          error: null
-        });
-        console.log('[AuthManager] Updated user state with API response data:', response.data);
-        console.log('[AuthManager] User onboarding status:', {
-          onboardingCompleted: response.data.onboardingCompleted,
-          onboardingStep: response.data.onboardingStep
-        });
+      if (response.success) {
+        // If onboarding is being completed, force refresh user data from server
+        if (completed) {
+          console.log('[AuthManager] Onboarding completed - refreshing user data from server');
+          try {
+            const userResponse = await this.apiService.getCurrentUser();
+            if (userResponse) {
+              this.setState({
+                user: userResponse,
+                isLoading: false,
+                error: null
+              });
+              console.log('[AuthManager] Refreshed user state after onboarding completion:', userResponse);
+              console.log('[AuthManager] User onboarding status:', {
+                onboardingCompleted: userResponse.onboardingCompleted,
+                onboardingStep: userResponse.onboardingStep
+              });
+            } else {
+              throw new Error('Failed to refresh user data after onboarding completion');
+            }
+          } catch (refreshError) {
+            console.error('[AuthManager] Failed to refresh user data after onboarding completion:', refreshError);
+            // Fallback to manual update
+            const updatedUser = {
+              ...currentUser,
+              onboardingStep: step,
+              onboarding_completed: completed,
+              onboardingCompleted: completed // Handle both naming conventions
+            };
+            this.setState({
+              user: updatedUser,
+              isLoading: false,
+              error: null
+            });
+          }
+        } else {
+          // For non-completion updates, use response data if available, otherwise update locally
+          if (response.data) {
+            this.setState({
+              user: response.data,
+              isLoading: false,
+              error: null
+            });
+            console.log('[AuthManager] Updated user state with API response data:', response.data);
+            console.log('[AuthManager] User onboarding status:', {
+              onboardingCompleted: response.data.onboardingCompleted,
+              onboardingStep: response.data.onboardingStep
+            });
+          } else {
+            // Update local user state with new onboarding info
+            const updatedUser = {
+              ...currentUser,
+              onboardingStep: step,
+              onboardingCompleted: completed
+            };
+            this.setState({
+              user: updatedUser,
+              isLoading: false,
+              error: null
+            });
+            console.log('[AuthManager] Updated user state locally:', { step, completed });
+          }
+        }
       } else {
-        // Update local user state with new onboarding info
-        const updatedUser = {
-          ...currentUser,
-          onboardingStep: step,
-          onboardingCompleted: completed
-        };
-        this.setState({
-          user: updatedUser,
-          isLoading: false,
-          error: null
-        });
-        console.log('[AuthManager] Updated user state locally:', { step, completed });
+        throw new Error(JSON.stringify(response.errors) || 'Failed to update onboarding');
       }
       
       console.log('[AuthManager] Onboarding update successful');
@@ -715,6 +755,12 @@ export class AuthManager {
 
 // Export singleton instance
 export const authManager = new AuthManager();
+
+// Make AuthManager available globally in browser context
+if (typeof window !== 'undefined') {
+  (window as any).authManager = authManager;
+  console.log('🔧 AuthManager initialized in browser context');
+}
 
 // React hook for using auth state
 export function useAuth() {

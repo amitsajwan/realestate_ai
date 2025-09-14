@@ -41,7 +41,7 @@ class PropertyBase(BaseModel):
     features: Optional[List[str]] = Field(default_factory=list)
     amenities: Optional[str] = None
     status: str = "active"  # active, sold, pending, inactive
-    agent_id: str
+    agent_id: Optional[str] = None  # Will be set from user_id in service
     images: Optional[List[str]] = Field(default_factory=list)
     
     # Smart property features (optional)
@@ -56,11 +56,19 @@ class PropertyBase(BaseModel):
     template: Optional[str] = None
     language: str = "en"
     ai_content: Optional[str] = None
+    
+    # Publishing workflow
+    publishing_status: str = "draft"  # draft, published, archived
+    published_at: Optional[datetime] = None
+    target_languages: Optional[List[str]] = Field(default_factory=list)
+    publishing_channels: Optional[List[str]] = Field(default_factory=list)
+    facebook_page_mappings: Optional[Dict[str, str]] = Field(default_factory=dict)
 
 
 class PropertyCreate(PropertyBase):
     """Schema for creating a new property"""
-    pass
+    # agent_id is automatically set from user_id in the service
+    agent_id: Optional[str] = None
 
 
 class PropertyUpdate(BaseModel):
@@ -86,6 +94,11 @@ class PropertyUpdate(BaseModel):
     template: Optional[str] = None
     language: Optional[str] = None
     ai_content: Optional[str] = None
+    publishing_status: Optional[str] = None
+    published_at: Optional[datetime] = None
+    target_languages: Optional[List[str]] = None
+    publishing_channels: Optional[List[str]] = None
+    facebook_page_mappings: Optional[Dict[str, str]] = None
 
 
 class PropertyResponse(PropertyBase):

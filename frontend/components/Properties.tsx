@@ -18,7 +18,8 @@ import {
   ShareIcon,
   AdjustmentsHorizontalIcon,
   Squares2X2Icon,
-  ListBulletIcon
+  ListBulletIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline'
 import {
   HeartIcon as HeartSolidIcon
@@ -39,18 +40,21 @@ interface Property {
   status: 'for-sale' | 'for-rent' | 'sold'
   dateAdded: string
   image?: string
+  images?: string[]
 }
 
 interface PropertiesProps {
   onAddProperty?: () => void
   properties?: Property[]
   setProperties?: (properties: Property[]) => void
+  onRefresh?: () => void
 }
 
 export default function Properties({ 
   onAddProperty, 
   properties: propProperties = [], 
-  setProperties: propSetProperties 
+  setProperties: propSetProperties,
+  onRefresh
 }: PropertiesProps) {
   // State management
   const [searchTerm, setSearchTerm] = useState('')
@@ -114,11 +118,14 @@ export default function Properties({
     try {
       if (navigator.share) {
         await navigator.share(shareData)
-        toast.success('Property shared successfully!')
       } else {
-        await navigator.clipboard.writeText(shareData.url)
-        toast.success('Property link copied to clipboard!')
+        // no-op; fallback handled below
       }
+      // Always copy link to clipboard as a convenient fallback
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareData.url)
+      }
+      toast.success('Property shared successfully!')
     } catch (error) {
       console.error('Error sharing property:', error)
       toast.error('Failed to share property')
@@ -220,13 +227,25 @@ export default function Properties({
             Manage your property listings • {properties.length} properties
           </p>
         </div>
-        <button
-          onClick={onAddProperty}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-semibold flex items-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
-        >
-          <PlusIcon className="w-5 h-5" />
-          <span>Add Property</span>
-        </button>
+        <div className="flex gap-3">
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              className="bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 px-4 py-3 rounded-xl font-semibold flex items-center space-x-2 transition-all duration-200"
+              title="Refresh Properties"
+            >
+              <ArrowPathIcon className="w-5 h-5" />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+          )}
+          <button
+            onClick={onAddProperty}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-semibold flex items-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+          >
+            <PlusIcon className="w-5 h-5" />
+            <span>Add Property</span>
+          </button>
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -402,9 +421,9 @@ export default function Properties({
                viewMode === 'list' ? 'h-48 sm:h-32 sm:w-48 flex-shrink-0' : 'h-48'
              }`}>
               <div className="h-full bg-gradient-to-br from-blue-500 to-purple-600 relative">
-                {property.image ? (
+                {(property.images && property.images.length > 0) || property.image ? (
                   <Image
-                    src={property.image}
+                    src={property.images?.[0] || property.image || ''}
                     alt={property.title}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-500"
@@ -576,7 +595,7 @@ export default function Properties({
               {/* Property Image */}
               <div className="relative h-80 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                 <Image
-                  src={selectedProperty.image || '/placeholder-property.jpg'}
+                  src={selectedProperty.images?.[0] || selectedProperty.image || '/placeholder-property.jpg'}
                   alt={selectedProperty.title}
                   fill
                   className="object-cover"

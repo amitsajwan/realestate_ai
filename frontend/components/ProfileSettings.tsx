@@ -66,6 +66,7 @@ export default function ProfileSettings() {
   })
 
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
+  const [isProfileLoaded, setIsProfileLoaded] = useState(false)
   
   // Use loading hooks for consistent state management
   const profileOperation = useAsyncOperation<UserProfile>()
@@ -84,7 +85,14 @@ export default function ProfileSettings() {
   ]
 
   const loadUserProfile = useCallback(async () => {
-    await profileOperation.execute(async () => {
+    // Prevent multiple simultaneous calls
+    if (isProfileLoaded) {
+      return
+    }
+    
+    setIsProfileLoaded(true)
+    
+    try {
       // Get current user from auth manager
       const authState = authManager.getState()
       const currentUser = authState.user
@@ -93,32 +101,33 @@ export default function ProfileSettings() {
       let profileData = null
       try {
         const response = await apiService.getDefaultUserProfile()
-        if (response) {
-          profileData = response;
+        if (response && response.success && response.profile) {
+          profileData = response.profile;
         }
       } catch (error) {
-  console.info('[ProfileSettings] No existing profile found, will use onboarding data')
+        console.info('[ProfileSettings] No existing profile found, will use onboarding data')
       }
       
       // Merge onboarding data with profile data, prioritizing profile data
       const mergedData = {
-        user_id: profileData?.id || 'default_user',
-        name: profileData?.firstName && profileData?.lastName ? `${profileData.firstName} ${profileData.lastName}`.trim() : (currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() : ''),
+        user_id: profileData?.user_id || 'default_user',
+        name: profileData?.name || (currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() : ''),
         email: profileData?.email || currentUser?.email || '',
         phone: profileData?.phone || currentUser?.phone || '',
-        whatsapp: currentUser?.phone || '',
-        company: '',
-        experience_years: '0',
-        specialization_areas: '',
-        tagline: '',
-        social_bio: '',
-        about: '',
-        address: '',
-        city: '',
-        state: '',
-        pincode: '',
-        languages: [],
-        logo_url: ''
+        whatsapp: profileData?.phone || currentUser?.phone || '',
+        company: profileData?.company || '',
+        experience_years: profileData?.experience_years || '0',
+        specialization_areas: profileData?.specialization_areas || '',
+        tagline: profileData?.tagline || '',
+        social_bio: profileData?.about || '',
+        about: profileData?.about || '',
+        address: profileData?.address || '',
+        city: profileData?.city || '',
+        state: profileData?.state || '',
+        pincode: profileData?.pincode || '',
+        languages: profileData?.languages || [],
+        logo_url: profileData?.logo_url || '',
+        brandingSuggestions: profileData?.brandingSuggestions || null
       }
       
       setFormData(mergedData)
@@ -130,8 +139,10 @@ export default function ProfileSettings() {
       }
       
       return mergedData
-    })
-  }, [profileOperation])
+    } finally {
+      setIsProfileLoaded(false)
+    }
+  }, [isProfileLoaded])
 
   useEffect(() => {
     loadUserProfile()
@@ -179,7 +190,7 @@ export default function ProfileSettings() {
     multipleLoading.setLoading('saveProfile', true)
     
     try {
-      await apiService.updateProfile({ ...formData })
+      await apiService.updateUserProfile({ ...formData })
       showSuccess('Profile saved successfully!')
     } catch (error) {
       handleError(error, 'Failed to save profile')
@@ -257,8 +268,9 @@ export default function ProfileSettings() {
               </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Full Name *</label>
+                  <label htmlFor="profile-name" className="block text-sm font-medium text-gray-300 mb-2">Full Name *</label>
                   <input
+                    id="profile-name"
                     type="text"
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
@@ -276,8 +288,9 @@ export default function ProfileSettings() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Email *</label>
+                  <label htmlFor="profile-email" className="block text-sm font-medium text-gray-300 mb-2">Email *</label>
                   <input
+                    id="profile-email"
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
@@ -295,8 +308,9 @@ export default function ProfileSettings() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Phone</label>
+                  <label htmlFor="profile-phone" className="block text-sm font-medium text-gray-300 mb-2">Phone</label>
                   <input
+                    id="profile-phone"
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => handleInputChange('phone', e.target.value)}

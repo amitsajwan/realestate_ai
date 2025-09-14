@@ -19,6 +19,7 @@ from app.schemas.unified_property import (
     PropertyDocument
 )
 from app.core.exceptions import NotFoundError, ValidationError
+from app.services.analytics_service import analytics_service
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,13 @@ class UnifiedPropertyService:
         self.db = db
         self.collection = db.properties
         self.logger = logging.getLogger(__name__)
+    
+    def _convert_doc_to_response(self, doc: dict) -> PropertyResponse:
+        """Convert MongoDB document to PropertyResponse, handling ObjectId conversion"""
+        if doc and '_id' in doc:
+            doc['id'] = str(doc['_id'])
+            doc.pop('_id', None)  # Remove the ObjectId field
+        return PropertyResponse(**doc)
     
     async def create_property(
         self,
@@ -45,9 +53,13 @@ class UnifiedPropertyService:
             self.logger.info(f"Creating property for user {user_id}")
             
             # Create property document
+            property_dict = property_data.model_dump()
+            # Remove agent_id from property data to avoid duplicate keyword argument
+            property_dict.pop('agent_id', None)
+            
             property_doc = PropertyDocument(
-                **property_data.model_dump(),
-                agent_id=user_id,  # Map user_id to agent_id for compatibility
+                **property_dict,
+                agent_id=str(user_id),  # Convert ObjectId to string for compatibility
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
             )
@@ -69,7 +81,9 @@ class UnifiedPropertyService:
             self.logger.info(f"Property created successfully with ID: {property_doc.id}")
             
             # Convert to response format
-            return PropertyResponse(**property_doc.model_dump())
+            property_data = property_doc.model_dump()
+            property_data['id'] = str(property_doc.id)  # Convert ObjectId to string
+            return self._convert_doc_to_response(property_data)
             
         except Exception as e:
             self.logger.error(f"Error creating property: {e}")
@@ -90,26 +104,52 @@ class UnifiedPropertyService:
         
         doc = await self.collection.find_one({
             "_id": obj_id,
-            "agent_id": user_id
+            "agent_id": str(user_id)
         })
         
         if doc:
-            return PropertyResponse(**doc)
+            return self._convert_doc_to_response(doc)
         return None
     
     async def get_properties_by_user(
         self,
         user_id: str,
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100,
+        publishing_status: Optional[str] = None
     ) -> List[PropertyResponse]:
         """
         Get all properties for a user with pagination.
+        Optionally filter by publishing status.
         """
-        cursor = self.collection.find({"agent_id": user_id}).skip(skip).limit(limit)
+        query = {"agent_id": str(user_id)}
+        if publishing_status:
+            query["publishing_status"] = publishing_status
+            
+        cursor = self.collection.find(query).skip(skip).limit(limit)
         docs = await cursor.to_list(length=None)
         
-        return [PropertyResponse(**doc) for doc in docs]
+        return [self._convert_doc_to_response(doc) for doc in docs]
+    
+    async def get_published_properties_by_agent(
+        self,
+        agent_id: str,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[PropertyResponse]:
+        """
+        Get published properties for an agent (for public website display).
+        Only returns properties with publishing_status = 'published'.
+        """
+        query = {
+            "agent_id": agent_id,
+            "publishing_status": "published"
+        }
+        
+        cursor = self.collection.find(query).skip(skip).limit(limit)
+        docs = await cursor.to_list(length=None)
+        
+        return [self._convert_doc_to_response(doc) for doc in docs]
     
     async def update_property(
         self,
@@ -234,17 +274,23 @@ class UnifiedPropertyService:
         if not property_data:
             raise NotFoundError("Property not found")
         
-        # Calculate analytics based on property data
+        # Get analytics from analytics service
+        property_analytics = await analytics_service.get_property_analytics(
+            property_id=str(property_data.id),
+            days=30
+        )
+        
         analytics = {
-            "views": 0,  # TODO: Implement view tracking
-            "inquiries": 0,  # TODO: Implement inquiry tracking
-            "shares": 0,  # TODO: Implement share tracking
-            "favorites": 0,  # TODO: Implement favorite tracking
+            "views": property_analytics["metrics"].get("views", 0),
+            "inquiries": property_analytics["metrics"].get("inquiries", 0),
+            "shares": property_analytics["metrics"].get("shares", 0),
+            "favorites": property_analytics["metrics"].get("favorites", 0),
             "created_at": property_data.created_at,
             "updated_at": property_data.updated_at,
             "ai_generated": bool(property_data.ai_content),
             "market_insights": bool(property_data.market_analysis),
-            "quality_score": self._calculate_quality_score(property_data)
+            "quality_score": self._calculate_quality_score(property_data),
+            "engagement_rate": property_analytics.get("engagement_rate", 0.0)
         }
         
         return analytics
@@ -319,7 +365,7 @@ class UnifiedPropertyService:
         cursor = self.collection.find(search_query).skip(skip).limit(limit)
         docs = await cursor.to_list(length=None)
         
-        return [PropertyResponse(**doc) for doc in docs]
+        return [self._convert_doc_to_response(doc) for doc in docs]
     
     async def _generate_ai_content(self, property_doc: PropertyDocument) -> str:
         """

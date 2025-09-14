@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 import logging
 
-from app.dependencies import get_current_user
+from app.core.auth_backend import current_active_user
+from app.models.user import User
 from models.listing import ListingTemplate, ListingDetails, GeneratedListingPost
 from services.listing_templates import generate_listing_post
 from repositories.agent_repository import AgentRepository, get_agent_repository
@@ -52,7 +53,7 @@ async def get_available_templates():
 @router.post("/generate", response_model=GeneratedListingPost)
 async def generate_listing_post_endpoint(
     listing_details: ListingDetails,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(current_active_user),
     agent_repo: AgentRepository = Depends(get_agent_repository)
 ):
     """Generate a social media post from listing details"""
@@ -64,7 +65,7 @@ async def generate_listing_post_endpoint(
         try:
             from repositories.user_repository import UserRepository
             db = get_database()
-            user_repo = UserRepository(db)
+            user_repo = UserRepository()
             user = await user_repo.get_user(current_user["username"])
             
             agent_brand = None
@@ -89,7 +90,7 @@ async def generate_listing_post_endpoint(
 @router.post("/generate-and-post")
 async def generate_and_post_listing(
     listing_details: ListingDetails,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(current_active_user),
     agent_repo: AgentRepository = Depends(get_agent_repository)
 ):
     """Generate listing post and immediately post to Facebook"""
@@ -102,7 +103,7 @@ async def generate_and_post_listing(
         try:
             from repositories.user_repository import UserRepository
             db = get_database()
-            user_repo = UserRepository(db)
+            user_repo = UserRepository()
             user = await user_repo.get_user(current_user["username"])
             
             if not user:

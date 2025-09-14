@@ -16,8 +16,9 @@ import logging
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from app.dependencies import get_current_user_id
+
 from app.core.config import settings
+from app.core.auth_backend import get_current_user_id
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

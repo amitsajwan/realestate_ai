@@ -6,8 +6,26 @@ All route definitions and endpoint setup
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
-from app.api.v1.endpoints.smart_properties import SmartPropertyCreate, SmartPropertyResponse, generate_simple_ai_content, get_smart_property_service
-from app.dependencies import get_current_user
+from pydantic import BaseModel
+from typing import Optional, Dict, Any, List
+# Removed duplicate smart_properties import - using unified_properties now
+from app.core.auth_backend import current_active_user
+from app.models.user import User
+
+
+class AIPropertySuggestRequest(BaseModel):
+    """Request model for AI property suggestions"""
+    address: Optional[str] = None
+    location: Optional[str] = None
+    property_type: Optional[str] = "Apartment"
+    bedrooms: Optional[int] = 2
+    bathrooms: Optional[int] = 2
+    area: Optional[int] = 1000
+    price: Optional[str] = None
+    budget: Optional[str] = None
+    requirements: Optional[str] = None
+    user_profile: Optional[Dict[str, Any]] = None
+    agent_profile: Optional[Dict[str, Any]] = None
 
 
 def setup_routes(app: FastAPI):
@@ -15,10 +33,11 @@ def setup_routes(app: FastAPI):
 
     # Include all API V1 routers
     from app.api.v1.router import api_router
-    from app.api.v1.endpoints import simple_auth
+    # Temporarily disable simple_auth to focus on FastAPI Users
+    # from app.api.v1.endpoints import simple_auth
 
     app.include_router(api_router, prefix="/api/v1")
-    app.include_router(simple_auth.router)
+    # app.include_router(simple_auth.router)
 
     # Mount static files for uploads
     app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
@@ -26,46 +45,8 @@ def setup_routes(app: FastAPI):
 
 def setup_additional_endpoints(app: FastAPI):
     """Setup additional endpoints that don't fit in the main API router"""
-
-    # Add generate-property endpoint directly for frontend compatibility
-    @app.post("/api/generate-property", response_model=SmartPropertyResponse)
-    async def generate_property_direct(
-        prop: SmartPropertyCreate,
-        current_user: dict = Depends(get_current_user)
-    ):
-        """Generate property content - direct endpoint for frontend compatibility"""
-        try:
-            from app.logging_config import get_logger
-            logger = get_logger(__name__)
-
-            logger.info(f"Generating property content for user: {current_user.get('username', 'anonymous')}")
-
-            # Get user ID
-            user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
-
-            # Generate AI content if requested
-            ai_content = None
-            if prop.ai_generate:
-                ai_content = generate_simple_ai_content(prop.model_dump(), prop.template, prop.language)
-
-            # Create property data with AI content
-            property_data = prop.model_dump()
-            property_data["ai_content"] = ai_content
-
-            # Use the proper MongoDB service
-            result = await get_smart_property_service().create_smart_property(
-                SmartPropertyCreate(**property_data),
-                user_id
-            )
-
-            logger.info(f"Property generated successfully with ID: {result.id}")
-            return result
-
-        except Exception as e:
-            from app.logging_config import get_logger
-            logger = get_logger(__name__)
-            logger.error(f"Error generating property: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to generate property: {str(e)}")
+    
+    # Removed duplicate generate-property endpoint - using unified properties now
 
     @app.get("/health")
     async def health_check():
@@ -74,12 +55,12 @@ def setup_additional_endpoints(app: FastAPI):
 
     @app.get("/api/v1/dashboard/stats")
     async def get_dashboard_stats():
-        """Get dashboard statistics from MongoDB"""
+        """Get dashboard statistics from database (MongoDB or Mock)"""
         try:
             from app.core.database import get_database
             db = get_database()
 
-            # Get real stats from MongoDB
+            # Get real stats from database
             total_properties = await db.properties.count_documents({})
             active_listings = await db.properties.count_documents({"status": "available"})
             total_leads = await db.leads.count_documents({})
@@ -97,29 +78,30 @@ def setup_additional_endpoints(app: FastAPI):
 
             return {
                 "success": True,
-                "stats": stats
+                "data": stats
             }
 
         except Exception as e:
             from app.logging_config import get_logger
             logger = get_logger(__name__)
             logger.error(f"Error getting dashboard stats: {e}")
-            # Fallback to mock data if MongoDB fails
+            # Return empty stats if database fails
             stats = {
-                "total_properties": 12,
-                "active_listings": 8,
-                "pending_posts": 3,
-                "total_views": 1247,
-                "monthly_leads": 23,
-                "revenue": "₹45,00,000"
+                "total_properties": 0,
+                "active_listings": 0,
+                "total_leads": 0,
+                "total_users": 0,
+                "total_views": 0,
+                "monthly_leads": 0,
+                "revenue": "₹0"
             }
             return {
                 "success": True,
-                "stats": stats
+                "data": stats
             }
 
     @app.post("/api/v1/property/ai_suggest")
-    async def ai_property_suggest(request):
+    async def ai_property_suggest(request_data: AIPropertySuggestRequest):
         """AI-powered property suggestion endpoint with agent profile integration"""
         try:
             from app.logging_config import get_logger
@@ -127,30 +109,66 @@ def setup_additional_endpoints(app: FastAPI):
 
             logger.info("Starting AI property suggestion processing")
 
-            # Get request body with error handling
-            try:
-                body = await request.json()
-                logger.info(f"Successfully parsed JSON body: {body}")
-            except Exception as json_error:
-                logger.error(f"Failed to parse JSON body: {json_error}")
-                raise HTTPException(status_code=400, detail="Invalid JSON in request body")
-
-            if body is None:
-                logger.error("Request body is None")
-                raise HTTPException(status_code=400, detail="Request body is required")
+            # Get request data
+            logger.info(f"Request data: {request_data}")
 
             logger.info("Extracting basic property details")
-            property_type = body.get("property_type", "Apartment") if body else "Apartment"
-            location = body.get("location", "City Center") if body else "City Center"
-            budget = body.get("budget", "₹50,00,000") if body else "₹50,00,000"
-            requirements = body.get("requirements", "Modern amenities") if body else "Modern amenities"
-            logger.info(f"Basic details - Type: {property_type}, Location: {location}, Budget: {budget}, Requirements: {requirements}")
+            # Extract property details from the request model
+            property_type = request_data.property_type or "Apartment"
+            location = request_data.location or request_data.address or "City Center"
+            requirements = request_data.requirements or "Modern amenities"
+            
+            # Extract additional property details
+            bedrooms = request_data.bedrooms or 2
+            bathrooms = request_data.bathrooms or 2
+            area = request_data.area or 1000
+            
+            # Improved price/budget handling
+            budget = request_data.budget or request_data.price
+            logger.info(f"Raw budget/price input: {budget}")
+            
+            # Parse budget/price with better logic
+            budget_amount = None
+            if budget:
+                try:
+                    # Handle different price formats
+                    if isinstance(budget, (int, float)):
+                        budget_amount = float(budget)
+                    elif isinstance(budget, str):
+                        # Remove currency symbols and commas
+                        clean_budget = budget.replace('₹', '').replace(',', '').replace(' ', '').strip()
+                        # Handle 'L' or 'Cr' suffixes
+                        if clean_budget.lower().endswith('l'):
+                            budget_amount = float(clean_budget[:-1]) * 100000  # Convert lakhs to rupees
+                        elif clean_budget.lower().endswith('cr'):
+                            budget_amount = float(clean_budget[:-2]) * 10000000  # Convert crores to rupees
+                        else:
+                            budget_amount = float(clean_budget)
+                    logger.info(f"Successfully parsed budget amount: {budget_amount}")
+                except Exception as budget_error:
+                    logger.error(f"Error parsing budget '{budget}': {budget_error}")
+                    budget_amount = None
+            
+            # Only use default if no valid price was provided
+            if budget_amount is None:
+                # Calculate a reasonable default based on property type and area
+                base_price_per_sqft = {
+                    "Apartment": 5000,
+                    "House": 4000,
+                    "Villa": 8000,
+                    "Commercial": 6000,
+                    "Plot": 2000
+                }
+                price_per_sqft = base_price_per_sqft.get(property_type, 5000)
+                budget_amount = area * price_per_sqft
+                logger.info(f"No valid price provided, calculated default based on {property_type} and {area} sqft: {budget_amount}")
+            
+            logger.info(f"Basic details - Type: {property_type}, Location: {location}, Budget: {budget_amount}, Requirements: {requirements}")
+            logger.info(f"Property details - Bedrooms: {bedrooms}, Bathrooms: {bathrooms}, Area: {area}")
 
             # Get agent profile data for personalized suggestions
             logger.info("Processing agent profile data")
-            agent_profile = body.get("agent_profile", {})
-            if agent_profile is None:
-                agent_profile = {}
+            agent_profile = request_data.agent_profile or {}
             logger.info(f"Agent profile: {agent_profile}")
 
             specialization = agent_profile.get("specialization", "residential") if isinstance(agent_profile, dict) else "residential"
@@ -161,16 +179,6 @@ def setup_additional_endpoints(app: FastAPI):
             bio = agent_profile.get("bio", "") if isinstance(agent_profile, dict) else ""
             languages = agent_profile.get("languages", []) if isinstance(agent_profile, dict) else []
             logger.info(f"Extracted agent profile fields - Specialization: {specialization}, Experience: {experience_level}")
-
-            # Parse budget safely
-            logger.info("Parsing budget amount")
-            try:
-                budget_amount = int(budget.replace('₹', '').replace(',', ''))
-                logger.info(f"Parsed budget amount: {budget_amount}")
-            except Exception as budget_error:
-                logger.error(f"Error parsing budget '{budget}': {budget_error}")
-                budget_amount = 5000000  # Default to 50 lakhs
-                logger.info(f"Using default budget amount: {budget_amount}")
 
             # Generate agent-aware content based on specialization and brand
             logger.info("Generating agent-aware content")
@@ -315,14 +323,22 @@ def setup_additional_endpoints(app: FastAPI):
                 "success": True,
                 "data": [
                     {
-                        "title": f"{title_prefix}Beautiful {property_type} in {location}",
-                        "price": budget,
+                        "title": f"{title_prefix}Beautiful {bedrooms}BHK {property_type} in {location}",
+                        "price": budget_amount,
                         "description": specialized_desc + location_insights.get('description_suffix', ''),
                         "amenities": specialized_amenities,
                         "location_score": location_insights.get('score', 8.0),
                         "market_insights": location_insights.get('market_data', {}),
+                        "property_details": {
+                            "bedrooms": bedrooms,
+                            "bathrooms": bathrooms,
+                            "area": area,
+                            "property_type": property_type,
+                            "location": location
+                        },
                         "highlights": [
-                            "Prime location with excellent connectivity",
+                            f"Spacious {bedrooms}BHK with {bathrooms} bathrooms",
+                            f"Area: {area} sq ft",
                             f"Tailored for {specialization} market",
                             "Professional agent-curated listing",
                             "Close to schools, hospitals, and shopping centers"
@@ -345,15 +361,15 @@ def setup_additional_endpoints(app: FastAPI):
             raise HTTPException(status_code=500, detail="Internal server error")
 
     @app.get("/api/v1/agent/profile")
-    async def get_agent_profile(current_user: dict = Depends(get_current_user)):
+    async def get_agent_profile(current_user: User = Depends(current_active_user)):
         """Get agent profile for current user"""
         try:
             from app.services.agent_profile_service import AgentProfileService
             agent_service = AgentProfileService()
 
             # Try to get profile by user_id first, then by email
-            user_id = current_user.get("user_id") or str(current_user.get("_id", ""))
-            email = current_user.get("email")
+            user_id = getattr(current_user, "id", None) or str(getattr(current_user, "_id", ""))
+            email = getattr(current_user, "email", None)
 
             profile = None
             if user_id:

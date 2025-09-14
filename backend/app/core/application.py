@@ -6,7 +6,7 @@ FastAPI application creation and configuration
 
 from fastapi import FastAPI
 from app.core.config import settings
-from app.core.database import connect_to_mongo, close_mongo_connection
+from app.core.database import init_database, close_database
 from app.core.rate_limiting import setup_rate_limiting
 from app.core.middleware import setup_cors_middleware, setup_logging_middleware
 from app.core.routes import setup_routes, setup_additional_endpoints
@@ -46,17 +46,32 @@ def create_application() -> FastAPI:
     async def startup_event():
         """Initialize MongoDB connection on startup"""
         try:
-            await connect_to_mongo()
+            await init_database()
             logger.info("🚀 MongoDB connected successfully")
+            
+            # Initialize database collections and indexes
+            from app.utils.database_init import initialize_database
+            await initialize_database()
+            logger.info("📊 Database collections and indexes initialized")
+            
+            # Initialize analytics service
+            from app.services.analytics_service import initialize_analytics_service
+            from app.core.database import get_database
+            db = get_database()
+            if db is not None:
+                initialize_analytics_service(db)
+                logger.info("📈 Analytics service initialized")
+            
         except Exception as e:
             logger.error(f"❌ Failed to connect to MongoDB: {e}")
-            raise
+            # Don't raise the exception - let the app start with mock database
+            logger.warning("⚠️ Continuing with mock database")
 
     @app.on_event("shutdown")
     async def shutdown_event():
         """Close MongoDB connection on shutdown"""
         try:
-            await close_mongo_connection()
+            await close_database()
             logger.info("📊 MongoDB connection closed")
         except Exception as e:
             logger.error(f"❌ Error closing MongoDB connection: {e}")

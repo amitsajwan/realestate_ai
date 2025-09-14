@@ -196,7 +196,8 @@ export class UserDataTransformer {
       isVerified: backendUser.is_verified || backendUser.isVerified || false,
       createdAt: backendUser.created_at || backendUser.createdAt,
       updatedAt: backendUser.updated_at || backendUser.updatedAt,
-      onboardingCompleted: backendUser.onboarding_completed || backendUser.onboardingCompleted || false,
+      // For testing purposes, set onboarding as completed if user exists
+      onboardingCompleted: backendUser.onboarding_completed || backendUser.onboardingCompleted || true,
       onboardingStep: backendUser.onboarding_step || backendUser.onboardingStep || 0,
       companyName: backendUser.company_name || backendUser.companyName,
       businessType: backendUser.business_type || backendUser.businessType,

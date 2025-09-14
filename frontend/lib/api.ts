@@ -1,22 +1,18 @@
 'use client';
 
 // Enhanced API service with comprehensive error handling and logging
-import { errorHandler, AppError } from './error-handler';
-import { logger, logApiCall } from './logger';
 import {
-  LoginRequest,
-  RegisterRequest,
+  ApiResponse,
   AuthResponse,
-  RefreshTokenResponse,
-  BrandingSuggestionRequest,
-  BrandingSuggestion,
-  BrandingSuggestionResponse,
-  OnboardingUpdateRequest,
+  LoginRequest,
   OnboardingFormData,
+  OnboardingUpdateRequest,
+  RefreshTokenResponse,
+  RegisterRequest,
   User,
-  UserDataTransformer,
-  ApiResponse
+  UserDataTransformer
 } from '../types/user';
+import { logApiCall, logger } from './logger';
 
 // Legacy type aliases for backward compatibility
 type LoginResponse = AuthResponse;
@@ -59,12 +55,12 @@ export class APIService {
    */
   private getAPIBaseURL(): string {
     const envUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-    
+
     // If environment variable is explicitly defined (including empty string), use it
     if (envUrl !== undefined) {
       return envUrl;
     }
-    
+
     // Default behavior when no environment variable is set: detect environment
     // In development (localhost), use direct backend connection
     // In production/container, use relative paths through nginx proxy
@@ -76,7 +72,7 @@ export class APIService {
       // In production/container, use relative paths through nginx proxy
       return '';
     }
-    
+
     // Server-side: use relative paths by default (works with nginx proxy)
     return '';
   }
@@ -134,17 +130,21 @@ export class APIService {
     const method = options.method || 'GET';
     const startTime = Date.now();
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Initialize API call logging
     const apiLog = logApiCall(method, endpoint);
 
     try {
       const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
         'Accept': 'application/json',
         'X-Request-ID': requestId,
         ...(options.headers as Record<string, string> || {})
       };
+
+      // Only set Content-Type for JSON requests, not for FormData or when already specified
+      if (!(options.body instanceof FormData) && !options.headers?.['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+      }
 
       if (requiresAuth && this.token) {
         headers['Authorization'] = `Bearer ${this.token}`;
@@ -231,11 +231,11 @@ export class APIService {
             method,
             endpoint
           });
-          
+
           // Import authManager dynamically to avoid circular dependency
           const { authManager } = await import('./auth');
           const refreshSuccess = await authManager.refreshAccessToken();
-          
+
           if (refreshSuccess) {
             logger.info('Token refreshed successfully, retrying request', {
               component: 'APIService',
@@ -266,7 +266,7 @@ export class APIService {
           },
           message: this.extractErrorMessage(responseData)
         };
-        
+
         throw apiError;
       }
 
@@ -289,7 +289,7 @@ export class APIService {
           code: 'TIMEOUT_ERROR',
           message: 'Request timed out'
         };
-        
+
         apiLog.error(timeoutError, {
           requestId,
           duration: responseTime,
@@ -298,7 +298,7 @@ export class APIService {
             timeout: this.requestTimeout
           }
         });
-        
+
         logger.error('API request timed out', {
           component: 'APIService',
           action: 'api_timeout',
@@ -311,10 +311,10 @@ export class APIService {
             timeout: this.requestTimeout
           }
         }, error);
-        
+
         throw timeoutError;
       }
-      
+
       // If it's already a structured error, re-throw it
       if (error.response || error.code) {
         apiLog.error(error, {
@@ -334,7 +334,7 @@ export class APIService {
           code: 'NETWORK_ERROR',
           message: error.message
         };
-        
+
         apiLog.error(networkError, {
           requestId,
           duration: responseTime,
@@ -343,7 +343,7 @@ export class APIService {
             originalMessage: error.message
           }
         });
-        
+
         logger.error('Network error during API request', {
           component: 'APIService',
           action: 'api_network_error',
@@ -356,7 +356,7 @@ export class APIService {
             originalError: error.message
           }
         }, error);
-        
+
         throw networkError;
       }
 
@@ -365,7 +365,7 @@ export class APIService {
         code: 'UNEXPECTED_ERROR',
         message: 'Unexpected error occurred'
       };
-      
+
       apiLog.error(unexpectedError, {
         requestId,
         duration: responseTime,
@@ -375,7 +375,7 @@ export class APIService {
           errorName: error.name
         }
       });
-      
+
       logger.error('Unexpected error during API request', {
         component: 'APIService',
         action: 'api_unexpected_error',
@@ -390,7 +390,7 @@ export class APIService {
           stack: error.stack
         }
       }, error);
-      
+
       throw unexpectedError;
     }
   }
@@ -400,7 +400,7 @@ export class APIService {
     if (typeof responseData === 'string') {
       return responseData;
     }
-    
+
     // Handle array responses directly
     if (Array.isArray(responseData)) {
       return responseData.map(item => {
@@ -409,24 +409,24 @@ export class APIService {
         return String(item);
       }).join(', ');
     }
-    
+
     // Handle object responses
     if (responseData && typeof responseData === 'object') {
       const message = responseData.detail || responseData.message || responseData.error;
-      
+
       // Handle array messages (common in validation errors)
       if (Array.isArray(message)) {
         return message.join(', ');
       }
-      
+
       // Handle object messages (which might be causing the [object Object] issue)
       if (message && typeof message === 'object') {
         return this.extractErrorMessage(message);
       }
-      
+
       return message || 'An error occurred';
     }
-    
+
     return 'An error occurred';
   }
 
@@ -483,13 +483,23 @@ export class APIService {
 
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     console.log('[APIService] Attempting login for:', credentials.email);
-    
-    // Backend returns only tokens for /login; fetch user afterwards
+    console.log('[APIService] Credentials:', credentials);
+
+    // Use FastAPI Users JWT login endpoint (form-encoded)
+    const formData = new URLSearchParams();
+    formData.append('username', credentials.email);
+    formData.append('password', credentials.password);
+
+    console.log('[APIService] Form data:', formData.toString());
+
     const tokenResp = await this.makeRequest<any>('/api/v1/auth/login', {
       method: 'POST',
-      body: JSON.stringify(credentials),
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formData.toString(),
     });
-    
+
     console.log('[APIService] Login tokens received');
 
     const accessToken = tokenResp.access_token || tokenResp.accessToken;
@@ -516,9 +526,9 @@ export class APIService {
     // Fetch current user info
     const rawUser = await this.makeRequest<any>('/api/v1/auth/me', { method: 'GET' }, true);
     const user = UserDataTransformer.fromBackend(rawUser);
-    
+
     console.log('[APIService] Login successful');
-    
+
     // Return with both snake_case and camelCase token keys for compatibility
     return {
       // @ts-ignore - allow additional fields
@@ -534,21 +544,21 @@ export class APIService {
 
   async register(userData: RegisterRequest): Promise<AuthResponse> {
     console.log('[APIService] Attempting registration for:', userData.email);
-    
+
     const response = await this.makeRequest<any>('/api/v1/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
-    
+
     console.log('[APIService] Registration successful');
-    
+
     // Backend returns the created user object directly (no tokens). Also support legacy { user: {...} }
     const backendUser = response?.user ?? response;
     const user = UserDataTransformer.fromBackend(backendUser);
 
     const accessToken = response.access_token || response.accessToken;
     const refreshToken = response.refresh_token || response.refreshToken;
-    
+
     // Return with both token key styles (tokens may be undefined, which is fine)
     return {
       // @ts-ignore
@@ -576,7 +586,7 @@ export class APIService {
 
   async updateProfile(userData: Partial<User>): Promise<User> {
     const raw = await this.makeRequest<any>('/api/v1/auth/me', {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(userData)
     }, true);
     return UserDataTransformer.fromBackend(raw);
@@ -666,17 +676,60 @@ export class APIService {
     return { baseURL: this.baseURL, timeout: this.requestTimeout, hasToken: !!this.token };
   }
 
-  /**
-   * Get default user profile
-   */
-  async getDefaultUserProfile(): Promise<User> {
-    return await this.makeRequest<User>("/api/v1/auth/default-profile", { method: "GET" });
-  }
 
   async createProperty(propertyData: any): Promise<any> {
-    return this.makeRequest('/api/v1/properties/', {
+    return this.makeRequest('/api/v1/properties/properties/', {
       method: 'POST',
       body: JSON.stringify(propertyData)
+    }, true);
+  }
+
+  async getProperties(): Promise<any> {
+    return this.makeRequest('/api/v1/properties/properties/', {
+      method: 'GET'
+    }, true);
+  }
+
+  async deleteProperty(propertyId: string): Promise<{ message?: string } | any> {
+    return this.delete(`/api/v1/properties/properties/${propertyId}`, true);
+  }
+
+  // Publishing API
+  async publishProperty(propertyId: string, publishingRequest: any): Promise<any> {
+    return this.makeRequest(`/api/v1/properties/publishing/publishing/properties/${propertyId}/publish`, {
+      method: 'POST',
+      body: JSON.stringify(publishingRequest)
+    }, true);
+  }
+
+  async unpublishProperty(propertyId: string): Promise<any> {
+    return this.makeRequest(`/api/v1/properties/publishing/publishing/properties/${propertyId}/unpublish`, {
+      method: 'POST'
+    }, true);
+  }
+
+  async getPublishingStatus(propertyId: string): Promise<any> {
+    return this.makeRequest(`/api/v1/properties/publishing/publishing/properties/${propertyId}/status`, {
+      method: 'GET'
+    }, true);
+  }
+
+  async setLanguagePreferences(agentId: string, preferences: any): Promise<any> {
+    return this.makeRequest(`/api/v1/properties/publishing/publishing/agents/${agentId}/language-preferences`, {
+      method: 'PUT',
+      body: JSON.stringify(preferences)
+    }, true);
+  }
+
+  async getSupportedLanguages(): Promise<any> {
+    return this.makeRequest('/api/v1/properties/publishing/publishing/languages/supported', {
+      method: 'GET'
+    }, true);
+  }
+
+  async getSupportedChannels(): Promise<any> {
+    return this.makeRequest('/api/v1/properties/publishing/publishing/channels/supported', {
+      method: 'GET'
     }, true);
   }
 
@@ -693,47 +746,99 @@ export class APIService {
     }, true);
   }
 
+  // Agent Public API
+  async getAgentPublicProfile(): Promise<any> {
+    return this.makeRequest('/api/v1/agent/public/agent-public/profile', {
+      method: 'GET'
+    }, true);
+  }
+
+  async updateAgentPublicProfile(profileData: any): Promise<any> {
+    return this.makeRequest('/api/v1/agent/public/agent-public/profile', {
+      method: 'PUT',
+      body: JSON.stringify(profileData)
+    }, true);
+  }
+
+  async getAgentPublicStats(): Promise<any> {
+    return this.makeRequest('/api/v1/agent/public/agent-public/stats', {
+      method: 'GET'
+    }, true);
+  }
+
+  async getAgentPublicWebsite(agentSlug: string): Promise<any> {
+    return this.makeRequest(`/api/v1/agent/public/agent-public/${agentSlug}`, {
+      method: 'GET'
+    }, false);
+  }
+
+  async getAgentPublicProperties(agentSlug: string): Promise<any> {
+    return this.makeRequest(`/api/v1/agent/public/agent-public/${agentSlug}/properties`, {
+      method: 'GET'
+    }, false);
+  }
+
   async getBrandingSuggestions(data: { company_name: string; agent_name?: string; position?: string }): Promise<any> {
     return this.post('/api/v1/agent/branding-suggest', data, false);
   }
 
+  async getDefaultUserProfile(): Promise<any> {
+    return this.makeRequest('/api/v1/user/profile/default_user', { method: 'GET' }, false);
+  }
+
+  async updateUserProfile(profileData: any): Promise<any> {
+    return this.makeRequest('/api/v1/user/profile', {
+      method: 'POST',
+      body: JSON.stringify(profileData)
+    }, false);
+  }
+
+  async getMarketInsights(params: { location: string; propertyType: string; price: string | number }): Promise<any> {
+    const query = new URLSearchParams({
+      location: String(params.location || ''),
+      property_type: String(params.propertyType || ''),
+      price: String(params.price ?? '')
+    }).toString();
+    return this.get(`/api/v1/properties/properties/market-insights?${query}`, false);
+  }
+
   async updateOnboarding(userId: string, data: OnboardingUpdateRequest): Promise<ApiResponse<User>> {
     console.log('[APIService] Updating onboarding for user:', userId);
-    
+
     if (!userId || userId === 'undefined') {
       console.error('[APIService] Invalid user ID for onboarding update:', userId);
       throw new Error('Invalid user ID for onboarding update');
     }
-    
+
     // If completing onboarding, use the dedicated complete endpoint
     if (data.completed) {
       console.log('[APIService] Completing onboarding via /complete endpoint');
       const response = await this.makeRequest<any>(`/api/v1/onboarding/${userId}/complete`, {
         method: 'POST'
       }, true);
-      
+
       console.log('[APIService] Onboarding completion successful');
-      
+
       // After completion, get fresh user data to ensure onboarding_completed is updated
       const updatedUser = await this.getCurrentUser();
-      
+
       return {
         success: true,
         data: updatedUser,
         message: response.message || 'Onboarding completed successfully'
       };
     }
-    
+
     // For regular step updates, use the existing endpoint
     const backendData = data.data ? UserDataTransformer.transformOnboardingData(data.data as OnboardingFormData) : {};
-    
+
     console.log('[APIService] Making onboarding request with data:', {
       userId,
       step_number: data.step,
       data: backendData,
       completed: data.completed
     });
-    
+
     const response = await this.makeRequest<any>(`/api/v1/onboarding/${userId}`, {
       method: 'POST',
       body: JSON.stringify({
@@ -742,9 +847,9 @@ export class APIService {
         completed: data.completed
       })
     }, true);
-    
+
     console.log('[APIService] Onboarding update successful');
-    
+
     // Transform response if it contains user data
     if (response.user) {
       return {
@@ -753,7 +858,7 @@ export class APIService {
         message: response.message
       };
     }
-    
+
     return {
       success: true,
       data: response.data,
@@ -763,19 +868,19 @@ export class APIService {
 
   async generatePropertyContent(propertyData: any): Promise<any> {
     const apiLog = logApiCall('POST', '/api/generate-property');
-    
+
     try {
       logger.info('Generating property content', {
         metadata: { propertyData }
       });
-      
+
       const response = await this.makeRequest('/api/generate-property', {
         method: 'POST',
         body: JSON.stringify(propertyData)
       });
-      
+
       apiLog.success(200);
-      
+
       return {
         success: true,
         data: response,
@@ -783,7 +888,7 @@ export class APIService {
       };
     } catch (error) {
       apiLog.error(error);
-      
+
       logger.error('Failed to generate property content', {
         errorDetails: error,
         metadata: { propertyData }
@@ -792,7 +897,7 @@ export class APIService {
     }
   }
 
-  async uploadImages(formData: FormData): Promise<{success: boolean, files?: any[], message?: string, error?: string}> {
+  async uploadImages(formData: FormData): Promise<{ success: boolean, files?: any[], message?: string, error?: string }> {
     const apiLog = logApiCall('POST', '/api/v1/uploads/images');
 
     try {
@@ -801,7 +906,7 @@ export class APIService {
       });
 
       // Create request with FormData (no JSON headers)
-      const response = await this.makeRequest('/api/v1/uploads/images', {
+      const response: any = await this.makeRequest('/api/v1/uploads/images', {
         method: 'POST',
         body: formData,
         headers: {
@@ -813,8 +918,8 @@ export class APIService {
 
       return {
         success: true,
-        files: response.files,
-        message: response.message
+        files: (response as any).files,
+        message: (response as any).message
       };
     } catch (error) {
       apiLog.error(error);
@@ -826,7 +931,7 @@ export class APIService {
     }
   }
 
-  async uploadDocuments(formData: FormData): Promise<{success: boolean, files?: any[], message?: string, error?: string}> {
+  async uploadDocuments(formData: FormData): Promise<{ success: boolean, files?: any[], message?: string, error?: string }> {
     const apiLog = logApiCall('POST', '/api/v1/uploads/documents');
 
     try {
@@ -834,7 +939,7 @@ export class APIService {
         metadata: { fileCount: formData.getAll('files').length }
       });
 
-      const response = await this.makeRequest('/api/v1/uploads/documents', {
+      const response: any = await this.makeRequest('/api/v1/uploads/documents', {
         method: 'POST',
         body: formData,
         headers: {
@@ -846,8 +951,8 @@ export class APIService {
 
       return {
         success: true,
-        files: response.files,
-        message: response.message
+        files: (response as any).files,
+        message: (response as any).message
       };
     } catch (error) {
       apiLog.error(error);
@@ -855,6 +960,74 @@ export class APIService {
       logger.error('Failed to upload documents', {
         errorDetails: error
       });
+      throw error;
+    }
+  }
+
+  // Agent Public Profile methods
+  async getAgentPublicProfile(): Promise<ApiResponse<any>> {
+    const apiLog = logApiCall('GET', '/api/v1/agent-public/profile');
+
+    try {
+      const response = await this.makeRequest('/api/v1/agent-public/profile', {
+        method: 'GET'
+      }, true);
+
+      apiLog.success(200);
+
+      return {
+        success: true,
+        data: response,
+        message: 'Agent profile retrieved successfully'
+      };
+    } catch (error) {
+      apiLog.error(error);
+      throw error;
+    }
+  }
+
+  async updateAgentPublicProfile(profileData: any): Promise<ApiResponse<any>> {
+    const apiLog = logApiCall('PUT', '/api/v1/agent-public/profile');
+
+    try {
+      const response = await this.makeRequest('/api/v1/agent-public/profile', {
+        method: 'PUT',
+        body: JSON.stringify(profileData),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }, true);
+
+      apiLog.success(200);
+
+      return {
+        success: true,
+        data: response,
+        message: 'Agent profile updated successfully'
+      };
+    } catch (error) {
+      apiLog.error(error);
+      throw error;
+    }
+  }
+
+  async getAgentPublicStats(): Promise<ApiResponse<any>> {
+    const apiLog = logApiCall('GET', '/api/v1/agent-public/stats');
+
+    try {
+      const response = await this.makeRequest('/api/v1/agent-public/stats', {
+        method: 'GET'
+      }, true);
+
+      apiLog.success(200);
+
+      return {
+        success: true,
+        data: response,
+        message: 'Agent stats retrieved successfully'
+      };
+    } catch (error) {
+      apiLog.error(error);
       throw error;
     }
   }

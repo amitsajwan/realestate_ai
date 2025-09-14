@@ -165,9 +165,9 @@ class AnalyticsManager {
     const properties = {
       event_type: event.type,
       timestamp: event.timestamp.toISOString(),
-      variant: event.metadata.variant,
-      user_id: event.metadata.userId,
-      session_id: event.metadata.sessionId,
+      variant: event.metadata?.variant,
+      user_id: event.metadata?.userId,
+      session_id: event.metadata?.sessionId,
       ...event.data
     }
 
@@ -333,6 +333,13 @@ class AnalyticsManager {
   getUserId(): string | undefined {
     return this.userId
   }
+
+  /**
+   * Get all initialized services
+   */
+  getServices(): AnalyticsService[] {
+    return this.services
+  }
 }
 
 /**
@@ -482,7 +489,7 @@ export const errorTracker = ErrorTracker.getInstance()
 export function useAnalytics() {
   return {
     track: (event: string, properties?: Record<string, any>) => {
-      analytics.services.forEach(service => {
+      analytics.getServices().forEach(service => {
         try {
           service.track(event, properties)
         } catch (error) {

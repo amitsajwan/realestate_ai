@@ -9,7 +9,8 @@ import { toast } from 'react-hot-toast'
 export default function GenAIFormDemo() {
   const [completedProperties, setCompletedProperties] = useState<string[]>([])
 
-  const handleSuccess = (propertyId: string) => {
+  const handleSuccess = () => {
+    const propertyId = `property-${Date.now()}`
     setCompletedProperties(prev => [...prev, propertyId])
     toast.success(`Property ${propertyId} created successfully!`)
   }

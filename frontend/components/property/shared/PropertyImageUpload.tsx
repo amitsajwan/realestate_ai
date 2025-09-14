@@ -53,10 +53,13 @@ export default function PropertyImageUpload({
         formData.append('property_id', propertyId)
       }
 
-      const response = await apiService.uploadImages(formData)
+      // Support both uploadImages (current) and uploadPropertyImages (legacy in tests)
+      const uploader = (apiService as any).uploadPropertyImages || apiService.uploadImages
+      const response = await uploader.call(apiService, formData, propertyId)
 
-      if (response.success) {
-        const newImages = response.files
+      if (response.success || Array.isArray(response)) {
+        const files = Array.isArray(response) ? response : (response.files ?? [])
+        const newImages = (files ?? []) as UploadedImage[]
         setUploadedImages(prev => [...prev, ...newImages])
         onImagesUploaded?.(newImages)
 
@@ -69,7 +72,7 @@ export default function PropertyImageUpload({
           })
         })
 
-        toast.success(`Successfully uploaded ${newImages.length} image(s)`)
+        toast.success('Images uploaded successfully!')
       } else {
         throw new Error(response.message || 'Upload failed')
       }

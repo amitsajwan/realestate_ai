@@ -11,7 +11,8 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import logging
 
-from app.dependencies import get_current_user
+from app.core.auth_backend import current_active_user
+from app.models.user import User
 from app.schemas.unified_property import (
     PropertyCreate,
     PropertyUpdate,
@@ -33,7 +34,7 @@ def get_unified_property_service() -> UnifiedPropertyService:
 @router.post("/properties/", response_model=PropertyResponse)
 async def create_unified_property(
     property_data: PropertyCreate,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """
     Create a new property with unified functionality.
@@ -42,10 +43,10 @@ async def create_unified_property(
     provided data and feature flags.
     """
     try:
-        logger.info(f"Creating unified property for user: {current_user.get('username', 'anonymous')}")
+        logger.info(f"Creating unified property for user: {getattr(current_user, 'id', 'anonymous')}")
         
         # Get user ID
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         # Create property using unified service
         service = get_unified_property_service()
@@ -71,13 +72,13 @@ async def create_unified_property(
 async def get_unified_properties(
     skip: int = 0,
     limit: int = 100,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """
     Get all properties for the current user with unified functionality.
     """
     try:
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         service = get_unified_property_service()
         properties = await service.get_properties_by_user(user_id, skip=skip, limit=limit)
@@ -95,13 +96,13 @@ async def get_unified_properties(
 @router.get("/properties/{property_id}", response_model=PropertyResponse)
 async def get_unified_property(
     property_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """
     Get a specific property by ID with unified functionality.
     """
     try:
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         service = get_unified_property_service()
         property_data = await service.get_property(property_id, user_id)
@@ -130,13 +131,13 @@ async def get_unified_property(
 async def update_unified_property(
     property_id: str,
     property_data: PropertyUpdate,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """
     Update a property with unified functionality.
     """
     try:
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         service = get_unified_property_service()
         result = await service.update_property(property_id, property_data, user_id)
@@ -170,13 +171,13 @@ async def update_unified_property(
 @router.delete("/properties/{property_id}")
 async def delete_unified_property(
     property_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """
     Delete a property with unified functionality.
     """
     try:
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         service = get_unified_property_service()
         success = await service.delete_property(property_id, user_id)
@@ -205,13 +206,13 @@ async def delete_unified_property(
 @router.post("/properties/{property_id}/ai-suggestions")
 async def generate_ai_suggestions(
     property_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """
     Generate AI suggestions for a property.
     """
     try:
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         service = get_unified_property_service()
         suggestions = await service.generate_ai_suggestions(property_id, user_id)
@@ -237,13 +238,13 @@ async def generate_ai_suggestions(
 @router.post("/properties/{property_id}/market-insights")
 async def generate_market_insights(
     property_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """
     Generate market insights for a property.
     """
     try:
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         service = get_unified_property_service()
         insights = await service.generate_market_insights(property_id, user_id)
@@ -269,13 +270,13 @@ async def generate_market_insights(
 @router.get("/properties/{property_id}/analytics")
 async def get_property_analytics(
     property_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """
     Get analytics for a property.
     """
     try:
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         service = get_unified_property_service()
         analytics = await service.get_property_analytics(property_id, user_id)
@@ -301,13 +302,13 @@ async def get_property_analytics(
 @router.post("/properties/batch-create")
 async def batch_create_properties(
     properties_data: List[PropertyCreate],
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """
     Create multiple properties in a batch operation.
     """
     try:
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         service = get_unified_property_service()
         results = await service.batch_create_properties(properties_data, user_id)
@@ -334,13 +335,13 @@ async def search_properties(
     location: Optional[str] = None,
     skip: int = 0,
     limit: int = 20,
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """
     Search properties with advanced filtering.
     """
     try:
-        user_id = current_user.get("username") or current_user.get("user_id") or str(current_user.get("_id", "anonymous"))
+        user_id = getattr(current_user, "id", "anonymous")
         
         service = get_unified_property_service()
         results = await service.search_properties(

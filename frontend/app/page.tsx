@@ -15,13 +15,15 @@ import {
   BuildingOfficeIcon,
   Bars3Icon,
   XMarkIcon,
-  BellIcon
+  BellIcon,
+  GlobeAltIcon
 } from '@heroicons/react/24/outline'
 import { authManager } from '@/lib/auth'
 import { apiService } from '@/lib/api'
 import DashboardStats from '@/components/DashboardStats'
-import ConsolidatedPropertyForm from '@/components/property/ConsolidatedPropertyForm'
+import SmartPropertyForm from '@/components/SmartPropertyForm'
 import Properties from '@/components/Properties'
+import PropertyManagement from '@/components/PropertyManagement'
 import CRM from '@/components/CRM'
 import FacebookIntegration from '@/components/FacebookIntegration'
 import ProfileSettings from '@/components/ProfileSettings'
@@ -30,15 +32,19 @@ import { loadBrandTheme, applyBrandTheme } from '@/lib/theme'
 // Lazy load heavy components
 const AIContentGenerator = lazy(() => import('@/components/AIContentGenerator'))
 const Analytics = lazy(() => import('@/components/Analytics'))
+const PublicWebsiteManagement = lazy(() => import('@/components/PublicWebsiteManagement'))
+const TeamManagement = lazy(() => import('@/components/TeamManagement'))
 
 const navigation = [
   { name: 'Dashboard', icon: HomeIcon, id: 'dashboard' },
   { name: 'Properties', icon: BuildingOfficeIcon, id: 'properties' },
+  { name: 'Property Management', icon: BuildingOfficeIcon, id: 'property-management' },
   { name: 'Add Property', icon: PlusIcon, id: 'property-form' },
-  { name: 'Smart Form Demo', icon: SparklesIcon, id: 'smart-form-demo', isNew: true },
   { name: 'AI Tools', icon: SparklesIcon, id: 'ai-content' },
+  { name: 'Public Website', icon: GlobeAltIcon, id: 'public-website' },
   { name: 'Analytics', icon: ChartBarIcon, id: 'analytics' },
   { name: 'CRM', icon: UsersIcon, id: 'crm' },
+  { name: 'Team Management', icon: UsersIcon, id: 'team-management' },
   { name: 'Facebook', icon: CogIcon, id: 'facebook' },
   { name: 'Profile', icon: UserIcon, id: 'profile' },
 ]
@@ -63,8 +69,10 @@ export default function Dashboard() {
   useEffect(() => {
     const initAuth = async () => {
   console.debug('[DashboardPage] Checking authentication...')
-  console.debug('[DashboardPage] Current URL:', window.location.href)
-  console.debug('[DashboardPage] URL params:', Object.fromEntries(new URLSearchParams(window.location.search).entries()))
+  if (typeof window !== 'undefined') {
+    console.debug('[DashboardPage] Current URL:', window.location.href)
+    console.debug('[DashboardPage] URL params:', Object.fromEntries(new URLSearchParams(window.location.search).entries()))
+  }
       
       await authManager.init()
       const state = authManager.getState()
@@ -92,7 +100,7 @@ export default function Dashboard() {
       setUser(state.user)
       setIsLoading(false)
       fetchStats()
-      loadMockProperties()
+      loadProperties()
     }
 
     initAuth()
@@ -109,75 +117,41 @@ export default function Dashboard() {
     }
   }
 
-  const loadMockProperties = () => {
-    const mockData = [
-      {
-        id: '1',
-        title: 'Modern Downtown Condo',
-        price: 450000,
-        status: 'for-sale',
-        type: 'Condo',
-        bedrooms: 2,
-        bathrooms: 2,
-        area: 1200,
-        address: '123 Main St, Downtown',
-        dateAdded: '2024-01-15',
-        description: 'Beautiful modern condo with city views'
-      },
-      {
-        id: '2',
-        title: 'Luxury Villa',
-        price: 850000,
-        status: 'sold',
-        type: 'House',
-        bedrooms: 4,
-        bathrooms: 3,
-        area: 2500,
-        address: '456 Oak Ave, Suburbs',
-        dateAdded: '2024-01-10',
-        description: 'Spacious luxury villa with garden'
-      },
-      {
-        id: '3',
-        title: 'Suburban House',
-        price: 320000,
-        status: 'for-rent',
-        type: 'House',
-        bedrooms: 3,
-        bathrooms: 2,
-        area: 1800,
-        address: '789 Pine St, Suburbs',
-        dateAdded: '2024-01-20',
-        description: 'Family-friendly suburban home'
-      },
-      {
-        id: '4',
-        title: 'City Apartment',
-        price: 280000,
-        status: 'for-sale',
-        type: 'Apartment',
-        bedrooms: 1,
-        bathrooms: 1,
-        area: 800,
-        address: '321 Elm St, City Center',
-        dateAdded: '2024-01-25',
-        description: 'Cozy apartment in the heart of the city'
-      },
-      {
-        id: '5',
-        title: 'Waterfront Townhouse',
-        price: 620000,
-        status: 'for-sale',
-        type: 'Townhouse',
-        bedrooms: 3,
-        bathrooms: 2,
-        area: 1600,
-        address: '555 Lake Dr, Waterfront',
-        dateAdded: '2024-01-30',
-        description: 'Beautiful townhouse with lake views'
+  const loadProperties = async () => {
+    try {
+      console.log('[DashboardPage] Fetching properties from API...')
+      const response = await apiService.getProperties()
+      console.log('[DashboardPage] API response:', response)
+      
+      // Handle both direct array response and wrapped response
+      const propertiesData = Array.isArray(response) ? response : (response?.data || [])
+      
+      if (propertiesData && propertiesData.length > 0) {
+        // Transform the API response to match the expected format
+        const transformedProperties = propertiesData.map((property: any) => ({
+          id: property.id,
+          title: property.title,
+          price: property.price,
+          status: property.status === 'active' ? 'for-sale' : property.status,
+          type: property.property_type,
+          bedrooms: property.bedrooms,
+          bathrooms: property.bathrooms,
+          area: property.area_sqft,
+          address: property.location,
+          dateAdded: property.created_at ? new Date(property.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          description: property.description
+        }))
+        setProperties(transformedProperties)
+        console.log('[DashboardPage] Properties loaded:', transformedProperties.length)
+      } else {
+        console.log('[DashboardPage] No properties found, using empty array')
+        setProperties([])
       }
-    ]
-    setProperties(mockData)
+    } catch (error) {
+      console.error('[DashboardPage] Error fetching properties:', error)
+      // Fallback to empty array on error
+      setProperties([])
+    }
   }
 
   const testThemePersistence = () => {
@@ -202,19 +176,25 @@ export default function Dashboard() {
   const renderSection = () => {
     switch (activeSection) {
       case 'properties':
-        return <Properties onAddProperty={() => setActiveSection('property-form')} properties={properties} setProperties={setProperties} />
+        return <Properties 
+          onAddProperty={() => setActiveSection('property-form')} 
+          properties={properties} 
+          setProperties={setProperties}
+          onRefresh={loadProperties}
+        />
+      case 'property-management':
+        return <PropertyManagement 
+          onAddProperty={() => setActiveSection('property-form')} 
+        />
       case 'property-form':
         return (
-          <ConsolidatedPropertyForm
-            variant="simple"
-            enableAI={true}
-            onSuccess={() => setActiveSection('properties')}
+          <SmartPropertyForm
+            onSuccess={() => {
+              setActiveSection('properties')
+              loadProperties() // Refresh the properties list
+            }}
           />
         )
-      case 'smart-form-demo':
-        // Navigate to the GenAI demo page
-        router.push('/demo/smart-form')
-        return null
       case 'ai-content':
         return (
           <Suspense fallback={
@@ -237,10 +217,30 @@ export default function Dashboard() {
         )
       case 'crm':
         return <CRM />
+      case 'team-management':
+        return (
+          <Suspense fallback={
+            <div className="flex items-center justify-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          }>
+            <TeamManagement />
+          </Suspense>
+        )
       case 'facebook':
         return <FacebookIntegration />
       case 'profile':
         return <ProfileSettings />
+      case 'public-website':
+        return (
+          <Suspense fallback={
+            <div className="flex items-center justify-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          }>
+            <PublicWebsiteManagement />
+          </Suspense>
+        )
       default:
         return (
           <div className="space-y-8">
@@ -249,43 +249,9 @@ export default function Dashboard() {
               onAddProperty={() => setActiveSection('property-form')}
               onNavigateToAI={() => setActiveSection('ai-content')}
               onNavigateToAnalytics={() => setActiveSection('analytics')}
-              onNavigateToSmartForm={() => setActiveSection('smart-form-demo')}
+              onNavigateToSmartForm={() => setActiveSection('property-form')}
             />
 
-            {/* Quick Actions Section with Enhanced Spacing */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Quick Actions</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <button
-                  onClick={() => setActiveSection('property-form')}
-                  className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] hover:-translate-y-1"
-                >
-                  <PlusIcon className="w-6 h-6 mx-auto mb-2" />
-                  Add Property
-                </button>
-                <button
-                  onClick={() => setActiveSection('ai-content')}
-                  className="p-4 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] hover:-translate-y-1"
-                >
-                  <SparklesIcon className="w-6 h-6 mx-auto mb-2" />
-                  AI Content
-                </button>
-                <button
-                  onClick={() => setActiveSection('analytics')}
-                  className="p-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] hover:-translate-y-1"
-                >
-                  <ChartBarIcon className="w-6 h-6 mx-auto mb-2" />
-                  Analytics
-                </button>
-                <button
-                  onClick={() => setActiveSection('crm')}
-                  className="p-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] hover:-translate-y-1"
-                >
-                  <UsersIcon className="w-6 h-6 mx-auto mb-2" />
-                  CRM
-                </button>
-              </div>
-            </div>
 
             {/* Recent Properties Preview with Enhanced Spacing */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
@@ -386,11 +352,6 @@ export default function Dashboard() {
                 >
                   <item.icon className="w-4 h-4" />
                   <span className="hidden xl:block">{item.name}</span>
-                  {item.isNew && (
-                    <span className="absolute -top-1 -right-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full font-bold shadow-lg animate-pulse">
-                      NEW
-                    </span>
-                  )}
                 </button>
               ))}
             </nav>
@@ -447,12 +408,7 @@ export default function Dashboard() {
                       activeSection === item.id ? 'text-white' : ''
                     }`} />
                     <span className="font-medium">{item.name}</span>
-                    {item.isNew && activeSection !== item.id && (
-                      <span className="ml-auto bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full font-bold shadow-lg animate-pulse">
-                        NEW
-                      </span>
-                    )}
-                    {activeSection === item.id && !item.isNew && (
+                    {activeSection === item.id && (
                       <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse" />
                     )}
                   </button>
@@ -497,11 +453,6 @@ export default function Dashboard() {
                       >
                         <item.icon className="w-6 h-6" />
                         <span className="font-medium text-lg">{item.name}</span>
-                        {item.isNew && (
-                          <span className="ml-auto bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs px-2 py-1 rounded-full font-bold shadow-lg animate-pulse">
-                            NEW
-                          </span>
-                        )}
                       </button>
                     ))}
                   </div>

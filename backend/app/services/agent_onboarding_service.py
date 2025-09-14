@@ -16,13 +16,13 @@ class AgentOnboardingService:
     def __init__(self, db):
         self.db = db
 
-    def onboard(self, data: AgentOnboardingData) -> AgentProfile:
-        agent = self.db.agent_profiles.find_one({"email": data.email})
+    async def onboard(self, data: AgentOnboardingData) -> AgentProfile:
+        agent = await self.db.agent_profiles.find_one({"email": data.email})
         if agent:
             return AgentProfile(**agent)
         tagline, about = data.tagline, data.about
         if not tagline or not about:
-            branding = generate_branding(name=data.name)
+            branding = generate_branding(data.dict())
             tagline = branding.get("tagline")
             about = branding.get("about")
         agent_doc = AgentProfile(
@@ -35,7 +35,7 @@ class AgentOnboardingService:
             profile_image_url=data.profile_photo_url,
             facebook_connected=False
         )
-        self.db.agent_profiles.insert_one(agent_doc.dict())
+        await self.db.agent_profiles.insert_one(agent_doc.dict())
         try:
             connect_whatsapp(agent_doc)
         except Exception as e:

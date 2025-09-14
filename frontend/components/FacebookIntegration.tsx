@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
 import { CogIcon } from '@heroicons/react/24/outline'
+import { motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
 import { toast } from 'react-hot-toast'
 
 interface FacebookPage {
@@ -31,7 +31,7 @@ export default function FacebookIntegration() {
         setFacebookPages(data.status.pages || [])
       }
     } catch (error) {
-  console.error('[FacebookIntegration] Facebook status check failed:', error)
+      console.error('[FacebookIntegration] Facebook status check failed:', error)
     }
   }
 
@@ -45,9 +45,9 @@ export default function FacebookIntegration() {
         : rawBase.replace(/\/+$/, '')
 
       // Get Facebook OAuth URL from auth endpoint
-      const response = await fetch(`${base}/api/v1/auth/facebook/login`)
+      const response = await fetch(`${base}/api/v1/facebook/login`)
       const data = await response.json()
-      
+
       if (data.auth_url) {
         // Redirect to Facebook OAuth
         window.location.href = data.auth_url
@@ -74,7 +74,7 @@ export default function FacebookIntegration() {
             <CogIcon className="w-6 h-6 text-blue-500" />
             <h2 className="text-2xl font-bold text-gray-800">Facebook Integration</h2>
           </div>
-          
+
           {!isConnected && (
             <button
               onClick={handleConnectFacebook}
@@ -89,14 +89,14 @@ export default function FacebookIntegration() {
               ) : (
                 <>
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                   </svg>
                   <span>Connect Facebook Page</span>
                 </>
               )}
             </button>
           )}
-          
+
           {isConnected && (
             <div className="flex items-center space-x-2 text-green-600">
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -106,7 +106,7 @@ export default function FacebookIntegration() {
             </div>
           )}
         </div>
-        
+
         <p className="text-gray-600 mb-6">
           Connect your Facebook account to automatically post properties and engage with leads.
         </p>
@@ -131,7 +131,7 @@ export default function FacebookIntegration() {
               ) : (
                 <>
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                   </svg>
                   <span>Connect Facebook Page</span>
                 </>
@@ -150,7 +150,7 @@ export default function FacebookIntegration() {
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
                             <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                             </svg>
                           </div>
                           <span className="font-medium text-gray-900">{page.name || `Page ${index + 1}`}</span>
@@ -163,7 +163,7 @@ export default function FacebookIntegration() {
                   <p className="text-gray-500">No Facebook pages found.</p>
                 )}
               </div>
-              
+
               <div className="glass-card">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Recent Posts</h3>
                 <p className="text-gray-500">No recent posts found.</p>
@@ -176,7 +176,7 @@ export default function FacebookIntegration() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Select Page</label>
-                    <select 
+                    <select
                       className="form-input"
                       value={selectedPage}
                       onChange={(e) => setSelectedPage(e.target.value)}
@@ -197,7 +197,7 @@ export default function FacebookIntegration() {
                       <option>Link Post</option>
                     </select>
                   </div>
-                  <button 
+                  <button
                     className="btn-primary"
                     disabled={!selectedPage}
                   >

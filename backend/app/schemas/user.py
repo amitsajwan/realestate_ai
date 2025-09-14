@@ -1,18 +1,21 @@
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field, validator, model_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator, ConfigDict
 import re
 from app.utils.validation import validate_password_strength, validate_email_format, validate_phone_number
 
 class UserBase(BaseModel):
     """Base user model with common fields"""
     email: str = Field(..., description="User's email address")
-    first_name: Optional[str] = Field(None, min_length=1, max_length=50, description="User's first name")
-    last_name: Optional[str] = Field(None, min_length=1, max_length=50, description="User's last name")
+    first_name: Optional[str] = Field(None, min_length=1, max_length=50, description="User's first name", alias="firstName")
+    last_name: Optional[str] = Field(None, min_length=1, max_length=50, description="User's last name", alias="lastName")
     phone: Optional[str] = Field(None, max_length=20, description="User's phone number")
     is_active: bool = Field(True, description="Whether the user account is active")
     
-    @validator('first_name', 'last_name')
+    model_config = ConfigDict(populate_by_name=True)
+    
+    @field_validator('first_name', 'last_name')
+    @classmethod
     def validate_names(cls, v):
         """Validate name fields"""
         if not v or not v.strip():
@@ -33,7 +36,8 @@ class UserBase(BaseModel):
             
         return v.title()  # Capitalize properly
     
-    @validator('phone')
+    @field_validator('phone')
+    @classmethod
     def validate_phone_format(cls, v):
         """Validate phone number format"""
         if v is None:
@@ -51,7 +55,8 @@ class UserBase(BaseModel):
             
         return validation_result['formatted_phone']
     
-    @validator('email')
+    @field_validator('email')
+    @classmethod
     def validate_email_comprehensive(cls, v):
         """Comprehensive email validation"""
         if isinstance(v, str):
@@ -66,7 +71,8 @@ class UserCreate(UserBase):
     password: str = Field(..., min_length=8, max_length=128, description="User's password")
     confirm_password: Optional[str] = Field(None, description="Password confirmation")
     
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def validate_password_strength_check(cls, v):
         """Validate password strength"""
         validation_result = validate_password_strength(v)
@@ -102,7 +108,8 @@ class UserLogin(BaseModel):
     password: str = Field(..., min_length=1, description="User's password")
     remember_me: bool = Field(False, description="Whether to remember the user")
     
-    @validator('email')
+    @field_validator('email')
+    @classmethod
     def validate_login_email(cls, v):
         """Basic email validation for login"""
         if isinstance(v, str):
@@ -111,7 +118,8 @@ class UserLogin(BaseModel):
                 raise ValueError('Email cannot be empty')
         return v
     
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def validate_login_password(cls, v):
         """Basic password validation for login"""
         if not v or not v.strip():
@@ -135,7 +143,8 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = Field(None, max_length=20)
     is_active: Optional[bool] = None
     
-    @validator('first_name', 'last_name')
+    @field_validator('first_name', 'last_name')
+    @classmethod
     def validate_update_names(cls, v):
         """Validate name fields for updates"""
         if v is None:
@@ -154,7 +163,8 @@ class UserUpdate(BaseModel):
             
         return v.title()
     
-    @validator('phone')
+    @field_validator('phone')
+    @classmethod
     def validate_update_phone(cls, v):
         """Validate phone number for updates"""
         if v is None:
@@ -184,6 +194,7 @@ class UserResponse(BaseModel):
     login_attempts: int = Field(0, description="Number of failed login attempts")
     is_verified: bool = Field(False, description="Whether the user's email is verified")
     onboarding_completed: bool = Field(False, description="Whether user completed onboarding")
+    onboarding_step: int = Field(0, description="Current onboarding step")
     
     @property
     def full_name(self) -> str:
@@ -210,7 +221,8 @@ class UserResponse(BaseModel):
                 "last_login": "2023-01-01T00:00:00Z",
                 "login_attempts": 0,
                 "is_verified": True,
-                "onboarding_completed": True
+                "onboarding_completed": True,
+                "onboarding_step": 6
             }
         }
 
@@ -269,7 +281,8 @@ class PasswordChangeRequest(BaseModel):
     new_password: str = Field(..., min_length=8, max_length=128, description="New password")
     confirm_new_password: str = Field(..., description="New password confirmation")
     
-    @validator('new_password')
+    @field_validator('new_password')
+    @classmethod
     def validate_new_password_strength(cls, v):
         """Validate new password strength"""
         validation_result = validate_password_strength(v)
@@ -305,7 +318,8 @@ class PasswordResetRequest(BaseModel):
     """Schema for password reset requests"""
     email: EmailStr = Field(..., description="User's email address")
     
-    @validator('email')
+    @field_validator('email')
+    @classmethod
     def validate_reset_email(cls, v):
         """Validate email for password reset"""
         if isinstance(v, str):
@@ -329,7 +343,8 @@ class PasswordResetConfirm(BaseModel):
     new_password: str = Field(..., min_length=8, max_length=128, description="New password")
     confirm_new_password: str = Field(..., description="New password confirmation")
     
-    @validator('new_password')
+    @field_validator('new_password')
+    @classmethod
     def validate_reset_password_strength(cls, v):
         """Validate new password strength"""
         validation_result = validate_password_strength(v)

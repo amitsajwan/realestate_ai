@@ -9,8 +9,9 @@ from typing import List
 from app.schemas.lead import LeadCreate, LeadUpdate, LeadResponse
 from app.services.lead_service import LeadService
 from app.repositories.lead_repository import LeadRepository
-from app.dependencies import get_current_user_id
+
 from app.core.exceptions import NotFoundError
+from app.core.auth_backend import get_current_user_id
 
 router = APIRouter()
 

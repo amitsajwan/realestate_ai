@@ -153,8 +153,8 @@ def setup_comprehensive_logging():
     security_logger.setLevel(logging.INFO)
     security_logger.propagate = False
     
-    print(f"✓ Comprehensive logging initialized - Level: {log_level}, Environment: {environment}")
-    print(f"✓ Log files location: {LOGS_DIR.absolute()}")
+    print(f"[OK] Comprehensive logging initialized - Level: {log_level}, Environment: {environment}")
+    print(f"[OK] Log files location: {LOGS_DIR.absolute()}")
 
 def get_logger(name: str) -> logging.Logger:
     """Get logger instance with enhanced features"""
