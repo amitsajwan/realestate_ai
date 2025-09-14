@@ -84,27 +84,44 @@ async def create_or_update_profile(profile: UserProfile):
 @router.get("/profile/{user_id}", response_model=Dict[str, Any])
 async def get_user_profile(user_id: str):
     """
-    Get user profile by user_id from MongoDB
+    Get user profile by user_id from MongoDB (returns user data as profile)
     """
     try:
         logger.info(f"🔍 Getting profile for user: {user_id}")
         
-        # Get from MongoDB
-        profile = await user_profile_service.get_profile_by_user_id(user_id)
+        # Get user data directly from users collection
+        from app.core.database import get_database
+        from bson import ObjectId
         
-        if profile:
-            logger.info(f"✅ Profile found for user: {user_id}")
-            # Convert to dict and handle ObjectId serialization
-            profile_dict = profile.dict()
-            if profile_dict.get('id'):
-                profile_dict['id'] = str(profile_dict['id'])
+        db = get_database()
+        users_collection = db.users
+        
+        # Convert string ID to ObjectId
+        try:
+            object_id = ObjectId(user_id)
+        except Exception as e:
+            logger.error(f"Invalid ObjectId format: {user_id}")
+            return {
+                "success": False,
+                "profile": None,
+                "message": "Invalid user ID format"
+            }
+        
+        # Get user data
+        user = await users_collection.find_one({"_id": object_id})
+        
+        if user:
+            logger.info(f"✅ User found for profile: {user_id}")
+            # Convert ObjectId to string for JSON serialization
+            user['id'] = str(user['_id'])
+            del user['_id']
             
             return {
                 "success": True,
-                "profile": profile_dict
+                "profile": user
             }
         else:
-            logger.info(f"📭 No profile found for user: {user_id}")
+            logger.info(f"📭 No user found for profile: {user_id}")
             return {
                 "success": True,
                 "profile": None,

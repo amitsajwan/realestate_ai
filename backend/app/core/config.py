@@ -67,8 +67,13 @@ class Settings(BaseSettings):
     # FILE UPLOAD CONFIGURATION
     # =============================================================================
     max_file_size: int = 10485760  # 10MB
-    allowed_file_types: List[str] = ["jpg", "jpeg", "png", "gif", "webp", "pdf", "doc", "docx"]
+    allowed_file_types: str = "jpg,jpeg,png,gif,webp,pdf,doc,docx"
     upload_dir: str = "uploads"
+    
+    @property
+    def allowed_file_types_list(self) -> List[str]:
+        """Get allowed file types as a list"""
+        return [file_type.strip() for file_type in self.allowed_file_types.split(",")]
     
     # =============================================================================
     # LOGGING CONFIGURATION
@@ -141,26 +146,38 @@ class Settings(BaseSettings):
     @classmethod
     def parse_allowed_origins(cls, v):
         if isinstance(v, str):
+            if v.strip() == "":
+                return ["http://localhost:3000", "http://127.0.0.1:3000"]
             return [origin.strip() for origin in v.split(",")]
+        elif v is None or v == "":
+            return ["http://localhost:3000", "http://127.0.0.1:3000"]
         return v
     
     @field_validator("allowed_file_types", mode="before")
     @classmethod
     def parse_allowed_file_types(cls, v):
         if isinstance(v, str):
-            return [file_type.strip() for file_type in v.split(",")]
+            if v.strip() == "":
+                return "jpg,jpeg,png,gif,webp,pdf,doc,docx"
+            return v
+        elif v is None or v == "":
+            return "jpg,jpeg,png,gif,webp,pdf,doc,docx"
         return v
     
     @field_validator("facebook_page_mappings", mode="before")
     @classmethod
     def parse_facebook_page_mappings(cls, v):
         if isinstance(v, str):
+            if v.strip() == "":
+                return {}
             import json
             try:
                 return json.loads(v)
             except json.JSONDecodeError:
                 logger.warning("Invalid Facebook page mappings JSON, using empty dict")
                 return {}
+        elif v is None or v == "":
+            return {}
         return v
     
     @field_validator("debug", mode="before")

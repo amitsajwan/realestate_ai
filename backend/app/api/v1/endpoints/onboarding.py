@@ -4,6 +4,9 @@ from app.schemas.onboarding import OnboardingStep, OnboardingComplete
 from app.services.onboarding_service import OnboardingService
 from app.core.auth_backend import current_active_user
 from app.models.user import User
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -49,6 +52,13 @@ async def complete_onboarding(
 ):
     _ensure_user_access(user_id, current_user)
     try:
-        return await service.complete_onboarding(user_id)
+        logger.info(f"Starting onboarding completion for user {user_id}")
+        result = await service.complete_onboarding(user_id)
+        logger.info(f"Onboarding completion successful for user {user_id}")
+        return result
     except Exception as e:
+        logger.error(f"Onboarding completion failed for user {user_id}: {str(e)}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=400, detail=str(e))

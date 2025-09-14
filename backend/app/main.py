@@ -6,9 +6,11 @@ FastAPI application for AI-powered real estate platform
 """
 
 from app.core.application import create_application
+from app.routers import agent_public
 
 # Create FastAPI application
 app = create_application()
+app.include_router(agent_public.router, prefix="/api/v1")
 
 if __name__ == "__main__":
     import uvicorn

@@ -71,19 +71,22 @@ export default function PublicWebsiteManagement() {
       const response = await apiService.getAgentPublicProfile()
       if (response.success) {
         const data = response.data
-        setProfile(data)
-        const formData = {
-          agent_name: data.agent_name || '',
-          bio: data.bio || '',
+
+        // Map API data to frontend format
+        const mappedProfile = {
+          agent_name: `${data.first_name || ''} ${data.last_name || ''}`.trim() || '',
+          bio: data.professional_bio || '',
           phone: data.phone || '',
           email: data.email || '',
           office_address: data.office_address || '',
-          specialties: data.specialties || [],
+          specialties: data.specialization_areas ? data.specialization_areas.split(',').map(s => s.trim()) : [],
           experience: data.experience || '',
           languages: data.languages || [],
           is_public: data.is_public || false
         }
-        setEditForm(formData)
+
+        setProfile(mappedProfile) // Set the mapped data as profile
+        setEditForm(mappedProfile) // Also set as edit form
       } else {
         console.error('Failed to load public profile:', response)
         toast.error('Failed to load public profile')
@@ -161,6 +164,7 @@ export default function PublicWebsiteManagement() {
     }
     return null
   }
+
 
   if (isLoading) {
     return (
@@ -314,6 +318,7 @@ export default function PublicWebsiteManagement() {
                 Agent Name *
               </label>
               <input
+                key={`agent_name_${profile?.agent_name || 'empty'}`}
                 type="text"
                 value={isEditing ? editForm.agent_name : (profile?.agent_name || '')}
                 onChange={(e) => setEditForm(prev => ({ ...prev, agent_name: e.target.value }))}
@@ -321,12 +326,17 @@ export default function PublicWebsiteManagement() {
                 placeholder="Your professional name"
                 readOnly={!isEditing}
               />
+              {/* Debug info */}
+              <div className="text-xs text-gray-500 mt-1">
+                Debug: profile={JSON.stringify(profile)}, editForm={JSON.stringify(editForm)}, isEditing={isEditing}
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Email Address
               </label>
               <input
+                key={`email_${profile?.email || 'empty'}`}
                 type="email"
                 value={isEditing ? editForm.email : (profile?.email || '')}
                 onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
@@ -343,6 +353,7 @@ export default function PublicWebsiteManagement() {
                 Phone Number
               </label>
               <input
+                key={`phone_${profile?.phone || 'empty'}`}
                 type="tel"
                 value={isEditing ? editForm.phone : (profile?.phone || '')}
                 onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}

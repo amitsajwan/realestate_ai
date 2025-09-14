@@ -787,8 +787,8 @@ export class APIService {
     return this.post('/api/v1/agent/branding-suggest', data, false);
   }
 
-  async getDefaultUserProfile(): Promise<any> {
-    return this.makeRequest('/api/v1/user/profile/default_user', { method: 'GET' }, false);
+  async getUserProfile(userId: string): Promise<any> {
+    return this.makeRequest(`/api/v1/user/profile/${userId}`, { method: 'GET' }, false);
   }
 
   async updateUserProfile(profileData: any): Promise<any> {
