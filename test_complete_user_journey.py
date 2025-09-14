@@ -139,7 +139,7 @@ class UserJourneyTester:
     def test_user_profile_verification(self) -> bool:
         """Test 5: Verify User Profile Data"""
         try:
-            response = self.session.get(f"{BASE_URL}/api/v1/users/me")
+            response = self.session.get(f"{BASE_URL}/api/v1/auth/me")
             
             if response.status_code == 200:
                 profile_data = response.json()
@@ -179,7 +179,7 @@ class UserJourneyTester:
             }
             
             response = self.session.put(
-                f"{BASE_URL}/api/v1/users/me",
+                f"{BASE_URL}/api/v1/auth/users/me",
                 json=onboarding_data
             )
             
