@@ -7,7 +7,7 @@ Centralized configuration management for the Real Estate Platform
 import os
 from typing import List, Optional, Dict, Any
 from pydantic_settings import BaseSettings
-from pydantic import validator
+from pydantic import field_validator
 from functools import lru_cache
 import logging
 
@@ -111,6 +111,7 @@ class Settings(BaseSettings):
     # =============================================================================
     openai_api_key: Optional[str] = None
     groq_api_key: Optional[str] = None
+    GROQ_API_KEY: Optional[str] = None  # Alternative naming for compatibility
     google_maps_api_key: Optional[str] = None
     
     # =============================================================================
@@ -136,19 +137,22 @@ class Settings(BaseSettings):
         "extra": "allow"
     }
     
-    @validator("allowed_origins", pre=True)
+    @field_validator("allowed_origins", mode="before")
+    @classmethod
     def parse_allowed_origins(cls, v):
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",")]
         return v
     
-    @validator("allowed_file_types", pre=True)
+    @field_validator("allowed_file_types", mode="before")
+    @classmethod
     def parse_allowed_file_types(cls, v):
         if isinstance(v, str):
             return [file_type.strip() for file_type in v.split(",")]
         return v
     
-    @validator("facebook_page_mappings", pre=True)
+    @field_validator("facebook_page_mappings", mode="before")
+    @classmethod
     def parse_facebook_page_mappings(cls, v):
         if isinstance(v, str):
             import json
@@ -159,44 +163,51 @@ class Settings(BaseSettings):
                 return {}
         return v
     
-    @validator("debug", pre=True)
+    @field_validator("debug", mode="before")
+    @classmethod
     def parse_debug(cls, v):
         if isinstance(v, str):
             return v.lower() in ("true", "1", "yes", "on")
         return v
     
-    @validator("bcrypt_rounds")
+    @field_validator("bcrypt_rounds")
+    @classmethod
     def validate_bcrypt_rounds(cls, v):
         if v < 4 or v > 31:
             raise ValueError("bcrypt_rounds must be between 4 and 31")
         return v
     
-    @validator("rate_limit_requests")
+    @field_validator("rate_limit_requests")
+    @classmethod
     def validate_rate_limit_requests(cls, v):
         if v < 1:
             raise ValueError("rate_limit_requests must be at least 1")
         return v
     
-    @validator("rate_limit_window")
+    @field_validator("rate_limit_window")
+    @classmethod
     def validate_rate_limit_window(cls, v):
         if v < 1:
             raise ValueError("rate_limit_window must be at least 1")
         return v
     
-    @validator("max_file_size")
+    @field_validator("max_file_size")
+    @classmethod
     def validate_max_file_size(cls, v):
         if v < 1024:  # At least 1KB
             raise ValueError("max_file_size must be at least 1024 bytes")
         return v
     
-    @validator("log_level")
+    @field_validator("log_level")
+    @classmethod
     def validate_log_level(cls, v):
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if v.upper() not in valid_levels:
             raise ValueError(f"log_level must be one of {valid_levels}")
         return v.upper()
     
-    @validator("session_cookie_samesite")
+    @field_validator("session_cookie_samesite")
+    @classmethod
     def validate_session_cookie_samesite(cls, v):
         valid_values = ["Strict", "Lax", "None"]
         if v not in valid_values:
