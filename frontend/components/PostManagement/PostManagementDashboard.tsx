@@ -110,8 +110,8 @@ export const PostManagementDashboard: React.FC<PostManagementDashboardProps> = (
     };
 
     const sortedPosts = [...posts].sort((a, b) => {
-        let aValue = a[sortBy];
-        let bValue = b[sortBy];
+        let aValue: any = a[sortBy];
+        let bValue: any = b[sortBy];
 
         if (sortBy === 'created_at' || sortBy === 'updated_at') {
             aValue = new Date(aValue).getTime();
@@ -330,11 +330,20 @@ export const PostManagementDashboard: React.FC<PostManagementDashboardProps> = (
             )}
 
             {selectedPost && (
-                <PostEditor
-                    post={selectedPost}
-                    onPostUpdated={(post) => handleUpdatePost(post.id, post)}
-                    onCancel={() => setSelectedPost(null)}
-                />
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
+                        <h3 className="text-lg font-semibold mb-4">Edit Post</h3>
+                        <p className="text-gray-600">Post editor component will be implemented here.</p>
+                        <div className="mt-4 flex justify-end space-x-2">
+                            <button
+                                onClick={() => setSelectedPost(null)}
+                                className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

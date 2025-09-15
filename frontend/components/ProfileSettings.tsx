@@ -311,7 +311,7 @@ export default function ProfileSettings() {
     multipleLoading.setLoading('saveProfile', true)
 
     try {
-      await apiService.updateUserProfile({ ...formData })
+      await apiService.updateUserProfile(authManager.getState().user?.id || 'default_user', { ...formData })
       showSuccess('Profile saved successfully!')
     } catch (error) {
       handleError(error, 'Failed to save profile')

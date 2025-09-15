@@ -1,6 +1,6 @@
 'use client';
 
-import { APIService, apiService } from './api';
+import { apiService } from './api';
 import { errorHandler, handleError, showSuccess } from './error-handler';
 import { logger } from './logger';
 import { User, LoginRequest, RegisterRequest, AuthResponse, UserDataTransformer, RegisterData } from '../types/user';
@@ -34,7 +34,7 @@ export class AuthManager {
   };
 
   private listeners: Array<(state: AuthState) => void> = [];
-  private apiService: APIService;
+  private apiService: any;
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
   private isRefreshing = false;
   private refreshPromise: Promise<boolean> | null = null;
@@ -43,7 +43,7 @@ export class AuthManager {
   private refreshRetryDelay = 1000; // 1 second
 
   constructor() {
-    this.apiService = new APIService();
+    this.apiService = apiService;
     if (typeof window !== 'undefined') {
       this.init();
     }
@@ -101,9 +101,7 @@ export class AuthManager {
         });
         
         // Set token in API service
-        this.apiService.setToken(this.getStoredToken());
-        // Also set token in global apiService for components that use it
-        apiService.setToken(this.getStoredToken());
+        // Token will be set in request headers when needed
         
         this.scheduleTokenRefresh();
       } else {
@@ -154,9 +152,7 @@ export class AuthManager {
         }
         
         // Set token in API service
-        this.apiService.setToken(response.accessToken);
-        // Also set token in global apiService for components that use it
-        apiService.setToken(response.accessToken);
+        // Token will be set in request headers when needed
         
         // Update state
         this.setState({

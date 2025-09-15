@@ -59,6 +59,7 @@ export interface PostFilters {
     language?: string;
     channels?: string[];
     ai_generated?: boolean;
+    template_id?: string;
     date_from?: string;
     date_to?: string;
     skip?: number;

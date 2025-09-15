@@ -62,6 +62,15 @@ export const api = {
       return response.json();
     },
 
+    generateAIContent: async (data: any) => {
+      const response = await fetch(`${API_BASE_URL}/api/v1/posts/generate-ai-content`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return response.json();
+    },
+
     getAiSuggestions: async (postId: string) => {
       const response = await fetch(`${API_BASE_URL}/api/v1/posts/${postId}/ai-suggestions`);
       return response.json();
@@ -95,5 +104,134 @@ export const api = {
       const response = await fetch(`${API_BASE_URL}/api/v1/properties`);
       return response.json();
     }
+  },
+
+  getDashboardStats: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/dashboard/stats`);
+    return response.json();
+  },
+
+  getFacebookStatus: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/facebook/status`);
+    return response.json();
+  },
+
+  getFacebookLoginUrl: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/facebook/login`);
+    return response.json();
+  },
+
+  getProperties: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/properties`);
+    return response.json();
+  },
+
+  getPublishingStatus: async (propertyId: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/properties/${propertyId}/publishing-status`);
+    return response.json();
+  },
+
+  publishProperty: async (propertyId: string, publishData: any) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/properties/${propertyId}/publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(publishData)
+    });
+    return response.json();
+  },
+
+  unpublishProperty: async (propertyId: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/properties/${propertyId}/unpublish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    return response.json();
+  },
+
+  getBrandingSuggestions: async (data: any) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/branding/suggestions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return response.json();
+  },
+
+  getUserProfile: async (userId: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/users/${userId}/profile`);
+    return response.json();
+  },
+
+  updateUserProfile: async (userId: string, data: any) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/users/${userId}/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return response.json();
+  },
+
+  deleteProperty: async (propertyId: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/properties/${propertyId}`, {
+      method: 'DELETE'
+    });
+    return response.json();
+  },
+
+  getAgentPublicProfile: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/agent/public/profile`);
+    return response.json();
+  },
+
+  updateAgentPublicProfile: async (data: any) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/agent/public/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return response.json();
+  },
+
+  getAgentPublicStats: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/agent/public/stats`);
+    return response.json();
+  },
+
+  getAgentProfile: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/agent/profile`);
+    return response.json();
+  },
+
+  getAIPropertySuggestions: async (data: any) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/properties/ai-suggestions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return response.json();
+  },
+
+  uploadImages: async (formData: FormData) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/upload/images`, {
+      method: 'POST',
+      body: formData
+    });
+    return response.json();
+  },
+
+  getCurrentUser: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/users/me`);
+    return response.json();
+  },
+
+  createProperty: async (data: any) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/properties`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return response.json();
   }
 };
+
+export const apiService = api;

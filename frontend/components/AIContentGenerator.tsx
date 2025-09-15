@@ -29,7 +29,7 @@ interface AIContentGeneratorProps {
   onContentGenerated?: (content: GeneratedContent) => void;
 }
 
-export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ 
+const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ 
   propertyData, 
   onContentGenerated 
 }) => {
@@ -407,3 +407,5 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
     </div>
   );
 };
+
+export default AIContentGenerator;

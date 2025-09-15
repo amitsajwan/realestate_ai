@@ -73,16 +73,24 @@ export default function PublicWebsiteManagement() {
         const data = response.data
 
         // Map API data to frontend format
-        const mappedProfile = {
+        const mappedProfile: AgentPublicProfile = {
+          id: data.id || '',
           agent_name: `${data.first_name || ''} ${data.last_name || ''}`.trim() || '',
+          slug: data.slug || '',
           bio: data.professional_bio || '',
+          photo: data.photo || '',
           phone: data.phone || '',
           email: data.email || '',
           office_address: data.office_address || '',
-          specialties: data.specialization_areas ? data.specialization_areas.split(',').map(s => s.trim()) : [],
+          specialties: data.specialization_areas ? data.specialization_areas.split(',').map((s: string) => s.trim()) : [],
           experience: data.experience || '',
           languages: data.languages || [],
-          is_public: data.is_public || false
+          is_active: data.is_active || false,
+          is_public: data.is_public || false,
+          view_count: data.view_count || 0,
+          contact_count: data.contact_count || 0,
+          created_at: data.created_at || '',
+          updated_at: data.updated_at || ''
         }
 
         setProfile(mappedProfile) // Set the mapped data as profile
