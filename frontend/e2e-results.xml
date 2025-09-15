@@ -1,0 +1,4132 @@
+<testsuites id="" name="" tests="1005" failures="0" skipped="1005" errors="0" time="0.2933349999999999">
+<testsuite name="00-integration.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="chromium" tests="10" failures="0" skipped="10" time="0" errors="0">
+<testcase name="Full System Integration Tests › should complete full user journey - registration to property publishing" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full agent workflow - profile to analytics" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full CRM workflow - lead to conversion" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full team management workflow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full AI content generation workflow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full multi-channel publishing workflow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should handle cross-component data flow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should handle error recovery across components" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should maintain state across navigation" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should handle concurrent user actions" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="01-auth.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="chromium" tests="13" failures="0" skipped="13" time="0" errors="0">
+<testcase name="Authentication System › should display login form correctly" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should switch to registration form" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should validate email field" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should validate password field" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should show password strength indicator" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should toggle password visibility" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle Facebook login button" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should navigate to forgot password" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle form submission with valid data" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle registration with valid data" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should validate password confirmation" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle form validation errors" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should be responsive on mobile" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="02-onboarding.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="chromium" tests="13" failures="0" skipped="13" time="0" errors="0">
+<testcase name="Onboarding Process › should display onboarding steps correctly" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 1 - Personal Info" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 2 - Company Info" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 3 - AI Branding" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 4 - Social Media" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 5 - Terms and Conditions" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 6 - Photo Upload" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should allow going back to previous steps" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should validate required fields" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should show progress indicator" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should handle AI branding generation failure" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should be responsive on mobile" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should save progress between steps" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="03-property-management.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="chromium" tests="15" failures="0" skipped="15" time="0" errors="0">
+<testcase name="Property Management System › should display property management dashboard" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should open smart property form" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should complete step 1 - Basic Information" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should complete step 2 - Property Details" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should generate AI suggestions" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should upload property images" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should create property successfully" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should display property list with filters" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should filter properties by type" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should search properties by location" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should edit existing property" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should delete property" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should show property analytics" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should handle AI suggestions failure" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should be responsive on mobile" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="04-post-management.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="chromium" tests="18" failures="0" skipped="18" time="0" errors="0">
+<testcase name="Post Management System › should display post management dashboard" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should create new post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should fill post creation form" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should generate AI content" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should preview post for different channels" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should save post as draft" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should publish post immediately" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should schedule post for later" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should display post list with filters" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should filter posts by status" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should filter posts by channel" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should edit existing post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should delete post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should view post analytics" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should duplicate post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should handle AI content generation failure" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should handle publishing failure" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should be responsive on mobile" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="05-agent-website.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="chromium" tests="21" failures="0" skipped="21" time="0" errors="0">
+<testcase name="Agent Website System › should display agent public profile" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent photo and status" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent stats" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent specialties" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent experience and languages" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display contact information" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display featured properties" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display property details" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display client testimonials" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display social proof stats" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle contact button click" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should navigate to properties page" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should navigate to contact page" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display recent activity" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display social media links" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle agent not found" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should be responsive on mobile" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display navigation menu on mobile" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle property image loading" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display property type badges" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle slow loading" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="06-analytics-dashboard.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="chromium" tests="21" failures="0" skipped="21" time="0" errors="0">
+<testcase name="Analytics Dashboard › should display analytics dashboard" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display key metrics cards" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display performance charts" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display property performance table" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display property metrics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should filter analytics by date range" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should filter analytics by property type" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display lead conversion metrics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display social media performance" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display engagement metrics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should export analytics data" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display real-time updates" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should handle analytics loading state" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should handle analytics error" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should retry analytics on error" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display property comparison" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display trend analysis" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display geographic analytics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should be responsive on mobile" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display performance insights" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display custom date range picker" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="07-crm-system.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="chromium" tests="23" failures="0" skipped="23" time="0" errors="0">
+<testcase name="CRM System › should display CRM dashboard" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead statistics" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display leads list" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead details" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should create new lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should fill lead creation form" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should save new lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should edit existing lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should delete lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should filter leads by status" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should filter leads by priority" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should search leads" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should add lead activity" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should view lead timeline" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should update lead status" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should assign lead to team member" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should export leads data" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead conversion funnel" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead source analytics" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should handle lead creation error" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should be responsive on mobile" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead notes" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should add lead notes" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="08-team-management.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="chromium" tests="25" failures="0" skipped="25" time="0" errors="0">
+<testcase name="Team Management System › should display team management dashboard" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display team members list" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display member details" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should invite new team member" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should fill invite form" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should send invitation" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should edit team member" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should update member role" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should update member permissions" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should remove team member" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should filter members by role" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should filter members by status" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should search team members" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display member activity" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display team statistics" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display role permissions" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should handle invitation errors" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should validate invite form" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display pending invitations" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should resend invitation" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should cancel invitation" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should be responsive on mobile" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display member performance" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display team calendar" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should export team data" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="09-ai-content-generation.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="chromium" tests="20" failures="0" skipped="20" time="0" errors="0">
+<testcase name="AI Content Generation System › should display AI content generation interface" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should open AI content generation form" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should fill AI content generation form" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should generate AI content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display generated content details" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display AI suggestions" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should edit generated content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should regenerate content with different parameters" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should save generated content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should copy content to clipboard" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should handle AI generation failure" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should retry AI generation on failure" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should validate form inputs" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content templates" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should use content template" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content history" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should load previous content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should be responsive on mobile" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content quality score" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content optimization tips" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="10-multi-channel-publishing.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="chromium" tests="22" failures="0" skipped="22" time="0" errors="0">
+<testcase name="Multi-Channel Publishing System › should display multi-channel publishing interface" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display available channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should select publishing channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should configure channel settings" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should fill channel configuration" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should save channel configuration" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should preview post for different channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display channel-specific previews" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should publish to selected channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display publishing status" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display published post links" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should schedule post for later" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should handle publishing failure" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should retry failed publishing" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should validate required fields" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display channel analytics" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display engagement metrics" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should be responsive on mobile" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display publishing history" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display post performance" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display channel comparison" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should export publishing data" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="00-integration.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="firefox" tests="10" failures="0" skipped="10" time="0" errors="0">
+<testcase name="Full System Integration Tests › should complete full user journey - registration to property publishing" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full agent workflow - profile to analytics" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full CRM workflow - lead to conversion" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full team management workflow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full AI content generation workflow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full multi-channel publishing workflow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should handle cross-component data flow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should handle error recovery across components" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should maintain state across navigation" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should handle concurrent user actions" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="01-auth.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="firefox" tests="13" failures="0" skipped="13" time="0" errors="0">
+<testcase name="Authentication System › should display login form correctly" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should switch to registration form" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should validate email field" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should validate password field" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should show password strength indicator" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should toggle password visibility" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle Facebook login button" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should navigate to forgot password" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle form submission with valid data" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle registration with valid data" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should validate password confirmation" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle form validation errors" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should be responsive on mobile" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="02-onboarding.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="firefox" tests="13" failures="0" skipped="13" time="0" errors="0">
+<testcase name="Onboarding Process › should display onboarding steps correctly" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 1 - Personal Info" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 2 - Company Info" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 3 - AI Branding" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 4 - Social Media" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 5 - Terms and Conditions" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 6 - Photo Upload" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should allow going back to previous steps" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should validate required fields" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should show progress indicator" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should handle AI branding generation failure" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should be responsive on mobile" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should save progress between steps" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="03-property-management.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="firefox" tests="15" failures="0" skipped="15" time="0" errors="0">
+<testcase name="Property Management System › should display property management dashboard" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should open smart property form" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should complete step 1 - Basic Information" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should complete step 2 - Property Details" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should generate AI suggestions" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should upload property images" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should create property successfully" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should display property list with filters" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should filter properties by type" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should search properties by location" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should edit existing property" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should delete property" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should show property analytics" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should handle AI suggestions failure" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should be responsive on mobile" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="04-post-management.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="firefox" tests="18" failures="0" skipped="18" time="0" errors="0">
+<testcase name="Post Management System › should display post management dashboard" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should create new post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should fill post creation form" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should generate AI content" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should preview post for different channels" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should save post as draft" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should publish post immediately" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should schedule post for later" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should display post list with filters" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should filter posts by status" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should filter posts by channel" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should edit existing post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should delete post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should view post analytics" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should duplicate post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should handle AI content generation failure" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should handle publishing failure" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should be responsive on mobile" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="05-agent-website.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="firefox" tests="21" failures="0" skipped="21" time="0" errors="0">
+<testcase name="Agent Website System › should display agent public profile" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent photo and status" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent stats" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent specialties" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent experience and languages" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display contact information" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display featured properties" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display property details" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display client testimonials" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display social proof stats" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle contact button click" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should navigate to properties page" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should navigate to contact page" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display recent activity" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display social media links" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle agent not found" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should be responsive on mobile" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display navigation menu on mobile" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle property image loading" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display property type badges" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle slow loading" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="06-analytics-dashboard.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="firefox" tests="21" failures="0" skipped="21" time="0" errors="0">
+<testcase name="Analytics Dashboard › should display analytics dashboard" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display key metrics cards" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display performance charts" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display property performance table" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display property metrics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should filter analytics by date range" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should filter analytics by property type" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display lead conversion metrics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display social media performance" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display engagement metrics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should export analytics data" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display real-time updates" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should handle analytics loading state" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should handle analytics error" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should retry analytics on error" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display property comparison" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display trend analysis" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display geographic analytics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should be responsive on mobile" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display performance insights" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display custom date range picker" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="07-crm-system.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="firefox" tests="23" failures="0" skipped="23" time="0" errors="0">
+<testcase name="CRM System › should display CRM dashboard" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead statistics" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display leads list" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead details" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should create new lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should fill lead creation form" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should save new lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should edit existing lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should delete lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should filter leads by status" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should filter leads by priority" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should search leads" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should add lead activity" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should view lead timeline" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should update lead status" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should assign lead to team member" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should export leads data" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead conversion funnel" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead source analytics" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should handle lead creation error" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should be responsive on mobile" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead notes" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should add lead notes" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="08-team-management.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="firefox" tests="25" failures="0" skipped="25" time="0" errors="0">
+<testcase name="Team Management System › should display team management dashboard" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display team members list" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display member details" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should invite new team member" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should fill invite form" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should send invitation" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should edit team member" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should update member role" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should update member permissions" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should remove team member" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should filter members by role" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should filter members by status" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should search team members" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display member activity" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display team statistics" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display role permissions" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should handle invitation errors" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should validate invite form" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display pending invitations" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should resend invitation" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should cancel invitation" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should be responsive on mobile" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display member performance" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display team calendar" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should export team data" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="09-ai-content-generation.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="firefox" tests="20" failures="0" skipped="20" time="0" errors="0">
+<testcase name="AI Content Generation System › should display AI content generation interface" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should open AI content generation form" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should fill AI content generation form" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should generate AI content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display generated content details" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display AI suggestions" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should edit generated content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should regenerate content with different parameters" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should save generated content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should copy content to clipboard" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should handle AI generation failure" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should retry AI generation on failure" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should validate form inputs" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content templates" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should use content template" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content history" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should load previous content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should be responsive on mobile" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content quality score" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content optimization tips" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="10-multi-channel-publishing.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="firefox" tests="22" failures="0" skipped="22" time="0" errors="0">
+<testcase name="Multi-Channel Publishing System › should display multi-channel publishing interface" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display available channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should select publishing channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should configure channel settings" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should fill channel configuration" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should save channel configuration" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should preview post for different channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display channel-specific previews" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should publish to selected channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display publishing status" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display published post links" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should schedule post for later" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should handle publishing failure" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should retry failed publishing" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should validate required fields" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display channel analytics" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display engagement metrics" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should be responsive on mobile" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display publishing history" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display post performance" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display channel comparison" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should export publishing data" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="00-integration.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="webkit" tests="10" failures="0" skipped="10" time="0" errors="0">
+<testcase name="Full System Integration Tests › should complete full user journey - registration to property publishing" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full agent workflow - profile to analytics" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full CRM workflow - lead to conversion" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full team management workflow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full AI content generation workflow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full multi-channel publishing workflow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should handle cross-component data flow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should handle error recovery across components" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should maintain state across navigation" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should handle concurrent user actions" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="01-auth.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="webkit" tests="13" failures="0" skipped="13" time="0" errors="0">
+<testcase name="Authentication System › should display login form correctly" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should switch to registration form" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should validate email field" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should validate password field" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should show password strength indicator" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should toggle password visibility" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle Facebook login button" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should navigate to forgot password" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle form submission with valid data" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle registration with valid data" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should validate password confirmation" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle form validation errors" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should be responsive on mobile" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="02-onboarding.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="webkit" tests="13" failures="0" skipped="13" time="0" errors="0">
+<testcase name="Onboarding Process › should display onboarding steps correctly" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 1 - Personal Info" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 2 - Company Info" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 3 - AI Branding" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 4 - Social Media" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 5 - Terms and Conditions" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 6 - Photo Upload" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should allow going back to previous steps" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should validate required fields" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should show progress indicator" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should handle AI branding generation failure" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should be responsive on mobile" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should save progress between steps" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="03-property-management.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="webkit" tests="15" failures="0" skipped="15" time="0" errors="0">
+<testcase name="Property Management System › should display property management dashboard" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should open smart property form" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should complete step 1 - Basic Information" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should complete step 2 - Property Details" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should generate AI suggestions" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should upload property images" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should create property successfully" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should display property list with filters" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should filter properties by type" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should search properties by location" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should edit existing property" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should delete property" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should show property analytics" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should handle AI suggestions failure" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should be responsive on mobile" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="04-post-management.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="webkit" tests="18" failures="0" skipped="18" time="0" errors="0">
+<testcase name="Post Management System › should display post management dashboard" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should create new post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should fill post creation form" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should generate AI content" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should preview post for different channels" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should save post as draft" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should publish post immediately" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should schedule post for later" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should display post list with filters" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should filter posts by status" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should filter posts by channel" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should edit existing post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should delete post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should view post analytics" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should duplicate post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should handle AI content generation failure" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should handle publishing failure" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should be responsive on mobile" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="05-agent-website.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="webkit" tests="21" failures="0" skipped="21" time="0" errors="0">
+<testcase name="Agent Website System › should display agent public profile" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent photo and status" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent stats" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent specialties" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent experience and languages" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display contact information" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display featured properties" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display property details" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display client testimonials" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display social proof stats" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle contact button click" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should navigate to properties page" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should navigate to contact page" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display recent activity" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display social media links" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle agent not found" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should be responsive on mobile" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display navigation menu on mobile" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle property image loading" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display property type badges" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle slow loading" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="06-analytics-dashboard.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="webkit" tests="21" failures="0" skipped="21" time="0" errors="0">
+<testcase name="Analytics Dashboard › should display analytics dashboard" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display key metrics cards" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display performance charts" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display property performance table" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display property metrics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should filter analytics by date range" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should filter analytics by property type" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display lead conversion metrics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display social media performance" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display engagement metrics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should export analytics data" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display real-time updates" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should handle analytics loading state" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should handle analytics error" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should retry analytics on error" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display property comparison" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display trend analysis" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display geographic analytics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should be responsive on mobile" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display performance insights" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display custom date range picker" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="07-crm-system.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="webkit" tests="23" failures="0" skipped="23" time="0" errors="0">
+<testcase name="CRM System › should display CRM dashboard" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead statistics" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display leads list" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead details" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should create new lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should fill lead creation form" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should save new lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should edit existing lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should delete lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should filter leads by status" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should filter leads by priority" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should search leads" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should add lead activity" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should view lead timeline" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should update lead status" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should assign lead to team member" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should export leads data" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead conversion funnel" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead source analytics" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should handle lead creation error" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should be responsive on mobile" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead notes" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should add lead notes" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="08-team-management.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="webkit" tests="25" failures="0" skipped="25" time="0" errors="0">
+<testcase name="Team Management System › should display team management dashboard" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display team members list" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display member details" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should invite new team member" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should fill invite form" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should send invitation" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should edit team member" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should update member role" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should update member permissions" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should remove team member" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should filter members by role" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should filter members by status" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should search team members" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display member activity" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display team statistics" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display role permissions" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should handle invitation errors" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should validate invite form" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display pending invitations" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should resend invitation" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should cancel invitation" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should be responsive on mobile" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display member performance" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display team calendar" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should export team data" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="09-ai-content-generation.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="webkit" tests="20" failures="0" skipped="20" time="0" errors="0">
+<testcase name="AI Content Generation System › should display AI content generation interface" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should open AI content generation form" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should fill AI content generation form" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should generate AI content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display generated content details" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display AI suggestions" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should edit generated content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should regenerate content with different parameters" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should save generated content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should copy content to clipboard" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should handle AI generation failure" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should retry AI generation on failure" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should validate form inputs" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content templates" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should use content template" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content history" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should load previous content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should be responsive on mobile" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content quality score" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content optimization tips" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="10-multi-channel-publishing.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="webkit" tests="22" failures="0" skipped="22" time="0" errors="0">
+<testcase name="Multi-Channel Publishing System › should display multi-channel publishing interface" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display available channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should select publishing channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should configure channel settings" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should fill channel configuration" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should save channel configuration" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should preview post for different channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display channel-specific previews" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should publish to selected channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display publishing status" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display published post links" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should schedule post for later" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should handle publishing failure" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should retry failed publishing" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should validate required fields" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display channel analytics" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display engagement metrics" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should be responsive on mobile" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display publishing history" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display post performance" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display channel comparison" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should export publishing data" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="00-integration.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Chrome" tests="10" failures="0" skipped="10" time="0" errors="0">
+<testcase name="Full System Integration Tests › should complete full user journey - registration to property publishing" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full agent workflow - profile to analytics" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full CRM workflow - lead to conversion" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full team management workflow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full AI content generation workflow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full multi-channel publishing workflow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should handle cross-component data flow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should handle error recovery across components" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should maintain state across navigation" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should handle concurrent user actions" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="01-auth.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Chrome" tests="13" failures="0" skipped="13" time="0" errors="0">
+<testcase name="Authentication System › should display login form correctly" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should switch to registration form" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should validate email field" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should validate password field" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should show password strength indicator" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should toggle password visibility" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle Facebook login button" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should navigate to forgot password" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle form submission with valid data" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle registration with valid data" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should validate password confirmation" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle form validation errors" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should be responsive on mobile" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="02-onboarding.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Chrome" tests="13" failures="0" skipped="13" time="0" errors="0">
+<testcase name="Onboarding Process › should display onboarding steps correctly" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 1 - Personal Info" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 2 - Company Info" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 3 - AI Branding" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 4 - Social Media" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 5 - Terms and Conditions" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 6 - Photo Upload" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should allow going back to previous steps" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should validate required fields" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should show progress indicator" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should handle AI branding generation failure" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should be responsive on mobile" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should save progress between steps" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="03-property-management.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Chrome" tests="15" failures="0" skipped="15" time="0" errors="0">
+<testcase name="Property Management System › should display property management dashboard" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should open smart property form" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should complete step 1 - Basic Information" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should complete step 2 - Property Details" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should generate AI suggestions" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should upload property images" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should create property successfully" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should display property list with filters" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should filter properties by type" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should search properties by location" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should edit existing property" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should delete property" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should show property analytics" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should handle AI suggestions failure" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should be responsive on mobile" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="04-post-management.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Chrome" tests="18" failures="0" skipped="18" time="0" errors="0">
+<testcase name="Post Management System › should display post management dashboard" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should create new post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should fill post creation form" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should generate AI content" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should preview post for different channels" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should save post as draft" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should publish post immediately" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should schedule post for later" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should display post list with filters" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should filter posts by status" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should filter posts by channel" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should edit existing post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should delete post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should view post analytics" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should duplicate post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should handle AI content generation failure" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should handle publishing failure" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should be responsive on mobile" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="05-agent-website.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Chrome" tests="21" failures="0" skipped="21" time="0" errors="0">
+<testcase name="Agent Website System › should display agent public profile" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent photo and status" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent stats" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent specialties" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent experience and languages" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display contact information" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display featured properties" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display property details" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display client testimonials" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display social proof stats" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle contact button click" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should navigate to properties page" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should navigate to contact page" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display recent activity" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display social media links" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle agent not found" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should be responsive on mobile" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display navigation menu on mobile" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle property image loading" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display property type badges" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle slow loading" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="06-analytics-dashboard.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Chrome" tests="21" failures="0" skipped="21" time="0" errors="0">
+<testcase name="Analytics Dashboard › should display analytics dashboard" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display key metrics cards" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display performance charts" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display property performance table" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display property metrics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should filter analytics by date range" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should filter analytics by property type" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display lead conversion metrics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display social media performance" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display engagement metrics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should export analytics data" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display real-time updates" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should handle analytics loading state" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should handle analytics error" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should retry analytics on error" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display property comparison" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display trend analysis" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display geographic analytics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should be responsive on mobile" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display performance insights" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display custom date range picker" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="07-crm-system.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Chrome" tests="23" failures="0" skipped="23" time="0" errors="0">
+<testcase name="CRM System › should display CRM dashboard" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead statistics" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display leads list" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead details" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should create new lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should fill lead creation form" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should save new lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should edit existing lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should delete lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should filter leads by status" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should filter leads by priority" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should search leads" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should add lead activity" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should view lead timeline" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should update lead status" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should assign lead to team member" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should export leads data" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead conversion funnel" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead source analytics" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should handle lead creation error" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should be responsive on mobile" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead notes" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should add lead notes" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="08-team-management.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Chrome" tests="25" failures="0" skipped="25" time="0" errors="0">
+<testcase name="Team Management System › should display team management dashboard" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display team members list" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display member details" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should invite new team member" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should fill invite form" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should send invitation" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should edit team member" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should update member role" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should update member permissions" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should remove team member" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should filter members by role" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should filter members by status" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should search team members" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display member activity" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display team statistics" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display role permissions" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should handle invitation errors" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should validate invite form" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display pending invitations" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should resend invitation" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should cancel invitation" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should be responsive on mobile" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display member performance" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display team calendar" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should export team data" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="09-ai-content-generation.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Chrome" tests="20" failures="0" skipped="20" time="0" errors="0">
+<testcase name="AI Content Generation System › should display AI content generation interface" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should open AI content generation form" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should fill AI content generation form" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should generate AI content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display generated content details" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display AI suggestions" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should edit generated content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should regenerate content with different parameters" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should save generated content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should copy content to clipboard" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should handle AI generation failure" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should retry AI generation on failure" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should validate form inputs" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content templates" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should use content template" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content history" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should load previous content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should be responsive on mobile" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content quality score" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content optimization tips" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="10-multi-channel-publishing.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Chrome" tests="22" failures="0" skipped="22" time="0" errors="0">
+<testcase name="Multi-Channel Publishing System › should display multi-channel publishing interface" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display available channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should select publishing channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should configure channel settings" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should fill channel configuration" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should save channel configuration" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should preview post for different channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display channel-specific previews" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should publish to selected channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display publishing status" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display published post links" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should schedule post for later" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should handle publishing failure" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should retry failed publishing" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should validate required fields" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display channel analytics" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display engagement metrics" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should be responsive on mobile" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display publishing history" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display post performance" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display channel comparison" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should export publishing data" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="00-integration.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Safari" tests="10" failures="0" skipped="10" time="0" errors="0">
+<testcase name="Full System Integration Tests › should complete full user journey - registration to property publishing" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full agent workflow - profile to analytics" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full CRM workflow - lead to conversion" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full team management workflow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full AI content generation workflow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should complete full multi-channel publishing workflow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should handle cross-component data flow" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should handle error recovery across components" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should maintain state across navigation" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Full System Integration Tests › should handle concurrent user actions" classname="00-integration.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="01-auth.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Safari" tests="13" failures="0" skipped="13" time="0" errors="0">
+<testcase name="Authentication System › should display login form correctly" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should switch to registration form" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should validate email field" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should validate password field" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should show password strength indicator" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should toggle password visibility" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle Facebook login button" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should navigate to forgot password" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle form submission with valid data" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle registration with valid data" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should validate password confirmation" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should handle form validation errors" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Authentication System › should be responsive on mobile" classname="01-auth.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="02-onboarding.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Safari" tests="13" failures="0" skipped="13" time="0" errors="0">
+<testcase name="Onboarding Process › should display onboarding steps correctly" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 1 - Personal Info" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 2 - Company Info" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 3 - AI Branding" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 4 - Social Media" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 5 - Terms and Conditions" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should complete step 6 - Photo Upload" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should allow going back to previous steps" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should validate required fields" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should show progress indicator" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should handle AI branding generation failure" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should be responsive on mobile" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Onboarding Process › should save progress between steps" classname="02-onboarding.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="03-property-management.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Safari" tests="15" failures="0" skipped="15" time="0" errors="0">
+<testcase name="Property Management System › should display property management dashboard" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should open smart property form" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should complete step 1 - Basic Information" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should complete step 2 - Property Details" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should generate AI suggestions" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should upload property images" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should create property successfully" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should display property list with filters" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should filter properties by type" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should search properties by location" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should edit existing property" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should delete property" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should show property analytics" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should handle AI suggestions failure" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Property Management System › should be responsive on mobile" classname="03-property-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="04-post-management.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Safari" tests="18" failures="0" skipped="18" time="0" errors="0">
+<testcase name="Post Management System › should display post management dashboard" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should create new post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should fill post creation form" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should generate AI content" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should preview post for different channels" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should save post as draft" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should publish post immediately" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should schedule post for later" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should display post list with filters" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should filter posts by status" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should filter posts by channel" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should edit existing post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should delete post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should view post analytics" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should duplicate post" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should handle AI content generation failure" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should handle publishing failure" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Post Management System › should be responsive on mobile" classname="04-post-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="05-agent-website.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Safari" tests="21" failures="0" skipped="21" time="0" errors="0">
+<testcase name="Agent Website System › should display agent public profile" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent photo and status" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent stats" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent specialties" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display agent experience and languages" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display contact information" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display featured properties" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display property details" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display client testimonials" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display social proof stats" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle contact button click" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should navigate to properties page" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should navigate to contact page" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display recent activity" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display social media links" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle agent not found" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should be responsive on mobile" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display navigation menu on mobile" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle property image loading" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should display property type badges" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Agent Website System › should handle slow loading" classname="05-agent-website.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="06-analytics-dashboard.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Safari" tests="21" failures="0" skipped="21" time="0" errors="0">
+<testcase name="Analytics Dashboard › should display analytics dashboard" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display key metrics cards" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display performance charts" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display property performance table" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display property metrics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should filter analytics by date range" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should filter analytics by property type" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display lead conversion metrics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display social media performance" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display engagement metrics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should export analytics data" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display real-time updates" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should handle analytics loading state" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should handle analytics error" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should retry analytics on error" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display property comparison" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display trend analysis" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display geographic analytics" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should be responsive on mobile" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display performance insights" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Analytics Dashboard › should display custom date range picker" classname="06-analytics-dashboard.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="07-crm-system.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Safari" tests="23" failures="0" skipped="23" time="0" errors="0">
+<testcase name="CRM System › should display CRM dashboard" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead statistics" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display leads list" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead details" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should create new lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should fill lead creation form" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should save new lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should edit existing lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should delete lead" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should filter leads by status" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should filter leads by priority" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should search leads" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should add lead activity" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should view lead timeline" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should update lead status" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should assign lead to team member" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should export leads data" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead conversion funnel" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead source analytics" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should handle lead creation error" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should be responsive on mobile" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should display lead notes" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="CRM System › should add lead notes" classname="07-crm-system.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="08-team-management.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Safari" tests="25" failures="0" skipped="25" time="0" errors="0">
+<testcase name="Team Management System › should display team management dashboard" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display team members list" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display member details" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should invite new team member" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should fill invite form" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should send invitation" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should edit team member" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should update member role" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should update member permissions" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should remove team member" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should filter members by role" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should filter members by status" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should search team members" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display member activity" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display team statistics" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display role permissions" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should handle invitation errors" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should validate invite form" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display pending invitations" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should resend invitation" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should cancel invitation" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should be responsive on mobile" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display member performance" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should display team calendar" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Team Management System › should export team data" classname="08-team-management.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="09-ai-content-generation.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Safari" tests="20" failures="0" skipped="20" time="0" errors="0">
+<testcase name="AI Content Generation System › should display AI content generation interface" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should open AI content generation form" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should fill AI content generation form" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should generate AI content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display generated content details" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display AI suggestions" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should edit generated content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should regenerate content with different parameters" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should save generated content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should copy content to clipboard" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should handle AI generation failure" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should retry AI generation on failure" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should validate form inputs" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content templates" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should use content template" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content history" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should load previous content" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should be responsive on mobile" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content quality score" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="AI Content Generation System › should display content optimization tips" classname="09-ai-content-generation.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+<testsuite name="10-multi-channel-publishing.spec.ts" timestamp="2025-09-15T10:24:57.596Z" hostname="Mobile Safari" tests="22" failures="0" skipped="22" time="0" errors="0">
+<testcase name="Multi-Channel Publishing System › should display multi-channel publishing interface" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display available channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should select publishing channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should configure channel settings" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should fill channel configuration" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should save channel configuration" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should preview post for different channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display channel-specific previews" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should publish to selected channels" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display publishing status" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display published post links" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should schedule post for later" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should handle publishing failure" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should retry failed publishing" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should validate required fields" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display channel analytics" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display engagement metrics" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should be responsive on mobile" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display publishing history" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display post performance" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should display channel comparison" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+<testcase name="Multi-Channel Publishing System › should export publishing data" classname="10-multi-channel-publishing.spec.ts" time="0">
+<skipped>
+</skipped>
+</testcase>
+</testsuite>
+</testsuites>
