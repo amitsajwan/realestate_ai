@@ -28,9 +28,25 @@ class BaseService:
             collection_name (str): Name of the MongoDB collection
         """
         self.collection_name = collection_name
-        self.db = get_database()
-        self.collection = self.db[collection_name]
+        self._db = None
+        self._collection = None
         logger.info(f"Initialized {self.__class__.__name__} with collection: {collection_name}")
+    
+    @property
+    def db(self):
+        """Lazy-load database connection"""
+        if self._db is None:
+            self._db = get_database()
+            if self._db is None:
+                raise RuntimeError("Database not initialized. Make sure to call init_database() first.")
+        return self._db
+    
+    @property
+    def collection(self):
+        """Lazy-load collection"""
+        if self._collection is None:
+            self._collection = self.db[self.collection_name]
+        return self._collection
     
     async def create(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """

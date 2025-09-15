@@ -22,9 +22,14 @@ logger = logging.getLogger(__name__)
 # Create router
 router = APIRouter(prefix="/posts", tags=["Post Management"])
 
-# Initialize services
-post_service = PostManagementService()
-analytics_service = AnalyticsService()
+# Service dependencies
+def get_post_service() -> PostManagementService:
+    """Get post management service instance"""
+    return PostManagementService()
+
+def get_analytics_service() -> AnalyticsService:
+    """Get analytics service instance"""
+    return AnalyticsService()
 
 
 # Pydantic models for request/response
@@ -75,7 +80,8 @@ class PostResponse(BaseModel):
 @router.post("/create", response_model=PostResponse, status_code=201)
 async def create_post(
     post_data: PostCreateRequest,
-    current_user: User = Depends(current_active_user)
+    current_user: User = Depends(current_active_user),
+    post_service: PostManagementService = Depends(get_post_service)
 ):
     """Create a new post with AI-generated content."""
     try:

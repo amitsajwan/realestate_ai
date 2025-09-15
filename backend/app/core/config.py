@@ -114,6 +114,30 @@ class Settings(BaseSettings):
     google_maps_api_key: Optional[str] = None
     
     # =============================================================================
+    # SOCIAL MEDIA INTEGRATIONS
+    # =============================================================================
+    # Facebook
+    facebook_app_id: Optional[str] = None
+    facebook_app_secret: Optional[str] = None
+    facebook_access_token: Optional[str] = None
+    
+    # Instagram
+    instagram_app_id: Optional[str] = None
+    instagram_app_secret: Optional[str] = None
+    instagram_access_token: Optional[str] = None
+    
+    # LinkedIn
+    linkedin_client_id: Optional[str] = None
+    linkedin_client_secret: Optional[str] = None
+    linkedin_access_token: Optional[str] = None
+    
+    # Twitter
+    twitter_api_key: Optional[str] = None
+    twitter_api_secret: Optional[str] = None
+    twitter_access_token: Optional[str] = None
+    twitter_access_token_secret: Optional[str] = None
+    
+    # =============================================================================
     # BACKUP CONFIGURATION
     # =============================================================================
     backup_enabled: bool = False

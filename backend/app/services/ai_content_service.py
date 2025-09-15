@@ -7,8 +7,18 @@ import os
 
 class AIContentService:
     def __init__(self):
-        self.groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        self._groq_client = None
         self.model = os.getenv("GROQ_MODEL", "llama3-8b-8192")
+    
+    @property
+    def groq_client(self):
+        """Lazy-load Groq client"""
+        if self._groq_client is None:
+            api_key = os.getenv("GROQ_API_KEY")
+            if not api_key:
+                raise RuntimeError("GROQ_API_KEY environment variable not set")
+            self._groq_client = Groq(api_key=api_key)
+        return self._groq_client
 
     async def generate_content(self, property_data: Dict[str, Any], prompt: str, language: str) -> str:
         """Generate AI content for a property post"""
