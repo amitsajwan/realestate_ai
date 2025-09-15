@@ -75,7 +75,7 @@ class PostCreateRequest(BaseModel):
     property_id: str = Field(..., description="Property ID")
     title: str = Field(..., min_length=1, max_length=200, description="Post title")
     content: str = Field(..., min_length=1, max_length=5000, description="Post content")
-    language: str = Field(..., regex="^[a-z]{2}$", description="Language code (e.g., en, hi)")
+    language: str = Field(..., pattern="^[a-z]{2}$", description="Language code (e.g., en, hi)")
     template_id: Optional[str] = None
     channels: List[str] = Field(default=[], max_items=5, description="Publishing channels")
     scheduled_at: Optional[datetime] = None
@@ -85,7 +85,7 @@ class PostCreateRequest(BaseModel):
 class PostUpdateRequest(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=200)
     content: Optional[str] = Field(None, min_length=1, max_length=5000)
-    language: Optional[str] = Field(None, regex="^[a-z]{2}$")
+    language: Optional[str] = Field(None, pattern="^[a-z]{2}$")
     template_id: Optional[str] = None
     channels: Optional[List[str]] = Field(None, max_items=5)
     scheduled_at: Optional[datetime] = None
@@ -131,7 +131,7 @@ class TemplateCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     description: str = Field(..., min_length=1, max_length=500)
     property_type: str = Field(..., min_length=1, max_length=50)
-    language: str = Field(..., regex="^[a-z]{2}$")
+    language: str = Field(..., pattern="^[a-z]{2}$")
     template: str = Field(..., min_length=1, max_length=2000)
     variables: List[str] = Field(default=[])
     channels: List[str] = Field(default=[])
@@ -140,7 +140,7 @@ class TemplateUpdateRequest(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = Field(None, min_length=1, max_length=500)
     property_type: Optional[str] = Field(None, min_length=1, max_length=50)
-    language: Optional[str] = Field(None, regex="^[a-z]{2}$")
+    language: Optional[str] = Field(None, pattern="^[a-z]{2}$")
     template: Optional[str] = Field(None, min_length=1, max_length=2000)
     variables: Optional[List[str]] = None
     channels: Optional[List[str]] = None

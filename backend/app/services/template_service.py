@@ -8,7 +8,7 @@ from ..schemas.post_schemas import (
     PostTemplate, TemplateCreateRequest, TemplateUpdateRequest, 
     TemplateResponse, TemplateFilters
 )
-from ..utils.database import get_database
+from ..core.database import get_database
 
 class TemplateService:
     def __init__(self, db: AsyncIOMotorDatabase):

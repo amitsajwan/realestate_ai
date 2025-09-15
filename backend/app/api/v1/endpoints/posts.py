@@ -8,8 +8,8 @@ from ....schemas.post_schemas import (
 )
 from ....services.post_management_service import PostManagementService
 from ....services.ai_content_service import AIContentService
-from ....utils.database import get_database
-from ....auth.dependencies import get_current_user
+from ....core.database import get_database
+from ....core.auth_backend import current_active_user
 from ....models.user import User
 
 router = APIRouter()
@@ -23,7 +23,7 @@ def get_post_service() -> PostManagementService:
 @router.post("/", response_model=PostResponse)
 async def create_post(
     post_data: PostCreateRequest,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Create a new post for a property"""
     try:
@@ -46,7 +46,7 @@ async def get_posts(
     date_to: Optional[datetime] = Query(None, description="Filter posts to date"),
     skip: int = Query(0, ge=0, description="Number of posts to skip"),
     limit: int = Query(20, ge=1, le=100, description="Number of posts to return"),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Get posts with optional filters"""
     try:
@@ -77,7 +77,7 @@ async def get_posts(
 @router.get("/{post_id}", response_model=PostResponse)
 async def get_post(
     post_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Get a specific post by ID"""
     try:
@@ -93,7 +93,7 @@ async def get_post(
 async def update_post(
     post_id: str,
     post_data: PostUpdateRequest,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Update an existing post"""
     try:
@@ -108,7 +108,7 @@ async def update_post(
 @router.delete("/{post_id}")
 async def delete_post(
     post_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Delete a post"""
     try:
@@ -125,7 +125,7 @@ async def delete_post(
 @router.get("/property/{property_id}", response_model=List[PostResponse])
 async def get_property_posts(
     property_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Get all posts for a specific property"""
     try:
@@ -138,7 +138,7 @@ async def get_property_posts(
 @router.get("/status/{status}", response_model=List[PostResponse])
 async def get_posts_by_status(
     status: PostStatus,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Get posts by status"""
     try:
@@ -152,7 +152,7 @@ async def get_posts_by_status(
 async def publish_post(
     post_id: str,
     publish_data: PublishingRequest,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Publish a post to specified channels"""
     try:
@@ -171,7 +171,7 @@ async def publish_post(
 async def unpublish_post(
     post_id: str,
     channels: List[str],
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Unpublish a post from specified channels"""
     try:
@@ -183,7 +183,7 @@ async def unpublish_post(
 @router.get("/{post_id}/analytics", response_model=AnalyticsResponse)
 async def get_post_analytics(
     post_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Get analytics for a specific post"""
     try:
@@ -198,7 +198,7 @@ async def get_post_analytics(
 @router.get("/{post_id}/ai-suggestions")
 async def get_ai_suggestions(
     post_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Get AI content suggestions for a post"""
     try:
@@ -233,7 +233,7 @@ async def get_ai_suggestions(
 async def enhance_post_content(
     post_id: str,
     enhancements: List[str],
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Enhance post content with AI suggestions"""
     try:

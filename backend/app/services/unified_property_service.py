@@ -19,7 +19,7 @@ from app.schemas.unified_property import (
     PropertyDocument
 )
 from app.core.exceptions import NotFoundError, ValidationError
-from app.services.analytics_service import analytics_service
+from app.services.analytics_service import get_analytics_service
 
 logger = logging.getLogger(__name__)
 
@@ -275,7 +275,7 @@ class UnifiedPropertyService:
             raise NotFoundError("Property not found")
         
         # Get analytics from analytics service
-        property_analytics = await analytics_service.get_property_analytics(
+        property_analytics = await get_analytics_service().get_property_analytics(
             property_id=str(property_data.id),
             days=30
         )

@@ -4,7 +4,7 @@ Facebook Publishing Service
 Service for publishing posts to Facebook pages and groups.
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import logging
 import httpx
 from datetime import datetime

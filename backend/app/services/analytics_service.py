@@ -245,3 +245,13 @@ class AnalyticsService(BaseService):
         except Exception as e:
             logger.error(f"Failed to get dashboard metrics for user {user_id}: {e}")
             raise Exception(f"Failed to get dashboard metrics: {str(e)}")
+
+
+# Create a singleton instance (lazy initialization)
+analytics_service = None
+
+def get_analytics_service():
+    global analytics_service
+    if analytics_service is None:
+        analytics_service = AnalyticsService()
+    return analytics_service

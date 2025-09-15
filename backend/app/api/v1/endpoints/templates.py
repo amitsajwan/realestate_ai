@@ -6,8 +6,8 @@ from ....schemas.post_schemas import (
     TemplateFilters
 )
 from ....services.template_service import TemplateService
-from ....utils.database import get_database
-from ....auth.dependencies import get_current_user
+from ....core.database import get_database
+from ....core.auth_backend import current_active_user
 from ....models.user import User
 
 router = APIRouter()
@@ -20,7 +20,7 @@ def get_template_service() -> TemplateService:
 @router.post("/", response_model=TemplateResponse)
 async def create_template(
     template_data: TemplateCreateRequest,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Create a new post template"""
     try:
@@ -40,7 +40,7 @@ async def get_templates(
     created_by: Optional[str] = Query(None, description="Filter by creator"),
     skip: int = Query(0, ge=0, description="Number of templates to skip"),
     limit: int = Query(20, ge=1, le=100, description="Number of templates to return"),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Get templates with optional filters"""
     try:
@@ -62,7 +62,7 @@ async def get_templates(
 @router.get("/{template_id}", response_model=TemplateResponse)
 async def get_template(
     template_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Get a specific template by ID"""
     try:
@@ -78,7 +78,7 @@ async def get_template(
 async def update_template(
     template_id: str,
     template_data: TemplateUpdateRequest,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Update an existing template"""
     try:
@@ -93,7 +93,7 @@ async def update_template(
 @router.delete("/{template_id}")
 async def delete_template(
     template_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Delete a template"""
     try:
@@ -131,7 +131,7 @@ async def get_available_languages():
 async def duplicate_template(
     template_id: str,
     new_name: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Duplicate an existing template"""
     try:
@@ -146,7 +146,7 @@ async def duplicate_template(
 @router.post("/{template_id}/activate")
 async def activate_template(
     template_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Activate a template"""
     try:
@@ -163,7 +163,7 @@ async def activate_template(
 @router.post("/{template_id}/deactivate")
 async def deactivate_template(
     template_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Deactivate a template"""
     try:
@@ -180,7 +180,7 @@ async def deactivate_template(
 @router.get("/{template_id}/usage-stats")
 async def get_template_usage_stats(
     template_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(current_active_user)
 ):
     """Get usage statistics for a template"""
     try:
