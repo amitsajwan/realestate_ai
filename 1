@@ -1,0 +1,288 @@
+'use client';
+
+// Enhanced API service with comprehensive error handling and logging
+import {
+  ApiResponse,
+  AuthResponse,
+  LoginRequest,
+  OnboardingFormData,
+  OnboardingUpdateRequest,
+  RefreshTokenResponse,
+  RegisterRequest,
+  User,
+  UserDataTransformer
+} from '../types/user';
+import { logApiCall, logger } from './logger';
+
+// Legacy type aliases for backward compatibility
+type LoginResponse = AuthResponse;
+type RegisterResponse = AuthResponse;
+
+export interface PasswordChangeRequest {
+  current_password: string;
+  new_password: string;
+}
+
+// Re-exports removed to fix build issues - import directly from types/user
+
+class APIError extends Error {
+  public status: number;
+  public response?: any;
+  public errorType?: string;
+
+  constructor(message: string, status: number, response?: any, errorType?: string) {
+    super(message);
+    this.name = 'APIError';
+    this.status = status;
+    this.response = response;
+    this.errorType = errorType;
+  }
+}
+
+export class APIService {
+  private baseURL: string;
+  private token: string | null = null;
+  private requestTimeout: number = 30000; // 30 seconds
+
+  constructor() {
+    // Use environment variables with fallbacks
+    this.baseURL = this.getAPIBaseURL();
+    this.logConfiguration();
+  }
+
+  /**
+   * Get API base URL from environment variables
+   * Simplified approach: Use explicit configuration for reliability
+   */
+  private getAPIBaseURL(): string {
+    const envUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+    // If environment variable is explicitly defined, use it
+    if (envUrl !== undefined) {
+      return envUrl;
+    }
+
+    // Default: Use relative paths for single URL deployment
+    // This works with nginx proxy, ngrok, and any reverse proxy
+    return '';
+  }
+
+  /**
+   * Log API configuration for debugging
+   */
+  private logConfiguration(): void {
+    logger.info('APIService initialized', {
+      component: 'APIService',
+      action: 'initialization',
+      metadata: {
+        baseURL: this.baseURL,
+        timeout: this.requestTimeout,
+        environment: process.env.NODE_ENV
+      }
+    });
+  }
+
+  /**
+   * Set authentication token
+   */
+  setToken(token: string | null): void {
+    this.token = token;
+    logger.debug('Token updated', {
+      component: 'APIService',
+      action: 'token_update',
+      metadata: { hasToken: !!token }
+    });
+  }
+
+  /**
+   * Clear authentication token
+   */
+  clearToken(): void {
+    this.token = null;
+    logger.debug('Token cleared', {
+      component: 'APIService',
+      action: 'token_clear'
+    });
+  }
+
+  /**
+   * Get current token
+   */
+  getToken(): string | null {
+    return this.token;
+  }
+
+  /**
+   * Make HTTP request with comprehensive error handling
+   */
+  private async makeRequest<T>(endpoint: string, options: RequestInit = {}, requiresAuth: boolean = false, retryCount: number = 0): Promise<T> {
+    const url = `${this.baseURL}${endpoint}`;
+    const method = options.method || 'GET';
+    const startTime = Date.now();
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Initialize API call logging
+    const apiLog = logApiCall(method, endpoint);
+
+    try {
+      const headers: Record<string, string> = {
+        'Accept': 'application/json',
+        'X-Request-ID': requestId,
+        ...(options.headers as Record<string, string> || {})
+      };
+
+      // Only set Content-Type for JSON requests, not for FormData or when already specified
+      if (!(options.body instanceof FormData) && !(options.headers as Record<string, string>)?.['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+      }
+
+      if (requiresAuth && this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.requestTimeout);
+
+      const requestOptions: RequestInit = {
+        ...options,
+        headers,
+        signal: controller.signal
+      };
+
+      // Log request details
+      logger.debug('Making API request', {
+        component: 'APIService',
+        action: 'api_request',
+        requestId,
+        method,
+        endpoint,
+        metadata: {
+          url,
+          requiresAuth,
+          retryCount,
+          headers: this.sanitizeHeaders(headers),
+          bodySize: options.body ? (options.body as string).length : 0
+        }
+      });
+
+      const response = await fetch(url, requestOptions);
+      clearTimeout(timeoutId);
+
+      const responseTime = Date.now() - startTime;
+      const responseId = response.headers.get('X-Response-ID') || 'unknown';
+
+      // Log response details
+      logger.debug('Received API response', {
+        component: 'APIService',
+        action: 'api_response',
+        requestId,
+        method,
+        endpoint,
+        statusCode: response.status,
+        duration: responseTime,
+        metadata: {
+          url,
+          statusText: response.statusText,
+          responseId,
+          contentType: response.headers.get('content-type')
+        }
+      });
+
+      let responseData: any;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        responseData = await response.json();
+      } else {
+        responseData = await response.text();
+      }
+
+      if (!response.ok) {
+        // Log API call as error
+        apiLog.error({
+          status: response.status,
+          response: responseData,
+          message: this.extractErrorMessage(responseData)
+        }, {
+          requestId,
+          statusCode: response.status,
+          duration: responseTime,
+          metadata: {
+            statusText: response.statusText,
+            responseData: typeof responseData === 'object' ? responseData : { raw: responseData }
+          }
+        });
+
+        // Handle 401 Unauthorized - attempt token refresh and retry
+        if (response.status === 401 && requiresAuth && retryCount === 0) {
+          logger.info('401 Unauthorized detected, attempting token refresh', {
+            component: 'APIService',
+            action: 'token_refresh_attempt',
+            requestId,
+            method,
+            endpoint
+          });
+
+          // Import authManager dynamically to avoid circular dependency
+          const { authManager } = await import('./auth');
+          const refreshSuccess = await authManager.refreshAccessToken();
+
+          if (refreshSuccess) {
+            logger.info('Token refreshed successfully, retrying request', {
+              component: 'APIService',
+              action: 'token_refresh_success',
+              requestId,
+              method,
+              endpoint
+            });
+            // Update token and retry the request
+            this.setToken(authManager.getToken());
+            return this.makeRequest<T>(endpoint, options, requiresAuth, retryCount + 1);
+          } else {
+            logger.warn('Token refresh failed, request will fail', {
+              component: 'APIService',
+              action: 'token_refresh_failed',
+              requestId,
+              method,
+              endpoint
+            });
+          }
+        }
+
+        // Create error object for centralized error handler
+        const apiError = {
+          response: {
+            status: response.status,
+            data: responseData
+          },
+          message: this.extractErrorMessage(responseData)
+        };
+
+        throw apiError;
+      }
+
+      // Log successful API call
+      apiLog.success(response.status, {
+        requestId,
+        duration: responseTime,
+        metadata: {
+          responseSize: JSON.stringify(responseData).length,
+          contentType: response.headers.get('content-type')
+        }
+      });
+
+      return responseData as T;
+    } catch (error: any) {
+      const responseTime = Date.now() - startTime;
+
+      if (error.name === 'AbortError') {
+        const timeoutError = {
+          code: 'TIMEOUT_ERROR',
+          message: 'Request timed out'
+        };
+
+        apiLog.error(timeoutError, {
+          requestId,
+          duration: responseTime,
+          metadata: {
+            errorType: 'timeout',
+     

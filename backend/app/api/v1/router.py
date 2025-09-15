@@ -20,6 +20,8 @@ from app.api.v1.endpoints.uploads import router as uploads_router
 from app.api.v1.endpoints.agent_public import router as agent_public_router
 from app.api.v1.endpoints.agent_dashboard import router as agent_dashboard_router
 from app.api.v1.endpoints.property_publishing import router as property_publishing_router
+from app.api.v1.endpoints.posts import router as posts_router
+from app.api.v1.endpoints.templates import router as templates_router
 from app.routers.agents import router as agents_router
 # from app.routers.advanced_crm import router as advanced_crm_router
 
@@ -41,6 +43,8 @@ api_router.include_router(uploads_router, prefix="/uploads", tags=["uploads"])
 api_router.include_router(agent_public_router, prefix="/agent/public", tags=["agent-public"])
 api_router.include_router(agent_dashboard_router, prefix="/agent/dashboard", tags=["agent-dashboard"])
 api_router.include_router(property_publishing_router, prefix="/properties/publishing", tags=["property-publishing"])
+api_router.include_router(posts_router, prefix="/posts", tags=["posts"])
+api_router.include_router(templates_router, prefix="/templates", tags=["templates"])
 api_router.include_router(agents_router, prefix="/agent", tags=["agents"])
 # api_router.include_router(advanced_crm_router, prefix="/crm", tags=["advanced-crm"])
 

@@ -1,31 +1,27 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import Image from 'next/image'
+import { apiService } from '@/lib/api'
 import {
+  ArrowPathIcon,
   BuildingOfficeIcon,
-  MapPinIcon,
-  CurrencyRupeeIcon,
-  EyeIcon,
-  PencilIcon,
-  TrashIcon,
-  PlusIcon,
-  MagnifyingGlassIcon,
   FunnelIcon,
-  XMarkIcon,
-  HeartIcon,
-  ShareIcon,
-  AdjustmentsHorizontalIcon,
-  Squares2X2Icon,
   ListBulletIcon,
-  ArrowPathIcon
+  MagnifyingGlassIcon,
+  MapPinIcon,
+  PencilIcon,
+  PlusIcon,
+  ShareIcon,
+  Squares2X2Icon,
+  XMarkIcon
 } from '@heroicons/react/24/outline'
 import {
   HeartIcon as HeartSolidIcon
 } from '@heroicons/react/24/solid'
-import { apiService } from '@/lib/api'
+import { motion } from 'framer-motion'
+import Image from 'next/image'
+import { useState } from 'react'
 import toast from 'react-hot-toast'
+import PostManagementDashboard from './PostManagement/PostManagementDashboard'
 
 interface Property {
   id: string
@@ -50,9 +46,9 @@ interface PropertiesProps {
   onRefresh?: () => void
 }
 
-export default function Properties({ 
-  onAddProperty, 
-  properties: propProperties = [], 
+export default function Properties({
+  onAddProperty,
+  properties: propProperties = [],
   setProperties: propSetProperties,
   onRefresh
 }: PropertiesProps) {
@@ -66,15 +62,17 @@ export default function Properties({
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [propertyToDelete, setPropertyToDelete] = useState<string | null>(null)
+  const [showPostManagement, setShowPostManagement] = useState(false)
+  const [selectedPropertyForPosts, setSelectedPropertyForPosts] = useState<Property | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [favorites, setFavorites] = useState<string[]>([])
-  
+
   // Use passed properties or fallback to empty array
   const properties = propProperties
-  const setProperties = propSetProperties || (() => {})
+  const setProperties = propSetProperties || (() => { })
 
   // Utility functions
   const formatPrice = (price: number): string => {
@@ -101,8 +99,8 @@ export default function Properties({
   }
 
   const toggleFavorite = (propertyId: string) => {
-    setFavorites(prev => 
-      prev.includes(propertyId) 
+    setFavorites(prev =>
+      prev.includes(propertyId)
         ? prev.filter(id => id !== propertyId)
         : [...prev, propertyId]
     )
@@ -137,6 +135,11 @@ export default function Properties({
     toast('Edit functionality coming soon!')
   }
 
+  const handleManagePosts = (property: Property) => {
+    setSelectedPropertyForPosts(property)
+    setShowPostManagement(true)
+  }
+
   const handleDeleteProperty = (property: Property) => {
     setPropertyToDelete(property.id)
     setShowDeleteModal(true)
@@ -150,11 +153,11 @@ export default function Properties({
       // Call API to delete property
       await apiService.deleteProperty(propertyToDelete)
       console.log('Deleting property:', propertyToDelete)
-      
+
       // Update local state
       const updatedProperties = properties.filter(p => p.id !== propertyToDelete)
       setProperties(updatedProperties)
-      
+
       toast('Property deleted successfully!')
       setShowDeleteModal(false)
       setPropertyToDelete(null)
@@ -170,17 +173,17 @@ export default function Properties({
   const filteredProperties = properties
     .filter(property => {
       const matchesSearch = property.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           property.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           (property.description && property.description.toLowerCase().includes(searchTerm.toLowerCase()))
+        property.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (property.description && property.description.toLowerCase().includes(searchTerm.toLowerCase()))
       const matchesStatus = statusFilter === 'all' || property.status === statusFilter
       const matchesType = typeFilter === 'all' || property.type === typeFilter
       const matchesBedrooms = bedroomFilter === 'all' || property.bedrooms.toString() === bedroomFilter
-      
+
       return matchesSearch && matchesStatus && matchesType && matchesBedrooms
     })
     .sort((a, b) => {
       let aValue: any, bValue: any
-      
+
       switch (sortBy) {
         case 'price':
           aValue = a.price
@@ -200,7 +203,7 @@ export default function Properties({
           bValue = new Date(b.dateAdded).getTime()
           break
       }
-      
+
       if (sortOrder === 'asc') {
         return aValue > bValue ? 1 : -1
       } else {
@@ -279,21 +282,19 @@ export default function Properties({
             <div className="flex border border-gray-200 dark:border-slate-600 rounded-xl overflow-hidden">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`p-3 transition-colors ${
-                  viewMode === 'grid' 
-                    ? 'bg-white dark:bg-slate-700 text-blue-600' 
+                className={`p-3 transition-colors ${viewMode === 'grid'
+                    ? 'bg-white dark:bg-slate-700 text-blue-600'
                     : 'bg-gray-50 dark:bg-slate-600 text-gray-500 dark:text-gray-400'
-                }`}
+                  }`}
               >
                 <Squares2X2Icon className="w-5 h-5" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-3 transition-colors ${
-                  viewMode === 'list' 
-                    ? 'bg-white dark:bg-slate-700 text-blue-600' 
+                className={`p-3 transition-colors ${viewMode === 'list'
+                    ? 'bg-white dark:bg-slate-700 text-blue-600'
                     : 'bg-gray-50 dark:bg-slate-600 text-gray-500 dark:text-gray-400'
-                }`}
+                  }`}
               >
                 <ListBulletIcon className="w-5 h-5" />
               </button>
@@ -401,25 +402,22 @@ export default function Properties({
       </div>
 
       {/* Properties Grid */}
-      <div className={`grid gap-6 ${
-        viewMode === 'grid' 
-          ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' 
+      <div className={`grid gap-6 ${viewMode === 'grid'
+          ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
           : 'grid-cols-1'
-      }`}>
+        }`}>
         {filteredProperties.map((property, index) => (
           <motion.div
             key={property.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: index * 0.05 }}
-            className={`bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden hover:shadow-xl dark:hover:shadow-slate-900/20 transition-all duration-300 group ${
-              viewMode === 'list' ? 'flex flex-col sm:flex-row' : ''
-            }`}
+            className={`bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden hover:shadow-xl dark:hover:shadow-slate-900/20 transition-all duration-300 group ${viewMode === 'list' ? 'flex flex-col sm:flex-row' : ''
+              }`}
           >
             {/* Property Image */}
-            <div className={`relative overflow-hidden ${
-               viewMode === 'list' ? 'h-48 sm:h-32 sm:w-48 flex-shrink-0' : 'h-48'
-             }`}>
+            <div className={`relative overflow-hidden ${viewMode === 'list' ? 'h-48 sm:h-32 sm:w-48 flex-shrink-0' : 'h-48'
+              }`}>
               <div className="h-full bg-gradient-to-br from-blue-500 to-purple-600 relative">
                 {(property.images && property.images.length > 0) || property.image ? (
                   <Image
@@ -440,9 +438,9 @@ export default function Properties({
               <div className="absolute top-3 left-3">
                 <span className={`px-3 py-1.5 rounded-full text-xs font-bold backdrop-blur-sm border shadow-lg ${getStatusColor(property.status)}`}>
                   {property.status === 'for-sale' ? 'FOR SALE' :
-                   property.status === 'for-rent' ? 'FOR RENT' :
-                   property.status === 'sold' ? 'SOLD' :
-                   'UNKNOWN'}
+                    property.status === 'for-rent' ? 'FOR RENT' :
+                      property.status === 'sold' ? 'SOLD' :
+                        'UNKNOWN'}
                 </span>
               </div>
 
@@ -450,11 +448,10 @@ export default function Properties({
               <div className="absolute top-3 right-3 flex gap-2">
                 <button
                   onClick={() => toggleFavorite(property.id)}
-                  className={`p-2 rounded-full backdrop-blur-sm border transition-all duration-200 ${
-                    favorites.includes(property.id)
+                  className={`p-2 rounded-full backdrop-blur-sm border transition-all duration-200 ${favorites.includes(property.id)
                       ? 'bg-red-500/90 text-white border-red-400/50'
                       : 'bg-white/10 text-white border-white/20 hover:bg-white/20'
-                  }`}
+                    }`}
                 >
                   <HeartSolidIcon className="w-4 h-4" />
                 </button>
@@ -522,6 +519,15 @@ export default function Properties({
                   View Details
                 </button>
                 <button
+                  onClick={() => handleManagePosts(property)}
+                  className="p-2.5 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-lg transition-all duration-200"
+                  title="Manage Posts"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </button>
+                <button
                   onClick={() => handleEdit(property)}
                   className="p-2.5 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 rounded-lg transition-all duration-200"
                   title="Edit Property"
@@ -536,7 +542,7 @@ export default function Properties({
 
       {/* Empty State */}
       {filteredProperties.length === 0 && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-center py-16"
@@ -545,8 +551,8 @@ export default function Properties({
             <BuildingOfficeIcon className="w-12 h-12 text-blue-600 dark:text-blue-400" />
           </div>
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
-            {searchTerm || statusFilter !== 'all' || typeFilter !== 'all' || bedroomFilter !== 'all' 
-              ? 'No properties match your filters' 
+            {searchTerm || statusFilter !== 'all' || typeFilter !== 'all' || bedroomFilter !== 'all'
+              ? 'No properties match your filters'
               : 'No properties yet'
             }
           </h3>
@@ -590,7 +596,7 @@ export default function Properties({
                 <XMarkIcon className="w-6 h-6 text-gray-500 dark:text-gray-400" />
               </button>
             </div>
-            
+
             <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
               {/* Property Image */}
               <div className="relative h-80 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
@@ -708,6 +714,17 @@ export default function Properties({
             </div>
           </motion.div>
         </div>
+      )}
+
+      {/* Post Management Modal */}
+      {showPostManagement && selectedPropertyForPosts && (
+        <PostManagementDashboard
+          propertyId={selectedPropertyForPosts.id}
+          onClose={() => {
+            setShowPostManagement(false)
+            setSelectedPropertyForPosts(null)
+          }}
+        />
       )}
     </div>
   )
