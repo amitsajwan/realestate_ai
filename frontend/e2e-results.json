@@ -10,7 +10,9 @@
     "grep": {},
     "grepInvert": null,
     "maxFailures": 0,
-    "metadata": {},
+    "metadata": {
+      "actualWorkers": 2
+    },
     "preserveOutput": "always",
     "reporter": [
       [
@@ -40,7 +42,9 @@
         "outputDir": "/workspace/frontend/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 2
+        },
         "id": "chromium",
         "name": "chromium",
         "testDir": "/workspace/frontend/e2e/tests",
@@ -54,7 +58,9 @@
         "outputDir": "/workspace/frontend/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 2
+        },
         "id": "firefox",
         "name": "firefox",
         "testDir": "/workspace/frontend/e2e/tests",
@@ -68,7 +74,9 @@
         "outputDir": "/workspace/frontend/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 2
+        },
         "id": "webkit",
         "name": "webkit",
         "testDir": "/workspace/frontend/e2e/tests",
@@ -82,7 +90,9 @@
         "outputDir": "/workspace/frontend/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 2
+        },
         "id": "Mobile Chrome",
         "name": "Mobile Chrome",
         "testDir": "/workspace/frontend/e2e/tests",
@@ -96,7 +106,9 @@
         "outputDir": "/workspace/frontend/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {},
+        "metadata": {
+          "actualWorkers": 2
+        },
         "id": "Mobile Safari",
         "name": "Mobile Safari",
         "testDir": "/workspace/frontend/e2e/tests",
@@ -139,7 +151,56 @@
                   "expectedStatus": "passed",
                   "projectId": "chromium",
                   "projectName": "chromium",
-                  "results": [],
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "interrupted",
+                      "duration": 4779,
+                      "error": {
+                        "message": "Error: page.fill: Test ended.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"firstName\"]')\u001b[22m\n",
+                        "stack": "Error: page.fill: Test ended.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"firstName\"]')\u001b[22m\n\n    at /workspace/frontend/e2e/tests/00-integration.spec.ts:18:16",
+                        "location": {
+                          "file": "/workspace/frontend/e2e/tests/00-integration.spec.ts",
+                          "column": 16,
+                          "line": 18
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 16 |\u001b[39m     \u001b[90m// Step 1: Registration\u001b[39m\n \u001b[90m 17 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/register'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 18 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"firstName\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'John'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 19 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"lastName\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'Doe'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 20 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'john.doe@example.com'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 21 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"phone\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'+1234567890'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/workspace/frontend/e2e/tests/00-integration.spec.ts",
+                            "column": 16,
+                            "line": 18
+                          },
+                          "message": "Error: page.fill: Test ended.\nCall log:\n\u001b[2m  - waiting for locator('input[name=\"firstName\"]')\u001b[22m\n\n\n\u001b[0m \u001b[90m 16 |\u001b[39m     \u001b[90m// Step 1: Registration\u001b[39m\n \u001b[90m 17 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/register'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 18 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"firstName\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'John'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 19 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"lastName\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'Doe'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 20 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'john.doe@example.com'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 21 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"phone\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'+1234567890'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at /workspace/frontend/e2e/tests/00-integration.spec.ts:18:16\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-15T13:14:59.839Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/workspace/frontend/test-results/00-integration-Full-System-86d84-tion-to-property-publishing-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/workspace/frontend/test-results/00-integration-Full-System-86d84-tion-to-property-publishing-chromium/video.webm"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/workspace/frontend/e2e/tests/00-integration.spec.ts",
+                        "column": 16,
+                        "line": 18
+                      }
+                    }
+                  ],
                   "status": "skipped"
                 }
               ],
@@ -159,7 +220,56 @@
                   "expectedStatus": "passed",
                   "projectId": "chromium",
                   "projectName": "chromium",
-                  "results": [],
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "interrupted",
+                      "duration": 4802,
+                      "error": {
+                        "message": "Error: page.click: Test ended.\nCall log:\n\u001b[2m  - waiting for locator('text=Profile')\u001b[22m\n",
+                        "stack": "Error: page.click: Test ended.\nCall log:\n\u001b[2m  - waiting for locator('text=Profile')\u001b[22m\n\n    at /workspace/frontend/e2e/tests/00-integration.spec.ts:107:16",
+                        "location": {
+                          "file": "/workspace/frontend/e2e/tests/00-integration.spec.ts",
+                          "column": 16,
+                          "line": 107
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 105 |\u001b[39m   test(\u001b[32m'should complete full agent workflow - profile to analytics'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n \u001b[90m 106 |\u001b[39m     \u001b[90m// Step 1: Set up agent profile\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 107 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mclick(\u001b[32m'text=Profile'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 108 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"firstName\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'John'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 109 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"lastName\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'Doe'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 110 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'john.doe@example.com'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/workspace/frontend/e2e/tests/00-integration.spec.ts",
+                            "column": 16,
+                            "line": 107
+                          },
+                          "message": "Error: page.click: Test ended.\nCall log:\n\u001b[2m  - waiting for locator('text=Profile')\u001b[22m\n\n\n\u001b[0m \u001b[90m 105 |\u001b[39m   test(\u001b[32m'should complete full agent workflow - profile to analytics'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n \u001b[90m 106 |\u001b[39m     \u001b[90m// Step 1: Set up agent profile\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 107 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mclick(\u001b[32m'text=Profile'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 108 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"firstName\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'John'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 109 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"lastName\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'Doe'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 110 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[name=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'john.doe@example.com'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at /workspace/frontend/e2e/tests/00-integration.spec.ts:107:16\u001b[22m"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-15T13:14:59.823Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/workspace/frontend/test-results/00-integration-Full-System-06020-flow---profile-to-analytics-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/workspace/frontend/test-results/00-integration-Full-System-06020-flow---profile-to-analytics-chromium/video.webm"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/workspace/frontend/e2e/tests/00-integration.spec.ts",
+                        "column": 16,
+                        "line": 107
+                      }
+                    }
+                  ],
                   "status": "skipped"
                 }
               ],
@@ -20405,8 +20515,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-09-15T10:24:57.304Z",
-    "duration": 293.3349999999999,
+    "startTime": "2025-09-15T13:14:58.645Z",
+    "duration": 6090.475,
     "expected": 0,
     "skipped": 1005,
     "unexpected": 0,
