@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # JWT Configuration
 SECRET_KEY = settings.jwt_secret_key
 ALGORITHM = settings.jwt_algorithm
-LIFETIME_SECONDS = settings.jwt_expire_minutes * 60
+LIFETIME_SECONDS = settings.jwt_access_token_expire_minutes * 60
 
 # Password helper
 password_helper = PasswordHelper()
