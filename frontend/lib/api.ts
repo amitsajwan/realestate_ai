@@ -1,6 +1,15 @@
 // Simple API client for the multi-post management system
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+// Helper function to get auth headers
+const getAuthHeaders = () => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` })
+  };
+};
+
 export const api = {
   posts: {
     create: async (postData: any) => {
@@ -229,7 +238,38 @@ export const api = {
   },
 
   getCurrentUser: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/users/me`);
+    const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+      headers: getAuthHeaders()
+    });
+    return response.json();
+  },
+
+  login: async (credentials: { email: string; password: string }) => {
+    const formData = new URLSearchParams();
+    formData.append('username', credentials.email);
+    formData.append('password', credentials.password);
+    
+    const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData
+    });
+    return response.json();
+  },
+
+  register: async (userData: any) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData)
+    });
+    return response.json();
+  },
+
+  logout: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/auth/logout`, {
+      method: 'POST'
+    });
     return response.json();
   },
 

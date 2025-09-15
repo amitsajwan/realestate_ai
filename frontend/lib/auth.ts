@@ -50,11 +50,45 @@ export class AuthManager {
   }
 
   /**
+   * Get bypass user from localStorage (for development/testing)
+   */
+  private getBypassUser(): User | null {
+    if (typeof window === 'undefined') return null;
+    
+    try {
+      const storedUser = localStorage.getItem('auth_user');
+      const isAuthenticated = localStorage.getItem('auth_authenticated') === 'true';
+      
+      if (storedUser && isAuthenticated) {
+        return JSON.parse(storedUser);
+      }
+    } catch (error) {
+      console.warn('[AuthManager] Error parsing bypass user:', error);
+    }
+    
+    return null;
+  }
+
+  /**
    * Initialize auth manager - load tokens from storage and validate
    */
   async init(): Promise<void> {
     try {
       this.setState({ isLoading: true, error: null });
+      
+      // Check for bypass authentication
+      const bypassUser = this.getBypassUser();
+      if (bypassUser) {
+        this.setState({
+          isAuthenticated: true,
+          user: bypassUser,
+          token: 'mock_token_123',
+          refreshToken: null,
+          isLoading: false,
+          error: null
+        });
+        return;
+      }
       
       const token = this.getStoredToken();
       const refreshToken = this.getStoredRefreshToken();
