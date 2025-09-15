@@ -207,9 +207,7 @@ export class AuthManager {
           }
           
           // Set token in API service
-          this.apiService.setToken(response.accessToken);
-          // Also set token in global apiService for components that use it
-          apiService.setToken(response.accessToken);
+          // Token will be set in request headers when needed
           
           this.setState({
             isAuthenticated: true,
@@ -275,9 +273,7 @@ export class AuthManager {
       if (!token) return null;
       
       // Ensure token is set in API service
-      this.apiService.setToken(token);
-      // Also set token in global apiService for components that use it
-      apiService.setToken(token);
+      // Token will be set in request headers when needed
       
       const user = await this.apiService.getCurrentUser();
       return user;
@@ -357,9 +353,7 @@ export class AuthManager {
           }
           
           // Set new token in API service
-          this.apiService.setToken(response.accessToken);
-          // Also set token in global apiService for components that use it
-          apiService.setToken(response.accessToken);
+          // Token will be set in request headers when needed
           
           this.setState({
             token: response.accessToken,
@@ -703,9 +697,7 @@ export class AuthManager {
     localStorage.removeItem('refresh_token');
     
     // Clear token from API service
-    this.apiService.clearToken();
-    // Also clear token from global apiService for components that use it
-    apiService.clearToken();
+    // Token will be cleared from request headers when needed
     
     if (this.refreshTimer) {
       clearTimeout(this.refreshTimer);

@@ -71,6 +71,15 @@ export const api = {
       return response.json();
     },
 
+    unpublish: async (postId: string, channels: string[]) => {
+      const response = await fetch(`${API_BASE_URL}/api/v1/posts/${postId}/unpublish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channels })
+      });
+      return response.json();
+    },
+
     getAiSuggestions: async (postId: string) => {
       const response = await fetch(`${API_BASE_URL}/api/v1/posts/${postId}/ai-suggestions`);
       return response.json();
