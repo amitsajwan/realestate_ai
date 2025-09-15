@@ -11,6 +11,139 @@ const getAuthHeaders = () => {
 };
 
 export const api = {
+  // Enhanced Post Management API
+  enhancedPosts: {
+    create: async (postData: any) => {
+      const response = await fetch(`${API_BASE_URL}/api/v1/enhanced-posts/posts/`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(postData)
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    },
+
+    get: async (filters: any = {}) => {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          if (Array.isArray(value)) {
+            params.append(key, value.join(','));
+          } else {
+            params.append(key, String(value));
+          }
+        }
+      });
+      const response = await fetch(`${API_BASE_URL}/api/v1/enhanced-posts/posts/?${params.toString()}`, {
+        headers: getAuthHeaders()
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    },
+
+    getById: async (postId: string) => {
+      const response = await fetch(`${API_BASE_URL}/api/v1/enhanced-posts/posts/${postId}`, {
+        headers: getAuthHeaders()
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    },
+
+    update: async (postId: string, updates: any) => {
+      const response = await fetch(`${API_BASE_URL}/api/v1/enhanced-posts/posts/${postId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updates)
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    },
+
+    delete: async (postId: string) => {
+      const response = await fetch(`${API_BASE_URL}/api/v1/enhanced-posts/posts/${postId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    },
+
+    publish: async (postId: string, channels: string[] = []) => {
+      const response = await fetch(`${API_BASE_URL}/api/v1/enhanced-posts/posts/${postId}/publish`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ channels })
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    },
+
+    schedule: async (postId: string, scheduledAt: string) => {
+      const response = await fetch(`${API_BASE_URL}/api/v1/enhanced-posts/posts/${postId}/schedule`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ scheduled_at: scheduledAt })
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    },
+
+    getAnalytics: async (postId: string) => {
+      const response = await fetch(`${API_BASE_URL}/api/v1/enhanced-posts/posts/${postId}/analytics`, {
+        headers: getAuthHeaders()
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    }
+  },
+
+  // Enhanced Templates API
+  enhancedTemplates: {
+    create: async (templateData: any) => {
+      const response = await fetch(`${API_BASE_URL}/api/v1/enhanced-posts/posts/templates/`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(templateData)
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    },
+
+    get: async (filters: any = {}) => {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          params.append(key, String(value));
+        }
+      });
+      const response = await fetch(`${API_BASE_URL}/api/v1/enhanced-posts/posts/templates/?${params.toString()}`, {
+        headers: getAuthHeaders()
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    }
+  },
+
   posts: {
     create: async (postData: any) => {
       const response = await fetch(`${API_BASE_URL}/api/v1/posts`, {

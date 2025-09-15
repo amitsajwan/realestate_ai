@@ -37,6 +37,9 @@ async def initialize_database():
         # Initialize facebook collections
         await initialize_facebook_collections(db)
         
+        # Initialize post management collections
+        await initialize_post_collections(db)
+        
         logger.info("Database initialization completed successfully")
         
     except Exception as e:
@@ -243,6 +246,54 @@ async def create_sample_data():
         
     except Exception as e:
         logger.error(f"Error creating sample data: {e}")
+        raise
+
+async def initialize_post_collections(db: AsyncIOMotorDatabase):
+    """Initialize post management collections with indexes"""
+    try:
+        # Initialize posts collection
+        posts_collection = db.posts
+        await posts_collection.create_index("property_id")
+        await posts_collection.create_index("agent_id")
+        await posts_collection.create_index("status")
+        await posts_collection.create_index("language")
+        await posts_collection.create_index("ai_generated")
+        await posts_collection.create_index("scheduled_at")
+        await posts_collection.create_index("published_at")
+        await posts_collection.create_index("created_at")
+        await posts_collection.create_index([("agent_id", 1), ("status", 1)])
+        await posts_collection.create_index([("property_id", 1), ("status", 1)])
+        await posts_collection.create_index([("agent_id", 1), ("created_at", -1)])
+        await posts_collection.create_index([("scheduled_at", 1), ("status", 1)])
+        await posts_collection.create_index([("ai_generated", 1), ("created_at", -1)])
+        
+        logger.info("Posts collection initialized with indexes")
+        
+        # Initialize post_analytics collection
+        analytics_collection = db.post_analytics
+        await analytics_collection.create_index("post_id")
+        await analytics_collection.create_index("platform")
+        await analytics_collection.create_index("user_id")
+        await analytics_collection.create_index("created_at")
+        await analytics_collection.create_index([("post_id", 1), ("platform", 1)])
+        await analytics_collection.create_index([("user_id", 1), ("created_at", -1)])
+        
+        logger.info("Post analytics collection initialized with indexes")
+        
+        # Initialize post_templates collection
+        templates_collection = db.post_templates
+        await templates_collection.create_index("property_type")
+        await templates_collection.create_index("language")
+        await templates_collection.create_index("is_active")
+        await templates_collection.create_index("is_public")
+        await templates_collection.create_index("created_by")
+        await templates_collection.create_index([("property_type", 1), ("language", 1), ("is_active", 1)])
+        await templates_collection.create_index([("created_by", 1), ("is_active", 1)])
+        
+        logger.info("Post templates collection initialized with indexes")
+        
+    except Exception as e:
+        logger.error(f"Error initializing post collections: {e}")
         raise
 
 async def main():

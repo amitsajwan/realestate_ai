@@ -18,6 +18,7 @@ interface PostManagementState {
     publishPost: (postId: string, channels: string[]) => Promise<void>;
     unpublishPost: (postId: string, channels: string[]) => Promise<void>;
     getPostAnalytics: (postId: string) => Promise<any>;
+    schedulePost: (postId: string, scheduledAt: string) => Promise<void>;
     clearError: () => void;
 }
 
@@ -30,7 +31,7 @@ export const usePostManagementStore = create<PostManagementState>((set, get) => 
     fetchPosts: async (filters: PostFilters) => {
         set({ loading: true, error: null });
         try {
-            const posts = await api.posts.get(filters);
+            const posts = await api.enhancedPosts.get(filters);
             set({ posts, loading: false });
         } catch (error: any) {
             set({ error: error.message || 'Failed to fetch posts', loading: false });
@@ -40,7 +41,7 @@ export const usePostManagementStore = create<PostManagementState>((set, get) => 
 
     fetchTemplates: async (filters = {}) => {
         try {
-            const templates = await api.templates.get(filters);
+            const templates = await api.enhancedTemplates.get(filters);
             set({ templates });
         } catch (error: any) {
             console.error('Failed to fetch templates:', error);
@@ -51,7 +52,7 @@ export const usePostManagementStore = create<PostManagementState>((set, get) => 
     createPost: async (postData: PostCreateRequest) => {
         set({ loading: true, error: null });
         try {
-            const newPost = await api.posts.create(postData);
+            const newPost = await api.enhancedPosts.create(postData);
             set(state => ({
                 posts: [newPost, ...state.posts],
                 loading: false
@@ -66,7 +67,7 @@ export const usePostManagementStore = create<PostManagementState>((set, get) => 
     updatePost: async (postId: string, updates: PostUpdateRequest) => {
         set({ loading: true, error: null });
         try {
-            const updatedPost = await api.posts.update(postId, updates);
+            const updatedPost = await api.enhancedPosts.update(postId, updates);
             set(state => ({
                 posts: state.posts.map(p => p.id === postId ? updatedPost : p),
                 loading: false
@@ -81,7 +82,7 @@ export const usePostManagementStore = create<PostManagementState>((set, get) => 
     deletePost: async (postId: string) => {
         set({ loading: true, error: null });
         try {
-            await api.posts.delete(postId);
+            await api.enhancedPosts.delete(postId);
             set(state => ({
                 posts: state.posts.filter(p => p.id !== postId),
                 loading: false
@@ -95,7 +96,7 @@ export const usePostManagementStore = create<PostManagementState>((set, get) => 
     getPost: async (postId: string) => {
         set({ loading: true, error: null });
         try {
-            const post = await api.posts.getById(postId);
+            const post = await api.enhancedPosts.getById(postId);
             set({ loading: false });
             return post;
         } catch (error: any) {
@@ -107,7 +108,7 @@ export const usePostManagementStore = create<PostManagementState>((set, get) => 
     publishPost: async (postId: string, channels: string[]) => {
         set({ loading: true, error: null });
         try {
-            await api.posts.publish(postId, channels);
+            await api.enhancedPosts.publish(postId, channels);
             // Update the post status to published
             set(state => ({
                 posts: state.posts.map(p =>
@@ -126,7 +127,8 @@ export const usePostManagementStore = create<PostManagementState>((set, get) => 
     unpublishPost: async (postId: string, channels: string[]) => {
         set({ loading: true, error: null });
         try {
-            await api.posts.unpublish(postId, channels);
+            // Note: Enhanced API doesn't have unpublish, we'll update status manually
+            await api.enhancedPosts.update(postId, { status: 'draft' });
             // Update the post status to draft
             set(state => ({
                 posts: state.posts.map(p =>
@@ -144,10 +146,29 @@ export const usePostManagementStore = create<PostManagementState>((set, get) => 
 
     getPostAnalytics: async (postId: string) => {
         try {
-            const analytics = await api.posts.getAnalytics(postId);
+            const analytics = await api.enhancedPosts.getAnalytics(postId);
             return analytics;
         } catch (error: any) {
             console.error('Failed to get post analytics:', error);
+            throw error;
+        }
+    },
+
+    schedulePost: async (postId: string, scheduledAt: string) => {
+        set({ loading: true, error: null });
+        try {
+            await api.enhancedPosts.schedule(postId, scheduledAt);
+            // Update the post status to scheduled
+            set(state => ({
+                posts: state.posts.map(p =>
+                    p.id === postId
+                        ? { ...p, status: 'scheduled' as const, scheduled_at: scheduledAt }
+                        : p
+                ),
+                loading: false
+            }));
+        } catch (error: any) {
+            set({ error: error.message || 'Failed to schedule post', loading: false });
             throw error;
         }
     },

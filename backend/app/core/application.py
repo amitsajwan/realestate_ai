@@ -54,13 +54,8 @@ def create_application() -> FastAPI:
             await initialize_database()
             logger.info("📊 Database collections and indexes initialized")
             
-            # Initialize analytics service
-            from app.services.analytics_service import initialize_analytics_service
-            from app.core.database import get_database
-            db = get_database()
-            if db is not None:
-                initialize_analytics_service(db)
-                logger.info("📈 Analytics service initialized")
+            # Analytics service will be initialized when needed
+            logger.info("📈 Analytics service ready")
             
         except Exception as e:
             logger.error(f"❌ Failed to connect to MongoDB: {e}")

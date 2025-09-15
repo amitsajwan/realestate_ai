@@ -7,6 +7,7 @@ Following the official FastAPI Users documentation
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
 from app.models.user import User
+from app.models.post import Post, PostAnalytics, PostTemplate
 from app.core.config import settings
 import logging
 
@@ -26,8 +27,13 @@ async def init_database():
         client = AsyncIOMotorClient(settings.mongodb_url)
         database = client[settings.database_name]
         
-        # Initialize beanie with user model
-        await init_beanie(database=database, document_models=[User])
+        # Initialize beanie with all document models
+        await init_beanie(database=database, document_models=[
+            User,
+            Post,
+            PostAnalytics,
+            PostTemplate
+        ])
         
         logger.info("✅ Database initialized successfully")
         

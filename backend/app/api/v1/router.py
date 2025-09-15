@@ -22,6 +22,7 @@ from app.api.v1.endpoints.agent_dashboard import router as agent_dashboard_route
 from app.api.v1.endpoints.property_publishing import router as property_publishing_router
 from app.api.v1.endpoints.posts import router as posts_router
 from app.api.v1.endpoints.templates import router as templates_router
+from app.api.v1.endpoints.enhanced_post_management import router as enhanced_posts_router
 from app.routers.agents import router as agents_router
 # from app.routers.advanced_crm import router as advanced_crm_router
 
@@ -45,6 +46,7 @@ api_router.include_router(agent_dashboard_router, prefix="/agent/dashboard", tag
 api_router.include_router(property_publishing_router, prefix="/properties/publishing", tags=["property-publishing"])
 api_router.include_router(posts_router, prefix="/posts", tags=["posts"])
 api_router.include_router(templates_router, prefix="/templates", tags=["templates"])
+api_router.include_router(enhanced_posts_router, prefix="/enhanced-posts", tags=["enhanced-posts"])
 api_router.include_router(agents_router, prefix="/agent", tags=["agents"])
 # api_router.include_router(advanced_crm_router, prefix="/crm", tags=["advanced-crm"])
 
