@@ -2,8 +2,8 @@
 
 import { LoadingButton } from '@/components/LoadingStates';
 import { useFormSubmission } from '@/hooks/useLoading';
+import { LoginFormData } from '@/lib/auth/types';
 import { calculatePasswordStrength, FormValidator, PasswordStrength, registerSchema } from '@/lib/form-validation';
-import { LoginFormData } from '@/types/user';
 import { CheckCircle, Eye, EyeOff, Lock, Mail, Phone, User, XCircle } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
@@ -85,12 +85,16 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, onSwitchToLogin, 
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        console.log('[RegisterForm] Form submitted with data:', formData);
 
         // Only validate if user has entered something
         if (formData.email || formData.password || formData.firstName || formData.lastName) {
+            console.log('[RegisterForm] Validating form data...');
             if (!validator.validateAll(formData)) {
+                console.log('[RegisterForm] Validation failed');
                 return;
             }
+            console.log('[RegisterForm] Validation passed');
         }
 
         const registerData = {
@@ -101,6 +105,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, onSwitchToLogin, 
             lastName: formData.lastName || '',
             phone: formData.phone || undefined
         };
+
+        console.log('[RegisterForm] Calling onSubmit with data:', registerData);
 
         await submit(async () => {
             await onSubmit(registerData);
@@ -291,7 +297,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, onSwitchToLogin, 
                             <div className="flex items-center justify-between mb-2">
                                 <span className="text-sm font-medium text-gray-700">Password Strength:</span>
                                 <span className={`text-sm font-semibold px-2 py-1 rounded-full text-xs ${passwordStrength.score >= 4 ? 'text-green-700 bg-green-100' :
-                                        passwordStrength.score >= 3 ? 'text-yellow-700 bg-yellow-100' : 'text-red-700 bg-red-100'
+                                    passwordStrength.score >= 3 ? 'text-yellow-700 bg-yellow-100' : 'text-red-700 bg-red-100'
                                     }`}>
                                     {passwordStrength.label}
                                 </span>

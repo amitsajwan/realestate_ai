@@ -2,10 +2,10 @@
 
 import { LoadingButton } from '@/components/LoadingStates';
 import { useFormSubmission } from '@/hooks/useLoading';
+import { LoginFormData } from '@/lib/auth/types';
 import { FormValidator, loginSchema } from '@/lib/form-validation';
-import { LoginFormData } from '@/types/user';
 import { CheckCircle, Eye, EyeOff, Lock, Mail, XCircle } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface LoginFormProps {
     onSubmit: (email: string, password: string) => Promise<void>;

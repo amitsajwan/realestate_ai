@@ -1,31 +1,17 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { 
-  MagnifyingGlassIcon,
+import { Property } from '@/lib/properties'
+import {
   FunnelIcon,
-  MapPinIcon,
   HomeIcon,
-  CurrencyRupeeIcon
+  MagnifyingGlassIcon,
+  MapPinIcon
 } from '@heroicons/react/24/outline'
+import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { PropertyType } from '@/types/property'
+import { useEffect, useState } from 'react'
 
-interface Property {
-  id: string
-  title: string
-  description: string
-  price: number
-  property_type: string
-  bedrooms: number
-  bathrooms: number
-  area: number
-  location: string
-  images: string[]
-  features: string[]
-  created_at: string
-}
+// Using Property type from @/lib/properties module
 
 interface SearchFilters {
   location: string
@@ -87,7 +73,7 @@ export default function AgentPropertiesPage({ params }: AgentPropertiesPageProps
       const response = await fetch(
         `/api/v1/agent-public/${params.agentName}/properties?page=${currentPage}&limit=12`
       )
-      
+
       if (!response.ok) {
         throw new Error('Failed to load properties')
       }
@@ -124,7 +110,7 @@ export default function AgentPropertiesPage({ params }: AgentPropertiesPageProps
 
     // Property type filter
     if (filters.property_type) {
-      filtered = filtered.filter(property => property.property_type === filters.property_type)
+      filtered = filtered.filter(property => property.propertyType === filters.property_type)
     }
 
     // Bedrooms filter
@@ -139,10 +125,10 @@ export default function AgentPropertiesPage({ params }: AgentPropertiesPageProps
 
     // Area filters
     if (filters.min_area !== null) {
-      filtered = filtered.filter(property => property.area >= filters.min_area!)
+      filtered = filtered.filter(property => (property.areaSqft || 0) >= filters.min_area!)
     }
     if (filters.max_area !== null) {
-      filtered = filtered.filter(property => property.area <= filters.max_area!)
+      filtered = filtered.filter(property => (property.areaSqft || 0) <= filters.max_area!)
     }
 
     // Features filter
@@ -166,16 +152,16 @@ export default function AgentPropertiesPage({ params }: AgentPropertiesPageProps
           bValue = b.price
           break
         case 'area':
-          aValue = a.area
-          bValue = b.area
+          aValue = a.areaSqft || 0
+          bValue = b.areaSqft || 0
           break
         case 'bedrooms':
           aValue = a.bedrooms
           bValue = b.bedrooms
           break
         default:
-          aValue = new Date(a.created_at).getTime()
-          bValue = new Date(b.created_at).getTime()
+          aValue = new Date(a.createdAt).getTime()
+          bValue = new Date(b.createdAt).getTime()
       }
 
       if (filters.sort_order === 'asc') {
@@ -264,13 +250,13 @@ export default function AgentPropertiesPage({ params }: AgentPropertiesPageProps
               </p>
             </div>
             <div className="flex items-center space-x-4">
-              <Link 
+              <Link
                 href={`/agent/${params.agentName}`}
                 className="text-gray-600 hover:text-gray-900"
               >
                 Agent Profile
               </Link>
-              <Link 
+              <Link
                 href={`/agent/${params.agentName}/contact`}
                 className="text-gray-600 hover:text-gray-900"
               >
@@ -454,7 +440,7 @@ export default function AgentPropertiesPage({ params }: AgentPropertiesPageProps
                         {formatPrice(property.price)}
                       </span>
                       <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                        {property.property_type}
+                        {property.propertyType}
                       </span>
                     </div>
                     <div className="flex items-center text-sm text-gray-500">
@@ -467,8 +453,8 @@ export default function AgentPropertiesPage({ params }: AgentPropertiesPageProps
                       {property.bathrooms > 0 && (
                         <span className="mr-4">{property.bathrooms} bath</span>
                       )}
-                      {property.area > 0 && (
-                        <span>{property.area} sq ft</span>
+                      {(property.areaSqft || 0) > 0 && (
+                        <span>{property.areaSqft} sq ft</span>
                       )}
                     </div>
                   </div>

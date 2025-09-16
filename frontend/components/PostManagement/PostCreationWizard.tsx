@@ -1,7 +1,7 @@
+import { Property } from '@/lib/properties';
 import React, { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { Post, Template } from '../../types/post';
-import { Property } from '../../types/property';
 
 interface PostCreationWizardProps {
     propertyId?: string;
@@ -113,7 +113,7 @@ export const PostCreationWizard: React.FC<PostCreationWizardProps> = ({
                 description: property.description,
                 price: property.price,
                 location: property.location,
-                property_type: property.property_type,
+                property_type: property.propertyType,
                 features: property.features || []
             };
 
@@ -246,8 +246,8 @@ export const PostCreationWizard: React.FC<PostCreationWizardProps> = ({
                             {steps.map((step, index) => (
                                 <div key={step.id} className="flex items-center">
                                     <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${currentStep >= step.id
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-gray-200 text-gray-600'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-200 text-gray-600'
                                         }`}>
                                         {step.id}
                                     </div>
@@ -344,8 +344,8 @@ const PropertySelectionStep: React.FC<{
                     key={property.id}
                     onClick={() => onPropertySelect(property.id)}
                     className={`p-4 border rounded-lg cursor-pointer transition-colors ${selectedPropertyId === property.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
                         }`}
                 >
                     <h4 className="font-medium text-gray-900">{property.title}</h4>
@@ -370,8 +370,8 @@ const TemplateSelectionStep: React.FC<{
             <button
                 onClick={onSkipTemplate}
                 className={`w-full p-4 border rounded-lg text-left transition-colors ${!selectedTemplateId
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
                     }`}
             >
                 <h4 className="font-medium text-gray-900">Start from scratch</h4>
@@ -385,8 +385,8 @@ const TemplateSelectionStep: React.FC<{
                     key={template.id}
                     onClick={() => onTemplateSelect(template)}
                     className={`p-4 border rounded-lg cursor-pointer transition-colors ${selectedTemplateId === template.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
                         }`}
                 >
                     <h4 className="font-medium text-gray-900">{template.name}</h4>
@@ -568,8 +568,8 @@ const PublishingOptionsStep: React.FC<{
                                 key={channel.id}
                                 onClick={() => toggleChannel(channel.id)}
                                 className={`p-3 border rounded-lg cursor-pointer transition-colors ${postData.channels.includes(channel.id)
-                                        ? 'border-blue-500 bg-blue-50'
-                                        : 'border-gray-200 hover:border-gray-300'
+                                    ? 'border-blue-500 bg-blue-50'
+                                    : 'border-gray-200 hover:border-gray-300'
                                     }`}
                             >
                                 <div className="flex items-center space-x-2">

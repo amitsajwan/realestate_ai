@@ -22,7 +22,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/agent-public", tags=["agent-public"])
+router = APIRouter(tags=["agent-public"])
 
 # Current agent management endpoints (must come before generic {agent_slug} routes)
 @router.get("/profile")
@@ -52,8 +52,8 @@ async def get_current_agent_public_profile(
         logger.info(f"No existing profile found, creating new profile for user: {user_id}")
         
         # Extract user data
-        first_name = current_user.first_name or ""
-        last_name = current_user.last_name or ""
+        first_name = current_user.firstName or ""
+        last_name = current_user.lastName or ""
         full_name = f"{first_name} {last_name}".strip()
         if not full_name:
             full_name = current_user.email or "Agent"

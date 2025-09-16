@@ -1,5 +1,5 @@
+import { ValidationErrors } from '@/lib/auth/types'
 import { z } from 'zod'
-import { ValidationErrors } from '@/types/user'
 
 // Base validation schemas
 const emailSchema = z.string().email('Please enter a valid email address')
@@ -250,16 +250,16 @@ export class FormValidator {
       this.touched[fieldName] = true
       return false
     }
-    
+
     try {
       const result = validateField((this.schema as any).shape[fieldName], value)
-      
+
       if (result.isValid) {
         delete this.errors[fieldName]
       } else {
         this.errors[fieldName] = result.error || 'Invalid value'
       }
-      
+
       this.touched[fieldName] = true
       return result.isValid
     } catch (error) {
@@ -273,15 +273,15 @@ export class FormValidator {
     if (!data || typeof data !== 'object') {
       return false
     }
-    
+
     const result = validateForm(this.schema, data)
     this.errors = result.errors
-    
+
     // Mark all fields as touched
     Object.keys(data).forEach(key => {
       this.touched[key] = true
     })
-    
+
     return result.isValid
   }
 

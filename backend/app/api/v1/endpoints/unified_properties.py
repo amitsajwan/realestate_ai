@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import logging
+from pydantic import BaseModel
 
 from app.core.auth_backend import current_active_user
 from app.models.user import User
@@ -23,6 +24,16 @@ from app.services.unified_property_service import UnifiedPropertyService
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.database import get_database
 
+class AISuggestionsRequest(BaseModel):
+    """Request model for AI suggestions generation"""
+    address: Optional[str] = None
+    property_type: Optional[str] = None
+    bedrooms: Optional[int] = None
+    bathrooms: Optional[int] = None
+    area: Optional[int] = None
+    user_profile: Optional[Dict[str, Any]] = None
+    agent_profile: Optional[Dict[str, Any]] = None
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -31,7 +42,7 @@ def get_unified_property_service() -> UnifiedPropertyService:
     db = get_database()
     return UnifiedPropertyService(db)
 
-@router.post("/properties/", response_model=PropertyResponse)
+@router.post("/", response_model=PropertyResponse)
 async def create_unified_property(
     property_data: PropertyCreate,
     current_user: User = Depends(current_active_user)
@@ -45,8 +56,8 @@ async def create_unified_property(
     try:
         logger.info(f"Creating unified property for user: {getattr(current_user, 'id', 'anonymous')}")
         
-        # Get user ID
-        user_id = getattr(current_user, "id", "anonymous")
+        # Get user ID and ensure it's a string
+        user_id = str(getattr(current_user, "id", "anonymous"))
         
         # Create property using unified service
         service = get_unified_property_service()
@@ -68,7 +79,7 @@ async def create_unified_property(
             detail=f"Failed to create property: {str(e)}"
         )
 
-@router.get("/properties/", response_model=List[PropertyResponse])
+@router.get("/", response_model=List[PropertyResponse])
 async def get_unified_properties(
     skip: int = 0,
     limit: int = 100,
@@ -93,7 +104,7 @@ async def get_unified_properties(
             detail="Failed to retrieve properties"
         )
 
-@router.get("/properties/{property_id}", response_model=PropertyResponse)
+@router.get("/{property_id}", response_model=PropertyResponse)
 async def get_unified_property(
     property_id: str,
     current_user: User = Depends(current_active_user)
@@ -127,7 +138,7 @@ async def get_unified_property(
             detail="Failed to retrieve property"
         )
 
-@router.put("/properties/{property_id}", response_model=PropertyResponse)
+@router.put("/{property_id}", response_model=PropertyResponse)
 async def update_unified_property(
     property_id: str,
     property_data: PropertyUpdate,
@@ -168,7 +179,7 @@ async def update_unified_property(
             detail="Failed to update property"
         )
 
-@router.delete("/properties/{property_id}")
+@router.delete("/{property_id}")
 async def delete_unified_property(
     property_id: str,
     current_user: User = Depends(current_active_user)
@@ -203,19 +214,30 @@ async def delete_unified_property(
             detail="Failed to delete property"
         )
 
-@router.post("/properties/{property_id}/ai-suggestions")
+@router.post("/{property_id}/ai-suggestions")
 async def generate_ai_suggestions(
     property_id: str,
+    request: AISuggestionsRequest,
     current_user: User = Depends(current_active_user)
 ):
     """
     Generate AI suggestions for a property.
+    If property_id is 'new', generate suggestions based on request data.
     """
     try:
         user_id = getattr(current_user, "id", "anonymous")
         
         service = get_unified_property_service()
-        suggestions = await service.generate_ai_suggestions(property_id, user_id)
+        
+        if property_id == "new":
+            # Generate AI suggestions for new property based on request data
+            suggestions = await service.generate_ai_suggestions_for_new_property(
+                request.dict(),
+                user_id
+            )
+        else:
+            # Generate AI suggestions for existing property
+            suggestions = await service.generate_ai_suggestions(property_id, user_id)
         
         return {
             "success": True,
@@ -235,7 +257,7 @@ async def generate_ai_suggestions(
             detail="Failed to generate AI suggestions"
         )
 
-@router.post("/properties/{property_id}/market-insights")
+@router.post("/{property_id}/market-insights")
 async def generate_market_insights(
     property_id: str,
     current_user: User = Depends(current_active_user)
@@ -267,7 +289,7 @@ async def generate_market_insights(
             detail="Failed to generate market insights"
         )
 
-@router.get("/properties/{property_id}/analytics")
+@router.get("/{property_id}/analytics")
 async def get_property_analytics(
     property_id: str,
     current_user: User = Depends(current_active_user)
@@ -299,7 +321,7 @@ async def get_property_analytics(
             detail="Failed to retrieve property analytics"
         )
 
-@router.post("/properties/batch-create")
+@router.post("/batch-create")
 async def batch_create_properties(
     properties_data: List[PropertyCreate],
     current_user: User = Depends(current_active_user)
@@ -326,7 +348,7 @@ async def batch_create_properties(
             detail="Failed to create properties in batch"
         )
 
-@router.get("/properties/search")
+@router.get("/search")
 async def search_properties(
     query: str,
     property_type: Optional[str] = None,

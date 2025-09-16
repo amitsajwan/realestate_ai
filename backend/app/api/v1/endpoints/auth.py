@@ -13,9 +13,13 @@ from app.core.auth_backend import (
     current_active_user, 
     auth_backend,
     get_user_manager,
-    UserManager
+    UserManager,
+    jwt_strategy
 )
-from app.core.database import init_database
+from app.core.database import get_database
+from motor.motor_asyncio import AsyncIOMotorClient
+from bson import ObjectId
+from datetime import datetime
 import logging
 from typing import Optional
 
@@ -31,12 +35,12 @@ router.include_router(
     tags=["authentication"]
 )
 
-# Custom registration router instead of default FastAPI Users one
-# router.include_router(
-#     fastapi_users.get_register_router(UserRead, UserCreate),
-#     prefix="",  # No additional prefix since we're already in /auth
-#     tags=["authentication"]
-# )
+# Use FastAPI Users built-in registration router
+router.include_router(
+    fastapi_users.get_register_router(UserRead, UserCreate),
+    prefix="",  # No additional prefix since we're already in /auth
+    tags=["authentication"]
+)
 
 # Note: We're not including the users router to avoid conflicts with our custom /me endpoint
 # The FastAPI Users /users/me endpoint might not handle ID mapping correctly
@@ -60,7 +64,7 @@ async def get_current_user_info(current_user: User = Depends(current_active_user
         user_dict = current_user.model_dump()
     else:
         # Get user ID from current user
-        user_id = str(current_user.id) if current_user.id else str(current_user._id)
+        user_id = str(current_user.id) if current_user.id else str(getattr(current_user, 'id', ''))
         
         # Fetch fresh user data from database
         try:
@@ -93,86 +97,57 @@ async def get_current_user_info(current_user: User = Depends(current_active_user
     # Remove sensitive fields
     user_dict.pop("hashed_password", None)
     
-    # Ensure onboarding fields are included and properly named
-    if 'onboarding_completed' in user_dict:
-        user_dict['onboardingCompleted'] = user_dict['onboarding_completed']
-    if 'onboarding_step' in user_dict:
-        user_dict['onboardingStep'] = user_dict['onboarding_step']
+    # No field mapping needed - using camelCase directly
     
     logger.debug(f"Returning user info with onboarding status: completed={user_dict.get('onboardingCompleted')}, step={user_dict.get('onboardingStep')}")
     
     return user_dict
 
-# Custom registration endpoint that returns expected format
-@router.post("/register")
-async def register_user(
-    user_create: UserCreate,
-    user_manager: UserManager = Depends(get_user_manager)
+# Custom registration endpoint removed - using FastAPI Users built-in registration
+
+# Update current user endpoint
+@router.put("/me")
+async def update_current_user(
+    user_update: UserUpdate,
+    current_user: User = Depends(current_active_user),
+    db: AsyncIOMotorClient = Depends(get_database)
 ):
-    """Register a new user and return user with tokens"""
+    """Update current user information"""
     try:
-        # Create the user
-        logger.info("Starting user creation...")
-        user = await user_manager.create(user_create, safe=True)
-        logger.info(f"User created successfully: {user.email}")
+        user_id = str(current_user.id) if current_user.id else str(getattr(current_user, 'id', ''))
         
-        # Generate tokens for immediate login
-        logger.info("Generating JWT token...")
-        # Create a simple token payload to avoid property serialization issues
-        import jwt
-        from app.core.auth_backend import SECRET_KEY
-        from datetime import datetime, timedelta
+        # Prepare update data
+        update_data = user_update.model_dump(exclude_unset=True)
+        if not update_data:
+            return {"message": "No data to update"}
         
-        token_payload = {
-            "sub": str(user.id),
-            "email": user.email,
-            "is_active": user.is_active,
-            "is_superuser": user.is_superuser,
-            "is_verified": user.is_verified,
-            "exp": datetime.utcnow() + timedelta(hours=24)  # 24 hour expiration
-        }
-        token = jwt.encode(token_payload, SECRET_KEY, algorithm="HS256")
-        logger.info("JWT token generated successfully")
+        # Add updated_at timestamp
+        update_data["updated_at"] = datetime.utcnow()
         
-        # Return user data with tokens in expected format
-        logger.info("Creating user response...")
-        
-        # Create user dict manually to avoid property serialization issues
-        user_dict = {
-            "id": str(user.id) if user.id else "",
-            "email": user.email,
-            "is_active": user.is_active,
-            "is_superuser": user.is_superuser,
-            "is_verified": user.is_verified,
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "phone": user.phone,
-            "company": user.company,
-            "onboarding_completed": user.onboarding_completed,
-            "onboarding_step": user.onboarding_step,
-            "onboardingCompleted": user.onboarding_completed,  # Frontend compatibility
-            "onboardingStep": user.onboarding_step,  # Frontend compatibility
-            "created_at": user.created_at,
-            "updated_at": user.updated_at
-        }
-        
-        response_data = {
-            "user": user_dict,
-            "accessToken": token,
-            "refreshToken": token
-        }
-        
-        logger.info("Returning registration response...")
-        return response_data
-        
-    except Exception as e:
-        logger.error(f"Registration failed at step: {e}")
-        import traceback
-        logger.error(f"Full traceback: {traceback.format_exc()}")
-        raise HTTPException(
-            status_code=400,
-            detail=str(e)
+        # Update user in database
+        result = await db.users.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$set": update_data}
         )
+        
+        if result.modified_count == 0:
+            return {"message": "No changes made"}
+        
+        # Fetch updated user data
+        updated_user_doc = await db.users.find_one({"_id": ObjectId(user_id)})
+        if updated_user_doc:
+            # Convert ObjectId to string for response
+            updated_user_doc['id'] = str(updated_user_doc['_id'])
+            del updated_user_doc['_id']
+            
+            logger.info(f"User {user_id} updated successfully")
+            return updated_user_doc
+        else:
+            raise HTTPException(status_code=404, detail="User not found after update")
+            
+    except Exception as e:
+        logger.error(f"Error updating user {user_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update user")
 
 # Health check endpoint
 @router.get("/health")

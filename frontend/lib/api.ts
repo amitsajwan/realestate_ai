@@ -272,8 +272,9 @@ export const api = {
     return response.json();
   },
 
+  // DEPRECATED: Use propertiesAPI from @/lib/properties instead
   getProperties: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/properties`);
+    const response = await fetch(`${API_BASE_URL}/api/v1/properties/`);
     return response.json();
   },
 
@@ -348,13 +349,15 @@ export const api = {
     return response.json();
   },
 
+  // DEPRECATED: Use agentAPI from @/lib/agent instead
   getAgentProfile: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/agent/profile`);
+    const response = await fetch(`${API_BASE_URL}/api/v1/agent/dashboard/profile`);
     return response.json();
   },
 
-  getAIPropertySuggestions: async (data: any) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/properties/ai-suggestions`, {
+  // DEPRECATED: Use propertiesAPI from @/lib/properties instead
+  getAIPropertySuggestions: async (propertyId: string, data: any) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/properties/${propertyId}/ai-suggestions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -406,8 +409,9 @@ export const api = {
     return response.json();
   },
 
+  // DEPRECATED: Use propertiesAPI from @/lib/properties instead
   createProperty: async (data: any) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/properties`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/properties/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)

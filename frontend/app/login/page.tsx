@@ -67,7 +67,7 @@ const LoginPage: React.FC = () => {
         console.log('🔧 Initializing AuthManager in browser context');
         authManager.init().then(() => {
           console.log('✅ AuthManager initialized successfully');
-        }).catch(error => {
+        }).catch((error: any) => {
           console.error('❌ AuthManager initialization failed:', error);
         });
 
@@ -106,7 +106,7 @@ const LoginPage: React.FC = () => {
       await authManager.init();
       console.log('[LoginPage] AuthManager initialized');
 
-      const result = await authManager.login(email, password);
+      const result = await authManager.login({ email, password });
       console.log('[LoginPage] Login result:', result);
 
       if (result.success) {

@@ -1,27 +1,29 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { agentAPI } from '@/lib/agent'
+import { apiService } from '@/lib/api'
+import { propertiesAPI } from '@/lib/properties'
+import { PropertyFormData, propertySchema, stepSchemas } from '@/lib/validation'
 import {
-  SparklesIcon,
-  MapPinIcon,
-  HomeIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  CheckCircleIcon,
+  CloudArrowUpIcon,
   CurrencyDollarIcon,
   DocumentTextIcon,
-  CheckCircleIcon,
   ExclamationTriangleIcon,
+  HomeIcon,
   LightBulbIcon,
-  ArrowRightIcon,
-  ArrowLeftIcon,
+  MapPinIcon,
   PhotoIcon,
-  CloudArrowUpIcon,
+  SparklesIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
-import { propertySchema, PropertyFormData, stepSchemas } from '@/lib/validation'
-import { apiService } from '@/lib/api'
 
 interface MarketInsight {
   averagePrice: number
@@ -35,8 +37,9 @@ interface AIPropertySuggestion {
   title: string
   description: string
   price: string
-  amenities: string
-  marketInsights: MarketInsight
+  amenities: string[]
+  features: string[]
+  marketInsights: string
   qualityScore: {
     overall: number
     seo: number
@@ -108,13 +111,13 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
   useEffect(() => {
     const fetchAgentProfile = async () => {
       try {
-        const response = await apiService.getAgentProfile()
+        const response = await agentAPI.getAgentProfile()
         if (response.success && response.data) {
           setAgentProfile(response.data)
           // Update user profile with agent data
           setUserProfile({
-            experienceLevel: response.data.experience_level || 'intermediate',
-            specialization: response.data.specialization || 'residential',
+            experienceLevel: 'intermediate', // Default value
+            specialization: 'residential', // Default value
             priceRange: 'mid-range' // This could be derived from agent data
           })
         }
@@ -122,7 +125,7 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
         console.error('Failed to fetch agent profile:', error)
       }
     }
-    
+
     fetchAgentProfile()
   }, [])
 
@@ -159,8 +162,8 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
         bathrooms: Number(formData.bathrooms),
         area: Number(formData.area)
       }
-      
-      const response = await apiService.getAIPropertySuggestions({
+
+      const response = await propertiesAPI.getAIPropertySuggestions('new', {
         address: processedData.address,
         property_type: processedData.propertyType,
         bedrooms: processedData.bedrooms,
@@ -172,22 +175,17 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
 
       if (response.success && response.data) {
         const suggestion: AIPropertySuggestion = {
-          title: response.data[0]?.title || `Beautiful ${formData.propertyType} in ${formData.location}`,
-          description: response.data[0]?.description || 'AI-generated description will appear here',
-          price: response.data[0]?.price || formData.price.toString(),
-          amenities: response.data[0]?.amenities || 'Modern amenities included',
-          marketInsights: marketInsights || {
-            averagePrice: 3200000,
-            priceRange: [2800000, 4200000],
-            marketTrend: 'rising',
-            competitorCount: 12,
-            trendPercentage: 8.5
-          },
+          title: response.data.title || `Beautiful ${formData.propertyType} in ${formData.location}`,
+          description: response.data.description || 'AI-generated description will appear here',
+          price: response.data.price || formData.price.toString(),
+          amenities: Array.isArray(response.data.amenities) ? response.data.amenities : ['Modern amenities included'],
+          features: response.data.features || ['Modern design', 'Prime location'],
+          marketInsights: response.data.marketInsights || 'Market analysis will appear here',
           qualityScore: {
-            overall: 87,
-            seo: 92,
-            readability: 85,
-            marketRelevance: 84
+            overall: 85,
+            seo: 90,
+            readability: 80,
+            marketRelevance: 88
           }
         }
         setAiSuggestions(suggestion)
@@ -203,12 +201,12 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
 
   const applyAISuggestions = () => {
     if (!aiSuggestions) return
-    
+
     setValue('title', aiSuggestions.title)
     setValue('description', aiSuggestions.description)
     setValue('price', parseFloat(aiSuggestions.price) || 0)
-    setValue('amenities', aiSuggestions.amenities)
-    
+    setValue('amenities', aiSuggestions.amenities.join(', '))
+
     toast.success('AI suggestions applied to form!')
   }
 
@@ -223,7 +221,7 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
       })
 
       const response = await apiService.uploadImages(formData)
-      
+
       if (response.success && response.files) {
         const newImageUrls = response.files.map((file: any) => file.url || file.path)
         const updatedImages = [...uploadedImages, ...newImageUrls]
@@ -250,13 +248,13 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
   const validateCurrentStep = async (step: number): Promise<boolean> => {
     const fieldsToValidate = getFieldsForStep(step)
     const currentValues = watch()
-    
+
     // Create a subset of values for the current step
     const stepValues: any = {}
     fieldsToValidate.forEach(field => {
       stepValues[field] = currentValues[field]
     })
-    
+
     // Get the appropriate schema for this step
     let stepSchema
     switch (step) {
@@ -267,7 +265,7 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
       case 4: stepSchema = stepSchemas.description; break
       default: return true
     }
-    
+
     try {
       stepSchema.parse(stepValues)
       return true
@@ -278,16 +276,16 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
 
   const nextStep = async () => {
     const fieldsToValidate = getFieldsForStep(currentStep)
-    
+
     // Check if current step is valid
     const isValid = await validateCurrentStep(currentStep)
-    
+
     if (!isValid) {
       // Show validation errors for empty fields
       await trigger(fieldsToValidate)
       return
     }
-    
+
     // If current step is valid, move to next step
     if (currentStep < FORM_STEPS.length - 1) {
       setCurrentStep(currentStep + 1)
@@ -316,7 +314,7 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
     try {
       // Get current form values
       const data = getValues()
-      
+
       // Check if we're on the final step and validate required fields
       if (currentStep === FORM_STEPS.length - 1) {
         const finalStepFields = getFieldsForStep(currentStep)
@@ -324,7 +322,7 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
           const value = data[field]
           return !value || value.toString().trim() === ''
         })
-        
+
         if (hasEmptyRequiredFields) {
           // Trigger validation for the final step fields
           await trigger(finalStepFields)
@@ -332,7 +330,7 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
           return
         }
       }
-      
+
       // Get current user for agent_id
       let agentId = "anonymous"
       try {
@@ -341,7 +339,7 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
       } catch (error) {
         console.warn('Could not get current user, using anonymous agent_id:', error)
       }
-      
+
       // Transform data for unified property service
       const propertyData = {
         ...data,
@@ -353,12 +351,13 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
         bedrooms: Number(data.bedrooms) || 0,
         bathrooms: Number(data.bathrooms) || 0,
         area_sqft: Number(data.area) || 0,
+        features: [], // Default empty features array
         images: uploadedImages,
         agent_id: agentId
       }
-      
-      const response = await apiService.createProperty(propertyData)
-      if (response.success || response.id) {
+
+      const response = await propertiesAPI.createProperty(propertyData)
+      if (response.success) {
         toast.success('AI-powered property created successfully!')
         onSuccess?.()
       }
@@ -660,9 +659,8 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
                 />
                 <label
                   htmlFor="image-upload"
-                  className={`cursor-pointer flex flex-col items-center space-y-4 ${
-                    uploadingImages ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
+                  className={`cursor-pointer flex flex-col items-center space-y-4 ${uploadingImages ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                 >
                   <CloudArrowUpIcon className="w-12 h-12 text-gray-400" />
                   <div>
@@ -894,16 +892,15 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
                 const Icon = step.icon
                 const isActive = index === currentStep
                 const isCompleted = index < currentStep
-                
+
                 return (
                   <div key={step.id} className="flex items-center">
-                    <div className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 ${
-                      isActive 
-                        ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
-                        : isCompleted 
+                    <div className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 ${isActive
+                      ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                      : isCompleted
                         ? 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400'
                         : 'text-gray-400 dark:text-gray-600'
-                    }`}>
+                      }`}>
                       <Icon className="w-4 h-4" />
                       <span className="text-sm font-medium hidden sm:inline">{step.title}</span>
                       {isCompleted && <CheckCircleIcon className="w-4 h-4" />}

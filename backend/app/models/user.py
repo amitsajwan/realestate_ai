@@ -21,22 +21,17 @@ class User(Document):
     is_superuser: bool = False
     is_verified: bool = False
     
-    # Property to map MongoDB _id to id for FastAPI Users compatibility
-    # Temporarily disabled to fix serialization issue
-    # @property
-    # def id(self) -> str:
-    #     """Get the user ID as string for frontend compatibility"""
-    #     return str(self._id) if self._id else ""
+    # id field inherited from Document (alias for _id)
     
     # Additional fields for real estate platform
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
     phone: Optional[str] = None
     company: Optional[str] = None
     
     # Onboarding fields
-    onboarding_completed: bool = False
-    onboarding_step: int = 0
+    onboardingCompleted: bool = False
+    onboardingStep: int = 0
     
     # Alias for frontend compatibility
     # Temporarily disabled to fix serialization issue
@@ -55,36 +50,35 @@ class User(Document):
 
 class UserCreate(schemas.BaseUserCreate):
     """User creation model"""
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
     phone: Optional[str] = None
     company: Optional[str] = None
 
 
 class UserUpdate(schemas.BaseUserUpdate):
     """User update model"""
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
     phone: Optional[str] = None
     company: Optional[str] = None
+    onboardingCompleted: Optional[bool] = None
+    onboardingStep: Optional[int] = None
 
 
 class UserRead(schemas.BaseUser[str]):
     """User read model"""
     id: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
     phone: Optional[str] = None
     company: Optional[str] = None
-    onboarding_completed: bool = False
-    onboarding_step: int = 0
+    onboardingCompleted: bool = False
+    onboardingStep: int = 0
     created_at: datetime
     updated_at: datetime
     
-    # Alias for frontend compatibility
-    @property
-    def onboardingCompleted(self) -> bool:
-        return self.onboarding_completed
+    # No aliases needed - using camelCase directly
     
     @classmethod
     def model_validate(cls, obj, **kwargs):
@@ -117,3 +111,20 @@ class UserRead(schemas.BaseUser[str]):
             obj = obj_dict
         
         return super().model_validate(obj, **kwargs)
+    
+    @classmethod
+    def from_orm(cls, obj):
+        """Create UserRead from ORM object with proper ID conversion"""
+        if hasattr(obj, 'model_dump'):
+            data = obj.model_dump()
+        else:
+            data = obj.__dict__.copy()
+        
+        # Convert ObjectId to string
+        if 'id' in data and hasattr(data['id'], '__str__') and not isinstance(data['id'], str):
+            data['id'] = str(data['id'])
+        elif '_id' in data and 'id' not in data:
+            data['id'] = str(data['_id'])
+            del data['_id']
+        
+        return cls(**data)

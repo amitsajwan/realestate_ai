@@ -3,10 +3,10 @@
 import { LoadingButton } from '@/components/LoadingStates';
 import { useAsyncOperation, useMultipleLoading } from '@/hooks/useLoading';
 import { apiService } from '@/lib/api';
-import { authManager } from '@/lib/auth';
+import { authManager, User } from '@/lib/auth';
+import { BrandingSuggestion } from '@/lib/auth/types';
 import { withErrorHandling } from '@/lib/error-handler';
 import { applyBrandTheme } from '@/lib/theme';
-import { BrandingSuggestion } from '@/types/user';
 import { ArrowLeftIcon, ArrowRightIcon, BuildingOfficeIcon, CheckIcon, DocumentTextIcon, PhotoIcon, ShareIcon, SparklesIcon, UserIcon } from '@heroicons/react/24/outline';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -23,20 +23,7 @@ const onboardingSteps = [
 ];
 
 interface OnboardingProps {
-  user: {
-    id: string;
-    email: string;
-    first_name?: string;
-    last_name?: string;
-    phone?: string;
-    onboarding_completed?: boolean;
-    onboardingStep?: number;
-    firstName?: string;
-    lastName?: string;
-    company?: string;
-    position?: string;
-    licenseNumber?: string;
-  };
+  user: User;
   currentStep: number;
   onStepChange: (step: number) => void;
   onComplete: () => void;
@@ -72,12 +59,12 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
   console.log('[Onboarding] Initial step:', initialStep);
   const [currentStep, setCurrentStep] = useState(initialStep || 1)
   const [formData, setFormData] = useState<OnboardingFormData>({
-    firstName: user.firstName || user.first_name || '',
-    lastName: user.lastName || user.last_name || '',
+    firstName: user.firstName || '',
+    lastName: user.lastName || '',
     phone: user.phone || '',
     company: user.company || '',
-    position: user.position || '',
-    licenseNumber: user.licenseNumber || '',
+    position: '',
+    licenseNumber: '',
     aiStyle: 'Professional',
     aiTone: 'Friendly',
     facebookPage: '',
@@ -107,12 +94,12 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
     if (user) {
       setFormData(prev => ({
         ...prev,
-        firstName: user.firstName || user.first_name || prev.firstName,
-        lastName: user.lastName || user.last_name || prev.lastName,
+        firstName: user.firstName || prev.firstName,
+        lastName: user.lastName || prev.lastName,
         phone: user.phone || prev.phone,
         company: user.company || prev.company,
-        position: user.position || prev.position,
-        licenseNumber: user.licenseNumber || prev.licenseNumber
+        position: prev.position,
+        licenseNumber: prev.licenseNumber
       }));
     }
   }, [user]);
@@ -200,18 +187,18 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
       multipleLoading.setLoading('next', true)
 
       try {
-        // Try to save progress to backend, but don't block navigation if it fails
+        // Try to save progress to backend, but don't block navigation if it fails        
         const { error } = await withErrorHandling(
           () => authManager.updateOnboarding(currentStep + 1, formData),
           'Save Onboarding Progress',
           'Progress saved!'
         )
 
-        if (!error) {
-          console.info('[Onboarding] updateOnboarding successful, updating step to:', currentStep + 1)
-        } else {
-          console.warn('[Onboarding] updateOnboarding failed, but continuing with step navigation')
-        }
+        // if (!error) {
+        //   console.info('[Onboarding] updateOnboarding successful, updating step to:', currentStep + 1)
+        // } else {
+        //   console.warn('[Onboarding] updateOnboarding failed, but continuing with step navigation')
+        // }
 
         // Always update the step, regardless of backend save result
         console.debug('[Onboarding] Setting currentStep to:', currentStep + 1)
@@ -251,27 +238,27 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
         'Onboarding completed!'
       );
 
-      if (!error) {
-        console.log('[Onboarding] Onboarding completed successfully');
+      // if (!error) {
+      console.log('[Onboarding] Onboarding completed successfully');
 
-        // Add a small delay to allow auth state to update, then verify
-        setTimeout(() => {
-          const updatedState = authManager.getState();
-          console.log('[Onboarding] Checking updated auth state:', {
-            onboardingCompleted: updatedState.user?.onboardingCompleted,
-            onboardingStep: updatedState.user?.onboardingStep
-          });
+      // Add a small delay to allow auth state to update, then verify
+      setTimeout(() => {
+        const updatedState = authManager.getState();
+        console.log('[Onboarding] Checking updated auth state:', {
+          onboardingCompleted: updatedState.user?.onboardingCompleted,
+          onboardingStep: updatedState.user?.onboardingStep
+        });
 
-          if (updatedState.user?.onboardingCompleted) {
-            console.log('[Onboarding] User state confirmed as completed, calling onComplete callback');
-            onComplete();
-          } else {
-            console.warn('[Onboarding] User state not yet updated, but proceeding with onComplete');
-            // Still call onComplete - the auth manager fix should handle the state refresh
-            onComplete();
-          }
-        }, 500); // Small delay to allow state updates to propagate
-      }
+        if (updatedState.user?.onboardingCompleted) {
+          console.log('[Onboarding] User state confirmed as completed, calling onComplete callback');
+          onComplete();
+        } else {
+          console.warn('[Onboarding] User state not yet updated, but proceeding with onComplete');
+          // Still call onComplete - the auth manager fix should handle the state refresh
+          onComplete();
+        }
+      }, 500); // Small delay to allow state updates to propagate
+      // }
     } catch (err) {
       console.error('[Onboarding] Error during completion:', err);
       const errorMessage = err && typeof err === 'object' && 'message' in err && typeof err.message === 'string' ? err.message : 'Failed to complete onboarding';

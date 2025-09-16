@@ -235,6 +235,42 @@ class UnifiedPropertyService:
         
         return suggestions
     
+    async def generate_ai_suggestions_for_new_property(
+        self,
+        property_data: Dict[str, Any],
+        user_id: str
+    ) -> Dict[str, Any]:
+        """
+        Generate AI suggestions for a new property based on provided data.
+        """
+        # Create a temporary property response for AI generation
+        temp_property = PropertyResponse(
+            id="temp",
+            title=property_data.get("address", "New Property"),
+            description="",
+            property_type=property_data.get("property_type", "Apartment"),
+            price=0.0,  # Default price
+            location=property_data.get("address", ""),
+            bedrooms=property_data.get("bedrooms", 2),
+            bathrooms=float(property_data.get("bathrooms", 2)),
+            area_sqft=property_data.get("area"),
+            features=[],
+            amenities=None,
+            status="active",
+            agent_id=user_id,
+            images=[],
+            smart_features={},
+            ai_insights={},
+            market_analysis={},
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        
+        # Generate AI suggestions based on the temporary property data
+        suggestions = await self._generate_ai_suggestions(temp_property)
+        
+        return suggestions
+    
     async def generate_market_insights(
         self,
         property_id: str,

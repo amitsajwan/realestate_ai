@@ -1,8 +1,7 @@
 "use client";
 
 import Onboarding from '@/components/Onboarding';
-import { authManager } from '@/lib/auth';
-import { User } from '@/types/user';
+import { authManager, User } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 

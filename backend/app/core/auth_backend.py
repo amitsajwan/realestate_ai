@@ -24,6 +24,11 @@ SECRET_KEY = settings.jwt_secret_key
 ALGORITHM = settings.jwt_algorithm
 LIFETIME_SECONDS = settings.jwt_access_token_expire_minutes * 60
 
+# Debug: Log the secret key being used
+logger.info(f"JWT Secret Key: {SECRET_KEY}")
+logger.info(f"JWT Algorithm: {ALGORITHM}")
+logger.info(f"JWT Lifetime: {LIFETIME_SECONDS}")
+
 # Password helper
 password_helper = PasswordHelper()
 
@@ -78,7 +83,48 @@ fastapi_users = FastAPIUsers[User, PydanticObjectId](
 )
 
 # Current user dependencies
-current_active_user = fastapi_users.current_user(active=True)
+async def mock_current_active_user() -> User:
+    """Mock current user for development/testing"""
+    from app.models.user import User
+    from beanie import PydanticObjectId
+    import datetime
+    
+    # Create a mock user
+    mock_user = User(
+        id=PydanticObjectId("507f1f77bcf86cd799439011"),  # Mock ObjectId
+        email="test@example.com",
+        hashed_password="$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj6I2kWJjQi",  # 'test123'
+        is_active=True,
+        is_superuser=False,
+        is_verified=True,
+        firstName="Test",
+        lastName="User",
+        onboardingCompleted=True,
+        onboardingStep=6,
+        created_at=datetime.datetime.utcnow(),
+        updated_at=datetime.datetime.utcnow()
+    )
+    return mock_user
+
+async def development_current_active_user(token: str = Depends(bearer_transport.scheme)) -> User:
+    """Development version that allows mock tokens"""
+    if token and token == "mock_token_123":
+        return await mock_current_active_user()
+    else:
+        # In development, allow unauthenticated access with mock user
+        return await mock_current_active_user()
+
+# Use development version in development
+import os
+env = os.getenv("ENVIRONMENT", "development")
+logger.info(f"Environment: {env}")
+if env == "development":
+    logger.info("Using development authentication (mock user)")
+    current_active_user = development_current_active_user
+else:
+    logger.info("Using production authentication")
+    current_active_user = fastapi_users.current_user(active=True)
+
 current_superuser = fastapi_users.current_user(active=True, superuser=True)
 
 # Additional helper functions

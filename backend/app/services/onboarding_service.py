@@ -59,7 +59,7 @@ class OnboardingService:
         
         # Upsert the per-step data and current step
         update_fields: Dict[str, Any] = {
-            "onboarding_step": step_number,
+            "onboardingStep": step_number,
             f"onboarding_data.{step_number}": step_data.data,
             "updated_at": datetime.utcnow(),
         }
@@ -99,8 +99,8 @@ class OnboardingService:
             {"_id": object_id},
             {
                 "$set": {
-                    "onboarding_completed": True,
-                    "onboarding_step": 6,
+                    "onboardingCompleted": True,
+                    "onboardingStep": 6,
                     "updated_at": datetime.utcnow(),
                 }
             },

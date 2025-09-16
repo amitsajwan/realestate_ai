@@ -1,33 +1,34 @@
 'use client'
 
-import React, { useState, useEffect, lazy, Suspense } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useRouter } from 'next/navigation'
-import { 
-  HomeIcon, 
-  PlusIcon, 
-  ChartBarIcon, 
-  UsersIcon, 
-  CogIcon,
-  UserIcon,
-  SparklesIcon,
-  ArrowRightOnRectangleIcon,
-  BuildingOfficeIcon,
-  Bars3Icon,
-  XMarkIcon,
-  BellIcon,
-  GlobeAltIcon
-} from '@heroicons/react/24/outline'
-import { authManager } from '@/lib/auth'
-import { apiService } from '@/lib/api'
-import DashboardStats from '@/components/DashboardStats'
-import SmartPropertyForm from '@/components/SmartPropertyForm'
-import Properties from '@/components/Properties'
-import PropertyManagement from '@/components/PropertyManagement'
 import CRM from '@/components/CRM'
+import DashboardStats from '@/components/DashboardStats'
 import FacebookIntegration from '@/components/FacebookIntegration'
 import ProfileSettings from '@/components/ProfileSettings'
-import { loadBrandTheme, applyBrandTheme } from '@/lib/theme'
+import Properties from '@/components/Properties'
+import PropertyManagement from '@/components/PropertyManagement'
+import SmartPropertyForm from '@/components/SmartPropertyForm'
+import { apiService } from '@/lib/api'
+import { authManager } from '@/lib/auth'
+import { propertiesAPI } from '@/lib/properties'
+import { applyBrandTheme, loadBrandTheme } from '@/lib/theme'
+import {
+  ArrowRightOnRectangleIcon,
+  Bars3Icon,
+  BellIcon,
+  BuildingOfficeIcon,
+  ChartBarIcon,
+  CogIcon,
+  GlobeAltIcon,
+  HomeIcon,
+  PlusIcon,
+  SparklesIcon,
+  UserIcon,
+  UsersIcon,
+  XMarkIcon
+} from '@heroicons/react/24/outline'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useRouter } from 'next/navigation'
+import { lazy, Suspense, useEffect, useState } from 'react'
 
 // Lazy load heavy components
 const AIContentGenerator = lazy(() => import('@/components/AIContentGenerator'))
@@ -68,35 +69,35 @@ export default function Dashboard() {
 
   useEffect(() => {
     const initAuth = async () => {
-  console.debug('[DashboardPage] Checking authentication...')
-  if (typeof window !== 'undefined') {
-    console.debug('[DashboardPage] Current URL:', window.location.href)
-    console.debug('[DashboardPage] URL params:', Object.fromEntries(new URLSearchParams(window.location.search).entries()))
-  }
-      
+      console.debug('[DashboardPage] Checking authentication...')
+      if (typeof window !== 'undefined') {
+        console.debug('[DashboardPage] Current URL:', window.location.href)
+        console.debug('[DashboardPage] URL params:', Object.fromEntries(new URLSearchParams(window.location.search).entries()))
+      }
+
       await authManager.init()
       const state = authManager.getState()
-      
-  console.debug('[DashboardPage] Auth state after init:', {
+
+      console.debug('[DashboardPage] Auth state after init:', {
         isAuthenticated: state.isAuthenticated,
         hasUser: !!state.user,
         user: state.user,
         isLoading: state.isLoading
       })
-      
+
       if (!state.isAuthenticated) {
-  console.info('[DashboardPage] Not authenticated, redirecting to login')
+        console.info('[DashboardPage] Not authenticated, redirecting to login')
         router.push('/login')
         return
       }
 
       if (!state.user?.onboardingCompleted) {
-  console.info('[DashboardPage] Onboarding not completed, redirecting to onboarding')
+        console.info('[DashboardPage] Onboarding not completed, redirecting to onboarding')
         router.push('/onboarding')
         return
       }
 
-  console.info('[DashboardPage] User authenticated and onboarded, loading dashboard data')
+      console.info('[DashboardPage] User authenticated and onboarded, loading dashboard data')
       setUser(state.user)
       setIsLoading(false)
       fetchStats()
@@ -113,19 +114,19 @@ export default function Dashboard() {
         setStats(response.data)
       }
     } catch (error) {
-  console.error('[DashboardPage] Error fetching stats:', error)
+      console.error('[DashboardPage] Error fetching stats:', error)
     }
   }
 
   const loadProperties = async () => {
     try {
       console.log('[DashboardPage] Fetching properties from API...')
-      const response = await apiService.getProperties()
+      const response = await propertiesAPI.getProperties()
       console.log('[DashboardPage] API response:', response)
-      
+
       // Handle both direct array response and wrapped response
       const propertiesData = Array.isArray(response) ? response : (response?.data || [])
-      
+
       if (propertiesData && propertiesData.length > 0) {
         // Transform the API response to match the expected format
         const transformedProperties = propertiesData.map((property: any) => ({
@@ -155,18 +156,18 @@ export default function Dashboard() {
   }
 
   const testThemePersistence = () => {
-  console.debug('[DashboardPage] Testing theme persistence...');
+    console.debug('[DashboardPage] Testing theme persistence...');
     const savedTheme = loadBrandTheme();
-  console.debug('[DashboardPage] Saved theme:', savedTheme);
-    
+    console.debug('[DashboardPage] Saved theme:', savedTheme);
+
     if (savedTheme) {
-  console.debug('[DashboardPage] Applying saved theme:', savedTheme);
+      console.debug('[DashboardPage] Applying saved theme:', savedTheme);
       applyBrandTheme(savedTheme, false);
     } else {
-  console.debug('[DashboardPage] No saved theme found, applying test theme');
+      console.debug('[DashboardPage] No saved theme found, applying test theme');
       const testTheme = {
         primary: '#007bff',
-        secondary: '#6c757d', 
+        secondary: '#6c757d',
         accent: '#28a745'
       };
       applyBrandTheme(testTheme, true);
@@ -176,15 +177,15 @@ export default function Dashboard() {
   const renderSection = () => {
     switch (activeSection) {
       case 'properties':
-        return <Properties 
-          onAddProperty={() => setActiveSection('property-form')} 
-          properties={properties} 
+        return <Properties
+          onAddProperty={() => setActiveSection('property-form')}
+          properties={properties}
           setProperties={setProperties}
           onRefresh={loadProperties}
         />
       case 'property-management':
-        return <PropertyManagement 
-          onAddProperty={() => setActiveSection('property-form')} 
+        return <PropertyManagement
+          onAddProperty={() => setActiveSection('property-form')}
         />
       case 'property-form':
         return (
@@ -276,13 +277,12 @@ export default function Dashboard() {
                   >
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold text-gray-900 dark:text-white truncate">{property.title}</h3>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        property.status === 'for-sale'
-                          ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
-                          : property.status === 'for-rent'
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${property.status === 'for-sale'
+                        ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                        : property.status === 'for-rent'
                           ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                      }`}>
+                        }`}>
                         {property.status === 'for-sale' ? 'For Sale' : property.status === 'for-rent' ? 'For Rent' : property.status}
                       </span>
                     </div>
@@ -344,11 +344,10 @@ export default function Dashboard() {
                 <button
                   key={item.id}
                   onClick={() => setActiveSection(item.id)}
-                  className={`relative flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    activeSection === item.id
-                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-sm'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white'
-                  }`}
+                  className={`relative flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeSection === item.id
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white'
+                    }`}
                 >
                   <item.icon className="w-4 h-4" />
                   <span className="hidden xl:block">{item.name}</span>
@@ -398,15 +397,13 @@ export default function Dashboard() {
                   <button
                     key={item.id}
                     onClick={() => setActiveSection(item.id)}
-                    className={`relative w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200 group hover-lift click-shrink ${
-                      activeSection === item.id
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-[1.02] animate-scale-in'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white hover:transform hover:scale-[1.01]'
-                    }`}
+                    className={`relative w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200 group hover-lift click-shrink ${activeSection === item.id
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-[1.02] animate-scale-in'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white hover:transform hover:scale-[1.01]'
+                      }`}
                   >
-                    <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110 hover-rotate ${
-                      activeSection === item.id ? 'text-white' : ''
-                    }`} />
+                    <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110 hover-rotate ${activeSection === item.id ? 'text-white' : ''
+                      }`} />
                     <span className="font-medium">{item.name}</span>
                     {activeSection === item.id && (
                       <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse" />
@@ -445,11 +442,10 @@ export default function Dashboard() {
                           setActiveSection(item.id)
                           setIsMobileMenuOpen(false)
                         }}
-                        className={`relative w-full flex items-center space-x-4 px-4 py-4 rounded-xl text-left transition-all duration-200 ${
-                          activeSection === item.id
-                            ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
-                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10'
-                        }`}
+                        className={`relative w-full flex items-center space-x-4 px-4 py-4 rounded-xl text-left transition-all duration-200 ${activeSection === item.id
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10'
+                          }`}
                       >
                         <item.icon className="w-6 h-6" />
                         <span className="font-medium text-lg">{item.name}</span>

@@ -18,7 +18,8 @@ class FacebookService:
     Service for publishing posts to Facebook.
     """
     
-    def __init__(self):
+    def __init__(self, user_repository=None):
+        self.user_repository = user_repository
         self.app_id = settings.facebook_app_id
         self.app_secret = settings.facebook_app_secret
         self.access_token = settings.facebook_access_token
