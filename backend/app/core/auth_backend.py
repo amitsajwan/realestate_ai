@@ -42,16 +42,9 @@ class UserManager(BaseUserManager[User, PydanticObjectId]):
         """Create a new user"""
         logger.info(f"Creating user: {user_create.email}")
         
-        # Create user using parent method
+        # Use the parent method directly without modifications
         user = await super().create(user_create, safe, request)
-        
-        # Ensure user is verified and active for immediate login
-        # In production, you might want to implement email verification
-        user.is_verified = True
-        user.is_active = True
-        
-        # Save the updated user directly
-        await user.save()
+        logger.info(f"User created by parent method: {user.email}")
         
         return user
 
@@ -91,7 +84,15 @@ current_superuser = fastapi_users.current_user(active=True, superuser=True)
 # Additional helper functions
 async def get_current_user_id(current_user: User = Depends(current_active_user)) -> str:
     """Get current user ID as string"""
-    return str(current_user.id)
+    # Handle both MongoDB ObjectId and regular ID
+    if hasattr(current_user, 'id') and current_user.id:
+        return str(current_user.id)
+    elif hasattr(current_user, '_id') and current_user._id:
+        return str(current_user._id)
+    else:
+        # Fallback: try to get from model_dump
+        user_dict = current_user.model_dump()
+        return str(user_dict.get("_id", user_dict.get("id", "")))
 
 async def get_current_user_optional() -> Optional[User]:
     """Get current user if authenticated, otherwise None"""

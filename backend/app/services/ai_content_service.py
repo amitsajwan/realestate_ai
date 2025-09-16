@@ -2,8 +2,19 @@ import asyncio
 import json
 from typing import Dict, List, Any, Optional
 import httpx
-from groq import Groq
 import os
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Optional import for Groq
+try:
+    from groq import Groq
+    GROQ_AVAILABLE = True
+except ImportError:
+    logger.warning("Groq SDK not available - AI content generation will be disabled")
+    Groq = None
+    GROQ_AVAILABLE = False
 
 class AIContentService:
     def __init__(self):
@@ -13,11 +24,14 @@ class AIContentService:
     @property
     def groq_client(self):
         """Lazy-load Groq client"""
+        if not GROQ_AVAILABLE:
+            raise RuntimeError("Groq SDK not available - AI content generation is disabled")
+        
         if self._groq_client is None:
             api_key = os.getenv("GROQ_API_KEY")
             if not api_key:
                 raise RuntimeError("GROQ_API_KEY environment variable not set")
-            self._groq_client = Groq(api_key=api_key)
+            self._groq_client = Groq(api_key=api_key)  # type: ignore
         return self._groq_client
 
     async def generate_content(self, property_data: Dict[str, Any], prompt: str, language: str) -> str:

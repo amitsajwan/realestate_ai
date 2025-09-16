@@ -21,6 +21,13 @@ class User(Document):
     is_superuser: bool = False
     is_verified: bool = False
     
+    # Property to map MongoDB _id to id for FastAPI Users compatibility
+    # Temporarily disabled to fix serialization issue
+    # @property
+    # def id(self) -> str:
+    #     """Get the user ID as string for frontend compatibility"""
+    #     return str(self._id) if self._id else ""
+    
     # Additional fields for real estate platform
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -32,9 +39,10 @@ class User(Document):
     onboarding_step: int = 0
     
     # Alias for frontend compatibility
-    @property
-    def onboardingCompleted(self) -> bool:
-        return self.onboarding_completed
+    # Temporarily disabled to fix serialization issue
+    # @property
+    # def onboardingCompleted(self) -> bool:
+    #     return self.onboarding_completed
     
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -87,13 +95,25 @@ class UserRead(schemas.BaseUser[str]):
             if 'id' in obj and hasattr(obj['id'], '__str__') and not isinstance(obj['id'], str):
                 obj = obj.copy()
                 obj['id'] = str(obj['id'])
-        elif hasattr(obj, 'id') and hasattr(obj.id, '__str__'):
+            # Handle MongoDB _id to id mapping
+            if '_id' in obj and 'id' not in obj:
+                obj = obj.copy()
+                obj['id'] = str(obj['_id'])
+        elif hasattr(obj, 'id'):
             # Convert ObjectId to string
             if hasattr(obj, 'model_dump'):
                 obj_dict = obj.model_dump()
             else:
                 obj_dict = obj.__dict__.copy()
             obj_dict['id'] = str(obj.id)
+            obj = obj_dict
+        elif hasattr(obj, '_id'):
+            # Handle MongoDB _id field
+            if hasattr(obj, 'model_dump'):
+                obj_dict = obj.model_dump()
+            else:
+                obj_dict = obj.__dict__.copy()
+            obj_dict['id'] = str(obj._id)
             obj = obj_dict
         
         return super().model_validate(obj, **kwargs)

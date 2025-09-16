@@ -172,6 +172,7 @@ def validate_settings():
     if not settings.jwt_secret_key or settings.jwt_secret_key == "your-secret-key-here":
         raise ValueError("JWT secret key must be set in production")
     
+    # Only enforce debug=False in production, allow debug=True in development
     if settings.environment == "production" and settings.debug:
         raise ValueError("Debug mode should not be enabled in production")
     

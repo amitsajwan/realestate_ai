@@ -1,10 +1,10 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { AuthResponse, LoginRequest, RegisterData, RegisterRequest, User, UserDataTransformer } from '../types/user';
 import { apiService } from './api';
 import { errorHandler, handleError, showSuccess } from './error-handler';
 import { logger } from './logger';
-import { User, LoginRequest, RegisterRequest, AuthResponse, UserDataTransformer, RegisterData } from '../types/user';
-import React, { useState, useEffect } from 'react';
 
 export interface AuthState {
   isAuthenticated: boolean;
@@ -54,18 +54,18 @@ export class AuthManager {
    */
   private getBypassUser(): User | null {
     if (typeof window === 'undefined') return null;
-    
+
     try {
       const storedUser = localStorage.getItem('auth_user');
       const isAuthenticated = localStorage.getItem('auth_authenticated') === 'true';
-      
+
       if (storedUser && isAuthenticated) {
         return JSON.parse(storedUser);
       }
     } catch (error) {
       console.warn('[AuthManager] Error parsing bypass user:', error);
     }
-    
+
     return null;
   }
 
@@ -75,7 +75,7 @@ export class AuthManager {
   async init(): Promise<void> {
     try {
       this.setState({ isLoading: true, error: null });
-      
+
       // Check for bypass authentication
       const bypassUser = this.getBypassUser();
       if (bypassUser) {
@@ -89,10 +89,10 @@ export class AuthManager {
         });
         return;
       }
-      
+
       const token = this.getStoredToken();
       const refreshToken = this.getStoredRefreshToken();
-      
+
       if (!token) {
         this.setState({ isLoading: false });
         return;
@@ -124,7 +124,7 @@ export class AuthManager {
             action: 'user_validation'
           });
         }
-        
+
         this.setState({
           isAuthenticated: true,
           user,
@@ -133,10 +133,10 @@ export class AuthManager {
           isLoading: false,
           error: null
         });
-        
+
         // Set token in API service
         // Token will be set in request headers when needed
-        
+
         this.scheduleTokenRefresh();
       } else {
         this.clearAuth();
@@ -159,35 +159,35 @@ export class AuthManager {
   async login(email: string, password: string): Promise<AuthResult> {
     try {
       this.setState({ isLoading: true, error: null });
-      
+
       // Validate inputs before sending to API
       if (!email || !email.trim()) {
         throw new Error('Email is required');
       }
-      
+
       if (!password || !password.trim()) {
         throw new Error('Password is required');
       }
-      
+
       const credentials: LoginRequest = { email: email.trim(), password };
       logger.info('Attempting login', {
         component: 'AuthManager',
         action: 'login_attempt',
         metadata: { email: email.trim() }
       });
-      
+
       const response: AuthResponse = await this.apiService.login(credentials);
-      
+
       if (response.accessToken && response.user) {
         // Store tokens
         this.setStoredToken(response.accessToken);
         if (response.refreshToken) {
           this.setStoredRefreshToken(response.refreshToken);
         }
-        
+
         // Set token in API service
         // Token will be set in request headers when needed
-        
+
         // Update state
         this.setState({
           isAuthenticated: true,
@@ -197,10 +197,10 @@ export class AuthManager {
           isLoading: false,
           error: null
         });
-        
+
         this.scheduleTokenRefresh();
         showSuccess('Successfully logged in!');
-        
+
         return { success: true, user: response.user };
       } else {
         logger.error('Invalid login response format', {
@@ -228,10 +228,10 @@ export class AuthManager {
   async register(userData: RegisterData): Promise<AuthResult> {
     try {
       this.setState({ isLoading: true, error: null });
-      
+
       const registerRequest: RegisterRequest = UserDataTransformer.transformRegisterData(userData);
       const response: AuthResponse = await this.apiService.register(registerRequest);
-      
+
       if (response.user) {
         // If tokens are provided during registration, store them and authenticate
         if (response.accessToken) {
@@ -239,10 +239,10 @@ export class AuthManager {
           if (response.refreshToken) {
             this.setStoredRefreshToken(response.refreshToken);
           }
-          
+
           // Set token in API service
           // Token will be set in request headers when needed
-          
+
           this.setState({
             isAuthenticated: true,
             user: response.user,
@@ -251,14 +251,14 @@ export class AuthManager {
             isLoading: false,
             error: null
           });
-          
+
           this.scheduleTokenRefresh();
           showSuccess('Account created and logged in successfully!');
         } else {
           this.setState({ isLoading: false, error: null });
           showSuccess('Account created successfully! Please log in.');
         }
-        
+
         return { success: true, user: response.user };
       } else {
         throw new Error('Invalid response format');
@@ -305,10 +305,10 @@ export class AuthManager {
     try {
       const token = this.getStoredToken();
       if (!token) return null;
-      
+
       // Ensure token is set in API service
       // Token will be set in request headers when needed
-      
+
       const user = await this.apiService.getCurrentUser();
       return user;
     } catch (error) {
@@ -331,7 +331,7 @@ export class AuthManager {
 
     this.isRefreshing = true;
     this.refreshPromise = this.performTokenRefresh();
-    
+
     try {
       const result = await this.refreshPromise;
       return result;
@@ -343,7 +343,7 @@ export class AuthManager {
 
   private async performTokenRefresh(): Promise<boolean> {
     const refreshToken = this.getStoredRefreshToken();
-    
+
     // Validate refresh token exists and is not expired
     if (!refreshToken) {
       logger.warn('[AuthManager] No refresh token available', {
@@ -353,7 +353,7 @@ export class AuthManager {
       await this.handleRefreshFailure('No refresh token available');
       return false;
     }
-    
+
     if (this.isTokenExpired(refreshToken)) {
       logger.warn('[AuthManager] Refresh token expired', {
         component: 'AuthManager',
@@ -374,27 +374,27 @@ export class AuthManager {
           action: 'token_refresh_attempt',
           metadata: { attempt, maxRetries: this.maxRefreshRetries }
         });
-        
+
         const response = await this.apiService.refreshToken(refreshToken);
-        
+
         if (response.accessToken) {
           // Success - reset retry count and update tokens
           this.refreshRetryCount = 0;
-          
+
           this.setStoredToken(response.accessToken);
           if (response.refreshToken) {
             this.setStoredRefreshToken(response.refreshToken);
           }
-          
+
           // Set new token in API service
           // Token will be set in request headers when needed
-          
+
           this.setState({
             token: response.accessToken,
             refreshToken: response.refreshToken || this.state.refreshToken,
             error: null
           });
-          
+
           this.scheduleTokenRefresh();
           logger.info('[AuthManager] Token refresh successful', {
             component: 'AuthManager',
@@ -411,7 +411,7 @@ export class AuthManager {
           metadata: { attempt },
           errorDetails: error
         }, error);
-        
+
         // Check if this is a permanent failure (401, 403)
         if (error?.response?.status === 401 || error?.response?.status === 403) {
           logger.warn('[AuthManager] Refresh token invalid - permanent failure', {
@@ -421,7 +421,7 @@ export class AuthManager {
           await this.handleRefreshFailure('Invalid refresh token');
           return false;
         }
-        
+
         // If this is the last attempt, handle failure
         if (attempt === this.maxRefreshRetries) {
           logger.error('[AuthManager] All refresh attempts failed', {
@@ -432,7 +432,7 @@ export class AuthManager {
           await this.handleRefreshFailure(`Token refresh failed after ${this.maxRefreshRetries} attempts`);
           return false;
         }
-        
+
         // Wait before retrying (exponential backoff)
         const delay = this.refreshRetryDelay * Math.pow(2, attempt - 1);
         logger.info(`[AuthManager] Waiting ${delay}ms before retry`, {
@@ -443,7 +443,7 @@ export class AuthManager {
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
-    
+
     return false;
   }
 
@@ -453,10 +453,10 @@ export class AuthManager {
       action: 'token_refresh_failure',
       metadata: { reason }
     });
-    
+
     // Clear invalid tokens
     this.clearAuth();
-    
+
     // Update state to reflect unauthenticated status
     this.setState({
       isAuthenticated: false,
@@ -465,11 +465,11 @@ export class AuthManager {
       refreshToken: null,
       error: 'Session expired. Please log in again.'
     });
-    
+
     // Show user-friendly error message
     const appError = errorHandler.createError('TOKEN_EXPIRED', 'Your session has expired. Please log in again.');
     errorHandler.handleError(appError, 'Token Refresh');
-    
+
     // Redirect to login if we're in a browser environment
     if (typeof window !== 'undefined') {
       // Small delay to ensure error message is shown
@@ -485,12 +485,12 @@ export class AuthManager {
   async isAuthenticated(): Promise<boolean> {
     const token = this.getStoredToken();
     if (!token) return false;
-    
+
     if (this.isTokenExpired(token)) {
       const refreshed = await this.refreshAccessToken();
       return refreshed;
     }
-    
+
     return true;
   }
 
@@ -527,9 +527,9 @@ export class AuthManager {
   async updateProfile(userData: Partial<User>): Promise<AuthResult> {
     try {
       this.setState({ isLoading: true, error: null });
-      
+
       const updatedUser = await this.apiService.updateProfile(userData);
-      
+
       if (updatedUser) {
         this.setState({
           user: updatedUser,
@@ -556,12 +556,12 @@ export class AuthManager {
   async changePassword(currentPassword: string, newPassword: string): Promise<AuthResult> {
     try {
       this.setState({ isLoading: true, error: null });
-      
+
       await this.apiService.changePassword({
         current_password: currentPassword,
         new_password: newPassword
       });
-      
+
       this.setState({ isLoading: false, error: null });
       return { success: true };
     } catch (error: any) {
@@ -612,37 +612,70 @@ export class AuthManager {
       }
 
       console.log('[AuthManager] Updating onboarding:', { step, completed, userId: currentUser.id });
-      
+
       const updateRequest = {
-        step,
-        data,
-        completed
+        step_number: step,
+        data
       };
-      
+
       const response = await this.apiService.updateOnboarding(currentUser.id, updateRequest);
-      
-      if (response.success) {
-        // If onboarding is being completed, force refresh user data from server
+
+      if (response && response.step_number) {
+        // If onboarding is being completed, call completion endpoint
         if (completed) {
-          console.log('[AuthManager] Onboarding completed - refreshing user data from server');
+          console.log('[AuthManager] Onboarding completed - calling completion endpoint');
           try {
-            const userResponse = await this.apiService.getCurrentUser();
-            if (userResponse) {
-              this.setState({
-                user: userResponse,
-                isLoading: false,
-                error: null
-              });
-              console.log('[AuthManager] Refreshed user state after onboarding completion:', userResponse);
-              console.log('[AuthManager] User onboarding status:', {
-                onboardingCompleted: userResponse.onboardingCompleted,
-                onboardingStep: userResponse.onboardingStep
-              });
-            } else {
-              throw new Error('Failed to refresh user data after onboarding completion');
+            // Call the completion endpoint
+            const completionResponse = await this.apiService.completeOnboarding(currentUser.id);
+            if (completionResponse && completionResponse.user_id) {
+              // Add a small delay to ensure database write is committed
+              await new Promise(resolve => setTimeout(resolve, 100));
+
+              // Refresh user data from server with retry logic
+              let userResponse = null;
+              let retryCount = 0;
+              const maxRetries = 3;
+
+              while (retryCount < maxRetries && !userResponse?.onboardingCompleted) {
+                userResponse = await this.apiService.getCurrentUser();
+                if (userResponse?.onboardingCompleted) {
+                  break;
+                }
+                retryCount++;
+                if (retryCount < maxRetries) {
+                  console.log(`[AuthManager] Retry ${retryCount}/${maxRetries} - onboarding not completed yet, waiting...`);
+                  await new Promise(resolve => setTimeout(resolve, 200));
+                }
+              }
+
+              if (userResponse && userResponse.onboardingCompleted) {
+                this.setState({
+                  user: userResponse,
+                  isLoading: false,
+                  error: null
+                });
+                console.log('[AuthManager] Refreshed user state after onboarding completion:', userResponse);
+                console.log('[AuthManager] User onboarding status:', {
+                  onboardingCompleted: userResponse.onboardingCompleted,
+                  onboardingStep: userResponse.onboardingStep
+                });
+              } else {
+                console.warn('[AuthManager] Onboarding completion not reflected in user data after retries');
+                // Fallback to manual state update
+                const updatedUser = {
+                  ...currentUser,
+                  onboardingCompleted: true,
+                  onboardingStep: 6
+                };
+                this.setState({
+                  user: updatedUser,
+                  isLoading: false,
+                  error: null
+                });
+              }
             }
-          } catch (refreshError) {
-            console.error('[AuthManager] Failed to refresh user data after onboarding completion:', refreshError);
+          } catch (completionError) {
+            console.error('[AuthManager] Failed to complete onboarding:', completionError);
             // Fallback to manual update
             const updatedUser = {
               ...currentUser,
@@ -687,7 +720,7 @@ export class AuthManager {
       } else {
         throw new Error(JSON.stringify(response.errors) || 'Failed to update onboarding');
       }
-      
+
       console.log('[AuthManager] Onboarding update successful');
       showSuccess(completed ? 'Onboarding completed!' : 'Progress saved!');
       return true;
@@ -729,10 +762,10 @@ export class AuthManager {
     if (typeof window === 'undefined') return;
     localStorage.removeItem('auth_token');
     localStorage.removeItem('refresh_token');
-    
+
     // Clear token from API service
     // Token will be cleared from request headers when needed
-    
+
     if (this.refreshTimer) {
       clearTimeout(this.refreshTimer);
       this.refreshTimer = null;
@@ -762,10 +795,10 @@ export class AuthManager {
       const payload = JSON.parse(atob(token.split('.')[1]));
       const currentTime = Math.floor(Date.now() / 1000);
       const timeUntilExpiry = payload.exp - currentTime;
-      
+
       // Refresh 5 minutes before expiry
       const refreshTime = Math.max(0, (timeUntilExpiry - 300) * 1000);
-      
+
       this.refreshTimer = setTimeout(() => {
         this.refreshAccessToken();
       }, refreshTime);

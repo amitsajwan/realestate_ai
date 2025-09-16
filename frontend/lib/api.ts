@@ -381,7 +381,7 @@ export const api = {
     const formData = new URLSearchParams();
     formData.append('username', credentials.email);
     formData.append('password', credentials.password);
-    
+
     const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -412,6 +412,29 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
+    return response.json();
+  },
+
+  updateOnboarding: async (userId: string, data: any) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/onboarding/${userId}`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  },
+
+  completeOnboarding: async (userId: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/onboarding/${userId}/complete`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     return response.json();
   }
 };

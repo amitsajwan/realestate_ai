@@ -72,8 +72,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
   console.log('[Onboarding] Initial step:', initialStep);
   const [currentStep, setCurrentStep] = useState(initialStep || 1)
   const [formData, setFormData] = useState<OnboardingFormData>({
-    firstName: user.firstName || '',
-    lastName: user.lastName || '',
+    firstName: user.firstName || user.first_name || '',
+    lastName: user.lastName || user.last_name || '',
     phone: user.phone || '',
     company: user.company || '',
     position: user.position || '',
@@ -101,6 +101,21 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
       setCurrentStep(initialStep);
     }
   }, [initialStep]);
+
+  // Update form data when user object changes (e.g., from server refresh)
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        firstName: user.firstName || user.first_name || prev.firstName,
+        lastName: user.lastName || user.last_name || prev.lastName,
+        phone: user.phone || prev.phone,
+        company: user.company || prev.company,
+        position: user.position || prev.position,
+        licenseNumber: user.licenseNumber || prev.licenseNumber
+      }));
+    }
+  }, [user]);
 
   // Notify parent of step changes
   useEffect(() => {
@@ -298,19 +313,32 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
       }
     )
 
-    if (suggestions) {
-      handleInputChange('brandingSuggestions', suggestions)
+    if (suggestions && suggestions.length > 0) {
+      // Transform API response to match formData structure
+      const suggestion = suggestions[0] // Use first suggestion
+      const transformedSuggestion = {
+        tagline: `${formData.company} - Professional Real Estate Services`,
+        about: `Welcome to ${formData.company}, your trusted partner in real estate. We specialize in helping you find your dream home with personalized service and expert guidance.`,
+        colors: {
+          primary: suggestion.colorPalette.primary,
+          secondary: suggestion.colorPalette.secondary,
+          accent: suggestion.colorPalette.accent
+        }
+      }
+      handleInputChange('brandingSuggestions', transformedSuggestion)
+      setBrandingSuggestions(suggestions) // Keep original API response for reference
     }
   }
 
   const handleApplyBranding = () => {
-    if (!formData.brandingSuggestions) return
+    if (!formData.brandingSuggestions || brandingSuggestions.length === 0) return
 
     // Apply the branding theme to the application
+    const suggestion = brandingSuggestions[0] // Use first suggestion
     const brandTheme = {
-      primary: formData.brandingSuggestions.colors.primary,
-      secondary: formData.brandingSuggestions.colors.secondary,
-      accent: formData.brandingSuggestions.colors.accent
+      primary: suggestion.colorPalette.primary,
+      secondary: suggestion.colorPalette.secondary,
+      accent: suggestion.colorPalette.accent
     }
 
     applyBrandTheme(brandTheme) // Now persists by default
