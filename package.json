@@ -6,5 +6,23 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0"
-  }
+  },
+  "name": "workspace",
+  "version": "1.0.0",
+  "description": "A modern, full-stack real estate platform with AI-powered property management, lead generation, and agent profiles.",
+  "main": "playwright.config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amitsajwan/realestate_ai.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/amitsajwan/realestate_ai/issues"
+  },
+  "homepage": "https://github.com/amitsajwan/realestate_ai#readme"
 }

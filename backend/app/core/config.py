@@ -160,7 +160,8 @@ class Settings(BaseSettings):
     model_config = {
         "env_file": ".env",
         "case_sensitive": False,
-        "extra": "ignore"  # Ignore extra fields from environment
+        "extra": "ignore",  # Ignore extra fields from environment
+        "env_parse_none_str": "None"
     }
 
 # Create settings instance

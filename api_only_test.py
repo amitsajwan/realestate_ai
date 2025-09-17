@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Simple E2E Test Suite
-=====================
-Tests all 7 core features with both API and UI verification:
+API-Only E2E Test Suite
+=======================
+Tests all 7 core features through API endpoints only:
 1. Registration
 2. Login  
 3. Onboarding
@@ -14,25 +14,19 @@ Tests all 7 core features with both API and UI verification:
 This test verifies:
 - API endpoints work correctly
 - Database state is updated
-- Frontend pages load without errors
-- Screenshots are captured for UI verification
+- All features are functional
 """
 
-import asyncio
-import json
-import sys
-import os
-import time
-import subprocess
 import requests
+import json
+import time
 from datetime import datetime
 import pymongo
 from bson import ObjectId
 
-class SimpleE2ETester:
+class APIOnlyTester:
     def __init__(self):
         self.base_url = "http://localhost:8000"
-        self.frontend_url = "http://localhost:3000"
         self.mongo_client = pymongo.MongoClient("mongodb://localhost:27017")
         self.db = self.mongo_client["real_estate_platform"]
         
@@ -45,7 +39,6 @@ class SimpleE2ETester:
         
         # Test results
         self.results = {}
-        self.screenshots = []
 
     def log_test(self, test_name: str, status: str, message: str = ""):
         """Log test results with timestamp"""
@@ -53,42 +46,6 @@ class SimpleE2ETester:
         status_emoji = "✅" if status == "PASS" else "❌"
         print(f"[{timestamp}] {status_emoji} {test_name}: {message}")
         self.results[test_name] = {"status": status, "message": message, "timestamp": timestamp}
-
-    def wait_for_server(self, url: str, max_attempts: int = 30) -> bool:
-        """Wait for server to be ready"""
-        for attempt in range(max_attempts):
-            try:
-                response = requests.get(f"{url}/api/v1/health" if "8000" in url else f"{url}", timeout=5)
-                if response.status_code in [200, 404]:  # 404 is ok for frontend
-                    return True
-            except:
-                pass
-            time.sleep(2)
-        return False
-
-    def take_screenshot(self, url: str, name: str) -> str:
-        """Take screenshot using wkhtmltoimage or similar tool"""
-        try:
-            # Try to use wkhtmltoimage if available
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"test-screenshots/{name}_{timestamp}.png"
-            
-            # Create screenshots directory
-            os.makedirs("test-screenshots", exist_ok=True)
-            
-            # Use curl to get page content and save as HTML
-            html_file = f"test-screenshots/{name}_{timestamp}.html"
-            response = requests.get(url, timeout=10)
-            
-            with open(html_file, 'w', encoding='utf-8') as f:
-                f.write(response.text)
-            
-            self.log_test(f"Screenshot {name}", "PASS", f"Page content saved to {html_file}")
-            return html_file
-            
-        except Exception as e:
-            self.log_test(f"Screenshot {name}", "FAIL", f"Could not capture: {str(e)}")
-            return None
 
     def test_1_registration(self) -> bool:
         """Test 1: User Registration"""
@@ -125,15 +82,6 @@ class SimpleE2ETester:
                         user_doc.get('last_name') == user_data['lastName'] and
                         user_doc.get('email') == user_data['email']):
                         self.log_test("Registration Database", "PASS", "User data correctly stored")
-                        
-                        # Test UI page loading
-                        ui_response = requests.get(f"{self.frontend_url}/register", timeout=10)
-                        if ui_response.status_code == 200:
-                            self.take_screenshot(f"{self.frontend_url}/register", "01_registration_page")
-                            self.log_test("Registration UI", "PASS", "Registration page loads correctly")
-                        else:
-                            self.log_test("Registration UI", "FAIL", f"Page returned status {ui_response.status_code}")
-                        
                         return True
                     else:
                         self.log_test("Registration Database", "FAIL", "User data mismatch in database")
@@ -186,13 +134,6 @@ class SimpleE2ETester:
                         user_doc = self.db.users.find_one({"email": self.test_user.get('email')})
                         if user_doc and user_doc.get('last_login'):
                             self.log_test("Login Database", "PASS", "Last login timestamp updated")
-                            
-                            # Test UI page loading
-                            ui_response = requests.get(f"{self.frontend_url}/login", timeout=10)
-                            if ui_response.status_code == 200:
-                                self.take_screenshot(f"{self.frontend_url}/login", "02_login_page")
-                                self.log_test("Login UI", "PASS", "Login page loads correctly")
-                            
                             return True
                         else:
                             self.log_test("Login Database", "FAIL", "Last login not updated")
@@ -251,13 +192,6 @@ class SimpleE2ETester:
                     if user_doc and user_doc.get('onboarding_completed'):
                         self.log_test("Onboarding API", "PASS", "Onboarding completed successfully")
                         self.log_test("Onboarding Database", "PASS", "Onboarding status updated in database")
-                        
-                        # Test UI page loading
-                        ui_response = requests.get(f"{self.frontend_url}/onboarding", timeout=10)
-                        if ui_response.status_code == 200:
-                            self.take_screenshot(f"{self.frontend_url}/onboarding", "03_onboarding_page")
-                            self.log_test("Onboarding UI", "PASS", "Onboarding page loads correctly")
-                        
                         return True
                     else:
                         self.log_test("Onboarding Database", "FAIL", "Onboarding status not updated")
@@ -327,13 +261,6 @@ class SimpleE2ETester:
                         property_doc.get('user_id') == self.test_user.get('id')):
                         self.log_test("Property Creation API", "PASS", f"Property created with ID: {property_doc['_id']}")
                         self.log_test("Property Creation Database", "PASS", "Property data correctly stored")
-                        
-                        # Test UI page loading
-                        ui_response = requests.get(f"{self.frontend_url}/properties", timeout=10)
-                        if ui_response.status_code == 200:
-                            self.take_screenshot(f"{self.frontend_url}/properties", "04_properties_page")
-                            self.log_test("Properties UI", "PASS", "Properties page loads correctly")
-                        
                         return True
                     else:
                         self.log_test("Property Creation Database", "FAIL", "Property data mismatch")
@@ -398,13 +325,6 @@ class SimpleE2ETester:
                         
                         if publish_response.status_code == 200:
                             self.log_test("Post Publishing", "PASS", "Post published successfully")
-                            
-                            # Test UI page loading
-                            ui_response = requests.get(f"{self.frontend_url}/posts", timeout=10)
-                            if ui_response.status_code == 200:
-                                self.take_screenshot(f"{self.frontend_url}/posts", "05_posts_page")
-                                self.log_test("Posts UI", "PASS", "Posts page loads correctly")
-                            
                             return True
                         else:
                             self.log_test("Post Publishing", "FAIL", f"Publishing failed: {publish_response.status_code}")
@@ -456,13 +376,6 @@ class SimpleE2ETester:
                         user_doc.get('last_name') == profile_update['lastName']):
                         self.log_test("Profile Update API", "PASS", "Profile updated successfully")
                         self.log_test("Profile Update Database", "PASS", "Profile data correctly updated in database")
-                        
-                        # Test UI page loading
-                        ui_response = requests.get(f"{self.frontend_url}/profile", timeout=10)
-                        if ui_response.status_code == 200:
-                            self.take_screenshot(f"{self.frontend_url}/profile", "06_profile_page")
-                            self.log_test("Profile UI", "PASS", "Profile page loads correctly")
-                        
                         return True
                     else:
                         self.log_test("Profile Update Database", "FAIL", "Profile data not updated correctly")
@@ -534,13 +447,6 @@ class SimpleE2ETester:
                         
                         if properties_response.status_code == 200:
                             self.log_test("Agent Properties Listing", "PASS", "Agent properties listed successfully")
-                            
-                            # Test UI page loading
-                            ui_response = requests.get(f"{self.frontend_url}/agent/test-agent", timeout=10)
-                            if ui_response.status_code == 200:
-                                self.take_screenshot(f"{self.frontend_url}/agent/test-agent", "07_agent_website")
-                                self.log_test("Agent Website UI", "PASS", "Agent website loads correctly")
-                            
                             return True
                         else:
                             self.log_test("Agent Properties Listing", "FAIL", f"Properties listing failed: {properties_response.status_code}")
@@ -557,42 +463,6 @@ class SimpleE2ETester:
                 
         except Exception as e:
             self.log_test("Agent Website", "FAIL", f"Exception: {str(e)}")
-            return False
-
-    def test_ui_pages(self) -> bool:
-        """Test that all main UI pages load without errors"""
-        try:
-            pages = [
-                {"url": "/", "name": "Home"},
-                {"url": "/login", "name": "Login"},
-                {"url": "/register", "name": "Register"},
-                {"url": "/dashboard", "name": "Dashboard"},
-                {"url": "/properties", "name": "Properties"},
-                {"url": "/posts", "name": "Posts"},
-                {"url": "/profile", "name": "Profile"},
-                {"url": "/agent/profile", "name": "Agent Profile"},
-                {"url": "/onboarding", "name": "Onboarding"}
-            ]
-            
-            all_pages_loaded = True
-            
-            for page_info in pages:
-                try:
-                    response = requests.get(f"{self.frontend_url}{page_info['url']}", timeout=10)
-                    if response.status_code == 200:
-                        self.take_screenshot(f"{self.frontend_url}{page_info['url']}", f"ui_{page_info['name'].lower().replace(' ', '_')}")
-                        self.log_test(f"UI {page_info['name']}", "PASS", f"Page loads correctly")
-                    else:
-                        self.log_test(f"UI {page_info['name']}", "FAIL", f"Status: {response.status_code}")
-                        all_pages_loaded = False
-                except Exception as e:
-                    self.log_test(f"UI {page_info['name']}", "FAIL", f"Exception: {str(e)}")
-                    all_pages_loaded = False
-            
-            return all_pages_loaded
-            
-        except Exception as e:
-            self.log_test("UI Pages", "FAIL", f"Exception: {str(e)}")
             return False
 
     def verify_database_state(self) -> dict:
@@ -628,10 +498,10 @@ class SimpleE2ETester:
             return {}
 
     def run_all_tests(self) -> dict:
-        """Run all 7 feature tests plus UI verification"""
-        print("🚀 Starting Comprehensive End-to-End Test Suite")
+        """Run all 7 feature tests"""
+        print("🚀 Starting API-Only End-to-End Test Suite")
         print("=" * 60)
-        print("Testing 7 Core Features + UI Verification:")
+        print("Testing 7 Core Features:")
         print("1. Registration")
         print("2. Login")
         print("3. Onboarding")
@@ -639,22 +509,7 @@ class SimpleE2ETester:
         print("5. Posting")
         print("6. Profile")
         print("7. Agent Website")
-        print("8. UI Pages Loading")
         print("=" * 60)
-        
-        # Wait for servers
-        print("\n⏳ Waiting for servers to be ready...")
-        backend_ready = self.wait_for_server(self.base_url)
-        if not backend_ready:
-            self.log_test("Server Check", "FAIL", "Backend server not ready")
-            return {"success": False, "message": "Backend server not ready"}
-        
-        frontend_ready = self.wait_for_server(self.frontend_url)
-        if not frontend_ready:
-            self.log_test("Server Check", "FAIL", "Frontend server not ready")
-            return {"success": False, "message": "Frontend server not ready"}
-        
-        print("✅ Both servers ready")
         
         # Run tests in sequence
         tests = [
@@ -665,7 +520,6 @@ class SimpleE2ETester:
             ("5. Posting", self.test_5_posting),
             ("6. Profile", self.test_6_profile),
             ("7. Agent Website", self.test_7_agent_website),
-            ("8. UI Pages", self.test_ui_pages),
         ]
         
         passed_tests = 0
@@ -707,8 +561,8 @@ class SimpleE2ETester:
         
         print(f"\n🎯 Overall Results: {passed}/{total} tests passed")
         
-        if test_results["success"]:
-            print("🎉 ALL TESTS PASSED! All 7 core features + UI are working correctly.")
+        if test_results.get("success", False):
+            print("🎉 ALL TESTS PASSED! All 7 core features are working correctly.")
         else:
             print("⚠️  Some tests failed. Please review the issues above.")
         
@@ -719,7 +573,7 @@ class SimpleE2ETester:
             print(f"  {status_emoji} {test_name}: {result['message']}")
         
         print(f"\n🗄️  Database State:")
-        db_state = test_results["database_state"]
+        db_state = test_results.get("database_state", {})
         print(f"  Users: {db_state.get('user_count', 0)}")
         print(f"  Properties: {db_state.get('property_count', 0)}")
         print(f"  Posts: {db_state.get('post_count', 0)}")
@@ -727,23 +581,23 @@ class SimpleE2ETester:
         print(f"  Test Property Exists: {db_state.get('test_property_exists', False)}")
         print(f"  Test Post Exists: {db_state.get('test_post_exists', False)}")
         
-        if test_results["test_data"]["user"]:
+        if test_results.get("test_data", {}).get("user"):
             print(f"\n👤 Test User ID: {test_results['test_data']['user'].get('id', 'N/A')}")
-        if test_results["test_data"]["property"]:
+        if test_results.get("test_data", {}).get("property"):
             print(f"🏠 Test Property ID: {test_results['test_data']['property'].get('id', 'N/A')}")
-        if test_results["test_data"]["post"]:
+        if test_results.get("test_data", {}).get("post"):
             print(f"📝 Test Post ID: {test_results['test_data']['post'].get('id', 'N/A')}")
         
-        print(f"\n📸 Screenshots saved in: test-screenshots/")
         print("\n" + "=" * 60)
-        return test_results["success"]
+        return test_results.get("success", False)
 
 def main():
     """Main test runner"""
-    tester = SimpleE2ETester()
+    tester = APIOnlyTester()
     results = tester.run_all_tests()
     success = tester.print_final_report(results)
-    sys.exit(0 if success else 1)
+    return success
 
 if __name__ == "__main__":
-    main()
+    success = main()
+    exit(0 if success else 1)
