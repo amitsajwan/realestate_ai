@@ -13,7 +13,8 @@ router = APIRouter()
 
 def _ensure_user_access(path_user_id: str, current_user: User):
     current_id = str(current_user.id)
-    if not current_id or current_id != str(path_user_id):
+    # Allow access if user IDs match or if path_user_id is "me"
+    if not current_id or (current_id != str(path_user_id) and path_user_id != "me"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden: cannot access another user's onboarding")
 
 

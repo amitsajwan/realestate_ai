@@ -20,6 +20,17 @@ class PropertyType(str, Enum):
     OFFICE = "Office"
 
 
+class AgentPublicProfileCreate(BaseModel):
+    """Agent public profile creation model"""
+    agent_name: str = Field(..., min_length=2, max_length=100, description="Agent's display name")
+    bio: Optional[str] = Field(None, max_length=1000, description="Agent's professional bio")
+    phone: Optional[str] = Field(None, max_length=20, description="Contact phone number")
+    email: Optional[str] = Field(None, description="Contact email address")
+    office_address: Optional[str] = Field(None, max_length=200, description="Office address")
+    specialties: List[str] = Field(default_factory=list, description="Property specialties")
+    experience: Optional[str] = Field(None, max_length=500, description="Years of experience")
+    languages: List[str] = Field(default_factory=list, description="Languages spoken")
+
 class AgentPublicProfileBase(BaseModel):
     """Base agent public profile model"""
     agent_name: str = Field(..., min_length=2, max_length=100, description="Agent's display name")

@@ -10,6 +10,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.database import get_database
 from app.schemas.agent_public import (
     AgentPublicProfile,
+    AgentPublicProfileCreate,
     PublicProperty,
     PropertySearchFilters,
     ContactInquiryCreate,
@@ -27,7 +28,7 @@ router = APIRouter(tags=["agent-public"])
 # Current agent management endpoints (must come before generic {agent_slug} routes)
 @router.post("/profile")
 async def create_agent_public_profile(
-    profile_data: AgentPublicProfile,
+    profile_data: AgentPublicProfileCreate,
     current_user: User = Depends(current_active_user),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
