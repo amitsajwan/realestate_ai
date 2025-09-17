@@ -161,13 +161,16 @@ class FinalComprehensiveTester:
                 
             # Test onboarding data submission
             onboarding_data = {
-                "company_name": "Test Real Estate Co",
-                "phone": "+1234567890",
-                "address": "123 Test Street, Test City",
-                "specialization": "residential",
-                "experience_years": 5,
-                "languages": ["en", "es"],
-                "preferred_communication": "email"
+                "step_number": 1,
+                "data": {
+                    "company_name": "Test Real Estate Co",
+                    "phone": "+1234567890",
+                    "address": "123 Test Street, Test City",
+                    "specialization": "residential",
+                    "experience_years": 5,
+                    "languages": ["en", "es"],
+                    "preferred_communication": "email"
+                }
             }
             
             headers = {"Authorization": f"Bearer {self.auth_token}"}
