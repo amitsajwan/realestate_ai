@@ -10,6 +10,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.database import get_database
 from app.schemas.agent_public import (
     AgentPublicProfile,
+    AgentPublicProfileCreate,
     PublicProperty,
     PropertySearchFilters,
     ContactInquiryCreate,
@@ -25,6 +26,33 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["agent-public"])
 
 # Current agent management endpoints (must come before generic {agent_slug} routes)
+@router.post("/profile")
+async def create_agent_public_profile(
+    profile_data: AgentPublicProfileCreate,
+    current_user: User = Depends(current_active_user),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """
+    Create or update current agent's public profile
+    """
+    try:
+        service = AgentPublicService(db)
+        
+        # Get current user's ID
+        user_id = str(current_user.id)
+        
+        logger.info(f"Creating agent profile for user: {user_id}")
+        
+        # Create the agent profile
+        agent_profile = await service.create_agent_profile(user_id, profile_data)
+        
+        logger.info(f"Created agent profile: {agent_profile.agent_name}")
+        return agent_profile.model_dump()
+        
+    except Exception as e:
+        logger.error(f"Error creating agent profile: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create agent profile: {str(e)}")
+
 @router.get("/profile")
 async def get_current_agent_public_profile(
     current_user: User = Depends(current_active_user),

@@ -6,6 +6,7 @@ import { Toaster } from 'react-hot-toast'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import ThemeProvider from '@/components/ThemeProvider'
 import { SkipLink } from '@/lib/accessibility'
+import Navigation from '@/components/Navigation'
 
 const inter = Inter({ subsets: ['latin'] })
 

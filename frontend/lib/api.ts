@@ -1,4 +1,8 @@
-// Simple API client for the multi-post management system
+// DEPRECATED: Use unified-client.ts instead
+// This file is kept for backward compatibility but should be migrated to use the unified client
+
+import { apiClient } from './api/unified-client';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Helper function to get auth headers

@@ -57,12 +57,15 @@ class UnifiedPropertyService:
             # Remove agent_id from property data to avoid duplicate keyword argument
             property_dict.pop('agent_id', None)
             
+            # Create the document with explicit agent_id
             property_doc = PropertyDocument(
                 **property_dict,
-                agent_id=str(user_id),  # Convert ObjectId to string for compatibility
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
             )
+            
+            # Explicitly set the agent_id after creation
+            property_doc.agent_id = str(user_id)
             
             # Generate AI content if requested
             if property_data.ai_generate:

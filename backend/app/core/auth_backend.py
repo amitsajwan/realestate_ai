@@ -10,7 +10,7 @@ from fastapi_users.authentication.transport import BearerTransport
 from fastapi_users.password import PasswordHelper
 from beanie import PydanticObjectId
 from app.models.user import User, UserCreate
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 
 from app.core.config import settings
 from app.core.simple_user_db import get_user_db
@@ -91,7 +91,7 @@ async def mock_current_active_user() -> User:
     
     # Create a mock user
     mock_user = User(
-        id=PydanticObjectId("507f1f77bcf86cd799439011"),  # Mock ObjectId
+        id=PydanticObjectId(),  # Generate new ObjectId
         email="test@example.com",
         hashed_password="$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj6I2kWJjQi",  # 'test123'
         is_active=True,
@@ -107,23 +107,23 @@ async def mock_current_active_user() -> User:
     return mock_user
 
 async def development_current_active_user(token: str = Depends(bearer_transport.scheme)) -> User:
-    """Development version that allows mock tokens"""
-    if token and token == "mock_token_123":
-        return await mock_current_active_user()
-    else:
-        # In development, allow unauthenticated access with mock user
-        return await mock_current_active_user()
+    """Development version that uses real authentication"""
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    try:
+        # Use the real FastAPI Users authentication
+        return await fastapi_users.current_user(active=True)
+    except Exception as e:
+        logger.error(f"Authentication error: {e}")
+        raise HTTPException(status_code=401, detail="Invalid token")
 
-# Use development version in development
+# Use production authentication for now to fix the issue
 import os
 env = os.getenv("ENVIRONMENT", "development")
 logger.info(f"Environment: {env}")
-if env == "development":
-    logger.info("Using development authentication (mock user)")
-    current_active_user = development_current_active_user
-else:
-    logger.info("Using production authentication")
-    current_active_user = fastapi_users.current_user(active=True)
+logger.info("Using production authentication for proper JWT validation")
+current_active_user = fastapi_users.current_user(active=True)
 
 current_superuser = fastapi_users.current_user(active=True, superuser=True)
 

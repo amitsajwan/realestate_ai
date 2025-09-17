@@ -1,9 +1,11 @@
 /**
  * Properties API
  * ==============
- * API calls for property operations
+ * DEPRECATED: Use apiClient from @/lib/api/unified-client instead
+ * This file is kept for backward compatibility
  */
 
+import { apiClient } from '../api/unified-client';
 import { AIPropertySuggestion, PropertiesResponse, PropertyCreate, PropertyResponse, PropertyUpdate, PublishingRequest, PublishingStatusResponse } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
