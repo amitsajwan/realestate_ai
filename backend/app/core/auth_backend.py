@@ -91,7 +91,7 @@ async def mock_current_active_user() -> User:
     
     # Create a mock user
     mock_user = User(
-        id=PydanticObjectId("507f1f77bcf86cd799439011"),  # Mock ObjectId
+        id=PydanticObjectId(),  # Generate new ObjectId
         email="test@example.com",
         hashed_password="$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj6I2kWJjQi",  # 'test123'
         is_active=True,
