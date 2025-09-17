@@ -196,21 +196,10 @@ class UserResponse(BaseModel):
     onboardingCompleted: bool = Field(False, description="Whether user completed onboarding", alias="onboarding_completed")
     onboardingStep: int = Field(0, description="Current onboarding step", alias="onboarding_step")
     
-    model_config = ConfigDict(populate_by_name=True)
-    
-    @property
-    def full_name(self) -> str:
-        """Get user's full name"""
-        return f"{self.firstName} {self.lastName}"
-    
-    @property
-    def display_name(self) -> str:
-        """Get user's display name"""
-        return self.full_name
-    
-    class Config:
-        from_attributes = True
-        schema_extra = {
+    model_config = ConfigDict(
+        populate_by_name=True,
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "id": "60f7b3b3b3b3b3b3b3b3b3b3",
                 "email": "john.doe@example.com",
@@ -227,6 +216,17 @@ class UserResponse(BaseModel):
                 "onboardingStep": 6
             }
         }
+    )
+    
+    @property
+    def full_name(self) -> str:
+        """Get user's full name"""
+        return f"{self.firstName} {self.lastName}"
+    
+    @property
+    def display_name(self) -> str:
+        """Get user's display name"""
+        return self.full_name
 
 class UserSecureResponse(BaseModel):
     """Minimal user response for public contexts"""
