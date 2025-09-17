@@ -18,6 +18,8 @@ export interface User {
     onboardingStep: number;
     created_at: string;
     updated_at: string;
+    last_login?: string | null;
+    login_attempts?: number;
 }
 
 export interface AuthState {

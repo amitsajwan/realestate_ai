@@ -1,9 +1,11 @@
 /**
  * Posts API
  * =========
- * API calls for post operations
+ * DEPRECATED: Use apiClient from @/lib/api/unified-client instead
+ * This file is kept for backward compatibility
  */
 
+import { apiClient } from '../api/unified-client';
 import {
     AIPostGenerationRequest,
     AIPostGenerationResponse,

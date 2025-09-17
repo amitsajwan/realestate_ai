@@ -184,8 +184,8 @@ class UserResponse(BaseModel):
     """Schema for user response (excludes sensitive data)"""
     id: str = Field(..., description="User's unique identifier")
     email: str = Field(..., description="User's email address")
-    firstName: str = Field(..., description="User's first name")
-    lastName: str = Field(..., description="User's last name")
+    firstName: str = Field(..., description="User's first name", alias="first_name")
+    lastName: str = Field(..., description="User's last name", alias="last_name")
     phone: Optional[str] = Field(None, description="User's phone number")
     is_active: bool = Field(..., description="Whether the user account is active")
     created_at: datetime = Field(..., description="When the user was created")
@@ -193,8 +193,10 @@ class UserResponse(BaseModel):
     last_login: Optional[datetime] = Field(None, description="User's last login time")
     login_attempts: int = Field(0, description="Number of failed login attempts")
     is_verified: bool = Field(False, description="Whether the user's email is verified")
-    onboardingCompleted: bool = Field(False, description="Whether user completed onboarding")
-    onboardingStep: int = Field(0, description="Current onboarding step")
+    onboardingCompleted: bool = Field(False, description="Whether user completed onboarding", alias="onboarding_completed")
+    onboardingStep: int = Field(0, description="Current onboarding step", alias="onboarding_step")
+    
+    model_config = ConfigDict(populate_by_name=True)
     
     @property
     def full_name(self) -> str:
