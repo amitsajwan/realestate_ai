@@ -1,6 +1,6 @@
 'use client'
 
-import { Checkbox } from '@/components/ui';
+import { Checkbox } from '@/components/UI';
 import { LanguageSelectorProps } from '@/types/social_publishing';
 
 const SUPPORTED_LANGUAGES = [
@@ -52,18 +52,16 @@ export default function LanguageSelector({
 
                     return (
                         <div key={language.code} className="relative">
-                            <Checkbox
-                                label={
-                                    <div className="flex items-center space-x-2">
-                                        <span className="text-lg">{language.flag}</span>
-                                        <span className="text-sm font-medium">{language.name}</span>
-                                    </div>
-                                }
-                                checked={isSelected}
-                                onChange={(e) => handleLanguageToggle(language.code, e.target.checked)}
-                                disabled={isLoading}
-                                className="w-full"
-                            />
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    checked={isSelected}
+                                    onChange={(e) => handleLanguageToggle(language.code, e.target.checked)}
+                                    disabled={isLoading}
+                                    className="w-4 h-4"
+                                />
+                                <span className="text-lg">{language.flag}</span>
+                                <span className="text-sm font-medium">{language.name}</span>
+                            </div>
 
                             {isLoading && (
                                 <div className="absolute top-1 right-1">

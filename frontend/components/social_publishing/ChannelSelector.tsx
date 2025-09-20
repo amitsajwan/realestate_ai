@@ -1,6 +1,6 @@
 'use client'
 
-import { Checkbox } from '@/components/ui';
+import { Checkbox } from '@/components/UI';
 import { Channel, ChannelSelectorProps } from '@/types/social_publishing';
 
 const SUPPORTED_CHANNELS = [
@@ -58,21 +58,19 @@ export default function ChannelSelector({
                                 } ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                             onClick={() => !isDisabled && handleChannelToggle(channel.id, !isSelected)}
                         >
-                            <Checkbox
-                                label={
-                                    <div className="flex items-center space-x-3">
-                                        <span className="text-2xl">{channel.icon}</span>
-                                        <div>
-                                            <div className="font-medium text-primary">{channel.name}</div>
-                                            <div className="text-sm text-secondary">{channel.description}</div>
-                                        </div>
-                                    </div>
-                                }
-                                checked={isSelected}
-                                onChange={(e) => !isDisabled && handleChannelToggle(channel.id, e.target.checked)}
-                                disabled={isDisabled}
-                                className="w-full"
-                            />
+                            <div className="flex items-center space-x-3">
+                                <Checkbox
+                                    checked={isSelected}
+                                    onChange={(e) => !isDisabled && handleChannelToggle(channel.id, e.target.checked)}
+                                    disabled={isDisabled}
+                                    className="w-4 h-4"
+                                />
+                                <span className="text-2xl">{channel.icon}</span>
+                                <div>
+                                    <div className="font-medium text-primary">{channel.name}</div>
+                                    <div className="text-sm text-secondary">{channel.description}</div>
+                                </div>
+                            </div>
 
                             {!channel.available && (
                                 <div className="absolute top-2 right-2">

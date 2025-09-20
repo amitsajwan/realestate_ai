@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, Checkbox, Input, Textarea } from '@/components/ui'
+import { Button, Checkbox, Input, Textarea } from '@/components/UI'
 import { apiService } from '@/lib/api'
 import {
   BuildingOfficeIcon,

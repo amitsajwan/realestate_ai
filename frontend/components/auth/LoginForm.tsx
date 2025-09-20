@@ -16,8 +16,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, isLoading = false }) =>
     const [formData, setFormData] = useState<LoginFormData>({
         email: '',
         password: '',
-        firstName: '',
-        lastName: '',
+        first_name: '',
+        last_name: '',
         phone: '',
         confirmPassword: ''
     });

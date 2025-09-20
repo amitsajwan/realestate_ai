@@ -1,6 +1,6 @@
 'use client'
 
-import { Card, CardBody, CardHeader } from '@/components/ui'
+import { Card, CardBody, CardHeader } from '@/components/UI'
 import {
     CalendarIcon,
     ChatBubbleLeftRightIcon,

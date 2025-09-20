@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@/components/ui'
+import { Button } from '@/components/UI'
 import {
     BuildingOfficeIcon,
     ChartBarIcon,

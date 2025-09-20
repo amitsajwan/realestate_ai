@@ -1,7 +1,7 @@
 'use client'
 
 import { PostCard } from '@/components/PostCard'
-import { Button, Card, CardBody, CardHeader } from '@/components/ui'
+import { Button, Card, CardBody, CardHeader } from '@/components/UI'
 import {
     ChatBubbleLeftRightIcon,
     CheckIcon,
