@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { SparklesIcon, LanguageIcon, DocumentTextIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { authManager } from '@/lib/auth';
 
 interface PropertyData {
   id: string;
@@ -67,7 +68,7 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
     try {
       const response = await fetch('/api/properties', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${authManager.getState().token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -85,7 +86,7 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
     try {
       const response = await fetch('/api/templates', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${authManager.getState().token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -112,7 +113,7 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
       const response = await fetch('/api/ai/generate-content', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${authManager.getState().token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -150,7 +151,7 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
       const response = await fetch(`/api/posts/${selectedProperty.id}/regenerate`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${authManager.getState().token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({

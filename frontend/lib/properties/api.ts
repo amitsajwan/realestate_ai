@@ -6,6 +6,7 @@
  */
 
 import { apiClient } from '../api/unified-client';
+import { authManager } from '@/lib/auth';
 import { AIPropertySuggestion, PropertiesResponse, PropertyCreate, PropertyResponse, PropertyUpdate, PublishingRequest, PublishingStatusResponse } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -18,7 +19,8 @@ class PropertiesAPI {
     }
 
     private getAuthHeaders(): Record<string, string> {
-        const token = localStorage.getItem('auth_token');
+        const authState = authManager.getState();
+        const token = authState.token;
         return {
             'Content-Type': 'application/json',
             'Authorization': token ? `Bearer ${token}` : '',

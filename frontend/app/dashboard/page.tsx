@@ -38,16 +38,35 @@ export default function DashboardPage() {
         return
       }
 
-      if (!state.user?.onboarding_completed) {
-        logger.info('[DashboardPage] Onboarding not completed, redirecting to onboarding', {
+      // Check if user needs onboarding with better validation
+      const needsOnboarding = state.user && 
+        (state.user.onboarding_completed === false || 
+         state.user.onboarding_completed === undefined ||
+         (state.user.onboarding_step && state.user.onboarding_step < 6))
+      
+      if (needsOnboarding) {
+        logger.info('[DashboardPage] Onboarding not completed, checking redirect conditions', {
           component: 'DashboardPage',
-          action: 'redirect_onboarding',
+          action: 'onboarding_check',
           metadata: {
             onboarding_completed: state.user?.onboarding_completed,
             onboarding_step: state.user?.onboarding_step,
-            userObject: state.user
+            needsOnboarding
           }
         })
+        
+        // Add a flag to prevent redirect loops
+        const redirectedFromOnboarding = sessionStorage.getItem('redirected_from_onboarding')
+        if (redirectedFromOnboarding === 'true') {
+          logger.warn('[DashboardPage] Detected potential redirect loop, staying on dashboard', {
+            component: 'DashboardPage',
+            action: 'loop_prevention'
+          })
+          sessionStorage.removeItem('redirected_from_onboarding')
+          setIsLoading(false)
+          return
+        }
+        
         router.replace('/onboarding')
         return
       }
