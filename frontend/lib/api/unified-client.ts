@@ -6,8 +6,9 @@
  */
 
 import { User, AuthResponse, LoginData, RegisterData } from '../auth/types';
-import { Post, PostCreateRequest, PostUpdateRequest, PostFilters, PostAnalyticsResponse } from '../types/post';
-import { PropertyCreate, PropertyUpdate, PropertyResponse } from '../types/property';
+import { Post, PostCreateRequest, PostUpdateRequest, PostFilters, AnalyticsResponse } from '../../types/post';
+import { PropertyCreate, PropertyUpdate, PropertyResponse } from '../../types/property';
+import { APIError } from '../errors';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -19,17 +20,6 @@ interface APIResponse<T = any> {
   message?: string;
 }
 
-// Error class for API errors
-export class APIError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-    public response?: any
-  ) {
-    super(message);
-    this.name = 'APIError';
-  }
-}
 
 class UnifiedAPIClient {
   private baseUrl: string;
@@ -244,8 +234,8 @@ class UnifiedAPIClient {
     });
   }
 
-  async getPostAnalytics(postId: string): Promise<PostAnalyticsResponse> {
-    return this.request<PostAnalyticsResponse>(`/api/v1/enhanced-posts/posts/${postId}/analytics`);
+  async getPostAnalytics(postId: string): Promise<AnalyticsResponse> {
+    return this.request<AnalyticsResponse>(`/api/v1/enhanced-posts/posts/${postId}/analytics`);
   }
 
   async getAIPostSuggestions(postId: string): Promise<any> {

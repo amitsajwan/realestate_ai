@@ -182,7 +182,7 @@ export default function ProfileSettings() {
       // Merge onboarding data with profile data, prioritizing profile data
       const mergedData = {
         user_id: profileData?.user_id || authManager.getState().user?.id || 'default_user',
-        name: profileData?.name || (currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() : ''),
+        name: profileData?.name || (currentUser ? `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() : ''),
         email: profileData?.email || currentUser?.email || '',
         phone: profileData?.phone || currentUser?.phone || '',
         whatsapp: profileData?.phone || currentUser?.phone || '',

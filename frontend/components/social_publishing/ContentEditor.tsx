@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, Input, Textarea } from '@/components/ui';
+import { Button, Input, Textarea } from '@/components/UI';
 import { ContentEditorProps } from '@/types/social_publishing';
 import {
     AdjustmentsHorizontalIcon,
@@ -75,13 +75,15 @@ export default function ContentEditor({
     return (
         <div className="space-y-6">
             {/* Title Input */}
-            <Input
-                label="Post Title"
-                value={title}
-                onChange={(e) => handleTitleChange(e.target.value)}
-                placeholder="Enter compelling headline..."
-                helperText={`${title.length}/100 characters`}
-            />
+            <div>
+                <Input
+                    label="Post Title"
+                    value={title}
+                    onChange={(e) => handleTitleChange(e.target.value)}
+                    placeholder="Enter compelling headline..."
+                />
+                <p className="mt-1 text-sm text-gray-500">{title.length}/100 characters</p>
+            </div>
 
             {/* Body Textarea */}
             <div>
@@ -103,13 +105,15 @@ export default function ContentEditor({
             </div>
 
             {/* Hashtags Input */}
-            <Input
-                label="Hashtags"
-                value={hashtags}
-                onChange={(e) => handleHashtagsChange(e.target.value)}
-                placeholder="#realestate #property #investment #home"
-                helperText={`${hashtagCount}/${limits.maxHashtags} hashtags`}
-            />
+            <div>
+                <Input
+                    label="Hashtags"
+                    value={hashtags}
+                    onChange={(e) => handleHashtagsChange(e.target.value)}
+                    placeholder="#realestate #property #investment #home"
+                />
+                <p className="mt-1 text-sm text-gray-500">{hashtagCount}/{limits.maxHashtags} hashtags</p>
+            </div>
 
             {/* Contact Information Toggle */}
             <div className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg">

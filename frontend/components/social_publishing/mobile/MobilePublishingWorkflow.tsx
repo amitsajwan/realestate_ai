@@ -73,9 +73,9 @@ const PLATFORM_OPTIONS = [
 ]
 
 const STYLE_OPTIONS = [
-    { code: 'friendly', name: 'Friendly', description: 'Approachable and trustworthy' },
-    { code: 'luxury', name: 'Luxury', description: 'Premium and sophisticated' },
-    { code: 'investor', name: 'Investor', description: 'Professional and data-driven' }
+    { code: 'friendly' as const, name: 'Friendly', description: 'Approachable and trustworthy' },
+    { code: 'luxury' as const, name: 'Luxury', description: 'Premium and sophisticated' },
+    { code: 'investor' as const, name: 'Investor', description: 'Professional and data-driven' }
 ]
 
 export default function MobilePublishingWorkflow({
