@@ -66,6 +66,9 @@ export default function OnboardingPage() {
       // Always redirect to dashboard after onboarding completion
       // regardless of the onboarding_completed flag state
       console.log('[OnboardingPage] Redirecting to dashboard');
+      
+      // Set flag to prevent redirect loop
+      sessionStorage.setItem('redirected_from_onboarding', 'true');
 
       // Use replace instead of push to prevent back navigation to onboarding
       router.replace('/dashboard');

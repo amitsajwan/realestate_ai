@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 // import '@/styles/components/crm.css' // Temporarily disabled for tests
+import { authManager } from '@/lib/auth'
 import { crmApi, Lead, LeadSearchFilters, LeadStats } from '@/lib/crm-api'
 import {
   ArrowPathIcon,
@@ -61,11 +62,12 @@ export default function CRM() {
       setIsLoading(true)
       setError(null)
 
-      // Check if token exists
-      const token = localStorage.getItem('auth_token')
-      if (!token) {
+      // Get auth state
+      const authState = authManager.getState()
+      if (!authState.isAuthenticated || !authState.token) {
         throw new Error('No authentication token found. Please log in again.')
       }
+      const token = authState.token
 
       console.log('[CRM] Loading data with token:', token.substring(0, 20) + '...')
 

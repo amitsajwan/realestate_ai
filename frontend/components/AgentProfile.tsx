@@ -17,6 +17,7 @@ import {
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import { useCachedData } from '@/lib/cache'
 
 interface Post {
     id: string
@@ -55,37 +56,32 @@ interface AgentProfileProps {
 }
 
 export function AgentProfile({ agent, properties, onContactClick }: AgentProfileProps) {
-    const [posts, setPosts] = useState<Post[]>([])
-    const [isLoadingPosts, setIsLoadingPosts] = useState(true)
-    const [postsError, setPostsError] = useState<string | null>(null)
-
-    useEffect(() => {
-        loadAgentPosts()
-    }, [agent.slug])
-
-    const loadAgentPosts = async () => {
-        try {
-            setIsLoadingPosts(true)
-            setPostsError(null)
-
-            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-            const response = await fetch(`${API_BASE_URL}/api/v1/agent/public/${agent.slug}/posts?limit=6&status=published`)
-
-            if (response.ok) {
-                const data = await response.json()
-                setPosts(data.posts || data || [])
-            } else {
-                console.warn('Failed to load agent posts:', response.status)
-                setPosts([])
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    
+    // Use cached data hook for posts
+    const { 
+        data: postsData, 
+        isLoading: isLoadingPosts, 
+        error: postsError 
+    } = useCachedData(
+        async () => {
+            const response = await fetch(
+                `${API_BASE_URL}/api/v1/agent/public/${agent.slug}/posts?limit=6&status=published`
+            )
+            if (!response.ok) {
+                throw new Error(`Failed to load posts: ${response.status}`)
             }
-        } catch (error) {
-            console.error('Error loading agent posts:', error)
-            setPostsError('Failed to load posts')
-            setPosts([])
-        } finally {
-            setIsLoadingPosts(false)
-        }
-    }
+            return response.json()
+        },
+        {
+            method: 'GET',
+            path: `/api/v1/agent/public/${agent.slug}/posts`,
+            params: { limit: 6, status: 'published' }
+        },
+        { ttl: 2 * 60 * 1000 } // Cache for 2 minutes
+    )
+    
+    const posts = postsData?.posts || postsData || []
 
     const testimonials = [
         {

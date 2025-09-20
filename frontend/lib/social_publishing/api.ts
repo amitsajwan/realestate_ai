@@ -4,6 +4,7 @@
  * API service for social media publishing workflow
  */
 
+import { authManager } from '@/lib/auth';
 import {
     AIDraft,
     DraftsResponse,
@@ -25,10 +26,8 @@ class SocialPublishingAPI {
     }
 
     private getHeaders(): HeadersInit {
-        const token = typeof window !== 'undefined' ?
-            localStorage.getItem('auth_token') ||
-            localStorage.getItem('token') ||
-            sessionStorage.getItem('auth_token') : null;
+        const authState = authManager.getState();
+        const token = authState.token;
 
         return {
             'Content-Type': 'application/json',

@@ -2,51 +2,58 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { authManager } from '@/lib/auth';
 
 export default function Navigation() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const router = useRouter();
+  const navRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      setIsAuthenticated(true);
-      // Fetch user data
-      fetchUserProfile();
-    }
+    const initAuth = async () => {
+      await authManager.init();
+      const state = authManager.getState();
+      setIsAuthenticated(state.isAuthenticated);
+      setUser(state.user);
+    };
+    
+    initAuth();
+    
+    // Subscribe to auth state changes
+    const unsubscribe = authManager.subscribe((state) => {
+      setIsAuthenticated(state.isAuthenticated);
+      setUser(state.user);
+    });
+    
+    return unsubscribe;
   }, []);
 
-  const fetchUserProfile = async () => {
-    try {
-      const token = localStorage.getItem('auth_token');
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
+  // Handle click outside to close mobile menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
       }
-    } catch (error) {
-      console.error('Failed to fetch user profile:', error);
-    }
-  };
+    };
 
-  const handleLogout = () => {
-    localStorage.removeItem('auth_token');
-    setIsAuthenticated(false);
-    setUser(null);
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isMenuOpen]);
+
+  const handleLogout = async () => {
+    await authManager.logout();
     router.push('/');
   };
 
   return (
-    <nav className="bg-gray-900 shadow-lg">
+    <nav className="bg-gray-900 shadow-lg" ref={navRef}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
@@ -118,37 +125,68 @@ export default function Navigation() {
         {isMenuOpen && (
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-gray-800 rounded-md mt-2">
-              <Link href="/" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
+              <Link 
+                href="/" 
+                className="text-gray-300 hover:text-white block px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
+                onClick={() => setIsMenuOpen(false)}
+              >
                 Home
               </Link>
 
               {isAuthenticated ? (
                 <>
-                  <Link href="/dashboard" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
+                  <Link 
+                    href="/dashboard" 
+                    className="text-gray-300 hover:text-white block px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
                     Dashboard
                   </Link>
-                  <Link href="/properties" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
+                  <Link 
+                    href="/properties" 
+                    className="text-gray-300 hover:text-white block px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
                     Properties
                   </Link>
-                  <Link href="/posts" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
+                  <Link 
+                    href="/posts" 
+                    className="text-gray-300 hover:text-white block px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
                     Posts
                   </Link>
-                  <Link href="/profile" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
+                  <Link 
+                    href="/profile" 
+                    className="text-gray-300 hover:text-white block px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
                     Profile
                   </Link>
                   <button
-                    onClick={handleLogout}
-                    className="text-gray-300 hover:text-white block w-full text-left px-3 py-2 rounded-md text-base font-medium"
+                    onClick={() => {
+                      handleLogout();
+                      setIsMenuOpen(false);
+                    }}
+                    className="text-gray-300 hover:text-white block w-full text-left px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
                   >
                     Logout
                   </button>
                 </>
               ) : (
                 <>
-                  <Link href="/login" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
+                  <Link 
+                    href="/login" 
+                    className="text-gray-300 hover:text-white block px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
                     Login
                   </Link>
-                  <Link href="/register" className="bg-blue-600 hover:bg-blue-700 text-white block px-3 py-2 rounded-md text-base font-medium">
+                  <Link 
+                    href="/register" 
+                    className="bg-blue-600 hover:bg-blue-700 text-white block px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
                     Register
                   </Link>
                 </>

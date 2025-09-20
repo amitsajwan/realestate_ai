@@ -281,6 +281,11 @@ export class AuthManager {
                         error: null
                     });
 
+                    // Force persist the updated state to localStorage
+                    if (typeof window !== 'undefined') {
+                        localStorage.setItem('auth_user', JSON.stringify(updatedUserData));
+                    }
+
                     logger.info(`[AuthManager] Onboarding completed successfully for user ${currentState.user.id}`);
                     return { success: true, user: updatedUserData };
                 }
