@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 export default function BypassAuthPage() {
   const [isLoading, setIsLoading] = useState(true)
@@ -14,8 +14,8 @@ export default function BypassAuthPage() {
       email: 'test@example.com',
       firstName: 'Test',
       lastName: 'User',
-      onboardingCompleted: true,
-      onboardingStep: 6
+      onboarding_completed: true,
+      onboarding_step: 6
     }
 
     // Store mock user in localStorage

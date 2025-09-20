@@ -16,11 +16,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/agent-dashboard", tags=["agent-dashboard"])
+router = APIRouter(tags=["agent-dashboard"])
 
 @router.get("/profile")
 async def get_agent_public_profile_for_dashboard(
-    # current_user: User = Depends(get_current_user),  # TODO: Implement auth
+    current_user: User = Depends(current_active_user),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
@@ -35,7 +35,7 @@ async def get_agent_public_profile_for_dashboard(
             return {
                 "id": None,
                 "agent_id": current_user.id,
-                "agent_name": current_user.first_name + " " + current_user.last_name if current_user.first_name and current_user.last_name else current_user.email,
+                "agent_name": (current_user.first_name + " " + current_user.last_name) if current_user.first_name and current_user.last_name else current_user.email,
                 "slug": current_user.email.split('@')[0].lower().replace('.', '-').replace('_', '-'),
                 "bio": "",
                 "photo": None,
@@ -81,7 +81,7 @@ async def update_agent_public_profile(
             # Create new profile
             from app.schemas.agent_public import AgentPublicProfileCreate
             create_data = AgentPublicProfileCreate(
-                agent_name=profile_data.agent_name or (current_user.first_name + " " + current_user.last_name if current_user.first_name and current_user.last_name else current_user.email),
+                agent_name=profile_data.agent_name or ((current_user.first_name + " " + current_user.last_name) if current_user.first_name and current_user.last_name else current_user.email),
                 slug=current_user.email.split('@')[0].lower().replace('.', '-').replace('_', '-'),
                 bio=profile_data.bio,
                 photo=profile_data.photo,

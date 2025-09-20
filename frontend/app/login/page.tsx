@@ -42,7 +42,7 @@ const LoginPage: React.FC = () => {
       showSuccess('Successfully logged in with Facebook!');
 
       // Redirect to dashboard or onboarding
-      if (authState.user?.onboardingCompleted) {
+      if (authState.user?.onboarding_completed) {
         router.push('/');
       } else {
         router.push('/onboarding');
@@ -114,13 +114,13 @@ const LoginPage: React.FC = () => {
         const authState = authManager.getState();
         console.log('[LoginPage] Auth state:', authState);
         console.log('[LoginPage] User onboarding status:', {
-          onboardingCompleted: authState.user?.onboardingCompleted,
-          onboardingStep: authState.user?.onboardingStep,
+          onboarding_completed: authState.user?.onboarding_completed,
+          onboarding_step: authState.user?.onboarding_step,
           fullUser: authState.user
         });
 
         // Check onboarding status and redirect accordingly
-        if (authState.user?.onboardingCompleted) {
+        if (authState.user?.onboarding_completed) {
           console.log('[LoginPage] Redirecting to dashboard...');
           router.push('/');
         } else {
@@ -155,7 +155,7 @@ const LoginPage: React.FC = () => {
         console.log('[LoginPage] Auth state after registration:', {
           isAuthenticated: authState.isAuthenticated,
           hasUser: !!authState.user,
-          onboardingCompleted: authState.user?.onboardingCompleted,
+          onboarding_completed: authState.user?.onboarding_completed,
           fullUser: authState.user
         });
 
@@ -164,7 +164,7 @@ const LoginPage: React.FC = () => {
           console.log('[LoginPage] User automatically authenticated, checking onboarding status...');
 
           // Check onboarding status and redirect accordingly
-          if (authState.user.onboardingCompleted) {
+          if (authState.user.onboarding_completed) {
             console.log('[LoginPage] Redirecting to dashboard...');
             router.push('/');
           } else {

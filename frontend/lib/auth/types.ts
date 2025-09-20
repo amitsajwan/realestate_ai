@@ -10,12 +10,12 @@ export interface User {
     is_active: boolean;
     is_superuser: boolean;
     is_verified: boolean;
-    firstName: string | null;
-    lastName: string | null;
+    first_name: string | null;
+    last_name: string | null;
     phone: string | null;
     company: string | null;
-    onboardingCompleted: boolean;
-    onboardingStep: number;
+    onboarding_completed: boolean;
+    onboarding_step: number;
     created_at: string;
     updated_at: string;
     last_login?: string | null;
@@ -45,8 +45,8 @@ export interface LoginData {
 export interface RegisterData {
     email: string;
     password: string;
-    firstName?: string;
-    lastName?: string;
+    first_name?: string;
+    last_name?: string;
     phone?: string;
     company?: string;
 }
@@ -59,8 +59,8 @@ export interface LoginRequest {
 export interface RegisterRequest {
     email: string;
     password: string;
-    firstName: string;
-    lastName: string;
+    first_name: string;
+    last_name: string;
     phone?: string;
     company?: string;
 }
@@ -83,8 +83,6 @@ export interface AuthResponse {
     company?: string | null;
     onboarding_completed?: boolean;
     onboarding_step?: number;
-    onboardingCompleted?: boolean;
-    onboardingStep?: number;
     created_at?: string;
     updated_at?: string;
 }
@@ -92,8 +90,8 @@ export interface AuthResponse {
 export interface LoginFormData {
     email: string;
     password: string;
-    firstName: string;
-    lastName: string;
+    first_name: string;
+    last_name: string;
     phone: string;
     confirmPassword: string;
 }

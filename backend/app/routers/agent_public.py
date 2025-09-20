@@ -21,7 +21,7 @@ async def get_public_profile():
         # TODO: This should be configurable or based on a specific agent ID
         logger.info("Searching for users in database...")
         user = await users_collection.find_one(
-            {"is_active": True, "onboardingCompleted": True},
+            {"is_active": True, "onboarding_completed": True},
             sort=[("updated_at", -1)]  # Get most recently updated
         )
         
@@ -106,7 +106,7 @@ async def update_public_profile(profile_data: dict):
         
         # Get the most recently updated user (likely the one who just completed onboarding)
         user = await users_collection.find_one(
-            {"is_active": True, "onboardingCompleted": True},
+            {"is_active": True, "onboarding_completed": True},
             sort=[("updated_at", -1)]
         )
         

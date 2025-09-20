@@ -104,6 +104,28 @@ async def get_unified_properties(
             detail="Failed to retrieve properties"
         )
 
+@router.get("/public", response_model=List[PropertyResponse])
+async def get_public_properties(
+    skip: int = 0,
+    limit: int = 100
+):
+    """
+    Get all public properties without authentication
+    """
+    try:
+        service = get_unified_property_service()
+        properties = await service.get_public_properties(
+            skip=skip,
+            limit=limit
+        )
+        return properties
+    except Exception as e:
+        logger.error(f"Error getting public properties: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve public properties"
+        )
+
 @router.get("/{property_id}", response_model=PropertyResponse)
 async def get_unified_property(
     property_id: str,
@@ -395,4 +417,152 @@ async def search_properties(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to search properties"
+        )
+
+
+class PropertyPublishRequest(BaseModel):
+    """Request model for property publishing"""
+    target_languages: List[str] = ["en"]
+    publishing_channels: List[str] = ["website"]
+    facebook_page_mappings: Dict[str, str] = {}
+    auto_translate: bool = True
+
+
+@router.post("/{property_id}/publish", response_model=Dict[str, Any])
+async def publish_property(
+    property_id: str,
+    publish_data: PropertyPublishRequest,
+    current_user: User = Depends(current_active_user)
+):
+    """Publish a property to specified channels"""
+    try:
+        user_id = getattr(current_user, "id", "anonymous")
+        logger.info(f"Publishing property {property_id} for user {user_id}")
+        
+        service = get_unified_property_service()
+        
+        # Update property with publishing data
+        property_update = PropertyUpdate(
+            publishing_status="published",
+            published_at=datetime.utcnow(),
+            target_languages=publish_data.target_languages,
+            publishing_channels=publish_data.publishing_channels,
+            facebook_page_mappings=publish_data.facebook_page_mappings
+        )
+        
+        updated_property = await service.update_property(property_id, property_update, str(user_id))
+        
+        if not updated_property:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Property not found"
+            )
+        
+        logger.info(f"Property {property_id} published successfully")
+        
+        return {
+            "success": True,
+            "message": "Property published successfully",
+            "property_id": property_id,
+            "publishing_status": "published",
+            "published_at": updated_property.updated_at.isoformat(),
+            "published_channels": publish_data.publishing_channels,
+            "target_languages": publish_data.target_languages,
+            "facebook_page_mappings": publish_data.facebook_page_mappings
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error publishing property {property_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to publish property: {str(e)}"
+        )
+
+
+@router.post("/{property_id}/unpublish", response_model=Dict[str, Any])
+async def unpublish_property(
+    property_id: str,
+    current_user: User = Depends(current_active_user)
+):
+    """Unpublish a property from all channels"""
+    try:
+        user_id = getattr(current_user, "id", "anonymous")
+        logger.info(f"Unpublishing property {property_id} for user {user_id}")
+        
+        service = get_unified_property_service()
+        
+        # Update property to draft status
+        property_update = PropertyUpdate(
+            publishing_status="draft",
+            published_at=None,
+            published_channels=[]
+        )
+        
+        updated_property = await service.update_property(property_id, property_update, str(user_id))
+        
+        if not updated_property:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Property not found"
+            )
+        
+        logger.info(f"Property {property_id} unpublished successfully")
+        
+        return {
+            "success": True,
+            "message": "Property unpublished successfully",
+            "property_id": property_id,
+            "publishing_status": "draft",
+            "published_at": None,
+            "published_channels": []
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error unpublishing property {property_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to unpublish property: {str(e)}"
+        )
+
+
+@router.get("/{property_id}/publishing-status", response_model=Dict[str, Any])
+async def get_property_publishing_status(
+    property_id: str,
+    current_user: User = Depends(current_active_user)
+):
+    """Get publishing status for a property"""
+    try:
+        user_id = getattr(current_user, "id", "anonymous")
+        logger.info(f"Getting publishing status for property {property_id} for user {user_id}")
+        
+        service = get_unified_property_service()
+        property_data = await service.get_property(property_id, str(user_id))
+        
+        if not property_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Property not found"
+            )
+        
+        return {
+            "property_id": property_id,
+            "publishing_status": property_data.publishing_status,
+            "published_at": property_data.published_at.isoformat() if property_data.published_at else None,
+            "published_channels": property_data.publishing_channels or [],
+            "language_status": {lang: "published" for lang in (property_data.target_languages or [])},
+            "facebook_posts": property_data.facebook_page_mappings or {},
+            "analytics_data": {}
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting publishing status for property {property_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get publishing status: {str(e)}"
         )

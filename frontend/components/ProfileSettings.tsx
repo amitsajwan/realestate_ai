@@ -6,7 +6,7 @@ import { apiService } from '@/lib/api'
 import { authManager } from '@/lib/auth'
 import { handleError, showSuccess } from '@/lib/error-handler'
 import { FormValidator, profileSettingsSchema } from '@/lib/form-validation'
-import { applyBrandTheme } from '@/lib/theme'
+import { applyBrandTheme, getBrandTheme } from '@/lib/theme'
 import { CheckIcon, ExclamationTriangleIcon, SparklesIcon, UserIcon } from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'react-hot-toast'
@@ -69,6 +69,7 @@ export default function ProfileSettings() {
   const [isLoadingProfile, setIsLoadingProfile] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [retryCount, setRetryCount] = useState(0)
+  const [currentAppliedTheme, setCurrentAppliedTheme] = useState<any>(null)
 
   // Refs for cleanup and race condition prevention
   const isMountedRef = useRef(true)
@@ -260,6 +261,12 @@ export default function ProfileSettings() {
     if (!isProfileLoaded && !isLoadingRef.current) {
       loadUserProfile()
     }
+    
+    // Load current applied theme
+    if (typeof window !== 'undefined') {
+      const appliedTheme = getBrandTheme()
+      setCurrentAppliedTheme(appliedTheme)
+    }
   }, []) // Empty dependency array - only run on mount
 
   // Cleanup on unmount
@@ -346,7 +353,7 @@ export default function ProfileSettings() {
     }
   }
 
-  const handleApplyBranding = () => {
+  const handleApplyBranding = async () => {
     if (!formData.brandingSuggestions) return
 
     const brandTheme = {
@@ -356,7 +363,19 @@ export default function ProfileSettings() {
     }
 
     applyBrandTheme(brandTheme) // Now persists by default
-    toast.success('Brand theme applied and saved!')
+    setCurrentAppliedTheme(brandTheme) // Update local state immediately
+    
+    // Also save the branding suggestions to the profile
+    try {
+      await apiService.updateUserProfile(authManager.getState().user?.id || 'default_user', { 
+        ...formData,
+        brandingSuggestions: formData.brandingSuggestions 
+      })
+      toast.success('Brand theme applied and saved to profile!')
+    } catch (error) {
+      handleError(error, 'Failed to save branding to profile')
+      // Theme was still applied, so don't show error for that
+    }
   }
 
   const handleProfileSetup = () => {
@@ -612,7 +631,38 @@ export default function ProfileSettings() {
                   </div>
 
                   <div className="bg-gray-800/50 rounded-lg p-4">
-                    <h4 className="text-lg font-medium text-white mb-3">Brand Colors</h4>
+                    <h4 className="text-lg font-medium text-white mb-3">Current Applied Brand Colors</h4>
+                    <div className="flex gap-4">
+                      <div className="text-center">
+                        <div
+                          className="w-12 h-12 rounded-lg mb-2 border border-gray-600"
+                          style={{ backgroundColor: currentAppliedTheme?.primary || '#3b82f6' }}
+                        ></div>
+                        <p className="text-xs text-gray-400">Primary</p>
+                        <p className="text-xs text-white font-mono">{currentAppliedTheme?.primary || '#3b82f6'}</p>
+                      </div>
+                      <div className="text-center">
+                        <div
+                          className="w-12 h-12 rounded-lg mb-2 border border-gray-600"
+                          style={{ backgroundColor: currentAppliedTheme?.secondary || '#64748b' }}
+                        ></div>
+                        <p className="text-xs text-gray-400">Secondary</p>
+                        <p className="text-xs text-white font-mono">{currentAppliedTheme?.secondary || '#64748b'}</p>
+                      </div>
+                      <div className="text-center">
+                        <div
+                          className="w-12 h-12 rounded-lg mb-2 border border-gray-600"
+                          style={{ backgroundColor: currentAppliedTheme?.accent || '#10b981' }}
+                        ></div>
+                        <p className="text-xs text-gray-400">Accent</p>
+                        <p className="text-xs text-white font-mono">{currentAppliedTheme?.accent || '#10b981'}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">These colors are currently applied to your app theme</p>
+                  </div>
+
+                  <div className="bg-gray-800/50 rounded-lg p-4">
+                    <h4 className="text-lg font-medium text-white mb-3">AI Suggested Colors</h4>
                     <div className="flex gap-4">
                       <div className="text-center">
                         <div
@@ -639,6 +689,7 @@ export default function ProfileSettings() {
                         <p className="text-xs text-white font-mono">{formData.brandingSuggestions.colors.accent}</p>
                       </div>
                     </div>
+                    <p className="text-xs text-gray-400 mt-2">Click "Apply Branding" to use these colors</p>
                   </div>
 
                   <div className="flex gap-3">

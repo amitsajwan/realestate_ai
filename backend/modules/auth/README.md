@@ -151,8 +151,6 @@ Response:
     "company": "Real Estate Co",
     "onboarding_completed": false,
     "onboarding_step": 0,
-    "onboardingCompleted": false,
-    "onboardingStep": 0,
     "created_at": "2024-01-15T10:30:00Z",
     "updated_at": "2024-01-15T10:30:00Z"
   },
@@ -177,8 +175,6 @@ Response:
   "company": "Real Estate Co",
   "onboarding_completed": true,
   "onboarding_step": 6,
-  "onboardingCompleted": true,
-  "onboardingStep": 6,
   "created_at": "2024-01-15T10:30:00Z",
   "updated_at": "2024-01-15T10:30:00Z"
 }

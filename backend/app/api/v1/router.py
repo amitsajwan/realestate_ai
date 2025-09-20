@@ -24,8 +24,9 @@ from app.api.v1.endpoints.posts import router as posts_router
 from app.api.v1.endpoints.templates import router as templates_router
 from app.api.v1.endpoints.enhanced_post_management import router as enhanced_posts_router
 from app.api.v1.endpoints.branding import router as branding_router
+from app.api.v1.endpoints.social_publishing import router as social_publishing_router
 from app.routers.agents import router as agents_router
-# from app.routers.advanced_crm import router as advanced_crm_router
+from app.routers.crm import router as crm_router
 
 # Create main API router
 api_router = APIRouter()
@@ -37,7 +38,7 @@ api_router.include_router(facebook_router, prefix="/facebook", tags=["facebook"]
 api_router.include_router(facebook_mock_router, prefix="/facebook/mock", tags=["facebook-mock"])
 api_router.include_router(leads_router, prefix="/leads", tags=["leads"])
 api_router.include_router(properties_router, prefix="/properties", tags=["properties"])
-api_router.include_router(user_router, prefix="/user", tags=["user"])
+api_router.include_router(user_router, prefix="/users", tags=["user"])
 api_router.include_router(demo_router, prefix="/demo", tags=["demo"])
 api_router.include_router(agent_onboarding_router, prefix="/agent/onboarding", tags=["agent-onboarding"]) 
 api_router.include_router(onboarding_router, prefix="/onboarding", tags=["onboarding"])
@@ -49,8 +50,9 @@ api_router.include_router(posts_router, prefix="/posts", tags=["posts"])
 api_router.include_router(templates_router, prefix="/templates", tags=["templates"])
 api_router.include_router(enhanced_posts_router, prefix="/enhanced-posts", tags=["enhanced-posts"])
 api_router.include_router(branding_router, prefix="/branding", tags=["branding"])
+api_router.include_router(social_publishing_router, prefix="/social-publishing", tags=["social-publishing"])
 api_router.include_router(agents_router, prefix="/agent", tags=["agents"])
-# api_router.include_router(advanced_crm_router, prefix="/crm", tags=["advanced-crm"])
+api_router.include_router(crm_router, prefix="/crm", tags=["crm"])
 
 # Health check for API v1
 @api_router.get("/health")

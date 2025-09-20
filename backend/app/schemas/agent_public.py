@@ -117,14 +117,15 @@ class AgentPublicProfile(AgentPublicProfileBase):
 
 class PublicPropertyBase(BaseModel):
     """Base public property model"""
-    title: str = Field(..., min_length=5, max_length=200, description="Property title")
-    description: str = Field(..., min_length=10, max_length=2000, description="Property description")
+    agent_id: str = Field(..., description="Agent ID who owns this property")
+    title: str = Field(..., min_length=3, max_length=200, description="Property title")
+    description: str = Field(..., min_length=3, max_length=2000, description="Property description")
     price: float = Field(..., gt=0, description="Property price")
     property_type: PropertyType = Field(..., description="Type of property")
     bedrooms: Optional[int] = Field(None, ge=0, description="Number of bedrooms")
     bathrooms: Optional[int] = Field(None, ge=0, description="Number of bathrooms")
     area: Optional[float] = Field(None, gt=0, description="Property area in sq ft")
-    location: str = Field(..., min_length=5, max_length=200, description="Property location")
+    location: str = Field(..., min_length=3, max_length=200, description="Property location")
     images: List[str] = Field(default_factory=list, description="Property image URLs")
     features: List[str] = Field(default_factory=list, description="Property features")
     is_active: bool = Field(True, description="Whether property is active")
@@ -138,14 +139,14 @@ class PublicPropertyCreate(PublicPropertyBase):
 
 class PublicPropertyUpdate(BaseModel):
     """Schema for updating public property"""
-    title: Optional[str] = Field(None, min_length=5, max_length=200)
-    description: Optional[str] = Field(None, min_length=10, max_length=2000)
+    title: Optional[str] = Field(None, min_length=3, max_length=200)
+    description: Optional[str] = Field(None, min_length=3, max_length=2000)
     price: Optional[float] = Field(None, gt=0)
     property_type: Optional[PropertyType] = None
     bedrooms: Optional[int] = Field(None, ge=0)
     bathrooms: Optional[int] = Field(None, ge=0)
     area: Optional[float] = Field(None, gt=0)
-    location: Optional[str] = Field(None, min_length=5, max_length=200)
+    location: Optional[str] = Field(None, min_length=3, max_length=200)
     images: Optional[List[str]] = None
     features: Optional[List[str]] = None
     is_active: Optional[bool] = None

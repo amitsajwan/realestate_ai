@@ -1,33 +1,30 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
 // import '@/styles/components/crm.css' // Temporarily disabled for tests
-import { 
-  UsersIcon, 
-  PhoneIcon, 
+import { crmApi, Lead, LeadSearchFilters, LeadStats } from '@/lib/crm-api'
+import {
+  ArrowPathIcon,
   ChatBubbleLeftRightIcon,
-  FunnelIcon,
-  MagnifyingGlassIcon,
-  PlusIcon,
-  EyeIcon,
-  PencilIcon,
-  TrashIcon,
-  StarIcon,
   ClockIcon,
   CurrencyDollarIcon,
+  ExclamationTriangleIcon,
+  EyeIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon,
   MapPinIcon,
-  ChevronDownIcon,
-  XMarkIcon,
-  ArrowPathIcon,
-  ExclamationTriangleIcon
+  PencilIcon,
+  PhoneIcon,
+  PlusIcon,
+  UsersIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline'
-import { 
-  StarIcon as StarSolidIcon,
+import {
+  ChatBubbleLeftRightIcon as ChatSolidIcon,
   PhoneIcon as PhoneSolidIcon,
-  ChatBubbleLeftRightIcon as ChatSolidIcon
+  StarIcon as StarSolidIcon
 } from '@heroicons/react/24/solid'
-import { crmApi, Lead, LeadStats, LeadSearchFilters } from '@/lib/crm-api'
 
 interface LeadActivity {
   id: string
@@ -64,6 +61,14 @@ export default function CRM() {
       setIsLoading(true)
       setError(null)
 
+      // Check if token exists
+      const token = localStorage.getItem('auth_token')
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.')
+      }
+
+      console.log('[CRM] Loading data with token:', token.substring(0, 20) + '...')
+
       // Load leads and stats in parallel
       const [leadsResult, statsData] = await Promise.all([
         loadLeads(),
@@ -78,7 +83,7 @@ export default function CRM() {
     } catch (err) {
       console.error('Error loading data:', err)
       setError(err instanceof Error ? err.message : 'Failed to load data')
-      
+
       // Fallback to mock data if API fails
       loadMockData()
     } finally {
@@ -88,15 +93,15 @@ export default function CRM() {
 
   const loadLeads = async () => {
     const filters: LeadSearchFilters = {}
-    
+
     if (statusFilter !== 'all') {
       filters.status = statusFilter
     }
-    
+
     if (urgencyFilter !== 'all') {
       filters.urgency = urgencyFilter
     }
-    
+
     if (searchTerm) {
       filters.search_term = searchTerm
     }
@@ -168,7 +173,7 @@ export default function CRM() {
 
     setLeads(mockLeads)
     setFilteredLeads(mockLeads)
-    
+
     // Mock stats
     setStats({
       total_leads: 3,
@@ -190,15 +195,15 @@ export default function CRM() {
   const handleLeadUpdate = async (leadId: string, updateData: Partial<Lead>) => {
     try {
       const updatedLead = await crmApi.updateLead(leadId, updateData)
-      
+
       // Update local state
       setLeads(prev => prev.map(lead => lead.id === leadId ? updatedLead : lead))
       setFilteredLeads(prev => prev.map(lead => lead.id === leadId ? updatedLead : lead))
-      
+
       // Reload stats
       const newStats = await crmApi.getLeadStats()
       setStats(newStats)
-      
+
     } catch (err) {
       console.error('Error updating lead:', err)
       setError(err instanceof Error ? err.message : 'Failed to update lead')
@@ -209,15 +214,15 @@ export default function CRM() {
   const handleCreateLead = async (leadData: Partial<Lead>) => {
     try {
       const newLead = await crmApi.createLead(leadData)
-      
+
       // Add to local state
       setLeads(prev => [newLead, ...prev])
       setFilteredLeads(prev => [newLead, ...prev])
-      
+
       // Reload stats
       const newStats = await crmApi.getLeadStats()
       setStats(newStats)
-      
+
     } catch (err) {
       console.error('Error creating lead:', err)
       setError(err instanceof Error ? err.message : 'Failed to create lead')
@@ -270,7 +275,7 @@ export default function CRM() {
         <div className="text-center">
           <ExclamationTriangleIcon className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
-          <button 
+          <button
             onClick={loadData}
             className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 mx-auto"
           >
@@ -300,17 +305,16 @@ export default function CRM() {
               <p className="text-sm text-gray-600 dark:text-gray-400">Manage leads and customer relationships</p>
             </div>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row gap-3">
             <button className="btn-primary flex items-center space-x-2">
               <PlusIcon className="w-4 h-4" />
               <span>Add Lead</span>
             </button>
-            <button 
+            <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`btn-outline flex items-center space-x-2 ${
-                showFilters ? 'bg-blue-50 border-blue-300 text-blue-700' : ''
-              }`}
+              className={`btn-outline flex items-center space-x-2 ${showFilters ? 'bg-blue-50 border-blue-300 text-blue-700' : ''
+                }`}
             >
               <FunnelIcon className="w-4 h-4" />
               <span>Filters</span>
@@ -355,7 +359,7 @@ export default function CRM() {
                     <option value="lost">Lost</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Urgency</label>
                   <select
@@ -369,7 +373,7 @@ export default function CRM() {
                     <option value="low">Low</option>
                   </select>
                 </div>
-                
+
                 <div className="flex items-end">
                   <button
                     onClick={() => {
@@ -390,7 +394,7 @@ export default function CRM() {
         {/* Enhanced Stats Cards */}
         {stats && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <motion.div 
+            <motion.div
               whileHover={{ scale: 1.02 }}
               className="relative overflow-hidden bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-800/30"
             >
@@ -407,7 +411,7 @@ export default function CRM() {
               <div className="absolute -bottom-2 -right-2 w-20 h-20 bg-blue-200/30 dark:bg-blue-700/20 rounded-full"></div>
             </motion.div>
 
-            <motion.div 
+            <motion.div
               whileHover={{ scale: 1.02 }}
               className="relative overflow-hidden bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 rounded-2xl p-6 border border-yellow-200 dark:border-yellow-800/30"
             >
@@ -424,7 +428,7 @@ export default function CRM() {
               <div className="absolute -bottom-2 -right-2 w-20 h-20 bg-yellow-200/30 dark:bg-yellow-700/20 rounded-full"></div>
             </motion.div>
 
-            <motion.div 
+            <motion.div
               whileHover={{ scale: 1.02 }}
               className="relative overflow-hidden bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-2xl p-6 border border-green-200 dark:border-green-800/30"
             >
@@ -441,7 +445,7 @@ export default function CRM() {
               <div className="absolute -bottom-2 -right-2 w-20 h-20 bg-green-200/30 dark:bg-green-700/20 rounded-full"></div>
             </motion.div>
 
-            <motion.div 
+            <motion.div
               whileHover={{ scale: 1.02 }}
               className="relative overflow-hidden bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-2xl p-6 border border-purple-200 dark:border-purple-800/30"
             >
@@ -485,7 +489,7 @@ export default function CRM() {
               <UsersIcon className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No leads found</h3>
               <p className="text-gray-500 dark:text-gray-400 mb-6">
-                {searchTerm || statusFilter !== 'all' || urgencyFilter !== 'all' 
+                {searchTerm || statusFilter !== 'all' || urgencyFilter !== 'all'
                   ? 'Try adjusting your search or filters'
                   : 'Start by adding your first lead to the system'
                 }
@@ -497,7 +501,7 @@ export default function CRM() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredLeads?.map((lead, index) => (
+              {(filteredLeads || []).map((lead, index) => (
                 <motion.div
                   key={lead.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -511,14 +515,14 @@ export default function CRM() {
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center space-x-3">
                           <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                            {lead.name.charAt(0)}
+                            {(lead.name || 'U').charAt(0)}
                           </div>
                           <div>
-                            <h4 className="text-lg font-semibold text-gray-900 dark:text-white">{lead.name}</h4>
+                            <h4 className="text-lg font-semibold text-gray-900 dark:text-white">{lead.name || 'Unknown Lead'}</h4>
                             <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
                               <span className="flex items-center space-x-1">
                                 <PhoneIcon className="w-4 h-4" />
-                                <span>{lead.phone}</span>
+                                <span>{lead.phone || 'No phone'}</span>
                               </span>
                               <span className="flex items-center space-x-1">
                                 <MapPinIcon className="w-4 h-4" />
@@ -527,19 +531,18 @@ export default function CRM() {
                             </div>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center space-x-2">
                           <div className="flex items-center space-x-1">
                             {[...Array(5)].map((_, i) => (
-                              <StarSolidIcon 
-                                key={i} 
-                                className={`w-4 h-4 ${
-                                  i < Math.floor(lead.score / 20) ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'
-                                }`} 
+                              <StarSolidIcon
+                                key={i}
+                                className={`w-4 h-4 ${i < Math.floor((lead.score || 0) / 20) ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'
+                                  }`}
                               />
                             ))}
                             <span className="text-sm font-medium text-gray-600 dark:text-gray-400 ml-1">
-                              {lead.score}
+                              {lead.score || 0}
                             </span>
                           </div>
                         </div>
@@ -548,7 +551,7 @@ export default function CRM() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                         <div>
                           <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Budget</span>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(lead.budget)}</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(lead.budget || 0)}</p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Property Type</span>
@@ -568,14 +571,14 @@ export default function CRM() {
 
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          <span className={`px-3 py-1 text-xs font-medium rounded-full border ${getStatusColor(lead.status)}`}>
-                            {lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
+                          <span className={`px-3 py-1 text-xs font-medium rounded-full border ${getStatusColor(lead.status || 'new')}`}>
+                            {(lead.status || 'new').charAt(0).toUpperCase() + (lead.status || 'new').slice(1)}
                           </span>
-                          <span className={`text-xs font-medium ${getUrgencyColor(lead.urgency)}`}>
-                            {lead.urgency.toUpperCase()} PRIORITY
+                          <span className={`text-xs font-medium ${getUrgencyColor(lead.urgency || 'low')}`}>
+                            {(lead.urgency || 'low').toUpperCase()} PRIORITY
                           </span>
                           <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {lead.source}
+                            {lead.source || 'Unknown'}
                           </span>
                         </div>
                       </div>
@@ -583,7 +586,7 @@ export default function CRM() {
 
                     {/* Actions */}
                     <div className="flex items-center space-x-2 lg:flex-col lg:space-x-0 lg:space-y-2">
-                      <button 
+                      <button
                         onClick={() => {
                           setSelectedLead(lead)
                           setShowLeadModal(true)
@@ -593,17 +596,17 @@ export default function CRM() {
                         <EyeIcon className="w-4 h-4" />
                         <span className="hidden sm:inline">View</span>
                       </button>
-                      
+
                       <button className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors duration-200">
                         <PhoneSolidIcon className="w-4 h-4" />
                         <span className="hidden sm:inline">Call</span>
                       </button>
-                      
+
                       <button className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors duration-200">
                         <ChatSolidIcon className="w-4 h-4" />
                         <span className="hidden sm:inline">Message</span>
                       </button>
-                      
+
                       <button className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20 rounded-lg transition-colors duration-200">
                         <PencilIcon className="w-4 h-4" />
                         <span className="hidden sm:inline">Edit</span>
@@ -638,10 +641,10 @@ export default function CRM() {
               <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                    {selectedLead.name.charAt(0)}
+                    {(selectedLead.name || 'U').charAt(0)}
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">{selectedLead.name}</h3>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">{selectedLead.name || 'Unknown Lead'}</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Lead Details</p>
                   </div>
                 </div>
@@ -662,20 +665,19 @@ export default function CRM() {
                     <div className="flex items-center space-x-2 mt-1">
                       <div className="flex items-center space-x-1">
                         {[...Array(5)].map((_, i) => (
-                          <StarSolidIcon 
-                            key={i} 
-                            className={`w-5 h-5 ${
-                              i < Math.floor(selectedLead.score / 20) ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'
-                            }`} 
+                          <StarSolidIcon
+                            key={i}
+                            className={`w-5 h-5 ${i < Math.floor((selectedLead.score || 0) / 20) ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'
+                              }`}
                           />
                         ))}
                       </div>
-                      <span className="text-2xl font-bold text-gray-900 dark:text-white">{selectedLead.score}</span>
+                      <span className="text-2xl font-bold text-gray-900 dark:text-white">{selectedLead.score || 0}</span>
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className={`px-3 py-1 text-sm font-medium rounded-full border ${getStatusColor(selectedLead.status)}`}>
-                      {selectedLead.status.charAt(0).toUpperCase() + selectedLead.status.slice(1)}
+                    <span className={`px-3 py-1 text-sm font-medium rounded-full border ${getStatusColor(selectedLead.status || 'new')}`}>
+                      {(selectedLead.status || 'new').charAt(0).toUpperCase() + (selectedLead.status || 'new').slice(1)}
                     </span>
                   </div>
                 </div>
@@ -689,14 +691,14 @@ export default function CRM() {
                         <PhoneIcon className="w-5 h-5 text-blue-500" />
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Phone</span>
                       </div>
-                      <p className="text-gray-900 dark:text-white font-medium">{selectedLead.phone}</p>
+                      <p className="text-gray-900 dark:text-white font-medium">{selectedLead.phone || 'No phone'}</p>
                     </div>
                     <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
                       <div className="flex items-center space-x-2 mb-2">
                         <ChatBubbleLeftRightIcon className="w-5 h-5 text-green-500" />
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Email</span>
                       </div>
-                      <p className="text-gray-900 dark:text-white font-medium">{selectedLead.email}</p>
+                      <p className="text-gray-900 dark:text-white font-medium">{selectedLead.email || 'No email'}</p>
                     </div>
                   </div>
                 </div>
@@ -710,7 +712,7 @@ export default function CRM() {
                         <CurrencyDollarIcon className="w-5 h-5 text-green-500" />
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Budget</span>
                       </div>
-                      <p className="text-gray-900 dark:text-white font-medium">{formatCurrency(selectedLead.budget)}</p>
+                      <p className="text-gray-900 dark:text-white font-medium">{formatCurrency(selectedLead.budget || 0)}</p>
                     </div>
                     <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
                       <div className="flex items-center space-x-2 mb-2">

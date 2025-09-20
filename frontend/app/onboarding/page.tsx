@@ -4,6 +4,7 @@ import Onboarding from '@/components/Onboarding';
 import { authManager, User } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 
 export default function OnboardingPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -26,7 +27,7 @@ export default function OnboardingPage() {
         return;
       }
 
-      if (state.user?.onboardingCompleted) {
+      if (state.user?.onboarding_completed) {
         router.push('/dashboard');
         return;
       }
@@ -44,7 +45,11 @@ export default function OnboardingPage() {
 
   const handleOnboardingComplete = async () => {
     console.log('[OnboardingPage] Onboarding completed, redirecting to dashboard');
+
     try {
+      // Show success message
+      toast.success('Onboarding completed successfully! Redirecting to dashboard...');
+
       // Force a refresh of auth state before redirecting
       await authManager.init();
       console.log('[OnboardingPage] Auth state refreshed, redirecting to dashboard');
@@ -54,35 +59,24 @@ export default function OnboardingPage() {
       console.log('[OnboardingPage] Current auth state after refresh:', {
         isAuthenticated: state.isAuthenticated,
         hasUser: !!state.user,
-        onboardingCompleted: state.user?.onboardingCompleted,
-        onboardingStep: state.user?.onboardingStep
+        onboarding_completed: state.user?.onboarding_completed,
+        onboarding_step: state.user?.onboarding_step
       });
 
-      if (state.user?.onboardingCompleted) {
-        console.log('[OnboardingPage] User onboarding confirmed as completed, redirecting to dashboard');
-        // Use replace instead of push to prevent back navigation to onboarding
-        router.replace('/dashboard');
-      } else {
-        console.warn('[OnboardingPage] User onboarding not marked as completed, forcing redirect');
-        console.log('[OnboardingPage] User object:', state.user);
-        // Fallback to direct navigation if state is inconsistent
-        if (typeof window !== 'undefined') {
-          console.log('[OnboardingPage] Using window.location.href for redirect');
-          window.location.href = '/dashboard';
-        } else {
-          console.log('[OnboardingPage] Using router.replace for redirect');
-          router.replace('/dashboard');
-        }
-      }
+      // Always redirect to dashboard after onboarding completion
+      // regardless of the onboarding_completed flag state
+      console.log('[OnboardingPage] Redirecting to dashboard');
+
+      // Use replace instead of push to prevent back navigation to onboarding
+      router.replace('/dashboard');
+
     } catch (err) {
-      console.error('[OnboardingPage] Error refreshing auth state:', err);
-      // Fallback to direct navigation if refresh fails
+      console.error('[OnboardingPage] Error during redirect:', err);
+
+      // Fallback to direct navigation if router fails
+      console.log('[OnboardingPage] Router failed, using window.location for redirect');
       if (typeof window !== 'undefined') {
-        console.log('[OnboardingPage] Error fallback: Using window.location.href for redirect');
         window.location.href = '/dashboard';
-      } else {
-        console.log('[OnboardingPage] Error fallback: Using router.replace for redirect');
-        router.replace('/dashboard');
       }
     }
   };

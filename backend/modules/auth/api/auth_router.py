@@ -79,7 +79,7 @@ async def get_current_user_info(current_user: User = Depends(current_active_user
             if fresh_user_doc:
                 # Use raw document data directly - DON'T convert to User model to avoid caching
                 user_dict = dict(fresh_user_doc)
-                logger.debug(f"Fetched fresh user data from database: onboardingCompleted={fresh_user_doc.get('onboardingCompleted')}")
+                logger.debug(f"Fetched fresh user data from database: onboarding_completed={fresh_user_doc.get('onboarding_completed')}")
             else:
                 # Fallback to current_user if database fetch fails
                 logger.warning(f"User {user_id} not found in database, using cached data")
@@ -105,16 +105,10 @@ async def get_current_user_info(current_user: User = Depends(current_active_user
     user_dict.pop("hashed_password", None)
     
     # Ensure onboarding fields are included and properly named
-    if 'onboardingCompleted' in user_dict:
-        user_dict['onboardingCompleted'] = user_dict['onboardingCompleted']
-    if 'onboardingStep' in user_dict:
-        user_dict['onboardingStep'] = user_dict['onboardingStep']
-    
-    # Map snake_case to camelCase for frontend compatibility
-    if 'first_name' in user_dict:
-        user_dict['firstName'] = user_dict['first_name']
-    if 'last_name' in user_dict:
-        user_dict['lastName'] = user_dict['last_name']
+    if 'onboarding_completed' in user_dict:
+        user_dict['onboarding_completed'] = user_dict['onboarding_completed']
+    if 'onboarding_step' in user_dict:
+        user_dict['onboarding_step'] = user_dict['onboarding_step']
     
     logger.debug(f"Returning user data: {user_dict}")
     return user_dict
@@ -153,12 +147,12 @@ async def register_user(
             "is_active": user.is_active,
             "is_superuser": user.is_superuser,
             "is_verified": user.is_verified,
-            "firstName": user.firstName,
-            "lastName": user.lastName,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
             "phone": user.phone,
             "company": user.company,
-            "onboardingCompleted": user.onboardingCompleted,
-            "onboardingStep": user.onboardingStep,
+            "onboarding_completed": user.onboarding_completed,
+            "onboarding_step": user.onboarding_step,
             "created_at": user.created_at,
             "updated_at": user.updated_at
         }

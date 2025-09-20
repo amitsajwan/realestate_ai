@@ -79,8 +79,6 @@ class TestUserRead:
         assert user_read.last_name == "Doe"
         assert user_read.onboarding_completed is True
         assert user_read.onboarding_step == 5
-        assert user_read.onboardingCompleted is True  # Frontend compatibility
-        assert user_read.onboardingStep == 5  # Frontend compatibility
 
 
 class TestAuthService:

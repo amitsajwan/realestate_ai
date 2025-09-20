@@ -30,12 +30,14 @@ interface OnboardingProps {
 }
 
 interface OnboardingFormData {
-  firstName: string;
-  lastName: string;
+  first_name: string;
+  last_name: string;
   phone: string;
   company: string;
   position: string;
   licenseNumber: string;
+  businessType: string;
+  targetAudience: string;
   aiStyle: string;
   aiTone: string;
   facebookPage: string;
@@ -43,6 +45,11 @@ interface OnboardingFormData {
   privacyAccepted: boolean;
   profilePhoto: string;
   preferences: string[];
+  // Enhanced branding preferences
+  brandStyle: string;
+  brandPersonality: string;
+  brandKeywords: string;
+  brandInspiration: string;
   brandingSuggestions: {
     tagline: string;
     about: string;
@@ -55,16 +62,18 @@ interface OnboardingFormData {
 }
 
 const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep, onStepChange, onComplete }) => {
-  console.log('[Onboarding] User object:', user);
-  console.log('[Onboarding] Initial step:', initialStep);
+  // Reduced logging to prevent spam
+  console.log('[Onboarding] Component initialized with step:', initialStep);
   const [currentStep, setCurrentStep] = useState(initialStep || 1)
   const [formData, setFormData] = useState<OnboardingFormData>({
-    firstName: user.firstName || '',
-    lastName: user.lastName || '',
-    phone: user.phone || '',
-    company: user.company || '',
+    first_name: user?.first_name || '',
+    last_name: user?.last_name || '',
+    phone: user?.phone || '',
+    company: user?.company || '',
     position: '',
     licenseNumber: '',
+    businessType: 'Residential',
+    targetAudience: 'General clients',
     aiStyle: 'Professional',
     aiTone: 'Friendly',
     facebookPage: '',
@@ -72,6 +81,11 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
     privacyAccepted: false,
     profilePhoto: '',
     preferences: [],
+    // Enhanced branding preferences
+    brandStyle: 'Professional',
+    brandPersonality: 'Trustworthy',
+    brandKeywords: '',
+    brandInspiration: '',
     brandingSuggestions: null
   })
   const [brandingSuggestions, setBrandingSuggestions] = useState<BrandingSuggestion[]>([])
@@ -87,22 +101,29 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
       console.log('[Onboarding] Step changed from parent:', initialStep);
       setCurrentStep(initialStep);
     }
-  }, [initialStep]);
+  }, [initialStep, currentStep]);
 
   // Update form data when user object changes (e.g., from server refresh)
   useEffect(() => {
     if (user) {
+      console.log('[Onboarding] Updating form data from user object:', {
+        first_name: user.first_name,
+        last_name: user.last_name,
+        phone: user.phone,
+        company: user.company
+      });
       setFormData(prev => ({
         ...prev,
-        firstName: user.firstName || prev.firstName,
-        lastName: user.lastName || prev.lastName,
+        first_name: user.first_name || prev.first_name,
+        last_name: user.last_name || prev.last_name,
         phone: user.phone || prev.phone,
         company: user.company || prev.company,
+        // Keep existing values for fields not in user object
         position: prev.position,
         licenseNumber: prev.licenseNumber
       }));
     }
-  }, [user]);
+  }, [user?.id, user?.first_name, user?.last_name, user?.phone, user?.company]);
 
   // Notify parent of step changes
   useEffect(() => {
@@ -112,7 +133,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
   }, [currentStep, onStepChange]);
   const router = useRouter()
 
-  // Note: Removed conflicting useEffect that was resetting step to user.onboardingStep
+  // Note: Removed conflicting useEffect that was resetting step to user.onboarding_step
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
@@ -124,11 +145,11 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
   const validateCurrentStep = () => {
     switch (currentStep) {
       case 1:
-        if (!formData.firstName?.trim()) {
+        if (!formData.first_name?.trim()) {
           toast.error('Please enter your first name')
           return false
         }
-        if (!formData.lastName?.trim()) {
+        if (!formData.last_name?.trim()) {
           toast.error('Please enter your last name')
           return false
         }
@@ -140,6 +161,14 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
         }
         if (!formData.position?.trim()) {
           toast.error('Please enter your position')
+          return false
+        }
+        if (!formData.businessType) {
+          toast.error('Please select your business type')
+          return false
+        }
+        if (!formData.targetAudience) {
+          toast.error('Please select your target audience')
           return false
         }
         break
@@ -232,37 +261,40 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
 
     try {
       console.log('[Onboarding] Starting onboarding completion process');
+
+      // Complete onboarding with all form data
       const { error } = await withErrorHandling(
         () => authManager.updateOnboarding(6, formData, true),
         'Complete Onboarding',
         'Onboarding completed!'
       );
 
-      // if (!error) {
-      console.log('[Onboarding] Onboarding completed successfully');
+      console.log('[Onboarding] Onboarding completion response:', { error });
 
-      // Add a small delay to allow auth state to update, then verify
-      setTimeout(() => {
-        const updatedState = authManager.getState();
-        console.log('[Onboarding] Checking updated auth state:', {
-          onboardingCompleted: updatedState.user?.onboardingCompleted,
-          onboardingStep: updatedState.user?.onboardingStep
-        });
+      // Force auth state refresh
+      await authManager.init();
 
-        if (updatedState.user?.onboardingCompleted) {
-          console.log('[Onboarding] User state confirmed as completed, calling onComplete callback');
-          onComplete();
-        } else {
-          console.warn('[Onboarding] User state not yet updated, but proceeding with onComplete');
-          // Still call onComplete - the auth manager fix should handle the state refresh
-          onComplete();
-        }
-      }, 500); // Small delay to allow state updates to propagate
-      // }
+      // Check auth state after refresh
+      const updatedState = authManager.getState();
+      console.log('[Onboarding] Auth state after completion:', {
+        isAuthenticated: updatedState.isAuthenticated,
+        user: updatedState.user,
+        onboarding_completed: updatedState.user?.onboarding_completed,
+        onboarding_step: updatedState.user?.onboarding_step
+      });
+
+      // Call onComplete callback to trigger redirect
+      console.log('[Onboarding] Calling onComplete callback');
+      onComplete();
+
     } catch (err) {
       console.error('[Onboarding] Error during completion:', err);
       const errorMessage = err && typeof err === 'object' && 'message' in err && typeof err.message === 'string' ? err.message : 'Failed to complete onboarding';
       toast.error(errorMessage);
+
+      // Even if there's an error, try to redirect
+      console.log('[Onboarding] Attempting redirect despite error');
+      onComplete();
     } finally {
       multipleLoading.setLoading('complete', false);
     }
@@ -288,11 +320,29 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
       return
     }
 
+    console.log('[Onboarding] Generating branding with enhanced data:', {
+      company_name: formData.company,
+      agent_name: `${formData.first_name} ${formData.last_name}`.trim(),
+      position: formData.position,
+      business_type: formData.businessType,
+      target_audience: formData.targetAudience,
+      brand_style: formData.brandStyle,
+      brand_personality: formData.brandPersonality,
+      brand_keywords: formData.brandKeywords,
+      brand_inspiration: formData.brandInspiration
+    });
+
     const suggestions = await brandingOperation.execute(
       () => apiService.getBrandingSuggestions({
         company_name: formData.company,
-        agent_name: `${formData.firstName} ${formData.lastName}`.trim(),
-        position: formData.position
+        agent_name: `${formData.first_name} ${formData.last_name}`.trim(),
+        position: formData.position,
+        business_type: formData.businessType || 'Residential',
+        target_audience: formData.targetAudience || 'General clients',
+        brand_style: formData.brandStyle,
+        brand_personality: formData.brandPersonality,
+        brand_keywords: formData.brandKeywords,
+        brand_inspiration: formData.brandInspiration
       }),
       {
         successMessage: 'Branding suggestions generated successfully!',
@@ -301,35 +351,93 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
     )
 
     if (suggestions && suggestions.length > 0) {
+      console.log('[Onboarding] Received branding suggestions:', suggestions);
+
       // Transform API response to match formData structure
       const suggestion = suggestions[0] // Use first suggestion
+      console.log('[Onboarding] Raw suggestion data:', suggestion);
+
       const transformedSuggestion = {
-        tagline: `${formData.company} - Professional Real Estate Services`,
-        about: `Welcome to ${formData.company}, your trusted partner in real estate. We specialize in helping you find your dream home with personalized service and expert guidance.`,
+        tagline: suggestion.tagline || `${formData.company} - Professional Real Estate Services`,
+        about: suggestion.about || `Welcome to ${formData.company}, your trusted partner in real estate. We specialize in helping you find your dream home with personalized service and expert guidance.`,
         colors: {
-          primary: suggestion.colorPalette.primary,
-          secondary: suggestion.colorPalette.secondary,
-          accent: suggestion.colorPalette.accent
+          primary: suggestion.colorPalette?.primary || suggestion.primaryColor || '#3b82f6',
+          secondary: suggestion.colorPalette?.secondary || suggestion.secondaryColor || '#64748b',
+          accent: suggestion.colorPalette?.accent || '#10b981'
         }
       }
-      handleInputChange('brandingSuggestions', transformedSuggestion)
+
+      console.log('[Onboarding] Transformed suggestion:', transformedSuggestion);
+
+      // Update suggestions state first
       setBrandingSuggestions(suggestions) // Keep original API response for reference
+
+      // Update form data with branding suggestions
+      setFormData(prev => ({
+        ...prev,
+        brandingSuggestions: transformedSuggestion
+      }));
+
+      // Force a re-render to ensure UI updates
+      setTimeout(() => {
+        setFormData(prev => ({
+          ...prev,
+          brandingSuggestions: transformedSuggestion
+        }));
+      }, 50);
     }
   }
 
-  const handleApplyBranding = () => {
-    if (!formData.brandingSuggestions || brandingSuggestions.length === 0) return
-
-    // Apply the branding theme to the application
-    const suggestion = brandingSuggestions[0] // Use first suggestion
-    const brandTheme = {
-      primary: suggestion.colorPalette.primary,
-      secondary: suggestion.colorPalette.secondary,
-      accent: suggestion.colorPalette.accent
+  const handleApplyBranding = async () => {
+    if (!formData.brandingSuggestions) {
+      toast.error('No branding suggestions available to apply')
+      return
     }
 
-    applyBrandTheme(brandTheme) // Now persists by default
-    toast.success('Branding applied and saved successfully!')
+    try {
+      // Apply the branding theme to the application
+      const brandTheme = {
+        primary: formData.brandingSuggestions.colors.primary,
+        secondary: formData.brandingSuggestions.colors.secondary,
+        accent: formData.brandingSuggestions.colors.accent
+      }
+
+      console.log('[Onboarding] Applying brand theme:', brandTheme);
+      applyBrandTheme(brandTheme) // Now persists by default
+
+      // Save branding data to user profile for future use
+      const brandingData = {
+        tagline: formData.brandingSuggestions.tagline,
+        about: formData.brandingSuggestions.about,
+        brand_theme: brandTheme,
+        brand_style: formData.brandStyle,
+        brand_personality: formData.brandPersonality,
+        brand_keywords: formData.brandKeywords,
+        brand_inspiration: formData.brandInspiration
+      }
+
+      // Update user profile with branding data
+      try {
+        await authManager.updateOnboarding(currentStep, { ...formData, brandingData })
+        console.log('[Onboarding] Branding data saved to user profile');
+      } catch (error) {
+        console.warn('[Onboarding] Failed to save branding data to profile:', error);
+        // Don't block the user if profile update fails
+      }
+
+      toast.success('Branding applied and saved successfully! Your website and dashboard will reflect these changes.')
+
+      // Force a page refresh to ensure all components pick up the new theme
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          window.location.reload();
+        }
+      }, 1000);
+
+    } catch (error) {
+      console.error('[Onboarding] Error applying branding:', error);
+      toast.error('Failed to apply branding. Please try again.')
+    }
   }
 
   const renderStepContent = () => {
@@ -346,8 +454,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                 </label>
                 <input
                   type="text"
-                  value={formData.firstName}
-                  onChange={(e) => handleInputChange('firstName', e.target.value)}
+                  value={formData.first_name}
+                  onChange={(e) => handleInputChange('first_name', e.target.value)}
                   className="form-input"
                   placeholder="John"
                 />
@@ -358,8 +466,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                 </label>
                 <input
                   type="text"
-                  value={formData.lastName}
-                  onChange={(e) => handleInputChange('lastName', e.target.value)}
+                  value={formData.last_name}
+                  onChange={(e) => handleInputChange('last_name', e.target.value)}
                   className="form-input"
                   placeholder="Doe"
                 />
@@ -407,6 +515,40 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                 placeholder="Senior Agent"
               />
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Business Type *
+                </label>
+                <select
+                  value={formData.businessType}
+                  onChange={(e) => handleInputChange('businessType', e.target.value)}
+                  className="form-input"
+                >
+                  <option value="Residential">Residential</option>
+                  <option value="Commercial">Commercial</option>
+                  <option value="Luxury">Luxury</option>
+                  <option value="Investment">Investment</option>
+                  <option value="Mixed">Mixed</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Target Audience *
+                </label>
+                <select
+                  value={formData.targetAudience}
+                  onChange={(e) => handleInputChange('targetAudience', e.target.value)}
+                  className="form-input"
+                >
+                  <option value="First-time buyers">First-time buyers</option>
+                  <option value="Luxury clients">Luxury clients</option>
+                  <option value="Families">Families</option>
+                  <option value="Investors">Investors</option>
+                  <option value="General clients">General clients</option>
+                </select>
+              </div>
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 License Number
@@ -425,20 +567,116 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
       case 3:
         return (
           <div className="space-y-6">
-            {/* AI Branding Suggestions */}
+            {/* Branding Preferences */}
             <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg border">
               <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                 <SparklesIcon className="w-5 h-5 mr-2 text-purple-600" />
-                AI Branding Suggestions
+                Branding Preferences
               </h3>
 
-              {formData.brandingSuggestions ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Brand Style
+                  </label>
+                  <select
+                    value={formData.brandStyle}
+                    onChange={(e) => handleInputChange('brandStyle', e.target.value)}
+                    className="form-input"
+                  >
+                    <option value="Professional">Professional</option>
+                    <option value="Modern">Modern</option>
+                    <option value="Traditional">Traditional</option>
+                    <option value="Luxury">Luxury</option>
+                    <option value="Minimalist">Minimalist</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Brand Personality
+                  </label>
+                  <select
+                    value={formData.brandPersonality}
+                    onChange={(e) => handleInputChange('brandPersonality', e.target.value)}
+                    className="form-input"
+                  >
+                    <option value="Trustworthy">Trustworthy</option>
+                    <option value="Innovative">Innovative</option>
+                    <option value="Friendly">Friendly</option>
+                    <option value="Authoritative">Authoritative</option>
+                    <option value="Approachable">Approachable</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Brand Keywords
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.brandKeywords}
+                    onChange={(e) => handleInputChange('brandKeywords', e.target.value)}
+                    className="form-input"
+                    placeholder="e.g., luxury, family, investment, modern"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Brand Inspiration
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.brandInspiration}
+                    onChange={(e) => handleInputChange('brandInspiration', e.target.value)}
+                    className="form-input"
+                    placeholder="e.g., Apple, Mercedes, local competitors"
+                  />
+                </div>
+              </div>
+
+              <div className="text-center">
+                <LoadingButton
+                  onClick={handleGenerateBranding}
+                  isLoading={brandingOperation.isLoading}
+                  disabled={!formData.company || !formData.businessType || !formData.targetAudience}
+                  className="btn-primary"
+                >
+                  {formData.brandingSuggestions ? 'Regenerate Branding' : 'Generate Branding'}
+                </LoadingButton>
+                {(!formData.company || !formData.businessType || !formData.targetAudience) && (
+                  <p className="text-sm text-orange-600 mt-2">
+                    Please complete the company information in the previous step
+                  </p>
+                )}
+                {/* Debug info */}
+                <div className="mt-4 p-2 bg-gray-100 rounded text-xs text-gray-600">
+                  Debug: Has branding suggestions: {formData.brandingSuggestions ? 'Yes' : 'No'}
+                  <br />
+                  Branding suggestions count: {brandingSuggestions.length}
+                </div>
+              </div>
+            </div>
+
+            {/* AI Branding Suggestions */}
+            {formData.brandingSuggestions && (
+              <div key={`branding-${Date.now()}`} className="bg-white p-6 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <SparklesIcon className="w-5 h-5 mr-2 text-green-600" />
+                  Generated Branding Suggestions
+                </h3>
+                {/* Debug info - remove in production */}
+                <div className="mb-4 p-2 bg-gray-100 rounded text-xs text-gray-600">
+                  Debug: Branding suggestions loaded: {JSON.stringify(formData.brandingSuggestions, null, 2)}
+                </div>
+
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Suggested Tagline
                     </label>
-                    <div className="p-3 bg-white rounded border">
+                    <div className="p-3 bg-gray-50 rounded border">
                       <p className="text-gray-800 font-medium">{formData.brandingSuggestions.tagline}</p>
                     </div>
                   </div>
@@ -447,7 +685,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       About Description
                     </label>
-                    <div className="p-3 bg-white rounded border">
+                    <div className="p-3 bg-gray-50 rounded border">
                       <p className="text-gray-700">{formData.brandingSuggestions.about}</p>
                     </div>
                   </div>
@@ -463,6 +701,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                           style={{ backgroundColor: formData.brandingSuggestions.colors.primary }}
                         ></div>
                         <span className="text-xs text-gray-600">Primary</span>
+                        <p className="text-xs text-gray-500 mt-1">{formData.brandingSuggestions.colors.primary}</p>
                       </div>
                       <div className="text-center">
                         <div
@@ -470,6 +709,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                           style={{ backgroundColor: formData.brandingSuggestions.colors.secondary }}
                         ></div>
                         <span className="text-xs text-gray-600">Secondary</span>
+                        <p className="text-xs text-gray-500 mt-1">{formData.brandingSuggestions.colors.secondary}</p>
                       </div>
                       <div className="text-center">
                         <div
@@ -477,6 +717,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                           style={{ backgroundColor: formData.brandingSuggestions.colors.accent }}
                         ></div>
                         <span className="text-xs text-gray-600">Accent</span>
+                        <p className="text-xs text-gray-500 mt-1">{formData.brandingSuggestions.colors.accent}</p>
                       </div>
                     </div>
                   </div>
@@ -497,27 +738,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                     </button>
                   </div>
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-600 mb-4">
-                    Generate AI-powered branding suggestions based on your company name
-                  </p>
-                  <LoadingButton
-                    onClick={handleGenerateBranding}
-                    isLoading={brandingOperation.isLoading}
-                    disabled={!formData.company}
-                    className="btn-primary"
-                  >
-                    Generate Branding
-                  </LoadingButton>
-                  {!formData.company && (
-                    <p className="text-sm text-orange-600 mt-2">
-                      Please enter your company name in the previous step
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* AI Content Preferences */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -658,7 +880,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
-        <div className="glass-card">
+        <div className="glass-card bg-white">
           {/* Progress Bar */}
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
@@ -674,11 +896,11 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
             <div className="flex justify-between items-center">
               {onboardingSteps.map((step, index) => (
                 <div key={step.id} className="flex flex-col items-center">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${currentStep > step.id
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-colors duration-200 ${currentStep > step.id
                     ? 'bg-green-500 text-white'
                     : currentStep === step.id
                       ? 'bg-blue-500 text-white'
-                      : 'bg-gray-200 text-gray-500'
+                      : 'bg-gray-200 text-gray-500 hover:bg-gray-300 hover:scale-105'
                     }`}>
                     {currentStep > step.id ? (
                       <CheckIcon className="w-5 h-5" />

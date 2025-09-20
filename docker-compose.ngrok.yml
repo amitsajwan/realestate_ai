@@ -1,0 +1,42 @@
+﻿# =============================================================================
+# DOCKER COMPOSE OVERRIDE FOR NGROK DEPLOYMENT
+# =============================================================================
+# This file extends docker-compose.yml for ngrok deployment
+# Application services remain unchanged - only nginx configuration changes
+
+version: '3.8'
+
+services:
+  # Override nginx configuration for ngrok
+  nginx:
+    image: nginx:alpine
+    container_name: real-estate-nginx-ngrok
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx-ngrok.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - real-estate-network
+
+  # Frontend remains unchanged - uses relative API URLs
+  frontend:
+    environment:
+      # API Configuration - Use relative paths (unchanged)
+      - NEXT_PUBLIC_API_BASE_URL=
+      - NEXT_PUBLIC_APP_URL=
+      
+      # Environment
+      - NODE_ENV=production
+
+  # Backend remains unchanged - nginx handles CORS
+  backend:
+    environment:
+      # CORS - nginx handles external origins
+      - ALLOWED_ORIGINS=http://frontend:3000,http://nginx:80
+      
+      # Debug mode for ngrok testing
+      - DEBUG=True

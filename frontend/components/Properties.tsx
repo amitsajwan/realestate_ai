@@ -1,6 +1,7 @@
 'use client'
 
 import { apiService } from '@/lib/api'
+import { formatPrice, formatStatusLabel } from '@/lib/formatters'
 import {
   ArrowPathIcon,
   BuildingOfficeIcon,
@@ -34,7 +35,7 @@ interface Property {
   area: number
   type: string
   status: 'for-sale' | 'for-rent' | 'sold'
-  dateAdded: string
+  date_added: string
   image?: string
   images?: string[]
 }
@@ -52,12 +53,14 @@ export default function Properties({
   setProperties: propSetProperties,
   onRefresh
 }: PropertiesProps) {
+  console.log('[Properties] Component rendered with properties:', propProperties.length, propProperties)
+
   // State management
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [bedroomFilter, setBedroomFilter] = useState<string>('all')
-  const [sortBy, setSortBy] = useState<string>('dateAdded')
+  const [sortBy, setSortBy] = useState<string>('date_added')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -75,15 +78,7 @@ export default function Properties({
   const setProperties = propSetProperties || (() => { })
 
   // Utility functions
-  const formatPrice = (price: number): string => {
-    if (price >= 10000000) {
-      return `₹${(price / 10000000).toFixed(1)}Cr`
-    } else if (price >= 100000) {
-      return `₹${(price / 100000).toFixed(0)}L`
-    } else {
-      return `₹${price.toLocaleString()}`
-    }
-  }
+  // use shared formatters from lib/formatters
 
   const getStatusColor = (status: string): string => {
     switch (status) {
@@ -170,7 +165,7 @@ export default function Properties({
   }
 
   // Filter and sort properties
-  const filteredProperties = properties
+  const filteredProperties = propProperties
     .filter(property => {
       const matchesSearch = property.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         property.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -197,10 +192,10 @@ export default function Properties({
           aValue = a.area
           bValue = b.area
           break
-        case 'dateAdded':
+        case 'date_added':
         default:
-          aValue = new Date(a.dateAdded).getTime()
-          bValue = new Date(b.dateAdded).getTime()
+          aValue = new Date(a.date_added).getTime()
+          bValue = new Date(b.date_added).getTime()
           break
       }
 
@@ -227,7 +222,7 @@ export default function Properties({
             Properties
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Manage your property listings • {properties.length} properties
+            Manage your property listings • {propProperties.length} properties
           </p>
         </div>
         <div className="flex gap-3">
@@ -283,8 +278,8 @@ export default function Properties({
               <button
                 onClick={() => setViewMode('grid')}
                 className={`p-3 transition-colors ${viewMode === 'grid'
-                    ? 'bg-white dark:bg-slate-700 text-blue-600'
-                    : 'bg-gray-50 dark:bg-slate-600 text-gray-500 dark:text-gray-400'
+                  ? 'bg-white dark:bg-slate-700 text-blue-600'
+                  : 'bg-gray-50 dark:bg-slate-600 text-gray-500 dark:text-gray-400'
                   }`}
               >
                 <Squares2X2Icon className="w-5 h-5" />
@@ -292,8 +287,8 @@ export default function Properties({
               <button
                 onClick={() => setViewMode('list')}
                 className={`p-3 transition-colors ${viewMode === 'list'
-                    ? 'bg-white dark:bg-slate-700 text-blue-600'
-                    : 'bg-gray-50 dark:bg-slate-600 text-gray-500 dark:text-gray-400'
+                  ? 'bg-white dark:bg-slate-700 text-blue-600'
+                  : 'bg-gray-50 dark:bg-slate-600 text-gray-500 dark:text-gray-400'
                   }`}
               >
                 <ListBulletIcon className="w-5 h-5" />
@@ -378,8 +373,8 @@ export default function Properties({
                   }}
                   className="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="dateAdded-desc">Newest First</option>
-                  <option value="dateAdded-asc">Oldest First</option>
+                  <option value="date_added-desc">Newest First</option>
+                  <option value="date_added-asc">Oldest First</option>
                   <option value="price-desc">Price: High to Low</option>
                   <option value="price-asc">Price: Low to High</option>
                   <option value="title-asc">Title: A to Z</option>
@@ -403,8 +398,8 @@ export default function Properties({
 
       {/* Properties Grid */}
       <div className={`grid gap-6 ${viewMode === 'grid'
-          ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-          : 'grid-cols-1'
+        ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+        : 'grid-cols-1'
         }`}>
         {filteredProperties.map((property, index) => (
           <motion.div
@@ -437,10 +432,7 @@ export default function Properties({
               {/* Status Badge */}
               <div className="absolute top-3 left-3">
                 <span className={`px-3 py-1.5 rounded-full text-xs font-bold backdrop-blur-sm border shadow-lg ${getStatusColor(property.status)}`}>
-                  {property.status === 'for-sale' ? 'FOR SALE' :
-                    property.status === 'for-rent' ? 'FOR RENT' :
-                      property.status === 'sold' ? 'SOLD' :
-                        'UNKNOWN'}
+                  {formatStatusLabel(property.status)}
                 </span>
               </div>
 
@@ -449,8 +441,8 @@ export default function Properties({
                 <button
                   onClick={() => toggleFavorite(property.id)}
                   className={`p-2 rounded-full backdrop-blur-sm border transition-all duration-200 ${favorites.includes(property.id)
-                      ? 'bg-red-500/90 text-white border-red-400/50'
-                      : 'bg-white/10 text-white border-white/20 hover:bg-white/20'
+                    ? 'bg-red-500/90 text-white border-red-400/50'
+                    : 'bg-white/10 text-white border-white/20 hover:bg-white/20'
                     }`}
                 >
                   <HeartSolidIcon className="w-4 h-4" />

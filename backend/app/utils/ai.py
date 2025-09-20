@@ -113,7 +113,7 @@ The response MUST be valid JSON without markdown fences or additional text.
         response = _groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.4,
+            temperature=0.2,
             max_tokens=300,
         )
 

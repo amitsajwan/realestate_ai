@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 from typing import Optional, List
 import os
+import json
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -42,9 +43,26 @@ class Settings(BaseSettings):
     cors_origins: List[str] = [
         "http://localhost:3000",
         "http://localhost:3001",
+        "http://127.0.0.1:3000",
         "https://propertyai.com",
         "https://www.propertyai.com"
     ]
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Handle CORS origins from environment variable
+        if 'CORS_ORIGINS' in os.environ:
+            try:
+                cors_env = os.environ['CORS_ORIGINS']
+                if cors_env.startswith('[') and cors_env.endswith(']'):
+                    # JSON array format
+                    self.cors_origins = json.loads(cors_env)
+                else:
+                    # Comma-separated format
+                    self.cors_origins = [origin.strip() for origin in cors_env.split(',')]
+            except (json.JSONDecodeError, ValueError):
+                # Fall back to default if parsing fails
+                pass
     cors_allow_credentials: bool = True
     cors_allow_methods: List[str] = ["*"]
     cors_allow_headers: List[str] = ["*"]
@@ -172,7 +190,8 @@ settings = Settings()
 # =============================================================================
 def validate_settings():
     """Validate critical settings"""
-    if not settings.jwt_secret_key or settings.jwt_secret_key == "your-secret-key-here":
+    # Only enforce JWT secret key validation in production
+    if settings.environment == "production" and (not settings.jwt_secret_key or settings.jwt_secret_key == "your-secret-key-here"):
         raise ValueError("JWT secret key must be set in production")
     
     # Only enforce debug=False in production, allow debug=True in development

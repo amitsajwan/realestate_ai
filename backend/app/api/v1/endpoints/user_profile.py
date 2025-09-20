@@ -81,7 +81,7 @@ async def create_or_update_profile(profile: UserProfile):
              detail=f"Internal server error: {str(e)}"
          )
 
-@router.get("/profile/{user_id}", response_model=Dict[str, Any])
+@router.get("/{user_id}/profile", response_model=Dict[str, Any])
 async def get_user_profile(user_id: str):
     """
     Get user profile by user_id from MongoDB (returns user data as profile)

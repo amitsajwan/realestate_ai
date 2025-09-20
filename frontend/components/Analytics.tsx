@@ -1,22 +1,21 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
+import React, { useEffect, useMemo, useState } from 'react'
 // import '@/styles/components/analytics.css' // Temporarily disabled for tests
+import { crmApi, DashboardMetrics } from '@/lib/crm-api'
+import { calculatePercentage, safePropertyAccess, transformPropertiesToAnalytics, type Property } from '@/lib/data-transformers'
 import {
+  ArrowPathIcon,
+  ArrowTrendingDownIcon,
+  ArrowTrendingUpIcon,
+  CalendarIcon,
   ChartBarIcon,
   CurrencyDollarIcon,
-  HomeIcon,
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
+  ExclamationTriangleIcon,
   EyeIcon,
-  CalendarIcon,
-  MapPinIcon,
-  ArrowPathIcon,
-  ExclamationTriangleIcon
+  HomeIcon
 } from '@heroicons/react/24/outline'
-import { crmApi, DashboardMetrics, AnalyticsMetric } from '@/lib/crm-api'
-import { transformPropertiesToAnalytics, safePropertyAccess, calculatePercentage, formatCurrency, type Property } from '@/lib/data-transformers'
 
 interface AnalyticsProps {
   properties?: Property[]
@@ -36,7 +35,7 @@ export default function Analytics({ properties = [] }: AnalyticsProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedPeriod, setSelectedPeriod] = useState('this_month')
-  
+
   // Memoize properties to prevent infinite re-renders
   const memoizedProperties = useMemo(() => properties, [properties.length, JSON.stringify(properties)])
 
@@ -55,7 +54,7 @@ export default function Analytics({ properties = [] }: AnalyticsProps) {
     } catch (err) {
       console.error('Error loading analytics:', err)
       setError(err instanceof Error ? err.message : 'Failed to load analytics')
-      
+
       // Fallback to mock data
       loadMockData()
     } finally {
@@ -136,7 +135,7 @@ export default function Analytics({ properties = [] }: AnalyticsProps) {
         end: new Date().toISOString().split('T')[0]
       }
     }
-    
+
     setDashboardData(mockData)
   }
 
@@ -170,7 +169,32 @@ export default function Analytics({ properties = [] }: AnalyticsProps) {
     }
   }
 
-  const stats: StatCard[] = analyticsData.overview_metrics.map(metric => ({
+  // Ensure analyticsData has the required structure
+  const safeAnalyticsData = {
+    overview_metrics: analyticsData.overview_metrics || [],
+    property_analytics: analyticsData.property_analytics || transformedAnalytics,
+    lead_analytics: analyticsData.lead_analytics || {
+      total_leads: 0,
+      new_leads: 0,
+      contacted_leads: 0,
+      qualified_leads: 0,
+      converted_leads: 0,
+      lost_leads: 0,
+      conversion_rate: 0,
+      average_lead_score: 0,
+      lead_source_distribution: {},
+      urgency_distribution: {},
+      budget_distribution: {},
+      average_deal_value: 0,
+      total_pipeline_value: 0,
+      lead_response_time: 0,
+      follow_up_completion_rate: 0,
+      top_performing_sources: [],
+      recent_activities: []
+    }
+  }
+
+  const stats: StatCard[] = safeAnalyticsData.overview_metrics.map(metric => ({
     title: metric.name,
     value: metric.unit ? `${metric.value}${metric.unit}` : metric.value,
     change: metric.change_percentage ? `${metric.change_percentage > 0 ? '+' : ''}${metric.change_percentage}%` : undefined,
@@ -180,23 +204,23 @@ export default function Analytics({ properties = [] }: AnalyticsProps) {
   }))
 
   const statusBreakdown = [
-    { 
-      label: 'Published', 
-      value: analyticsData.property_analytics.published_properties, 
-      color: 'bg-blue-500', 
-      percentage: analyticsData.property_analytics.total_properties > 0 ? Math.round((analyticsData.property_analytics.published_properties / analyticsData.property_analytics.total_properties) * 100) : 0 
+    {
+      label: 'Published',
+      value: safeAnalyticsData.property_analytics.published_properties,
+      color: 'bg-blue-500',
+      percentage: safeAnalyticsData.property_analytics.total_properties > 0 ? Math.round((safeAnalyticsData.property_analytics.published_properties / safeAnalyticsData.property_analytics.total_properties) * 100) : 0
     },
-    { 
-      label: 'Draft', 
-      value: analyticsData.property_analytics.draft_properties, 
-      color: 'bg-yellow-500', 
-      percentage: analyticsData.property_analytics.total_properties > 0 ? Math.round((analyticsData.property_analytics.draft_properties / analyticsData.property_analytics.total_properties) * 100) : 0 
+    {
+      label: 'Draft',
+      value: safeAnalyticsData.property_analytics.draft_properties,
+      color: 'bg-yellow-500',
+      percentage: safeAnalyticsData.property_analytics.total_properties > 0 ? Math.round((safeAnalyticsData.property_analytics.draft_properties / safeAnalyticsData.property_analytics.total_properties) * 100) : 0
     },
-    { 
-      label: 'Archived', 
-      value: analyticsData.property_analytics.archived_properties, 
-      color: 'bg-gray-500', 
-      percentage: analyticsData.property_analytics.total_properties > 0 ? Math.round((analyticsData.property_analytics.archived_properties / analyticsData.property_analytics.total_properties) * 100) : 0 
+    {
+      label: 'Archived',
+      value: safeAnalyticsData.property_analytics.archived_properties,
+      color: 'bg-gray-500',
+      percentage: safeAnalyticsData.property_analytics.total_properties > 0 ? Math.round((safeAnalyticsData.property_analytics.archived_properties / safeAnalyticsData.property_analytics.total_properties) * 100) : 0
     }
   ]
 
@@ -237,7 +261,7 @@ export default function Analytics({ properties = [] }: AnalyticsProps) {
         <div className="text-center">
           <ExclamationTriangleIcon className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
-          <button 
+          <button
             onClick={loadAnalyticsData}
             className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 mx-auto"
           >
@@ -273,7 +297,7 @@ export default function Analytics({ properties = [] }: AnalyticsProps) {
           const Icon = stat.icon
           const isIncrease = stat.changeType === 'increase'
           const ChangeIcon = isIncrease ? ArrowTrendingUpIcon : ArrowTrendingDownIcon
-          
+
           return (
             <motion.div
               key={index}
@@ -287,9 +311,8 @@ export default function Analytics({ properties = [] }: AnalyticsProps) {
                   <Icon className="w-6 h-6 text-white" />
                 </div>
                 {stat.change && (
-                  <div className={`flex items-center space-x-1 text-sm ${
-                    isIncrease ? 'text-green-400' : 'text-red-400'
-                  }`}>
+                  <div className={`flex items-center space-x-1 text-sm ${isIncrease ? 'text-green-400' : 'text-red-400'
+                    }`}>
                     <ChangeIcon className="w-4 h-4" />
                     <span>{stat.change}</span>
                   </div>
@@ -345,12 +368,12 @@ export default function Analytics({ properties = [] }: AnalyticsProps) {
             Property Types
           </h3>
           <div className="space-y-4">
-            {Object.entries(safePropertyAccess(analyticsData, 'property_analytics.property_type_distribution', {})).map(([type, count], index) => {
+            {Object.entries(safePropertyAccess(safeAnalyticsData, 'property_analytics.property_type_distribution', {})).map(([type, count], index) => {
               const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500']
               const countNum = Number(count)
-              const totalProperties = safePropertyAccess(analyticsData, 'property_analytics.total_properties', 0)
+              const totalProperties = safePropertyAccess(safeAnalyticsData, 'property_analytics.total_properties', 0)
               const percentage = calculatePercentage(countNum, totalProperties)
-              
+
               return (
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">

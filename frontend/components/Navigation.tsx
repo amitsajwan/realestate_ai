@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function Navigation() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -22,9 +22,11 @@ export default function Navigation() {
   const fetchUserProfile = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('/api/v1/auth/me', {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
       if (response.ok) {
@@ -58,7 +60,7 @@ export default function Navigation() {
             <Link href="/" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
               Home
             </Link>
-            
+
             {isAuthenticated ? (
               <>
                 <Link href="/dashboard" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
@@ -119,7 +121,7 @@ export default function Navigation() {
               <Link href="/" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
                 Home
               </Link>
-              
+
               {isAuthenticated ? (
                 <>
                   <Link href="/dashboard" className="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">

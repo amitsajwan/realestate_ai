@@ -193,7 +193,7 @@ export interface AIPropertySuggestion {
 }
 
 export interface PublishingRequest {
-  propertyId: string;
+  property_id: string;
   channels: string[];
   scheduled_at?: string;
   custom_message?: string;

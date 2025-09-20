@@ -105,6 +105,49 @@ class AuthAPI {
     }
 
     /**
+     * Update onboarding step
+     */
+    async updateOnboarding(userId: string, data: any, token: string): Promise<AuthResponse> {
+        const response = await fetch(`${this.baseUrl}/api/v1/onboarding/${userId}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Origin': 'http://localhost:3000'
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || `Update onboarding failed: ${response.status}`);
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Complete onboarding
+     */
+    async completeOnboarding(userId: string, token: string): Promise<AuthResponse> {
+        const response = await fetch(`${this.baseUrl}/api/v1/onboarding/${userId}/complete`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Origin': 'http://localhost:3000'
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || `Complete onboarding failed: ${response.status}`);
+        }
+
+        return response.json();
+    }
+
+    /**
      * Logout user
      */
     async logout(token: string): Promise<void> {

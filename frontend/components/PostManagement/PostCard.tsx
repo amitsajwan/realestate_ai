@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Post } from '../../types/post';
-import ChannelBadge from '../UI/ChannelBadge';
-import StatusBadge from '../UI/StatusBadge';
+import ChannelBadge from '../ui/ChannelBadge';
+import StatusBadge from '../ui/StatusBadge';
 import PostActionsMenu from './PostActionsMenu';
 
 interface PostCardProps {

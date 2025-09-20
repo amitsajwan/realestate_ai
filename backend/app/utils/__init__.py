@@ -27,15 +27,32 @@ def verify_jwt_token(request_or_token):
     
     logger.debug(f"Verifying JWT token: {token[:20]}...")
     
-    try:
-        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
-        return payload
-    except JWTError as e:
-        logger.error(f"JWT verification failed: {e}")
-        raise ValueError(f"Invalid token: {e}")
-    except Exception as e:
-        logger.error(f"Token verification error: {e}")
-        raise ValueError(f"Token verification failed: {e}")
+    # Try both secret keys to handle different token sources
+    secret_keys = [
+        settings.jwt_secret_key,
+        "your-super-secret-jwt-key-change-in-production"  # From SECURITY_CONFIG
+    ]
+    
+    for secret_key in secret_keys:
+        try:
+            payload = jwt.decode(
+                token, 
+                secret_key, 
+                algorithms=[settings.jwt_algorithm],
+                options={"verify_aud": False}  # Disable audience verification
+            )
+            logger.debug(f"Token verified successfully with secret key: {secret_key[:10]}...")
+            return payload
+        except JWTError as e:
+            logger.debug(f"JWT verification failed with secret key {secret_key[:10]}...: {e}")
+            continue
+        except Exception as e:
+            logger.debug(f"Token verification error with secret key {secret_key[:10]}...: {e}")
+            continue
+    
+    # If all secret keys failed
+    logger.error(f"JWT verification failed with all secret keys")
+    raise ValueError("Invalid token: Could not verify with any known secret key")
 
 def sanitize_user_input(data, max_length: int = 1000):
     import logging

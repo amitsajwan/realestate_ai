@@ -174,20 +174,25 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
       })
 
       if (response.success && response.data) {
+        const suggestions: any = response.data
+        console.log('Raw AI suggestions response:', suggestions)
+
         const suggestion: AIPropertySuggestion = {
-          title: response.data.title || `Beautiful ${formData.propertyType} in ${formData.location}`,
-          description: response.data.description || 'AI-generated description will appear here',
-          price: response.data.price || formData.price.toString(),
-          amenities: Array.isArray(response.data.amenities) ? response.data.amenities : ['Modern amenities included'],
-          features: response.data.features || ['Modern design', 'Prime location'],
-          marketInsights: response.data.marketInsights || 'Market analysis will appear here',
+          title: suggestions.title_suggestions?.[0] || `Beautiful ${formData.propertyType} in ${formData.location}`,
+          description: suggestions.description_suggestions?.[0] || 'AI-generated description will appear here',
+          price: suggestions.price_suggestions?.suggested?.toString() || formData.price.toString(),
+          amenities: Array.isArray(suggestions.amenities_suggestions) ? suggestions.amenities_suggestions : ['Modern amenities included'],
+          features: suggestions.features_suggestions || ['Modern design', 'Prime location'],
+          marketInsights: suggestions.market_insights || 'Market analysis will appear here',
           qualityScore: {
-            overall: 85,
-            seo: 90,
-            readability: 80,
-            marketRelevance: 88
+            overall: suggestions.quality_score?.overall || 85,
+            seo: suggestions.quality_score?.seo || 90,
+            readability: suggestions.quality_score?.readability || 80,
+            marketRelevance: suggestions.quality_score?.market_relevance || 88
           }
         }
+
+        console.log('Processed AI suggestion:', suggestion)
         setAiSuggestions(suggestion)
         toast.success('AI suggestions generated successfully!')
       }
@@ -202,10 +207,15 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
   const applyAISuggestions = () => {
     if (!aiSuggestions) return
 
+    console.log('Applying AI suggestions:', aiSuggestions)
+
     setValue('title', aiSuggestions.title)
     setValue('description', aiSuggestions.description)
     setValue('price', parseFloat(aiSuggestions.price) || 0)
     setValue('amenities', aiSuggestions.amenities.join(', '))
+
+    // Trigger form re-render by updating the form state
+    trigger(['title', 'description', 'price', 'amenities'])
 
     toast.success('AI suggestions applied to form!')
   }
@@ -353,8 +363,12 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
         area_sqft: Number(data.area) || 0,
         features: [], // Default empty features array
         images: uploadedImages,
-        agent_id: agentId
+        agent_id: agentId,
+        amenities: data.amenities || '' // Ensure amenities is a string
       }
+
+      console.log('Form data being submitted:', propertyData)
+      console.log('Amenities type:', typeof propertyData.amenities, 'Value:', propertyData.amenities)
 
       const response = await propertiesAPI.createProperty(propertyData)
       if (response.success) {

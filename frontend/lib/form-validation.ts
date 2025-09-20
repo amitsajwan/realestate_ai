@@ -45,8 +45,8 @@ export const loginSchema = z.object({
 export const registerSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
-  firstName: nameSchema,
-  lastName: nameSchema,
+  first_name: nameSchema,
+  last_name: nameSchema,
   phone: optionalPhoneEmptySchema,
   confirmPassword: z.string().min(1, 'Please confirm your password')
 }).refine((data) => data.password === data.confirmPassword, {
@@ -55,8 +55,8 @@ export const registerSchema = z.object({
 })
 
 export const profileSchema = z.object({
-  firstName: nameSchema,
-  lastName: nameSchema,
+  first_name: nameSchema,
+  last_name: nameSchema,
   email: emailSchema,
   companyName: companyNameSchema.optional(),
   businessType: businessTypeSchema.optional(),
@@ -65,8 +65,8 @@ export const profileSchema = z.object({
 
 export const onboardingStepSchemas = {
   1: z.object({
-    firstName: nameSchema,
-    lastName: nameSchema,
+    first_name: nameSchema,
+    last_name: nameSchema,
     email: emailSchema
   }),
   2: z.object({

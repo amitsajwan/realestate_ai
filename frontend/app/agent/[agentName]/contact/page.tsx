@@ -1,7 +1,9 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import Link from 'next/link'
+import Link from 'next/link';
+import React, { useEffect, useState } from 'react';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 interface AgentInfo {
   id: string
@@ -38,7 +40,7 @@ export default function AgentContactPage({ params }: AgentContactPageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [agentName, setAgentName] = useState<string>('')
-  
+
   const [form, setForm] = useState<ContactForm>({
     name: '',
     email: '',
@@ -56,7 +58,7 @@ export default function AgentContactPage({ params }: AgentContactPageProps) {
       setIsLoading(true)
       setError(null)
 
-      const response = await fetch(`http://localhost:8000/api/v1/agent-public/${params.agentName}`)
+      const response = await fetch(`${API_BASE_URL}/api/v1/agent/public/${params.agentName}`)
       if (!response.ok) {
         throw new Error('Agent not found')
       }
@@ -83,7 +85,7 @@ export default function AgentContactPage({ params }: AgentContactPageProps) {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/agent-public/${params.agentName}/contact`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/agent/public/${params.agentName}/contact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
@@ -125,7 +127,7 @@ export default function AgentContactPage({ params }: AgentContactPageProps) {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Agent Not Found</h1>
           <p className="text-gray-600 mb-6">{error || 'The agent profile you\'re looking for doesn\'t exist or is not public.'}</p>
-          <Link 
+          <Link
             href="/"
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
@@ -148,13 +150,13 @@ export default function AgentContactPage({ params }: AgentContactPageProps) {
             Thank you for your message. {agent.agent_name} will get back to you as soon as possible.
           </p>
           <div className="space-x-4">
-            <Link 
+            <Link
               href={`/agent/${agent.slug}`}
               className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               Back to Agent Profile
             </Link>
-            <Link 
+            <Link
               href={`/agent/${agent.slug}/properties`}
               className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             >
@@ -181,13 +183,13 @@ export default function AgentContactPage({ params }: AgentContactPageProps) {
               </p>
             </div>
             <div className="flex items-center space-x-4">
-              <Link 
+              <Link
                 href={`/agent/${agent.slug}`}
                 className="text-gray-600 hover:text-gray-900"
               >
                 Agent Profile
               </Link>
-              <Link 
+              <Link
                 href={`/agent/${agent.slug}/properties`}
                 className="text-gray-600 hover:text-gray-900"
               >
@@ -323,7 +325,7 @@ export default function AgentContactPage({ params }: AgentContactPageProps) {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-sm p-6 sticky top-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h3>
-              
+
               <div className="flex items-center mb-6">
                 {agent.photo ? (
                   <img
@@ -348,7 +350,7 @@ export default function AgentContactPage({ params }: AgentContactPageProps) {
                     <span className="mr-2">📞</span>
                     <div>
                       <p className="text-sm text-gray-600">Phone</p>
-                      <a 
+                      <a
                         href={`tel:${agent.phone}`}
                         className="text-gray-900 hover:text-blue-600 transition-colors"
                       >
@@ -357,13 +359,13 @@ export default function AgentContactPage({ params }: AgentContactPageProps) {
                     </div>
                   </div>
                 )}
-                
+
                 {agent.email && (
                   <div className="flex items-center">
                     <span className="mr-2">✉️</span>
                     <div>
                       <p className="text-sm text-gray-600">Email</p>
-                      <a 
+                      <a
                         href={`mailto:${agent.email}`}
                         className="text-gray-900 hover:text-blue-600 transition-colors"
                       >
@@ -372,7 +374,7 @@ export default function AgentContactPage({ params }: AgentContactPageProps) {
                     </div>
                   </div>
                 )}
-                
+
                 {agent.office_address && (
                   <div className="flex items-start">
                     <span className="mr-2">📍</span>

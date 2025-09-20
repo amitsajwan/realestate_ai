@@ -38,7 +38,7 @@ export class AuthManager {
      * Retry API call with exponential backoff
      */
     private async retryApiCall<T>(
-        apiCall: () => Promise<T>, 
+        apiCall: () => Promise<T>,
         retries: number = this.maxApiRetries,
         baseDelay: number = this.apiRetryDelay
     ): Promise<T> {
@@ -107,8 +107,8 @@ export class AuthManager {
             const userResponse = await authAPI.register({
                 email: userData.email,
                 password: userData.password,
-                firstName: userData.firstName || '',
-                lastName: userData.lastName || '',
+                first_name: userData.first_name || '',
+                last_name: userData.last_name || '',
                 phone: userData.phone,
                 company: userData.company
             });
@@ -254,44 +254,71 @@ export class AuthManager {
         try {
             this.setState({ isLoading: true, error: null });
 
-            // Update user data in backend
-            const updateData: any = {
-                onboardingStep: step,
-                onboardingCompleted: completed
-            };
-
-            // Add form data if provided
-            if (formData) {
-                if (formData.firstName) updateData.firstName = formData.firstName;
-                if (formData.lastName) updateData.lastName = formData.lastName;
-                if (formData.phone) updateData.phone = formData.phone;
-                if (formData.company) updateData.company = formData.company;
-            }
-
             const currentState = this.getState();
-            if (!currentState.token) {
-                throw new Error('No authentication token available');
+            if (!currentState.token || !currentState.user?.id) {
+                throw new Error('No authentication token or user ID available');
             }
 
-            const updatedUser = await this.retryApiCall(
-                () => authAPI.updateUser(updateData, currentState.token!)
-            );
+            // Use the dedicated onboarding endpoints
+            if (completed) {
+                // Complete onboarding
+                logger.info(`[AuthManager] Completing onboarding for user ${currentState.user.id}`);
+                const result = await this.retryApiCall(
+                    () => authAPI.completeOnboarding(currentState.user!.id, currentState.token!)
+                );
 
-            if (updatedUser) {
-                // Update local state
-                const currentState = this.getState();
-                const updatedUserData = this.transformUserData(updatedUser);
+                if (result) {
+                    // Update local state to mark onboarding as completed
+                    const updatedUserData = {
+                        ...currentState.user,
+                        onboarding_completed: true,
+                        onboarding_step: 6
+                    };
 
-                this.setState({
-                    user: updatedUserData,
-                    isLoading: false,
-                    error: null
-                });
+                    this.setState({
+                        user: updatedUserData,
+                        isLoading: false,
+                        error: null
+                    });
 
-                return { success: true, user: updatedUserData };
+                    logger.info(`[AuthManager] Onboarding completed successfully for user ${currentState.user.id}`);
+                    return { success: true, user: updatedUserData };
+                }
             } else {
-                throw new Error('Failed to update user data');
+                // Update onboarding step
+                const updateData: any = {
+                    step: step,
+                    onboarding_step: step
+                };
+
+                // Add form data if provided
+                if (formData) {
+                    if (formData.first_name) updateData.first_name = formData.first_name;
+                    if (formData.last_name) updateData.last_name = formData.last_name;
+                    if (formData.phone) updateData.phone = formData.phone;
+                    if (formData.company) updateData.company = formData.company;
+                }
+
+                logger.info(`[AuthManager] Updating onboarding step ${step} for user ${currentState.user.id}`);
+                const updatedUser = await this.retryApiCall(
+                    () => authAPI.updateOnboarding(currentState.user!.id, updateData, currentState.token!)
+                );
+
+                if (updatedUser) {
+                    // Update local state
+                    const updatedUserData = this.transformUserData(updatedUser);
+
+                    this.setState({
+                        user: updatedUserData,
+                        isLoading: false,
+                        error: null
+                    });
+
+                    return { success: true, user: updatedUserData };
+                }
             }
+
+            throw new Error('Failed to update onboarding data');
         } catch (error) {
             logger.error('[AuthManager] Update onboarding error', {
                 errorDetails: error instanceof Error ? error.message : String(error)
@@ -317,12 +344,12 @@ export class AuthManager {
             is_active: user.is_active,
             is_superuser: user.is_superuser,
             is_verified: user.is_verified,
-            firstName: user.firstName,
-            lastName: user.lastName,
+            first_name: user.first_name,
+            last_name: user.last_name,
             phone: user.phone,
             company: user.company,
-            onboardingCompleted: user.onboardingCompleted,
-            onboardingStep: user.onboardingStep,
+            onboarding_completed: user.onboarding_completed,
+            onboarding_step: user.onboarding_step,
             created_at: user.created_at,
             updated_at: user.updated_at
         };

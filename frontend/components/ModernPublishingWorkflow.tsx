@@ -1,25 +1,14 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import {
-  DocumentTextIcon,
-  GlobeAltIcon,
-  ShareIcon,
-  CheckCircleIcon,
-  ClockIcon,
-  EyeIcon,
-  PencilIcon,
-  TrashIcon,
-  ArrowRightIcon,
-  ArrowLeftIcon,
-  LanguageIcon,
-  ChatBubbleLeftRightIcon,
-  ChartBarIcon,
-  ExclamationTriangleIcon,
-  SparklesIcon
-} from '@heroicons/react/24/outline'
 import { apiService } from '@/lib/api'
+import {
+    CheckCircleIcon,
+    DocumentTextIcon,
+    SparklesIcon,
+    TrashIcon
+} from '@heroicons/react/24/outline'
+import { motion } from 'framer-motion'
+import { useState } from 'react'
 import toast from 'react-hot-toast'
 
 interface Property {
@@ -46,7 +35,7 @@ interface Property {
 interface PublishingStatus {
   property_id: string
   publishing_status: string
-  published_at?: string
+  published_at?: string | null
   published_channels: string[]
   language_status: Record<string, string>
   facebook_posts: Record<string, string>
@@ -91,10 +80,34 @@ export default function ModernPublishingWorkflow({ properties, onRefresh }: Mode
     try {
       setIsLoading(true)
       const response = await apiService.getPublishingStatus(propertyId)
-      setPublishingStatus(response)
+      console.log('[ModernPublishingWorkflow] Publishing status response:', response)
+
+      // Ensure the response has the expected structure with fallback values
+      const publishingStatusData = {
+        property_id: response?.property_id || propertyId,
+        publishing_status: response?.publishing_status || 'draft',
+  published_at: response?.published_at || undefined,
+        published_channels: response?.published_channels || [],
+        language_status: response?.language_status || {},
+        facebook_posts: response?.facebook_posts || {},
+        analytics_data: response?.analytics_data || {}
+      }
+
+      console.log('[ModernPublishingWorkflow] Processed publishing status:', publishingStatusData)
+      setPublishingStatus(publishingStatusData)
     } catch (error) {
       console.error('Error loading publishing status:', error)
       toast.error('Failed to load publishing status')
+      // Set a default publishing status on error
+      setPublishingStatus({
+        property_id: propertyId,
+        publishing_status: 'draft',
+  published_at: undefined,
+        published_channels: [],
+        language_status: {},
+        facebook_posts: {},
+        analytics_data: {}
+      })
     } finally {
       setIsLoading(false)
     }
@@ -110,7 +123,7 @@ export default function ModernPublishingWorkflow({ properties, onRefresh }: Mode
 
     try {
       setIsPublishing(true)
-      
+
       const publishingRequest = {
         property_id: selectedProperty.id,
         target_languages: selectedLanguages,
@@ -123,7 +136,17 @@ export default function ModernPublishingWorkflow({ properties, onRefresh }: Mode
 
       if (response) {
         toast.success('Property published successfully!')
-        setPublishingStatus(response)
+        // Ensure the response has the expected structure
+        const publishingStatusData = {
+          property_id: response?.property_id || selectedProperty.id,
+          publishing_status: response?.publishing_status || 'published',
+          published_at: response?.published_at || new Date().toISOString(),
+          published_channels: response?.published_channels || selectedChannels,
+          language_status: response?.language_status || {},
+          facebook_posts: response?.facebook_posts || {},
+          analytics_data: response?.analytics_data || {}
+        }
+        setPublishingStatus(publishingStatusData)
         onRefresh()
       }
     } catch (error) {
@@ -139,12 +162,22 @@ export default function ModernPublishingWorkflow({ properties, onRefresh }: Mode
 
     try {
       setIsPublishing(true)
-      
+
       const response = await apiService.unpublishProperty(selectedProperty.id)
 
       if (response) {
         toast.success('Property unpublished successfully!')
-        setPublishingStatus(response)
+        // Ensure the response has the expected structure
+        const publishingStatusData = {
+          property_id: response?.property_id || selectedProperty.id,
+          publishing_status: response?.publishing_status || 'draft',
+          published_at: response?.published_at || null,
+          published_channels: response?.published_channels || [],
+          language_status: response?.language_status || {},
+          facebook_posts: response?.facebook_posts || {},
+          analytics_data: response?.analytics_data || {}
+        }
+        setPublishingStatus(publishingStatusData)
         onRefresh()
       }
     } catch (error) {
@@ -196,11 +229,10 @@ export default function ModernPublishingWorkflow({ properties, onRefresh }: Mode
                 <motion.div
                   key={property.id}
                   whileHover={{ scale: 1.02 }}
-                  className={`p-4 rounded-lg border cursor-pointer transition-all ${
-                    selectedProperty?.id === property.id
+                  className={`p-4 rounded-lg border cursor-pointer transition-all ${selectedProperty?.id === property.id
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                    }`}
                   onClick={() => handlePropertySelect(property)}
                 >
                   <div className="flex items-start justify-between">
@@ -264,15 +296,15 @@ export default function ModernPublishingWorkflow({ properties, onRefresh }: Mode
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium text-gray-700">Status</label>
-                      <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getStatusColor(publishingStatus.publishing_status)}`}>
-                        {getStatusIcon(publishingStatus.publishing_status)}
-                        {publishingStatus.publishing_status}
+                      <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getStatusColor(publishingStatus.publishing_status || 'draft')}`}>
+                        {getStatusIcon(publishingStatus.publishing_status || 'draft')}
+                        {publishingStatus.publishing_status || 'draft'}
                       </div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-gray-700">Published At</label>
                       <p className="text-gray-900">
-                        {publishingStatus.published_at 
+                        {publishingStatus.published_at
                           ? new Date(publishingStatus.published_at).toLocaleString()
                           : 'Not published'
                         }
@@ -281,7 +313,7 @@ export default function ModernPublishingWorkflow({ properties, onRefresh }: Mode
                     <div>
                       <label className="text-sm font-medium text-gray-700">Channels</label>
                       <div className="flex flex-wrap gap-1">
-                        {publishingStatus.published_channels.map((channel) => (
+                        {(publishingStatus.published_channels || []).map((channel) => (
                           <span key={channel} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
                             {channel}
                           </span>
@@ -291,7 +323,7 @@ export default function ModernPublishingWorkflow({ properties, onRefresh }: Mode
                     <div>
                       <label className="text-sm font-medium text-gray-700">Languages</label>
                       <div className="flex flex-wrap gap-1">
-                        {Object.entries(publishingStatus.language_status).map(([lang, status]) => (
+                        {Object.entries(publishingStatus.language_status || {}).map(([lang, status]) => (
                           <span key={lang} className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
                             {lang}: {status}
                           </span>
@@ -307,7 +339,7 @@ export default function ModernPublishingWorkflow({ properties, onRefresh }: Mode
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">
                   Publishing Controls
                 </h2>
-                
+
                 {/* Language Selection */}
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">

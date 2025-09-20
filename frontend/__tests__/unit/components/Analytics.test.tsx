@@ -1,8 +1,7 @@
-import React from 'react'
-import { render, screen, waitFor, act } from '@testing-library/react'
-import '@testing-library/jest-dom'
 import Analytics from '@/components/Analytics'
 import { type Property } from '@/lib/data-transformers'
+import '@testing-library/jest-dom'
+import { act, render, screen, waitFor } from '@testing-library/react'
 
 // Mock the CRM API
 jest.mock('@/lib/crm-api', () => ({
@@ -66,7 +65,7 @@ const mockProperties: Property[] = [
     type: 'villa',
     property_type: 'villa',
     status: 'for-sale',
-    dateAdded: '2024-01-01',
+    date_added: '2024-01-01',
     created_at: '2024-01-01T00:00:00Z',
   },
   {
@@ -82,7 +81,7 @@ const mockProperties: Property[] = [
     type: 'apartment',
     property_type: 'apartment',
     status: 'for-rent',
-    dateAdded: '2024-01-02',
+    date_added: '2024-01-02',
     created_at: '2024-01-02T00:00:00Z',
   }
 ]

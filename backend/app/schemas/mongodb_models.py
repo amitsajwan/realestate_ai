@@ -34,8 +34,8 @@ class UserBase(BaseModel):
     experience: Optional[str] = None
     areas: Optional[str] = None
     languages: Optional[List[str]] = None
-    firstName: Optional[str] = None
-    lastName: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     propertyTypes: Optional[str] = None
     facebook_connected: bool = False
     fb_user_token: Optional[str] = None

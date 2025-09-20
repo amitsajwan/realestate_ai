@@ -156,6 +156,9 @@ class CRMApiService {
   }
 
   private getHeaders(): HeadersInit {
+    // Refresh token on each request to ensure it's current
+    this.token = this.getToken()
+
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     }
@@ -169,6 +172,17 @@ class CRMApiService {
 
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
+      if (response.status === 401) {
+        // Token might be expired or invalid
+        console.warn('[CRM API] 401 Unauthorized - token may be expired or invalid')
+        // Clear the stored token
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('auth_token')
+        }
+        this.token = null
+        throw new Error('Authentication failed. Please log in again.')
+      }
+
       const error = await response.json().catch(() => ({ detail: 'Unknown error' }))
       throw new Error(error.detail || `HTTP ${response.status}`)
     }

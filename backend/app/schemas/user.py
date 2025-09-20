@@ -7,8 +7,8 @@ from app.utils.validation import validate_password_strength, validate_email_form
 class UserBase(BaseModel):
     """Base user model with common fields"""
     email: str = Field(..., description="User's email address")
-    first_name: Optional[str] = Field(None, min_length=1, max_length=50, description="User's first name", alias="firstName")
-    last_name: Optional[str] = Field(None, min_length=1, max_length=50, description="User's last name", alias="lastName")
+    first_name: Optional[str] = Field(None, min_length=1, max_length=50, description="User's first name")
+    last_name: Optional[str] = Field(None, min_length=1, max_length=50, description="User's last name")
     phone: Optional[str] = Field(None, max_length=20, description="User's phone number")
     is_active: bool = Field(True, description="Whether the user account is active")
     
@@ -184,8 +184,8 @@ class UserResponse(BaseModel):
     """Schema for user response (excludes sensitive data)"""
     id: str = Field(..., description="User's unique identifier")
     email: str = Field(..., description="User's email address")
-    firstName: str = Field(..., description="User's first name", alias="first_name")
-    lastName: str = Field(..., description="User's last name", alias="last_name")
+    first_name: str = Field(..., description="User's first name")
+    last_name: str = Field(..., description="User's last name")
     phone: Optional[str] = Field(None, description="User's phone number")
     is_active: bool = Field(..., description="Whether the user account is active")
     created_at: datetime = Field(..., description="When the user was created")
@@ -193,8 +193,8 @@ class UserResponse(BaseModel):
     last_login: Optional[datetime] = Field(None, description="User's last login time")
     login_attempts: int = Field(0, description="Number of failed login attempts")
     is_verified: bool = Field(False, description="Whether the user's email is verified")
-    onboardingCompleted: bool = Field(False, description="Whether user completed onboarding", alias="onboarding_completed")
-    onboardingStep: int = Field(0, description="Current onboarding step", alias="onboarding_step")
+    onboarding_completed: bool = Field(False, description="Whether user completed onboarding")
+    onboarding_step: int = Field(0, description="Current onboarding step")
     
     model_config = ConfigDict(
         populate_by_name=True,
@@ -212,8 +212,8 @@ class UserResponse(BaseModel):
                 "last_login": "2023-01-01T00:00:00Z",
                 "login_attempts": 0,
                 "is_verified": True,
-                "onboardingCompleted": True,
-                "onboardingStep": 6
+                "onboarding_completed": True,
+                "onboarding_step": 6
             }
         }
     )
@@ -221,7 +221,7 @@ class UserResponse(BaseModel):
     @property
     def full_name(self) -> str:
         """Get user's full name"""
-        return f"{self.firstName} {self.lastName}"
+        return f"{self.first_name} {self.last_name}"
     
     @property
     def display_name(self) -> str:

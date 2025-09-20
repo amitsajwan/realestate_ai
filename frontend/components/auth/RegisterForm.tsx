@@ -17,8 +17,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, onSwitchToLogin, 
     const [formData, setFormData] = useState<LoginFormData>({
         email: '',
         password: '',
-        firstName: '',
-        lastName: '',
+        first_name: '',
+        last_name: '',
         phone: '',
         confirmPassword: ''
     });
@@ -88,7 +88,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, onSwitchToLogin, 
         console.log('[RegisterForm] Form submitted with data:', formData);
 
         // Only validate if user has entered something
-        if (formData.email || formData.password || formData.firstName || formData.lastName) {
+        if (formData.email || formData.password || formData.first_name || formData.last_name) {
             console.log('[RegisterForm] Validating form data...');
             if (!validator.validateAll(formData)) {
                 console.log('[RegisterForm] Validation failed');
@@ -101,8 +101,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, onSwitchToLogin, 
             email: formData.email,
             password: formData.password,
             confirmPassword: formData.confirmPassword,
-            firstName: formData.firstName || '',
-            lastName: formData.lastName || '',
+            first_name: formData.first_name || '',
+            last_name: formData.last_name || '',
             phone: formData.phone || undefined
         };
 
@@ -121,7 +121,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, onSwitchToLogin, 
                 {/* Name Fields */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label htmlFor="firstName" className="sr-only">
+                        <label htmlFor="first_name" className="sr-only">
                             First Name
                         </label>
                         <div className="relative">
@@ -129,31 +129,31 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, onSwitchToLogin, 
                                 <User className="h-5 w-5 text-gray-400" />
                             </div>
                             <input
-                                id="firstName"
-                                name="firstName"
+                                id="first_name"
+                                name="first_name"
                                 type="text"
                                 autoComplete="given-name"
                                 required
-                                className={getFieldClassName('firstName')}
+                                className={getFieldClassName('first_name')}
                                 placeholder="First Name"
-                                value={formData.firstName}
+                                value={formData.first_name}
                                 onChange={handleChange}
-                                onBlur={() => handleBlur('firstName')}
-                                aria-describedby={validator.hasFieldError('firstName') ? 'firstName-error' : undefined}
+                                onBlur={() => handleBlur('first_name')}
+                                aria-describedby={validator.hasFieldError('first_name') ? 'first_name-error' : undefined}
                             />
                             <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                                {getFieldValidationIcon('firstName')}
+                                {getFieldValidationIcon('first_name')}
                             </div>
                         </div>
-                        {validator.hasFieldError('firstName') && (
-                            <p id="firstName-error" className="mt-1 text-sm text-red-600" role="alert">
-                                {validator.getFieldError('firstName')}
+                        {validator.hasFieldError('first_name') && (
+                            <p id="first_name-error" className="mt-1 text-sm text-red-600" role="alert">
+                                {validator.getFieldError('first_name')}
                             </p>
                         )}
                     </div>
 
                     <div>
-                        <label htmlFor="lastName" className="sr-only">
+                        <label htmlFor="last_name" className="sr-only">
                             Last Name
                         </label>
                         <div className="relative">
@@ -161,25 +161,25 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSubmit, onSwitchToLogin, 
                                 <User className="h-5 w-5 text-gray-400" />
                             </div>
                             <input
-                                id="lastName"
-                                name="lastName"
+                                id="last_name"
+                                name="last_name"
                                 type="text"
                                 autoComplete="family-name"
                                 required
-                                className={getFieldClassName('lastName')}
+                                className={getFieldClassName('last_name')}
                                 placeholder="Last Name"
-                                value={formData.lastName}
+                                value={formData.last_name}
                                 onChange={handleChange}
-                                onBlur={() => handleBlur('lastName')}
-                                aria-describedby={validator.hasFieldError('lastName') ? 'lastName-error' : undefined}
+                                onBlur={() => handleBlur('last_name')}
+                                aria-describedby={validator.hasFieldError('last_name') ? 'last_name-error' : undefined}
                             />
                             <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                                {getFieldValidationIcon('lastName')}
+                                {getFieldValidationIcon('last_name')}
                             </div>
                         </div>
-                        {validator.hasFieldError('lastName') && (
-                            <p id="lastName-error" className="mt-1 text-sm text-red-600" role="alert">
-                                {validator.getFieldError('lastName')}
+                        {validator.hasFieldError('last_name') && (
+                            <p id="last_name-error" className="mt-1 text-sm text-red-600" role="alert">
+                                {validator.getFieldError('last_name')}
                             </p>
                         )}
                     </div>

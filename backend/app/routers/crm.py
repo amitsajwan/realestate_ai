@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Import shared utilities
-from app.utils import verify_token
+from app.utils import verify_jwt_token
 
 class LeadScoringService:
     """Advanced lead scoring algorithm"""
@@ -357,7 +357,7 @@ class CRMService:
     async def get_lead_analytics(self) -> Dict[str, Any]:
         """Get comprehensive lead analytics"""
         try:
-            if not self.leads_collection:
+            if self.leads_collection is None:
                 return {'error': 'Database not connected'}
                 
             total_leads = await self.leads_collection.count_documents({})
@@ -374,10 +374,10 @@ class CRMService:
                 score_data = lead_scoring.calculate_lead_score(lead)
                 lead_scores.append({
                     'lead_id': str(lead['_id']),
-                    'name': lead['name'],
-                    'score': score_data['total_score'],
-                    'quality': score_data['quality'],
-                    'priority': score_data['priority']
+                    'name': lead.get('name', 'Unknown'),
+                    'score': score_data.get('total_score', 0),
+                    'quality': score_data.get('quality', 'Unknown'),
+                    'priority': score_data.get('priority', 'Low')
                 })
             
             # Sort by score
@@ -399,7 +399,7 @@ class CRMService:
     async def get_deal_pipeline(self) -> Dict[str, Any]:
         """Get deal pipeline analysis"""
         try:
-            if not self.deals_collection:
+            if self.deals_collection is None:
                 return {'error': 'Database not connected'}
                 
             deals_cursor = self.deals_collection.find({})
@@ -435,13 +435,52 @@ from app.core.database import get_database
 
 async def get_crm_service():
     """Get CRM service with database connection"""
-    db = await get_database()
+    db = get_database()
     return CRMService(db)
 
 # For backward compatibility, create a global instance
 crm_service = None
 
-@router.get("/crm/analytics")
+@router.get("/analytics/dashboard")
+async def get_crm_analytics_dashboard(request: Request):
+    """Get CRM analytics dashboard data"""
+    try:
+        # Token verification
+        token = request.headers.get("Authorization")
+        if not token or not token.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        token = token.split(" ")[1]
+        payload = verify_jwt_token(token)
+        if not payload:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        # Get CRM service with database connection
+        crm_svc = await get_crm_service()
+        
+        # Get analytics
+        lead_analytics = await crm_svc.get_lead_analytics()
+        deal_pipeline = await crm_svc.get_deal_pipeline()
+        
+        return JSONResponse(content={
+            "success": True,
+            "data": {
+                "lead_analytics": lead_analytics,
+                "deal_pipeline": deal_pipeline,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"CRM analytics dashboard error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": "Internal server error"}
+        )
+
+@router.get("/analytics")
 async def get_crm_analytics(request: Request):
     """Get comprehensive CRM analytics"""
     try:
@@ -451,7 +490,7 @@ async def get_crm_analytics(request: Request):
             raise HTTPException(status_code=401, detail="Invalid token")
 
         token = token.split(" ")[1]
-        payload = verify_token(token)
+        payload = verify_jwt_token(token)
         if not payload:
             raise HTTPException(status_code=401, detail="Invalid token")
         
@@ -478,9 +517,9 @@ async def get_crm_analytics(request: Request):
             content={"success": False, "error": "Internal server error"}
         )
 
-@router.get("/crm/leads")
-async def get_crm_leads(request: Request):
-    """Get all CRM leads with scoring"""
+@router.get("/leads/stats")
+async def get_crm_leads_stats(request: Request):
+    """Get CRM leads statistics"""
     try:
         # Token verification
         token = request.headers.get("Authorization")
@@ -488,29 +527,131 @@ async def get_crm_leads(request: Request):
             raise HTTPException(status_code=401, detail="Invalid token")
 
         token = token.split(" ")[1]
-        payload = verify_token(token)
+        payload = verify_jwt_token(token)
         if not payload:
             raise HTTPException(status_code=401, detail="Invalid token")
         
         # Get CRM service with database connection
         crm_svc = await get_crm_service()
         
+        # Get lead analytics
+        lead_analytics = await crm_svc.get_lead_analytics()
+        
+        return JSONResponse(content={
+            "success": True,
+            "data": lead_analytics
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get CRM leads stats error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": "Internal server error"}
+        )
+
+@router.get("/leads")
+async def get_crm_leads(request: Request):
+    """Get all CRM leads with scoring"""
+    try:
+        logger.info("Starting CRM leads request")
+        
+        # Token verification
+        token = request.headers.get("Authorization")
+        if not token or not token.startswith("Bearer "):
+            logger.error("No valid Authorization header")
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        token = token.split(" ")[1]
+        logger.info(f"Verifying token: {token[:20]}...")
+        
+        try:
+            payload = verify_jwt_token(token)
+            if not payload:
+                logger.error("Token verification returned None")
+                raise HTTPException(status_code=401, detail="Invalid token")
+            logger.info("Token verified successfully")
+        except Exception as e:
+            logger.error(f"Token verification failed: {e}")
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        # Get CRM service with database connection
+        logger.info("Getting CRM service...")
+        try:
+            crm_svc = await get_crm_service()
+            logger.info("CRM service obtained")
+        except Exception as e:
+            logger.error(f"Failed to get CRM service: {e}")
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "error": f"Failed to get CRM service: {str(e)}"}
+            )
+        
         # Get leads with scoring
-        leads_cursor = crm_svc.leads_collection.find({})
-        leads = await leads_cursor.to_list(length=None)
+        if crm_svc.leads_collection is None:
+            logger.error("Leads collection is None")
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "error": "Database not connected"}
+            )
+        
+        logger.info("Querying leads from database...")
+        try:
+            leads_cursor = crm_svc.leads_collection.find({})
+            leads = await leads_cursor.to_list(length=None)
+            logger.info(f"Found {len(leads)} leads")
+        except Exception as e:
+            logger.error(f"Failed to query leads: {e}")
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "error": f"Failed to query leads: {str(e)}"}
+            )
         
         leads_with_scores = []
-        for lead in leads:
-            score_data = lead_scoring.calculate_lead_score(lead)
-            lead_with_score = lead.copy()
-            lead_with_score['_id'] = str(lead['_id'])  # Convert ObjectId to string
-            lead_with_score['scoring'] = score_data
-            leads_with_scores.append(lead_with_score)
-            leads_with_scores.append(lead_with_score)
+        logger.info("Processing leads with scoring...")
+        for i, lead in enumerate(leads):
+            try:
+                score_data = lead_scoring.calculate_lead_score(lead)
+                lead_with_score = lead.copy()
+                lead_with_score['_id'] = str(lead['_id'])  # Convert ObjectId to string
+                
+                # Convert datetime objects to ISO strings for JSON serialization
+                for key, value in lead_with_score.items():
+                    if hasattr(value, 'isoformat'):  # Check if it's a datetime object
+                        lead_with_score[key] = value.isoformat()
+                
+                lead_with_score['scoring'] = score_data
+                leads_with_scores.append(lead_with_score)
+            except Exception as e:
+                logger.error(f"Error processing lead {lead.get('_id', 'unknown')}: {e}")
+                # Add lead without scoring if scoring fails
+                lead_with_score = lead.copy()
+                lead_with_score['_id'] = str(lead['_id'])
+                
+                # Convert datetime objects to ISO strings for JSON serialization
+                for key, value in lead_with_score.items():
+                    if hasattr(value, 'isoformat'):  # Check if it's a datetime object
+                        lead_with_score[key] = value.isoformat()
+                
+                lead_with_score['scoring'] = {
+                    'total_score': 0,
+                    'quality': 'Unknown',
+                    'priority': 'Low',
+                    'error': str(e)
+                }
+                leads_with_scores.append(lead_with_score)
         
-        # Sort by score
-        leads_with_scores.sort(key=lambda x: x['scoring']['total_score'], reverse=True)
+        # Sort by score (with error handling)
+        logger.info("Sorting leads by score...")
+        try:
+            leads_with_scores.sort(key=lambda x: x.get('scoring', {}).get('total_score', 0), reverse=True)
+            logger.info("Leads sorted successfully")
+        except Exception as e:
+            logger.error(f"Error sorting leads: {e}")
+            # Continue without sorting if there's an error
         
+        logger.info(f"Returning {len(leads_with_scores)} leads")
         return JSONResponse(content={
             "success": True,
             "leads": leads_with_scores,
@@ -521,12 +662,14 @@ async def get_crm_leads(request: Request):
         raise
     except Exception as e:
         logger.error(f"Get CRM leads error: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return JSONResponse(
             status_code=500,
-            content={"success": False, "error": "Internal server error"}
+            content={"success": False, "error": f"Internal server error: {str(e)}"}
         )
 
-@router.post("/crm/leads")
+@router.post("/leads")
 async def create_crm_lead(request: Request):
     """Create new CRM lead"""
     try:
@@ -536,7 +679,7 @@ async def create_crm_lead(request: Request):
             raise HTTPException(status_code=401, detail="Invalid token")
 
         token = token.split(" ")[1]
-        payload = verify_token(token)
+        payload = verify_jwt_token(token)
         if not payload:
             raise HTTPException(status_code=401, detail="Invalid token")
         
@@ -585,7 +728,7 @@ async def create_crm_lead(request: Request):
             content={"success": False, "error": "Internal server error"}
         )
 
-@router.get("/crm/deals")
+@router.get("/deals")
 async def get_crm_deals(request: Request):
     """Get all CRM deals"""
     try:
@@ -595,7 +738,7 @@ async def get_crm_deals(request: Request):
             raise HTTPException(status_code=401, detail="Invalid token")
 
         token = token.split(" ")[1]
-        payload = verify_token(token)
+        payload = verify_jwt_token(token)
         if not payload:
             raise HTTPException(status_code=401, detail="Invalid token")
         

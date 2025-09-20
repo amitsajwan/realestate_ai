@@ -120,6 +120,16 @@ class PromotionHistoryResponse(BaseModel):
     success: bool
     items: list[PromotionHistoryItem]
  
+@router.get("/status")
+async def get_facebook_status():
+    """Get Facebook service status"""
+    return {
+        "status": "active",
+        "service": "facebook",
+        "connected": False,
+        "message": "Facebook service is running"
+    }
+
 @router.get("/config")
 async def get_facebook_config(
     current_user = Depends(current_active_user),

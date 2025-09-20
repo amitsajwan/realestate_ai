@@ -1,7 +1,9 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import Link from 'next/link'
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 interface Property {
   id: string
@@ -54,7 +56,7 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
       setError(null)
 
       // Load property details
-      const propertyResponse = await fetch(`/api/v1/agent-public/${params.agentName}/properties/${params.propertyId}`)
+      const propertyResponse = await fetch(`${API_BASE_URL}/api/v1/agent/public/${params.agentName}/properties/${params.propertyId}`)
       if (!propertyResponse.ok) {
         throw new Error('Property not found')
       }
@@ -62,7 +64,7 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
       setProperty(propertyData)
 
       // Load agent info
-      const agentResponse = await fetch(`/api/v1/agent-public/${params.agentName}`)
+      const agentResponse = await fetch(`${API_BASE_URL}/api/v1/agent/public/${params.agentName}`)
       if (agentResponse.ok) {
         const agentData = await agentResponse.json()
         setAgent(agentData)
@@ -103,13 +105,13 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Property Not Found</h1>
           <p className="text-gray-600 mb-6">{error || 'The property you\'re looking for doesn\'t exist or is not public.'}</p>
           <div className="space-x-4">
-            <Link 
+            <Link
               href={`/agent/${params.agentName}/properties`}
               className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               View All Properties
             </Link>
-            <Link 
+            <Link
               href={`/agent/${params.agentName}`}
               className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             >
@@ -238,7 +240,7 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
             {agent && (
               <div className="bg-white rounded-lg shadow-sm p-6 mb-6 sticky top-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Agent</h3>
-                
+
                 <div className="flex items-center mb-4">
                   {agent.photo ? (
                     <img

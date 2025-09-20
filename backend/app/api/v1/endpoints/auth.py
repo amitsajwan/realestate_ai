@@ -97,9 +97,7 @@ async def get_current_user_info(current_user: User = Depends(current_active_user
     # Remove sensitive fields
     user_dict.pop("hashed_password", None)
     
-    # No field mapping needed - using camelCase directly
-    
-    logger.debug(f"Returning user info with onboarding status: completed={user_dict.get('onboardingCompleted')}, step={user_dict.get('onboardingStep')}")
+    logger.debug(f"Returning user info with onboarding status: completed={user_dict.get('onboarding_completed')}, step={user_dict.get('onboarding_step')}")
     
     return user_dict
 

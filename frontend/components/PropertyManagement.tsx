@@ -1,26 +1,20 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import {
-  PlusIcon,
-  DocumentTextIcon,
-  GlobeAltIcon,
-  ShareIcon,
-  CheckCircleIcon,
-  ClockIcon,
-  EyeIcon,
-  PencilIcon,
-  TrashIcon,
-  ArrowPathIcon,
-  SparklesIcon,
-  ChartBarIcon,
-  LanguageIcon,
-  ChatBubbleLeftRightIcon
-} from '@heroicons/react/24/outline'
+import { MobilePublishingWorkflow } from '@/components/social_publishing/mobile'
 import { apiService } from '@/lib/api'
+import { propertiesAPI } from '@/lib/properties'
+import { PropertyContext } from '@/types/social_publishing'
+import {
+  ChartBarIcon,
+  CheckCircleIcon,
+  DocumentTextIcon,
+  PlusIcon,
+  ShareIcon,
+  TrashIcon
+} from '@heroicons/react/24/outline'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import ModernPublishingWorkflow from './ModernPublishingWorkflow'
 
 interface Property {
   id: string
@@ -50,8 +44,10 @@ interface PropertyManagementProps {
 export default function PropertyManagement({ onAddProperty }: PropertyManagementProps) {
   const [properties, setProperties] = useState<Property[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'list' | 'publishing'>('list')
+  const [activeTab, setActiveTab] = useState<'list' | 'mobile-publishing'>('list')
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
+
+  console.log('[PropertyManagement] Component rendered with properties:', properties.length, properties)
 
   useEffect(() => {
     loadProperties()
@@ -60,12 +56,56 @@ export default function PropertyManagement({ onAddProperty }: PropertyManagement
   const loadProperties = async () => {
     try {
       setIsLoading(true)
-      const response = await apiService.getProperties()
-      setProperties(response || [])
+      console.log('[PropertyManagement] Starting to load properties...')
+
+      const response = await propertiesAPI.getProperties()
+      console.log('[PropertyManagement] API response:', response)
+      console.log('[PropertyManagement] Response type:', typeof response)
+      console.log('[PropertyManagement] Is array:', Array.isArray(response))
+
+      // Handle both direct array response and wrapped response
+      const propertiesData = Array.isArray(response) ? response : (response?.data || [])
+      console.log('[PropertyManagement] Properties data extracted:', propertiesData)
+      console.log('[PropertyManagement] Properties data type:', typeof propertiesData)
+      console.log('[PropertyManagement] Properties data length:', propertiesData?.length)
+
+      if (propertiesData && propertiesData.length > 0) {
+        console.log('[PropertyManagement] Setting properties state with:', propertiesData.length, 'properties')
+
+        // Normalize incoming property objects to match this component's Property interface
+        const normalized: Property[] = propertiesData.map((p: any) => ({
+          id: p.id || p._id || String(p.property_id || ''),
+          title: p.title || p.name || 'Untitled Property',
+          description: p.description || p.desc || '',
+          price: Number(p.price) || 0,
+          location: p.location || p.address || '',
+          bedrooms: Number(p.bedrooms) || 0,
+          bathrooms: Number(p.bathrooms) || 0,
+          area_sqft: Number(p.area_sqft || p.area || 0),
+          property_type: p.property_type || p.type || 'Unknown',
+          features: p.features || [],
+          amenities: p.amenities || '',
+          publishing_status: p.publishing_status || 'draft',
+          published_at: p.published_at,
+          target_languages: p.target_languages || [],
+          publishing_channels: p.publishing_channels || [],
+          facebook_page_mappings: p.facebook_page_mappings || {},
+          created_at: p.created_at || p.createdAt || new Date().toISOString(),
+          updated_at: p.updated_at || p.updatedAt || new Date().toISOString()
+        }))
+
+        setProperties(normalized)
+        console.log('[PropertyManagement] Properties state set successfully')
+      } else {
+        console.log('[PropertyManagement] No properties found, setting empty array')
+        setProperties([])
+      }
     } catch (error) {
-      console.error('Error loading properties:', error)
+      console.error('[PropertyManagement] Error loading properties:', error)
       toast.error('Failed to load properties')
+      setProperties([])
     } finally {
+      console.log('[PropertyManagement] Setting loading to false')
       setIsLoading(false)
     }
   }
@@ -81,6 +121,24 @@ export default function PropertyManagement({ onAddProperty }: PropertyManagement
       console.error('Error deleting property:', error)
       toast.error('Failed to delete property')
     }
+  }
+
+  // Transform Property data to PropertyContext format for Social Publishing
+  const transformPropertiesForSocialPublishing = (properties: Property[]): PropertyContext[] => {
+    return properties.map(property => ({
+      id: property.id,
+      title: property.title,
+      description: property.description,
+      price: property.price,
+      location: property.location,
+      propertyType: property.property_type,
+      bedrooms: property.bedrooms,
+      bathrooms: property.bathrooms,
+      areaSqft: property.area_sqft,
+      amenities: property.amenities ? property.amenities.split(',').map(a => a.trim()) : [],
+      features: property.features || [],
+      images: [] // Add image handling if needed
+    }))
   }
 
   const getStatusColor = (status: string) => {
@@ -108,11 +166,11 @@ export default function PropertyManagement({ onAddProperty }: PropertyManagement
       archived: 0,
       total: properties.length
     }
-    
+
     properties.forEach(property => {
       counts[property.publishing_status as keyof typeof counts]++
     })
-    
+
     return counts
   }
 
@@ -162,7 +220,7 @@ export default function PropertyManagement({ onAddProperty }: PropertyManagement
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
             <div className="p-2 bg-green-100 rounded-lg">
@@ -174,7 +232,7 @@ export default function PropertyManagement({ onAddProperty }: PropertyManagement
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
             <div className="p-2 bg-red-100 rounded-lg">
@@ -186,7 +244,7 @@ export default function PropertyManagement({ onAddProperty }: PropertyManagement
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-lg">
@@ -206,23 +264,21 @@ export default function PropertyManagement({ onAddProperty }: PropertyManagement
           <nav className="-mb-px flex space-x-8">
             <button
               onClick={() => setActiveTab('list')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'list'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'list'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               Property List
             </button>
             <button
-              onClick={() => setActiveTab('publishing')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'publishing'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              onClick={() => setActiveTab('mobile-publishing')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'mobile-publishing'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
-              Publishing Workflow
+              📱 Social Publishing
             </button>
           </nav>
         </div>
@@ -304,7 +360,7 @@ export default function PropertyManagement({ onAddProperty }: PropertyManagement
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {property.published_at 
+                            {property.published_at
                               ? new Date(property.published_at).toLocaleDateString()
                               : 'Not published'
                             }
@@ -314,9 +370,10 @@ export default function PropertyManagement({ onAddProperty }: PropertyManagement
                               <button
                                 onClick={() => {
                                   setSelectedProperty(property)
-                                  setActiveTab('publishing')
+                                  setActiveTab('mobile-publishing')
                                 }}
                                 className="text-blue-600 hover:text-blue-900"
+                                title="Open Social Media Publishing"
                               >
                                 <ShareIcon className="w-4 h-4" />
                               </button>
@@ -338,14 +395,14 @@ export default function PropertyManagement({ onAddProperty }: PropertyManagement
           </motion.div>
         ) : (
           <motion.div
-            key="publishing"
+            key="mobile-publishing"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.2 }}
           >
-            <ModernPublishingWorkflow 
-              properties={properties} 
+            <MobilePublishingWorkflow
+              properties={transformPropertiesForSocialPublishing(properties)}
               onRefresh={loadProperties}
             />
           </motion.div>

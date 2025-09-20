@@ -69,6 +69,21 @@ async def get_current_agent_public_profile(
         
         logger.info(f"Getting agent profile for user: {user_id}")
         
+        # Check if database is available
+        if db is None:
+            logger.warning("Database not available, returning default profile")
+            # Return a default profile structure
+            return {
+                "agent_name": getattr(current_user, 'first_name', 'Unknown') + " " + getattr(current_user, 'last_name', 'Agent'),
+                "slug": "default-agent",
+                "bio": "No profile available",
+                "phone": "",
+                "email": getattr(current_user, 'email', ''),
+                "is_active": True,
+                "is_public": False,
+                "properties": []
+            }
+        
         # Try to get existing profile from database
         agent_profile = await service.get_agent_by_id(user_id)
         
@@ -80,8 +95,8 @@ async def get_current_agent_public_profile(
         logger.info(f"No existing profile found, creating new profile for user: {user_id}")
         
         # Extract user data
-        first_name = current_user.firstName or ""
-        last_name = current_user.lastName or ""
+        first_name = current_user.first_name or ""
+        last_name = current_user.last_name or ""
         full_name = f"{first_name} {last_name}".strip()
         if not full_name:
             full_name = current_user.email or "Agent"
@@ -182,7 +197,7 @@ async def get_agent_public_profile(
             raise HTTPException(status_code=404, detail="Agent profile is not public")
         
         # Increment view count
-        await service.increment_view_count(agent.id)
+        await service.increment_view_count(agent.agent_id)
         
         return agent
         
@@ -239,7 +254,9 @@ async def get_agent_public_properties(
         )
         
         # Get properties
-        result = await service.get_agent_properties(agent.id, filters)
+        print(f"DEBUG: Getting properties for agent.agent_id: {agent.agent_id}")
+        result = await service.get_agent_properties(agent.agent_id, filters)
+        print(f"DEBUG: Properties result: {result}")
         
         return {
             "properties": result["properties"],
@@ -274,7 +291,9 @@ async def get_agent_public_property(
             raise HTTPException(status_code=404, detail="Agent not found")
         
         # Get property
-        property = await service.get_agent_property(agent.id, property_id)
+        print(f"DEBUG: Getting property {property_id} for agent {agent.agent_id}")
+        property = await service.get_agent_property(agent.agent_id, property_id)
+        print(f"DEBUG: Property result: {property is not None}")
         if not property:
             raise HTTPException(status_code=404, detail="Property not found")
         
@@ -311,15 +330,15 @@ async def submit_contact_inquiry(
         
         # Validate property if specified
         if inquiry.property_id:
-            property = await service.get_agent_property(agent.id, inquiry.property_id)
+            property = await service.get_agent_property(agent.agent_id, inquiry.property_id)
             if not property or not property.is_public:
                 raise HTTPException(status_code=400, detail="Invalid property ID")
         
         # Create inquiry
-        created_inquiry = await service.create_contact_inquiry(agent.id, inquiry)
+        created_inquiry = await service.create_contact_inquiry(agent.agent_id, inquiry)
         
         # Increment contact count
-        await service.increment_contact_count(agent.id)
+        await service.increment_contact_count(agent.agent_id)
         
         return created_inquiry
         
@@ -347,7 +366,7 @@ async def track_contact_action(
             raise HTTPException(status_code=404, detail="Agent not found")
         
         # Track the action
-        await service.track_contact_action(agent.id, action_data)
+        await service.track_contact_action(agent.agent_id, action_data)
         
         return {"success": True, "message": "Action tracked successfully"}
         
@@ -413,7 +432,7 @@ async def get_agent_public_stats(
         #     raise HTTPException(status_code=403, detail="Access denied")
         
         # Get statistics
-        stats = await service.get_agent_stats(agent.id)
+        stats = await service.get_agent_stats(agent.agent_id)
         
         return stats
         

@@ -1,0 +1,6382 @@
+{
+  "summary": {
+    "total_endpoints": 143,
+    "success": 56,
+    "success_rate": 39.16,
+    "auth_required": 0,
+    "not_found": 12,
+    "server_error": 28,
+    "timeout": 0,
+    "error": 3,
+    "unexpected_status": 44
+  },
+  "by_status": {
+    "unexpected_status": [
+      {
+        "endpoint": "POST /api/v1/auth/login",
+        "description": "Auth:Jwt.Login",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.004157543182373047,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "username"
+              ],
+              "msg": "Field required",
+              "input": null
+            },
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "password"
+              ],
+              "msg": "Field required",
+              "input": null
+            }
+          ]
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/auth/logout",
+        "description": "Auth:Jwt.Logout",
+        "status": "unexpected_status",
+        "status_code": 204,
+        "response_time": 0.008212566375732422,
+        "error": null,
+        "response_data": "",
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/auth/register",
+        "description": "Register:Register",
+        "status": "unexpected_status",
+        "status_code": 400,
+        "response_time": 0.0095672607421875,
+        "error": null,
+        "response_data": {
+          "detail": "REGISTER_USER_ALREADY_EXISTS"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/facebook/callback",
+        "description": "Facebook Callback",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.02232503890991211,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "query",
+                "code"
+              ],
+              "msg": "Field required",
+              "input": null
+            },
+            {
+              "type": "missing",
+              "loc": [
+                "query",
+                "state"
+              ],
+              "msg": "Field required",
+              "input": null
+            }
+          ]
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/facebook/promote-post",
+        "description": "Promote Facebook Post",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.01716446876525879,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "budget"
+              ],
+              "msg": "Field required",
+              "input": {
+                "post_id": "test_post_id"
+              }
+            },
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "duration"
+              ],
+              "msg": "Field required",
+              "input": {
+                "post_id": "test_post_id"
+              }
+            },
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "location"
+              ],
+              "msg": "Field required",
+              "input": {
+                "post_id": "test_post_id"
+              }
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/facebook/promotion-status",
+        "description": "Get Promotion Status",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.011520147323608398,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "query",
+                "campaign_id"
+              ],
+              "msg": "Field required",
+              "input": null
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/facebook/campaigns/1/optimize",
+        "description": "Optimize Campaign",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.016130924224853516,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body"
+              ],
+              "msg": "Field required",
+              "input": null
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/facebook/mock/mock-callback",
+        "description": "Mock Facebook Callback",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.0064275264739990234,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "query",
+                "code"
+              ],
+              "msg": "Field required",
+              "input": null
+            },
+            {
+              "type": "missing",
+              "loc": [
+                "query",
+                "state"
+              ],
+              "msg": "Field required",
+              "input": null
+            }
+          ]
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/facebook/mock/config",
+        "description": "Get Mock Facebook Config",
+        "status": "unexpected_status",
+        "status_code": 401,
+        "response_time": 0.005982637405395508,
+        "error": null,
+        "response_data": {
+          "detail": "Unauthorized"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/facebook/mock/posts",
+        "description": "Create Mock Post",
+        "status": "unexpected_status",
+        "status_code": 401,
+        "response_time": 0.016591787338256836,
+        "error": null,
+        "response_data": {
+          "detail": "Unauthorized"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/facebook/mock/posts",
+        "description": "Get Mock Posts",
+        "status": "unexpected_status",
+        "status_code": 401,
+        "response_time": 0.006327152252197266,
+        "error": null,
+        "response_data": {
+          "detail": "Unauthorized"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "DELETE /api/v1/facebook/mock/posts/1",
+        "description": "Delete Mock Post",
+        "status": "unexpected_status",
+        "status_code": 401,
+        "response_time": 0.006627798080444336,
+        "error": null,
+        "response_data": {
+          "detail": "Unauthorized"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/facebook/mock/campaigns",
+        "description": "Get Mock Campaigns",
+        "status": "unexpected_status",
+        "status_code": 401,
+        "response_time": 0.007227182388305664,
+        "error": null,
+        "response_data": {
+          "detail": "Unauthorized"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/facebook/mock/campaigns",
+        "description": "Create Mock Campaign",
+        "status": "unexpected_status",
+        "status_code": 401,
+        "response_time": 0.0077784061431884766,
+        "error": null,
+        "response_data": {
+          "detail": "Unauthorized"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "DELETE /api/v1/facebook/mock/disconnect",
+        "description": "Disconnect Mock Facebook",
+        "status": "unexpected_status",
+        "status_code": 401,
+        "response_time": 0.007823467254638672,
+        "error": null,
+        "response_data": {
+          "detail": "Unauthorized"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/properties/1/ai-suggestions",
+        "description": "Generate Ai Suggestions",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.015274524688720703,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body"
+              ],
+              "msg": "Field required",
+              "input": null
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/properties/batch-create",
+        "description": "Batch Create Properties",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.009150981903076172,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "list_type",
+              "loc": [
+                "body"
+              ],
+              "msg": "Input should be a valid list",
+              "input": {
+                "properties": [
+                  {
+                    "title": "Batch Property 1",
+                    "price": 300000
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/properties/search",
+        "description": "Search Properties",
+        "status": "unexpected_status",
+        "status_code": 401,
+        "response_time": 0.007432222366333008,
+        "error": null,
+        "response_data": {
+          "detail": "Unauthorized"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/users/profile",
+        "description": "Create Or Update Profile",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.014513969421386719,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "user_id"
+              ],
+              "msg": "Field required",
+              "input": {
+                "full_name": "Test User",
+                "phone": "+1234567890",
+                "bio": "Test bio"
+              }
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/demo/demo/leads",
+        "description": "Get Demo Leads",
+        "status": "unexpected_status",
+        "status_code": 401,
+        "response_time": 0.004493236541748047,
+        "error": null,
+        "response_data": {
+          "detail": "Unauthorized"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/demo/demo/leads",
+        "description": "Create Demo Lead",
+        "status": "unexpected_status",
+        "status_code": 401,
+        "response_time": 0.004984617233276367,
+        "error": null,
+        "response_data": {
+          "detail": "Unauthorized"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/demo/demo/properties",
+        "description": "Get Demo Properties",
+        "status": "unexpected_status",
+        "status_code": 401,
+        "response_time": 0.006618499755859375,
+        "error": null,
+        "response_data": {
+          "detail": "Unauthorized"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/demo/demo/properties",
+        "description": "Create Demo Property",
+        "status": "unexpected_status",
+        "status_code": 401,
+        "response_time": 0.005049943923950195,
+        "error": null,
+        "response_data": {
+          "detail": "Unauthorized"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/demo/demo/dashboard",
+        "description": "Get Demo Dashboard",
+        "status": "unexpected_status",
+        "status_code": 401,
+        "response_time": 0.006806612014770508,
+        "error": null,
+        "response_data": {
+          "detail": "Unauthorized"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/agent/onboarding/agent/onboard",
+        "description": "Agent Onboard",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.005980730056762695,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "email"
+              ],
+              "msg": "Field required",
+              "input": null
+            },
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "name"
+              ],
+              "msg": "Field required",
+              "input": null
+            },
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "whatsapp"
+              ],
+              "msg": "Field required",
+              "input": null
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/onboarding/1",
+        "description": "Get Onboarding Step",
+        "status": "unexpected_status",
+        "status_code": 401,
+        "response_time": 0.005528688430786133,
+        "error": null,
+        "response_data": {
+          "detail": "Unauthorized"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/onboarding/1",
+        "description": "Save Onboarding Step",
+        "status": "unexpected_status",
+        "status_code": 401,
+        "response_time": 0.008172750473022461,
+        "error": null,
+        "response_data": {
+          "detail": "Unauthorized"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/onboarding/1/complete",
+        "description": "Complete Onboarding",
+        "status": "unexpected_status",
+        "status_code": 401,
+        "response_time": 0.0040323734283447266,
+        "error": null,
+        "response_data": {
+          "detail": "Unauthorized"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/uploads/images",
+        "description": "Upload Property Images",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.012615442276000977,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "files"
+              ],
+              "msg": "Field required",
+              "input": null
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/uploads/documents",
+        "description": "Upload Documents",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.007300138473510742,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "files"
+              ],
+              "msg": "Field required",
+              "input": null
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/agent/public/profile",
+        "description": "Create Agent Public Profile",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.009857892990112305,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "agent_name"
+              ],
+              "msg": "Field required",
+              "input": {
+                "company_name": "New Agency",
+                "bio": "New agency bio"
+              }
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/properties/publishing/publishing/properties/1/publish",
+        "description": "Publish Property",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.012654781341552734,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body"
+              ],
+              "msg": "Field required",
+              "input": null
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/properties/publishing/publishing/agents/1/language-preferences",
+        "description": "Get Agent Language Preferences",
+        "status": "unexpected_status",
+        "status_code": 403,
+        "response_time": 0.2700614929199219,
+        "error": null,
+        "response_data": {
+          "detail": "Access denied"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "PUT /api/v1/properties/publishing/publishing/agents/1/language-preferences",
+        "description": "Update Agent Language Preferences",
+        "status": "unexpected_status",
+        "status_code": 403,
+        "response_time": 0.013710737228393555,
+        "error": null,
+        "response_data": {
+          "detail": "Access denied"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/properties/publishing/publishing/facebook/pages/1/connect",
+        "description": "Connect Facebook Page",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.011658906936645508,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "query",
+                "language"
+              ],
+              "msg": "Field required",
+              "input": null
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/posts/",
+        "description": "Create Post",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.015918493270874023,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "language"
+              ],
+              "msg": "Field required",
+              "input": {
+                "title": "Test Post",
+                "content": "Test post content",
+                "property_id": "1"
+              }
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/posts/1/publish",
+        "description": "Publish Post",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.012279510498046875,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body"
+              ],
+              "msg": "Field required",
+              "input": null
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/posts/1/unpublish",
+        "description": "Unpublish Post",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.01342463493347168,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body"
+              ],
+              "msg": "Field required",
+              "input": null
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/posts/1/enhance",
+        "description": "Enhance Post Content",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.011066436767578125,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "list_type",
+              "loc": [
+                "body"
+              ],
+              "msg": "Input should be a valid list",
+              "input": {
+                "enhancement_type": "seo"
+              }
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/templates/",
+        "description": "Create Template",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.016526460647583008,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "description"
+              ],
+              "msg": "Field required",
+              "input": {
+                "name": "Test Template",
+                "content": "Test template content",
+                "property_type": "Apartment"
+              }
+            },
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "language"
+              ],
+              "msg": "Field required",
+              "input": {
+                "name": "Test Template",
+                "content": "Test template content",
+                "property_type": "Apartment"
+              }
+            },
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "template"
+              ],
+              "msg": "Field required",
+              "input": {
+                "name": "Test Template",
+                "content": "Test template content",
+                "property_type": "Apartment"
+              }
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/templates/1/duplicate",
+        "description": "Duplicate Template",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.009566068649291992,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "query",
+                "new_name"
+              ],
+              "msg": "Field required",
+              "input": null
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/enhanced-posts/posts/1/publish",
+        "description": "Publish Post",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.017642498016357422,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body"
+              ],
+              "msg": "Field required",
+              "input": null
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/enhanced-posts/posts/templates/",
+        "description": "Create Template",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.018797874450683594,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "description"
+              ],
+              "msg": "Field required",
+              "input": {
+                "name": "Enhanced Template",
+                "content": "Enhanced template content"
+              }
+            },
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "property_type"
+              ],
+              "msg": "Field required",
+              "input": {
+                "name": "Enhanced Template",
+                "content": "Enhanced template content"
+              }
+            },
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "language"
+              ],
+              "msg": "Field required",
+              "input": {
+                "name": "Enhanced Template",
+                "content": "Enhanced template content"
+              }
+            },
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "template"
+              ],
+              "msg": "Field required",
+              "input": {
+                "name": "Enhanced Template",
+                "content": "Enhanced template content"
+              }
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/branding/suggestions",
+        "description": "Get Branding Suggestions",
+        "status": "unexpected_status",
+        "status_code": 422,
+        "response_time": 0.008344650268554688,
+        "error": null,
+        "response_data": {
+          "detail": [
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "companyName"
+              ],
+              "msg": "Field required",
+              "input": {
+                "company_name": "Test Company",
+                "industry": "real_estate"
+              }
+            },
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "businessType"
+              ],
+              "msg": "Field required",
+              "input": {
+                "company_name": "Test Company",
+                "industry": "real_estate"
+              }
+            },
+            {
+              "type": "missing",
+              "loc": [
+                "body",
+                "targetAudience"
+              ],
+              "msg": "Field required",
+              "input": {
+                "company_name": "Test Company",
+                "industry": "real_estate"
+              }
+            }
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      }
+    ],
+    "success": [
+      {
+        "endpoint": "GET /api/v1/auth/me",
+        "description": "Get Current User Info",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.011507034301757812,
+        "error": null,
+        "response_data": {
+          "email": "test@example.com",
+          "is_active": true,
+          "is_superuser": false,
+          "is_verified": false,
+          "first_name": "Test",
+          "last_name": "User",
+          "phone": null,
+          "company": null,
+          "onboarding_completed": false,
+          "onboarding_step": 0,
+          "created_at": "2025-09-16T14:59:59.307000",
+          "updated_at": "2025-09-16T14:59:59.307000",
+          "id": "68c97b6ff756102e2ab2d676"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "PUT /api/v1/auth/me",
+        "description": "Update Current User",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.017414569854736328,
+        "error": null,
+        "response_data": {
+          "message": "No data to update"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/auth/health",
+        "description": "Auth Health",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.003945589065551758,
+        "error": null,
+        "response_data": {
+          "status": "healthy",
+          "service": "authentication",
+          "version": "2.0.0"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/dashboard/dashboard/metrics",
+        "description": "Dashboard Metrics",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.030564069747924805,
+        "error": null,
+        "response_data": {
+          "active_listings": 2,
+          "total_leads": 2,
+          "ai_pages": 0,
+          "whatsapp_engagement": 0
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/dashboard/dashboard/lead-stats",
+        "description": "Dashboard Lead Stats",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.015827655792236328,
+        "error": null,
+        "response_data": {
+          "new_leads": 2,
+          "conversions": 0
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/dashboard/stats",
+        "description": "Get Dashboard Stats",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.015990257263183594,
+        "error": null,
+        "response_data": {
+          "success": true,
+          "data": {
+            "total_properties": 8,
+            "active_listings": 6,
+            "total_leads": 3,
+            "total_users": 38,
+            "total_views": 1247,
+            "monthly_leads": 23,
+            "revenue": "\u20b945,00,000"
+          }
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/facebook/status",
+        "description": "Get Facebook Status",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.003997325897216797,
+        "error": null,
+        "response_data": {
+          "status": "active",
+          "service": "facebook",
+          "connected": false,
+          "message": "Facebook service is running"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/facebook/config",
+        "description": "Get Facebook Config",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.011561393737792969,
+        "error": null,
+        "response_data": {
+          "connected": false,
+          "page_id": null,
+          "page_name": null,
+          "error": "Failed to get Facebook config"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/facebook/mock/mock-auth",
+        "description": "Mock Facebook Auth",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.0039708614349365234,
+        "error": null,
+        "response_data": {
+          "auth_url": "http://localhost:8000/api/v1/facebook/mock-callback?code=mock_code_BtmoQ8a1h9-NXYMWXoqkQyrAnQ4alLpp2N1URHBBYAs&state=BtmoQ8a1h9-NXYMWXoqkQyrAnQ4alLpp2N1URHBBYAs",
+          "message": "Mock Facebook OAuth URL generated",
+          "note": "This is a mock service for development testing"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/facebook/mock/test-data",
+        "description": "Get Mock Test Data",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.005890369415283203,
+        "error": null,
+        "response_data": {
+          "success": true,
+          "message": "Mock test data retrieved",
+          "data": {
+            "test_users": {
+              "test_user_1": {
+                "id": "123456789",
+                "name": "Test User One",
+                "email": "test1@example.com",
+                "access_token": "mock_access_token_123",
+                "page_id": "mock_page_123",
+                "page_token": "mock_page_token_123"
+              },
+              "test_user_2": {
+                "id": "987654321",
+                "name": "Test User Two",
+                "email": "test2@example.com",
+                "access_token": "mock_access_token_456",
+                "page_id": "mock_page_456",
+                "page_token": "mock_page_token_456"
+              }
+            },
+            "mock_posts": {},
+            "mock_campaigns": {},
+            "service_info": {
+              "type": "mock",
+              "version": "1.0.0",
+              "description": "Mock Facebook service for development testing"
+            }
+          },
+          "is_mock": true
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/leads/",
+        "description": "Get Leads",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.015531778335571289,
+        "error": null,
+        "response_data": [
+          {
+            "name": "Test Lead",
+            "email": "lead@example.com",
+            "phone": "+1234567890",
+            "source": "website",
+            "budget": null,
+            "requirements": null,
+            "property_type_preference": null,
+            "location_preference": null,
+            "timeline": null,
+            "urgency": "medium",
+            "notes": null,
+            "assigned_agent_id": null,
+            "team_id": null,
+            "id": "68cad8784576c5b28ccd4e72",
+            "agent_id": "68c97b6ff756102e2ab2d676",
+            "status": "new",
+            "score": 75,
+            "scoring": null,
+            "created_at": "2025-09-17T15:49:12.686000",
+            "updated_at": "2025-09-17T15:49:12.686000",
+            "last_contact_date": null,
+            "next_follow_up": null,
+            "activities": [],
+            "conversion_value": null,
+            "conversion_date": null
+          },
+          {
+            "name": "Test Lead",
+            "email": "lead@example.com",
+            "phone": "+1234567890",
+            "source": "website",
+            "budget": null,
+            "requirements": null,
+            "property_type_preference": null,
+            "location_preference": null,
+            "timeline": null,
+            "urgency": "medium",
+            "notes": null,
+            "assigned_agent_id": null,
+            "team_id": null,
+            "id": "68cad9404576c5b28ccd4e76",
+            "agent_id": "68c97b6ff756102e2ab2d676",
+            "status": "new",
+            "score": 75,
+            "scoring": null,
+            "created_at": "2025-09-17T15:52:32.514000",
+            "updated_at": "2025-09-17T15:52:32.514000",
+            "last_contact_date": null,
+            "next_follow_up": null,
+            "activities": [],
+            "conversion_value": null,
+            "conversion_date": null
+          }
+        ],
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/leads/",
+        "description": "Create Lead",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.027393102645874023,
+        "error": null,
+        "response_data": {
+          "name": "Test Lead",
+          "email": "lead@example.com",
+          "phone": "+1234567890",
+          "source": "website",
+          "budget": null,
+          "requirements": null,
+          "property_type_preference": null,
+          "location_preference": null,
+          "timeline": null,
+          "urgency": "medium",
+          "notes": null,
+          "assigned_agent_id": null,
+          "team_id": null,
+          "id": "68cada0e6e5ca9b4d53e4de4",
+          "agent_id": "68c97b6ff756102e2ab2d676",
+          "status": "new",
+          "score": 75,
+          "scoring": null,
+          "created_at": "2025-09-17T15:55:58.105000",
+          "updated_at": "2025-09-17T15:55:58.105000",
+          "last_contact_date": null,
+          "next_follow_up": null,
+          "activities": [],
+          "conversion_value": null,
+          "conversion_date": null
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/leads/stats/summary",
+        "description": "Get Lead Stats Summary",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.012932300567626953,
+        "error": null,
+        "response_data": {
+          "total": 3,
+          "hot": 0,
+          "warm": 0,
+          "cold": 0,
+          "conversion_rate": 0.0
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/properties/",
+        "description": "Create Unified Property",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.03133368492126465,
+        "error": null,
+        "response_data": {
+          "title": "Test Property",
+          "description": "Test property description",
+          "property_type": "Apartment",
+          "price": 500000.0,
+          "location": "Test City",
+          "bedrooms": 2,
+          "bathrooms": 2.0,
+          "area_sqft": null,
+          "features": [],
+          "amenities": null,
+          "status": "active",
+          "agent_id": "68c97b6ff756102e2ab2d676",
+          "images": [],
+          "smart_features": {},
+          "ai_insights": {},
+          "market_analysis": {},
+          "recommendations": [],
+          "automation_rules": [],
+          "ai_generate": false,
+          "template": null,
+          "language": "en",
+          "ai_content": null,
+          "publishing_status": "draft",
+          "published_at": null,
+          "target_languages": [],
+          "publishing_channels": [],
+          "facebook_page_mappings": {},
+          "id": "68cada0e6e5ca9b4d53e4de5",
+          "created_at": "2025-09-17T15:55:58.211392",
+          "updated_at": "2025-09-17T15:55:58.211397"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/properties/",
+        "description": "Get Unified Properties",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.013616800308227539,
+        "error": null,
+        "response_data": [
+          {
+            "title": "Test Property",
+            "description": "Test property description",
+            "property_type": "Apartment",
+            "price": 500000.0,
+            "location": "Test City",
+            "bedrooms": 2,
+            "bathrooms": 2.0,
+            "area_sqft": null,
+            "features": [],
+            "amenities": null,
+            "status": "active",
+            "agent_id": "68c97b6ff756102e2ab2d676",
+            "images": [],
+            "smart_features": {},
+            "ai_insights": {},
+            "market_analysis": {},
+            "recommendations": [],
+            "automation_rules": [],
+            "ai_generate": false,
+            "template": null,
+            "language": "en",
+            "ai_content": null,
+            "publishing_status": "draft",
+            "published_at": null,
+            "target_languages": [],
+            "publishing_channels": [],
+            "facebook_page_mappings": {},
+            "id": "68cad8784576c5b28ccd4e73",
+            "created_at": "2025-09-17T15:49:12.828000",
+            "updated_at": "2025-09-17T15:49:12.828000"
+          },
+          {
+            "title": "Test Property",
+            "description": "Test property description",
+            "property_type": "Apartment",
+            "price": 500000.0,
+            "location": "Test City",
+            "bedrooms": 2,
+            "bathrooms": 2.0,
+            "area_sqft": null,
+            "features": [],
+            "amenities": null,
+            "status": "active",
+            "agent_id": "68c97b6ff756102e2ab2d676",
+            "images": [],
+            "smart_features": {},
+            "ai_insights": {},
+            "market_analysis": {},
+            "recommendations": [],
+            "automation_rules": [],
+            "ai_generate": false,
+            "template": null,
+            "language": "en",
+            "ai_content": null,
+            "publishing_status": "draft",
+            "published_at": null,
+            "target_languages": [],
+            "publishing_channels": [],
+            "facebook_page_mappings": {},
+            "id": "68cad93a4576c5b28ccd4e75",
+            "created_at": "2025-09-17T15:52:26.377000",
+            "updated_at": "2025-09-17T15:52:26.377000"
+          },
+          {
+            "title": "Test Property",
+            "description": "Test property description",
+            "property_type": "Apartment",
+            "price": 500000.0,
+            "location": "Test City",
+            "bedrooms": 2,
+            "bathrooms": 2.0,
+            "area_sqft": null,
+            "features": [],
+            "amenities": null,
+            "status": "active",
+            "agent_id": "68c97b6ff756102e2ab2d676",
+            "images": [],
+            "smart_features": {},
+            "ai_insights": {},
+            "market_analysis": {},
+            "recommendations": [],
+            "automation_rules": [],
+            "ai_generate": false,
+            "template": null,
+            "language": "en",
+            "ai_content": null,
+            "publishing_status": "draft",
+            "published_at": null,
+            "target_languages": [],
+            "publishing_channels": [],
+            "facebook_page_mappings": {},
+            "id": "68cada0e6e5ca9b4d53e4de5",
+            "created_at": "2025-09-17T15:55:58.211000",
+            "updated_at": "2025-09-17T15:55:58.211000"
+          }
+        ],
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/properties/public",
+        "description": "Get Public Properties",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.006753683090209961,
+        "error": null,
+        "response_data": [],
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/users/1/profile",
+        "description": "Get User Profile",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.0053484439849853516,
+        "error": null,
+        "response_data": {
+          "success": false,
+          "profile": null,
+          "message": "Invalid user ID format"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/users/default_user",
+        "description": "Get Default User Profile",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.007482767105102539,
+        "error": null,
+        "response_data": {
+          "success": true,
+          "profile": {
+            "user_id": "default_user",
+            "name": "John Doe",
+            "email": "john@example.com",
+            "phone": "+1234567890",
+            "company": "Real Estate Pro",
+            "experience_years": "5",
+            "specialization_areas": "Residential, Commercial",
+            "tagline": "Your trusted real estate partner",
+            "about": "Experienced real estate agent with 5+ years in the industry",
+            "city": "New York",
+            "state": "NY",
+            "languages": [
+              "English",
+              "Spanish"
+            ],
+            "brandingSuggestions": {
+              "tagline": "Your trusted real estate partner",
+              "about": "Experienced real estate agent with 5+ years in the industry, specializing in residential and commercial properties. Committed to helping clients find their perfect home or investment opportunity.",
+              "colors": {
+                "primary": "#3B82F6",
+                "secondary": "#1E40AF",
+                "accent": "#F59E0B"
+              }
+            }
+          },
+          "message": "Default profile retrieved"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/demo/demo/status",
+        "description": "Get Demo Api Status",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.004355669021606445,
+        "error": null,
+        "response_data": {
+          "success": true,
+          "status": "API Working",
+          "timestamp": "2025-09-17T21:25:58.411484",
+          "endpoints": {
+            "leads": "/api/demo/leads",
+            "properties": "/api/demo/properties",
+            "dashboard": "/api/demo/dashboard"
+          },
+          "message": "Demo API endpoints are functioning correctly"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/demo/demo/health",
+        "description": "Health Check",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.0042912960052490234,
+        "error": null,
+        "response_data": {
+          "status": "healthy",
+          "timestamp": "2025-09-17T21:25:58.416343",
+          "version": "1.0.0"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/agent/onboarding/agent/branding-suggest",
+        "description": "Branding Suggest",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.5122208595275879,
+        "error": null,
+        "response_data": {
+          "tagline": "Experts in Local Realty",
+          "about": "Test Agency offers expert guidance and unparalleled local knowledge to help clients achieve their real estate goals. With years of experience, they provide personalized services to ensure seamless transactions.",
+          "colors": {
+            "primary": "#3498db",
+            "secondary": "#f1c40f",
+            "accent": "#2ecc71"
+          }
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "OPTIONS /api/v1/agent/onboarding/agent/branding-suggest",
+        "description": "Branding Suggest Options",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.0053141117095947266,
+        "error": null,
+        "response_data": "",
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "DELETE /api/v1/uploads/files/1",
+        "description": "Delete File",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.008701801300048828,
+        "error": null,
+        "response_data": {
+          "success": true,
+          "message": "File deleted successfully"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/agent/public/profile",
+        "description": "Get Current Agent Public Profile",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.018498897552490234,
+        "error": null,
+        "response_data": {
+          "agent_name": "Test Agent",
+          "slug": "test-agent",
+          "bio": "Test bio",
+          "photo": null,
+          "phone": "+1234567890",
+          "email": "agent@test.com",
+          "office_address": null,
+          "specialties": [],
+          "experience": null,
+          "languages": [],
+          "is_active": true,
+          "is_public": true,
+          "id": "68c97b6ff756102e2ab2d676",
+          "agent_id": "68c97b6ff756102e2ab2d676",
+          "created_at": "2025-09-17T21:25:43.545000",
+          "updated_at": "2025-09-17T21:25:43.545000",
+          "view_count": 0,
+          "contact_count": 0,
+          "properties": []
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "PUT /api/v1/agent/public/profile",
+        "description": "Update Current Agent Public Profile",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.007369518280029297,
+        "error": null,
+        "response_data": {
+          "success": true,
+          "message": "Profile updated successfully"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/agent/public/stats",
+        "description": "Get Current Agent Public Stats",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.0065538883209228516,
+        "error": null,
+        "response_data": {
+          "total_views": 0,
+          "total_contacts": 0,
+          "properties_count": 0,
+          "recent_inquiries": 0
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/agent/public/test-agent",
+        "description": "Get Agent Public Profile",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.019098758697509766,
+        "error": null,
+        "response_data": {
+          "agent_name": "Test Agent",
+          "slug": "test-agent",
+          "bio": "Test bio",
+          "photo": null,
+          "phone": "+1234567890",
+          "email": "agent@test.com",
+          "office_address": null,
+          "specialties": [],
+          "experience": null,
+          "languages": [],
+          "is_active": true,
+          "is_public": true,
+          "id": "68c97b6ff756102e2ab2d676",
+          "agent_id": "68c97b6ff756102e2ab2d676",
+          "created_at": "2025-09-17T21:25:43.545000",
+          "updated_at": "2025-09-17T21:25:43.545000",
+          "view_count": 0,
+          "contact_count": 0,
+          "properties": []
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/agent/public/test-agent/properties",
+        "description": "Get Agent Public Properties",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.020003557205200195,
+        "error": null,
+        "response_data": {
+          "properties": [],
+          "total": 0,
+          "page": 1,
+          "limit": 12,
+          "total_pages": 0,
+          "agent_name": "Test Agent"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/agent/public/test-agent/contact",
+        "description": "Submit Contact Inquiry",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.01805710792541504,
+        "error": null,
+        "response_data": {
+          "name": "Inquiry User",
+          "email": "inquiry@example.com",
+          "phone": null,
+          "message": "Test inquiry",
+          "property_id": null,
+          "inquiry_type": "general",
+          "id": "1",
+          "agent_id": "68c97b6ff756102e2ab2d676",
+          "created_at": "2025-09-17T21:25:59.114760",
+          "is_read": false,
+          "is_responded": false
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/agent/public/test-agent/track-contact",
+        "description": "Track Contact Action",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.015403509140014648,
+        "error": null,
+        "response_data": {
+          "success": true,
+          "message": "Action tracked successfully"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/agent/public/test-agent/about",
+        "description": "Get Agent About Info",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.014724969863891602,
+        "error": null,
+        "response_data": {
+          "agent_name": "Test Agent",
+          "bio": "Test bio",
+          "photo": null,
+          "experience": null,
+          "specialties": [],
+          "languages": [],
+          "office_address": null,
+          "phone": "+1234567890",
+          "email": "agent@test.com"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/agent/public/test-agent/stats",
+        "description": "Get Agent Public Stats",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.014924287796020508,
+        "error": null,
+        "response_data": {
+          "total_views": 0,
+          "total_contacts": 0,
+          "properties_count": 1,
+          "recent_inquiries": 0
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/agent-public/profile",
+        "description": "Get Public Profile",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.009241580963134766,
+        "error": null,
+        "response_data": {
+          "id": "68ca3a4df05e34034add3e9b",
+          "first_name": "",
+          "last_name": "",
+          "is_active": true,
+          "email": "",
+          "phone": "",
+          "company": "",
+          "office_address": "",
+          "experience": "0",
+          "professional_bio": "",
+          "specialization_areas": "",
+          "tagline": "",
+          "city": "",
+          "state": "",
+          "pincode": ""
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "PUT /api/v1/agent-public/profile",
+        "description": "Update Public Profile",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.012697935104370117,
+        "error": null,
+        "response_data": {
+          "success": true,
+          "message": "Profile updated successfully"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/agent-public/stats",
+        "description": "Get Public Stats",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.011002540588378906,
+        "error": null,
+        "response_data": {
+          "total_properties": 9,
+          "active_listings": 3,
+          "years_experience": 5
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/agent/dashboard/profile",
+        "description": "Get Agent Public Profile For Dashboard",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.013214588165283203,
+        "error": null,
+        "response_data": {
+          "id": null,
+          "agent_id": {},
+          "agent_name": "test@example.com",
+          "slug": "test",
+          "bio": "",
+          "photo": null,
+          "phone": null,
+          "email": "test@example.com",
+          "office_address": "",
+          "specialties": [],
+          "experience": "",
+          "languages": [],
+          "is_active": true,
+          "is_public": false,
+          "view_count": 0,
+          "contact_count": 0,
+          "created_at": null,
+          "updated_at": null
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/agent/dashboard/stats",
+        "description": "Get Agent Public Stats",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.013413190841674805,
+        "error": null,
+        "response_data": {
+          "total_views": 0,
+          "total_contacts": 0,
+          "properties_count": 0,
+          "recent_inquiries": 0
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/properties/publishing/publishing/facebook/pages",
+        "description": "Get Facebook Pages",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.013936758041381836,
+        "error": null,
+        "response_data": [
+          {
+            "page_id": "mock_page_1",
+            "page_name": "Real Estate Agent - English",
+            "language": "en",
+            "is_connected": true,
+            "access_token": null,
+            "last_sync": "2025-09-17T21:25:59.727595"
+          },
+          {
+            "page_id": "mock_page_2",
+            "page_name": "Real Estate Agent - Marathi",
+            "language": "mr",
+            "is_connected": true,
+            "access_token": null,
+            "last_sync": "2025-09-17T21:25:59.727613"
+          }
+        ],
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/properties/publishing/publishing/languages/supported",
+        "description": "Get Supported Languages",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.0034749507904052734,
+        "error": null,
+        "response_data": {
+          "supported_languages": [
+            {
+              "code": "en",
+              "name": "English",
+              "native_name": "English"
+            },
+            {
+              "code": "mr",
+              "name": "Marathi",
+              "native_name": "\u092e\u0930\u093e\u0920\u0940"
+            },
+            {
+              "code": "hi",
+              "name": "Hindi",
+              "native_name": "\u0939\u093f\u0928\u094d\u0926\u0940"
+            },
+            {
+              "code": "ta",
+              "name": "Tamil",
+              "native_name": "\u0ba4\u0bae\u0bbf\u0bb4\u0bcd"
+            },
+            {
+              "code": "bn",
+              "name": "Bengali",
+              "native_name": "\u09ac\u09be\u0982\u09b2\u09be"
+            },
+            {
+              "code": "te",
+              "name": "Telugu",
+              "native_name": "\u0c24\u0c46\u0c32\u0c41\u0c17\u0c41"
+            },
+            {
+              "code": "gu",
+              "name": "Gujarati",
+              "native_name": "\u0a97\u0ac1\u0a9c\u0ab0\u0abe\u0aa4\u0ac0"
+            },
+            {
+              "code": "kn",
+              "name": "Kannada",
+              "native_name": "\u0c95\u0ca8\u0ccd\u0ca8\u0ca1"
+            },
+            {
+              "code": "ml",
+              "name": "Malayalam",
+              "native_name": "\u0d2e\u0d32\u0d2f\u0d3e\u0d33\u0d02"
+            },
+            {
+              "code": "pa",
+              "name": "Punjabi",
+              "native_name": "\u0a2a\u0a70\u0a1c\u0a3e\u0a2c\u0a40"
+            }
+          ],
+          "default_language": "en",
+          "auto_translate_supported": true
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/properties/publishing/publishing/channels/supported",
+        "description": "Get Supported Channels",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.003139495849609375,
+        "error": null,
+        "response_data": {
+          "supported_channels": [
+            {
+              "code": "website",
+              "name": "Public Website",
+              "description": "Publish to agent's public website"
+            },
+            {
+              "code": "facebook",
+              "name": "Facebook",
+              "description": "Post to Facebook pages"
+            },
+            {
+              "code": "instagram",
+              "name": "Instagram",
+              "description": "Post to Instagram (coming soon)"
+            },
+            {
+              "code": "linkedin",
+              "name": "LinkedIn",
+              "description": "Post to LinkedIn (coming soon)"
+            },
+            {
+              "code": "email",
+              "name": "Email Marketing",
+              "description": "Send to email subscribers (coming soon)"
+            }
+          ],
+          "active_channels": [
+            "website",
+            "facebook"
+          ],
+          "coming_soon": [
+            "instagram",
+            "linkedin",
+            "email"
+          ]
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/posts/languages/supported",
+        "description": "Get Supported Languages",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.007822751998901367,
+        "error": null,
+        "response_data": {
+          "languages": [
+            {
+              "code": "en",
+              "name": "English"
+            },
+            {
+              "code": "hi",
+              "name": "Hindi"
+            },
+            {
+              "code": "ta",
+              "name": "Tamil"
+            },
+            {
+              "code": "te",
+              "name": "Telugu"
+            },
+            {
+              "code": "bn",
+              "name": "Bengali"
+            },
+            {
+              "code": "gu",
+              "name": "Gujarati"
+            },
+            {
+              "code": "kn",
+              "name": "Kannada"
+            },
+            {
+              "code": "ml",
+              "name": "Malayalam"
+            },
+            {
+              "code": "mr",
+              "name": "Marathi"
+            },
+            {
+              "code": "pa",
+              "name": "Punjabi"
+            },
+            {
+              "code": "ur",
+              "name": "Urdu"
+            }
+          ]
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/templates/",
+        "description": "Get Templates",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.009811639785766602,
+        "error": null,
+        "response_data": [],
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/templates/property-types/available",
+        "description": "Get Available Property Types",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.010271072387695312,
+        "error": null,
+        "response_data": {
+          "property_types": []
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/templates/languages/available",
+        "description": "Get Available Languages",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.0062713623046875,
+        "error": null,
+        "response_data": {
+          "languages": []
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/enhanced-posts/posts/",
+        "description": "Get Posts",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.021100759506225586,
+        "error": null,
+        "response_data": [],
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/enhanced-posts/posts/templates/",
+        "description": "Get Templates",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.01809215545654297,
+        "error": null,
+        "response_data": [],
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/agent/branding-suggest",
+        "description": "Suggest Branding",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.009932756423950195,
+        "error": null,
+        "response_data": {
+          "colors": {
+            "primary": "#007bff",
+            "secondary": "#6c757d"
+          },
+          "tone": "professional",
+          "tagline": "Your Dream Home Awaits",
+          "logoIdeas": [
+            "Modern house icon",
+            "Key with AI spark",
+            "Abstract property skyline"
+          ]
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/crm/analytics/dashboard",
+        "description": "Get Crm Analytics Dashboard",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.03649163246154785,
+        "error": null,
+        "response_data": {
+          "success": true,
+          "data": {
+            "lead_analytics": {
+              "error": "Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None"
+            },
+            "deal_pipeline": {
+              "error": "Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None"
+            },
+            "timestamp": "2025-09-17T15:56:00.340104"
+          }
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/crm/analytics",
+        "description": "Get Crm Analytics",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.00561976432800293,
+        "error": null,
+        "response_data": {
+          "success": true,
+          "lead_analytics": {
+            "error": "Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None"
+          },
+          "deal_pipeline": {
+            "error": "Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None"
+          },
+          "timestamp": "2025-09-17T15:56:00.346606"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/crm/leads/stats",
+        "description": "Get Crm Leads Stats",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.0077474117279052734,
+        "error": null,
+        "response_data": {
+          "success": true,
+          "data": {
+            "error": "Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None"
+          }
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/crm/deals",
+        "description": "Get Crm Deals",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.007433176040649414,
+        "error": null,
+        "response_data": {
+          "success": true,
+          "deals": [],
+          "count": 0
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/health",
+        "description": "Api Health",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.006215333938598633,
+        "error": null,
+        "response_data": {
+          "status": "healthy",
+          "version": "1.0.0",
+          "api": "v1"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/",
+        "description": "Api Info",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.005487203598022461,
+        "error": null,
+        "response_data": {
+          "name": "Real Estate CRM API",
+          "version": "1.0.0",
+          "endpoints": [
+            "/auth - Authentication endpoints",
+            "/dashboard - Dashboard and analytics",
+            "/leads - Lead management",
+            "/properties - Property management"
+          ]
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /health",
+        "description": "Health Check",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.007136821746826172,
+        "error": null,
+        "response_data": {
+          "status": "healthy",
+          "message": "PropertyAI API is running"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/property/ai_suggest",
+        "description": "Ai Property Suggest",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.03163647651672363,
+        "error": null,
+        "response_data": {
+          "success": true,
+          "data": [
+            {
+              "title": "Beautiful 2BHK Apartment in Test City",
+              "price": 500000.0,
+              "description": "Beautiful family apartment in Test City with modern amenities. Perfect for families seeking comfort and convenience.",
+              "amenities": "Parking, Gym, Swimming Pool, 24/7 Security, Garden, Children's Play Area",
+              "location_score": 8.5,
+              "market_insights": {
+                "local_expertise": false,
+                "market_trend": "Stable",
+                "price_trend": "Moderate"
+              },
+              "property_details": {
+                "bedrooms": 2,
+                "bathrooms": 2,
+                "area": 1000,
+                "property_type": "Apartment",
+                "location": "Test City"
+              },
+              "highlights": [
+                "Spacious 2BHK with 2 bathrooms",
+                "Area: 1000 sq ft",
+                "Tailored for residential market",
+                "Professional agent-curated listing",
+                "Close to schools, hospitals, and shopping centers"
+              ]
+            }
+          ]
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/agent/profile",
+        "description": "Get Agent Profile",
+        "status": "success",
+        "status_code": 200,
+        "response_time": 0.01844000816345215,
+        "error": null,
+        "response_data": {
+          "success": true,
+          "data": {
+            "specialization": "residential",
+            "areas_served": "",
+            "brand_name": "",
+            "experience_level": "intermediate",
+            "tagline": "",
+            "location": "",
+            "languages": []
+          },
+          "message": "No agent profile found, using defaults"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      }
+    ],
+    "server_error": [
+      {
+        "endpoint": "GET /api/v1/facebook/login",
+        "description": "Facebook Login Redirect",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.04013180732727051,
+        "error": null,
+        "response_data": "Internal Server Error",
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/facebook/pages",
+        "description": "Get Facebook Pages",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.033040523529052734,
+        "error": null,
+        "response_data": "Internal Server Error",
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/facebook/post-property/1",
+        "description": "Post Property To Facebook",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.2906060218811035,
+        "error": null,
+        "response_data": "Internal Server Error",
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/facebook/properties/1/promotion-history",
+        "description": "Get Property Promotion History",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.014608383178710938,
+        "error": null,
+        "response_data": {
+          "detail": "Failed to get promotion history"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/properties/1",
+        "description": "Get Unified Property",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.01007223129272461,
+        "error": null,
+        "response_data": {
+          "detail": "Failed to retrieve property"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "PUT /api/v1/properties/1",
+        "description": "Update Unified Property",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.02826547622680664,
+        "error": null,
+        "response_data": {
+          "detail": "Failed to update property"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "DELETE /api/v1/properties/1",
+        "description": "Delete Unified Property",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.010864734649658203,
+        "error": null,
+        "response_data": {
+          "detail": "Failed to delete property"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "PUT /api/v1/agent/dashboard/profile",
+        "description": "Update Agent Public Profile",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.013910531997680664,
+        "error": null,
+        "response_data": {
+          "detail": "Internal server error"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/agent/dashboard/inquiries",
+        "description": "Get Agent Inquiries",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.005057096481323242,
+        "error": null,
+        "response_data": {
+          "detail": "Internal server error"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/agent/dashboard/create-profile",
+        "description": "Create Agent Public Profile",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.016728639602661133,
+        "error": null,
+        "response_data": {
+          "detail": "Failed to create profile"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/properties/publishing/publishing/properties/1/status",
+        "description": "Get Publishing Status",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.10704517364501953,
+        "error": null,
+        "response_data": "Internal Server Error",
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/posts/",
+        "description": "Get Posts",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.010392189025878906,
+        "error": null,
+        "response_data": {
+          "detail": "1 validation error for PostFilters\nagent_id\n  Input should be a valid string [type=string_type, input_value=ObjectId('68c97b6ff756102e2ab2d676'), input_type=PydanticObjectId]\n    For further information visit https://errors.pydantic.dev/2.9/v/string_type"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/posts/1",
+        "description": "Get Post",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.00947117805480957,
+        "error": null,
+        "response_data": {
+          "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "PUT /api/v1/posts/1",
+        "description": "Update Post",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.015283346176147461,
+        "error": null,
+        "response_data": {
+          "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "DELETE /api/v1/posts/1",
+        "description": "Delete Post",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.008766889572143555,
+        "error": null,
+        "response_data": {
+          "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/posts/property/1",
+        "description": "Get Property Posts",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.010624885559082031,
+        "error": null,
+        "response_data": {
+          "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/posts/status/draft",
+        "description": "Get Posts By Status",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.00777888298034668,
+        "error": null,
+        "response_data": {
+          "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/posts/1/analytics",
+        "description": "Get Post Analytics",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.009865760803222656,
+        "error": null,
+        "response_data": {
+          "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/posts/1/ai-suggestions",
+        "description": "Get Ai Suggestions",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.010434150695800781,
+        "error": null,
+        "response_data": {
+          "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/templates/1",
+        "description": "Get Template",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.013067960739135742,
+        "error": null,
+        "response_data": {
+          "detail": "Failed to get template: Template 1 not found"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "PUT /api/v1/templates/1",
+        "description": "Update Template",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.02019047737121582,
+        "error": null,
+        "response_data": {
+          "detail": "Failed to update template: Template 1 not found"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "DELETE /api/v1/templates/1",
+        "description": "Delete Template",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.010402202606201172,
+        "error": null,
+        "response_data": {
+          "detail": "Failed to delete template: Template 1 not found"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/templates/1/activate",
+        "description": "Activate Template",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.02348184585571289,
+        "error": null,
+        "response_data": {
+          "detail": "Failed to activate template: Template 1 not found"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/templates/1/deactivate",
+        "description": "Deactivate Template",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.016011953353881836,
+        "error": null,
+        "response_data": {
+          "detail": "Failed to deactivate template: Template 1 not found"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/templates/1/usage-stats",
+        "description": "Get Template Usage Stats",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.015631675720214844,
+        "error": null,
+        "response_data": {
+          "detail": "Failed to get template usage stats: Template 1 not found"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/enhanced-posts/posts/",
+        "description": "Create Post",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.03087902069091797,
+        "error": null,
+        "response_data": {
+          "detail": "'1' is not a valid ObjectId, it must be a 12-byte input or a 24-character hex string"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/crm/leads",
+        "description": "Get Crm Leads",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.010005474090576172,
+        "error": null,
+        "response_data": {
+          "success": false,
+          "error": "Internal server error"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/crm/leads",
+        "description": "Create Crm Lead",
+        "status": "server_error",
+        "status_code": 500,
+        "response_time": 0.011428356170654297,
+        "error": null,
+        "response_data": {
+          "success": false,
+          "error": "Internal server error"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      }
+    ],
+    "error": [
+      {
+        "endpoint": "POST /api/v1/facebook/select-page",
+        "description": "Select Facebook Page",
+        "status": "error",
+        "status_code": null,
+        "response_time": 0,
+        "error": "[WinError 64] The specified network name is no longer available",
+        "response_data": null,
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/facebook/disconnect",
+        "description": "Disconnect Facebook",
+        "status": "error",
+        "status_code": null,
+        "response_time": 0,
+        "error": "[WinError 64] The specified network name is no longer available",
+        "response_data": null,
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/properties/publishing/publishing/properties/1/unpublish",
+        "description": "Unpublish Property",
+        "status": "error",
+        "status_code": null,
+        "response_time": 0,
+        "error": "[WinError 64] The specified network name is no longer available",
+        "response_data": null,
+        "requires_auth": true,
+        "has_auth": true
+      }
+    ],
+    "not_found": [
+      {
+        "endpoint": "GET /api/v1/leads/1",
+        "description": "Get Lead",
+        "status": "not_found",
+        "status_code": 404,
+        "response_time": 0.011351823806762695,
+        "error": null,
+        "response_data": {
+          "detail": "Lead not found not found"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "PUT /api/v1/leads/1",
+        "description": "Update Lead",
+        "status": "not_found",
+        "status_code": 404,
+        "response_time": 0.022518634796142578,
+        "error": null,
+        "response_data": {
+          "detail": "Lead not found not found"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "DELETE /api/v1/leads/1",
+        "description": "Delete Lead",
+        "status": "not_found",
+        "status_code": 404,
+        "response_time": 0.010639190673828125,
+        "error": null,
+        "response_data": {
+          "detail": "Lead not found not found"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/leads/stats",
+        "description": "Get Lead Stats",
+        "status": "not_found",
+        "status_code": 404,
+        "response_time": 0.008789300918579102,
+        "error": null,
+        "response_data": {
+          "detail": "Lead not found not found"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/properties/1/market-insights",
+        "description": "Generate Market Insights",
+        "status": "not_found",
+        "status_code": 404,
+        "response_time": 0.008435726165771484,
+        "error": null,
+        "response_data": {
+          "detail": "Property not found not found"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/properties/1/analytics",
+        "description": "Get Property Analytics",
+        "status": "not_found",
+        "status_code": 404,
+        "response_time": 0.012285947799682617,
+        "error": null,
+        "response_data": {
+          "detail": "Property not found not found"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/agent/public/test-agent/properties/1",
+        "description": "Get Agent Public Property",
+        "status": "not_found",
+        "status_code": 404,
+        "response_time": 0.01534891128540039,
+        "error": null,
+        "response_data": {
+          "detail": "Property not found"
+        },
+        "requires_auth": false,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/enhanced-posts/posts/1",
+        "description": "Get Post",
+        "status": "not_found",
+        "status_code": 404,
+        "response_time": 0.019354820251464844,
+        "error": null,
+        "response_data": {
+          "detail": "Post not found"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "PUT /api/v1/enhanced-posts/posts/1",
+        "description": "Update Post",
+        "status": "not_found",
+        "status_code": 404,
+        "response_time": 0.023529052734375,
+        "error": null,
+        "response_data": {
+          "detail": "Post not found"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "DELETE /api/v1/enhanced-posts/posts/1",
+        "description": "Delete Post",
+        "status": "not_found",
+        "status_code": 404,
+        "response_time": 0.017049074172973633,
+        "error": null,
+        "response_data": {
+          "detail": "Post not found"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "POST /api/v1/enhanced-posts/posts/1/schedule",
+        "description": "Schedule Post",
+        "status": "not_found",
+        "status_code": 404,
+        "response_time": 0.016394615173339844,
+        "error": null,
+        "response_data": {
+          "detail": "Post not found"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      },
+      {
+        "endpoint": "GET /api/v1/enhanced-posts/posts/1/analytics",
+        "description": "Get Post Analytics",
+        "status": "not_found",
+        "status_code": 404,
+        "response_time": 0.01637744903564453,
+        "error": null,
+        "response_data": {
+          "detail": "Post not found"
+        },
+        "requires_auth": true,
+        "has_auth": true
+      }
+    ]
+  },
+  "problematic_endpoints": [
+    {
+      "endpoint": "GET /api/v1/facebook/login",
+      "description": "Facebook Login Redirect",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.04013180732727051,
+      "error": null,
+      "response_data": "Internal Server Error",
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/facebook/pages",
+      "description": "Get Facebook Pages",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.033040523529052734,
+      "error": null,
+      "response_data": "Internal Server Error",
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/facebook/select-page",
+      "description": "Select Facebook Page",
+      "status": "error",
+      "status_code": null,
+      "response_time": 0,
+      "error": "[WinError 64] The specified network name is no longer available",
+      "response_data": null,
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/facebook/post-property/1",
+      "description": "Post Property To Facebook",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.2906060218811035,
+      "error": null,
+      "response_data": "Internal Server Error",
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/facebook/disconnect",
+      "description": "Disconnect Facebook",
+      "status": "error",
+      "status_code": null,
+      "response_time": 0,
+      "error": "[WinError 64] The specified network name is no longer available",
+      "response_data": null,
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/facebook/properties/1/promotion-history",
+      "description": "Get Property Promotion History",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.014608383178710938,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to get promotion history"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/properties/1",
+      "description": "Get Unified Property",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.01007223129272461,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to retrieve property"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "PUT /api/v1/properties/1",
+      "description": "Update Unified Property",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.02826547622680664,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to update property"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "DELETE /api/v1/properties/1",
+      "description": "Delete Unified Property",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.010864734649658203,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to delete property"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "PUT /api/v1/agent/dashboard/profile",
+      "description": "Update Agent Public Profile",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.013910531997680664,
+      "error": null,
+      "response_data": {
+        "detail": "Internal server error"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/agent/dashboard/inquiries",
+      "description": "Get Agent Inquiries",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.005057096481323242,
+      "error": null,
+      "response_data": {
+        "detail": "Internal server error"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/agent/dashboard/create-profile",
+      "description": "Create Agent Public Profile",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.016728639602661133,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to create profile"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/properties/publishing/publishing/properties/1/status",
+      "description": "Get Publishing Status",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.10704517364501953,
+      "error": null,
+      "response_data": "Internal Server Error",
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/properties/publishing/publishing/properties/1/unpublish",
+      "description": "Unpublish Property",
+      "status": "error",
+      "status_code": null,
+      "response_time": 0,
+      "error": "[WinError 64] The specified network name is no longer available",
+      "response_data": null,
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/posts/",
+      "description": "Get Posts",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.010392189025878906,
+      "error": null,
+      "response_data": {
+        "detail": "1 validation error for PostFilters\nagent_id\n  Input should be a valid string [type=string_type, input_value=ObjectId('68c97b6ff756102e2ab2d676'), input_type=PydanticObjectId]\n    For further information visit https://errors.pydantic.dev/2.9/v/string_type"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/posts/1",
+      "description": "Get Post",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.00947117805480957,
+      "error": null,
+      "response_data": {
+        "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "PUT /api/v1/posts/1",
+      "description": "Update Post",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.015283346176147461,
+      "error": null,
+      "response_data": {
+        "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "DELETE /api/v1/posts/1",
+      "description": "Delete Post",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.008766889572143555,
+      "error": null,
+      "response_data": {
+        "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/posts/property/1",
+      "description": "Get Property Posts",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.010624885559082031,
+      "error": null,
+      "response_data": {
+        "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/posts/status/draft",
+      "description": "Get Posts By Status",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.00777888298034668,
+      "error": null,
+      "response_data": {
+        "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/posts/1/analytics",
+      "description": "Get Post Analytics",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.009865760803222656,
+      "error": null,
+      "response_data": {
+        "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/posts/1/ai-suggestions",
+      "description": "Get Ai Suggestions",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.010434150695800781,
+      "error": null,
+      "response_data": {
+        "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/templates/1",
+      "description": "Get Template",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.013067960739135742,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to get template: Template 1 not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "PUT /api/v1/templates/1",
+      "description": "Update Template",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.02019047737121582,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to update template: Template 1 not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "DELETE /api/v1/templates/1",
+      "description": "Delete Template",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.010402202606201172,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to delete template: Template 1 not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/templates/1/activate",
+      "description": "Activate Template",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.02348184585571289,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to activate template: Template 1 not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/templates/1/deactivate",
+      "description": "Deactivate Template",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.016011953353881836,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to deactivate template: Template 1 not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/templates/1/usage-stats",
+      "description": "Get Template Usage Stats",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.015631675720214844,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to get template usage stats: Template 1 not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/enhanced-posts/posts/",
+      "description": "Create Post",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.03087902069091797,
+      "error": null,
+      "response_data": {
+        "detail": "'1' is not a valid ObjectId, it must be a 12-byte input or a 24-character hex string"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/crm/leads",
+      "description": "Get Crm Leads",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.010005474090576172,
+      "error": null,
+      "response_data": {
+        "success": false,
+        "error": "Internal server error"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/crm/leads",
+      "description": "Create Crm Lead",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.011428356170654297,
+      "error": null,
+      "response_data": {
+        "success": false,
+        "error": "Internal server error"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    }
+  ],
+  "missing_endpoints": [
+    {
+      "endpoint": "GET /api/v1/leads/1",
+      "description": "Get Lead",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.011351823806762695,
+      "error": null,
+      "response_data": {
+        "detail": "Lead not found not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "PUT /api/v1/leads/1",
+      "description": "Update Lead",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.022518634796142578,
+      "error": null,
+      "response_data": {
+        "detail": "Lead not found not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "DELETE /api/v1/leads/1",
+      "description": "Delete Lead",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.010639190673828125,
+      "error": null,
+      "response_data": {
+        "detail": "Lead not found not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/leads/stats",
+      "description": "Get Lead Stats",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.008789300918579102,
+      "error": null,
+      "response_data": {
+        "detail": "Lead not found not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/properties/1/market-insights",
+      "description": "Generate Market Insights",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.008435726165771484,
+      "error": null,
+      "response_data": {
+        "detail": "Property not found not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/properties/1/analytics",
+      "description": "Get Property Analytics",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.012285947799682617,
+      "error": null,
+      "response_data": {
+        "detail": "Property not found not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/agent/public/test-agent/properties/1",
+      "description": "Get Agent Public Property",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.01534891128540039,
+      "error": null,
+      "response_data": {
+        "detail": "Property not found"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/enhanced-posts/posts/1",
+      "description": "Get Post",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.019354820251464844,
+      "error": null,
+      "response_data": {
+        "detail": "Post not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "PUT /api/v1/enhanced-posts/posts/1",
+      "description": "Update Post",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.023529052734375,
+      "error": null,
+      "response_data": {
+        "detail": "Post not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "DELETE /api/v1/enhanced-posts/posts/1",
+      "description": "Delete Post",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.017049074172973633,
+      "error": null,
+      "response_data": {
+        "detail": "Post not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/enhanced-posts/posts/1/schedule",
+      "description": "Schedule Post",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.016394615173339844,
+      "error": null,
+      "response_data": {
+        "detail": "Post not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/enhanced-posts/posts/1/analytics",
+      "description": "Get Post Analytics",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.01637744903564453,
+      "error": null,
+      "response_data": {
+        "detail": "Post not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    }
+  ],
+  "auth_issues": [],
+  "recommendations": [
+    "Fix 12 missing endpoints (404 errors)",
+    "Investigate 28 server errors (5xx)",
+    "Review 23 duplicate endpoint paths"
+  ],
+  "results": [
+    {
+      "endpoint": "POST /api/v1/auth/login",
+      "description": "Auth:Jwt.Login",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.004157543182373047,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "username"
+            ],
+            "msg": "Field required",
+            "input": null
+          },
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "password"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/auth/logout",
+      "description": "Auth:Jwt.Logout",
+      "status": "unexpected_status",
+      "status_code": 204,
+      "response_time": 0.008212566375732422,
+      "error": null,
+      "response_data": "",
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/auth/register",
+      "description": "Register:Register",
+      "status": "unexpected_status",
+      "status_code": 400,
+      "response_time": 0.0095672607421875,
+      "error": null,
+      "response_data": {
+        "detail": "REGISTER_USER_ALREADY_EXISTS"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/auth/me",
+      "description": "Get Current User Info",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.011507034301757812,
+      "error": null,
+      "response_data": {
+        "email": "test@example.com",
+        "is_active": true,
+        "is_superuser": false,
+        "is_verified": false,
+        "first_name": "Test",
+        "last_name": "User",
+        "phone": null,
+        "company": null,
+        "onboarding_completed": false,
+        "onboarding_step": 0,
+        "created_at": "2025-09-16T14:59:59.307000",
+        "updated_at": "2025-09-16T14:59:59.307000",
+        "id": "68c97b6ff756102e2ab2d676"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "PUT /api/v1/auth/me",
+      "description": "Update Current User",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.017414569854736328,
+      "error": null,
+      "response_data": {
+        "message": "No data to update"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/auth/health",
+      "description": "Auth Health",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.003945589065551758,
+      "error": null,
+      "response_data": {
+        "status": "healthy",
+        "service": "authentication",
+        "version": "2.0.0"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/dashboard/dashboard/metrics",
+      "description": "Dashboard Metrics",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.030564069747924805,
+      "error": null,
+      "response_data": {
+        "active_listings": 2,
+        "total_leads": 2,
+        "ai_pages": 0,
+        "whatsapp_engagement": 0
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/dashboard/dashboard/lead-stats",
+      "description": "Dashboard Lead Stats",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.015827655792236328,
+      "error": null,
+      "response_data": {
+        "new_leads": 2,
+        "conversions": 0
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/dashboard/stats",
+      "description": "Get Dashboard Stats",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.015990257263183594,
+      "error": null,
+      "response_data": {
+        "success": true,
+        "data": {
+          "total_properties": 8,
+          "active_listings": 6,
+          "total_leads": 3,
+          "total_users": 38,
+          "total_views": 1247,
+          "monthly_leads": 23,
+          "revenue": "\u20b945,00,000"
+        }
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/facebook/status",
+      "description": "Get Facebook Status",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.003997325897216797,
+      "error": null,
+      "response_data": {
+        "status": "active",
+        "service": "facebook",
+        "connected": false,
+        "message": "Facebook service is running"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/facebook/config",
+      "description": "Get Facebook Config",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.011561393737792969,
+      "error": null,
+      "response_data": {
+        "connected": false,
+        "page_id": null,
+        "page_name": null,
+        "error": "Failed to get Facebook config"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/facebook/login",
+      "description": "Facebook Login Redirect",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.04013180732727051,
+      "error": null,
+      "response_data": "Internal Server Error",
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/facebook/callback",
+      "description": "Facebook Callback",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.02232503890991211,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "query",
+              "code"
+            ],
+            "msg": "Field required",
+            "input": null
+          },
+          {
+            "type": "missing",
+            "loc": [
+              "query",
+              "state"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/facebook/pages",
+      "description": "Get Facebook Pages",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.033040523529052734,
+      "error": null,
+      "response_data": "Internal Server Error",
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/facebook/select-page",
+      "description": "Select Facebook Page",
+      "status": "error",
+      "status_code": null,
+      "response_time": 0,
+      "error": "[WinError 64] The specified network name is no longer available",
+      "response_data": null,
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/facebook/post-property/1",
+      "description": "Post Property To Facebook",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.2906060218811035,
+      "error": null,
+      "response_data": "Internal Server Error",
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/facebook/disconnect",
+      "description": "Disconnect Facebook",
+      "status": "error",
+      "status_code": null,
+      "response_time": 0,
+      "error": "[WinError 64] The specified network name is no longer available",
+      "response_data": null,
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/facebook/promote-post",
+      "description": "Promote Facebook Post",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.01716446876525879,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "budget"
+            ],
+            "msg": "Field required",
+            "input": {
+              "post_id": "test_post_id"
+            }
+          },
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "duration"
+            ],
+            "msg": "Field required",
+            "input": {
+              "post_id": "test_post_id"
+            }
+          },
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "location"
+            ],
+            "msg": "Field required",
+            "input": {
+              "post_id": "test_post_id"
+            }
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/facebook/promotion-status",
+      "description": "Get Promotion Status",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.011520147323608398,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "query",
+              "campaign_id"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/facebook/campaigns/1/optimize",
+      "description": "Optimize Campaign",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.016130924224853516,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "body"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/facebook/properties/1/promotion-history",
+      "description": "Get Property Promotion History",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.014608383178710938,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to get promotion history"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/facebook/mock/mock-auth",
+      "description": "Mock Facebook Auth",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.0039708614349365234,
+      "error": null,
+      "response_data": {
+        "auth_url": "http://localhost:8000/api/v1/facebook/mock-callback?code=mock_code_BtmoQ8a1h9-NXYMWXoqkQyrAnQ4alLpp2N1URHBBYAs&state=BtmoQ8a1h9-NXYMWXoqkQyrAnQ4alLpp2N1URHBBYAs",
+        "message": "Mock Facebook OAuth URL generated",
+        "note": "This is a mock service for development testing"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/facebook/mock/mock-callback",
+      "description": "Mock Facebook Callback",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.0064275264739990234,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "query",
+              "code"
+            ],
+            "msg": "Field required",
+            "input": null
+          },
+          {
+            "type": "missing",
+            "loc": [
+              "query",
+              "state"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/facebook/mock/config",
+      "description": "Get Mock Facebook Config",
+      "status": "unexpected_status",
+      "status_code": 401,
+      "response_time": 0.005982637405395508,
+      "error": null,
+      "response_data": {
+        "detail": "Unauthorized"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/facebook/mock/posts",
+      "description": "Create Mock Post",
+      "status": "unexpected_status",
+      "status_code": 401,
+      "response_time": 0.016591787338256836,
+      "error": null,
+      "response_data": {
+        "detail": "Unauthorized"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/facebook/mock/posts",
+      "description": "Get Mock Posts",
+      "status": "unexpected_status",
+      "status_code": 401,
+      "response_time": 0.006327152252197266,
+      "error": null,
+      "response_data": {
+        "detail": "Unauthorized"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "DELETE /api/v1/facebook/mock/posts/1",
+      "description": "Delete Mock Post",
+      "status": "unexpected_status",
+      "status_code": 401,
+      "response_time": 0.006627798080444336,
+      "error": null,
+      "response_data": {
+        "detail": "Unauthorized"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/facebook/mock/campaigns",
+      "description": "Get Mock Campaigns",
+      "status": "unexpected_status",
+      "status_code": 401,
+      "response_time": 0.007227182388305664,
+      "error": null,
+      "response_data": {
+        "detail": "Unauthorized"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/facebook/mock/campaigns",
+      "description": "Create Mock Campaign",
+      "status": "unexpected_status",
+      "status_code": 401,
+      "response_time": 0.0077784061431884766,
+      "error": null,
+      "response_data": {
+        "detail": "Unauthorized"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "DELETE /api/v1/facebook/mock/disconnect",
+      "description": "Disconnect Mock Facebook",
+      "status": "unexpected_status",
+      "status_code": 401,
+      "response_time": 0.007823467254638672,
+      "error": null,
+      "response_data": {
+        "detail": "Unauthorized"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/facebook/mock/test-data",
+      "description": "Get Mock Test Data",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.005890369415283203,
+      "error": null,
+      "response_data": {
+        "success": true,
+        "message": "Mock test data retrieved",
+        "data": {
+          "test_users": {
+            "test_user_1": {
+              "id": "123456789",
+              "name": "Test User One",
+              "email": "test1@example.com",
+              "access_token": "mock_access_token_123",
+              "page_id": "mock_page_123",
+              "page_token": "mock_page_token_123"
+            },
+            "test_user_2": {
+              "id": "987654321",
+              "name": "Test User Two",
+              "email": "test2@example.com",
+              "access_token": "mock_access_token_456",
+              "page_id": "mock_page_456",
+              "page_token": "mock_page_token_456"
+            }
+          },
+          "mock_posts": {},
+          "mock_campaigns": {},
+          "service_info": {
+            "type": "mock",
+            "version": "1.0.0",
+            "description": "Mock Facebook service for development testing"
+          }
+        },
+        "is_mock": true
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/leads/",
+      "description": "Get Leads",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.015531778335571289,
+      "error": null,
+      "response_data": [
+        {
+          "name": "Test Lead",
+          "email": "lead@example.com",
+          "phone": "+1234567890",
+          "source": "website",
+          "budget": null,
+          "requirements": null,
+          "property_type_preference": null,
+          "location_preference": null,
+          "timeline": null,
+          "urgency": "medium",
+          "notes": null,
+          "assigned_agent_id": null,
+          "team_id": null,
+          "id": "68cad8784576c5b28ccd4e72",
+          "agent_id": "68c97b6ff756102e2ab2d676",
+          "status": "new",
+          "score": 75,
+          "scoring": null,
+          "created_at": "2025-09-17T15:49:12.686000",
+          "updated_at": "2025-09-17T15:49:12.686000",
+          "last_contact_date": null,
+          "next_follow_up": null,
+          "activities": [],
+          "conversion_value": null,
+          "conversion_date": null
+        },
+        {
+          "name": "Test Lead",
+          "email": "lead@example.com",
+          "phone": "+1234567890",
+          "source": "website",
+          "budget": null,
+          "requirements": null,
+          "property_type_preference": null,
+          "location_preference": null,
+          "timeline": null,
+          "urgency": "medium",
+          "notes": null,
+          "assigned_agent_id": null,
+          "team_id": null,
+          "id": "68cad9404576c5b28ccd4e76",
+          "agent_id": "68c97b6ff756102e2ab2d676",
+          "status": "new",
+          "score": 75,
+          "scoring": null,
+          "created_at": "2025-09-17T15:52:32.514000",
+          "updated_at": "2025-09-17T15:52:32.514000",
+          "last_contact_date": null,
+          "next_follow_up": null,
+          "activities": [],
+          "conversion_value": null,
+          "conversion_date": null
+        }
+      ],
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/leads/",
+      "description": "Create Lead",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.027393102645874023,
+      "error": null,
+      "response_data": {
+        "name": "Test Lead",
+        "email": "lead@example.com",
+        "phone": "+1234567890",
+        "source": "website",
+        "budget": null,
+        "requirements": null,
+        "property_type_preference": null,
+        "location_preference": null,
+        "timeline": null,
+        "urgency": "medium",
+        "notes": null,
+        "assigned_agent_id": null,
+        "team_id": null,
+        "id": "68cada0e6e5ca9b4d53e4de4",
+        "agent_id": "68c97b6ff756102e2ab2d676",
+        "status": "new",
+        "score": 75,
+        "scoring": null,
+        "created_at": "2025-09-17T15:55:58.105000",
+        "updated_at": "2025-09-17T15:55:58.105000",
+        "last_contact_date": null,
+        "next_follow_up": null,
+        "activities": [],
+        "conversion_value": null,
+        "conversion_date": null
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/leads/1",
+      "description": "Get Lead",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.011351823806762695,
+      "error": null,
+      "response_data": {
+        "detail": "Lead not found not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "PUT /api/v1/leads/1",
+      "description": "Update Lead",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.022518634796142578,
+      "error": null,
+      "response_data": {
+        "detail": "Lead not found not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "DELETE /api/v1/leads/1",
+      "description": "Delete Lead",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.010639190673828125,
+      "error": null,
+      "response_data": {
+        "detail": "Lead not found not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/leads/stats",
+      "description": "Get Lead Stats",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.008789300918579102,
+      "error": null,
+      "response_data": {
+        "detail": "Lead not found not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/leads/stats/summary",
+      "description": "Get Lead Stats Summary",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.012932300567626953,
+      "error": null,
+      "response_data": {
+        "total": 3,
+        "hot": 0,
+        "warm": 0,
+        "cold": 0,
+        "conversion_rate": 0.0
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/properties/",
+      "description": "Create Unified Property",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.03133368492126465,
+      "error": null,
+      "response_data": {
+        "title": "Test Property",
+        "description": "Test property description",
+        "property_type": "Apartment",
+        "price": 500000.0,
+        "location": "Test City",
+        "bedrooms": 2,
+        "bathrooms": 2.0,
+        "area_sqft": null,
+        "features": [],
+        "amenities": null,
+        "status": "active",
+        "agent_id": "68c97b6ff756102e2ab2d676",
+        "images": [],
+        "smart_features": {},
+        "ai_insights": {},
+        "market_analysis": {},
+        "recommendations": [],
+        "automation_rules": [],
+        "ai_generate": false,
+        "template": null,
+        "language": "en",
+        "ai_content": null,
+        "publishing_status": "draft",
+        "published_at": null,
+        "target_languages": [],
+        "publishing_channels": [],
+        "facebook_page_mappings": {},
+        "id": "68cada0e6e5ca9b4d53e4de5",
+        "created_at": "2025-09-17T15:55:58.211392",
+        "updated_at": "2025-09-17T15:55:58.211397"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/properties/",
+      "description": "Get Unified Properties",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.013616800308227539,
+      "error": null,
+      "response_data": [
+        {
+          "title": "Test Property",
+          "description": "Test property description",
+          "property_type": "Apartment",
+          "price": 500000.0,
+          "location": "Test City",
+          "bedrooms": 2,
+          "bathrooms": 2.0,
+          "area_sqft": null,
+          "features": [],
+          "amenities": null,
+          "status": "active",
+          "agent_id": "68c97b6ff756102e2ab2d676",
+          "images": [],
+          "smart_features": {},
+          "ai_insights": {},
+          "market_analysis": {},
+          "recommendations": [],
+          "automation_rules": [],
+          "ai_generate": false,
+          "template": null,
+          "language": "en",
+          "ai_content": null,
+          "publishing_status": "draft",
+          "published_at": null,
+          "target_languages": [],
+          "publishing_channels": [],
+          "facebook_page_mappings": {},
+          "id": "68cad8784576c5b28ccd4e73",
+          "created_at": "2025-09-17T15:49:12.828000",
+          "updated_at": "2025-09-17T15:49:12.828000"
+        },
+        {
+          "title": "Test Property",
+          "description": "Test property description",
+          "property_type": "Apartment",
+          "price": 500000.0,
+          "location": "Test City",
+          "bedrooms": 2,
+          "bathrooms": 2.0,
+          "area_sqft": null,
+          "features": [],
+          "amenities": null,
+          "status": "active",
+          "agent_id": "68c97b6ff756102e2ab2d676",
+          "images": [],
+          "smart_features": {},
+          "ai_insights": {},
+          "market_analysis": {},
+          "recommendations": [],
+          "automation_rules": [],
+          "ai_generate": false,
+          "template": null,
+          "language": "en",
+          "ai_content": null,
+          "publishing_status": "draft",
+          "published_at": null,
+          "target_languages": [],
+          "publishing_channels": [],
+          "facebook_page_mappings": {},
+          "id": "68cad93a4576c5b28ccd4e75",
+          "created_at": "2025-09-17T15:52:26.377000",
+          "updated_at": "2025-09-17T15:52:26.377000"
+        },
+        {
+          "title": "Test Property",
+          "description": "Test property description",
+          "property_type": "Apartment",
+          "price": 500000.0,
+          "location": "Test City",
+          "bedrooms": 2,
+          "bathrooms": 2.0,
+          "area_sqft": null,
+          "features": [],
+          "amenities": null,
+          "status": "active",
+          "agent_id": "68c97b6ff756102e2ab2d676",
+          "images": [],
+          "smart_features": {},
+          "ai_insights": {},
+          "market_analysis": {},
+          "recommendations": [],
+          "automation_rules": [],
+          "ai_generate": false,
+          "template": null,
+          "language": "en",
+          "ai_content": null,
+          "publishing_status": "draft",
+          "published_at": null,
+          "target_languages": [],
+          "publishing_channels": [],
+          "facebook_page_mappings": {},
+          "id": "68cada0e6e5ca9b4d53e4de5",
+          "created_at": "2025-09-17T15:55:58.211000",
+          "updated_at": "2025-09-17T15:55:58.211000"
+        }
+      ],
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/properties/public",
+      "description": "Get Public Properties",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.006753683090209961,
+      "error": null,
+      "response_data": [],
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/properties/1",
+      "description": "Get Unified Property",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.01007223129272461,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to retrieve property"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "PUT /api/v1/properties/1",
+      "description": "Update Unified Property",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.02826547622680664,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to update property"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "DELETE /api/v1/properties/1",
+      "description": "Delete Unified Property",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.010864734649658203,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to delete property"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/properties/1/ai-suggestions",
+      "description": "Generate Ai Suggestions",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.015274524688720703,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "body"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/properties/1/market-insights",
+      "description": "Generate Market Insights",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.008435726165771484,
+      "error": null,
+      "response_data": {
+        "detail": "Property not found not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/properties/1/analytics",
+      "description": "Get Property Analytics",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.012285947799682617,
+      "error": null,
+      "response_data": {
+        "detail": "Property not found not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/properties/batch-create",
+      "description": "Batch Create Properties",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.009150981903076172,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "list_type",
+            "loc": [
+              "body"
+            ],
+            "msg": "Input should be a valid list",
+            "input": {
+              "properties": [
+                {
+                  "title": "Batch Property 1",
+                  "price": 300000
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/properties/search",
+      "description": "Search Properties",
+      "status": "unexpected_status",
+      "status_code": 401,
+      "response_time": 0.007432222366333008,
+      "error": null,
+      "response_data": {
+        "detail": "Unauthorized"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/users/profile",
+      "description": "Create Or Update Profile",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.014513969421386719,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "user_id"
+            ],
+            "msg": "Field required",
+            "input": {
+              "full_name": "Test User",
+              "phone": "+1234567890",
+              "bio": "Test bio"
+            }
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/users/1/profile",
+      "description": "Get User Profile",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.0053484439849853516,
+      "error": null,
+      "response_data": {
+        "success": false,
+        "profile": null,
+        "message": "Invalid user ID format"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/users/default_user",
+      "description": "Get Default User Profile",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.007482767105102539,
+      "error": null,
+      "response_data": {
+        "success": true,
+        "profile": {
+          "user_id": "default_user",
+          "name": "John Doe",
+          "email": "john@example.com",
+          "phone": "+1234567890",
+          "company": "Real Estate Pro",
+          "experience_years": "5",
+          "specialization_areas": "Residential, Commercial",
+          "tagline": "Your trusted real estate partner",
+          "about": "Experienced real estate agent with 5+ years in the industry",
+          "city": "New York",
+          "state": "NY",
+          "languages": [
+            "English",
+            "Spanish"
+          ],
+          "brandingSuggestions": {
+            "tagline": "Your trusted real estate partner",
+            "about": "Experienced real estate agent with 5+ years in the industry, specializing in residential and commercial properties. Committed to helping clients find their perfect home or investment opportunity.",
+            "colors": {
+              "primary": "#3B82F6",
+              "secondary": "#1E40AF",
+              "accent": "#F59E0B"
+            }
+          }
+        },
+        "message": "Default profile retrieved"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/demo/demo/leads",
+      "description": "Get Demo Leads",
+      "status": "unexpected_status",
+      "status_code": 401,
+      "response_time": 0.004493236541748047,
+      "error": null,
+      "response_data": {
+        "detail": "Unauthorized"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/demo/demo/leads",
+      "description": "Create Demo Lead",
+      "status": "unexpected_status",
+      "status_code": 401,
+      "response_time": 0.004984617233276367,
+      "error": null,
+      "response_data": {
+        "detail": "Unauthorized"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/demo/demo/properties",
+      "description": "Get Demo Properties",
+      "status": "unexpected_status",
+      "status_code": 401,
+      "response_time": 0.006618499755859375,
+      "error": null,
+      "response_data": {
+        "detail": "Unauthorized"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/demo/demo/properties",
+      "description": "Create Demo Property",
+      "status": "unexpected_status",
+      "status_code": 401,
+      "response_time": 0.005049943923950195,
+      "error": null,
+      "response_data": {
+        "detail": "Unauthorized"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/demo/demo/dashboard",
+      "description": "Get Demo Dashboard",
+      "status": "unexpected_status",
+      "status_code": 401,
+      "response_time": 0.006806612014770508,
+      "error": null,
+      "response_data": {
+        "detail": "Unauthorized"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/demo/demo/status",
+      "description": "Get Demo Api Status",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.004355669021606445,
+      "error": null,
+      "response_data": {
+        "success": true,
+        "status": "API Working",
+        "timestamp": "2025-09-17T21:25:58.411484",
+        "endpoints": {
+          "leads": "/api/demo/leads",
+          "properties": "/api/demo/properties",
+          "dashboard": "/api/demo/dashboard"
+        },
+        "message": "Demo API endpoints are functioning correctly"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/demo/demo/health",
+      "description": "Health Check",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.0042912960052490234,
+      "error": null,
+      "response_data": {
+        "status": "healthy",
+        "timestamp": "2025-09-17T21:25:58.416343",
+        "version": "1.0.0"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/agent/onboarding/agent/onboard",
+      "description": "Agent Onboard",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.005980730056762695,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "email"
+            ],
+            "msg": "Field required",
+            "input": null
+          },
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "name"
+            ],
+            "msg": "Field required",
+            "input": null
+          },
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "whatsapp"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/agent/onboarding/agent/branding-suggest",
+      "description": "Branding Suggest",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.5122208595275879,
+      "error": null,
+      "response_data": {
+        "tagline": "Experts in Local Realty",
+        "about": "Test Agency offers expert guidance and unparalleled local knowledge to help clients achieve their real estate goals. With years of experience, they provide personalized services to ensure seamless transactions.",
+        "colors": {
+          "primary": "#3498db",
+          "secondary": "#f1c40f",
+          "accent": "#2ecc71"
+        }
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "OPTIONS /api/v1/agent/onboarding/agent/branding-suggest",
+      "description": "Branding Suggest Options",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.0053141117095947266,
+      "error": null,
+      "response_data": "",
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/onboarding/1",
+      "description": "Get Onboarding Step",
+      "status": "unexpected_status",
+      "status_code": 401,
+      "response_time": 0.005528688430786133,
+      "error": null,
+      "response_data": {
+        "detail": "Unauthorized"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/onboarding/1",
+      "description": "Save Onboarding Step",
+      "status": "unexpected_status",
+      "status_code": 401,
+      "response_time": 0.008172750473022461,
+      "error": null,
+      "response_data": {
+        "detail": "Unauthorized"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/onboarding/1/complete",
+      "description": "Complete Onboarding",
+      "status": "unexpected_status",
+      "status_code": 401,
+      "response_time": 0.0040323734283447266,
+      "error": null,
+      "response_data": {
+        "detail": "Unauthorized"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/uploads/images",
+      "description": "Upload Property Images",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.012615442276000977,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "files"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/uploads/documents",
+      "description": "Upload Documents",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.007300138473510742,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "files"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "DELETE /api/v1/uploads/files/1",
+      "description": "Delete File",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.008701801300048828,
+      "error": null,
+      "response_data": {
+        "success": true,
+        "message": "File deleted successfully"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/agent/public/profile",
+      "description": "Get Current Agent Public Profile",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.018498897552490234,
+      "error": null,
+      "response_data": {
+        "agent_name": "Test Agent",
+        "slug": "test-agent",
+        "bio": "Test bio",
+        "photo": null,
+        "phone": "+1234567890",
+        "email": "agent@test.com",
+        "office_address": null,
+        "specialties": [],
+        "experience": null,
+        "languages": [],
+        "is_active": true,
+        "is_public": true,
+        "id": "68c97b6ff756102e2ab2d676",
+        "agent_id": "68c97b6ff756102e2ab2d676",
+        "created_at": "2025-09-17T21:25:43.545000",
+        "updated_at": "2025-09-17T21:25:43.545000",
+        "view_count": 0,
+        "contact_count": 0,
+        "properties": []
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "PUT /api/v1/agent/public/profile",
+      "description": "Update Current Agent Public Profile",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.007369518280029297,
+      "error": null,
+      "response_data": {
+        "success": true,
+        "message": "Profile updated successfully"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/agent/public/profile",
+      "description": "Create Agent Public Profile",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.009857892990112305,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "agent_name"
+            ],
+            "msg": "Field required",
+            "input": {
+              "company_name": "New Agency",
+              "bio": "New agency bio"
+            }
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/agent/public/stats",
+      "description": "Get Current Agent Public Stats",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.0065538883209228516,
+      "error": null,
+      "response_data": {
+        "total_views": 0,
+        "total_contacts": 0,
+        "properties_count": 0,
+        "recent_inquiries": 0
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/agent/public/test-agent",
+      "description": "Get Agent Public Profile",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.019098758697509766,
+      "error": null,
+      "response_data": {
+        "agent_name": "Test Agent",
+        "slug": "test-agent",
+        "bio": "Test bio",
+        "photo": null,
+        "phone": "+1234567890",
+        "email": "agent@test.com",
+        "office_address": null,
+        "specialties": [],
+        "experience": null,
+        "languages": [],
+        "is_active": true,
+        "is_public": true,
+        "id": "68c97b6ff756102e2ab2d676",
+        "agent_id": "68c97b6ff756102e2ab2d676",
+        "created_at": "2025-09-17T21:25:43.545000",
+        "updated_at": "2025-09-17T21:25:43.545000",
+        "view_count": 0,
+        "contact_count": 0,
+        "properties": []
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/agent/public/test-agent/properties",
+      "description": "Get Agent Public Properties",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.020003557205200195,
+      "error": null,
+      "response_data": {
+        "properties": [],
+        "total": 0,
+        "page": 1,
+        "limit": 12,
+        "total_pages": 0,
+        "agent_name": "Test Agent"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/agent/public/test-agent/properties/1",
+      "description": "Get Agent Public Property",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.01534891128540039,
+      "error": null,
+      "response_data": {
+        "detail": "Property not found"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/agent/public/test-agent/contact",
+      "description": "Submit Contact Inquiry",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.01805710792541504,
+      "error": null,
+      "response_data": {
+        "name": "Inquiry User",
+        "email": "inquiry@example.com",
+        "phone": null,
+        "message": "Test inquiry",
+        "property_id": null,
+        "inquiry_type": "general",
+        "id": "1",
+        "agent_id": "68c97b6ff756102e2ab2d676",
+        "created_at": "2025-09-17T21:25:59.114760",
+        "is_read": false,
+        "is_responded": false
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/agent/public/test-agent/track-contact",
+      "description": "Track Contact Action",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.015403509140014648,
+      "error": null,
+      "response_data": {
+        "success": true,
+        "message": "Action tracked successfully"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/agent/public/test-agent/about",
+      "description": "Get Agent About Info",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.014724969863891602,
+      "error": null,
+      "response_data": {
+        "agent_name": "Test Agent",
+        "bio": "Test bio",
+        "photo": null,
+        "experience": null,
+        "specialties": [],
+        "languages": [],
+        "office_address": null,
+        "phone": "+1234567890",
+        "email": "agent@test.com"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/agent/public/test-agent/stats",
+      "description": "Get Agent Public Stats",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.014924287796020508,
+      "error": null,
+      "response_data": {
+        "total_views": 0,
+        "total_contacts": 0,
+        "properties_count": 1,
+        "recent_inquiries": 0
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/agent-public/profile",
+      "description": "Get Public Profile",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.009241580963134766,
+      "error": null,
+      "response_data": {
+        "id": "68ca3a4df05e34034add3e9b",
+        "first_name": "",
+        "last_name": "",
+        "is_active": true,
+        "email": "",
+        "phone": "",
+        "company": "",
+        "office_address": "",
+        "experience": "0",
+        "professional_bio": "",
+        "specialization_areas": "",
+        "tagline": "",
+        "city": "",
+        "state": "",
+        "pincode": ""
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "PUT /api/v1/agent-public/profile",
+      "description": "Update Public Profile",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.012697935104370117,
+      "error": null,
+      "response_data": {
+        "success": true,
+        "message": "Profile updated successfully"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/agent-public/stats",
+      "description": "Get Public Stats",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.011002540588378906,
+      "error": null,
+      "response_data": {
+        "total_properties": 9,
+        "active_listings": 3,
+        "years_experience": 5
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/agent/dashboard/profile",
+      "description": "Get Agent Public Profile For Dashboard",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.013214588165283203,
+      "error": null,
+      "response_data": {
+        "id": null,
+        "agent_id": {},
+        "agent_name": "test@example.com",
+        "slug": "test",
+        "bio": "",
+        "photo": null,
+        "phone": null,
+        "email": "test@example.com",
+        "office_address": "",
+        "specialties": [],
+        "experience": "",
+        "languages": [],
+        "is_active": true,
+        "is_public": false,
+        "view_count": 0,
+        "contact_count": 0,
+        "created_at": null,
+        "updated_at": null
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "PUT /api/v1/agent/dashboard/profile",
+      "description": "Update Agent Public Profile",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.013910531997680664,
+      "error": null,
+      "response_data": {
+        "detail": "Internal server error"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/agent/dashboard/stats",
+      "description": "Get Agent Public Stats",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.013413190841674805,
+      "error": null,
+      "response_data": {
+        "total_views": 0,
+        "total_contacts": 0,
+        "properties_count": 0,
+        "recent_inquiries": 0
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/agent/dashboard/inquiries",
+      "description": "Get Agent Inquiries",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.005057096481323242,
+      "error": null,
+      "response_data": {
+        "detail": "Internal server error"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/agent/dashboard/create-profile",
+      "description": "Create Agent Public Profile",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.016728639602661133,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to create profile"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/properties/publishing/publishing/properties/1/publish",
+      "description": "Publish Property",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.012654781341552734,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "body"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/properties/publishing/publishing/properties/1/status",
+      "description": "Get Publishing Status",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.10704517364501953,
+      "error": null,
+      "response_data": "Internal Server Error",
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/properties/publishing/publishing/properties/1/unpublish",
+      "description": "Unpublish Property",
+      "status": "error",
+      "status_code": null,
+      "response_time": 0,
+      "error": "[WinError 64] The specified network name is no longer available",
+      "response_data": null,
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/properties/publishing/publishing/agents/1/language-preferences",
+      "description": "Get Agent Language Preferences",
+      "status": "unexpected_status",
+      "status_code": 403,
+      "response_time": 0.2700614929199219,
+      "error": null,
+      "response_data": {
+        "detail": "Access denied"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "PUT /api/v1/properties/publishing/publishing/agents/1/language-preferences",
+      "description": "Update Agent Language Preferences",
+      "status": "unexpected_status",
+      "status_code": 403,
+      "response_time": 0.013710737228393555,
+      "error": null,
+      "response_data": {
+        "detail": "Access denied"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/properties/publishing/publishing/facebook/pages",
+      "description": "Get Facebook Pages",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.013936758041381836,
+      "error": null,
+      "response_data": [
+        {
+          "page_id": "mock_page_1",
+          "page_name": "Real Estate Agent - English",
+          "language": "en",
+          "is_connected": true,
+          "access_token": null,
+          "last_sync": "2025-09-17T21:25:59.727595"
+        },
+        {
+          "page_id": "mock_page_2",
+          "page_name": "Real Estate Agent - Marathi",
+          "language": "mr",
+          "is_connected": true,
+          "access_token": null,
+          "last_sync": "2025-09-17T21:25:59.727613"
+        }
+      ],
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/properties/publishing/publishing/facebook/pages/1/connect",
+      "description": "Connect Facebook Page",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.011658906936645508,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "query",
+              "language"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/properties/publishing/publishing/languages/supported",
+      "description": "Get Supported Languages",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.0034749507904052734,
+      "error": null,
+      "response_data": {
+        "supported_languages": [
+          {
+            "code": "en",
+            "name": "English",
+            "native_name": "English"
+          },
+          {
+            "code": "mr",
+            "name": "Marathi",
+            "native_name": "\u092e\u0930\u093e\u0920\u0940"
+          },
+          {
+            "code": "hi",
+            "name": "Hindi",
+            "native_name": "\u0939\u093f\u0928\u094d\u0926\u0940"
+          },
+          {
+            "code": "ta",
+            "name": "Tamil",
+            "native_name": "\u0ba4\u0bae\u0bbf\u0bb4\u0bcd"
+          },
+          {
+            "code": "bn",
+            "name": "Bengali",
+            "native_name": "\u09ac\u09be\u0982\u09b2\u09be"
+          },
+          {
+            "code": "te",
+            "name": "Telugu",
+            "native_name": "\u0c24\u0c46\u0c32\u0c41\u0c17\u0c41"
+          },
+          {
+            "code": "gu",
+            "name": "Gujarati",
+            "native_name": "\u0a97\u0ac1\u0a9c\u0ab0\u0abe\u0aa4\u0ac0"
+          },
+          {
+            "code": "kn",
+            "name": "Kannada",
+            "native_name": "\u0c95\u0ca8\u0ccd\u0ca8\u0ca1"
+          },
+          {
+            "code": "ml",
+            "name": "Malayalam",
+            "native_name": "\u0d2e\u0d32\u0d2f\u0d3e\u0d33\u0d02"
+          },
+          {
+            "code": "pa",
+            "name": "Punjabi",
+            "native_name": "\u0a2a\u0a70\u0a1c\u0a3e\u0a2c\u0a40"
+          }
+        ],
+        "default_language": "en",
+        "auto_translate_supported": true
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/properties/publishing/publishing/channels/supported",
+      "description": "Get Supported Channels",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.003139495849609375,
+      "error": null,
+      "response_data": {
+        "supported_channels": [
+          {
+            "code": "website",
+            "name": "Public Website",
+            "description": "Publish to agent's public website"
+          },
+          {
+            "code": "facebook",
+            "name": "Facebook",
+            "description": "Post to Facebook pages"
+          },
+          {
+            "code": "instagram",
+            "name": "Instagram",
+            "description": "Post to Instagram (coming soon)"
+          },
+          {
+            "code": "linkedin",
+            "name": "LinkedIn",
+            "description": "Post to LinkedIn (coming soon)"
+          },
+          {
+            "code": "email",
+            "name": "Email Marketing",
+            "description": "Send to email subscribers (coming soon)"
+          }
+        ],
+        "active_channels": [
+          "website",
+          "facebook"
+        ],
+        "coming_soon": [
+          "instagram",
+          "linkedin",
+          "email"
+        ]
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/posts/",
+      "description": "Create Post",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.015918493270874023,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "language"
+            ],
+            "msg": "Field required",
+            "input": {
+              "title": "Test Post",
+              "content": "Test post content",
+              "property_id": "1"
+            }
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/posts/",
+      "description": "Get Posts",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.010392189025878906,
+      "error": null,
+      "response_data": {
+        "detail": "1 validation error for PostFilters\nagent_id\n  Input should be a valid string [type=string_type, input_value=ObjectId('68c97b6ff756102e2ab2d676'), input_type=PydanticObjectId]\n    For further information visit https://errors.pydantic.dev/2.9/v/string_type"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/posts/1",
+      "description": "Get Post",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.00947117805480957,
+      "error": null,
+      "response_data": {
+        "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "PUT /api/v1/posts/1",
+      "description": "Update Post",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.015283346176147461,
+      "error": null,
+      "response_data": {
+        "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "DELETE /api/v1/posts/1",
+      "description": "Delete Post",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.008766889572143555,
+      "error": null,
+      "response_data": {
+        "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/posts/property/1",
+      "description": "Get Property Posts",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.010624885559082031,
+      "error": null,
+      "response_data": {
+        "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/posts/status/draft",
+      "description": "Get Posts By Status",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.00777888298034668,
+      "error": null,
+      "response_data": {
+        "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/posts/1/publish",
+      "description": "Publish Post",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.012279510498046875,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "body"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/posts/1/unpublish",
+      "description": "Unpublish Post",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.01342463493347168,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "body"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/posts/1/analytics",
+      "description": "Get Post Analytics",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.009865760803222656,
+      "error": null,
+      "response_data": {
+        "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/posts/1/ai-suggestions",
+      "description": "Get Ai Suggestions",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.010434150695800781,
+      "error": null,
+      "response_data": {
+        "detail": "PostManagementService.__init__() takes 1 positional argument but 3 were given"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/posts/1/enhance",
+      "description": "Enhance Post Content",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.011066436767578125,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "list_type",
+            "loc": [
+              "body"
+            ],
+            "msg": "Input should be a valid list",
+            "input": {
+              "enhancement_type": "seo"
+            }
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/posts/languages/supported",
+      "description": "Get Supported Languages",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.007822751998901367,
+      "error": null,
+      "response_data": {
+        "languages": [
+          {
+            "code": "en",
+            "name": "English"
+          },
+          {
+            "code": "hi",
+            "name": "Hindi"
+          },
+          {
+            "code": "ta",
+            "name": "Tamil"
+          },
+          {
+            "code": "te",
+            "name": "Telugu"
+          },
+          {
+            "code": "bn",
+            "name": "Bengali"
+          },
+          {
+            "code": "gu",
+            "name": "Gujarati"
+          },
+          {
+            "code": "kn",
+            "name": "Kannada"
+          },
+          {
+            "code": "ml",
+            "name": "Malayalam"
+          },
+          {
+            "code": "mr",
+            "name": "Marathi"
+          },
+          {
+            "code": "pa",
+            "name": "Punjabi"
+          },
+          {
+            "code": "ur",
+            "name": "Urdu"
+          }
+        ]
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/templates/",
+      "description": "Create Template",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.016526460647583008,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "description"
+            ],
+            "msg": "Field required",
+            "input": {
+              "name": "Test Template",
+              "content": "Test template content",
+              "property_type": "Apartment"
+            }
+          },
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "language"
+            ],
+            "msg": "Field required",
+            "input": {
+              "name": "Test Template",
+              "content": "Test template content",
+              "property_type": "Apartment"
+            }
+          },
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "template"
+            ],
+            "msg": "Field required",
+            "input": {
+              "name": "Test Template",
+              "content": "Test template content",
+              "property_type": "Apartment"
+            }
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/templates/",
+      "description": "Get Templates",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.009811639785766602,
+      "error": null,
+      "response_data": [],
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/templates/1",
+      "description": "Get Template",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.013067960739135742,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to get template: Template 1 not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "PUT /api/v1/templates/1",
+      "description": "Update Template",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.02019047737121582,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to update template: Template 1 not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "DELETE /api/v1/templates/1",
+      "description": "Delete Template",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.010402202606201172,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to delete template: Template 1 not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/templates/property-types/available",
+      "description": "Get Available Property Types",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.010271072387695312,
+      "error": null,
+      "response_data": {
+        "property_types": []
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/templates/languages/available",
+      "description": "Get Available Languages",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.0062713623046875,
+      "error": null,
+      "response_data": {
+        "languages": []
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/templates/1/duplicate",
+      "description": "Duplicate Template",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.009566068649291992,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "query",
+              "new_name"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/templates/1/activate",
+      "description": "Activate Template",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.02348184585571289,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to activate template: Template 1 not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/templates/1/deactivate",
+      "description": "Deactivate Template",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.016011953353881836,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to deactivate template: Template 1 not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/templates/1/usage-stats",
+      "description": "Get Template Usage Stats",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.015631675720214844,
+      "error": null,
+      "response_data": {
+        "detail": "Failed to get template usage stats: Template 1 not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/enhanced-posts/posts/",
+      "description": "Create Post",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.03087902069091797,
+      "error": null,
+      "response_data": {
+        "detail": "'1' is not a valid ObjectId, it must be a 12-byte input or a 24-character hex string"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/enhanced-posts/posts/",
+      "description": "Get Posts",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.021100759506225586,
+      "error": null,
+      "response_data": [],
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/enhanced-posts/posts/1",
+      "description": "Get Post",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.019354820251464844,
+      "error": null,
+      "response_data": {
+        "detail": "Post not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "PUT /api/v1/enhanced-posts/posts/1",
+      "description": "Update Post",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.023529052734375,
+      "error": null,
+      "response_data": {
+        "detail": "Post not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "DELETE /api/v1/enhanced-posts/posts/1",
+      "description": "Delete Post",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.017049074172973633,
+      "error": null,
+      "response_data": {
+        "detail": "Post not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/enhanced-posts/posts/1/publish",
+      "description": "Publish Post",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.017642498016357422,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "body"
+            ],
+            "msg": "Field required",
+            "input": null
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/enhanced-posts/posts/1/schedule",
+      "description": "Schedule Post",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.016394615173339844,
+      "error": null,
+      "response_data": {
+        "detail": "Post not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/enhanced-posts/posts/1/analytics",
+      "description": "Get Post Analytics",
+      "status": "not_found",
+      "status_code": 404,
+      "response_time": 0.01637744903564453,
+      "error": null,
+      "response_data": {
+        "detail": "Post not found"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/enhanced-posts/posts/templates/",
+      "description": "Create Template",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.018797874450683594,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "description"
+            ],
+            "msg": "Field required",
+            "input": {
+              "name": "Enhanced Template",
+              "content": "Enhanced template content"
+            }
+          },
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "property_type"
+            ],
+            "msg": "Field required",
+            "input": {
+              "name": "Enhanced Template",
+              "content": "Enhanced template content"
+            }
+          },
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "language"
+            ],
+            "msg": "Field required",
+            "input": {
+              "name": "Enhanced Template",
+              "content": "Enhanced template content"
+            }
+          },
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "template"
+            ],
+            "msg": "Field required",
+            "input": {
+              "name": "Enhanced Template",
+              "content": "Enhanced template content"
+            }
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/enhanced-posts/posts/templates/",
+      "description": "Get Templates",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.01809215545654297,
+      "error": null,
+      "response_data": [],
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/branding/suggestions",
+      "description": "Get Branding Suggestions",
+      "status": "unexpected_status",
+      "status_code": 422,
+      "response_time": 0.008344650268554688,
+      "error": null,
+      "response_data": {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "companyName"
+            ],
+            "msg": "Field required",
+            "input": {
+              "company_name": "Test Company",
+              "industry": "real_estate"
+            }
+          },
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "businessType"
+            ],
+            "msg": "Field required",
+            "input": {
+              "company_name": "Test Company",
+              "industry": "real_estate"
+            }
+          },
+          {
+            "type": "missing",
+            "loc": [
+              "body",
+              "targetAudience"
+            ],
+            "msg": "Field required",
+            "input": {
+              "company_name": "Test Company",
+              "industry": "real_estate"
+            }
+          }
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/agent/branding-suggest",
+      "description": "Suggest Branding",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.009932756423950195,
+      "error": null,
+      "response_data": {
+        "colors": {
+          "primary": "#007bff",
+          "secondary": "#6c757d"
+        },
+        "tone": "professional",
+        "tagline": "Your Dream Home Awaits",
+        "logoIdeas": [
+          "Modern house icon",
+          "Key with AI spark",
+          "Abstract property skyline"
+        ]
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/crm/analytics/dashboard",
+      "description": "Get Crm Analytics Dashboard",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.03649163246154785,
+      "error": null,
+      "response_data": {
+        "success": true,
+        "data": {
+          "lead_analytics": {
+            "error": "Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None"
+          },
+          "deal_pipeline": {
+            "error": "Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None"
+          },
+          "timestamp": "2025-09-17T15:56:00.340104"
+        }
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/crm/analytics",
+      "description": "Get Crm Analytics",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.00561976432800293,
+      "error": null,
+      "response_data": {
+        "success": true,
+        "lead_analytics": {
+          "error": "Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None"
+        },
+        "deal_pipeline": {
+          "error": "Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None"
+        },
+        "timestamp": "2025-09-17T15:56:00.346606"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/crm/leads/stats",
+      "description": "Get Crm Leads Stats",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.0077474117279052734,
+      "error": null,
+      "response_data": {
+        "success": true,
+        "data": {
+          "error": "Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None"
+        }
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/crm/leads",
+      "description": "Get Crm Leads",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.010005474090576172,
+      "error": null,
+      "response_data": {
+        "success": false,
+        "error": "Internal server error"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/crm/leads",
+      "description": "Create Crm Lead",
+      "status": "server_error",
+      "status_code": 500,
+      "response_time": 0.011428356170654297,
+      "error": null,
+      "response_data": {
+        "success": false,
+        "error": "Internal server error"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/crm/deals",
+      "description": "Get Crm Deals",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.007433176040649414,
+      "error": null,
+      "response_data": {
+        "success": true,
+        "deals": [],
+        "count": 0
+      },
+      "requires_auth": true,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/health",
+      "description": "Api Health",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.006215333938598633,
+      "error": null,
+      "response_data": {
+        "status": "healthy",
+        "version": "1.0.0",
+        "api": "v1"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/",
+      "description": "Api Info",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.005487203598022461,
+      "error": null,
+      "response_data": {
+        "name": "Real Estate CRM API",
+        "version": "1.0.0",
+        "endpoints": [
+          "/auth - Authentication endpoints",
+          "/dashboard - Dashboard and analytics",
+          "/leads - Lead management",
+          "/properties - Property management"
+        ]
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /health",
+      "description": "Health Check",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.007136821746826172,
+      "error": null,
+      "response_data": {
+        "status": "healthy",
+        "message": "PropertyAI API is running"
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "POST /api/v1/property/ai_suggest",
+      "description": "Ai Property Suggest",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.03163647651672363,
+      "error": null,
+      "response_data": {
+        "success": true,
+        "data": [
+          {
+            "title": "Beautiful 2BHK Apartment in Test City",
+            "price": 500000.0,
+            "description": "Beautiful family apartment in Test City with modern amenities. Perfect for families seeking comfort and convenience.",
+            "amenities": "Parking, Gym, Swimming Pool, 24/7 Security, Garden, Children's Play Area",
+            "location_score": 8.5,
+            "market_insights": {
+              "local_expertise": false,
+              "market_trend": "Stable",
+              "price_trend": "Moderate"
+            },
+            "property_details": {
+              "bedrooms": 2,
+              "bathrooms": 2,
+              "area": 1000,
+              "property_type": "Apartment",
+              "location": "Test City"
+            },
+            "highlights": [
+              "Spacious 2BHK with 2 bathrooms",
+              "Area: 1000 sq ft",
+              "Tailored for residential market",
+              "Professional agent-curated listing",
+              "Close to schools, hospitals, and shopping centers"
+            ]
+          }
+        ]
+      },
+      "requires_auth": false,
+      "has_auth": true
+    },
+    {
+      "endpoint": "GET /api/v1/agent/profile",
+      "description": "Get Agent Profile",
+      "status": "success",
+      "status_code": 200,
+      "response_time": 0.01844000816345215,
+      "error": null,
+      "response_data": {
+        "success": true,
+        "data": {
+          "specialization": "residential",
+          "areas_served": "",
+          "brand_name": "",
+          "experience_level": "intermediate",
+          "tagline": "",
+          "location": "",
+          "languages": []
+        },
+        "message": "No agent profile found, using defaults"
+      },
+      "requires_auth": true,
+      "has_auth": true
+    }
+  ],
+  "total_endpoints": 143,
+  "timestamp": "2025-09-17T21:26:00.460738"
+}

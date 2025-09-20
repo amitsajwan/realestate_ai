@@ -19,7 +19,7 @@ export interface Property {
   type: string
   property_type: string
   status: 'for-sale' | 'for-rent' | 'sold' | 'draft' | 'archived' | 'active'
-  dateAdded: string
+  date_added: string
   created_at: string
   image?: string
   images?: string[]
@@ -137,7 +137,7 @@ export function transformPropertiesToAnalytics(properties: Property[]): Property
   // Calculate average days on market (simplified)
   const now = new Date()
   const averageDaysOnMarket = properties.reduce((sum, prop) => {
-    const createdDate = new Date(prop.created_at || prop.dateAdded || now)
+    const createdDate = new Date(prop.created_at || prop.date_added || now)
     const daysDiff = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
     return sum + Math.max(0, daysDiff)
   }, 0) / totalProperties
@@ -197,7 +197,7 @@ export function transformPropertiesForDisplay(properties: Property[]) {
     area: prop.area || prop.area_sqft,
     type: prop.property_type || prop.type,
     status: prop.status === 'active' ? 'for-sale' : prop.status,
-    dateAdded: prop.created_at || prop.dateAdded,
+    date_added: prop.created_at || prop.date_added,
     image: prop.image,
     images: prop.images
   }))

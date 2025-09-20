@@ -1,7 +1,6 @@
 // DEPRECATED: Use unified-client.ts instead
 // This file is kept for backward compatibility but should be migrated to use the unified client
 
-import { apiClient } from './api/unified-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -278,28 +277,48 @@ export const api = {
 
   // DEPRECATED: Use propertiesAPI from @/lib/properties instead
   getProperties: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/properties/`);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    const response = await fetch(`${API_BASE_URL}/api/v1/properties/`, {
+      headers: {
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+        'Content-Type': 'application/json'
+      }
+    });
     return response.json();
   },
 
   getPublishingStatus: async (propertyId: string) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/properties/${propertyId}/publishing-status`);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    const response = await fetch(`${API_BASE_URL}/api/v1/properties/${propertyId}/publishing-status`, {
+      headers: {
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+        'Content-Type': 'application/json'
+      }
+    });
     return response.json();
   },
 
   publishProperty: async (propertyId: string, publishData: any) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
     const response = await fetch(`${API_BASE_URL}/api/v1/properties/${propertyId}/publish`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      },
       body: JSON.stringify(publishData)
     });
     return response.json();
   },
 
   unpublishProperty: async (propertyId: string) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
     const response = await fetch(`${API_BASE_URL}/api/v1/properties/${propertyId}/unpublish`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      }
     });
     return response.json();
   },
@@ -328,42 +347,73 @@ export const api = {
   },
 
   deleteProperty: async (propertyId: string) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
     const response = await fetch(`${API_BASE_URL}/api/v1/properties/${propertyId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: {
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+        'Content-Type': 'application/json'
+      }
     });
     return response.json();
   },
 
   getAgentPublicProfile: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/agent/public/profile`);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    const response = await fetch(`${API_BASE_URL}/api/v1/agent/public/profile`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      }
+    });
     return response.json();
   },
 
   updateAgentPublicProfile: async (data: any) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
     const response = await fetch(`${API_BASE_URL}/api/v1/agent/public/profile`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      },
       body: JSON.stringify(data)
     });
     return response.json();
   },
 
   getAgentPublicStats: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/agent/public/stats`);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    const response = await fetch(`${API_BASE_URL}/api/v1/agent/public/stats`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      }
+    });
     return response.json();
   },
 
   // DEPRECATED: Use agentAPI from @/lib/agent instead
   getAgentProfile: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/agent/dashboard/profile`);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    const response = await fetch(`${API_BASE_URL}/api/v1/agent/dashboard/profile`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      }
+    });
     return response.json();
   },
 
   // DEPRECATED: Use propertiesAPI from @/lib/properties instead
   getAIPropertySuggestions: async (propertyId: string, data: any) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
     const response = await fetch(`${API_BASE_URL}/api/v1/properties/${propertyId}/ai-suggestions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      },
       body: JSON.stringify(data)
     });
     return response.json();
@@ -415,9 +465,13 @@ export const api = {
 
   // DEPRECATED: Use propertiesAPI from @/lib/properties instead
   createProperty: async (data: any) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
     const response = await fetch(`${API_BASE_URL}/api/v1/properties/`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      },
       body: JSON.stringify(data)
     });
     return response.json();

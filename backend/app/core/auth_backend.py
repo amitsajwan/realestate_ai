@@ -97,10 +97,10 @@ async def mock_current_active_user() -> User:
         is_active=True,
         is_superuser=False,
         is_verified=True,
-        firstName="Test",
-        lastName="User",
-        onboardingCompleted=True,
-        onboardingStep=6,
+        first_name="Test",
+        last_name="User",
+        onboarding_completed=True,
+        onboarding_step=6,
         created_at=datetime.datetime.utcnow(),
         updated_at=datetime.datetime.utcnow()
     )

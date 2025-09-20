@@ -1,5 +1,8 @@
-from fastapi import APIRouter, Depends, Body, Request
+from fastapi import APIRouter, Depends, Body, Request, Path
+from fastapi.responses import RedirectResponse
 from app.core.rate_limiting import limiter
+from app.core.database import get_database
+from app.services.agent_public_service import AgentPublicService
 from fastapi import HTTPException
 import os
 import json
@@ -64,3 +67,26 @@ async def suggest_branding(
             "tagline": "Your Dream Home Awaits",
             "logoIdeas": ["Modern house icon", "Key with AI spark", "Abstract property skyline"]
         }
+
+@router.get("/{agent_slug}")
+async def get_agent_profile_redirect(
+    agent_slug: str = Path(..., description="Agent's URL slug"),
+    db = Depends(get_database)
+):
+    """Redirect to agent public profile"""
+    try:
+        # Try to get the agent profile to verify it exists
+        service = AgentPublicService(db)
+        agent = await service.get_agent_by_slug(agent_slug)
+        
+        if not agent:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        
+        # Return the agent profile data directly instead of redirecting
+        return agent.model_dump()
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting agent profile: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")

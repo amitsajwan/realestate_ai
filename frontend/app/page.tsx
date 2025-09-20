@@ -1,12 +1,14 @@
 'use client'
 
 import CRM from '@/components/CRM'
-import DashboardStats from '@/components/DashboardStats'
+import { DashboardStats } from '@/components/DashboardStats'
 import FacebookIntegration from '@/components/FacebookIntegration'
+import { MobileNavigation } from '@/components/MobileNavigation'
 import ProfileSettings from '@/components/ProfileSettings'
 import Properties from '@/components/Properties'
 import PropertyManagement from '@/components/PropertyManagement'
 import SmartPropertyForm from '@/components/SmartPropertyForm'
+import { Button, Card, CardBody, CardHeader } from '@/components/ui'
 import { apiService } from '@/lib/api'
 import { authManager } from '@/lib/auth'
 import { propertiesAPI } from '@/lib/properties'
@@ -91,7 +93,7 @@ export default function Dashboard() {
         return
       }
 
-      if (!state.user?.onboardingCompleted) {
+      if (!state.user?.onboarding_completed) {
         console.info('[DashboardPage] Onboarding not completed, redirecting to onboarding')
         router.push('/onboarding')
         return
@@ -139,11 +141,12 @@ export default function Dashboard() {
           bathrooms: property.bathrooms,
           area: property.area_sqft,
           address: property.location,
-          dateAdded: property.created_at ? new Date(property.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          date_added: property.created_at ? new Date(property.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
           description: property.description
         }))
         setProperties(transformedProperties)
         console.log('[DashboardPage] Properties loaded:', transformedProperties.length)
+        console.log('[DashboardPage] Properties state updated:', transformedProperties)
       } else {
         console.log('[DashboardPage] No properties found, using empty array')
         setProperties([])
@@ -191,6 +194,7 @@ export default function Dashboard() {
         return (
           <SmartPropertyForm
             onSuccess={() => {
+              console.log('[DashboardPage] Property created successfully, switching to properties view and refreshing...')
               setActiveSection('properties')
               loadProperties() // Refresh the properties list
             }}
@@ -254,46 +258,52 @@ export default function Dashboard() {
             />
 
 
-            {/* Recent Properties Preview with Enhanced Spacing */}
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Recent Properties</h2>
-                <button
-                  onClick={() => setActiveSection('properties')}
-                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors"
-                >
-                  View All →
-                </button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {properties.slice(0, 3).map((property, index) => (
-                  <motion.div
-                    key={property.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="bg-gray-50 dark:bg-slate-700 rounded-xl p-4 hover:shadow-md transition-all duration-200 cursor-pointer"
+            {/* Recent Properties Preview */}
+            <Card className="hover:shadow-md transition-shadow">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-gray-900">Recent Properties</h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setActiveSection('properties')}
+                    className="text-brand-primary hover:text-brand-primary-hover"
                   >
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-semibold text-gray-900 dark:text-white truncate">{property.title}</h3>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${property.status === 'for-sale'
-                        ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
-                        : property.status === 'for-rent'
-                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                        }`}>
-                        {property.status === 'for-sale' ? 'For Sale' : property.status === 'for-rent' ? 'For Rent' : property.status}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
-                      <span>₹{property.price.toLocaleString()}</span>
-                      <span>{property.bedrooms} bed • {property.bathrooms} bath</span>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
+                    View All →
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardBody>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {properties.slice(0, 3).map((property, index) => (
+                    <motion.div
+                      key={property.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="bg-gray-50 rounded-xl p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-gray-100"
+                      onClick={() => setActiveSection('properties')}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-semibold text-gray-900 truncate">{property.title}</h3>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${property.status === 'for-sale'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : property.status === 'for-rent'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-gray-100 text-gray-700'
+                          }`}>
+                          {property.status === 'for-sale' ? 'For Sale' : property.status === 'for-rent' ? 'For Rent' : property.status}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-gray-600">
+                        <span className="font-semibold text-gray-900">₹{property.price.toLocaleString()}</span>
+                        <span>{property.bedrooms} bed • {property.bathrooms} bath</span>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </CardBody>
+            </Card>
           </div>
         )
     }
@@ -365,11 +375,11 @@ export default function Dashboard() {
                 <div className="hidden sm:flex items-center space-x-2">
                   <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                     <span className="text-white text-sm font-medium">
-                      {(user?.firstName || 'A').charAt(0).toUpperCase()}
+                      {(user?.first_name || 'A').charAt(0).toUpperCase()}
                     </span>
                   </div>
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {user?.firstName || 'Agent'}
+                    {user?.first_name || 'Agent'}
                   </span>
                 </div>
                 <button
@@ -459,19 +469,27 @@ export default function Dashboard() {
         </AnimatePresence>
 
         {/* Main Content */}
-        <main id="main-content" className="flex-1 min-h-screen">
+        <main id="main-content" className="flex-1 min-h-screen bg-gray-50 pb-20 lg:pb-0">
           <div className="p-4 sm:p-6 lg:p-8">
             <motion.div
               key={activeSection}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, ease: 'easeOut' }}
-              className="max-w-7xl mx-auto animate-fade-in"
+              className="container mx-auto animate-fade-in"
             >
               {renderSection()}
             </motion.div>
           </div>
         </main>
+
+        {/* Mobile Navigation */}
+        <MobileNavigation
+          activeSection={activeSection}
+          onSectionChange={setActiveSection}
+          isOpen={isMobileMenuOpen}
+          onClose={() => setIsMobileMenuOpen(false)}
+        />
       </div>
     </div>
   )

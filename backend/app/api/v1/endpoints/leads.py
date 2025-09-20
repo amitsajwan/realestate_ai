@@ -87,8 +87,16 @@ async def delete_lead(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@router.get("/stats/summary")
+@router.get("/stats")
 async def get_lead_stats(
+    agent_id: str = Depends(get_current_user_id),
+    lead_service: LeadService = Depends(get_lead_service)
+):
+    """Get lead statistics summary for dashboard."""
+    return await lead_service.get_lead_stats(agent_id)
+
+@router.get("/stats/summary")
+async def get_lead_stats_summary(
     agent_id: str = Depends(get_current_user_id),
     lead_service: LeadService = Depends(get_lead_service)
 ):

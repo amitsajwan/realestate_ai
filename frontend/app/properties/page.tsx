@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 interface Property {
   id: string;
@@ -28,9 +28,12 @@ export default function PropertiesPage() {
   const fetchProperties = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('/api/v1/properties/', {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+      const response = await fetch(`${API_BASE_URL}/api/v1/properties/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
 
@@ -38,10 +41,10 @@ export default function PropertiesPage() {
         const data = await response.json();
         setProperties(data);
       } else {
-        setError('Failed to fetch properties');
+        setError(`Failed to fetch properties: ${response.status} ${response.statusText}`);
       }
     } catch (err) {
-      setError('Network error');
+      setError(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -100,21 +103,20 @@ export default function PropertiesPage() {
                     <h3 className="text-xl font-semibold text-white truncate">
                       {property.title}
                     </h3>
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      property.status === 'active' 
-                        ? 'bg-green-900 text-green-300' 
-                        : 'bg-gray-700 text-gray-300'
-                    }`}>
+                    <span className={`px-2 py-1 text-xs rounded-full ${property.status === 'active'
+                      ? 'bg-green-900 text-green-300'
+                      : 'bg-gray-700 text-gray-300'
+                      }`}>
                       {property.status}
                     </span>
                   </div>
-                  
+
                   <p className="text-gray-400 text-sm mb-2">{property.location}</p>
-                  
+
                   <div className="text-2xl font-bold text-blue-400 mb-4">
                     {formatPrice(property.price)}
                   </div>
-                  
+
                   <div className="grid grid-cols-3 gap-4 text-sm text-gray-300 mb-4">
                     <div>
                       <span className="font-medium">Type:</span>
@@ -132,13 +134,13 @@ export default function PropertiesPage() {
                       {property.bathrooms}
                     </div>
                   </div>
-                  
+
                   {property.area_sqft && (
                     <div className="text-sm text-gray-400 mb-4">
                       {property.area_sqft.toLocaleString()} sq ft
                     </div>
                   )}
-                  
+
                   <div className="flex space-x-2">
                     <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">
                       Edit

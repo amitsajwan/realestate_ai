@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 interface User {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
+  first_name: string;
+  last_name: string;
   phone: string;
   company: string;
   is_active: boolean;
@@ -24,8 +24,8 @@ export default function ProfilePage() {
   const router = useRouter();
 
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    first_name: '',
+    last_name: '',
     phone: '',
     company: ''
   });
@@ -42,9 +42,11 @@ export default function ProfilePage() {
         return;
       }
 
-      const response = await fetch('/api/v1/auth/me', {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
 
@@ -52,8 +54,8 @@ export default function ProfilePage() {
         const userData = await response.json();
         setUser(userData);
         setFormData({
-          firstName: userData.firstName || '',
-          lastName: userData.lastName || '',
+          first_name: userData.first_name || '',
+          last_name: userData.last_name || '',
           phone: userData.phone || '',
           company: userData.company || ''
         });
@@ -75,7 +77,8 @@ export default function ProfilePage() {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('/api/v1/auth/me', {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -141,27 +144,27 @@ export default function ProfilePage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="first_name" className="block text-sm font-medium text-gray-300 mb-2">
                   First Name
                 </label>
                 <input
-                  id="firstName"
+                  id="first_name"
                   type="text"
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                  value={formData.first_name}
+                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-gray-300 mb-2">
+                <label htmlFor="last_name" className="block text-sm font-medium text-gray-300 mb-2">
                   Last Name
                 </label>
                 <input
-                  id="lastName"
+                  id="last_name"
                   type="text"
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                  value={formData.last_name}
+                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -188,7 +191,7 @@ export default function ProfilePage() {
                   id="phone"
                   type="tel"
                   value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -201,7 +204,7 @@ export default function ProfilePage() {
                   id="company"
                   type="text"
                   value={formData.company}
-                  onChange={(e) => setFormData({...formData, company: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-600 rounded-md shadow-sm bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -212,17 +215,15 @@ export default function ProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-gray-400">Account Status:</span>
-                  <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
-                    user.is_active ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'
-                  }`}>
+                  <span className={`ml-2 px-2 py-1 rounded-full text-xs ${user.is_active ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'
+                    }`}>
                     {user.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </div>
                 <div>
                   <span className="text-gray-400">Email Verified:</span>
-                  <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
-                    user.is_verified ? 'bg-green-900 text-green-300' : 'bg-yellow-900 text-yellow-300'
-                  }`}>
+                  <span className={`ml-2 px-2 py-1 rounded-full text-xs ${user.is_verified ? 'bg-green-900 text-green-300' : 'bg-yellow-900 text-yellow-300'
+                    }`}>
                     {user.is_verified ? 'Verified' : 'Pending'}
                   </span>
                 </div>
@@ -243,7 +244,7 @@ export default function ProfilePage() {
               >
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
-              
+
               <button
                 type="button"
                 onClick={handleLogout}

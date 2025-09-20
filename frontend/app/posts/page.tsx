@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 interface Post {
   id: string;
@@ -26,9 +26,11 @@ export default function PostsPage() {
   const fetchPosts = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('/api/v1/enhanced-posts/posts/', {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_BASE_URL}/api/v1/enhanced-posts/posts/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
 
@@ -113,19 +115,18 @@ export default function PostsPage() {
                   <h3 className="text-xl font-semibold text-white">
                     {post.title}
                   </h3>
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    post.status === 'published' 
-                      ? 'bg-green-900 text-green-300' 
+                  <span className={`px-2 py-1 text-xs rounded-full ${post.status === 'published'
+                      ? 'bg-green-900 text-green-300'
                       : 'bg-yellow-900 text-yellow-300'
-                  }`}>
+                    }`}>
                     {post.status}
                   </span>
                 </div>
-                
+
                 <p className="text-gray-300 mb-4 line-clamp-3">
                   {post.content}
                 </p>
-                
+
                 <div className="flex items-center justify-between text-sm text-gray-400 mb-4">
                   <div>
                     <span className="font-medium">Language:</span> {post.language}
@@ -137,13 +138,13 @@ export default function PostsPage() {
                     <span className="font-medium">Created:</span> {new Date(post.created_at).toLocaleDateString()}
                   </div>
                 </div>
-                
+
                 <div className="flex space-x-2">
                   <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">
                     Edit
                   </button>
                   {post.status !== 'published' && (
-                    <button 
+                    <button
                       onClick={() => publishPost(post.id)}
                       className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm"
                     >

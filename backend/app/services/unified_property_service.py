@@ -134,6 +134,22 @@ class UnifiedPropertyService:
         
         return [self._convert_doc_to_response(doc) for doc in docs]
     
+    async def get_public_properties(
+        self,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[PropertyResponse]:
+        """
+        Get all public properties without authentication.
+        Returns properties with publishing_status = 'published'.
+        """
+        query = {"publishing_status": "published"}
+        
+        cursor = self.collection.find(query).skip(skip).limit(limit)
+        docs = await cursor.to_list(length=None)
+        
+        return [self._convert_doc_to_response(doc) for doc in docs]
+    
     async def get_published_properties_by_agent(
         self,
         agent_id: str,
@@ -171,7 +187,7 @@ class UnifiedPropertyService:
         # Check if property exists and belongs to user
         existing_prop = await self.collection.find_one({
             "_id": obj_id,
-            "agent_id": user_id
+            "agent_id": str(user_id)
         })
         
         if not existing_prop:
@@ -183,7 +199,7 @@ class UnifiedPropertyService:
         
         # Update in database
         result = await self.collection.update_one(
-            {"_id": obj_id, "agent_id": user_id},
+            {"_id": obj_id, "agent_id": str(user_id)},
             {"$set": update_data}
         )
         
@@ -206,7 +222,7 @@ class UnifiedPropertyService:
         
         result = await self.collection.delete_one({
             "_id": obj_id,
-            "agent_id": user_id
+            "agent_id": str(user_id)
         })
         
         return result.deleted_count == 1
@@ -260,7 +276,7 @@ class UnifiedPropertyService:
             features=[],
             amenities=None,
             status="active",
-            agent_id=user_id,
+            agent_id=str(user_id),  # Convert ObjectId to string
             images=[],
             smart_features={},
             ai_insights={},
@@ -373,7 +389,7 @@ class UnifiedPropertyService:
         search_query = {}
         
         if user_id:
-            search_query["agent_id"] = user_id
+            search_query["agent_id"] = str(user_id)
         
         if property_type:
             search_query["property_type"] = property_type

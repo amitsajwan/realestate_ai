@@ -28,8 +28,8 @@ class User(Document):
     company: Optional[str] = None
     
     # Onboarding fields
-    onboardingCompleted: bool = False
-    onboardingStep: int = 0
+    onboarding_completed: bool = False
+    onboarding_step: int = 0
     
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -63,8 +63,8 @@ class UserRead(schemas.BaseUser[str]):
     last_name: Optional[str] = None
     phone: Optional[str] = None
     company: Optional[str] = None
-    onboardingCompleted: bool = False
-    onboardingStep: int = 0
+    onboarding_completed: bool = False
+    onboarding_step: int = 0
     created_at: datetime
     updated_at: datetime
     

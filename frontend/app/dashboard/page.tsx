@@ -25,7 +25,7 @@ export default function DashboardPage() {
         metadata: {
           isAuthenticated: state.isAuthenticated,
           hasUser: !!state.user,
-          onboardingCompleted: state.user?.onboardingCompleted
+          onboarding_completed: state.user?.onboarding_completed
         }
       })
 
@@ -38,13 +38,13 @@ export default function DashboardPage() {
         return
       }
 
-      if (!state.user?.onboardingCompleted) {
+      if (!state.user?.onboarding_completed) {
         logger.info('[DashboardPage] Onboarding not completed, redirecting to onboarding', {
           component: 'DashboardPage',
           action: 'redirect_onboarding',
           metadata: {
-            onboardingCompleted: state.user?.onboardingCompleted,
-            onboardingStep: state.user?.onboardingStep,
+            onboarding_completed: state.user?.onboarding_completed,
+            onboarding_step: state.user?.onboarding_step,
             userObject: state.user
           }
         })

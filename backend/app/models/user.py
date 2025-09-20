@@ -24,14 +24,14 @@ class User(Document):
     # id field inherited from Document (alias for _id)
     
     # Additional fields for real estate platform
-    firstName: Optional[str] = None
-    lastName: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     phone: Optional[str] = None
     company: Optional[str] = None
     
     # Onboarding fields
-    onboardingCompleted: bool = False
-    onboardingStep: int = 0
+    onboarding_completed: bool = False
+    onboarding_step: int = 0
     
     # Alias for frontend compatibility
     # Temporarily disabled to fix serialization issue
@@ -50,31 +50,31 @@ class User(Document):
 
 class UserCreate(schemas.BaseUserCreate):
     """User creation model"""
-    firstName: Optional[str] = None
-    lastName: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     phone: Optional[str] = None
     company: Optional[str] = None
 
 
 class UserUpdate(schemas.BaseUserUpdate):
     """User update model"""
-    firstName: Optional[str] = None
-    lastName: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     phone: Optional[str] = None
     company: Optional[str] = None
-    onboardingCompleted: Optional[bool] = None
-    onboardingStep: Optional[int] = None
+    onboarding_completed: Optional[bool] = None
+    onboarding_step: Optional[int] = None
 
 
 class UserRead(schemas.BaseUser[str]):
     """User read model"""
     id: str
-    firstName: Optional[str] = None
-    lastName: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     phone: Optional[str] = None
     company: Optional[str] = None
-    onboardingCompleted: bool = False
-    onboardingStep: int = 0
+    onboarding_completed: bool = False
+    onboarding_step: int = 0
     created_at: datetime
     updated_at: datetime
     

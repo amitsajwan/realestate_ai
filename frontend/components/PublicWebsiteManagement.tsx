@@ -1,5 +1,6 @@
 'use client'
 
+import { Button, Checkbox, Input, Textarea } from '@/components/ui'
 import { apiService } from '@/lib/api'
 import {
   BuildingOfficeIcon,
@@ -69,20 +70,23 @@ export default function PublicWebsiteManagement() {
     try {
       setIsLoading(true)
       const response = await apiService.getAgentPublicProfile()
-      if (response.success) {
-        const data = response.data
+      console.log('Profile API response:', response) // Debug log
+
+      // API returns data directly, not wrapped in success/data structure
+      if (response && (response.agent_name || response.id)) {
+        const data = response
 
         // Map API data to frontend format
         const mappedProfile: AgentPublicProfile = {
           id: data.id || '',
-          agent_name: `${data.first_name || ''} ${data.last_name || ''}`.trim() || '',
+          agent_name: data.agent_name || `${data.first_name || ''} ${data.last_name || ''}`.trim() || '',
           slug: data.slug || '',
-          bio: data.professional_bio || '',
+          bio: data.bio || data.professional_bio || '',
           photo: data.photo || '',
           phone: data.phone || '',
           email: data.email || '',
           office_address: data.office_address || '',
-          specialties: data.specialization_areas ? data.specialization_areas.split(',').map((s: string) => s.trim()) : [],
+          specialties: data.specialties || (data.specialization_areas ? data.specialization_areas.split(',').map((s: string) => s.trim()) : []),
           experience: data.experience || '',
           languages: data.languages || [],
           is_active: data.is_active || false,
@@ -93,10 +97,11 @@ export default function PublicWebsiteManagement() {
           updated_at: data.updated_at || ''
         }
 
+        console.log('Mapped profile:', mappedProfile) // Debug log
         setProfile(mappedProfile) // Set the mapped data as profile
         setEditForm(mappedProfile) // Also set as edit form
       } else {
-        console.error('Failed to load public profile:', response)
+        console.error('Failed to load public profile - invalid response:', response)
         toast.error('Failed to load public profile')
       }
     } catch (error) {
@@ -110,12 +115,14 @@ export default function PublicWebsiteManagement() {
   const loadStats = async () => {
     try {
       const response = await apiService.getAgentPublicStats()
-      if (response.success) {
-        const data = response.data
-        console.log('Public stats data:', data) // Debug log
-        setStats(data)
+      console.log('Stats API response:', response) // Debug log
+
+      // API returns data directly, not wrapped in success/data structure
+      if (response && (response.total_views !== undefined || response.properties_count !== undefined)) {
+        console.log('Public stats data:', response) // Debug log
+        setStats(response)
       } else {
-        console.error('Failed to load stats:', response)
+        console.error('Failed to load stats - invalid response:', response)
       }
     } catch (error) {
       console.error('Failed to load stats:', error)
@@ -321,138 +328,98 @@ export default function PublicWebsiteManagement() {
 
           {/* Basic Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Agent Name *
-              </label>
-              <input
-                key={`agent_name_${profile?.agent_name || 'empty'}`}
-                type="text"
-                value={isEditing ? editForm.agent_name : (profile?.agent_name || '')}
-                onChange={(e) => setEditForm(prev => ({ ...prev, agent_name: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Your professional name"
-                readOnly={!isEditing}
-              />
-              {/* Debug info */}
-              <div className="text-xs text-gray-500 mt-1">
-                Debug: profile={JSON.stringify(profile)}, editForm={JSON.stringify(editForm)}, isEditing={isEditing}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
-              </label>
-              <input
-                key={`email_${profile?.email || 'empty'}`}
-                type="email"
-                value={isEditing ? editForm.email : (profile?.email || '')}
-                onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="your.email@example.com"
-                readOnly={!isEditing}
-              />
-            </div>
+            <Input
+              key={`agent_name_${profile?.agent_name || 'empty'}`}
+              label="Agent Name *"
+              type="text"
+              value={isEditing ? editForm.agent_name : (profile?.agent_name || '')}
+              onChange={(e) => setEditForm(prev => ({ ...prev, agent_name: e.target.value }))}
+              placeholder="Your professional name"
+              readOnly={!isEditing}
+            />
+            <Input
+              key={`email_${profile?.email || 'empty'}`}
+              label="Email Address"
+              type="email"
+              value={isEditing ? editForm.email : (profile?.email || '')}
+              onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+              placeholder="your.email@example.com"
+              readOnly={!isEditing}
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone Number
-              </label>
-              <input
-                key={`phone_${profile?.phone || 'empty'}`}
-                type="tel"
-                value={isEditing ? editForm.phone : (profile?.phone || '')}
-                onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="+1 (555) 123-4567"
-                readOnly={!isEditing}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Office Address
-              </label>
-              <input
-                type="text"
-                value={isEditing ? editForm.office_address : (profile?.office_address || '')}
-                onChange={(e) => setEditForm(prev => ({ ...prev, office_address: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="123 Main St, City, State"
-                readOnly={!isEditing}
-              />
-            </div>
+            <Input
+              key={`phone_${profile?.phone || 'empty'}`}
+              label="Phone Number"
+              type="tel"
+              value={isEditing ? editForm.phone : (profile?.phone || '')}
+              onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+              placeholder="+1 (555) 123-4567"
+              readOnly={!isEditing}
+            />
+            <Input
+              label="Office Address"
+              type="text"
+              value={isEditing ? editForm.office_address : (profile?.office_address || '')}
+              onChange={(e) => setEditForm(prev => ({ ...prev, office_address: e.target.value }))}
+              placeholder="123 Main St, City, State"
+              readOnly={!isEditing}
+            />
           </div>
 
           {/* Bio */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Professional Bio
-            </label>
-            <textarea
-              rows={4}
-              value={isEditing ? editForm.bio : (profile?.bio || '')}
-              onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Tell visitors about your experience, specialties, and what makes you unique..."
-              readOnly={!isEditing}
-            />
-          </div>
+          <Textarea
+            label="Professional Bio"
+            rows={4}
+            value={isEditing ? editForm.bio : (profile?.bio || '')}
+            onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
+            placeholder="Tell visitors about your experience, specialties, and what makes you unique..."
+            readOnly={!isEditing}
+          />
 
           {/* Experience */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Experience
-            </label>
-            <input
-              type="text"
-              value={isEditing ? editForm.experience : (profile?.experience || '')}
-              onChange={(e) => setEditForm(prev => ({ ...prev, experience: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="e.g., 10+ years in real estate, Certified Realtor"
-              readOnly={!isEditing}
-            />
-          </div>
+          <Input
+            label="Experience"
+            type="text"
+            value={isEditing ? editForm.experience : (profile?.experience || '')}
+            onChange={(e) => setEditForm(prev => ({ ...prev, experience: e.target.value }))}
+            placeholder="e.g., 10+ years in real estate, Certified Realtor"
+            readOnly={!isEditing}
+          />
 
           {/* Specialties */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-primary mb-2">
               Specialties
             </label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {['Residential', 'Commercial', 'Luxury', 'Investment', 'First-time Buyers', 'Relocation'].map((specialty) => (
-                <label key={specialty} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={isEditing ? editForm.specialties.includes(specialty) : (profile?.specialties?.includes(specialty) || editForm.specialties.includes(specialty) || false)}
-                    onChange={(e) => handleSpecialtyChange(specialty, e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    disabled={!isEditing}
-                  />
-                  <span className="ml-2 text-sm text-gray-700">{specialty}</span>
-                </label>
+                <Checkbox
+                  key={specialty}
+                  label={specialty}
+                  checked={isEditing ? editForm.specialties.includes(specialty) : (profile?.specialties?.includes(specialty) || editForm.specialties.includes(specialty) || false)}
+                  onChange={(e) => handleSpecialtyChange(specialty, e.target.checked)}
+                  disabled={!isEditing}
+                />
               ))}
             </div>
           </div>
 
           {/* Languages */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-primary mb-2">
               Languages
             </label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {['English', 'Spanish', 'French', 'Mandarin', 'Hindi', 'Arabic'].map((language) => (
-                <label key={language} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={isEditing ? editForm.languages.includes(language) : (profile?.languages?.includes(language) || editForm.languages.includes(language) || false)}
-                    onChange={(e) => handleLanguageChange(language, e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    disabled={!isEditing}
-                  />
-                  <span className="ml-2 text-sm text-gray-700">{language}</span>
-                </label>
+                <Checkbox
+                  key={language}
+                  label={language}
+                  checked={isEditing ? editForm.languages.includes(language) : (profile?.languages?.includes(language) || editForm.languages.includes(language) || false)}
+                  onChange={(e) => handleLanguageChange(language, e.target.checked)}
+                  disabled={!isEditing}
+                />
               ))}
             </div>
           </div>
@@ -460,12 +427,13 @@ export default function PublicWebsiteManagement() {
           {/* Save Button */}
           {isEditing && (
             <div className="flex justify-end pt-6 border-t border-gray-200">
-              <button
+              <Button
                 onClick={handleSaveProfile}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                variant="primary"
+                size="md"
               >
                 Save Changes
-              </button>
+              </Button>
             </div>
           )}
         </div>
