@@ -14,7 +14,7 @@ from datetime import datetime
 from app.schemas.social_publishing import (
     GenerateContentRequest, GenerateContentResponse, UpdateDraftRequest,
     MarkReadyRequest, PublishRequest, PublishResponse, DraftsResponse,
-    AIDraft, DraftStatus, Channel
+    AIDraft, DraftStatus, Channel, CreateSocialPostRequest
 )
 from app.services.social_publishing_service import SocialPublishingService
 from app.core.auth_backend import current_active_user
@@ -76,6 +76,70 @@ router = APIRouter(tags=["social-publishing"])
 def get_social_publishing_service(db: AsyncIOMotorDatabase = Depends(get_database)) -> SocialPublishingService:
     """Get social publishing service instance"""
     return SocialPublishingService(db)
+
+@router.post("/", response_model=Dict[str, Any])
+async def create_social_post(
+    request: CreateSocialPostRequest,
+    current_user: User = Depends(current_active_user),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """Create and publish a social media post directly"""
+    request_id = str(uuid.uuid4())
+    start_time = time.time()
+    
+    try:
+        # Convert ObjectId to string for logging
+        request_data = request.dict()
+        if hasattr(request_data, 'agent_id') and request_data.get('agent_id'):
+            request_data['agent_id'] = str(request_data['agent_id'])
+        SocialPublishingAPILogger.log_api_request("create_post", str(current_user.id), request_data, request_id)
+        
+        # Create social post documents directly in the database
+        from app.models.social_post import SocialPost
+        from bson import ObjectId
+        
+        created_posts = []
+        for channel in request.channels:
+            post_data = {
+                "property_id": request.property_id,
+                "agent_id": request.agent_id or current_user.id,
+                "title": request.title,
+                "content": request.content,
+                "language": request.language,
+                "channel": channel.value if hasattr(channel, 'value') else channel,
+                "status": request.status.value if hasattr(request.status, 'value') else request.status,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+                "published_at": datetime.utcnow() if request.status == DraftStatus.PUBLISHED else None
+            }
+            
+            # Insert into database
+            result = await db.social_posts.insert_one(post_data)
+            post_data["id"] = str(result.inserted_id)
+            
+            # Ensure all ObjectIds are converted to strings for JSON serialization
+            for key, value in post_data.items():
+                if hasattr(value, '__class__') and 'ObjectId' in str(value.__class__):
+                    post_data[key] = str(value)
+            
+            created_posts.append(post_data)
+        
+        processing_time = (time.time() - start_time) * 1000
+        response_data = {
+            "success": True,
+            "message": f"Created {len(created_posts)} social posts",
+            "posts": created_posts,
+            "request_id": request_id
+        }
+        
+        SocialPublishingAPILogger.log_api_success("create_post", str(current_user.id), response_data, processing_time, request_id)
+        
+        return response_data
+        
+    except Exception as e:
+        processing_time = (time.time() - start_time) * 1000
+        SocialPublishingAPILogger.log_api_error("create_post", str(current_user.id), str(e), processing_time, request_id)
+        raise HTTPException(status_code=500, detail=f"Failed to create social post: {str(e)}")
 
 @router.post("/generate", response_model=GenerateContentResponse)
 async def generate_content(
