@@ -1,7 +1,7 @@
 {
   "passed": 10,
   "failed": 0,
-  "duration": 0.13398075103759766,
+  "duration": 0.18773770332336426,
   "success_rate": 100.0,
   "results": {
     "health_check": true,
@@ -16,8 +16,8 @@
     "cleanup": true
   },
   "test_data": {
-    "user_id": "68cfc7d99da4f0c2f3486330",
-    "property_id": "68cfc7d99da4f0c2f3486331",
+    "user_id": "68cfda369da4f0c2f3486334",
+    "property_id": "68cfda369da4f0c2f3486335",
     "post_id": null
   }
 }
