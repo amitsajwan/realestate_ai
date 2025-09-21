@@ -15,6 +15,9 @@ describe('SocialPublishingWorkflow Component', () => {
       bedrooms: 3,
       bathrooms: 2,
       area_sqft: 1200,
+      areaSqft: 1200,
+      amenities: 'Pool, Gym',
+      features: ['Modern Kitchen', 'Balcony'],
       images: ['test1.jpg', 'test2.jpg']
     }
   ]

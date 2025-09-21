@@ -1,8 +1,8 @@
 {
-  "passed": 5,
-  "failed": 5,
-  "duration": 56.37138605117798,
-  "success_rate": 50.0,
+  "passed": 6,
+  "failed": 4,
+  "duration": 53.26807379722595,
+  "success_rate": 60.0,
   "results": {
     "analytics_component": true,
     "crm_component": false,
@@ -10,7 +10,7 @@
     "property_api_integration": true,
     "create_missing_tests": true,
     "all_component_tests": false,
-    "coverage_report": false,
+    "coverage_report": true,
     "linting_check": false,
     "type_check": false,
     "build_check": true

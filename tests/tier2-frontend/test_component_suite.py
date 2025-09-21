@@ -206,7 +206,14 @@ describe('{component} Component', () => {{
     def test_07_coverage_report(self) -> bool:
         """Generate test coverage report"""
         try:
-            result = self.run_jest_test()
+            # Run Jest with coverage flag
+            result = subprocess.run(
+                ['npx', 'jest', '--coverage', '--watchAll=false'],
+                cwd=self.frontend_dir,
+                capture_output=True,
+                text=True,
+                timeout=120
+            )
             
             # Check if coverage was generated
             coverage_dir = os.path.join(self.frontend_dir, "coverage")
@@ -215,6 +222,8 @@ describe('{component} Component', () => {{
             else:
                 return self.log_test("Coverage Report", "FAIL", "Coverage report not generated")
                 
+        except subprocess.TimeoutExpired:
+            return self.log_test("Coverage Report", "FAIL", "Coverage generation timed out")
         except Exception as e:
             return self.log_test("Coverage Report", "FAIL", str(e))
 
