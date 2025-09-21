@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
-    const confirmPassword = formData.get('confirmPassword') as string;
+    const confirmPassword = formData.get('confirmPassword') as string || password;
     const firstName = formData.get('first_name') as string;
     const lastName = formData.get('last_name') as string;
 
