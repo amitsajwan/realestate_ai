@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import AIInsightsPanel from '@/components/AIInsightsPanel'
+import AIInsightsPanel from '@/components/analytics/AIInsightsPanel'
 import '@testing-library/jest-dom'
 
 describe('AIInsightsPanel Component', () => {
