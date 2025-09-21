@@ -3,6 +3,22 @@ import { propertiesAPI } from '@/lib/properties/api'
 // Mock fetch globally
 global.fetch = jest.fn()
 
+// Mock the auth manager
+jest.mock('@/lib/auth', () => ({
+  authManager: {
+    getState: jest.fn(() => ({
+      isAuthenticated: true,
+      user: { id: 'test-user', email: 'test@example.com' },
+      token: 'test-token',
+      refreshToken: 'test-refresh-token',
+      isLoading: false,
+      error: null
+    })),
+    getToken: jest.fn(() => 'test-token'),
+    isAuthenticated: jest.fn(() => true),
+  },
+}))
+
 describe('Property API Integration', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -76,7 +92,7 @@ describe('Property API Integration', () => {
       const result = await propertiesAPI.getProperties()
 
       expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/v1/properties/',
+        'http://localhost:8000/api/v1/properties/?skip=0&limit=100',
         expect.objectContaining({
           method: 'GET',
         })

@@ -171,7 +171,7 @@ describe('Data Transformers', () => {
         area: 2500,
         type: 'villa',
         status: 'for-sale',
-        dateAdded: '2024-01-01T00:00:00Z',
+        date_added: '2024-01-01T00:00:00Z',
         image: 'villa.jpg',
         images: ['villa1.jpg', 'villa2.jpg']
       })

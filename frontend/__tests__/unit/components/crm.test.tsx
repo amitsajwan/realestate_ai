@@ -13,6 +13,25 @@ jest.mock('@/lib/crm-api', () => ({
   },
 }))
 
+// Import the mocked functions to configure them
+import { crmApi } from '@/lib/crm-api'
+
+// Mock the auth manager
+jest.mock('@/lib/auth', () => ({
+  authManager: {
+    getState: jest.fn(() => ({
+      isAuthenticated: true,
+      user: { id: 'test-user', email: 'test@example.com' },
+      token: 'test-token',
+      refreshToken: 'test-refresh-token',
+      isLoading: false,
+      error: null
+    })),
+    getToken: jest.fn(() => 'test-token'),
+    isAuthenticated: jest.fn(() => true),
+  },
+}))
+
 const mockLeads: Lead[] = [
   {
     id: '1',
@@ -79,12 +98,17 @@ const mockStats = {
   recent_activities: []
 }
 
+// Configure mock implementations
+const mockGetLeads = crmApi.getLeads as jest.MockedFunction<typeof crmApi.getLeads>
+const mockGetLeadStats = crmApi.getLeadStats as jest.MockedFunction<typeof crmApi.getLeadStats>
+const mockSearchLeads = crmApi.searchLeads as jest.MockedFunction<typeof crmApi.searchLeads>
+
 describe('CRM Component', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    const { crmApi } = require('@/lib/crm-api')
-    crmApi.getLeads.mockResolvedValue(mockLeads)
-    crmApi.getLeadStats.mockResolvedValue(mockStats)
+    mockGetLeads.mockResolvedValue(mockLeads)
+    mockGetLeadStats.mockResolvedValue(mockStats)
+    mockSearchLeads.mockResolvedValue(mockLeads)
   })
 
   it('should render without crashing', async () => {
