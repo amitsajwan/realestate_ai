@@ -1,111 +1,111 @@
 {
-  "timestamp": "2025-09-21T09:23:58.385337",
+  "timestamp": "2025-09-21T09:26:57.963131",
   "tests": {
     "MongoDB Connection": {
       "status": "PASS",
       "details": "Database is accessible",
-      "timestamp": "2025-09-21T09:23:58.453095"
+      "timestamp": "2025-09-21T09:26:58.024294"
     },
     "Backend API": {
-      "status": "FAIL",
-      "details": "HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=5)",
-      "timestamp": "2025-09-21T09:24:03.459604"
+      "status": "PASS",
+      "details": "API health check accessible",
+      "timestamp": "2025-09-21T09:26:58.027349"
     },
     "Frontend Application": {
       "status": "PASS",
       "details": "Frontend is accessible",
-      "timestamp": "2025-09-21T09:24:03.484725"
+      "timestamp": "2025-09-21T09:26:58.051601"
     },
     "API Endpoint: Health Check": {
-      "status": "FAIL",
-      "details": "HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=5)",
-      "timestamp": "2025-09-21T09:24:08.490758"
+      "status": "PASS",
+      "details": "Status: 200",
+      "timestamp": "2025-09-21T09:26:58.054052"
     },
     "API Endpoint: User Registration": {
-      "status": "FAIL",
-      "details": "HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=5)",
-      "timestamp": "2025-09-21T09:24:13.496929"
+      "status": "PASS",
+      "details": "Status: 422",
+      "timestamp": "2025-09-21T09:26:58.059087"
     },
     "API Endpoint: User Login": {
-      "status": "FAIL",
-      "details": "HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=5)",
-      "timestamp": "2025-09-21T09:24:18.503149"
+      "status": "PASS",
+      "details": "Status: 422",
+      "timestamp": "2025-09-21T09:26:58.062656"
     },
     "API Endpoint: Public Properties": {
-      "status": "FAIL",
-      "details": "HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=5)",
-      "timestamp": "2025-09-21T09:24:23.509403"
+      "status": "PASS",
+      "details": "Status: 200",
+      "timestamp": "2025-09-21T09:26:58.065990"
     },
     "API Endpoint: Property Search": {
-      "status": "FAIL",
-      "details": "HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=5)",
-      "timestamp": "2025-09-21T09:24:28.515627"
+      "status": "PASS",
+      "details": "Status: 401",
+      "timestamp": "2025-09-21T09:26:58.068427"
     },
     "User Registration": {
-      "status": "FAIL",
-      "details": "HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=5)",
-      "timestamp": "2025-09-21T09:24:33.521814"
+      "status": "PASS",
+      "details": "Status: 400",
+      "timestamp": "2025-09-21T09:26:58.075849"
     },
     "User Login": {
-      "status": "FAIL",
-      "details": "HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=5)",
-      "timestamp": "2025-09-21T09:24:38.527980"
+      "status": "PASS",
+      "details": "Status: 200",
+      "timestamp": "2025-09-21T09:26:58.121117"
     },
     "Public Properties API": {
-      "status": "FAIL",
-      "details": "HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=5)",
-      "timestamp": "2025-09-21T09:24:43.530284"
+      "status": "PASS",
+      "details": "Properties accessible",
+      "timestamp": "2025-09-21T09:26:58.123768"
     },
     "Property Search API": {
-      "status": "FAIL",
-      "details": "HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=5)",
-      "timestamp": "2025-09-21T09:24:48.536491"
+      "status": "PASS",
+      "details": "Status: 401 (401 expected without auth)",
+      "timestamp": "2025-09-21T09:26:58.125948"
     },
     "Social Publishing: Content Generation": {
-      "status": "FAIL",
-      "details": "HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=5)",
-      "timestamp": "2025-09-21T09:24:53.542628"
+      "status": "PASS",
+      "details": "Status: 401",
+      "timestamp": "2025-09-21T09:26:58.128529"
     },
     "Social Publishing: Get Drafts": {
-      "status": "FAIL",
-      "details": "HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=5)",
-      "timestamp": "2025-09-21T09:24:58.553472"
+      "status": "PASS",
+      "details": "Status: 200",
+      "timestamp": "2025-09-21T09:26:58.131601"
     },
     "Frontend: Home Page": {
       "status": "PASS",
       "details": "Page loads successfully",
-      "timestamp": "2025-09-21T09:24:58.579726"
+      "timestamp": "2025-09-21T09:26:58.147381"
     },
     "Frontend: Login Page": {
       "status": "PASS",
       "details": "Page loads successfully",
-      "timestamp": "2025-09-21T09:24:58.596819"
+      "timestamp": "2025-09-21T09:26:58.163170"
     },
     "Frontend: Registration Page": {
       "status": "PASS",
       "details": "Page loads successfully",
-      "timestamp": "2025-09-21T09:24:58.612834"
+      "timestamp": "2025-09-21T09:26:58.179366"
     },
     "Frontend: Dashboard Page": {
       "status": "PASS",
       "details": "Page loads successfully",
-      "timestamp": "2025-09-21T09:24:58.627258"
+      "timestamp": "2025-09-21T09:26:58.195051"
     },
     "API Response Time": {
-      "status": "FAIL",
-      "details": "HTTPConnectionPool(host='localhost', port=8000): Read timed out. (read timeout=5)",
-      "timestamp": "2025-09-21T09:25:03.633118"
+      "status": "PASS",
+      "details": "1.93ms",
+      "timestamp": "2025-09-21T09:26:58.197037"
     },
     "Frontend Load Time": {
       "status": "PASS",
-      "details": "15.65ms",
-      "timestamp": "2025-09-21T09:25:03.648824"
+      "details": "15.81ms",
+      "timestamp": "2025-09-21T09:26:58.212873"
     }
   },
   "summary": {
     "total": 20,
-    "passed": 7,
-    "failed": 13,
+    "passed": 20,
+    "failed": 0,
     "errors": 0
   }
 }

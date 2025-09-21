@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Dict, Any, Optional
 import logging
 
-from ....core.auth import get_current_user
+from ....core.auth_backend import current_active_user
 from ....services.template_service import TemplateService
 from ....core.database import get_database
 from ....models.user import User
@@ -19,7 +19,7 @@ router = APIRouter()
 
 @router.get("/enhanced-templates")
 async def get_enhanced_templates(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(current_active_user),
     db = Depends(get_database)
 ):
     """Get enhanced property templates with market insights"""
@@ -40,7 +40,7 @@ async def get_enhanced_templates(
 @router.get("/market-insights/{location}")
 async def get_market_insights(
     location: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(current_active_user),
     db = Depends(get_database)
 ):
     """Get market insights for a specific location"""
@@ -61,7 +61,7 @@ async def get_market_insights(
 
 @router.get("/ai-suggestions")
 async def get_ai_suggestions(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(current_active_user),
     db = Depends(get_database)
 ):
     """Get AI-powered suggestions for property marketing"""
@@ -84,7 +84,7 @@ async def get_template_by_type(
     template_type: str,
     language: str = Query("en", description="Template language"),
     channel: str = Query("facebook", description="Target channel"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(current_active_user),
     db = Depends(get_database)
 ):
     """Get specific template by type, language, and channel"""
@@ -134,7 +134,7 @@ async def get_template_by_type(
 
 @router.get("/available-templates")
 async def get_available_templates(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(current_active_user),
     db = Depends(get_database)
 ):
     """Get list of all available template types"""
