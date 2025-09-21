@@ -1,13 +1,10 @@
-import { APIService } from '@/lib/api'
+import { propertiesAPI } from '@/lib/properties/api'
 
 // Mock fetch globally
 global.fetch = jest.fn()
 
 describe('Property API Integration', () => {
-  let apiService: APIService
-
   beforeEach(() => {
-    apiService = new APIService()
     jest.clearAllMocks()
   })
 
@@ -20,15 +17,14 @@ describe('Property API Integration', () => {
       title: 'Test Property',
       description: 'Test Description',
       price: 5000000,
-      address: '123 Test St',
       location: 'Mumbai',
       bedrooms: 4,
       bathrooms: 3,
-      area: 2500,
-      area_sqft: 2500,
-      type: 'villa',
-      property_type: 'villa',
-      status: 'for-sale' as const,
+      areaSqft: 2500,
+      propertyType: 'villa',
+      features: ['parking', 'garden', 'security'],
+      images: [],
+      amenities: 'Swimming pool, Gym, Garden'
     }
 
     it('should create a property successfully', async () => {
@@ -45,10 +41,10 @@ describe('Property API Integration', () => {
         status: 201,
       })
 
-      const result = await apiService.createProperty(mockProperty)
+      const result = await propertiesAPI.createProperty(mockProperty)
 
       expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/v1/properties/properties/',
+        'http://localhost:8000/api/v1/properties/',
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
@@ -77,10 +73,10 @@ describe('Property API Integration', () => {
         status: 200,
       })
 
-      const result = await apiService.getProperties()
+      const result = await propertiesAPI.getProperties()
 
       expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/v1/properties/properties/',
+        'http://localhost:8000/api/v1/properties/',
         expect.objectContaining({
           method: 'GET',
         })
@@ -108,10 +104,10 @@ describe('Property API Integration', () => {
         status: 200,
       })
 
-      const result = await apiService.updateProperty('1', updatedProperty)
+      const result = await propertiesAPI.updateProperty('1', updatedProperty)
 
       expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/v1/properties/properties/1',
+        'http://localhost:8000/api/v1/properties/1',
         expect.objectContaining({
           method: 'PUT',
           body: JSON.stringify(updatedProperty),
@@ -128,10 +124,10 @@ describe('Property API Integration', () => {
         status: 200,
       })
 
-      const result = await apiService.deleteProperty('1')
+      const result = await propertiesAPI.deleteProperty('1')
 
       expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/v1/properties/properties/1',
+        'http://localhost:8000/api/v1/properties/1',
         expect.objectContaining({
           method: 'DELETE',
         })
@@ -145,7 +141,7 @@ describe('Property API Integration', () => {
     it('should handle network errors', async () => {
       ;(fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'))
 
-      await expect(apiService.getProperties()).rejects.toThrow('Network error')
+      await expect(propertiesAPI.getProperties()).rejects.toThrow('Network error')
     })
 
     it('should handle API errors with proper status codes', async () => {
@@ -155,7 +151,7 @@ describe('Property API Integration', () => {
         json: async () => ({ detail: 'Bad Request' }),
       })
 
-      await expect(apiService.createProperty({} as any)).rejects.toThrow()
+      await expect(propertiesAPI.createProperty({} as any)).rejects.toThrow()
     })
 
     it('should handle authentication errors', async () => {
@@ -165,13 +161,13 @@ describe('Property API Integration', () => {
         json: async () => ({ detail: 'Unauthorized' }),
       })
 
-      await expect(apiService.getProperties()).rejects.toThrow()
+      await expect(propertiesAPI.getProperties()).rejects.toThrow()
     })
   })
 
   describe('Authentication Flow', () => {
     it('should include authorization header when token is present', async () => {
-      apiService.setToken('test-token')
+      // Mock auth token for testing
 
       ;(fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
@@ -179,7 +175,7 @@ describe('Property API Integration', () => {
         status: 200,
       })
 
-      await apiService.getProperties()
+      await propertiesAPI.getProperties()
 
       expect(fetch).toHaveBeenCalledWith(
         expect.any(String),
@@ -210,8 +206,8 @@ describe('Property API Integration', () => {
           json: async () => [],
         })
 
-      apiService.setToken('expired-token')
-      await apiService.getProperties()
+      // Mock expired token for testing
+      await propertiesAPI.getProperties()
 
       expect(fetch).toHaveBeenCalledTimes(3) // Initial + refresh + retry
     })

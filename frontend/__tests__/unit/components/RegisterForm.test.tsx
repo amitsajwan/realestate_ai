@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import RegisterForm from '@/components/RegisterForm'
+import RegisterForm from '@/components/auth/RegisterForm'
 import '@testing-library/jest-dom'
 
 describe('RegisterForm Component', () => {

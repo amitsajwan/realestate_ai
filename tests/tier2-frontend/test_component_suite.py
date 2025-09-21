@@ -37,7 +37,7 @@ class FrontendComponentTestSuite:
             # Run Jest tests
             cmd = ["npm", "test", "--", "--passWithNoTests", "--verbose"]
             if test_pattern:
-                cmd.extend(["--testPathPattern", test_pattern])
+                cmd.extend(["--testPathPatterns", test_pattern])
             
             result = subprocess.run(
                 cmd,

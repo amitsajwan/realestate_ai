@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardBody as CardContent, CardHeader, CardTitle } from '@/components/UI/Card';
+import { Button } from '@/components/UI/Button';
+import { Badge } from '@/components/UI/Badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/Tabs';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, Area, AreaChart

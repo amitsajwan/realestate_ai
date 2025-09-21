@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import SocialPublishingWorkflow from '@/components/SocialPublishingWorkflow'
+import SocialPublishingWorkflow from '@/components/social_publishing/SocialPublishingWorkflow'
 import '@testing-library/jest-dom'
 
 describe('SocialPublishingWorkflow Component', () => {

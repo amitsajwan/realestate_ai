@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardBody as CardContent, CardHeader, CardTitle } from '@/components/UI/Card';
+import { Button } from '@/components/UI/Button';
+import { Badge } from '@/components/UI/Badge';
 import { 
-  LightbulbIcon, 
-  TrendingUpIcon, 
+  LightBulbIcon, 
+  ArrowTrendingUpIcon, 
   ChartBarIcon,
   SparklesIcon,
   EyeIcon,
@@ -168,9 +168,9 @@ export default function AIInsightsPanel({ performanceData, userId }: AIInsightsP
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'performance': return <ChartBarIcon className="h-5 w-5" />;
-      case 'optimization': return <TrendingUpIcon className="h-5 w-5" />;
+      case 'optimization': return <ArrowTrendingUpIcon className="h-5 w-5" />;
       case 'trend': return <EyeIcon className="h-5 w-5" />;
-      case 'recommendation': return <LightbulbIcon className="h-5 w-5" />;
+      case 'recommendation': return <LightBulbIcon className="h-5 w-5" />;
       default: return <SparklesIcon className="h-5 w-5" />;
     }
   };
@@ -234,7 +234,7 @@ export default function AIInsightsPanel({ performanceData, userId }: AIInsightsP
           {categories.map((category) => (
             <Button
               key={category.key}
-              variant={selectedCategory === category.key ? "default" : "outline"}
+              variant={selectedCategory === category.key ? "primary" : "outline"}
               size="sm"
               onClick={() => setSelectedCategory(category.key)}
               className="text-xs"
@@ -253,7 +253,7 @@ export default function AIInsightsPanel({ performanceData, userId }: AIInsightsP
         <div className="space-y-4">
           {filteredInsights.length === 0 ? (
             <div className="text-center py-8">
-              <LightbulbIcon className="mx-auto h-12 w-12 text-gray-400" />
+              <LightBulbIcon className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No insights available</h3>
               <p className="mt-1 text-sm text-gray-500">Create more content to get AI-powered insights.</p>
             </div>
