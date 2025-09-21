@@ -17,3 +17,13 @@ prometheus-client==0.19.0
 structlog==23.2.0
 groq==0.4.1
 fastapi-users[beanie]==13.0.0
+
+# Additional dependencies discovered during setup
+slowapi==0.1.9
+psutil==7.1.0
+Pillow==11.3.0
+requests==2.31.0
+
+# Testing dependencies
+pytest==7.4.3
+pytest-asyncio==0.21.1
