@@ -179,7 +179,7 @@ class OnboardingService:
             agent_profile_data = {
                 "agent_id": user_id,
                 "agent_name": agent_name,
-                "slug": agent_slug,
+                "slug": agent_slug,  # Use email prefix as slug
                 "bio": f"Professional Real Estate Agent at {onboarding_data.get('company_name', 'Real Estate Pro')}",
                 "photo": "",  # Will be set later if user uploads
                 "phone": onboarding_data.get("phone", user.get("phone", "")),
