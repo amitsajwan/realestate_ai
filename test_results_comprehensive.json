@@ -1,0 +1,111 @@
+{
+  "timestamp": "2025-09-21T07:45:44.427113",
+  "tests": {
+    "MongoDB Connection": {
+      "status": "PASS",
+      "details": "Database is accessible",
+      "timestamp": "2025-09-21T07:45:44.492593"
+    },
+    "Backend API": {
+      "status": "FAIL",
+      "details": "Status: 404",
+      "timestamp": "2025-09-21T07:45:44.496764"
+    },
+    "Frontend Application": {
+      "status": "PASS",
+      "details": "Frontend is accessible",
+      "timestamp": "2025-09-21T07:45:44.523325"
+    },
+    "API Endpoint: Health Check": {
+      "status": "PASS",
+      "details": "Status: 200",
+      "timestamp": "2025-09-21T07:45:44.525662"
+    },
+    "API Endpoint: User Registration": {
+      "status": "PASS",
+      "details": "Status: 422",
+      "timestamp": "2025-09-21T07:45:44.528508"
+    },
+    "API Endpoint: User Login": {
+      "status": "PASS",
+      "details": "Status: 422",
+      "timestamp": "2025-09-21T07:45:44.531276"
+    },
+    "API Endpoint: Public Properties": {
+      "status": "PASS",
+      "details": "Status: 200",
+      "timestamp": "2025-09-21T07:45:44.535088"
+    },
+    "API Endpoint: Property Search": {
+      "status": "PASS",
+      "details": "Status: 401",
+      "timestamp": "2025-09-21T07:45:44.537305"
+    },
+    "User Registration": {
+      "status": "PASS",
+      "details": "Status: 400",
+      "timestamp": "2025-09-21T07:45:44.541220"
+    },
+    "User Login": {
+      "status": "PASS",
+      "details": "Status: 200",
+      "timestamp": "2025-09-21T07:45:44.591507"
+    },
+    "Public Properties API": {
+      "status": "PASS",
+      "details": "Properties accessible",
+      "timestamp": "2025-09-21T07:45:44.594845"
+    },
+    "Property Search API": {
+      "status": "FAIL",
+      "details": "Status: 401",
+      "timestamp": "2025-09-21T07:45:44.597262"
+    },
+    "Social Publishing: Content Generation": {
+      "status": "PASS",
+      "details": "Status: 401",
+      "timestamp": "2025-09-21T07:45:44.599857"
+    },
+    "Social Publishing: Get Drafts": {
+      "status": "PASS",
+      "details": "Status: 200",
+      "timestamp": "2025-09-21T07:45:44.603321"
+    },
+    "Frontend: Home Page": {
+      "status": "PASS",
+      "details": "Page loads successfully",
+      "timestamp": "2025-09-21T07:45:44.618869"
+    },
+    "Frontend: Login Page": {
+      "status": "PASS",
+      "details": "Page loads successfully",
+      "timestamp": "2025-09-21T07:45:44.642498"
+    },
+    "Frontend: Registration Page": {
+      "status": "PASS",
+      "details": "Page loads successfully",
+      "timestamp": "2025-09-21T07:45:44.663322"
+    },
+    "Frontend: Dashboard Page": {
+      "status": "PASS",
+      "details": "Page loads successfully",
+      "timestamp": "2025-09-21T07:45:44.679901"
+    },
+    "API Response Time": {
+      "status": "PASS",
+      "details": "2.06ms",
+      "timestamp": "2025-09-21T07:45:44.682020"
+    },
+    "Frontend Load Time": {
+      "status": "PASS",
+      "details": "13.68ms",
+      "timestamp": "2025-09-21T07:45:44.695732"
+    }
+  },
+  "summary": {
+    "total": 20,
+    "passed": 18,
+    "failed": 2,
+    "errors": 0
+  }
+}
