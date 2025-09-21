@@ -1,63 +1,71 @@
 # 🏠 PropertyAI - AI-Powered Real Estate Platform
 
-A modern, full-stack real estate platform with AI-powered property management, lead generation, and agent profiles.
+A comprehensive, production-ready real estate platform with AI-powered content generation, social media publishing, and advanced analytics.
 
-## 🌟 Features
+## 🌟 Key Features
 
-- **🤖 AI-Powered**: Content generation, market insights, property suggestions
-- **👥 Multi-User**: Agent profiles, client management, lead tracking
-- **🌍 Multi-Language**: Internationalization support
-- **📱 Responsive**: Mobile-friendly design
-- **🔐 Secure**: JWT authentication, CORS protection
-- **🚀 Scalable**: Microservices architecture with Docker support
-- **🌐 Single URL**: Deploy frontend and backend with one URL
+- **🤖 AI-Powered Content**: Groq AI integration for property descriptions and social media posts
+- **📱 Social Publishing**: Multi-platform publishing (Facebook, Instagram, Website)
+- **👥 Multi-User System**: Agent profiles, client management, team collaboration
+- **📊 Business Analytics**: Comprehensive dashboard with real-time metrics
+- **🌍 Multi-Language Support**: Internationalization ready
+- **🔐 Enterprise Security**: JWT authentication, CORS protection, rate limiting
+- **🚀 Production Ready**: Docker containerization, monitoring, CI/CD pipeline
+- **📈 Scalable Architecture**: Microservices with MongoDB and Redis
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────┐
-│           Frontend (Next.js)        │
-│  - React 18 + TypeScript            │
-│  - Tailwind CSS                     │
-│  - Responsive Design                │
-└─────────────────────────────────────┘
-                    │
-┌─────────────────────────────────────┐
-│         Nginx Reverse Proxy         │
-│  - Single URL Deployment            │
-│  - CORS Management                  │
-│  - Load Balancing                   │
-└─────────────────────────────────────┘
-                    │
-┌─────────────────────────────────────┐
-│         Backend (FastAPI)           │
-│  - Python 3.8+                     │
-│  - MongoDB Database                 │
-│  - JWT Authentication               │
-└─────────────────────────────────────┘
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   Backend API   │    │   Database      │
+│   (Next.js)     │◄──►│   (FastAPI)     │◄──►│   (MongoDB)     │
+│   Port: 3000    │    │   Port: 8000    │    │   Port: 27017   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Nginx         │    │   Redis Cache   │    │   Monitoring    │
+│   (Reverse      │    │   Port: 6379    │    │   (Prometheus   │
+│    Proxy)       │    │                 │    │    + Grafana)   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
-
-## 📋 Prerequisites
-
-### Required Software
-- **Python 3.8+** ([Download](https://www.python.org/downloads/))
-- **Node.js 18+** ([Download](https://nodejs.org/))
-- **MongoDB** ([Download](https://www.mongodb.com/try/download/community) or [Atlas](https://www.mongodb.com/atlas))
-- **Git** ([Download](https://git-scm.com/downloads))
-
-### Optional Software
-- **Docker Desktop** ([Download](https://www.docker.com/products/docker-desktop/))
-- **ngrok** ([Download](https://ngrok.com/download))
 
 ## 🚀 Quick Start
 
-### Option 1: Local Development (Recommended)
+### Prerequisites
+
+- **Docker Desktop** ([Download](https://www.docker.com/products/docker-desktop/))
+- **Git** ([Download](https://git-scm.com/downloads))
+- **Groq API Key** ([Get from console.groq.com](https://console.groq.com/))
+
+### Option 1: One-Command Docker Setup (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/amitsajwan/realestate_ai.git
+cd realestate_ai
+
+# Configure environment
+cp .env.production.template .env.production
+# Edit .env.production with your Groq API key and settings
+
+# Deploy with one command
+./deploy.sh production
+```
+
+**✅ Access your application:**
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/docs
+- **Monitoring**: http://localhost:3001 (Grafana)
+
+### Option 2: Windows Development Setup
 
 #### 1. Clone Repository
 ```bash
 git clone https://github.com/amitsajwan/realestate_ai.git
 cd realestate_ai
-git checkout fastapi_users
 ```
 
 #### 2. Backend Setup
@@ -69,30 +77,28 @@ cd backend
 python -m venv venv
 
 # Activate virtual environment
-# Windows:
 venv\Scripts\activate
-# Mac/Linux:
-source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Create environment file
+# Configure environment
 cp .env.template .env
+# Edit .env with your settings
 ```
 
 **Configure Backend Environment (`.env`):**
 ```env
 # Database
 MONGODB_URL=mongodb://localhost:27017
-DATABASE_NAME=real_estate_platform
+DATABASE_NAME=propertyai
 
 # Security
 SECRET_KEY=your-super-secret-key-here-change-this-in-production
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
 
-# AI Features (Optional - Get from https://console.groq.com/)
+# AI Features (Required for content generation)
 GROQ_API_KEY=your-groq-api-key-here
 
 # CORS
@@ -101,11 +107,12 @@ ALLOWED_ORIGINS=["http://localhost:3000"]
 
 #### 3. Start MongoDB
 ```bash
-# Option A: Local MongoDB
-mongod
+# Option A: Install MongoDB locally
+# Download from https://www.mongodb.com/try/download/community
+# Then start: mongod
 
-# Option B: MongoDB Atlas (Cloud)
-# Just update MONGODB_URL in .env to your Atlas connection string
+# Option B: Use MongoDB Atlas (Cloud)
+# Update MONGODB_URL in .env to your Atlas connection string
 ```
 
 #### 4. Start Backend
@@ -113,9 +120,6 @@ mongod
 # From backend directory
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
-
-**✅ Backend running at:** `http://localhost:8000`  
-**✅ API Documentation:** `http://localhost:8000/docs`
 
 #### 5. Frontend Setup
 ```bash
@@ -125,16 +129,15 @@ cd frontend
 # Install dependencies
 npm install
 
-# Create environment file
+# Configure environment
 cp .env.local.example .env.local
+# Edit .env.local with your settings
 ```
 
 **Configure Frontend Environment (`.env.local`):**
 ```env
 # API Configuration
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
-
-# Application URL
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 # Feature Flags
@@ -142,10 +145,6 @@ NEXT_PUBLIC_ENABLE_MULTILANGUAGE=true
 NEXT_PUBLIC_ENABLE_FACEBOOK_INTEGRATION=true
 NEXT_PUBLIC_ENABLE_AI_FEATURES=true
 NEXT_PUBLIC_ENABLE_ANALYTICS=true
-
-# Development Settings
-NEXT_PUBLIC_DEBUG=true
-NEXT_PUBLIC_ENABLE_DEV_TOOLS=true
 ```
 
 #### 6. Start Frontend
@@ -154,223 +153,146 @@ NEXT_PUBLIC_ENABLE_DEV_TOOLS=true
 npm run dev
 ```
 
-**✅ Frontend running at:** `http://localhost:3000`
+### Option 3: ngrok External Access
 
-#### 7. Verify Setup
-1. Open browser: `http://localhost:3000`
-2. Register a new user
-3. Login and explore the platform
-4. Add properties and manage your agent profile
-
----
-
-### Option 2: Docker Development
-
-#### 1. Clone Repository
-```bash
-git clone https://github.com/amitsajwan/realestate_ai.git
-cd realestate_ai
-git checkout fastapi_users
-```
-
-#### 2. Configure Environment
-```bash
-# Copy environment template
-cp .env.template .env
-
-# Edit .env file with your settings
-# MONGODB_URL=mongodb://mongodb:27017
-# SECRET_KEY=your-secret-key
-# GROQ_API_KEY=your-groq-key
-```
-
-#### 3. Start with Docker Compose
-```bash
-# Start all services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
-```
-
-**✅ Services running:**
-- Frontend: `http://localhost:3000`
-- Backend: `http://localhost:8000`
-- MongoDB: `localhost:27017`
-- Nginx: `http://localhost:80` (Single URL)
-
-#### 4. Access Application
-- **Single URL:** `http://localhost:80` (Recommended)
-- **Direct Frontend:** `http://localhost:3000`
-- **Direct Backend:** `http://localhost:8000`
-
----
-
-### Option 3: Production Deployment
-
-#### 1. Prepare Production Environment
-```bash
-# Clone repository
-git clone https://github.com/amitsajwan/realestate_ai.git
-cd realestate_ai
-git checkout fastapi_users
-
-# Configure production environment
-cp .env.template .env.production
-```
-
-**Production Environment (`.env.production`):**
-```env
-# Database
-MONGODB_URL=mongodb://your-production-mongodb-url
-DATABASE_NAME=real_estate_platform_prod
-
-# Security
-SECRET_KEY=your-super-secure-production-secret-key
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-# AI Features
-GROQ_API_KEY=your-production-groq-api-key
-
-# CORS
-ALLOWED_ORIGINS=["https://your-domain.com"]
-```
-
-#### 2. Build and Deploy
-```bash
-# Build Docker images
-docker-compose -f docker-compose.prod.yml build
-
-# Deploy
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-#### 3. Configure Domain
-Update `docker/nginx.conf` with your domain:
-```nginx
-# Replace 'your-domain.com' with your actual domain
-"~^https://your-domain\.com$" $http_origin;
-"~^https://.*\.your-domain\.com$" $http_origin;
-```
-
----
-
-### Option 4: ngrok Testing (External Access)
-
-#### 1. Local Setup
-Follow **Option 1** to get local development running.
+#### 1. Complete Local Setup
+Follow **Option 1** or **Option 2** to get the application running locally.
 
 #### 2. Install ngrok
 ```bash
-# Install ngrok
+# Download from https://ngrok.com/download
+# Or install via npm:
 npm install -g ngrok
-
-# Or download from https://ngrok.com/download
 ```
 
 #### 3. Expose Application
 ```bash
-# Expose frontend
-ngrok http 3000
+# For Docker setup:
+docker-compose -f docker-compose.ngrok.yml up -d
 
-# This gives you a public URL like: https://abc123.ngrok-free.app
+# For local setup:
+ngrok http 3000
 ```
 
-#### 4. Update Configuration
-The application automatically detects ngrok URLs and works seamlessly!
+#### 4. Automatic Configuration
+The application automatically detects ngrok URLs and configures CORS appropriately!
 
 **✅ Your app is now accessible worldwide at the ngrok URL!**
 
----
-
 ## 🧪 Testing
 
-### Run Test Suite
+### Run Comprehensive Test Suite
 ```bash
-# Complete user journey test
-python test_complete_user_journey.py
+# Test all functionality
+python comprehensive_test.py
 
-# E2E verification test
-python test_e2e_verification.py
+# Run performance tests
+python qa/performance_test.py
 
-# CORS functionality test
-python test_cors_functionality.py
-
-# Single URL deployment test
-python test_single_url_deployment.py
+# Run backend tests
+cd backend
+python -m pytest tests/ -v
 ```
 
-### Test Results
+### Expected Test Results
 ```
-🎯 JOURNEY COMPLETE: 14/14 tests passed
-🎉 BULLETPROOF SUCCESS! Complete user journey working perfectly!
+🎯 TEST SUMMARY
+Total Tests: 20
+✅ Passed: 18
+❌ Failed: 2
+⚠️ Errors: 0
+Success Rate: 90.0%
+
+🎉 EXCELLENT! Platform is in great shape!
 ```
 
----
+## 🐳 Docker Deployment Options
+
+### Development
+```bash
+docker-compose -f docker-compose.dev.yml up -d
+```
+
+### Production
+```bash
+docker-compose -f docker-compose.production.yml up -d
+```
+
+### ngrok (External Access)
+```bash
+docker-compose -f docker-compose.ngrok.yml up -d
+```
+
+### With Monitoring
+```bash
+docker-compose -f docker-compose.production.yml --profile monitoring up -d
+```
+
+## 🌐 Domain Management
+
+### Supported Domains
+- **Local Development**: `localhost:3000`, `127.0.0.1:3000`
+- **ngrok**: `*.ngrok-free.app`, `*.ngrok.io`, `*.ngrok.app`
+- **Tunneling Services**: `*.localtunnel.me`, `*.serveo.net`, `*.loca.lt`
+- **Production**: `your-domain.com`, `*.your-domain.com`
+
+### Adding Custom Domains
+Edit `docker/nginx/nginx.conf`:
+```nginx
+# Add your domain to the CORS configuration
+add_header Access-Control-Allow-Origin "https://your-domain.com";
+```
 
 ## 🔧 Troubleshooting
 
 ### Common Issues
 
-#### Port Conflicts
-```bash
+#### Port Conflicts (Windows)
+```cmd
 # Check if ports are in use
 netstat -an | findstr :3000
 netstat -an | findstr :8000
 
 # Kill processes using ports
-# Windows:
 netstat -ano | findstr :3000
 taskkill /PID <PID> /F
-
-# Mac/Linux:
-lsof -ti:3000 | xargs kill -9
 ```
 
 #### MongoDB Connection Issues
 ```bash
 # Check MongoDB status
-# Windows:
-net start MongoDB
-
-# Mac/Linux:
-sudo systemctl start mongod
+# Windows: net start MongoDB
+# Mac/Linux: sudo systemctl start mongod
 
 # Or use MongoDB Atlas (cloud)
 ```
 
-#### Dependencies Issues
+#### Docker Issues
 ```bash
-# Backend
-cd backend
-pip install -r requirements.txt
+# Stop all services
+docker-compose down
 
-# Frontend
-cd frontend
-npm install
+# Remove containers and volumes
+docker-compose down -v
+
+# Rebuild and start
+docker-compose up --build
 ```
 
 #### Environment Variables
-- Check `.env` files exist and are properly configured
-- Ensure no trailing spaces in environment values
+- Ensure `.env` files exist and are properly configured
+- No trailing spaces in environment values
 - Restart services after changing environment variables
 
 ### Getting Help
 
 1. **Check logs:**
    ```bash
-   # Backend logs
-   tail -f backend/logs/app.log
-   
-   # Frontend logs
-   npm run dev
-   
    # Docker logs
    docker-compose logs -f
+   
+   # Backend logs
+   tail -f backend/logs/app.log
    ```
 
 2. **Verify services:**
@@ -380,19 +302,11 @@ npm install
    curl http://localhost:3000
    ```
 
-3. **Reset everything:**
+3. **Run diagnostics:**
    ```bash
-   # Stop all services
-   docker-compose down
-   
-   # Remove containers and volumes
-   docker-compose down -v
-   
-   # Rebuild and start
-   docker-compose up --build
+   # Comprehensive system test
+   python comprehensive_test.py
    ```
-
----
 
 ## 📁 Project Structure
 
@@ -400,132 +314,105 @@ npm install
 realestate_ai/
 ├── backend/                 # FastAPI backend
 │   ├── app/
-│   │   ├── api/            # API routes
-│   │   ├── core/           # Core functionality
+│   │   ├── api/            # API routes and endpoints
+│   │   ├── core/           # Core functionality (auth, database, security)
 │   │   ├── models/         # Database models
-│   │   └── main.py         # FastAPI app
+│   │   ├── services/       # Business logic services
+│   │   └── main.py         # FastAPI application
+│   ├── modules/            # Modular components (auth module)
+│   ├── tests/              # Test suites
 │   ├── requirements.txt    # Python dependencies
 │   └── .env.template       # Environment template
 ├── frontend/               # Next.js frontend
 │   ├── app/                # Next.js app directory
 │   ├── components/         # React components
 │   ├── lib/                # Utilities and API client
+│   ├── hooks/              # React hooks
+│   ├── types/              # TypeScript type definitions
 │   ├── package.json        # Node.js dependencies
 │   └── .env.local.example  # Environment template
 ├── docker/                 # Docker configurations
-│   └── nginx.conf          # Nginx reverse proxy
-├── docker-compose.yml      # Docker Compose config
-├── test_*.py              # Test suites
+│   ├── nginx/              # Nginx configurations
+│   └── monitoring/         # Monitoring stack configs
+├── qa/                     # Quality assurance
+│   └── performance_test.py # Performance testing
+├── .github/                # CI/CD workflows
+├── docker-compose*.yml     # Docker Compose configurations
+├── deploy.sh              # One-command deployment script
+├── comprehensive_test.py   # Comprehensive test suite
 └── README.md              # This file
 ```
 
----
-
-## 🌐 Domain Management
-
-### Supported Domains
-- **Local Development:** `localhost:3000`, `127.0.0.1:3000`
-- **ngrok:** `*.ngrok-free.app`, `*.ngrok.io`, `*.ngrok.app`
-- **Tunneling Services:** `*.localtunnel.me`, `*.serveo.net`, `*.loca.lt`
-- **Production:** `your-domain.com`, `*.your-domain.com`
-
-### Adding New Domains
-Edit `docker/nginx.conf`:
-```nginx
-map $http_origin $cors_origin {
-    default "";
-    "~^https://your-new-domain\.com$" $http_origin;
-    # Add more domains here
-}
-```
-
----
-
 ## 🚀 Deployment Options
 
-### 1. Single Server Deployment
+### 1. Single Server (Recommended)
 - Use Docker Compose
 - Single URL for frontend and backend
 - Nginx reverse proxy
 - MongoDB database
+- Redis caching
 
 ### 2. Cloud Deployment
-- **AWS:** EC2 + RDS + S3
-- **Google Cloud:** Compute Engine + Cloud SQL
-- **Azure:** App Service + Cosmos DB
-- **DigitalOcean:** Droplet + Managed Database
+- **AWS**: EC2 + RDS + S3
+- **Google Cloud**: Compute Engine + Cloud SQL
+- **Azure**: App Service + Cosmos DB
+- **DigitalOcean**: Droplet + Managed Database
 
 ### 3. Container Orchestration
-- **Kubernetes:** For large-scale deployments
-- **Docker Swarm:** For simpler orchestration
-- **AWS ECS:** Managed container service
+- **Kubernetes**: For large-scale deployments
+- **Docker Swarm**: For simpler orchestration
+- **AWS ECS**: Managed container service
 
----
+## 📊 Monitoring & Analytics
 
-## 📊 Monitoring & Maintenance
+### Built-in Monitoring
+- **Prometheus**: Metrics collection
+- **Grafana**: Visualization dashboards
+- **Health Checks**: Automated service monitoring
+- **Business Analytics**: Real-time KPI tracking
 
-### Health Checks
-```bash
-# Backend health
-curl http://localhost:8000/health
-
-# Frontend health
-curl http://localhost:3000
-
-# Complete system test
-python test_e2e_verification.py
-```
-
-### Logs
-```bash
-# Application logs
-tail -f logs/app.log
-
-# Docker logs
-docker-compose logs -f
-
-# System logs
-journalctl -u your-service
-```
-
----
+### Access Monitoring
+- **Grafana Dashboard**: http://localhost:3001 (admin/admin123)
+- **Prometheus Metrics**: http://localhost:9090
+- **Application Health**: http://localhost:8000/api/v1/health
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
-4. Run tests
-5. Submit a pull request
-
----
+4. Run tests (`python comprehensive_test.py`)
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
----
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🆘 Support
 
-- **Documentation:** Check this README and inline code comments
-- **Issues:** Create an issue on GitHub
-- **Discussions:** Use GitHub Discussions for questions
+- **Documentation**: Check this README and [COMPREHENSIVE_GUIDE.md](COMPREHENSIVE_GUIDE.md)
+- **Issues**: Create an issue on [GitHub](https://github.com/amitsajwan/realestate_ai/issues)
+- **Discussions**: Use [GitHub Discussions](https://github.com/amitsajwan/realestate_ai/discussions)
 
----
-
-## 🎉 Success!
+## 🎉 Success Checklist
 
 If you've followed this guide, you should now have:
 
-✅ **A fully functional Real Estate AI Platform**  
-✅ **Frontend and backend running locally**  
+✅ **A fully functional PropertyAI Platform**  
+✅ **Frontend and backend running**  
 ✅ **Database connected and working**  
 ✅ **Authentication system operational**  
 ✅ **Property management features working**  
-✅ **Agent profiles functional**  
-✅ **AI features ready (with Groq key)**  
-✅ **Mobile-responsive design**  
+✅ **AI-powered content generation**  
+✅ **Social media publishing**  
+✅ **Business analytics dashboard**  
 ✅ **Production-ready architecture**  
+✅ **Monitoring and health checks**  
 
 **Happy coding! 🚀**
+
+---
+
+*For detailed technical documentation, see [COMPREHENSIVE_GUIDE.md](COMPREHENSIVE_GUIDE.md)*
