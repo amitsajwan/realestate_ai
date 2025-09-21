@@ -1,7 +1,7 @@
 {
   "passed": 3,
   "failed": 7,
-  "duration": 66.19274353981018,
+  "duration": 60.355143308639526,
   "success_rate": 30.0,
   "results": {
     "analytics_component": true,

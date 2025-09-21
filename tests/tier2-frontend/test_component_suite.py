@@ -71,7 +71,7 @@ class FrontendComponentTestSuite:
     def test_01_analytics_component(self) -> bool:
         """Test Analytics component"""
         try:
-            result = self.run_jest_test("Analytics.test.tsx")
+            result = self.run_jest_test("analytics.test.tsx")
             
             if result["success"]:
                 return self.log_test("Analytics Component", "PASS", "All Analytics tests passed")
@@ -85,7 +85,7 @@ class FrontendComponentTestSuite:
     def test_02_crm_component(self) -> bool:
         """Test CRM component"""
         try:
-            result = self.run_jest_test("CRM.test.tsx")
+            result = self.run_jest_test("crm.test.tsx")
             
             if result["success"]:
                 return self.log_test("CRM Component", "PASS", "All CRM tests passed")
@@ -99,7 +99,7 @@ class FrontendComponentTestSuite:
     def test_03_data_transformers(self) -> bool:
         """Test data transformers utility"""
         try:
-            result = self.run_jest_test("data-transformers.test.ts")
+            result = self.run_jest_test("data_transformers.test.ts")
             
             if result["success"]:
                 return self.log_test("Data Transformers", "PASS", "All data transformer tests passed")
@@ -113,7 +113,7 @@ class FrontendComponentTestSuite:
     def test_04_property_api_integration(self) -> bool:
         """Test property API integration (mocked in component tests)"""
         try:
-            result = self.run_jest_test("property-api.test.ts")
+            result = self.run_jest_test("property_api.test.ts")
             
             if result["success"]:
                 return self.log_test("Property API Integration", "PASS", "All property API tests passed (mocked)")

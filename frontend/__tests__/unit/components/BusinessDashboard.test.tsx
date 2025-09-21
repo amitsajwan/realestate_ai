@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import BusinessDashboard from '@/components/analytics/BusinessDashboard'
+import BusinessDashboard from '@/components/BusinessDashboard'
 import '@testing-library/jest-dom'
 
 describe('BusinessDashboard Component', () => {
