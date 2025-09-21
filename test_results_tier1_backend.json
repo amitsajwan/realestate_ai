@@ -1,0 +1,23 @@
+{
+  "passed": 2,
+  "failed": 8,
+  "duration": 0.05164289474487305,
+  "success_rate": 20.0,
+  "results": {
+    "health_check": true,
+    "user_registration": true,
+    "user_login": false,
+    "create_property": false,
+    "verify_property": false,
+    "create_social_post": false,
+    "get_user_properties": false,
+    "get_social_drafts": false,
+    "search_properties": false,
+    "cleanup": false
+  },
+  "test_data": {
+    "user_id": "68cfc218fc045d722751cd0b",
+    "property_id": null,
+    "post_id": null
+  }
+}
