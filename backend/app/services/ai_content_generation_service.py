@@ -119,29 +119,29 @@ class AIContentGenerationService:
     def build_prompt(self, context: AIGenerationContext) -> str:
         """Build AI prompt for content generation"""
         
-        # Channel-specific instructions
+        # Channel-specific instructions with platform optimization
         channel_instructions = {
-            Channel.FACEBOOK: "Facebook post (concise first 2 paragraphs, engaging headline)",
-            Channel.INSTAGRAM: "Instagram post (max 2200 chars, <=30 hashtags, visual storytelling)",
-            Channel.WEBSITE: "Website blog post (comprehensive, SEO-optimized, detailed property description)"
+            Channel.FACEBOOK: "Facebook post (concise first 2 paragraphs, engaging headline, encourage comments and shares)",
+            Channel.INSTAGRAM: "Instagram post (max 2200 chars, <=30 hashtags, visual storytelling, use relevant emojis)",
+            Channel.WEBSITE: "Website blog post (comprehensive, SEO-optimized, detailed property description, include local insights)"
         }
         
-        # Tone instructions
+        # Enhanced tone instructions with market context
         tone_instructions = {
-            "friendly": "Friendly, approachable, trustworthy tone",
-            "luxury": "Premium, sophisticated, high-end tone", 
-            "investor": "Professional, data-driven, investment-focused tone"
+            "friendly": "Friendly, approachable, trustworthy tone with local community focus",
+            "luxury": "Premium, sophisticated, high-end tone emphasizing exclusivity and lifestyle", 
+            "investor": "Professional, data-driven, investment-focused tone with market analysis and ROI potential"
         }
         
-        # Length instructions
+        # Enhanced length instructions with engagement focus
         length_instructions = {
-            "short": "Keep it concise and punchy",
-            "medium": "Balanced length with key details",
-            "long": "Comprehensive with all details"
+            "short": "Keep it concise and punchy with strong call-to-action",
+            "medium": "Balanced length with key details and emotional appeal",
+            "long": "Comprehensive with all details, market insights, and neighborhood highlights"
         }
         
         prompt = f"""
-You are a professional real estate marketing writer creating social media content.
+You are an expert real estate marketing strategist and content creator with deep knowledge of the Indian property market. Create compelling, conversion-focused social media content that drives inquiries and builds trust.
 
 LANGUAGE: {context.language}
 CHANNEL: {channel_instructions.get(context.channel, 'Social media post')}
@@ -166,28 +166,43 @@ AGENT CONTACT (MUST INCLUDE):
 - Email: {context.agent.email or 'Contact for details'}
 - Website: {context.agent.website or 'Visit our website'}
 
-REQUIREMENTS:
-1. Create compelling, engaging content that drives inquiries
-2. Include agent contact information naturally
-3. Use appropriate hashtags for the market
-4. Make it shareable and engaging
-5. Include a clear call-to-action
-6. Use emojis appropriately for the platform
-7. Ensure content is in {context.language} language
+MARKET INTELLIGENCE TO INCLUDE:
+- Highlight unique selling propositions
+- Mention nearby landmarks, schools, hospitals, metro stations
+- Include market trends and investment potential
+- Add lifestyle benefits and community features
+- Reference local development projects or infrastructure
+
+CONTENT STRATEGY:
+1. Create emotionally engaging content that connects with buyer aspirations
+2. Include social proof elements (location benefits, amenities)
+3. Use psychological triggers (urgency, scarcity, exclusivity)
+4. Incorporate local market insights and neighborhood highlights
+5. Include agent contact information naturally and professionally
+6. Use platform-optimized hashtags for maximum reach
+7. Make it shareable with compelling visuals descriptions
+8. Include clear, action-oriented call-to-action
+9. Use appropriate emojis and formatting for the platform
+10. Ensure cultural relevance and local language nuances
 
 OUTPUT FORMAT (JSON):
 {{
-    "title": "Compelling headline (max 100 chars)",
-    "body": "Main post content with agent contact embedded naturally",
-    "hashtags": ["#realestate", "#property", "#location", "#investment", "#home"]
+    "title": "Compelling headline (max 100 chars) with emotional hook",
+    "body": "Main post content with agent contact embedded naturally, market insights, and strong CTA",
+    "hashtags": ["#realestate", "#property", "#location", "#investment", "#home", "#localmarket"]
 }}
 
+PLATFORM-SPECIFIC OPTIMIZATION:
+- For Instagram: Visual storytelling, lifestyle focus, max 30 hashtags, use relevant emojis
+- For Facebook: Community-focused, encourage comments and shares, longer content acceptable
+- For Website: SEO-optimized, comprehensive details, local market analysis, professional tone
+
 IMPORTANT: 
-- For Instagram: Keep body under 2200 characters, max 30 hashtags
-- For Facebook: Focus on first 2 paragraphs, can be longer
-- Always include agent contact in the body text
-- Make it feel personal and trustworthy
-- Use local language and cultural references appropriately
+- Always include agent contact in the body text naturally
+- Make it feel personal, trustworthy, and professional
+- Use local language, cultural references, and market terminology appropriately
+- Focus on buyer benefits and emotional connections
+- Include neighborhood highlights and lifestyle benefits
 """
 
         return prompt.strip()

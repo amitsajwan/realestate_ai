@@ -11,8 +11,9 @@ import {
 } from 'recharts';
 import { 
   TrendingUp, TrendingDown, Users, Home, DollarSign, 
-  Target, Calendar, Filter, Download, RefreshCw
+  Target, Calendar, Filter, Download, RefreshCw, Sparkles
 } from 'lucide-react';
+import AIInsightsPanel from './AIInsightsPanel';
 
 interface BusinessMetrics {
   totalProperties: number;
@@ -250,6 +251,10 @@ export default function BusinessDashboard() {
           <TabsTrigger value="properties">Property Performance</TabsTrigger>
           <TabsTrigger value="users">User Analytics</TabsTrigger>
           <TabsTrigger value="conversion">Conversion Analysis</TabsTrigger>
+          <TabsTrigger value="ai-insights" className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            AI Insights
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="revenue" className="space-y-4">
@@ -478,6 +483,20 @@ export default function BusinessDashboard() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="ai-insights" className="space-y-4">
+          <AIInsightsPanel 
+            performanceData={{
+              posts: propertyAnalytics.length,
+              views: propertyAnalytics.reduce((sum, p) => sum + p.views, 0),
+              likes: propertyAnalytics.reduce((sum, p) => sum + p.inquiries, 0),
+              shares: propertyAnalytics.reduce((sum, p) => sum + p.views * 0.1, 0), // Estimated
+              comments: propertyAnalytics.reduce((sum, p) => sum + p.inquiries * 0.3, 0), // Estimated
+              engagement_rate: metrics.conversionRate
+            }}
+            userId="current-user"
+          />
         </TabsContent>
       </Tabs>
 

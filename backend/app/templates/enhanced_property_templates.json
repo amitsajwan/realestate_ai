@@ -1,0 +1,125 @@
+{
+  "property_templates": {
+    "luxury_apartment": {
+      "name": "Luxury Apartment Premium",
+      "description": "High-end apartment marketing template with luxury focus",
+      "property_type": "apartment",
+      "languages": ["en", "hi"],
+      "channels": ["facebook", "instagram", "website"],
+      "templates": {
+        "en": {
+          "facebook": {
+            "title_template": "🏆 {property_title} - Exclusive Luxury Living in {location}",
+            "body_template": "✨ Experience the epitome of luxury living with this stunning {bedrooms} BHK apartment in the heart of {location}!\n\n🏢 **Premium Features:**\n• {bedrooms} spacious bedrooms with premium finishes\n• {bathrooms} modern bathrooms with imported fixtures\n• {area_sqft} sq ft of meticulously designed living space\n• High-end amenities and world-class facilities\n\n💰 **Investment Value:** ₹{price:,.0f}\n\n🌟 **Location Highlights:**\n• Prime location with excellent connectivity\n• Close to international schools and hospitals\n• Shopping malls and entertainment hubs nearby\n• Metro station within walking distance\n\n🎯 **Perfect For:**\n• Luxury homebuyers seeking premium lifestyle\n• Investors looking for high ROI properties\n• NRIs wanting quality investment in India\n\n📞 **Exclusive Preview Available:**\nContact {agent_name} for private viewing\n📱 WhatsApp: {agent_phone}\n📧 Email: {agent_email}\n🌐 Website: {agent_website}\n\n#LuxuryLiving #PremiumProperty #Investment #Location #Exclusive",
+            "hashtags": ["#luxury", "#premium", "#apartment", "#investment", "#location", "#exclusive", "#luxuryliving"]
+          },
+          "instagram": {
+            "title_template": "🏆 {property_title} - Luxury Awaits!",
+            "body_template": "✨ Step into luxury with this breathtaking {bedrooms} BHK apartment in {location}!\n\n🏢 **What Makes This Special:**\n• {bedrooms} spacious bedrooms with premium finishes\n• {bathrooms} modern bathrooms with imported fixtures\n• {area_sqft} sq ft of meticulously designed space\n• World-class amenities and facilities\n\n💰 **Price:** ₹{price:,.0f}\n\n🌟 **Location Perks:**\n• Prime location with excellent connectivity\n• International schools and hospitals nearby\n• Shopping malls and entertainment hubs\n• Metro station within walking distance\n\n🎯 **Ideal For:**\n• Luxury homebuyers\n• High-ROI investors\n• NRI investments\n\n📞 **Private Viewing:**\nContact {agent_name}\n📱 WhatsApp: {agent_phone}\n📧 Email: {agent_email}\n🌐 Website: {agent_website}\n\n#LuxuryLiving #PremiumProperty #Investment #Location #Exclusive #DreamHome",
+            "hashtags": ["#luxury", "#premium", "#apartment", "#investment", "#location", "#exclusive", "#luxuryliving", "#dreamhome"]
+          },
+          "website": {
+            "title_template": "{property_title} - Premium Luxury Apartment in {location}",
+            "body_template": "# {property_title}\n\n## Luxury Living Redefined\n\nDiscover unparalleled luxury with this exceptional {bedrooms} BHK apartment in the prestigious {location} area. This meticulously crafted residence represents the pinnacle of modern living, combining sophisticated design with world-class amenities.\n\n## Property Specifications\n\n- **Bedrooms:** {bedrooms} spacious bedrooms with premium finishes\n- **Bathrooms:** {bathrooms} modern bathrooms with imported fixtures\n- **Area:** {area_sqft} sq ft of thoughtfully designed living space\n- **Price:** ₹{price:,.0f}\n- **Property Type:** Luxury Apartment\n\n## Premium Amenities\n\n- 24/7 Security and Concierge Services\n- Swimming Pool and Fitness Center\n- Landscaped Gardens and Children's Play Area\n- Power Backup and Water Treatment\n- Covered Parking and Valet Services\n- Clubhouse and Community Hall\n\n## Location Advantages\n\n### Connectivity\n- Metro station within 5 minutes walking distance\n- Easy access to major highways and expressways\n- Well-connected to business districts and IT hubs\n\n### Education & Healthcare\n- International schools within 2 km radius\n- Top-rated hospitals and medical centers nearby\n- Reputed colleges and universities accessible\n\n### Lifestyle & Entertainment\n- Premium shopping malls and retail outlets\n- Fine dining restaurants and cafes\n- Multiplex cinemas and entertainment centers\n- Parks and recreational facilities\n\n## Investment Potential\n\nThis property offers exceptional investment opportunities:\n\n- **Capital Appreciation:** Located in a rapidly developing area with strong growth potential\n- **Rental Yield:** High demand for luxury rentals in this location\n- **Future Development:** Several infrastructure projects planned in the vicinity\n- **Market Position:** Positioned in one of the most sought-after locations\n\n## Target Audience\n\n- **Luxury Homebuyers:** Seeking premium lifestyle and modern amenities\n- **Investors:** Looking for high-ROI properties with strong appreciation potential\n- **NRIs:** Wanting quality investment opportunities in India\n- **Professionals:** Working in nearby business districts and IT hubs\n\n## Contact Information\n\nFor detailed information, site visits, or investment consultation:\n\n**{agent_name}**\n- 📞 Phone: {agent_phone}\n- 📱 WhatsApp: {agent_phone}\n- 📧 Email: {agent_email}\n- 🌐 Website: {agent_website}\n\n## Property Highlights\n\n- Modern architectural design with premium finishes\n- Energy-efficient construction with green building features\n- Smart home technology integration\n- Earthquake-resistant structure\n- Vastu-compliant design elements\n\nDon't miss this exclusive opportunity to own a piece of luxury in {location}. Contact us today for a personalized property tour and investment consultation.\n\n---\n\n*This luxury property listing is managed by {agent_name}. For the latest updates and similar luxury properties, visit our website or follow us on social media.*",
+            "hashtags": ["#luxury", "#premium", "#apartment", "#investment", "#location", "#exclusive", "#luxuryliving", "#propertylisting"]
+          }
+        },
+        "hi": {
+          "facebook": {
+            "title_template": "🏆 {property_title} - {location} में एक्सक्लूसिव लक्जरी लिविंग",
+            "body_template": "✨ {location} के दिल में स्थित इस शानदार {bedrooms} BHK अपार्टमेंट के साथ लक्जरी लिविंग का अनुभव करें!\n\n🏢 **प्रीमियम फीचर्स:**\n• {bedrooms} विशाल बेडरूम प्रीमियम फिनिश के साथ\n• {bathrooms} मॉडर्न बाथरूम इंपोर्टेड फिक्सचर के साथ\n• {area_sqft} वर्ग फुट का सुंदर रूप से डिज़ाइन किया गया स्थान\n• हाई-एंड सुविधाएं और वर्ल्ड-क्लास फैसिलिटीज\n\n💰 **निवेश मूल्य:** ₹{price:,.0f}\n\n🌟 **लोकेशन हाइलाइट्स:**\n• प्राइम लोकेशन उत्कृष्ट कनेक्टिविटी के साथ\n• इंटरनेशनल स्कूल और हॉस्पिटल के पास\n• शॉपिंग मॉल और एंटरटेनमेंट हब नजदीक\n• मेट्रो स्टेशन पैदल दूरी में\n\n🎯 **परफेक्ट फॉर:**\n• लक्जरी होमबायर्स प्रीमियम लाइफस्टाइल की तलाश में\n• निवेशक हाई ROI प्रॉपर्टीज की तलाश में\n• NRI भारत में क्वालिटी निवेश चाहते हैं\n\n📞 **एक्सक्लूसिव प्रीव्यू उपलब्ध:**\nप्राइवेट व्यूइंग के लिए {agent_name} से संपर्क करें\n📱 WhatsApp: {agent_phone}\n📧 Email: {agent_email}\n🌐 Website: {agent_website}\n\n#लक्जरीलिविंग #प्रीमियमप्रॉपर्टी #निवेश #लोकेशन #एक्सक्लूसिव",
+            "hashtags": ["#लक्जरी", "#प्रीमियम", "#अपार्टमेंट", "#निवेश", "#लोकेशन", "#एक्सक्लूसिव", "#लक्जरीलिविंग"]
+          }
+        }
+      }
+    },
+    "budget_home": {
+      "name": "Budget Home Affordable",
+      "description": "Affordable home marketing template for first-time buyers",
+      "property_type": "apartment",
+      "languages": ["en", "hi"],
+      "channels": ["facebook", "instagram", "website"],
+      "templates": {
+        "en": {
+          "facebook": {
+            "title_template": "🏠 {property_title} - Perfect First Home in {location}",
+            "body_template": "🎉 Your dream of owning a home starts here! This beautiful {bedrooms} BHK apartment in {location} is perfect for first-time buyers and young families.\n\n🏠 **Home Features:**\n• {bedrooms} cozy bedrooms with natural light\n• {bathrooms} clean bathrooms with modern fixtures\n• {area_sqft} sq ft of comfortable living space\n• All essential amenities included\n\n💰 **Affordable Price:** ₹{price:,.0f}\n\n🌟 **Location Benefits:**\n• Well-connected to city center\n• Schools and hospitals nearby\n• Markets and public transport accessible\n• Safe neighborhood with good infrastructure\n\n🎯 **Perfect For:**\n• First-time homebuyers\n• Young couples starting out\n• Budget-conscious families\n• Smart investors\n\n📞 **Book Your Visit Today:**\nContact {agent_name} for site visit\n📱 WhatsApp: {agent_phone}\n📧 Email: {agent_email}\n🌐 Website: {agent_website}\n\n#FirstHome #AffordableHousing #DreamHome #Location #Investment",
+            "hashtags": ["#firsthome", "#affordable", "#apartment", "#investment", "#location", "#dreamhome", "#budget"]
+          }
+        }
+      }
+    },
+    "investment_property": {
+      "name": "Investment Property ROI",
+      "description": "High-ROI investment property marketing template",
+      "property_type": "apartment",
+      "languages": ["en", "hi"],
+      "channels": ["facebook", "instagram", "website"],
+      "templates": {
+        "en": {
+          "facebook": {
+            "title_template": "💰 {property_title} - High ROI Investment in {location}",
+            "body_template": "📈 Smart investors, this one's for you! This {bedrooms} BHK property in {location} offers exceptional rental yield and capital appreciation potential.\n\n🏢 **Investment Highlights:**\n• {bedrooms} BHK with {area_sqft} sq ft area\n• Prime location with growing infrastructure\n• High demand for rentals in this area\n• Strong appreciation potential\n\n💰 **Price:** ₹{price:,.0f}\n📊 **Expected ROI:** 8-12% annually\n\n🌟 **Why This Location:**\n• Rapidly developing area\n• New metro line coming up\n• IT companies expanding nearby\n• Shopping malls and schools planned\n\n🎯 **Ideal For:**\n• Serious investors seeking high returns\n• Portfolio diversification\n• Long-term wealth creation\n• Rental income generation\n\n📞 **Investment Consultation:**\nContact {agent_name} for detailed analysis\n📱 WhatsApp: {agent_phone}\n📧 Email: {agent_email}\n🌐 Website: {agent_website}\n\n#InvestmentProperty #HighROI #RealEstateInvestment #Location #WealthBuilding",
+            "hashtags": ["#investment", "#roi", "#property", "#realestate", "#location", "#wealthbuilding", "#investmentproperty"]
+          }
+        }
+      }
+    },
+    "villa_independence": {
+      "name": "Villa Independence",
+      "description": "Independent villa marketing template",
+      "property_type": "villa",
+      "languages": ["en", "hi"],
+      "channels": ["facebook", "instagram", "website"],
+      "templates": {
+        "en": {
+          "facebook": {
+            "title_template": "🏡 {property_title} - Independent Villa in {location}",
+            "body_template": "🌟 Experience the luxury of independent living! This spacious {bedrooms} BHK villa in {location} offers privacy, space, and modern amenities.\n\n🏡 **Villa Features:**\n• {bedrooms} spacious bedrooms with attached bathrooms\n• {bathrooms} modern bathrooms with premium fixtures\n• {area_sqft} sq ft of independent living space\n• Private garden and parking\n\n💰 **Price:** ₹{price:,.0f}\n\n🌟 **Villa Advantages:**\n• Complete privacy and independence\n• No monthly maintenance charges\n• Freedom to customize and modify\n• Higher resale value\n\n🎯 **Perfect For:**\n• Large families wanting space\n• Privacy-seeking individuals\n• Long-term residents\n• Luxury lifestyle enthusiasts\n\n📞 **Villa Tour Available:**\nContact {agent_name} for site visit\n📱 WhatsApp: {agent_phone}\n📧 Email: {agent_email}\n🌐 Website: {agent_website}\n\n#IndependentVilla #Privacy #LuxuryLiving #Location #DreamHome",
+            "hashtags": ["#villa", "#independent", "#privacy", "#luxury", "#location", "#dreamhome", "#spacious"]
+          }
+        }
+      }
+    }
+  },
+  "market_insights": {
+    "mumbai": {
+      "trending_areas": ["Bandra", "Andheri", "Powai", "Thane", "Navi Mumbai"],
+      "average_price_per_sqft": 15000,
+      "growth_rate": "8-12% annually",
+      "key_factors": ["Metro connectivity", "IT hubs", "International schools", "Shopping malls"]
+    },
+    "delhi": {
+      "trending_areas": ["Gurgaon", "Noida", "Dwarka", "Saket", "Rohini"],
+      "average_price_per_sqft": 12000,
+      "growth_rate": "6-10% annually", 
+      "key_factors": ["Metro expansion", "Corporate offices", "Educational institutions", "Healthcare facilities"]
+    },
+    "bangalore": {
+      "trending_areas": ["Whitefield", "Electronic City", "Koramangala", "HSR Layout", "Sarjapur"],
+      "average_price_per_sqft": 8000,
+      "growth_rate": "5-8% annually",
+      "key_factors": ["IT companies", "Startup ecosystem", "International schools", "Airport connectivity"]
+    }
+  },
+  "ai_suggestions": {
+    "pricing_tips": [
+      "Price competitively based on local market rates",
+      "Highlight value-added features to justify pricing",
+      "Offer flexible payment plans for better conversion",
+      "Include maintenance and amenities in value proposition"
+    ],
+    "marketing_tips": [
+      "Use high-quality professional photos",
+      "Create virtual tours for remote buyers",
+      "Highlight nearby landmarks and facilities",
+      "Share success stories of similar properties"
+    ],
+    "conversion_tips": [
+      "Respond to inquiries within 30 minutes",
+      "Offer immediate site visits",
+      "Provide detailed property information",
+      "Follow up with interested buyers regularly"
+    ]
+  }
+}

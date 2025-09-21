@@ -365,3 +365,46 @@ class TemplateService:
             created_at=template.created_at,
             updated_at=template.updated_at
         )
+
+    async def get_enhanced_templates(self) -> Dict[str, Any]:
+        """Get enhanced property templates with market insights"""
+        try:
+            import json
+            import os
+            
+            # Load enhanced templates from JSON file
+            template_file_path = os.path.join(
+                os.path.dirname(__file__), 
+                '..', 'templates', 'enhanced_property_templates.json'
+            )
+            
+            if os.path.exists(template_file_path):
+                with open(template_file_path, 'r', encoding='utf-8') as f:
+                    enhanced_templates = json.load(f)
+                return enhanced_templates
+            else:
+                return {"error": "Enhanced templates file not found"}
+                
+        except Exception as e:
+            raise Exception(f"Failed to load enhanced templates: {str(e)}")
+
+    async def get_market_insights(self, location: str) -> Dict[str, Any]:
+        """Get market insights for a specific location"""
+        try:
+            enhanced_templates = await self.get_enhanced_templates()
+            market_insights = enhanced_templates.get('market_insights', {})
+            
+            # Return insights for the specific location or default
+            return market_insights.get(location.lower(), market_insights.get('mumbai', {}))
+            
+        except Exception as e:
+            raise Exception(f"Failed to get market insights: {str(e)}")
+
+    async def get_ai_suggestions(self) -> Dict[str, Any]:
+        """Get AI-powered suggestions for property marketing"""
+        try:
+            enhanced_templates = await self.get_enhanced_templates()
+            return enhanced_templates.get('ai_suggestions', {})
+            
+        except Exception as e:
+            raise Exception(f"Failed to get AI suggestions: {str(e)}")
