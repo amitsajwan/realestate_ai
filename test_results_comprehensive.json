@@ -1,105 +1,105 @@
 {
-  "timestamp": "2025-09-21T07:45:44.427113",
+  "timestamp": "2025-09-21T08:15:43.818086",
   "tests": {
     "MongoDB Connection": {
       "status": "PASS",
       "details": "Database is accessible",
-      "timestamp": "2025-09-21T07:45:44.492593"
+      "timestamp": "2025-09-21T08:15:43.893483"
     },
     "Backend API": {
       "status": "FAIL",
       "details": "Status: 404",
-      "timestamp": "2025-09-21T07:45:44.496764"
+      "timestamp": "2025-09-21T08:15:43.899387"
     },
     "Frontend Application": {
       "status": "PASS",
       "details": "Frontend is accessible",
-      "timestamp": "2025-09-21T07:45:44.523325"
+      "timestamp": "2025-09-21T08:15:43.927878"
     },
     "API Endpoint: Health Check": {
       "status": "PASS",
       "details": "Status: 200",
-      "timestamp": "2025-09-21T07:45:44.525662"
+      "timestamp": "2025-09-21T08:15:43.930993"
     },
     "API Endpoint: User Registration": {
       "status": "PASS",
       "details": "Status: 422",
-      "timestamp": "2025-09-21T07:45:44.528508"
+      "timestamp": "2025-09-21T08:15:43.934000"
     },
     "API Endpoint: User Login": {
       "status": "PASS",
       "details": "Status: 422",
-      "timestamp": "2025-09-21T07:45:44.531276"
+      "timestamp": "2025-09-21T08:15:43.937299"
     },
     "API Endpoint: Public Properties": {
       "status": "PASS",
       "details": "Status: 200",
-      "timestamp": "2025-09-21T07:45:44.535088"
+      "timestamp": "2025-09-21T08:15:43.941804"
     },
     "API Endpoint: Property Search": {
       "status": "PASS",
       "details": "Status: 401",
-      "timestamp": "2025-09-21T07:45:44.537305"
+      "timestamp": "2025-09-21T08:15:43.944374"
     },
     "User Registration": {
       "status": "PASS",
       "details": "Status: 400",
-      "timestamp": "2025-09-21T07:45:44.541220"
+      "timestamp": "2025-09-21T08:15:43.948713"
     },
     "User Login": {
       "status": "PASS",
       "details": "Status: 200",
-      "timestamp": "2025-09-21T07:45:44.591507"
+      "timestamp": "2025-09-21T08:15:44.007281"
     },
     "Public Properties API": {
       "status": "PASS",
       "details": "Properties accessible",
-      "timestamp": "2025-09-21T07:45:44.594845"
+      "timestamp": "2025-09-21T08:15:44.010390"
     },
     "Property Search API": {
       "status": "FAIL",
       "details": "Status: 401",
-      "timestamp": "2025-09-21T07:45:44.597262"
+      "timestamp": "2025-09-21T08:15:44.012743"
     },
     "Social Publishing: Content Generation": {
       "status": "PASS",
       "details": "Status: 401",
-      "timestamp": "2025-09-21T07:45:44.599857"
+      "timestamp": "2025-09-21T08:15:44.015291"
     },
     "Social Publishing: Get Drafts": {
       "status": "PASS",
       "details": "Status: 200",
-      "timestamp": "2025-09-21T07:45:44.603321"
+      "timestamp": "2025-09-21T08:15:44.019136"
     },
     "Frontend: Home Page": {
       "status": "PASS",
       "details": "Page loads successfully",
-      "timestamp": "2025-09-21T07:45:44.618869"
+      "timestamp": "2025-09-21T08:15:44.036884"
     },
     "Frontend: Login Page": {
       "status": "PASS",
       "details": "Page loads successfully",
-      "timestamp": "2025-09-21T07:45:44.642498"
+      "timestamp": "2025-09-21T08:15:44.055720"
     },
     "Frontend: Registration Page": {
       "status": "PASS",
       "details": "Page loads successfully",
-      "timestamp": "2025-09-21T07:45:44.663322"
+      "timestamp": "2025-09-21T08:15:44.072112"
     },
     "Frontend: Dashboard Page": {
       "status": "PASS",
       "details": "Page loads successfully",
-      "timestamp": "2025-09-21T07:45:44.679901"
+      "timestamp": "2025-09-21T08:15:44.087062"
     },
     "API Response Time": {
       "status": "PASS",
-      "details": "2.06ms",
-      "timestamp": "2025-09-21T07:45:44.682020"
+      "details": "1.89ms",
+      "timestamp": "2025-09-21T08:15:44.089017"
     },
     "Frontend Load Time": {
       "status": "PASS",
-      "details": "13.68ms",
-      "timestamp": "2025-09-21T07:45:44.695732"
+      "details": "15.19ms",
+      "timestamp": "2025-09-21T08:15:44.104233"
     }
   },
   "summary": {
