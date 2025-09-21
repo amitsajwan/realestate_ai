@@ -145,7 +145,7 @@ test.describe('Complete Agent Website Test', () => {
       status: 'published'
     };
 
-    const postResponse = await page.request.post('http://localhost:8000/api/v1/social-posts/', {
+    const postResponse = await page.request.post('http://localhost:8000/api/v1/social-publishing/', {
       headers: {
         'Authorization': `Bearer ${authToken}`,
         'Content-Type': 'application/json'
