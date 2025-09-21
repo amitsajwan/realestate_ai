@@ -4,6 +4,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { authManager } from '@/lib/auth';
+import ThemeToggle from './ThemeToggle';
+import SearchBar from './SearchBar';
+import NotificationCenter from './NotificationCenter';
 
 export default function Navigation() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -67,6 +70,11 @@ export default function Navigation() {
             <Link href="/" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
               Home
             </Link>
+            <div className="w-64">
+              <SearchBar />
+            </div>
+            <NotificationCenter />
+            <ThemeToggle />
 
             {isAuthenticated ? (
               <>
@@ -132,6 +140,15 @@ export default function Navigation() {
               >
                 Home
               </Link>
+              <div className="px-4 py-3">
+                <SearchBar />
+              </div>
+              <div className="px-4 py-3">
+                <NotificationCenter />
+              </div>
+              <div className="px-4 py-3">
+                <ThemeToggle />
+              </div>
 
               {isAuthenticated ? (
                 <>
