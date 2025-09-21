@@ -1,22 +1,25 @@
 #!/usr/bin/env python3
 """
-Tier 3: Playwright MCP E2E Testing
-==================================
-AI-powered End-to-End testing using Playwright MCP
-Tests complete user journeys through UI components
+Tier 3: End-to-End Testing with Playwright MCP
+===============================================
+Full user journey testing through UI components
+Tests complete workflows: Frontend UI → Backend API integration
 """
 
-import asyncio
+import subprocess
 import json
 import time
-from datetime import datetime
+import os
 from typing import Dict, Any, List
+from datetime import datetime
 
-class PlaywrightMCPTestSuite:
+class PlaywrightMCPE2ETestSuite:
     def __init__(self):
-        self.base_url = "http://localhost:3000"
+        self.frontend_dir = "/workspace/frontend"
         self.backend_url = "http://localhost:8000"
+        self.frontend_url = "http://localhost:3000"
         self.test_results = {}
+        self.start_time = None
         
     def log_test(self, test_name: str, status: str, details: str = ""):
         """Log test result"""
@@ -28,218 +31,219 @@ class PlaywrightMCPTestSuite:
         print(f"   Timestamp: {timestamp}")
         return status == "PASS"
 
-    async def test_01_homepage_loading(self) -> bool:
-        """Test homepage loads correctly"""
+    def run_playwright_test(self, test_file: str = None, test_pattern: str = None) -> Dict[str, Any]:
+        """Run Playwright E2E tests"""
         try:
-            # This would use Playwright MCP to:
-            # 1. Navigate to homepage
-            # 2. Verify page loads
-            # 3. Check for key elements
-            # 4. Take screenshot for verification
+            os.chdir(self.frontend_dir)
             
-            # Mock implementation for now
-            await asyncio.sleep(1)  # Simulate page load
-            return self.log_test("Homepage Loading", "PASS", "Homepage loaded successfully")
+            # Run Playwright tests
+            cmd = ["npx", "playwright", "test"]
+            
+            if test_file:
+                cmd.append(test_file)
+            elif test_pattern:
+                cmd.extend(["--grep", test_pattern])
+            
+            # Add options for better reporting
+            cmd.extend(["--reporter=json", "--output=e2e-results.json"])
+            
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300  # 5 minutes for E2E tests
+            )
+            
+            return {
+                "success": result.returncode == 0,
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "returncode": result.returncode
+            }
+            
+        except subprocess.TimeoutExpired:
+            return {
+                "success": False,
+                "stdout": "",
+                "stderr": "E2E test timeout after 5 minutes",
+                "returncode": -1
+            }
         except Exception as e:
-            return self.log_test("Homepage Loading", "FAIL", str(e))
+            return {
+                "success": False,
+                "stdout": "",
+                "stderr": str(e),
+                "returncode": -1
+            }
 
-    async def test_02_user_registration_flow(self) -> bool:
-        """Test complete user registration through UI"""
+    def test_01_auth_e2e_flow(self) -> bool:
+        """Test complete authentication flow through UI"""
         try:
-            # Playwright MCP would:
-            # 1. Click "Register" button
-            # 2. Fill registration form
-            # 3. Submit form
-            # 4. Verify success message
-            # 5. Check redirect to dashboard
+            result = self.run_playwright_test("01-auth.spec.ts")
             
-            await asyncio.sleep(2)  # Simulate form interaction
-            return self.log_test("User Registration Flow", "PASS", "Registration completed successfully")
+            if result["success"]:
+                return self.log_test("Auth E2E Flow", "PASS", "Authentication flow works through UI")
+            else:
+                error_details = result["stderr"] or result["stdout"]
+                return self.log_test("Auth E2E Flow", "FAIL", f"Auth flow failed: {error_details[:200]}...")
+                
         except Exception as e:
-            return self.log_test("User Registration Flow", "FAIL", str(e))
+            return self.log_test("Auth E2E Flow", "FAIL", str(e))
 
-    async def test_03_user_login_flow(self) -> bool:
-        """Test user login through UI"""
+    def test_02_property_management_e2e(self) -> bool:
+        """Test property management through UI"""
         try:
-            # Playwright MCP would:
-            # 1. Navigate to login page
-            # 2. Enter credentials
-            # 3. Click login button
-            # 4. Verify dashboard access
-            # 5. Check user profile loaded
+            result = self.run_playwright_test("03-property-management.spec.ts")
             
-            await asyncio.sleep(1.5)  # Simulate login process
-            return self.log_test("User Login Flow", "PASS", "Login successful, dashboard accessed")
+            if result["success"]:
+                return self.log_test("Property Management E2E", "PASS", "Property management works through UI")
+            else:
+                error_details = result["stderr"] or result["stdout"]
+                return self.log_test("Property Management E2E", "FAIL", f"Property management failed: {error_details[:200]}...")
+                
         except Exception as e:
-            return self.log_test("User Login Flow", "FAIL", str(e))
+            return self.log_test("Property Management E2E", "FAIL", str(e))
 
-    async def test_04_property_creation_flow(self) -> bool:
-        """Test property creation through UI"""
+    def test_03_social_publishing_e2e(self) -> bool:
+        """Test social publishing through UI"""
         try:
-            # Playwright MCP would:
-            # 1. Click "Add Property" button
-            # 2. Fill property form with all fields
-            # 3. Upload property images
-            # 4. Submit form
-            # 5. Verify property appears in dashboard
-            # 6. Check property details page
+            result = self.run_playwright_test("04-post-management.spec.ts")
             
-            await asyncio.sleep(3)  # Simulate form filling and submission
-            return self.log_test("Property Creation Flow", "PASS", "Property created and displayed")
+            if result["success"]:
+                return self.log_test("Social Publishing E2E", "PASS", "Social publishing works through UI")
+            else:
+                error_details = result["stderr"] or result["stdout"]
+                return self.log_test("Social Publishing E2E", "FAIL", f"Social publishing failed: {error_details[:200]}...")
+                
         except Exception as e:
-            return self.log_test("Property Creation Flow", "FAIL", str(e))
+            return self.log_test("Social Publishing E2E", "FAIL", str(e))
 
-    async def test_05_ai_suggestions_flow(self) -> bool:
-        """Test AI suggestions functionality"""
+    def test_04_ai_content_generation_e2e(self) -> bool:
+        """Test AI content generation through UI"""
         try:
-            # Playwright MCP would:
-            # 1. Navigate to property form
-            # 2. Fill basic property details
-            # 3. Click "Get AI Suggestions" button
-            # 4. Wait for AI response
-            # 5. Verify suggestions are displayed
-            # 6. Test applying suggestions
-            # 7. Verify updated form fields
+            result = self.run_playwright_test("09-ai-content-generation.spec.ts")
             
-            await asyncio.sleep(4)  # Simulate AI processing
-            return self.log_test("AI Suggestions Flow", "PASS", "AI suggestions generated and applied")
+            if result["success"]:
+                return self.log_test("AI Content Generation E2E", "PASS", "AI content generation works through UI")
+            else:
+                error_details = result["stderr"] or result["stdout"]
+                return self.log_test("AI Content Generation E2E", "FAIL", f"AI content generation failed: {error_details[:200]}...")
+                
         except Exception as e:
-            return self.log_test("AI Suggestions Flow", "FAIL", str(e))
+            return self.log_test("AI Content Generation E2E", "FAIL", str(e))
 
-    async def test_06_social_publishing_flow(self) -> bool:
-        """Test social media publishing through UI"""
+    def test_05_analytics_dashboard_e2e(self) -> bool:
+        """Test analytics dashboard through UI"""
         try:
-            # Playwright MCP would:
-            # 1. Select a property
-            # 2. Click "Create Social Post"
-            # 3. Choose platforms (Facebook, Instagram)
-            # 4. Select tone and language
-            # 5. Generate content
-            # 6. Review generated content
-            # 7. Publish to selected platforms
-            # 8. Verify success confirmation
+            result = self.run_playwright_test("06-analytics-dashboard.spec.ts")
             
-            await asyncio.sleep(5)  # Simulate publishing process
-            return self.log_test("Social Publishing Flow", "PASS", "Content published to social platforms")
+            if result["success"]:
+                return self.log_test("Analytics Dashboard E2E", "PASS", "Analytics dashboard works through UI")
+            else:
+                error_details = result["stderr"] or result["stdout"]
+                return self.log_test("Analytics Dashboard E2E", "FAIL", f"Analytics dashboard failed: {error_details[:200]}...")
+                
         except Exception as e:
-            return self.log_test("Social Publishing Flow", "FAIL", str(e))
+            return self.log_test("Analytics Dashboard E2E", "FAIL", str(e))
 
-    async def test_07_analytics_dashboard_flow(self) -> bool:
-        """Test analytics dashboard functionality"""
+    def test_06_full_user_journey_e2e(self) -> bool:
+        """Test complete user journey: Register → Login → Create Property → Generate Content → Publish"""
         try:
-            # Playwright MCP would:
-            # 1. Navigate to analytics dashboard
-            # 2. Verify charts and metrics load
-            # 3. Test date range filters
-            # 4. Check AI insights panel
-            # 5. Verify export functionality
-            # 6. Test responsive design on mobile view
+            result = self.run_playwright_test("00-integration.spec.ts")
             
-            await asyncio.sleep(2)  # Simulate dashboard interaction
-            return self.log_test("Analytics Dashboard Flow", "PASS", "Dashboard loaded with all features")
+            if result["success"]:
+                return self.log_test("Full User Journey E2E", "PASS", "Complete user journey works through UI")
+            else:
+                error_details = result["stderr"] or result["stdout"]
+                return self.log_test("Full User Journey E2E", "FAIL", f"Full user journey failed: {error_details[:200]}...")
+                
         except Exception as e:
-            return self.log_test("Analytics Dashboard Flow", "FAIL", str(e))
+            return self.log_test("Full User Journey E2E", "FAIL", str(e))
 
-    async def test_08_property_search_flow(self) -> bool:
-        """Test property search functionality"""
+    def test_07_cross_browser_compatibility(self) -> bool:
+        """Test cross-browser compatibility"""
         try:
-            # Playwright MCP would:
-            # 1. Use search bar on homepage
-            # 2. Enter search criteria (location, price, type)
-            # 3. Apply filters
-            # 4. Verify search results
-            # 5. Click on property details
-            # 6. Test contact agent functionality
+            # Run tests on multiple browsers
+            browsers = ["chromium", "firefox", "webkit"]
+            results = []
             
-            await asyncio.sleep(2.5)  # Simulate search and filtering
-            return self.log_test("Property Search Flow", "PASS", "Search functionality working correctly")
+            for browser in browsers:
+                result = self.run_playwright_test("--project", browser)
+                results.append(result["success"])
+            
+            if all(results):
+                return self.log_test("Cross-Browser Compatibility", "PASS", "Tests pass on all browsers")
+            else:
+                failed_browsers = [browsers[i] for i, success in enumerate(results) if not success]
+                return self.log_test("Cross-Browser Compatibility", "FAIL", f"Failed on: {', '.join(failed_browsers)}")
+                
         except Exception as e:
-            return self.log_test("Property Search Flow", "FAIL", str(e))
+            return self.log_test("Cross-Browser Compatibility", "FAIL", str(e))
 
-    async def test_09_mobile_responsiveness(self) -> bool:
+    def test_08_mobile_responsiveness(self) -> bool:
         """Test mobile responsiveness"""
         try:
-            # Playwright MCP would:
-            # 1. Set viewport to mobile size
-            # 2. Test all major pages on mobile
-            # 3. Verify touch interactions
-            # 4. Check mobile navigation
-            # 5. Test form inputs on mobile
-            # 6. Verify responsive design
+            result = self.run_playwright_test("--project", "Mobile Chrome")
             
-            await asyncio.sleep(3)  # Simulate mobile testing
-            return self.log_test("Mobile Responsiveness", "PASS", "All pages responsive on mobile")
+            if result["success"]:
+                return self.log_test("Mobile Responsiveness", "PASS", "Mobile tests pass")
+            else:
+                error_details = result["stderr"] or result["stdout"]
+                return self.log_test("Mobile Responsiveness", "FAIL", f"Mobile tests failed: {error_details[:200]}...")
+                
         except Exception as e:
             return self.log_test("Mobile Responsiveness", "FAIL", str(e))
 
-    async def test_10_performance_testing(self) -> bool:
-        """Test page performance and loading times"""
+    def test_09_performance_e2e(self) -> bool:
+        """Test performance metrics through E2E"""
         try:
-            # Playwright MCP would:
-            # 1. Measure page load times
-            # 2. Check Core Web Vitals
-            # 3. Test with slow network conditions
-            # 4. Verify lazy loading works
-            # 5. Check bundle size impact
-            # 6. Test caching behavior
+            # Run performance-focused tests
+            result = self.run_playwright_test("--grep", "performance")
             
-            await asyncio.sleep(2)  # Simulate performance testing
-            return self.log_test("Performance Testing", "PASS", "Performance metrics within acceptable range")
+            if result["success"]:
+                return self.log_test("Performance E2E", "PASS", "Performance tests pass")
+            else:
+                error_details = result["stderr"] or result["stdout"]
+                return self.log_test("Performance E2E", "FAIL", f"Performance tests failed: {error_details[:200]}...")
+                
         except Exception as e:
-            return self.log_test("Performance Testing", "FAIL", str(e))
+            return self.log_test("Performance E2E", "FAIL", str(e))
 
-    async def test_11_accessibility_testing(self) -> bool:
-        """Test accessibility compliance"""
+    def test_10_accessibility_e2e(self) -> bool:
+        """Test accessibility through E2E"""
         try:
-            # Playwright MCP would:
-            # 1. Run axe-core accessibility tests
-            # 2. Test keyboard navigation
-            # 3. Check screen reader compatibility
-            # 4. Verify ARIA labels
-            # 5. Test color contrast
-            # 6. Check focus management
+            # Run accessibility tests
+            result = self.run_playwright_test("--grep", "accessibility")
             
-            await asyncio.sleep(2.5)  # Simulate accessibility testing
-            return self.log_test("Accessibility Testing", "PASS", "No accessibility violations found")
+            if result["success"]:
+                return self.log_test("Accessibility E2E", "PASS", "Accessibility tests pass")
+            else:
+                error_details = result["stderr"] or result["stdout"]
+                return self.log_test("Accessibility E2E", "FAIL", f"Accessibility tests failed: {error_details[:200]}...")
+                
         except Exception as e:
-            return self.log_test("Accessibility Testing", "FAIL", str(e))
+            return self.log_test("Accessibility E2E", "FAIL", str(e))
 
-    async def test_12_cross_browser_testing(self) -> bool:
-        """Test cross-browser compatibility"""
-        try:
-            # Playwright MCP would:
-            # 1. Test on Chrome
-            # 2. Test on Firefox
-            # 3. Test on Safari
-            # 4. Test on Edge
-            # 5. Compare functionality across browsers
-            # 6. Check for browser-specific issues
-            
-            await asyncio.sleep(4)  # Simulate cross-browser testing
-            return self.log_test("Cross-Browser Testing", "PASS", "All browsers working correctly")
-        except Exception as e:
-            return self.log_test("Cross-Browser Testing", "FAIL", str(e))
-
-    async def run_e2e_tests(self) -> Dict[str, Any]:
-        """Run all E2E tests"""
-        print("\n🎭 Starting Tier 3: Playwright MCP E2E Testing")
+    def run_e2e_test_suite(self) -> Dict[str, Any]:
+        """Run the complete E2E test suite"""
+        print("\n🚀 Starting Tier 3: End-to-End Testing with Playwright MCP")
         print("=" * 60)
         
-        start_time = time.time()
+        self.start_time = time.time()
+        test_results = {}
         
+        # Run all tests in sequence
         tests = [
-            ("homepage_loading", self.test_01_homepage_loading),
-            ("user_registration_flow", self.test_02_user_registration_flow),
-            ("user_login_flow", self.test_03_user_login_flow),
-            ("property_creation_flow", self.test_04_property_creation_flow),
-            ("ai_suggestions_flow", self.test_05_ai_suggestions_flow),
-            ("social_publishing_flow", self.test_06_social_publishing_flow),
-            ("analytics_dashboard_flow", self.test_07_analytics_dashboard_flow),
-            ("property_search_flow", self.test_08_property_search_flow),
-            ("mobile_responsiveness", self.test_09_mobile_responsiveness),
-            ("performance_testing", self.test_10_performance_testing),
-            ("accessibility_testing", self.test_11_accessibility_testing),
-            ("cross_browser_testing", self.test_12_cross_browser_testing)
+            ("auth_e2e_flow", self.test_01_auth_e2e_flow),
+            ("property_management_e2e", self.test_02_property_management_e2e),
+            ("social_publishing_e2e", self.test_03_social_publishing_e2e),
+            ("ai_content_generation_e2e", self.test_04_ai_content_generation_e2e),
+            ("analytics_dashboard_e2e", self.test_05_analytics_dashboard_e2e),
+            ("full_user_journey_e2e", self.test_06_full_user_journey_e2e),
+            ("cross_browser_compatibility", self.test_07_cross_browser_compatibility),
+            ("mobile_responsiveness", self.test_08_mobile_responsiveness),
+            ("performance_e2e", self.test_09_performance_e2e),
+            ("accessibility_e2e", self.test_10_accessibility_e2e)
         ]
         
         passed = 0
@@ -248,21 +252,23 @@ class PlaywrightMCPTestSuite:
         for test_name, test_func in tests:
             print(f"\n📋 Running: {test_name}")
             try:
-                result = await test_func()
+                result = test_func()
+                test_results[test_name] = result
                 if result:
                     passed += 1
                 else:
                     failed += 1
             except Exception as e:
                 print(f"❌ {test_name}: ERROR - {str(e)}")
+                test_results[test_name] = False
                 failed += 1
         
         end_time = time.time()
-        duration = end_time - start_time
+        duration = end_time - self.start_time
         
         # Summary
         print("\n" + "=" * 60)
-        print("📊 TIER 3 TEST SUMMARY")
+        print("📊 TIER 3 E2E TEST SUMMARY")
         print("=" * 60)
         print(f"✅ Passed: {passed}")
         print(f"❌ Failed: {failed}")
@@ -270,7 +276,7 @@ class PlaywrightMCPTestSuite:
         print(f"📈 Success Rate: {(passed/(passed+failed)*100):.1f}%")
         
         if failed == 0:
-            print("\n🎉 ALL TIER 3 TESTS PASSED! E2E functionality is working perfectly!")
+            print("\n🎉 ALL TIER 3 E2E TESTS PASSED! Full user journeys work perfectly!")
         else:
             print(f"\n⚠️  {failed} tests failed. Check the details above.")
         
@@ -279,18 +285,15 @@ class PlaywrightMCPTestSuite:
             "failed": failed,
             "duration": duration,
             "success_rate": (passed/(passed+failed)*100),
-            "test_type": "playwright_mcp_e2e"
+            "results": test_results
         }
 
-async def main():
-    test_suite = PlaywrightMCPTestSuite()
-    results = await test_suite.run_e2e_tests()
+if __name__ == "__main__":
+    test_suite = PlaywrightMCPE2ETestSuite()
+    results = test_suite.run_e2e_test_suite()
     
     # Save results
     with open("/workspace/test_results_tier3_e2e.json", "w") as f:
         json.dump(results, f, indent=2)
     
     print(f"\n📄 Results saved to: test_results_tier3_e2e.json")
-
-if __name__ == "__main__":
-    asyncio.run(main())

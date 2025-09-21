@@ -111,12 +111,12 @@ class FrontendComponentTestSuite:
             return self.log_test("Data Transformers", "FAIL", str(e))
 
     def test_04_property_api_integration(self) -> bool:
-        """Test property API integration"""
+        """Test property API integration (mocked in component tests)"""
         try:
             result = self.run_jest_test("property-api.test.ts")
             
             if result["success"]:
-                return self.log_test("Property API Integration", "PASS", "All property API tests passed")
+                return self.log_test("Property API Integration", "PASS", "All property API tests passed (mocked)")
             else:
                 error_details = result["stderr"] or result["stdout"]
                 return self.log_test("Property API Integration", "FAIL", f"Tests failed: {error_details[:200]}...")
