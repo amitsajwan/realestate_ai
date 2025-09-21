@@ -13,8 +13,8 @@ export async function POST(request: NextRequest) {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     const confirmPassword = formData.get('confirmPassword') as string;
-    const firstName = formData.get('firstName') as string;
-    const lastName = formData.get('lastName') as string;
+    const firstName = formData.get('first_name') as string;
+    const lastName = formData.get('last_name') as string;
 
     if (!email || !password || !firstName || !lastName) {
       return NextResponse.json(
