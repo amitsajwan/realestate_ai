@@ -126,6 +126,55 @@ async def get_public_properties(
             detail="Failed to retrieve public properties"
         )
 
+@router.get("/search")
+async def search_properties(
+    query: str,
+    property_type: Optional[str] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    location: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 20,
+    current_user: User = Depends(current_active_user)
+):
+    """
+    Search properties with advanced filtering.
+    """
+    try:
+        user_id = getattr(current_user, "id", "anonymous")
+        
+        service = get_unified_property_service()
+        results = await service.search_properties(
+            query=query,
+            property_type=property_type,
+            min_price=min_price,
+            max_price=max_price,
+            location=location,
+            user_id=user_id,
+            skip=skip,
+            limit=limit
+        )
+        
+        return {
+            "success": True,
+            "results": results,
+            "total": len(results),
+            "query": query,
+            "filters": {
+                "property_type": property_type,
+                "min_price": min_price,
+                "max_price": max_price,
+                "location": location
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error searching properties: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to search properties"
+        )
+
 @router.get("/{property_id}", response_model=PropertyResponse)
 async def get_unified_property(
     property_id: str,
@@ -368,55 +417,6 @@ async def batch_create_properties(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create properties in batch"
-        )
-
-@router.get("/search")
-async def search_properties(
-    query: str,
-    property_type: Optional[str] = None,
-    min_price: Optional[float] = None,
-    max_price: Optional[float] = None,
-    location: Optional[str] = None,
-    skip: int = 0,
-    limit: int = 20,
-    current_user: User = Depends(current_active_user)
-):
-    """
-    Search properties with advanced filtering.
-    """
-    try:
-        user_id = getattr(current_user, "id", "anonymous")
-        
-        service = get_unified_property_service()
-        results = await service.search_properties(
-            query=query,
-            property_type=property_type,
-            min_price=min_price,
-            max_price=max_price,
-            location=location,
-            user_id=user_id,
-            skip=skip,
-            limit=limit
-        )
-        
-        return {
-            "success": True,
-            "results": results,
-            "total": len(results),
-            "query": query,
-            "filters": {
-                "property_type": property_type,
-                "min_price": min_price,
-                "max_price": max_price,
-                "location": location
-            }
-        }
-        
-    except Exception as e:
-        logger.error(f"Error searching properties: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to search properties"
         )
 
 

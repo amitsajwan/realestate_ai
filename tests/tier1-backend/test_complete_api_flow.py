@@ -204,7 +204,7 @@ class BackendAPITestSuite:
             
             headers = {"Authorization": f"Bearer {self.auth_token}"}
             response = requests.get(
-                f"{self.base_url}/api/v1/properties/my-properties",
+                f"{self.base_url}/api/v1/properties/",  # Correct endpoint is root, not /my-properties
                 headers=headers,
                 timeout=10
             )
@@ -223,12 +223,12 @@ class BackendAPITestSuite:
     def test_08_get_social_drafts(self) -> bool:
         """Test retrieving social media drafts"""
         try:
-            if not self.auth_token:
-                return self.log_test("Get Social Drafts", "FAIL", "No auth token available")
+            if not self.auth_token or not self.property_id:
+                return self.log_test("Get Social Drafts", "FAIL", "No auth token or property ID available")
             
             headers = {"Authorization": f"Bearer {self.auth_token}"}
             response = requests.get(
-                f"{self.base_url}/api/v1/social-publishing/drafts",
+                f"{self.base_url}/api/v1/social-publishing/drafts?property_id={self.property_id}",  # Add required property_id parameter
                 headers=headers,
                 timeout=10
             )
@@ -249,7 +249,7 @@ class BackendAPITestSuite:
             
             headers = {"Authorization": f"Bearer {self.auth_token}"}
             response = requests.get(
-                f"{self.base_url}/api/v1/properties/search?city=Test City",
+                f"{self.base_url}/api/v1/properties/search?query=Test&location=Test City",  # Use correct parameters: query and location
                 headers=headers,
                 timeout=10
             )
