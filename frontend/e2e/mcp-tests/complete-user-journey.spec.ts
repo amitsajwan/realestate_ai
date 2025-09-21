@@ -22,7 +22,7 @@ test.describe('Complete User Journey - Registration to Property Posting', () => 
     // Natural Language: "New user registers and creates account"
     console.log('🚀 Starting complete user journey...');
     
-    await page.goto('/register');
+    await page.goto('/simple-register');
     await expect(page).toHaveTitle(/PropertyAI/);
     
     // Fill registration form with unique data
@@ -199,7 +199,7 @@ test.describe('Complete User Journey - Registration to Property Posting', () => 
     // This test would verify that user authentication state
     // and data persists across page navigation
     
-    await page.goto('/login');
+    await page.goto('/simple-login');
     await expect(page).toHaveTitle(/PropertyAI/);
     
     // Navigate to different pages and verify consistent experience
