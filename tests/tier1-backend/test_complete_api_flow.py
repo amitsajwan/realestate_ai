@@ -73,6 +73,7 @@ class BackendAPITestSuite:
     def test_03_user_login(self) -> bool:
         """Test user login API"""
         try:
+            # FastAPI Users expects form-encoded data, not JSON
             login_data = {
                 "username": self.test_user_data["email"],  # FastAPI Users expects username field
                 "password": self.test_user_data["password"]
@@ -81,8 +82,8 @@ class BackendAPITestSuite:
             print(f"DEBUG: Sending login request with data: {login_data}")
             response = requests.post(
                 f"{self.base_url}/api/v1/auth/login",
-                json=login_data,
-                headers={"Content-Type": "application/json"},
+                data=login_data,  # Use data instead of json for form-encoded
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
                 timeout=10
             )
             print(f"DEBUG: Response status: {response.status_code}")
@@ -115,8 +116,8 @@ class BackendAPITestSuite:
                 "bedrooms": 3,
                 "bathrooms": 2,
                 "area_sqft": 1200,
-                "amenities": ["parking", "security", "gym"],
-                "features": ["balcony", "modular_kitchen", "wooden_flooring"]
+                "amenities": "parking, security, gym",  # API expects string
+                "features": ["balcony", "modular_kitchen", "wooden_flooring"]  # API expects list of strings
             }
             
             headers = {"Authorization": f"Bearer {self.auth_token}"}
@@ -127,10 +128,13 @@ class BackendAPITestSuite:
                 timeout=10
             )
             
-            if response.status_code == 201:
+            if response.status_code in [200, 201]:
                 property_response = response.json()
                 self.property_id = property_response.get("id")
-                return self.log_test("Create Property", "PASS", f"Property created with ID: {self.property_id}")
+                if self.property_id:
+                    return self.log_test("Create Property", "PASS", f"Property created with ID: {self.property_id}")
+                else:
+                    return self.log_test("Create Property", "FAIL", "Property created but no ID returned")
             else:
                 return self.log_test("Create Property", "FAIL", f"Status: {response.status_code}, Response: {response.text}")
         except Exception as e:
@@ -168,6 +172,7 @@ class BackendAPITestSuite:
             
             post_data = {
                 "property_id": self.property_id,
+                "agent_id": self.user_id,  # Add required agent_id field
                 "content": "Check out this amazing property! Perfect for families.",
                 "channels": ["facebook", "instagram"],
                 "language": "en",

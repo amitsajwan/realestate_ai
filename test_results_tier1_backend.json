@@ -1,23 +1,23 @@
 {
-  "passed": 2,
-  "failed": 8,
-  "duration": 0.05164289474487305,
-  "success_rate": 20.0,
+  "passed": 7,
+  "failed": 3,
+  "duration": 0.11232948303222656,
+  "success_rate": 70.0,
   "results": {
     "health_check": true,
     "user_registration": true,
-    "user_login": false,
-    "create_property": false,
-    "verify_property": false,
-    "create_social_post": false,
+    "user_login": true,
+    "create_property": true,
+    "verify_property": true,
+    "create_social_post": true,
     "get_user_properties": false,
     "get_social_drafts": false,
     "search_properties": false,
-    "cleanup": false
+    "cleanup": true
   },
   "test_data": {
-    "user_id": "68cfc218fc045d722751cd0b",
-    "property_id": null,
+    "user_id": "68cfc6bd6e0cbed2d1dc8b4e",
+    "property_id": "68cfc6bd6e0cbed2d1dc8b4f",
     "post_id": null
   }
 }
