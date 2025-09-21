@@ -45,8 +45,11 @@ test.describe('PropertyAI Working E2E Tests', () => {
     await page.goto('/analytics');
     await expect(page).toHaveTitle(/PropertyAI/);
     
-    // Natural Language: "Check that the page loaded"
-    await expect(page.locator('body')).toBeVisible();
+    // Natural Language: "Wait for the page to fully load"
+    await page.waitForLoadState('networkidle');
+    
+    // Natural Language: "Check that the page has content"
+    await expect(page.locator('h1')).toBeVisible();
     
     // Natural Language: "Check that there's an analytics heading"
     await expect(page.locator('text=Analytics Dashboard')).toBeVisible();

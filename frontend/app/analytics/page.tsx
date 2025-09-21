@@ -1,5 +1,5 @@
 import React from 'react';
-import { BusinessDashboard } from '@/components/analytics/BusinessDashboard';
+import BusinessDashboard from '@/components/analytics/BusinessDashboard';
 
 export default function AnalyticsPage() {
   return (
