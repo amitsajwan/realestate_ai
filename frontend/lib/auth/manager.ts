@@ -27,11 +27,11 @@ export class AuthManager {
     private refreshRetryDelay = 1000;
     private maxApiRetries = 3;
     private apiRetryDelay = 1000;
+    private isInitialized = false;
 
     constructor() {
-        if (typeof window !== 'undefined') {
-            this.init();
-        }
+        // Don't auto-initialize in constructor to prevent double initialization
+        // Initialization should be called explicitly when needed
     }
 
     /**
@@ -59,7 +59,14 @@ export class AuthManager {
      * Initialize authentication manager
      */
     async init(): Promise<void> {
+        // Prevent multiple initializations
+        if (this.isInitialized) {
+            logger.debug('[AuthManager] Already initialized, skipping');
+            return;
+        }
+
         try {
+            this.isInitialized = true;
             this.setState({ isLoading: true, error: null });
 
             // Check for stored token
@@ -91,6 +98,7 @@ export class AuthManager {
         } catch (error) {
             logger.error('[AuthManager] Init error', { errorDetails: error instanceof Error ? error.message : String(error) });
             this.setState({ isLoading: false, error: 'Authentication initialization failed' });
+            this.isInitialized = false; // Reset on error to allow retry
         }
     }
 
@@ -268,6 +276,7 @@ export class AuthManager {
                 );
 
                 if (result) {
+                    // Backend returns OnboardingComplete object with user_id and message
                     // Update local state to mark onboarding as completed
                     const updatedUserData = {
                         ...currentState.user,
@@ -290,19 +299,37 @@ export class AuthManager {
                     return { success: true, user: updatedUserData };
                 }
             } else {
-                // Update onboarding step
-                const updateData: any = {
-                    step: step,
-                    onboarding_step: step
-                };
+                // Update onboarding step - backend expects {step_number: int, data: dict}
+                const stepData: any = {};
 
                 // Add form data if provided
                 if (formData) {
-                    if (formData.first_name) updateData.first_name = formData.first_name;
-                    if (formData.last_name) updateData.last_name = formData.last_name;
-                    if (formData.phone) updateData.phone = formData.phone;
-                    if (formData.company) updateData.company = formData.company;
+                    if (formData.first_name) stepData.first_name = formData.first_name;
+                    if (formData.last_name) stepData.last_name = formData.last_name;
+                    if (formData.phone) stepData.phone = formData.phone;
+                    if (formData.company) stepData.company = formData.company;
+                    if (formData.position) stepData.position = formData.position;
+                    if (formData.licenseNumber) stepData.licenseNumber = formData.licenseNumber;
+                    if (formData.businessType) stepData.businessType = formData.businessType;
+                    if (formData.targetAudience) stepData.targetAudience = formData.targetAudience;
+                    if (formData.aiStyle) stepData.aiStyle = formData.aiStyle;
+                    if (formData.aiTone) stepData.aiTone = formData.aiTone;
+                    if (formData.facebookPage) stepData.facebookPage = formData.facebookPage;
+                    if (formData.termsAccepted) stepData.termsAccepted = formData.termsAccepted;
+                    if (formData.privacyAccepted) stepData.privacyAccepted = formData.privacyAccepted;
+                    if (formData.profilePhoto) stepData.profilePhoto = formData.profilePhoto;
+                    if (formData.preferences) stepData.preferences = formData.preferences;
+                    if (formData.brandStyle) stepData.brandStyle = formData.brandStyle;
+                    if (formData.brandPersonality) stepData.brandPersonality = formData.brandPersonality;
+                    if (formData.brandKeywords) stepData.brandKeywords = formData.brandKeywords;
+                    if (formData.brandInspiration) stepData.brandInspiration = formData.brandInspiration;
+                    if (formData.brandingSuggestions) stepData.brandingSuggestions = formData.brandingSuggestions;
                 }
+
+                const updateData = {
+                    step_number: step,
+                    data: stepData
+                };
 
                 logger.info(`[AuthManager] Updating onboarding step ${step} for user ${currentState.user.id}`);
                 const updatedUser = await this.retryApiCall(
@@ -310,8 +337,19 @@ export class AuthManager {
                 );
 
                 if (updatedUser) {
-                    // Update local state
-                    const updatedUserData = this.transformUserData(updatedUser);
+                    // Backend returns OnboardingStep object, not user object
+                    // We need to update the local user's onboarding_step and onboarding_data
+                    const stepNumber = (updatedUser as any).step_number || step;
+                    const stepData = (updatedUser as any).data || formData;
+
+                    const updatedUserData = {
+                        ...currentState.user,
+                        onboarding_step: stepNumber,
+                        onboarding_data: {
+                            ...(currentState.user?.onboarding_data || {}),
+                            [stepNumber]: stepData
+                        }
+                    };
 
                     this.setState({
                         user: updatedUserData,

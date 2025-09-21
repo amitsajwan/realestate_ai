@@ -7,7 +7,7 @@ import os
 import shutil
 import uuid
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request, Query
 from fastapi.responses import JSONResponse
 from typing import List
 import aiofiles
@@ -87,13 +87,30 @@ class FileUploadService:
     async def save_file(file: UploadFile, destination_path: Path) -> str:
         """Save uploaded file to disk"""
         try:
+            # Ensure directory exists
+            destination_path.parent.mkdir(parents=True, exist_ok=True)
+            
             async with aiofiles.open(destination_path, 'wb') as buffer:
                 content = await file.read()
+                if not content:
+                    raise ValueError("File is empty")
                 await buffer.write(content)
+            
+            # Verify file was written
+            if not destination_path.exists() or destination_path.stat().st_size == 0:
+                raise ValueError("File was not written correctly")
+                
+            logger.info(f"File saved successfully: {destination_path} ({destination_path.stat().st_size} bytes)")
             return str(destination_path)
         except Exception as e:
             logger.error(f"Error saving file {destination_path}: {e}")
-            raise HTTPException(status_code=500, detail="Failed to save file")
+            # Clean up partial file
+            if destination_path.exists():
+                try:
+                    destination_path.unlink()
+                except:
+                    pass
+            raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
 
     @staticmethod
     async def process_image(image_path: Path) -> dict:
@@ -133,7 +150,7 @@ class FileUploadService:
 async def upload_property_images(
     request: Request,
     files: List[UploadFile] = File(...),
-    property_id: str = None,
+    property_id: str = Query(None, description="Property ID to associate images with"),
     agent_id: str = Depends(get_current_user_id)
 ):
     """Upload property images"""
@@ -149,35 +166,47 @@ async def upload_property_images(
     uploaded_files = []
 
     for file in files:
-        # Validate file
-        FileUploadService.validate_image_file(file)
+        try:
+            logger.info(f"Processing file upload: {file.filename} for property {property_id}")
+            
+            # Validate file
+            FileUploadService.validate_image_file(file)
 
-        # Generate unique filename
-        unique_filename = FileUploadService.generate_unique_filename(file.filename)
-        file_path = IMAGES_DIR / unique_filename
+            # Generate unique filename
+            unique_filename = FileUploadService.generate_unique_filename(file.filename)
+            file_path = IMAGES_DIR / unique_filename
 
-        # Save file
-        await FileUploadService.save_file(file, file_path)
+            # Save file
+            await FileUploadService.save_file(file, file_path)
+            logger.info(f"File saved successfully: {file_path}")
 
-        # Process image
-        image_info = await FileUploadService.process_image(file_path)
+            # Process image
+            image_info = await FileUploadService.process_image(file_path)
+            logger.info(f"Image processed: {image_info}")
 
-        # Create file record
-        file_record = {
-            "id": str(uuid.uuid4()),
-            "filename": unique_filename,
-            "original_name": file.filename,
-            "url": f"/uploads/images/{unique_filename}",
-            "thumbnail_url": f"/uploads/images/thumb_{unique_filename}" if image_info["thumbnail_path"] else None,
-            "content_type": file.content_type,
-            "size": file.size,
-            "property_id": property_id,
-            "agent_id": agent_id,
-            "uploaded_at": "2024-01-01T00:00:00Z",  # Would be datetime.utcnow() in real implementation
-            **image_info
-        }
+            # Create file record
+            base_url = str(request.base_url).rstrip('/')
+            file_record = {
+                "id": str(uuid.uuid4()),
+                "filename": unique_filename,
+                "original_name": file.filename,
+                "url": f"{base_url}/uploads/images/{unique_filename}",
+                "thumbnail_url": f"{base_url}/uploads/images/thumb_{unique_filename}" if image_info["thumbnail_path"] else None,
+                "content_type": file.content_type,
+                "size": file.size,
+                "property_id": property_id,
+                "agent_id": agent_id,
+                "uploaded_at": "2024-01-01T00:00:00Z",  # Would be datetime.utcnow() in real implementation
+                **image_info
+            }
 
-        uploaded_files.append(file_record)
+            uploaded_files.append(file_record)
+            logger.info(f"File record created successfully for {file.filename}")
+            
+        except Exception as e:
+            logger.error(f"Failed to process file {file.filename}: {str(e)}")
+            # Continue with other files instead of failing the entire upload
+            continue
 
     return JSONResponse(content={
         "success": True,
@@ -190,7 +219,7 @@ async def upload_property_images(
 async def upload_documents(
     request: Request,
     files: List[UploadFile] = File(...),
-    property_id: str = None,
+    property_id: str = Query(None, description="Property ID to associate documents with"),
     agent_id: str = Depends(get_current_user_id)
 ):
     """Upload property documents"""
@@ -211,11 +240,12 @@ async def upload_documents(
         await FileUploadService.save_file(file, file_path)
 
         # Create file record
+        base_url = str(request.base_url).rstrip('/')
         file_record = {
             "id": str(uuid.uuid4()),
             "filename": unique_filename,
             "original_name": file.filename,
-            "url": f"/uploads/documents/{unique_filename}",
+            "url": f"{base_url}/uploads/documents/{unique_filename}",
             "content_type": file.content_type,
             "size": file.size,
             "property_id": property_id,

@@ -101,7 +101,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
       console.log('[Onboarding] Step changed from parent:', initialStep);
       setCurrentStep(initialStep);
     }
-  }, [initialStep, currentStep]);
+  }, [initialStep]); // Remove currentStep from dependencies to prevent infinite loop
 
   // Update form data when user object changes (e.g., from server refresh)
   useEffect(() => {

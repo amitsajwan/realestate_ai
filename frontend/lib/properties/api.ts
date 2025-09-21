@@ -5,9 +5,8 @@
  * This file is kept for backward compatibility
  */
 
-import { apiClient } from '../api/unified-client';
 import { authManager } from '@/lib/auth';
-import { AIPropertySuggestion, PropertiesResponse, PropertyCreate, PropertyResponse, PropertyUpdate, PublishingRequest, PublishingStatusResponse } from './types';
+import { PropertiesResponse, PropertyCreate, PropertyResponse, PropertyUpdate, PublishingRequest, PublishingStatusResponse } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -118,19 +117,41 @@ class PropertiesAPI {
     /**
      * Get AI suggestions for a property
      */
-    async getAIPropertySuggestions(propertyId: string, data: any): Promise<{ success: boolean; data?: AIPropertySuggestion; error?: string }> {
-        const response = await fetch(`${this.baseUrl}/api/v1/properties/${propertyId}/ai-suggestions`, {
-            method: 'POST',
-            headers: this.getAuthHeaders(),
-            body: JSON.stringify(data)
-        });
+    async getAIPropertySuggestions(propertyId: string, data: any): Promise<{ success: boolean; suggestions?: any; error?: string; generated_at?: string }> {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/v1/properties/${propertyId}/ai-suggestions`, {
+                method: 'POST',
+                headers: this.getAuthHeaders(),
+                body: JSON.stringify(data)
+            });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.detail || `Get AI suggestions failed: ${response.status}`);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+
+                // Handle specific error cases
+                if (response.status === 401) {
+                    throw new Error('Authentication required. Please log in to use AI features.');
+                } else if (response.status === 403) {
+                    throw new Error('Access denied. You do not have permission to use AI features.');
+                } else if (response.status === 500) {
+                    throw new Error('Server error. AI service is temporarily unavailable.');
+                } else {
+                    throw new Error(errorData.detail || `AI suggestions failed: ${response.status}`);
+                }
+            }
+
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('AI suggestions API error:', error);
+
+            // Re-throw with better error message
+            if (error instanceof Error) {
+                throw error;
+            } else {
+                throw new Error('Network error. Please check your connection and try again.');
+            }
         }
-
-        return response.json();
     }
 
     /**

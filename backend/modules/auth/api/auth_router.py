@@ -42,12 +42,16 @@ def initialize_auth_module(secret_key: str, algorithm: str, lifetime_seconds: in
     # Create auth backend
     auth_backend = auth_service.create_auth_backend(user_manager)
     
-    # Create FastAPI Users
-    fastapi_users = auth_service.create_fastapi_users(auth_backend, user_manager)
+    # Create proper get_user_manager dependency function first
+    async def get_user_manager():
+        """Get user manager instance"""
+        yield user_manager
+    
+    # Create FastAPI Users with the dependency function
+    fastapi_users = auth_service.create_fastapi_users(auth_backend, get_user_manager)
     
     # Set up dependencies
     current_active_user = fastapi_users.current_user(active=True)
-    get_user_manager = lambda: user_manager
     
     # Include FastAPI Users routes
     router.include_router(

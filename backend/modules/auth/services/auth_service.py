@@ -44,9 +44,9 @@ class AuthService:
             get_strategy=lambda: jwt_strategy,
         )
     
-    def create_fastapi_users(self, auth_backend, user_manager):
+    def create_fastapi_users(self, auth_backend, get_user_manager_func):
         """Create FastAPI Users instance"""
-        return FastAPIUsers[User, PydanticObjectId](user_manager, [auth_backend])
+        return FastAPIUsers[User, PydanticObjectId](get_user_manager_func, [auth_backend])
 
 
 class UserManager(BaseUserManager[User, PydanticObjectId]):

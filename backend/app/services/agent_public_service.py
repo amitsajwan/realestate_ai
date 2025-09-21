@@ -17,6 +17,7 @@ from app.schemas.agent_public import (
 )
 import logging
 from datetime import datetime
+from bson import ObjectId
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +156,48 @@ class AgentPublicService:
         
         return filtered
     
+    async def get_agent_by_user_id(self, user_id: str) -> Optional[AgentPublicProfile]:
+        """Get agent profile by user ID"""
+        try:
+            agents_collection = self.db.get_collection("agent_public_profiles")
+            # First try to find by user_id field
+            agent_doc = await agents_collection.find_one({"user_id": user_id})
+            
+            # If not found by user_id, try to find by agent_id (since user_id might be used as agent_id)
+            if not agent_doc:
+                agent_doc = await agents_collection.find_one({"agent_id": user_id})
+            
+            if not agent_doc:
+                return None
+            
+            # Create profile from database
+            profile = AgentPublicProfile(
+                id=str(agent_doc.get("_id", "")),
+                agent_id=agent_doc.get("agent_id", ""),
+                agent_name=agent_doc.get("agent_name", ""),
+                slug=agent_doc.get("slug", ""),
+                bio=agent_doc.get("bio", ""),
+                photo=agent_doc.get("photo", ""),
+                phone=agent_doc.get("phone", ""),
+                email=agent_doc.get("email", ""),
+                office_address=agent_doc.get("office_address", ""),
+                specialties=agent_doc.get("specialties", []),
+                experience=agent_doc.get("experience", ""),
+                languages=agent_doc.get("languages", []),
+                is_active=agent_doc.get("is_active", True),
+                is_public=agent_doc.get("is_public", True),
+                created_at=agent_doc.get("created_at", datetime.now()),
+                updated_at=agent_doc.get("updated_at", datetime.now()),
+                view_count=agent_doc.get("view_count", 0),
+                contact_count=agent_doc.get("contact_count", 0)
+            )
+            
+            return profile
+            
+        except Exception as e:
+            logger.error(f"Error getting agent by user ID {user_id}: {e}")
+            return None
+
     async def get_agent_by_slug(self, slug: str) -> Optional[AgentPublicProfile]:
         """Get agent public profile by slug"""
         try:
@@ -285,6 +328,47 @@ class AgentPublicService:
             return None
         except Exception as e:
             logger.error(f"Error getting agent by ID {agent_id}: {e}")
+            return None
+    
+    async def get_agent_by_user_id(self, user_id: str) -> Optional[AgentPublicProfile]:
+        """Get agent profile by user ID"""
+        try:
+            agents_collection = self.db.get_collection("agent_public_profiles")
+            # First try to find by user_id field
+            agent_doc = await agents_collection.find_one({"user_id": user_id})
+            
+            # If not found by user_id, try to find by agent_id (since user_id might be used as agent_id)
+            if not agent_doc:
+                agent_doc = await agents_collection.find_one({"agent_id": user_id})
+            
+            if not agent_doc:
+                return None
+            
+            # Create profile from database
+            profile = AgentPublicProfile(
+                id=str(agent_doc.get("_id", "")),
+                agent_id=agent_doc.get("agent_id", ""),
+                agent_name=agent_doc.get("agent_name", ""),
+                slug=agent_doc.get("slug", ""),
+                bio=agent_doc.get("bio", ""),
+                photo=agent_doc.get("photo", ""),
+                phone=agent_doc.get("phone", ""),
+                email=agent_doc.get("email", ""),
+                is_active=agent_doc.get("is_active", True),
+                is_public=agent_doc.get("is_public", False),
+                created_at=agent_doc.get("created_at"),
+                updated_at=agent_doc.get("updated_at")
+            )
+            
+            # Fetch properties for this agent
+            properties = await self._get_agent_properties_from_db(profile.agent_id)
+            # Add properties to the profile
+            profile_dict = profile.model_dump()
+            profile_dict['properties'] = [prop.model_dump() for prop in properties]
+            return AgentPublicProfile(**profile_dict)
+            
+        except Exception as e:
+            logger.error(f"Error getting agent by user ID {user_id}: {e}")
             return None
     
     async def create_agent_profile(self, agent_id: str, profile_data) -> Optional[AgentPublicProfile]:
@@ -436,6 +520,251 @@ class AgentPublicService:
             logger.error(f"Error getting agent property: {e}")
             return None
     
+    async def get_agent_posts(self, agent_id: str, status: str = "published", limit: int = 6, skip: int = 0) -> List[dict]:
+        """Get agent's posts from both regular posts and social posts collections"""
+        try:
+            logger.info(f"DEBUG: Getting agent posts for agent_id: {agent_id}, status: {status}")
+            result = []
+            
+            # For consistency, also check if there are posts with the user_id as agent_id
+            # This handles the case where social posts use user_id as agent_id
+            user_id_as_agent_id = agent_id
+            
+            # Get posts from regular posts collection
+            posts_collection = self.db.posts
+            posts_query = {
+                "agent_id": agent_id,
+                "status": status
+            }
+            logger.info(f"DEBUG: Regular posts query: {posts_query}")
+            
+            posts_cursor = posts_collection.find(posts_query).sort("created_at", -1).skip(skip).limit(limit)
+            posts = await posts_cursor.to_list(length=limit)
+            logger.info(f"DEBUG: Found {len(posts)} regular posts")
+            
+            for post in posts:
+                result.append({
+                    "id": str(post.get("_id", "")),
+                    "title": post.get("title", ""),
+                    "content": post.get("content", ""),
+                    "status": post.get("status", ""),
+                    "created_at": post.get("created_at"),
+                    "media_urls": post.get("media_urls", []),
+                    "channels": post.get("channels", ["website"]),  # Default to website for regular posts
+                    "property_title": post.get("property_title", ""),  # Add property context
+                    "language": post.get("language", "en")  # Add language field
+                })
+            
+            # Get posts from social posts collection
+            social_posts_collection = self.db.social_posts
+            
+            # Try to find posts with the current agent_id first
+            social_posts_query = {
+                "agent_id": agent_id,
+                "status": status
+            }
+            logger.info(f"DEBUG: Social posts query (primary): {social_posts_query}")
+            
+            social_posts_cursor = social_posts_collection.find(social_posts_query).sort("published_at", -1).skip(skip).limit(limit)
+            social_posts = await social_posts_cursor.to_list(length=limit)
+            logger.info(f"DEBUG: Found {len(social_posts)} social posts with primary agent_id")
+            
+            # If no posts found with primary agent_id, try with user_id as agent_id
+            if len(social_posts) == 0:
+                # Check if the agent_id looks like a user_id (ObjectId format)
+                from bson import ObjectId
+                try:
+                    # Try to convert agent_id to ObjectId to see if it's a user_id
+                    user_obj_id = ObjectId(agent_id)
+                    
+                    # Query social posts with user_id as agent_id
+                    user_posts_query = {
+                        "agent_id": user_obj_id,
+                        "status": status
+                    }
+                    logger.info(f"DEBUG: Social posts query (user_id): {user_posts_query}")
+                    
+                    user_posts_cursor = social_posts_collection.find(user_posts_query).sort("published_at", -1).skip(skip).limit(limit)
+                    user_posts = await user_posts_cursor.to_list(length=limit)
+                    logger.info(f"DEBUG: Found {len(user_posts)} social posts with user_id as agent_id")
+                    
+                    social_posts = user_posts
+                except:
+                    logger.info(f"DEBUG: Agent_id {agent_id} is not a valid ObjectId, skipping user_id lookup")
+            
+            for post in social_posts:
+                # Get the draft to get title and content
+                draft_id = post.get("draft_id")
+                title = "Social Media Post"
+                content = "Published social media content"
+                
+                if draft_id:
+                    try:
+                        # Try to get draft details from social_drafts collection
+                        drafts_collection = self.db.social_drafts
+                        draft = await drafts_collection.find_one({"_id": draft_id})
+                        if draft:
+                            title = draft.get("title", "Social Media Post")
+                            content = draft.get("body", "Published social media content")
+                    except Exception as e:
+                        logger.warning(f"Could not fetch draft details for {draft_id}: {e}")
+                
+                # Enhance content for better social media appearance
+                enhanced_title = title if title != "Social Media Post" else "🏠 New Property Alert!"
+                enhanced_content = content if content != "Published social media content" else "Discover this amazing property opportunity! Perfect for investment or your dream home. Don't miss out!"
+                
+                result.append({
+                    "id": str(post.get("_id", "")),
+                    "title": enhanced_title,
+                    "content": enhanced_content,
+                    "status": post.get("status", ""),
+                    "created_at": post.get("published_at", post.get("created_at")),
+                    "media_urls": [],  # Social posts don't have media_urls in the same format
+                    "channels": [post.get("platform", "social")],  # Add channels field with platform
+                    "property_title": "Beautiful Property in Prime Location",  # Add property context
+                    "language": "en"  # Add language field
+                })
+            
+            # Sort all results by created_at/published_at and apply limit
+            result.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+            logger.info(f"DEBUG: Returning {len(result[:limit])} total posts")
+            return result[:limit]
+        
+        except Exception as e:
+            logger.error(f"Error getting agent posts: {e}")
+            return []
+
+    async def get_agent_post(self, agent_id: str, post_id: str, status: str = "published") -> Optional[dict]:
+        """Get a single agent post by ID from both regular posts and social posts collections"""
+        try:
+            logger.info(f"DEBUG: Getting agent post for agent_id: {agent_id}, post_id: {post_id}, status: {status}")
+            
+            # Try to find post in regular posts collection
+            posts_collection = self.db.posts
+            posts_query = {
+                "_id": ObjectId(post_id),
+                "agent_id": agent_id,
+                "status": status
+            }
+            logger.info(f"DEBUG: Regular posts query: {posts_query}")
+            
+            post = await posts_collection.find_one(posts_query)
+            if post:
+                logger.info(f"DEBUG: Found post in regular posts collection")
+                return {
+                    "id": str(post.get("_id", "")),
+                    "title": post.get("title", ""),
+                    "content": post.get("content", ""),
+                    "status": post.get("status", ""),
+                    "created_at": post.get("created_at"),
+                    "media_urls": post.get("media_urls", []),
+                    "channels": post.get("channels", ["website"]),
+                    "property_title": post.get("property_title", ""),
+                    "language": post.get("language", "en")
+                }
+            
+            # Try to find post in social posts collection
+            social_posts_collection = self.db.social_posts
+            social_posts_query = {
+                "_id": ObjectId(post_id),
+                "agent_id": agent_id,
+                "status": status
+            }
+            logger.info(f"DEBUG: Social posts query: {social_posts_query}")
+            
+            social_post = await social_posts_collection.find_one(social_posts_query)
+            if social_post:
+                logger.info(f"DEBUG: Found post in social posts collection")
+                
+                # Try to get enhanced content from draft if available
+                title = "Social Media Post"
+                content = "Published social media content"
+                draft_id = social_post.get("draft_id")
+                
+                if draft_id:
+                    try:
+                        drafts_collection = self.db.social_drafts
+                        draft = await drafts_collection.find_one({"_id": draft_id})
+                        if draft:
+                            title = draft.get("title", "Social Media Post")
+                            content = draft.get("body", "Published social media content")
+                    except Exception as e:
+                        logger.warning(f"Could not fetch draft details for {draft_id}: {e}")
+                
+                # Enhance content for better social media appearance
+                enhanced_title = title if title != "Social Media Post" else "🏠 New Property Alert!"
+                enhanced_content = content if content != "Published social media content" else "Discover this amazing property opportunity! Perfect for investment or your dream home. Don't miss out!"
+                
+                return {
+                    "id": str(social_post.get("_id", "")),
+                    "title": enhanced_title,
+                    "content": enhanced_content,
+                    "status": social_post.get("status", ""),
+                    "created_at": social_post.get("published_at", social_post.get("created_at")),
+                    "media_urls": [],
+                    "channels": [social_post.get("platform", "social")],
+                    "property_title": "Beautiful Property in Prime Location",
+                    "language": "en"
+                }
+            
+            # If still not found, try with user_id as agent_id for social posts
+            # Check if the agent_id looks like a user_id (ObjectId format)
+            try:
+                # Try to convert agent_id to ObjectId to see if it's a user_id
+                user_obj_id = ObjectId(agent_id)
+                
+                # Query social posts with user_id as agent_id
+                social_posts_query_user = {
+                    "_id": ObjectId(post_id),
+                    "agent_id": user_obj_id,
+                    "status": status
+                }
+                logger.info(f"DEBUG: Social posts query (user_id fallback): {social_posts_query_user}")
+                
+                social_post_user = await social_posts_collection.find_one(social_posts_query_user)
+                if social_post_user:
+                    logger.info(f"DEBUG: Found post in social posts collection with user_id fallback")
+                    
+                    # Try to get enhanced content from draft if available
+                    title = "Social Media Post"
+                    content = "Published social media content"
+                    draft_id = social_post_user.get("draft_id")
+                    
+                    if draft_id:
+                        try:
+                            drafts_collection = self.db.social_drafts
+                            draft = await drafts_collection.find_one({"_id": draft_id})
+                            if draft:
+                                title = draft.get("title", "Social Media Post")
+                                content = draft.get("body", "Published social media content")
+                        except Exception as e:
+                            logger.warning(f"Could not fetch draft details for {draft_id}: {e}")
+                    
+                    # Enhance content for better social media appearance
+                    enhanced_title = title if title != "Social Media Post" else "🏠 New Property Alert!"
+                    enhanced_content = content if content != "Published social media content" else "Discover this amazing property opportunity! Perfect for investment or your dream home. Don't miss out!"
+                    
+                    return {
+                        "id": str(social_post_user.get("_id", "")),
+                        "title": enhanced_title,
+                        "content": enhanced_content,
+                        "status": social_post_user.get("status", ""),
+                        "created_at": social_post_user.get("published_at", social_post_user.get("created_at")),
+                        "media_urls": [],
+                        "channels": [social_post_user.get("platform", "social")],
+                        "property_title": "Beautiful Property in Prime Location",
+                        "language": "en"
+                    }
+            except Exception as e:
+                logger.warning(f"Could not convert agent_id to ObjectId: {e}")
+            
+            logger.warning(f"DEBUG: No post found with ID {post_id} for agent {agent_id}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error getting agent post: {e}")
+            return None
+
     async def create_contact_inquiry(self, agent_id: str, inquiry_data: ContactInquiryCreate) -> Optional[ContactInquiry]:
         """Create contact inquiry"""
         try:

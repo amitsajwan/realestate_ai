@@ -1,6 +1,7 @@
 'use client'
 
 import React, { memo, useMemo } from 'react'
+import { Post } from '../../types/post'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import {
@@ -18,24 +19,8 @@ import { Card, CardBody, CardHeader } from './index'
 import ChannelBadge from './ChannelBadge'
 import StatusBadge from './StatusBadge'
 
-export interface Post {
-  id: string
-  title: string
-  content: string
-  property_id?: string
-  property_title?: string
-  language: string
-  channels: string[]
-  status: string
-  created_at: string
-  updated_at?: string
-  view_count?: number
-  like_count?: number
-  share_count?: number
-  comment_count?: number
-  agent_id?: string
-  published_at?: string
-}
+// Re-export for convenience
+export type { Post }
 
 interface UnifiedPostCardProps {
   post: Post
@@ -95,11 +80,11 @@ const UnifiedPostCard: React.FC<UnifiedPostCardProps> = memo(({
 
   // Memoize stats
   const stats = useMemo(() => [
-    { icon: EyeIcon, value: post.view_count || 0, label: 'views' },
-    { icon: HeartIcon, value: post.like_count || 0, label: 'likes' },
-    { icon: ShareIcon, value: post.share_count || 0, label: 'shares' },
-    { icon: ChatBubbleLeftRightIcon, value: post.comment_count || 0, label: 'comments' }
-  ], [post.view_count, post.like_count, post.share_count, post.comment_count])
+    { icon: EyeIcon, value: post.analytics?.views || 0, label: 'views' },
+    { icon: HeartIcon, value: post.analytics?.likes || 0, label: 'likes' },
+    { icon: ShareIcon, value: post.analytics?.shares || 0, label: 'shares' },
+    { icon: ChatBubbleLeftRightIcon, value: post.analytics?.comments || 0, label: 'comments' }
+  ], [post.analytics?.views, post.analytics?.likes, post.analytics?.shares, post.analytics?.comments])
 
   if (variant === 'public') {
     return (

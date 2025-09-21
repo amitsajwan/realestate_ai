@@ -411,3 +411,59 @@ def setup_additional_endpoints(app: FastAPI):
                 "success": False,
                 "error": str(e)
             }
+
+    @app.delete("/api/v1/admin/clear-database")
+    async def clear_database():
+        """Clear all data from the database - USE WITH CAUTION"""
+        try:
+            from app.core.database import get_database
+            db = get_database()
+            
+            # Clear all collections
+            collections_to_clear = [
+                'properties',
+                'smart_properties', 
+                'users',
+                'leads',
+                'agent_public_profiles',
+                'posts',
+                'post_analytics',
+                'post_templates',
+                'social_drafts',
+                'social_posts',
+                'facebook_pages',
+                'facebook_posts',
+                'facebook_campaigns',
+                'whatsapp_logs',
+                'team_members',
+                'team_invitations',
+                'audit_logs'
+            ]
+            
+            cleared_counts = {}
+            for collection_name in collections_to_clear:
+                try:
+                    collection = getattr(db, collection_name, None)
+                    if collection:
+                        count = await collection.count_documents({})
+                        if count > 0:
+                            result = await collection.delete_many({})
+                            cleared_counts[collection_name] = result.deleted_count
+                        else:
+                            cleared_counts[collection_name] = 0
+                    else:
+                        cleared_counts[collection_name] = "not_found"
+                except Exception as e:
+                    cleared_counts[collection_name] = f"error: {e}"
+            
+            return {
+                "success": True,
+                "message": "Database cleared successfully",
+                "cleared_counts": cleared_counts
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e)
+            }

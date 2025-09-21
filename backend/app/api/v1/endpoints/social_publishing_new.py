@@ -5,8 +5,6 @@ API endpoints for social media publishing workflow
 """
 
 import logging
-import time
-import uuid
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
 from datetime import datetime
@@ -23,54 +21,6 @@ from app.core.database import get_database
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 logger = logging.getLogger(__name__)
-
-class SocialPublishingAPILogger:
-    """Structured logging for social publishing API operations"""
-    
-    @staticmethod
-    def log_api_request(operation: str, user_id: str, request_data: Dict[str, Any], request_id: str = None):
-        """Log API request start"""
-        logger.info(
-            f"SOCIAL_PUBLISHING_API_{operation.upper()}_START",
-            extra={
-                "operation": operation,
-                "request_id": request_id,
-                "user_id": user_id,
-                "request_data": request_data,
-                "timestamp": datetime.utcnow().isoformat()
-            }
-        )
-    
-    @staticmethod
-    def log_api_success(operation: str, user_id: str, response_data: Dict[str, Any], processing_time_ms: float, request_id: str = None):
-        """Log API success"""
-        logger.info(
-            f"SOCIAL_PUBLISHING_API_{operation.upper()}_SUCCESS",
-            extra={
-                "operation": operation,
-                "request_id": request_id,
-                "user_id": user_id,
-                "response_data": response_data,
-                "processing_time_ms": round(processing_time_ms, 2),
-                "timestamp": datetime.utcnow().isoformat()
-            }
-        )
-    
-    @staticmethod
-    def log_api_error(operation: str, user_id: str, error: Exception, processing_time_ms: float, request_id: str = None):
-        """Log API error"""
-        logger.error(
-            f"SOCIAL_PUBLISHING_API_{operation.upper()}_ERROR",
-            extra={
-                "operation": operation,
-                "request_id": request_id,
-                "user_id": user_id,
-                "error_type": type(error).__name__,
-                "error_message": str(error),
-                "processing_time_ms": round(processing_time_ms, 2),
-                "timestamp": datetime.utcnow().isoformat()
-            }
-        )
 router = APIRouter(tags=["social-publishing"])
 
 def get_social_publishing_service(db: AsyncIOMotorDatabase = Depends(get_database)) -> SocialPublishingService:
@@ -84,79 +34,35 @@ async def generate_content(
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """Generate AI content for social media posts"""
-    request_id = str(uuid.uuid4())
-    start_time = time.time()
-    
     try:
-        # Log API request
-        SocialPublishingAPILogger.log_api_request(
-            "generate_content",
-            str(current_user.id),
-            {
-                "property_id": request.property_id,
-                "language": request.language,
-                "channels": [ch.value for ch in request.channels],
-                "tone": request.tone,
-                "length": request.length
-            },
-            request_id
-        )
-        
-        # Get the correct agent_id for this user from the agent profile
-        from app.services.agent_public_service import AgentPublicService
-        agent_service = AgentPublicService(db)
-        
-        # Look up the agent profile by user_id to get the correct agent_id
-        agent = await agent_service.get_agent_by_user_id(str(current_user.id))
-        
-        if agent:
-            agent_id = agent.agent_id
-            logger.info(f"Found agent profile, using agent_id: {agent_id}")
-        else:
-            # Fallback to user_id if no agent profile exists
-            agent_id = str(current_user.id)
-            logger.info(f"No agent profile found, using user_id as agent_id: {agent_id}")
+        logger.info(f"Generating content for property {request.property_id}")
         
         service = get_social_publishing_service(db)
-        drafts = await service.generate_content(request, agent_id)
+        drafts = await service.generate_content(request, str(current_user.id))
         
         # Transform to response format
         transformed_drafts = []
         for draft in drafts:
             transformed_drafts.append({
                 "id": str(draft.id),
-                "property_id": str(draft.property_id),
+                "propertyId": str(draft.property_id),
                 "language": draft.language,
                 "channel": draft.channel,
                 "title": draft.title,
                 "body": draft.body,
                 "hashtags": draft.hashtags,
-                "media_ids": draft.media_ids,
-                "contact_included": draft.contact_included,
+                "mediaIds": draft.media_ids,
+                "contactIncluded": draft.contact_included,
                 "status": draft.status,
-                "created_at": draft.created_at.isoformat(),
-                "updated_at": draft.updated_at.isoformat()
+                "createdAt": draft.created_at.isoformat(),
+                "updatedAt": draft.updated_at.isoformat()
             })
         
-        # Log API success
-        processing_time = time.time() - start_time
-        SocialPublishingAPILogger.log_api_success(
-            "generate_content",
-            str(current_user.id),
-            {
-                "drafts_count": len(transformed_drafts),
-                "language": request.language,
-                "channels_generated": list(set(d["channel"] for d in transformed_drafts))
-            },
-            processing_time * 1000,
-            request_id
-        )
-        
+        logger.info(f"Generated {len(transformed_drafts)} drafts successfully")
         return GenerateContentResponse(drafts=transformed_drafts)
         
     except Exception as e:
-        processing_time = time.time() - start_time
-        SocialPublishingAPILogger.log_api_error("generate_content", str(current_user.id), e, processing_time * 1000, request_id)
+        logger.error(f"Error generating content: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to generate content: {str(e)}")
 
 @router.put("/draft/{draft_id}", response_model=AIDraft)
@@ -179,17 +85,17 @@ async def update_draft(
         # Transform to response format
         response_draft = {
             "id": str(draft.id),
-            "property_id": str(draft.property_id),
+            "propertyId": str(draft.property_id),
             "language": draft.language,
             "channel": draft.channel,
             "title": draft.title,
             "body": draft.body,
             "hashtags": draft.hashtags,
-            "media_ids": draft.media_ids,
-            "contact_included": draft.contact_included,
+            "mediaIds": draft.media_ids,
+            "contactIncluded": draft.contact_included,
             "status": draft.status,
-            "created_at": draft.created_at.isoformat(),
-            "updated_at": draft.updated_at.isoformat()
+            "createdAt": draft.created_at.isoformat(),
+            "updatedAt": draft.updated_at.isoformat()
         }
         
         logger.info(f"Draft {draft_id} updated successfully")
@@ -235,14 +141,14 @@ async def get_published_posts(
         for post in posts:
             transformed_posts.append({
                 "id": str(post.id),
-                "draft_id": str(post.draft_id),
-                "property_id": str(post.property_id),
+                "draftId": str(post.draft_id),
+                "propertyId": str(post.property_id),
                 "platform": post.platform,
-                "platform_post_id": post.platform_post_id,
-                "platform_post_url": post.platform_post_url,
+                "platformPostId": post.platform_post_id,
+                "platformPostUrl": post.platform_post_url,
                 "status": post.status,
-                "published_at": post.published_at.isoformat(),
-                "analytics_data": post.analytics_data
+                "publishedAt": post.published_at.isoformat(),
+                "analyticsData": post.analytics_data
             })
         
         return {"posts": transformed_posts}
@@ -281,17 +187,17 @@ async def get_drafts(
             
             transformed_draft = {
                 "id": str(draft.id),
-                "property_id": str(draft.property_id),
+                "propertyId": str(draft.property_id),
                 "language": draft.language,
                 "channel": draft.channel,
                 "title": draft.title,
                 "body": draft.body,
                 "hashtags": draft.hashtags,
-                "media_ids": draft.media_ids,
-                "contact_included": draft.contact_included,
+                "mediaIds": draft.media_ids,
+                "contactIncluded": draft.contact_included,
                 "status": draft.status,
-                "created_at": draft.created_at.isoformat(),
-                "updated_at": draft.updated_at.isoformat()
+                "createdAt": draft.created_at.isoformat(),
+                "updatedAt": draft.updated_at.isoformat()
             }
             language_groups[draft.language].append(transformed_draft)
         
@@ -299,7 +205,7 @@ async def get_drafts(
         response = []
         for language, drafts_list in language_groups.items():
             response.append({
-                "property_id": property_id,
+                "propertyId": property_id,
                 "language": language,
                 "drafts": drafts_list
             })

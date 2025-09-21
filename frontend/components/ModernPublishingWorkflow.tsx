@@ -2,10 +2,10 @@
 
 import { apiService } from '@/lib/api'
 import {
-    CheckCircleIcon,
-    DocumentTextIcon,
-    SparklesIcon,
-    TrashIcon
+  CheckCircleIcon,
+  DocumentTextIcon,
+  SparklesIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline'
 import { motion } from 'framer-motion'
 import { useState } from 'react'
@@ -86,7 +86,7 @@ export default function ModernPublishingWorkflow({ properties, onRefresh }: Mode
       const publishingStatusData = {
         property_id: response?.property_id || propertyId,
         publishing_status: response?.publishing_status || 'draft',
-  published_at: response?.published_at || undefined,
+        published_at: response?.published_at || undefined,
         published_channels: response?.published_channels || [],
         language_status: response?.language_status || {},
         facebook_posts: response?.facebook_posts || {},
@@ -102,7 +102,7 @@ export default function ModernPublishingWorkflow({ properties, onRefresh }: Mode
       setPublishingStatus({
         property_id: propertyId,
         publishing_status: 'draft',
-  published_at: undefined,
+        published_at: undefined,
         published_channels: [],
         language_status: {},
         facebook_posts: {},
@@ -134,7 +134,9 @@ export default function ModernPublishingWorkflow({ properties, onRefresh }: Mode
 
       const response = await apiService.publishProperty(selectedProperty.id, publishingRequest)
 
-      if (response) {
+      console.log('Publishing response:', response)
+
+      if (response && (response.success || response.publishing_status === 'published')) {
         toast.success('Property published successfully!')
         // Ensure the response has the expected structure
         const publishingStatusData = {
@@ -148,10 +150,21 @@ export default function ModernPublishingWorkflow({ properties, onRefresh }: Mode
         }
         setPublishingStatus(publishingStatusData)
         onRefresh()
+      } else {
+        console.error('Publishing response indicates failure:', response)
+        toast.error('Failed to publish property. Please try again.')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error publishing property:', error)
-      toast.error('Failed to publish property')
+
+      // Handle specific error types
+      if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+        toast.error('Please log in to publish properties.')
+      } else if (error.message?.includes('Network') || error.message?.includes('fetch')) {
+        toast.error('Network error. Please check your connection and try again.')
+      } else {
+        toast.error(`Failed to publish property: ${error.message || 'Unknown error'}. Please try again.`)
+      }
     } finally {
       setIsPublishing(false)
     }
@@ -230,8 +243,8 @@ export default function ModernPublishingWorkflow({ properties, onRefresh }: Mode
                   key={property.id}
                   whileHover={{ scale: 1.02 }}
                   className={`p-4 rounded-lg border cursor-pointer transition-all ${selectedProperty?.id === property.id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
                     }`}
                   onClick={() => handlePropertySelect(property)}
                 >

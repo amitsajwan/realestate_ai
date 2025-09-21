@@ -1,5 +1,6 @@
 'use client'
 
+import { authManager } from '@/lib/auth'
 import { socialPublishingAPI } from '@/lib/social_publishing/api'
 import { AIDraft, Channel, DraftStatus, PropertyContext } from '@/types/social_publishing'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -180,6 +181,13 @@ export default function MobilePublishingWorkflow({
     const handleGenerateContent = async () => {
         if (!state.selectedProperty) return
 
+        // Check if user is authenticated
+        const authState = authManager.getState()
+        if (!authState.isAuthenticated || !authState.user?.id) {
+            toast.error('Please log in to generate content')
+            return
+        }
+
         setState(prev => ({ ...prev, isGenerating: true, currentStep: 'generate' }))
 
         try {
@@ -197,23 +205,48 @@ export default function MobilePublishingWorkflow({
                     channels: state.quickSetup.platforms,
                     tone: state.quickSetup.style,
                     length: 'medium',
-                    agentId: 'current-user' // TODO: Get from auth context
+                    agentId: authState.user.id
                 }
 
                 const response = await socialPublishingAPI.generateContent(request)
 
                 // Store the first draft for this language (assuming one platform for simplicity)
                 if (response.drafts.length > 0) {
-                    newContent.set(language, response.drafts[0])
+                    const draft = response.drafts[0]
+                    console.log('Generated draft:', draft)
+                    console.log('Draft ID:', draft.id)
+
+                    // Automatically mark generated drafts as ready for immediate publishing
+                    // Update the draft status in the backend first
+                    let readyDraft = { ...draft, status: 'ready' as DraftStatus }
+                    if (draft.id) {
+                        try {
+                            console.log('Updating draft status to ready for ID:', draft.id)
+                            readyDraft = await socialPublishingAPI.updateDraft(draft.id, { status: 'ready' })
+                            console.log('Successfully updated draft status in backend')
+                        } catch (error) {
+                            console.error('Failed to mark draft as ready in backend:', error)
+                            // Continue with frontend state update even if backend fails
+                        }
+                    } else {
+                        console.error('Draft has no ID, cannot update backend status')
+                    }
+
+                    newContent.set(language, readyDraft)
                 }
             }
 
             // Merge with existing content
             const mergedContent = new Map([...state.generatedContent, ...newContent])
 
+            // Update readyDrafts array with newly generated ready drafts
+            const newReadyDrafts = Array.from(newContent.values()).filter(draft => draft.status === 'ready')
+            const updatedReadyDrafts = [...state.readyDrafts, ...newReadyDrafts]
+
             setState(prev => ({
                 ...prev,
                 generatedContent: mergedContent,
+                readyDrafts: updatedReadyDrafts,
                 isGenerating: false,
                 currentStep: 'review'
             }))
@@ -231,10 +264,14 @@ export default function MobilePublishingWorkflow({
     }
 
     const handleDraftUpdate = (language: string, draft: AIDraft) => {
-        setState(prev => ({
-            ...prev,
-            generatedContent: new Map(prev.generatedContent.set(language, draft))
-        }))
+        setState(prev => {
+            const newContent = new Map(prev.generatedContent)
+            newContent.set(language, draft)
+            return {
+                ...prev,
+                generatedContent: newContent
+            }
+        })
     }
 
     const handleMarkReady = async (language: string) => {
@@ -242,14 +279,17 @@ export default function MobilePublishingWorkflow({
         if (!draft?.id) return
 
         try {
-            await socialPublishingAPI.updateDraft(draft.id, { status: 'ready' })
+            const updatedDraft = await socialPublishingAPI.updateDraft(draft.id, { status: 'ready' })
 
-            const updatedDraft = { ...draft, status: 'ready' as DraftStatus }
-            setState(prev => ({
-                ...prev,
-                generatedContent: new Map(prev.generatedContent.set(language, updatedDraft)),
-                readyDrafts: [...prev.readyDrafts.filter(d => d.id !== draft.id), updatedDraft]
-            }))
+            setState(prev => {
+                const newContent = new Map(prev.generatedContent)
+                newContent.set(language, updatedDraft)
+                return {
+                    ...prev,
+                    generatedContent: newContent,
+                    readyDrafts: [...prev.readyDrafts.filter(d => d.id !== draft.id), updatedDraft]
+                }
+            })
 
             toast.success('Content marked as ready!')
         } catch (error) {
@@ -260,7 +300,13 @@ export default function MobilePublishingWorkflow({
 
     const handlePublish = async () => {
         const readyDrafts = state.readyDrafts.filter(d => d.status === 'ready')
-        if (readyDrafts.length === 0) return
+        console.log('Ready drafts for publishing:', readyDrafts)
+        console.log('Draft IDs being sent:', readyDrafts.map(d => d.id!).filter(Boolean))
+
+        if (readyDrafts.length === 0) {
+            console.log('No ready drafts found for publishing')
+            return
+        }
 
         try {
             await socialPublishingAPI.publishDrafts({

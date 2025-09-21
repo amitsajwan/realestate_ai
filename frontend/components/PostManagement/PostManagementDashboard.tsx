@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { usePostManagementStore } from '../../store/postManagementStore';
-import { Post, PostFilters } from '../../types/post';
+import { PostFilters } from '../../types/post';
+import { type Post } from '../UI/UnifiedPostCard';
 import PostCard from './PostCard';
 import PostCreationWizard from './PostCreationWizard';
 import PostFiltersPanel from './PostFiltersPanel';

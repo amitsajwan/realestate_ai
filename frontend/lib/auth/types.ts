@@ -16,6 +16,7 @@ export interface User {
     company: string | null;
     onboarding_completed: boolean;
     onboarding_step: number;
+    onboarding_data?: Record<string, any>;
     created_at: string;
     updated_at: string;
     last_login?: string | null;

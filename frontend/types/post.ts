@@ -1,6 +1,7 @@
 export interface Post {
     id: string;
     property_id: string;
+    property_title?: string;
     agent_id: string;
     title: string;
     content: string;

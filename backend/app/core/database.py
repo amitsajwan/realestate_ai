@@ -8,6 +8,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
 from app.models.user import User
 from app.models.post import Post, PostAnalytics, PostTemplate
+from app.models.social_draft import SocialDraft
+from app.models.social_post import SocialPost
 from app.core.config import settings
 import logging
 
@@ -32,7 +34,9 @@ async def init_database():
             User,
             Post,
             PostAnalytics,
-            PostTemplate
+            PostTemplate,
+            SocialDraft,
+            SocialPost
         ])
         
         logger.info("✅ Database initialized successfully")

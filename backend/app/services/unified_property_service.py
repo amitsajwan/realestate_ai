@@ -33,10 +33,7 @@ class UnifiedPropertyService:
     
     def _convert_doc_to_response(self, doc: dict) -> PropertyResponse:
         """Convert MongoDB document to PropertyResponse, handling ObjectId conversion"""
-        if doc and '_id' in doc:
-            doc['id'] = str(doc['_id'])
-            doc.pop('_id', None)  # Remove the ObjectId field
-        return PropertyResponse(**doc)
+        return PropertyResponse.from_mongo_doc(doc)
     
     async def create_property(
         self,

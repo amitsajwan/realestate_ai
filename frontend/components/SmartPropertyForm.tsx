@@ -156,12 +156,21 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
     setIsGeneratingAI(true)
     try {
       const formData = watch()
+
+      // Validate required fields before making API call
+      if (!formData.address || !formData.propertyType || !formData.bedrooms || !formData.bathrooms) {
+        toast.error('Please fill in all required fields (Address, Property Type, Bedrooms, Bathrooms) before generating AI content.')
+        return
+      }
+
       const processedData = {
         ...formData,
         bedrooms: Number(formData.bedrooms),
         bathrooms: Number(formData.bathrooms),
         area: Number(formData.area)
       }
+
+      console.log('Generating AI suggestions with data:', processedData)
 
       const response = await propertiesAPI.getAIPropertySuggestions('new', {
         address: processedData.address,
@@ -173,8 +182,8 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
         agent_profile: agentProfile
       })
 
-      if (response.success && response.data) {
-        const suggestions: any = response.data
+      if (response.success && response.suggestions) {
+        const suggestions: any = response.suggestions
         console.log('Raw AI suggestions response:', suggestions)
 
         const suggestion: AIPropertySuggestion = {
@@ -195,10 +204,23 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
         console.log('Processed AI suggestion:', suggestion)
         setAiSuggestions(suggestion)
         toast.success('AI suggestions generated successfully!')
+      } else {
+        console.error('AI suggestions response failed:', response)
+        toast.error(response.error || 'Failed to generate AI suggestions. Please try again.')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to generate AI suggestions:', error)
-      toast.error('Failed to generate AI suggestions. Please try again.')
+
+      // Handle specific error types
+      if (error.message?.includes('401') || error.message?.includes('Unauthorized') || error.message?.includes('Authentication required')) {
+        toast.error('Please log in to use AI content generation features.', {
+          duration: 5000
+        })
+      } else if (error.message?.includes('Network') || error.message?.includes('fetch')) {
+        toast.error('Network error. Please check your connection and try again.')
+      } else {
+        toast.error(`Failed to generate AI suggestions: ${error.message || 'Unknown error'}. Please try again.`)
+      }
     } finally {
       setIsGeneratingAI(false)
     }
@@ -371,13 +393,25 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
       console.log('Amenities type:', typeof propertyData.amenities, 'Value:', propertyData.amenities)
 
       const response = await propertiesAPI.createProperty(propertyData)
-      if (response.success) {
+      if (response.success && response.data) {
         toast.success('AI-powered property created successfully!')
+        console.log('Property created successfully, calling onSuccess callback')
         onSuccess?.()
+      } else {
+        console.error('Property creation failed:', response)
+        toast.error('Failed to create property. Please try again.')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create property:', error)
-      toast.error('Failed to create property. Please try again.')
+
+      // Handle specific error types
+      if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+        toast.error('Please log in to create properties.')
+      } else if (error.message?.includes('Network') || error.message?.includes('fetch')) {
+        toast.error('Network error. Please check your connection and try again.')
+      } else {
+        toast.error(`Failed to create property: ${error.message || 'Unknown error'}. Please try again.`)
+      }
     } finally {
       setIsLoading(false)
     }
@@ -786,35 +820,47 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
                 />
               </div>
 
-              <div className="flex space-x-4">
-                <button
-                  type="button"
-                  onClick={generateAISuggestions}
-                  disabled={isGeneratingAI}
-                  className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white py-3 px-6 rounded-xl font-semibold flex items-center justify-center space-x-2 transition-all duration-200"
-                >
-                  {isGeneratingAI ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Generating...</span>
-                    </>
-                  ) : (
-                    <>
-                      <SparklesIcon className="w-5 h-5" />
-                      <span>Generate AI Content</span>
-                    </>
-                  )}
-                </button>
-
-                {aiSuggestions && (
+              <div className="space-y-3">
+                <div className="flex space-x-4">
                   <button
                     type="button"
-                    onClick={applyAISuggestions}
-                    className="bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-xl font-semibold flex items-center space-x-2 transition-all duration-200"
+                    onClick={generateAISuggestions}
+                    disabled={isGeneratingAI || !watchedAddress || !watchedPropertyType}
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white py-3 px-6 rounded-xl font-semibold flex items-center justify-center space-x-2 transition-all duration-200"
                   >
-                    <CheckCircleIcon className="w-5 h-5" />
-                    <span>Apply</span>
+                    {isGeneratingAI ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Generating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <SparklesIcon className="w-5 h-5" />
+                        <span>Generate AI Content</span>
+                      </>
+                    )}
                   </button>
+
+                  {aiSuggestions && (
+                    <button
+                      type="button"
+                      onClick={applyAISuggestions}
+                      className="bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-xl font-semibold flex items-center space-x-2 transition-all duration-200"
+                    >
+                      <CheckCircleIcon className="w-5 h-5" />
+                      <span>Apply</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Help text for disabled button */}
+                {(!watchedAddress || !watchedPropertyType) && (
+                  <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center space-x-2">
+                    <LightBulbIcon className="w-4 h-4" />
+                    <span>
+                      Please fill in the address and property type in the previous steps to enable AI content generation.
+                    </span>
+                  </div>
                 )}
               </div>
             </div>

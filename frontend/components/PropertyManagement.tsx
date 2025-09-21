@@ -360,8 +360,10 @@ export default function PropertyManagement({ onAddProperty }: PropertyManagement
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {property.published_at
-                              ? new Date(property.published_at).toLocaleDateString()
+                            {property.publishing_status === 'published' || property.published_at
+                              ? property.published_at
+                                ? new Date(property.published_at).toLocaleDateString()
+                                : 'Published'
                               : 'Not published'
                             }
                           </td>
@@ -403,7 +405,15 @@ export default function PropertyManagement({ onAddProperty }: PropertyManagement
           >
             <MobilePublishingWorkflow
               properties={transformPropertiesForSocialPublishing(properties)}
-              onRefresh={loadProperties}
+              onRefresh={async () => {
+                console.log('Refreshing properties after publishing...')
+                await loadProperties()
+                // Force a small delay to ensure backend has updated
+                setTimeout(() => {
+                  console.log('Force refreshing properties again...')
+                  loadProperties()
+                }, 1000)
+              }}
             />
           </motion.div>
         )}

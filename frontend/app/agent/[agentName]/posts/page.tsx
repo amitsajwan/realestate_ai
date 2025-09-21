@@ -1,6 +1,6 @@
 'use client'
 
-import { PostCard } from '@/components/PostCard'
+import { PostCard, type Post as PostCardPost } from '@/components/PostCard'
 import {
     DocumentTextIcon,
     FunnelIcon,
@@ -49,6 +49,29 @@ export default function AgentPostsPage({ params }: AgentPostsPageProps) {
     const [agent, setAgent] = useState<AgentInfo | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+
+    // Helper function to map API Post to PostCard compatible format
+    const mapToPostCardFormat = (post: Post): PostCardPost => ({
+        ...post,
+        agent_id: agent?.id || '',
+        ai_generated: false, // Default value
+        version: 1, // Default value
+        updated_at: post.created_at, // Fallback
+        property_id: post.property_id || '',
+        property_title: post.property_title, // Pass through from API
+        status: post.status as any, // Type assertion for enum compatibility
+        analytics: {
+            views: post.view_count || 0,
+            likes: post.like_count || 0,
+            shares: post.share_count || 0,
+            comments: post.comment_count || 0,
+            clicks: 0,
+            conversions: 0,
+            engagement_rate: 0,
+            reach: 0,
+            impressions: 0
+        }
+    } as PostCardPost)
     const [currentPage, setCurrentPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
     const [searchQuery, setSearchQuery] = useState('')
@@ -283,7 +306,7 @@ export default function AgentPostsPage({ params }: AgentPostsPageProps) {
                         {posts.map((post) => (
                             <PostCard
                                 key={post.id}
-                                post={post}
+                                post={mapToPostCardFormat(post)}
                                 agentName={params.agentName}
                                 showFullContent={false}
                             />

@@ -126,6 +126,14 @@ class SocialPublishingAPI {
         });
         return this.handleResponse<DraftsResponse[]>(response);
     }
+
+    async getPublishedPosts(propertyId: string): Promise<{ posts: any[] }> {
+        const response = await fetch(`${this.baseUrl}/posts/${propertyId}`, {
+            method: 'GET',
+            headers: this.getHeaders()
+        });
+        return this.handleResponse<{ posts: any[] }>(response);
+    }
 }
 
 export const socialPublishingAPI = new SocialPublishingAPI();

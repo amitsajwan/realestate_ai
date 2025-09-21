@@ -1,6 +1,5 @@
 import React from 'react';
-import UnifiedPostCard from '../UI/UnifiedPostCard';
-import { Post } from '../../types/post';
+import UnifiedPostCard, { type Post } from '../UI/UnifiedPostCard';
 
 interface PostCardProps {
     post: Post;

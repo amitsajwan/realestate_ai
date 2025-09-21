@@ -49,8 +49,26 @@ def _fallback_branding(profile_data) -> Dict[str, str]:
 
 def generate_branding(profile_data) -> Dict[str, Any]:
     import logging
+    import time
+    import uuid
+    from datetime import datetime
+    
     logger = logging.getLogger(__name__)
-    logger.info(f"Generating branding for profile: {profile_data}")
+    request_id = str(uuid.uuid4())
+    start_time = time.time()
+    
+    # Log branding generation start
+    logger.info(
+        "AI_BRANDING_GENERATION_START",
+        extra={
+            "operation": "branding_generation",
+            "request_id": request_id,
+            "profile_type": type(profile_data).__name__,
+            "has_groq_client": _groq_client is not None,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
+    
     """Generate branding suggestions for an agent/company profile.
 
     The returned dict has the following shape (keys MAY vary in the future):
@@ -63,6 +81,15 @@ def generate_branding(profile_data) -> Dict[str, Any]:
     """
 
     if not _groq_client:
+        logger.warning(
+            "AI_BRANDING_FALLBACK_USED",
+            extra={
+                "operation": "branding_generation",
+                "request_id": request_id,
+                "reason": "groq_client_not_available",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
         return _fallback_branding(profile_data)
 
     # Handle both string (legacy) and object inputs
@@ -110,12 +137,28 @@ The response MUST be valid JSON without markdown fences or additional text.
 """
 
     try:
+        # Log API call details
+        logger.debug(
+            "AI_BRANDING_API_REQUEST",
+            extra={
+                "operation": "branding_generation",
+                "request_id": request_id,
+                "model": "llama-3.3-70b-versatile",
+                "prompt_length": len(prompt),
+                "temperature": 0.2,
+                "max_tokens": 300,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+        
+        api_start_time = time.time()
         response = _groq_client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
             max_tokens=300,
         )
+        api_time = time.time() - api_start_time
 
         raw_content = response.choices[0].message.content if response.choices else ""
 
@@ -123,16 +166,64 @@ The response MUST be valid JSON without markdown fences or additional text.
 
         branding: Dict[str, Any] = json.loads(raw_content)
 
+        # Log successful API response
+        logger.info(
+            "AI_BRANDING_API_SUCCESS",
+            extra={
+                "operation": "branding_generation",
+                "request_id": request_id,
+                "response_length": len(raw_content),
+                "api_time_ms": round(api_time * 1000, 2),
+                "tokens_used": getattr(response, 'usage', {}).get('total_tokens', 'unknown'),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+
         # Basic sanity checks & defaults – make sure required keys exist
         if "tagline" not in branding or "about" not in branding:
-            logger.warning("LLM branding response missing mandatory keys – using fallback")
+            logger.warning(
+                "AI_BRANDING_VALIDATION_FAILED",
+                extra={
+                    "operation": "branding_generation",
+                    "request_id": request_id,
+                    "reason": "missing_mandatory_keys",
+                    "available_keys": list(branding.keys()),
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            )
             return _fallback_branding(profile_data)
 
         # Ensure colors present
         branding.setdefault("colors", _fallback_branding(profile_data)["colors"])
 
+        # Log successful branding generation
+        total_time = time.time() - start_time
+        logger.info(
+            "AI_BRANDING_GENERATION_SUCCESS",
+            extra={
+                "operation": "branding_generation",
+                "request_id": request_id,
+                "tagline_length": len(branding.get("tagline", "")),
+                "about_length": len(branding.get("about", "")),
+                "has_colors": "colors" in branding,
+                "total_time_ms": round(total_time * 1000, 2),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+
         return branding
 
     except Exception as e:  # Any failure → fallback
-        logger.error(f"Branding generation failed – using fallback. Error: {e}")
+        total_time = time.time() - start_time
+        logger.error(
+            "AI_BRANDING_GENERATION_ERROR",
+            extra={
+                "operation": "branding_generation",
+                "request_id": request_id,
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "total_time_ms": round(total_time * 1000, 2),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
         return _fallback_branding(profile_data)

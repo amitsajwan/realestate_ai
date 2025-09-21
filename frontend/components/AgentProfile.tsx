@@ -1,7 +1,8 @@
 'use client'
 
-import { PostCard } from '@/components/PostCard'
+import { PostCard, type Post as PostCardPost } from '@/components/PostCard'
 import { Button, Card, CardBody, CardHeader } from '@/components/UI'
+import { useCachedData } from '@/lib/cache'
 import {
     ChatBubbleLeftRightIcon,
     CheckIcon,
@@ -16,8 +17,6 @@ import {
 } from '@heroicons/react/24/outline'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
-import { useCachedData } from '@/lib/cache'
 
 interface Post {
     id: string
@@ -57,12 +56,13 @@ interface AgentProfileProps {
 
 export function AgentProfile({ agent, properties, onContactClick }: AgentProfileProps) {
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-    
+
     // Use cached data hook for posts
-    const { 
-        data: postsData, 
-        isLoading: isLoadingPosts, 
-        error: postsError 
+    const {
+        data: postsData,
+        isLoading: isLoadingPosts,
+        error: postsError,
+        refetch: refetchPosts
     } = useCachedData(
         async () => {
             const response = await fetch(
@@ -80,8 +80,31 @@ export function AgentProfile({ agent, properties, onContactClick }: AgentProfile
         },
         { ttl: 2 * 60 * 1000 } // Cache for 2 minutes
     )
-    
+
     const posts = postsData?.posts || postsData || []
+
+    // Helper function to map API Post to PostCard compatible format
+    const mapToPostCardFormat = (post: Post): PostCardPost => ({
+        ...post,
+        agent_id: agent.id,
+        ai_generated: false, // Default value
+        version: 1, // Default value
+        updated_at: post.created_at, // Fallback
+        property_id: post.property_id || '',
+        property_title: post.property_title, // Pass through from API
+        status: post.status as any, // Type assertion for enum compatibility
+        analytics: {
+            views: post.view_count || 0,
+            likes: post.like_count || 0,
+            shares: post.share_count || 0,
+            comments: post.comment_count || 0,
+            clicks: 0,
+            conversions: 0,
+            engagement_rate: 0,
+            reach: 0,
+            impressions: 0
+        }
+    } as PostCardPost)
 
     const testimonials = [
         {
@@ -442,9 +465,9 @@ export function AgentProfile({ agent, properties, onContactClick }: AgentProfile
                         </div>
                     ) : postsError ? (
                         <div className="text-center py-12">
-                            <div className="text-gray-500 mb-4">{postsError}</div>
+                            <div className="text-gray-500 mb-4">{postsError?.message || 'An error occurred'}</div>
                             <button
-                                onClick={loadAgentPosts}
+                                onClick={() => refetchPosts()}
                                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                             >
                                 Try Again
@@ -453,10 +476,10 @@ export function AgentProfile({ agent, properties, onContactClick }: AgentProfile
                     ) : posts.length > 0 ? (
                         <>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                {posts.map((post) => (
+                                {posts.map((post: Post) => (
                                     <PostCard
                                         key={post.id}
-                                        post={post}
+                                        post={mapToPostCardFormat(post)}
                                         agentName={agent.slug}
                                     />
                                 ))}

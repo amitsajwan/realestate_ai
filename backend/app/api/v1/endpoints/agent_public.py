@@ -273,6 +273,77 @@ async def get_agent_public_properties(
         logger.error(f"Error getting agent properties: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+@router.get("/{agent_slug}/posts", response_model=dict)
+async def get_agent_public_posts(
+    agent_slug: str = Path(..., description="Agent's URL slug"),
+    status: Optional[str] = Query("published", description="Filter by post status"),
+    limit: int = Query(6, ge=1, le=50, description="Number of posts to return"),
+    skip: int = Query(0, ge=0, description="Number of posts to skip"),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """
+    Get agent's public posts
+    """
+    try:
+        service = AgentPublicService(db)
+        
+        # Check if agent exists and is public
+        agent = await service.get_agent_by_slug(agent_slug)
+        if not agent or not agent.is_public:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        
+        # Get posts for this agent
+        logger.info(f"DEBUG: Agent slug: {agent_slug}, Agent ID: {agent.agent_id}")
+        posts = await service.get_agent_posts(agent.agent_id, status=status, limit=limit, skip=skip)
+        
+        return {
+            "posts": posts,
+            "total": len(posts),
+            "agent_name": agent.agent_name
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting agent posts: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/{agent_slug}/posts/{post_id}", response_model=dict)
+async def get_agent_public_post(
+    agent_slug: str = Path(..., description="Agent's URL slug"),
+    post_id: str = Path(..., description="Post ID"),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """
+    Get specific post details from agent's public profile
+    """
+    try:
+        service = AgentPublicService(db)
+        
+        # Check if agent exists and is public
+        agent = await service.get_agent_by_slug(agent_slug)
+        if not agent or not agent.is_public:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        
+        # Get post
+        logger.info(f"DEBUG: Getting post {post_id} for agent {agent.agent_id}")
+        post = await service.get_agent_post(agent.agent_id, post_id, status="published")
+        logger.info(f"DEBUG: Post result: {post is not None}")
+        
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found")
+        
+        return {
+            "post": post,
+            "agent_name": agent.agent_name
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting agent post: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 @router.get("/{agent_slug}/properties/{property_id}", response_model=PublicProperty)
 async def get_agent_public_property(
     agent_slug: str = Path(..., description="Agent's URL slug"),

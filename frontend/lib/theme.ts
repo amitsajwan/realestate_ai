@@ -8,7 +8,7 @@ const THEME_STORAGE_KEY = 'brand_theme';
 
 export const defaultBrandTheme = (): BrandTheme => ({
   primary: '#3b82f6',
-  secondary: '#64748b', 
+  secondary: '#64748b',
   accent: '#10b981'
 });
 
@@ -34,27 +34,35 @@ export const loadBrandTheme = (): BrandTheme | null => {
 
 export const applyBrandTheme = (theme: BrandTheme, persist: boolean = true): void => {
   if (typeof window === 'undefined') return;
-  
+
+  const defaultTheme = defaultBrandTheme();
   const root = document.documentElement;
-  root.style.setProperty('--brand-primary', theme.primary);
-  root.style.setProperty('--brand-secondary', theme.secondary);
-  root.style.setProperty('--brand-accent', theme.accent);
-  
-  console.log('Applied brand theme:', theme);
+
+  // Use theme values or fall back to defaults if missing
+  const primary = theme.primary || defaultTheme.primary;
+  const secondary = theme.secondary || defaultTheme.secondary;
+  const accent = theme.accent || defaultTheme.accent;
+
+  root.style.setProperty('--brand-primary', primary);
+  root.style.setProperty('--brand-secondary', secondary);
+  root.style.setProperty('--brand-accent', accent);
+
+  console.log('Applied brand theme:', { primary, secondary, accent });
   console.log('CSS variables set:', {
     primary: root.style.getPropertyValue('--brand-primary'),
     secondary: root.style.getPropertyValue('--brand-secondary'),
     accent: root.style.getPropertyValue('--brand-accent')
   });
-  
+
   if (persist) {
-    saveBrandTheme(theme);
+    // Save the complete theme with defaults filled in
+    saveBrandTheme({ primary, secondary, accent });
   }
 };
 
 export const initializeBrandTheme = (): void => {
   if (typeof window === 'undefined') return;
-  
+
   const savedTheme = loadBrandTheme();
   if (savedTheme) {
     console.log('Loading saved brand theme:', savedTheme);
@@ -78,7 +86,7 @@ export const clearBrandTheme = (): void => {
 export const getBrandTheme = (): BrandTheme => {
   const root = document.documentElement;
   const computedStyle = getComputedStyle(root);
-  
+
   return {
     primary: computedStyle.getPropertyValue('--brand-primary') || defaultBrandTheme().primary,
     secondary: computedStyle.getPropertyValue('--brand-secondary') || defaultBrandTheme().secondary,

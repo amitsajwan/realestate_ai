@@ -80,6 +80,7 @@ async def get_branding_suggestions(request: BrandingSuggestionRequest):
         else:
             font_family = "Inter, sans-serif"
 
+        # Create the BrandingSuggestion object with the proper structure
         suggestion = BrandingSuggestion(
             primaryColor=primary_color,
             secondaryColor=secondary_color,
@@ -99,8 +100,12 @@ async def get_branding_suggestions(request: BrandingSuggestionRequest):
                 "accent": font_family
             }
         )
-
-        return BrandingSuggestionResponse(suggestions=[suggestion])
+        
+        # Return in the proper BrandingSuggestionResponse format
+        return BrandingSuggestionResponse(
+            suggestions=[suggestion],
+            selectedIndex=0
+        )
 
     except Exception as e:
         logger.error(f"Error generating branding suggestions: {e}")

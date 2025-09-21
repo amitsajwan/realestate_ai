@@ -33,6 +33,8 @@ export default function OnboardingPage() {
       }
 
       setUser(state.user);
+      // Initialize current step from user's onboarding_step or default to 1
+      setCurrentStep(state.user?.onboarding_step || 1);
       setIsLoading(false);
     };
 
@@ -66,7 +68,7 @@ export default function OnboardingPage() {
       // Always redirect to dashboard after onboarding completion
       // regardless of the onboarding_completed flag state
       console.log('[OnboardingPage] Redirecting to dashboard');
-      
+
       // Set flag to prevent redirect loop
       sessionStorage.setItem('redirected_from_onboarding', 'true');
 

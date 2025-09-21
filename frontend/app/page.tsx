@@ -77,37 +77,54 @@ export default function Dashboard() {
         console.debug('[DashboardPage] URL params:', Object.fromEntries(new URLSearchParams(window.location.search).entries()))
       }
 
-      await authManager.init()
-      const state = authManager.getState()
+      try {
+        await authManager.init()
+        const state = authManager.getState()
 
-      console.debug('[DashboardPage] Auth state after init:', {
-        isAuthenticated: state.isAuthenticated,
-        hasUser: !!state.user,
-        user: state.user,
-        isLoading: state.isLoading
-      })
+        console.debug('[DashboardPage] Auth state after init:', {
+          isAuthenticated: state.isAuthenticated,
+          hasUser: !!state.user,
+          user: state.user,
+          isLoading: state.isLoading
+        })
 
-      if (!state.isAuthenticated) {
-        console.info('[DashboardPage] Not authenticated, redirecting to login')
+        if (!state.isAuthenticated) {
+          console.info('[DashboardPage] Not authenticated, redirecting to login')
+          router.push('/login')
+          return
+        }
+
+        if (!state.user?.onboarding_completed) {
+          console.info('[DashboardPage] Onboarding not completed, redirecting to onboarding')
+          router.push('/onboarding')
+          return
+        }
+
+        console.info('[DashboardPage] User authenticated and onboarded, loading dashboard data')
+        setUser(state.user)
+        setIsLoading(false)
+        fetchStats()
+        loadProperties()
+      } catch (error) {
+        console.error('[DashboardPage] Auth initialization failed:', error)
+        setIsLoading(false)
         router.push('/login')
-        return
       }
-
-      if (!state.user?.onboarding_completed) {
-        console.info('[DashboardPage] Onboarding not completed, redirecting to onboarding')
-        router.push('/onboarding')
-        return
-      }
-
-      console.info('[DashboardPage] User authenticated and onboarded, loading dashboard data')
-      setUser(state.user)
-      setIsLoading(false)
-      fetchStats()
-      loadProperties()
     }
 
+    // Add timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      if (isLoading) {
+        console.warn('[DashboardPage] Loading timeout, redirecting to login')
+        setIsLoading(false)
+        router.push('/login')
+      }
+    }, 10000) // 10 second timeout
+
     initAuth()
-  }, [router])
+
+    return () => clearTimeout(timeout)
+  }, [router, isLoading])
 
   const fetchStats = async () => {
     try {
@@ -158,24 +175,7 @@ export default function Dashboard() {
     }
   }
 
-  const testThemePersistence = () => {
-    console.debug('[DashboardPage] Testing theme persistence...');
-    const savedTheme = loadBrandTheme();
-    console.debug('[DashboardPage] Saved theme:', savedTheme);
-
-    if (savedTheme) {
-      console.debug('[DashboardPage] Applying saved theme:', savedTheme);
-      applyBrandTheme(savedTheme, false);
-    } else {
-      console.debug('[DashboardPage] No saved theme found, applying test theme');
-      const testTheme = {
-        primary: '#007bff',
-        secondary: '#6c757d',
-        accent: '#28a745'
-      };
-      applyBrandTheme(testTheme, true);
-    }
-  }
+  // Removed testThemePersistence function to prevent theme initialization loops
 
   const renderSection = () => {
     switch (activeSection) {
@@ -195,8 +195,13 @@ export default function Dashboard() {
           <SmartPropertyForm
             onSuccess={() => {
               console.log('[DashboardPage] Property created successfully, switching to properties view and refreshing...')
-              setActiveSection('properties')
-              loadProperties() // Refresh the properties list
+              try {
+                setActiveSection('properties')
+                loadProperties() // Refresh the properties list
+                console.log('[DashboardPage] Successfully switched to properties view')
+              } catch (error) {
+                console.error('[DashboardPage] Error in onSuccess callback:', error)
+              }
             }}
           />
         )
@@ -287,10 +292,10 @@ export default function Dashboard() {
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="font-semibold text-gray-900 truncate">{property.title}</h3>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${property.status === 'for-sale'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : property.status === 'for-rent'
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-gray-100 text-gray-700'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : property.status === 'for-rent'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-gray-100 text-gray-700'
                           }`}>
                           {property.status === 'for-sale' ? 'For Sale' : property.status === 'for-rent' ? 'For Rent' : property.status}
                         </span>

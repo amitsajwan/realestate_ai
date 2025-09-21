@@ -6,6 +6,7 @@ Service for generating social media content using AI
 
 import json
 import logging
+import time
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from app.schemas.social_publishing import (
@@ -14,7 +15,100 @@ from app.schemas.social_publishing import (
 )
 from app.core.config import settings
 
+# Configure structured logging for AI operations
 logger = logging.getLogger(__name__)
+
+class AIContentLogger:
+    """Structured logging for AI content generation operations"""
+    
+    @staticmethod
+    def log_generation_start(context: AIGenerationContext, request_id: str = None):
+        """Log the start of content generation"""
+        logger.info(
+            "AI_CONTENT_GENERATION_START",
+            extra={
+                "operation": "content_generation",
+                "request_id": request_id,
+                "property_id": context.property.id,
+                "language": context.language,
+                "channel": context.channel.value,
+                "tone": context.tone,
+                "length": context.length,
+                "property_type": context.property.property_type,
+                "property_price": context.property.price,
+                "property_location": context.property.location,
+                "agent_name": context.agent.name,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+    
+    @staticmethod
+    def log_prompt_built(prompt: str, context: AIGenerationContext, request_id: str = None):
+        """Log the built prompt for debugging"""
+        logger.debug(
+            "AI_PROMPT_BUILT",
+            extra={
+                "operation": "prompt_building",
+                "request_id": request_id,
+                "property_id": context.property.id,
+                "prompt_length": len(prompt),
+                "prompt_preview": prompt[:200] + "..." if len(prompt) > 200 else prompt,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+    
+    @staticmethod
+    def log_generation_success(draft: AIDraft, generation_time: float, request_id: str = None):
+        """Log successful content generation"""
+        logger.info(
+            "AI_CONTENT_GENERATION_SUCCESS",
+            extra={
+                "operation": "content_generation",
+                "request_id": request_id,
+                "property_id": draft.property_id,
+                "language": draft.language,
+                "channel": draft.channel.value,
+                "title_length": len(draft.title),
+                "body_length": len(draft.body),
+                "hashtag_count": len(draft.hashtags),
+                "contact_included": draft.contact_included,
+                "generation_time_ms": round(generation_time * 1000, 2),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+    
+    @staticmethod
+    def log_generation_error(error: Exception, context: AIGenerationContext, request_id: str = None):
+        """Log content generation errors"""
+        logger.error(
+            "AI_CONTENT_GENERATION_ERROR",
+            extra={
+                "operation": "content_generation",
+                "request_id": request_id,
+                "property_id": context.property.id,
+                "language": context.language,
+                "channel": context.channel.value,
+                "error_type": type(error).__name__,
+                "error_message": str(error),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+    
+    @staticmethod
+    def log_content_validation(draft: AIDraft, validation_results: Dict[str, Any], request_id: str = None):
+        """Log content validation results"""
+        logger.info(
+            "AI_CONTENT_VALIDATION",
+            extra={
+                "operation": "content_validation",
+                "request_id": request_id,
+                "property_id": draft.property_id,
+                "language": draft.language,
+                "channel": draft.channel.value,
+                "validation_results": validation_results,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
 
 class AIContentGenerationService:
     """Service for generating AI-powered social media content"""
@@ -100,16 +194,24 @@ IMPORTANT:
     
     async def generate_content(self, context: AIGenerationContext) -> AIDraft:
         """Generate AI content for a specific property and channel"""
+        import uuid
+        request_id = str(uuid.uuid4())
+        start_time = time.time()
         
         try:
-            self.logger.info(f"Generating content for property {context.property.id} in {context.language} for {context.channel}")
+            # Log generation start
+            AIContentLogger.log_generation_start(context, request_id)
             
             # Build the prompt
             prompt = self.build_prompt(context)
+            AIContentLogger.log_prompt_built(prompt, context, request_id)
             
             # For now, we'll use a mock AI response
             # In production, this would call OpenAI, Claude, or another AI service
             mock_response = self._generate_mock_content(context)
+            
+            # Validate generated content
+            validation_results = self._validate_generated_content(mock_response, context)
             
             # Create the draft
             draft = AIDraft(
@@ -126,15 +228,58 @@ IMPORTANT:
                 updated_at=datetime.utcnow()
             )
             
-            self.logger.info(f"Generated content successfully for {context.property.id}")
+            # Log validation results
+            AIContentLogger.log_content_validation(draft, validation_results, request_id)
+            
+            # Log successful generation
+            generation_time = time.time() - start_time
+            AIContentLogger.log_generation_success(draft, generation_time, request_id)
+            
             return draft
             
         except Exception as e:
-            self.logger.error(f"Error generating content: {e}")
+            AIContentLogger.log_generation_error(e, context, request_id)
             raise
     
+    def _validate_generated_content(self, content: Dict[str, Any], context: AIGenerationContext) -> Dict[str, Any]:
+        """Validate generated content for quality and completeness"""
+        validation_results = {
+            "has_title": bool(content.get("title", "").strip()),
+            "has_body": bool(content.get("body", "").strip()),
+            "has_hashtags": bool(content.get("hashtags", [])),
+            "title_length": len(content.get("title", "")),
+            "body_length": len(content.get("body", "")),
+            "hashtag_count": len(content.get("hashtags", [])),
+            "contains_contact_info": False,
+            "meets_platform_requirements": False,
+            "language_appropriate": False
+        }
+        
+        # Check if contact info is included
+        body_text = content.get("body", "").lower()
+        contact_indicators = ["contact", "phone", "whatsapp", "email", "call", "reach"]
+        validation_results["contains_contact_info"] = any(indicator in body_text for indicator in contact_indicators)
+        
+        # Check platform-specific requirements
+        if context.channel == Channel.INSTAGRAM:
+            validation_results["meets_platform_requirements"] = (
+                validation_results["body_length"] <= 2200 and 
+                validation_results["hashtag_count"] <= 30
+            )
+        elif context.channel == Channel.FACEBOOK:
+            validation_results["meets_platform_requirements"] = validation_results["body_length"] <= 5000
+        else:  # Website
+            validation_results["meets_platform_requirements"] = validation_results["body_length"] >= 100
+        
+        # Check language appropriateness (basic check)
+        validation_results["language_appropriate"] = True  # Mock validation
+        
+        return validation_results
+
     def _generate_mock_content(self, context: AIGenerationContext) -> Dict[str, Any]:
         """Generate mock content for testing (replace with actual AI service)"""
+        
+        logger.debug(f"Generating mock content for {context.language} {context.channel.value} property {context.property.id}")
         
         # Sample content templates based on language and channel
         templates = {
@@ -206,32 +351,82 @@ IMPORTANT:
     
     async def improve_content(self, draft: AIDraft, improvement_type: str) -> AIDraft:
         """Improve existing content based on type"""
+        import uuid
+        request_id = str(uuid.uuid4())
+        start_time = time.time()
         
-        improved_draft = draft.copy()
+        logger.info(
+            "AI_CONTENT_IMPROVEMENT_START",
+            extra={
+                "operation": "content_improvement",
+                "request_id": request_id,
+                "draft_id": str(draft.id) if hasattr(draft, 'id') else 'unknown',
+                "improvement_type": improvement_type,
+                "original_title_length": len(draft.title),
+                "original_body_length": len(draft.body),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
         
-        if improvement_type == "tone_luxury":
-            # Add luxury keywords and phrases
-            improved_draft.body = improved_draft.body.replace("amazing", "luxurious")
-            improved_draft.body = improved_draft.body.replace("great", "premium")
-            improved_draft.title = improved_draft.title.replace("Perfect", "Exclusive")
+        try:
+            improved_draft = draft.copy()
             
-        elif improvement_type == "shorter":
-            # Make content shorter
-            sentences = improved_draft.body.split('. ')
-            improved_draft.body = '. '.join(sentences[:3]) + '.'
+            if improvement_type == "tone_luxury":
+                # Add luxury keywords and phrases
+                improved_draft.body = improved_draft.body.replace("amazing", "luxurious")
+                improved_draft.body = improved_draft.body.replace("great", "premium")
+                improved_draft.title = improved_draft.title.replace("Perfect", "Exclusive")
+                
+            elif improvement_type == "shorter":
+                # Make content shorter
+                sentences = improved_draft.body.split('. ')
+                improved_draft.body = '. '.join(sentences[:3]) + '.'
+                
+            elif improvement_type == "longer":
+                # Add more details
+                additional_info = "\n\n🏆 Additional Features:\n• 24/7 Security\n• Power Backup\n• Water Supply\n• Parking Available"
+                improved_draft.body += additional_info
+                
+            elif improvement_type == "add_emojis":
+                # Add more emojis
+                improved_draft.body = improved_draft.body.replace("Contact", "📞 Contact")
+                improved_draft.body = improved_draft.body.replace("WhatsApp", "📱 WhatsApp")
+                improved_draft.body = improved_draft.body.replace("Email", "📧 Email")
             
-        elif improvement_type == "longer":
-            # Add more details
-            additional_info = "\n\n🏆 Additional Features:\n• 24/7 Security\n• Power Backup\n• Water Supply\n• Parking Available"
-            improved_draft.body += additional_info
+            improved_draft.status = DraftStatus.EDITED
+            improved_draft.updated_at = datetime.utcnow()
             
-        elif improvement_type == "add_emojis":
-            # Add more emojis
-            improved_draft.body = improved_draft.body.replace("Contact", "📞 Contact")
-            improved_draft.body = improved_draft.body.replace("WhatsApp", "📱 WhatsApp")
-            improved_draft.body = improved_draft.body.replace("Email", "📧 Email")
+            # Log improvement success
+            improvement_time = time.time() - start_time
+            logger.info(
+                "AI_CONTENT_IMPROVEMENT_SUCCESS",
+                extra={
+                    "operation": "content_improvement",
+                    "request_id": request_id,
+                    "draft_id": str(draft.id) if hasattr(draft, 'id') else 'unknown',
+                    "improvement_type": improvement_type,
+                    "new_title_length": len(improved_draft.title),
+                    "new_body_length": len(improved_draft.body),
+                    "title_length_change": len(improved_draft.title) - len(draft.title),
+                    "body_length_change": len(improved_draft.body) - len(draft.body),
+                    "improvement_time_ms": round(improvement_time * 1000, 2),
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            )
             
-        improved_draft.status = DraftStatus.EDITED
-        improved_draft.updated_at = datetime.utcnow()
-        
-        return improved_draft
+            return improved_draft
+            
+        except Exception as e:
+            logger.error(
+                "AI_CONTENT_IMPROVEMENT_ERROR",
+                extra={
+                    "operation": "content_improvement",
+                    "request_id": request_id,
+                    "draft_id": str(draft.id) if hasattr(draft, 'id') else 'unknown',
+                    "improvement_type": improvement_type,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            )
+            raise

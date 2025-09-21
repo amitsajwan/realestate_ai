@@ -72,7 +72,7 @@ export default function PostDetailPage({ params }: PostDetailPageProps) {
 
             if (postResponse.ok) {
                 const postData = await postResponse.json()
-                setPost(postData)
+                setPost(postData.post)
             } else {
                 throw new Error('Post not found')
             }
@@ -187,20 +187,20 @@ export default function PostDetailPage({ params }: PostDetailPageProps) {
                                                 <span>{formatDate(post.created_at)}</span>
                                             </div>
                                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${post.status === 'published'
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : 'bg-yellow-100 text-yellow-800'
+                                                ? 'bg-green-100 text-green-800'
+                                                : 'bg-yellow-100 text-yellow-800'
                                                 }`}>
                                                 {post.status}
                                             </span>
                                             <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                                                {post.language.toUpperCase()}
+                                                {post.language?.toUpperCase() || 'EN'}
                                             </span>
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Social Media Channels */}
-                                {post.channels.length > 0 && (
+                                {post.channels && post.channels.length > 0 && (
                                     <div className="flex items-center space-x-2">
                                         <span className="text-sm text-gray-600">Posted on:</span>
                                         {post.channels.map((channel, index) => (
@@ -208,7 +208,7 @@ export default function PostDetailPage({ params }: PostDetailPageProps) {
                                                 key={index}
                                                 className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
                                             >
-                                                {channel.charAt(0).toUpperCase() + channel.slice(1)}
+                                                {channel?.charAt(0).toUpperCase() + channel?.slice(1) || 'Unknown'}
                                             </span>
                                         ))}
                                     </div>

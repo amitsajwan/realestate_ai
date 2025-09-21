@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { debounce, throttle } from 'lodash'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 // Hook for debounced state updates
 export function useDebouncedState<T>(
@@ -35,7 +35,7 @@ export function useThrottledCallback<T extends (...args: any[]) => any>(
   return useMemo(
     () => throttle((...args) => callbackRef.current(...args), delay),
     [delay]
-  ) as T
+  ) as unknown as T
 }
 
 // Hook for memoized expensive computations
@@ -177,10 +177,10 @@ function areDepsEqual<T extends readonly unknown[]>(
   deps2: T
 ): boolean {
   if (deps1.length !== deps2.length) return false
-  
+
   for (let i = 0; i < deps1.length; i++) {
     if (!Object.is(deps1[i], deps2[i])) return false
   }
-  
+
   return true
 }

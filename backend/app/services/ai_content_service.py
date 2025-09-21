@@ -1,11 +1,75 @@
 import asyncio
 import json
+import time
+import uuid
 from typing import Dict, List, Any, Optional
 import httpx
 import os
 import logging
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+class AIContentServiceLogger:
+    """Structured logging for AI content service operations"""
+    
+    @staticmethod
+    def log_api_call_start(operation: str, property_id: str = None, language: str = None, request_id: str = None):
+        """Log the start of an AI API call"""
+        logger.info(
+            f"AI_API_CALL_START_{operation.upper()}",
+            extra={
+                "operation": operation,
+                "request_id": request_id,
+                "property_id": property_id,
+                "language": language,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+    
+    @staticmethod
+    def log_api_call_success(operation: str, response_length: int, api_time_ms: float, request_id: str = None):
+        """Log successful AI API call"""
+        logger.info(
+            f"AI_API_CALL_SUCCESS_{operation.upper()}",
+            extra={
+                "operation": operation,
+                "request_id": request_id,
+                "response_length": response_length,
+                "api_time_ms": round(api_time_ms, 2),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+    
+    @staticmethod
+    def log_api_call_error(operation: str, error: Exception, request_id: str = None):
+        """Log AI API call error"""
+        logger.error(
+            f"AI_API_CALL_ERROR_{operation.upper()}",
+            extra={
+                "operation": operation,
+                "request_id": request_id,
+                "error_type": type(error).__name__,
+                "error_message": str(error),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+    
+    @staticmethod
+    def log_content_processing(operation: str, input_length: int, output_length: int, processing_time_ms: float, request_id: str = None):
+        """Log content processing metrics"""
+        logger.info(
+            f"AI_CONTENT_PROCESSING_{operation.upper()}",
+            extra={
+                "operation": operation,
+                "request_id": request_id,
+                "input_length": input_length,
+                "output_length": output_length,
+                "processing_time_ms": round(processing_time_ms, 2),
+                "compression_ratio": round(output_length / input_length, 2) if input_length > 0 else 0,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
 
 # Optional import for Groq
 try:
@@ -36,7 +100,17 @@ class AIContentService:
 
     async def generate_content(self, property_data: Dict[str, Any], prompt: str, language: str) -> str:
         """Generate AI content for a property post"""
+        request_id = str(uuid.uuid4())
+        start_time = time.time()
+        
         try:
+            AIContentServiceLogger.log_api_call_start(
+                "generate_content", 
+                property_data.get('id'), 
+                language, 
+                request_id
+            )
+            
             # 1. Load property data
             property_context = self._format_property_context(property_data)
             
@@ -44,15 +118,37 @@ class AIContentService:
             language_prompt = self._get_language_prompt(language, prompt, property_context)
             
             # 3. Generate content using Groq API
+            api_start_time = time.time()
             response = await self._call_groq_api(language_prompt)
+            api_time = time.time() - api_start_time
             
             # 4. Apply language-specific formatting
+            formatting_start_time = time.time()
             formatted_content = self._format_content_for_language(response, language)
+            formatting_time = time.time() - formatting_start_time
+            
+            # Log API call success
+            AIContentServiceLogger.log_api_call_success(
+                "generate_content", 
+                len(formatted_content), 
+                api_time * 1000, 
+                request_id
+            )
+            
+            # Log content processing
+            AIContentServiceLogger.log_content_processing(
+                "generate_content",
+                len(property_context),
+                len(formatted_content),
+                (time.time() - start_time) * 1000,
+                request_id
+            )
             
             # 5. Return generated content
             return formatted_content
 
         except Exception as e:
+            AIContentServiceLogger.log_api_call_error("generate_content", e, request_id)
             raise Exception(f"Failed to generate AI content: {str(e)}")
 
     async def enhance_content(self, content: str, enhancements: List[str], language: str) -> str:
@@ -293,7 +389,23 @@ class AIContentService:
 
     async def _call_groq_api(self, prompt: str) -> str:
         """Call Groq API to generate content"""
+        request_id = str(uuid.uuid4())
+        start_time = time.time()
+        
         try:
+            logger.debug(
+                "GROQ_API_REQUEST",
+                extra={
+                    "operation": "groq_api_call",
+                    "request_id": request_id,
+                    "model": self.model,
+                    "prompt_length": len(prompt),
+                    "temperature": 0.7,
+                    "max_tokens": 1000,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            )
+            
             # Use asyncio to run the synchronous Groq call
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
@@ -306,9 +418,38 @@ class AIContentService:
                 )
             )
             
-            return response.choices[0].message.content.strip()
+            api_time = time.time() - start_time
+            response_content = response.choices[0].message.content.strip()
+            
+            logger.info(
+                "GROQ_API_RESPONSE",
+                extra={
+                    "operation": "groq_api_call",
+                    "request_id": request_id,
+                    "model": self.model,
+                    "response_length": len(response_content),
+                    "api_time_ms": round(api_time * 1000, 2),
+                    "tokens_used": getattr(response, 'usage', {}).get('total_tokens', 'unknown'),
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            )
+            
+            return response_content
             
         except Exception as e:
+            api_time = time.time() - start_time
+            logger.error(
+                "GROQ_API_ERROR",
+                extra={
+                    "operation": "groq_api_call",
+                    "request_id": request_id,
+                    "model": self.model,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "api_time_ms": round(api_time * 1000, 2),
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            )
             raise Exception(f"Groq API call failed: {str(e)}")
 
     def get_supported_languages(self) -> List[str]:

@@ -18,9 +18,11 @@ class PyObjectId(ObjectId):
 
     @classmethod
     def validate(cls, v, validation_info=None):
-        if not ObjectId.is_valid(v):
-            raise ValueError("Invalid ObjectId")
-        return ObjectId(v)
+        if isinstance(v, ObjectId):
+            return v
+        if isinstance(v, str) and ObjectId.is_valid(v):
+            return ObjectId(v)
+        raise ValueError("Invalid ObjectId")
 
     @classmethod
     def __get_pydantic_json_schema__(cls, field_schema):
@@ -111,6 +113,14 @@ class PropertyResponse(PropertyBase):
         populate_by_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
+    
+    @classmethod
+    def from_mongo_doc(cls, doc: dict) -> "PropertyResponse":
+        """Convert MongoDB document to PropertyResponse"""
+        if '_id' in doc:
+            doc['id'] = str(doc['_id'])
+            del doc['_id']
+        return cls(**doc)
 
 
 class PropertyDocument(PropertyBase):

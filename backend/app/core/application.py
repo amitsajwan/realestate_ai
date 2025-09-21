@@ -10,17 +10,20 @@ from app.core.database import init_database, close_database
 from app.core.rate_limiting import setup_rate_limiting
 from app.core.middleware import setup_cors_middleware, setup_logging_middleware
 from app.core.routes import setup_routes, setup_additional_endpoints
-from app.logging_config import setup_comprehensive_logging, get_logger
+from app.core.error_handlers import register_error_handlers
+from app.core.logging_config import setup_logging, get_logger
+from app.core.security import SecurityMiddleware, get_security_headers
+from app.api.v1.endpoints.health import router as health_router
 import logging
 
 
 def create_application() -> FastAPI:
     """Create and configure FastAPI application"""
 
-    # Initialize comprehensive logging
-    setup_comprehensive_logging()
-    logger = get_logger(__name__)
-    api_logger = get_logger("api_access")
+    # Initialize production-ready logging
+    setup_logging(environment=settings.environment)
+    logger = get_logger("core")
+    api_logger = get_logger("api")
     security_logger = get_logger("security")
 
     # Set specific loggers to DEBUG level
@@ -31,15 +34,26 @@ def create_application() -> FastAPI:
     app = FastAPI(
         title="PropertyAI API",
         description="AI-powered real estate platform API",
-        version="2.0.0"
+        version="2.0.0",
+        docs_url="/docs" if settings.environment != "production" else None,
+        redoc_url="/redoc" if settings.environment != "production" else None,
     )
 
+    # Register error handlers first
+    register_error_handlers(app)
+    
+    # Add security middleware
+    app.add_middleware(SecurityMiddleware)
+    
     # Setup components
     app = setup_rate_limiting(app)
     setup_cors_middleware(app)
     setup_logging_middleware(app, logger, api_logger, security_logger)
     setup_routes(app)
     setup_additional_endpoints(app)
+    
+    # Add health check endpoints
+    app.include_router(health_router, prefix="/api/v1", tags=["health"])
 
     # MongoDB Startup and Shutdown Events
     @app.on_event("startup")

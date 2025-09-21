@@ -267,8 +267,53 @@ async def initialize_post_collections(db: AsyncIOMotorDatabase):
         await posts_collection.create_index([("scheduled_at", 1), ("status", 1)])
         await posts_collection.create_index([("ai_generated", 1), ("created_at", -1)])
         
+        # Initialize social publishing collections
+        await initialize_social_publishing_collections(db)
+        
         logger.info("Posts collection initialized with indexes")
         
+    except Exception as e:
+        logger.error(f"Error initializing post collections: {e}")
+        raise
+
+async def initialize_social_publishing_collections(db: AsyncIOMotorDatabase):
+    """Initialize social publishing collections with indexes"""
+    try:
+        logger.info("Initializing social publishing collections...")
+        
+        # Initialize social_drafts collection
+        drafts_collection = db.social_drafts
+        await drafts_collection.create_index("property_id")
+        await drafts_collection.create_index("agent_id")
+        await drafts_collection.create_index("status")
+        await drafts_collection.create_index("language")
+        await drafts_collection.create_index("channel")
+        await drafts_collection.create_index("created_at")
+        await drafts_collection.create_index([("property_id", 1), ("status", 1)])
+        await drafts_collection.create_index([("agent_id", 1), ("status", 1)])
+        await drafts_collection.create_index([("status", 1), ("created_at", -1)])
+        
+        # Initialize social_posts collection
+        posts_collection = db.social_posts
+        await posts_collection.create_index("draft_id")
+        await posts_collection.create_index("property_id")
+        await posts_collection.create_index("agent_id")
+        await posts_collection.create_index("platform")
+        await posts_collection.create_index("status")
+        await posts_collection.create_index("published_at")
+        await posts_collection.create_index([("property_id", 1), ("platform", 1)])
+        await posts_collection.create_index([("agent_id", 1), ("published_at", -1)])
+        await posts_collection.create_index([("platform", 1), ("status", 1)])
+        
+        logger.info("Social publishing collections initialized successfully")
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize social publishing collections: {e}")
+        raise
+
+async def initialize_analytics_collections(db: AsyncIOMotorDatabase):
+    """Initialize analytics collections with indexes"""
+    try:
         # Initialize post_analytics collection
         analytics_collection = db.post_analytics
         await analytics_collection.create_index("post_id")
@@ -293,7 +338,7 @@ async def initialize_post_collections(db: AsyncIOMotorDatabase):
         logger.info("Post templates collection initialized with indexes")
         
     except Exception as e:
-        logger.error(f"Error initializing post collections: {e}")
+        logger.error(f"Error initializing analytics collections: {e}")
         raise
 
 async def main():
@@ -301,10 +346,10 @@ async def main():
     try:
         await initialize_database()
         await create_sample_data()
-        print("✅ Database initialization completed successfully!")
+        print("Database initialization completed successfully!")
         
     except Exception as e:
-        print(f"❌ Database initialization failed: {e}")
+        print(f"Database initialization failed: {e}")
         raise
 
 if __name__ == "__main__":

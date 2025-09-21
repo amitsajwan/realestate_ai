@@ -289,26 +289,66 @@ export const api = {
 
   getPublishingStatus: async (propertyId: string) => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-    const response = await fetch(`${API_BASE_URL}/api/v1/properties/${propertyId}/publishing-status`, {
-      headers: {
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-        'Content-Type': 'application/json'
+
+    try {
+      console.log('Getting publishing status for property:', propertyId);
+
+      const response = await fetch(`${API_BASE_URL}/api/v1/properties/${propertyId}/publishing-status`, {
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+          'Content-Type': 'application/json',
+          'Origin': 'http://localhost:3000'
+        }
+      });
+
+      console.log('Publishing status response:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to get publishing status:', errorData);
+        throw new Error(errorData.detail || `Failed to get publishing status: ${response.status}`);
       }
-    });
-    return response.json();
+
+      const result = await response.json();
+      console.log('Publishing status result:', result);
+      return result;
+    } catch (error) {
+      console.error('Get publishing status error:', error);
+      throw error;
+    }
   },
 
   publishProperty: async (propertyId: string, publishData: any) => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-    const response = await fetch(`${API_BASE_URL}/api/v1/properties/${propertyId}/publish`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` })
-      },
-      body: JSON.stringify(publishData)
-    });
-    return response.json();
+
+    try {
+      console.log('Publishing property:', propertyId, 'with data:', publishData);
+
+      const response = await fetch(`${API_BASE_URL}/api/v1/properties/${propertyId}/publish`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Origin': 'http://localhost:3000',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify(publishData)
+      });
+
+      console.log('Publish response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Publish failed:', errorData);
+        throw new Error(errorData.detail || `Publish property failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Publish success:', result);
+      return result;
+    } catch (error) {
+      console.error('Publish property error:', error);
+      throw error;
+    }
   },
 
   unpublishProperty: async (propertyId: string) => {

@@ -261,13 +261,15 @@ export default function ProfileSettings() {
     if (!isProfileLoaded && !isLoadingRef.current) {
       loadUserProfile()
     }
-    
-    // Load current applied theme
+  }, []) // Empty dependency array - only run on mount
+
+  // Load current applied theme separately
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       const appliedTheme = getBrandTheme()
       setCurrentAppliedTheme(appliedTheme)
     }
-  }, []) // Empty dependency array - only run on mount
+  }, []) // Load theme on mount
 
   // Cleanup on unmount
   useEffect(() => {
@@ -337,7 +339,10 @@ export default function ProfileSettings() {
       () => apiService.getBrandingSuggestions({
         company_name: formData.company || '',
         agent_name: formData.name,
-        position: formData.specialization_areas
+        position: formData.specialization_areas,
+        business_type: 'Residential',
+        target_audience: 'General clients',
+        brand_style: 'Professional'
       }),
       {
         successMessage: 'AI branding suggestions generated successfully!',
@@ -345,16 +350,24 @@ export default function ProfileSettings() {
       }
     )
 
-    if (suggestions) {
+    if (suggestions && Array.isArray(suggestions) && suggestions.length > 0) {
+      const suggestion = suggestions[0] // Use first suggestion
       setFormData(prev => ({
         ...prev,
-        brandingSuggestions: suggestions
+        brandingSuggestions: {
+          tagline: suggestion.tagline,
+          about: suggestion.about,
+          colors: suggestion.colors
+        }
       }))
     }
   }
 
   const handleApplyBranding = async () => {
-    if (!formData.brandingSuggestions) return
+    if (!formData.brandingSuggestions?.colors) {
+      toast.error('No branding suggestions available to apply')
+      return
+    }
 
     const brandTheme = {
       primary: formData.brandingSuggestions.colors.primary,
@@ -364,12 +377,12 @@ export default function ProfileSettings() {
 
     applyBrandTheme(brandTheme) // Now persists by default
     setCurrentAppliedTheme(brandTheme) // Update local state immediately
-    
+
     // Also save the branding suggestions to the profile
     try {
-      await apiService.updateUserProfile(authManager.getState().user?.id || 'default_user', { 
+      await apiService.updateUserProfile(authManager.getState().user?.id || 'default_user', {
         ...formData,
-        brandingSuggestions: formData.brandingSuggestions 
+        brandingSuggestions: formData.brandingSuggestions
       })
       toast.success('Brand theme applied and saved to profile!')
     } catch (error) {
@@ -667,26 +680,26 @@ export default function ProfileSettings() {
                       <div className="text-center">
                         <div
                           className="w-12 h-12 rounded-lg mb-2 border border-gray-600"
-                          style={{ backgroundColor: formData.brandingSuggestions.colors.primary }}
+                          style={{ backgroundColor: formData.brandingSuggestions?.colors?.primary || '#3b82f6' }}
                         ></div>
                         <p className="text-xs text-gray-400">Primary</p>
-                        <p className="text-xs text-white font-mono">{formData.brandingSuggestions.colors.primary}</p>
+                        <p className="text-xs text-white font-mono">{formData.brandingSuggestions?.colors?.primary || '#3b82f6'}</p>
                       </div>
                       <div className="text-center">
                         <div
                           className="w-12 h-12 rounded-lg mb-2 border border-gray-600"
-                          style={{ backgroundColor: formData.brandingSuggestions.colors.secondary }}
+                          style={{ backgroundColor: formData.brandingSuggestions?.colors?.secondary || '#64748b' }}
                         ></div>
                         <p className="text-xs text-gray-400">Secondary</p>
-                        <p className="text-xs text-white font-mono">{formData.brandingSuggestions.colors.secondary}</p>
+                        <p className="text-xs text-white font-mono">{formData.brandingSuggestions?.colors?.secondary || '#64748b'}</p>
                       </div>
                       <div className="text-center">
                         <div
                           className="w-12 h-12 rounded-lg mb-2 border border-gray-600"
-                          style={{ backgroundColor: formData.brandingSuggestions.colors.accent }}
+                          style={{ backgroundColor: formData.brandingSuggestions?.colors?.accent || '#06b6d4' }}
                         ></div>
                         <p className="text-xs text-gray-400">Accent</p>
-                        <p className="text-xs text-white font-mono">{formData.brandingSuggestions.colors.accent}</p>
+                        <p className="text-xs text-white font-mono">{formData.brandingSuggestions?.colors?.accent || '#06b6d4'}</p>
                       </div>
                     </div>
                     <p className="text-xs text-gray-400 mt-2">Click "Apply Branding" to use these colors</p>

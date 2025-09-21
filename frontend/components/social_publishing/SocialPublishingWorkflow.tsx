@@ -172,11 +172,11 @@ export default function SocialPublishingWorkflow({
         if (!currentDraft) return;
 
         try {
-            await socialPublishingAPI.updateDraft(currentDraft.id!, {
+            const updatedDraft = await socialPublishingAPI.updateDraft(currentDraft.id!, {
                 status: 'ready'
             });
 
-            handleDraftUpdate({ ...currentDraft, status: 'ready' });
+            handleDraftUpdate(updatedDraft);
             toast.success('Content marked as ready');
         } catch (error) {
             console.error('Error marking ready:', error);
