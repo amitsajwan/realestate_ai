@@ -1,14 +1,53 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { simpleAuth } from '@/lib/simple-auth';
 
 /**
- * Simple Login Page - Bypasses Complex Hydration Issues
- * ====================================================
+ * Simple Login Page - With Proper Authentication
+ * =============================================
  * 
- * This is a minimal login form that works directly with our backend API
- * without complex client-side hydration or AuthManager dependencies.
+ * This is a minimal login form with proper JWT token management
+ * and authentication state handling.
  */
 
 export default function SimpleLoginPage() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const formData = new FormData(e.currentTarget);
+      
+      const response = await fetch('/api/auth/simple-login', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Store auth state
+        simpleAuth.setAuthState(data.user, data.access_token);
+        
+        // Redirect to dashboard
+        router.push('/dashboard');
+      } else {
+        setError(data.error || 'Login failed');
+      }
+    } catch (err) {
+      setError('Network error. Please try again.');
+      console.error('Login error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 flex items-center justify-center py-6 px-4 sm:py-12 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-6 sm:space-y-8">
@@ -27,8 +66,7 @@ export default function SimpleLoginPage() {
 
           <form 
             className="mt-6 sm:mt-8 space-y-5 sm:space-y-6" 
-            action="/api/auth/simple-login" 
-            method="POST"
+            onSubmit={handleSubmit}
           >
             <div className="space-y-4 sm:space-y-5">
               {/* Email Field */}
@@ -78,13 +116,21 @@ export default function SimpleLoginPage() {
               </div>
             </div>
 
+            {/* Error Message */}
+            {error && (
+              <div className="text-red-600 text-sm text-center bg-red-50 p-3 rounded-lg">
+                {error}
+              </div>
+            )}
+
             {/* Submit Button */}
             <div>
               <button
                 type="submit"
-                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200"
+                disabled={isLoading}
+                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Sign in
+                {isLoading ? 'Signing in...' : 'Sign in'}
               </button>
             </div>
 
