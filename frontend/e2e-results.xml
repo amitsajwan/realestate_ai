@@ -1,12 +1,49 @@
-<testsuites id="" name="" tests="2" failures="0" skipped="2" errors="0" time="239.469457">
-<testsuite name="01-authentication-flow.spec.ts" timestamp="2025-09-21T10:41:48.721Z" hostname="chromium" tests="2" failures="0" skipped="2" time="238.809" errors="0">
-<testcase name="Authentication Flow - Natural Language Testing › User can register and login successfully" classname="01-authentication-flow.spec.ts" time="238.809">
-<skipped>
-</skipped>
-</testcase>
-<testcase name="Authentication Flow - Natural Language Testing › User login fails with invalid credentials" classname="01-authentication-flow.spec.ts" time="0">
-<skipped>
-</skipped>
+<testsuites id="" name="" tests="1" failures="1" skipped="0" errors="0" time="6.974667">
+<testsuite name="01-authentication-flow.spec.ts" timestamp="2025-09-21T10:47:30.866Z" hostname="chromium" tests="1" failures="1" skipped="0" time="6.31" errors="0">
+<testcase name="Authentication Flow - Natural Language Testing › User can register and login successfully" classname="01-authentication-flow.spec.ts" time="6.31">
+<failure message="01-authentication-flow.spec.ts:18:7 User can register and login successfully" type="FAILURE">
+<![CDATA[  [chromium] › 01-authentication-flow.spec.ts:18:7 › Authentication Flow - Natural Language Testing › User can register and login successfully 
+
+    Error: expect(page).toHaveURL(expected) failed
+
+    Expected pattern: /.*register/
+    Received string:  "http://localhost:3000/login"
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toHaveURL" with timeout 5000ms
+        9 × unexpected value "http://localhost:3000/login"
+
+
+      23 |     // Natural Language: "Navigate to registration page"
+      24 |     await page.click('text=Sign Up');
+    > 25 |     await expect(page).toHaveURL(/.*register/);
+         |                        ^
+      26 |     
+      27 |     // Natural Language: "Fill registration form with valid user data"
+      28 |     await page.fill('input[name="firstName"]', 'John');
+        at /workspace/frontend/e2e/mcp-tests/01-authentication-flow.spec.ts:25:24
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/01-authentication-flow-Aut-2ed4d-ster-and-login-successfully-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/01-authentication-flow-Aut-2ed4d-ster-and-login-successfully-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/01-authentication-flow-Aut-2ed4d-ster-and-login-successfully-chromium/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results/01-authentication-flow-Aut-2ed4d-ster-and-login-successfully-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|test-results/01-authentication-flow-Aut-2ed4d-ster-and-login-successfully-chromium/video.webm]]
+
+[[ATTACHMENT|test-results/01-authentication-flow-Aut-2ed4d-ster-and-login-successfully-chromium/error-context.md]]
+]]>
+</system-out>
 </testcase>
 </testsuite>
 </testsuites>
