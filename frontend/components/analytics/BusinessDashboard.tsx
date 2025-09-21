@@ -150,7 +150,7 @@ export default function BusinessDashboard() {
   if (!metrics) {
     return (
       <div className="text-center py-8">
-        <p className="text-muted-foreground">No business data available</p>
+        <p className="text-gray-300">No business data available</p>
       </div>
     );
   }
@@ -160,8 +160,8 @@ export default function BusinessDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Business Dashboard</h1>
-          <p className="text-muted-foreground">Comprehensive analytics for your real estate platform</p>
+          <h1 className="text-3xl font-bold text-white">Business Dashboard</h1>
+          <p className="text-gray-300">Comprehensive analytics for your real estate platform</p>
         </div>
         <div className="flex items-center space-x-2">
           <select 
@@ -189,12 +189,12 @@ export default function BusinessDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Properties</CardTitle>
-            <Home className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-white">Total Properties</CardTitle>
+            <Home className="h-4 w-4 text-gray-300" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics.totalProperties.toLocaleString()}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
+            <div className="text-2xl font-bold text-white">{metrics.totalProperties.toLocaleString()}</div>
+            <div className="flex items-center text-xs text-gray-300">
               <TrendingUp className="h-3 w-3 mr-1 text-green-500" />
               +{metrics.propertiesThisMonth} this month
             </div>

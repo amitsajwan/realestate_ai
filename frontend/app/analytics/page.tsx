@@ -3,7 +3,7 @@ import BusinessDashboard from '@/components/analytics/BusinessDashboard';
 
 export default function AnalyticsPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Analytics Dashboard</h1>
