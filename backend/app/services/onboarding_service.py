@@ -82,12 +82,6 @@ class OnboardingService:
             self.logger.error(f"Invalid ObjectId format: {user_id}, error: {str(e)}")
             raise ValueError(f"Invalid user ID format: {str(e)}")
         
-        # Get the latest onboarding data to create profile
-        latest_step = await self.steps.find_one(
-            {"user_id": object_id},
-            sort=[("step_number", -1)]
-        )
-        
         # Check if user exists first
         user_exists = await self.users.find_one({"_id": object_id})
         if not user_exists:
@@ -109,10 +103,16 @@ class OnboardingService:
             self.logger.error(f"Failed to update user for onboarding completion: {user_id}")
             raise ValueError("Failed to update user")
         
-        # Create user profile from onboarding data
-        if latest_step and latest_step.get("data"):
-            profile_data = latest_step["data"]
-            await self._create_user_profile(user_id, profile_data)
+        # Create user profile from user data (since onboarding data is in user record)
+        # Use basic user data to create agent profile
+        profile_data = {
+            "first_name": user_exists.get("first_name", ""),
+            "last_name": user_exists.get("last_name", ""),
+            "phone": user_exists.get("phone", ""),
+            "company_name": user_exists.get("company", "Real Estate Pro"),
+            "email": user_exists.get("email", "")
+        }
+        await self._create_user_profile(user_id, profile_data)
         
         self.logger.info(f"Successfully completed onboarding for user {user_id}")
         return OnboardingComplete(user_id=user_id, message="Onboarding completed successfully.")
@@ -148,6 +148,57 @@ class OnboardingService:
             
             self.logger.info(f"Created profile for user {user_id} from onboarding data")
             
+            # Also create agent public profile
+            await self._create_agent_public_profile(user_id, user, onboarding_data)
+            
         except Exception as e:
             self.logger.error(f"Failed to create profile for user {user_id}: {str(e)}")
             # Don't fail onboarding completion if profile creation fails
+
+    async def _create_agent_public_profile(self, user_id: str, user: dict, onboarding_data: dict):
+        """Create agent public profile for the website."""
+        try:
+            from app.services.agent_public_service import AgentPublicService
+            
+            # Get database instance
+            db = get_database()
+            if db is None:
+                self.logger.error("Database not available for agent public profile creation")
+                return
+            
+            agent_service = AgentPublicService(db)
+            
+            # Create agent slug from email or name
+            email = user.get("email", "")
+            first_name = onboarding_data.get("first_name", "")
+            last_name = onboarding_data.get("last_name", "")
+            agent_name = f"{first_name} {last_name}".strip() or email.split("@")[0]
+            agent_slug = email.split("@")[0]  # Use email prefix as slug
+            
+            # Create agent public profile data
+            agent_profile_data = {
+                "agent_id": user_id,
+                "agent_name": agent_name,
+                "slug": agent_slug,
+                "bio": f"Professional Real Estate Agent at {onboarding_data.get('company_name', 'Real Estate Pro')}",
+                "photo": "",  # Will be set later if user uploads
+                "phone": onboarding_data.get("phone", user.get("phone", "")),
+                "email": email,
+                "office_address": "",  # Will be set later
+                "specialties": ["Residential", "Commercial"],  # Default specialties
+                "experience": "Professional",  # Default experience level
+                "languages": ["English"],  # Default language
+                "view_count": 0,
+                "contact_count": 0,
+                "is_public": True,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+            
+            # Create the agent public profile
+            await agent_service.create_agent_profile(user_id, agent_profile_data)
+            self.logger.info(f"Created agent public profile for user {user_id} with slug {agent_slug}")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to create agent public profile for user {user_id}: {str(e)}")
+            # Don't fail onboarding completion if agent profile creation fails
