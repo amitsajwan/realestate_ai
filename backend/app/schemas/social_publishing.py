@@ -87,6 +87,16 @@ class MarkReadyRequest(BaseModel):
     """Request to mark drafts as ready"""
     draft_ids: List[str]
 
+class CreateSocialPostRequest(BaseModel):
+    """Request to create a social media post directly"""
+    title: str
+    content: str
+    property_id: str
+    language: str = "English"
+    channels: List[Channel]
+    status: DraftStatus = DraftStatus.PUBLISHED
+    agent_id: Optional[str] = None
+
 class PublishRequest(BaseModel):
     """Request to publish drafts"""
     draft_ids: List[str]

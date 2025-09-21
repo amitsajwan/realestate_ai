@@ -26,6 +26,7 @@ class TestPostManagementAPI:
         return User(
             id="user_123",
             email="test@example.com",
+            hashed_password="hashed_password_123",
             is_active=True,
             is_verified=True
         )
@@ -71,7 +72,7 @@ class TestPostManagementAPI:
             
             # Make request
             response = client.post(
-                "/api/v1/posts/create",
+                "/api/v1/post-management/create",
                 json=sample_post_data,
                 headers={"Authorization": "Bearer test_token"}
             )
@@ -95,7 +96,7 @@ class TestPostManagementAPI:
             
             # Make request
             response = client.post(
-                "/api/v1/posts/create",
+                "/api/v1/post-management/create",
                 json=invalid_data,
                 headers={"Authorization": "Bearer test_token"}
             )
@@ -113,7 +114,7 @@ class TestPostManagementAPI:
             
             # Make request
             response = client.post(
-                "/api/v1/posts/create",
+                "/api/v1/post-management/create",
                 json=sample_post_data,
                 headers={"Authorization": "Bearer test_token"}
             )
@@ -449,7 +450,7 @@ class TestPostManagementAPI:
         """Test API access without authentication."""
         # Make request without authorization header
         response = client.post(
-            "/api/v1/posts/create",
+            "/api/v1/post-management/create",
             json=sample_post_data
         )
         

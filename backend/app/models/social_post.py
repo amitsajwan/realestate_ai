@@ -7,7 +7,7 @@ MongoDB document model for published social media posts
 from typing import Dict, Any, Optional, Literal, Union
 from datetime import datetime
 from beanie import Document, PydanticObjectId
-from pydantic import Field, validator
+from pydantic import Field, field_validator
 from enum import Enum
 
 class Channel(str, Enum):
@@ -46,19 +46,22 @@ class SocialPost(Document):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
-    @validator('draft_id', pre=True)
+    @field_validator('draft_id', mode='before')
+    @classmethod
     def convert_draft_id(cls, v):
         if isinstance(v, str):
             return PydanticObjectId(v)
         return v
     
-    @validator('property_id', pre=True)
+    @field_validator('property_id', mode='before')
+    @classmethod
     def convert_property_id(cls, v):
         if isinstance(v, str):
             return PydanticObjectId(v)
         return v
     
-    @validator('agent_id', pre=True)
+    @field_validator('agent_id', mode='before')
+    @classmethod
     def convert_agent_id(cls, v):
         if isinstance(v, str):
             return PydanticObjectId(v)

@@ -31,6 +31,7 @@ class TestIntegration:
         return User(
             id="user_123",
             email="test@example.com",
+            hashed_password="hashed_password_123",
             is_active=True,
             is_verified=True
         )
@@ -93,7 +94,7 @@ class TestIntegration:
             
             # Step 1: Create post
             response = client.post(
-                "/api/v1/posts/create",
+                "/api/v1/post-management/create",
                 json=sample_post_data,
                 headers={"Authorization": "Bearer test_token"}
             )
@@ -324,7 +325,7 @@ class TestIntegration:
             
             # Test post creation with AI
             response = client.post(
-                "/api/v1/posts/create",
+                "/api/v1/post-management/create",
                 json=sample_post_data,
                 headers={"Authorization": "Bearer test_token"}
             )
@@ -377,7 +378,7 @@ class TestIntegration:
             mock_post_service.create_post.side_effect = Exception("Database connection failed")
             
             response = client.post(
-                "/api/v1/posts/create",
+                "/api/v1/post-management/create",
                 json={
                     "property_id": "property_123",
                     "property_title": "Test Property",
@@ -496,7 +497,13 @@ class TestIntegration:
         
         # Test 3: Valid authentication
         with patch('app.api.v1.endpoints.post_management.current_active_user') as mock_auth:
-            mock_user = User(id="user_123", email="test@example.com", is_active=True, is_verified=True)
+            mock_user = User(
+                id="user_123", 
+                email="test@example.com", 
+                hashed_password="hashed_password_123",
+                is_active=True, 
+                is_verified=True
+            )
             mock_auth.return_value = mock_user
             
             with patch('app.services.post_management_service.PostManagementService') as mock_service_class:

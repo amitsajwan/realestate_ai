@@ -117,7 +117,7 @@ export function DashboardStats({
 
       {/* Secondary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="card-hover">
           <CardBody className="text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -130,7 +130,7 @@ export function DashboardStats({
           </CardBody>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="card-hover">
           <CardBody className="text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -143,7 +143,7 @@ export function DashboardStats({
           </CardBody>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="card-hover">
           <CardBody className="text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -156,7 +156,7 @@ export function DashboardStats({
           </CardBody>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="card-hover">
           <CardBody className="text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">

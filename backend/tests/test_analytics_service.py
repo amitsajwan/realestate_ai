@@ -17,7 +17,8 @@ class TestAnalyticsService:
     @pytest.fixture
     def analytics_service(self):
         """Create an AnalyticsService instance for testing."""
-        with patch('app.services.analytics_service.get_database'):
+        with patch('app.core.database.get_database') as mock_db:
+            mock_db.return_value = AsyncMock()
             service = AnalyticsService()
             service.collection = AsyncMock()
             return service

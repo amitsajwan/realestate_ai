@@ -12,6 +12,10 @@ interface CardBodyProps extends React.HTMLAttributes<HTMLDivElement> {
     children: React.ReactNode;
 }
 
+interface CardTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {
+    children: React.ReactNode;
+}
+
 interface CardFooterProps extends React.HTMLAttributes<HTMLDivElement> {
     children: React.ReactNode;
 }
@@ -37,6 +41,14 @@ export const CardBody: React.FC<CardBodyProps> = ({ children, className = '', ..
         <div className={`px-6 py-4 ${className}`} {...props}>
             {children}
         </div>
+    );
+};
+
+export const CardTitle: React.FC<CardTitleProps> = ({ children, className = '', ...props }) => {
+    return (
+        <h3 className={`text-lg font-semibold leading-none tracking-tight ${className}`} {...props}>
+            {children}
+        </h3>
     );
 };
 

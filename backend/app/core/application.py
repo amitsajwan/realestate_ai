@@ -5,6 +5,7 @@ FastAPI application creation and configuration
 """
 
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.core.database import init_database, close_database
 from app.core.rate_limiting import setup_rate_limiting
@@ -15,6 +16,38 @@ from app.core.logging_config import setup_logging, get_logger
 from app.core.security import SecurityMiddleware, get_security_headers
 from app.api.v1.endpoints.health import router as health_router
 import logging
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager"""
+    # Initialize production-ready logging
+    setup_logging(environment=settings.environment)
+    logger = get_logger("core")
+    
+    # Startup
+    try:
+        await init_database()
+        logger.info("🚀 MongoDB connected successfully")
+        
+        # Initialize database collections and indexes
+        from app.utils.database_init import initialize_database
+        await initialize_database()
+        logger.info("📊 Database collections and indexes initialized")
+        
+        # Analytics service will be initialized when needed
+        logger.info("📈 Analytics service ready")
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to connect to MongoDB: {e}")
+        # Don't raise the exception - let the app start with mock database
+        logger.warning("⚠️ Continuing with mock database")
+    
+    yield
+    
+    # Shutdown
+    await close_database()
+    logger.info("📊 Database connection closed")
 
 
 def create_application() -> FastAPI:
@@ -37,6 +70,7 @@ def create_application() -> FastAPI:
         version="2.0.0",
         docs_url="/docs" if settings.environment != "production" else None,
         redoc_url="/redoc" if settings.environment != "production" else None,
+        lifespan=lifespan,
     )
 
     # Register error handlers first
@@ -54,35 +88,5 @@ def create_application() -> FastAPI:
     
     # Add health check endpoints
     app.include_router(health_router, prefix="/api/v1", tags=["health"])
-
-    # MongoDB Startup and Shutdown Events
-    @app.on_event("startup")
-    async def startup_event():
-        """Initialize MongoDB connection on startup"""
-        try:
-            await init_database()
-            logger.info("🚀 MongoDB connected successfully")
-            
-            # Initialize database collections and indexes
-            from app.utils.database_init import initialize_database
-            await initialize_database()
-            logger.info("📊 Database collections and indexes initialized")
-            
-            # Analytics service will be initialized when needed
-            logger.info("📈 Analytics service ready")
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to connect to MongoDB: {e}")
-            # Don't raise the exception - let the app start with mock database
-            logger.warning("⚠️ Continuing with mock database")
-
-    @app.on_event("shutdown")
-    async def shutdown_event():
-        """Close MongoDB connection on shutdown"""
-        try:
-            await close_database()
-            logger.info("📊 MongoDB connection closed")
-        except Exception as e:
-            logger.error(f"❌ Error closing MongoDB connection: {e}")
 
     return app

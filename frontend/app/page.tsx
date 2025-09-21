@@ -37,6 +37,7 @@ const AIContentGenerator = lazy(() => import('@/components/AIContentGenerator'))
 const Analytics = lazy(() => import('@/components/Analytics'))
 const PublicWebsiteManagement = lazy(() => import('@/components/PublicWebsiteManagement'))
 const TeamManagement = lazy(() => import('@/components/TeamManagement'))
+const UXDemo = lazy(() => import('@/components/UXDemo'))
 
 const navigation = [
   { name: 'Dashboard', icon: HomeIcon, id: 'dashboard' },
@@ -48,6 +49,7 @@ const navigation = [
   { name: 'Analytics', icon: ChartBarIcon, id: 'analytics' },
   { name: 'CRM', icon: UsersIcon, id: 'crm' },
   { name: 'Team Management', icon: UsersIcon, id: 'team-management' },
+  { name: 'UX Demo', icon: SparklesIcon, id: 'ux-demo' },
   { name: 'Facebook', icon: CogIcon, id: 'facebook' },
   { name: 'Profile', icon: UserIcon, id: 'profile' },
 ]
@@ -237,6 +239,16 @@ export default function Dashboard() {
             <TeamManagement />
           </Suspense>
         )
+      case 'ux-demo':
+        return (
+          <Suspense fallback={
+            <div className="flex items-center justify-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+          }>
+            <UXDemo />
+          </Suspense>
+        )
       case 'facebook':
         return <FacebookIntegration />
       case 'profile':
@@ -327,6 +339,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900">
+      <div className="page-transition">
       {/* Mobile-First Header */}
       <header className="sticky top-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-b border-gray-200 dark:border-white/20 shadow-sm">
         <div className="px-4 sm:px-6 lg:px-8">
@@ -495,6 +508,7 @@ export default function Dashboard() {
           isOpen={isMobileMenuOpen}
           onClose={() => setIsMobileMenuOpen(false)}
         />
+      </div>
       </div>
     </div>
   )

@@ -18,6 +18,12 @@ async def get_user_db():
         # Get the database instance
         db = get_database()
         if db is None:
+            # Try to initialize database if not already done
+            from app.core.database import init_database
+            await init_database()
+            db = get_database()
+            
+        if db is None:
             logger.error("Database not initialized")
             raise RuntimeError("Database not initialized")
         

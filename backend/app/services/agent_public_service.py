@@ -380,8 +380,8 @@ class AgentPublicService:
             else:
                 profile_dict = profile_data
             
-            # Generate slug from agent name
-            slug = profile_dict["agent_name"].lower().replace(" ", "-").replace(".", "-").replace("_", "-")
+            # Use provided slug or generate from agent name
+            slug = profile_dict.get("slug") or profile_dict["agent_name"].lower().replace(" ", "-").replace(".", "-").replace("_", "-")
             
             # Create the profile
             profile = AgentPublicProfile(
