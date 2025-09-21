@@ -95,20 +95,22 @@ const mockStats = {
   lead_response_time: 2.5,
   follow_up_completion_rate: 85,
   top_performing_sources: ['website'],
-  recent_activities: []
+  recent_activities: [],
+  leads_this_month: 10,
+  leads_this_week: 3,
+  leads_today: 1
 }
 
 // Configure mock implementations
 const mockGetLeads = crmApi.getLeads as jest.MockedFunction<typeof crmApi.getLeads>
 const mockGetLeadStats = crmApi.getLeadStats as jest.MockedFunction<typeof crmApi.getLeadStats>
-const mockSearchLeads = crmApi.searchLeads as jest.MockedFunction<typeof crmApi.searchLeads>
+// Note: searchLeads method doesn't exist in the current CRM API, removing this mock
 
 describe('CRM Component', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockGetLeads.mockResolvedValue(mockLeads)
     mockGetLeadStats.mockResolvedValue(mockStats)
-    mockSearchLeads.mockResolvedValue(mockLeads)
   })
 
   it('should render without crashing', async () => {

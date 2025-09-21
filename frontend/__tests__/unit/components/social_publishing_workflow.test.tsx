@@ -7,9 +7,15 @@ describe('SocialPublishingWorkflow Component', () => {
     {
       id: '1',
       title: 'Test Property',
+      description: 'A beautiful test property',
       location: 'Test City',
       price: 1000000,
-      property_type: 'apartment'
+      property_type: 'apartment',
+      propertyType: 'apartment',
+      bedrooms: 3,
+      bathrooms: 2,
+      area_sqft: 1200,
+      images: ['test1.jpg', 'test2.jpg']
     }
   ]
 
