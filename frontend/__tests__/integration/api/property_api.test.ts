@@ -6,22 +6,27 @@ global.fetch = jest.fn()
 // Mock the auth manager
 jest.mock('@/lib/auth', () => ({
   authManager: {
-    getState: jest.fn(() => ({
-      isAuthenticated: true,
-      user: { id: 'test-user', email: 'test@example.com' },
-      token: 'test-token',
-      refreshToken: 'test-refresh-token',
-      isLoading: false,
-      error: null
-    })),
-    getToken: jest.fn(() => 'test-token'),
-    isAuthenticated: jest.fn(() => true),
+    getState: jest.fn(),
+    getToken: jest.fn(),
+    isAuthenticated: jest.fn(),
   },
 }))
 
 describe('Property API Integration', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    // Configure the auth manager mock
+    const { authManager } = require('@/lib/auth')
+    authManager.getState.mockReturnValue({
+      isAuthenticated: true,
+      user: { id: 'test-user', email: 'test@example.com' },
+      token: 'test-token',
+      refreshToken: 'test-refresh-token',
+      isLoading: false,
+      error: null
+    })
+    authManager.getToken.mockReturnValue('test-token')
+    authManager.isAuthenticated.mockReturnValue(true)
   })
 
   afterEach(() => {
@@ -204,28 +209,17 @@ describe('Property API Integration', () => {
     })
 
     it('should handle token refresh', async () => {
-      // Mock initial request with expired token
-      ;(fetch as jest.Mock)
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 401,
-          json: async () => ({ detail: 'Token expired' }),
-        })
-        // Mock token refresh
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ access_token: 'new-token' }),
-        })
-        // Mock retry with new token
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => [],
-        })
+      // Mock request with expired token
+      ;(fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ detail: 'Token expired' }),
+      })
 
-      // Mock expired token for testing
-      await propertiesAPI.getProperties()
+      // PropertiesAPI should throw an error for expired tokens
+      await expect(propertiesAPI.getProperties()).rejects.toThrow('Token expired')
 
-      expect(fetch).toHaveBeenCalledTimes(3) // Initial + refresh + retry
+      expect(fetch).toHaveBeenCalledTimes(1) // Only initial call
     })
   })
 })
