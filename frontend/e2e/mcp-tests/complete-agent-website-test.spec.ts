@@ -108,7 +108,8 @@ test.describe('Complete Agent Website Test', () => {
       bathrooms: 2,
       area: 1400,
       amenities: 'Gym, Pool, Concierge, Rooftop Deck, Parking',
-      features: ['Modern Kitchen', 'Hardwood Floors', 'City Views', 'Parking']
+      features: ['Modern Kitchen', 'Hardwood Floors', 'City Views', 'Parking'],
+      publishing_status: 'published'  // Set to published so it shows on agent website
     };
 
     const propertyResponse = await page.request.post('http://localhost:8000/api/v1/properties/', {
@@ -298,7 +299,7 @@ test.describe('Complete Agent Website Test', () => {
     expect(agentWebsiteAccessible).toBe(true);
 
     // At minimum, agent name or some profile info should be visible
-    const hasProfileInfo = testData.agentName || testData.agentBio || testData.contactInfoVisible;
+    const hasProfileInfo = !!(testData.agentName || testData.agentBio || testData.contactInfoVisible);
     console.log(`👤 Has Profile Info: ${hasProfileInfo}`);
     expect(hasProfileInfo).toBe(true);
 

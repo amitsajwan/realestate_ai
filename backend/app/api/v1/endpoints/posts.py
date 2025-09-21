@@ -16,9 +16,7 @@ router = APIRouter()
 
 def get_post_service() -> PostManagementService:
     """Get post management service instance"""
-    db = get_database()
-    ai_service = AIContentService()
-    return PostManagementService(db, ai_service)
+    return PostManagementService()
 
 @router.post("/", response_model=PostResponse)
 async def create_post(
@@ -28,8 +26,56 @@ async def create_post(
     """Create a new post for a property"""
     try:
         service = get_post_service()
-        post = await service.create_post(post_data, current_user.id)
-        return post
+        
+        # Get property data from database
+        from app.core.database import get_database
+        from bson import ObjectId
+        db = get_database()
+        
+        # Convert string ID to ObjectId
+        try:
+            property_object_id = ObjectId(post_data.property_id)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid property ID format")
+            
+        property_obj = await db.properties.find_one({"_id": property_object_id})
+        if not property_obj:
+            raise HTTPException(status_code=404, detail="Property not found")
+        
+        # Convert property object to dict
+        property_data = {
+            "id": str(property_obj["_id"]),
+            "title": property_obj.get("title", ""),
+            "location": property_obj.get("location", ""),
+            "price": str(property_obj.get("price", "")),
+            "property_type": property_obj.get("property_type", ""),
+            "features": property_obj.get("features", []),
+            "description": property_obj.get("description", "")
+        }
+        
+        # Create post using the service
+        post = await service.create_post(
+            property_data=property_data,
+            channels=post_data.channels,
+            language=post_data.language,
+            custom_prompt=post_data.ai_prompt or "",
+            template_id=post_data.template_id
+        )
+        
+        # Transform to PostResponse format
+        response = PostResponse(
+            id=str(post["_id"]),
+            property_id=post["property_id"],
+            title=post.get("property_title", ""),
+            content=post["content"],
+            language=post["language"],
+            channels=post["channels"],
+            status=post["status"],
+            created_at=post["created_at"],
+            updated_at=post.get("updated_at", post["created_at"])
+        )
+        
+        return response
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

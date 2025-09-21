@@ -158,19 +158,21 @@ test.describe('WORKING Full User Journey - Backend APIs + Frontend UI', () => {
     if (createdData.property) {
       const socialPostData = {
         property_id: createdData.property.id,
+        title: 'New Luxury Downtown Condo Listing!',
         content: '🏠 NEW LISTING ALERT! 🏠\n\n✨ Luxury Downtown Condo with breathtaking city views!\n\n📍 Prime downtown location\n🛏️ 2 bedrooms, 2 bathrooms\n🏊‍♀️ Building amenities: Gym, Pool, Concierge\n🌅 Floor-to-ceiling windows\n\nPerfect for urban professionals who demand luxury living! \n\n#LuxuryRealEstate #DowntownLiving #CityViews #ModernCondo',
-        platforms: ['facebook', 'instagram', 'linkedin'],
-        agent_id: createdData.user.id
+        language: 'en',
+        channels: ['facebook', 'instagram', 'linkedin'],
+        ai_generated: false
       };
       
       formData.socialPost = socialPostData;
       
       console.log(`📱 Creating Social Post:`);
       console.log(`   Property: ${createdData.property.title}`);
-      console.log(`   Platforms: ${socialPostData.platforms.join(', ')}`);
+      console.log(`   Channels: ${socialPostData.channels.join(', ')}`);
       console.log(`   Content: ${socialPostData.content.substring(0, 100)}...`);
       
-      const socialPostResponse = await page.request.post('http://localhost:8000/api/v1/social-posts/', {
+      const socialPostResponse = await page.request.post('http://localhost:8000/api/v1/posts/', {
         headers: {
           'Authorization': `Bearer ${createdData.authToken}`,
           'Content-Type': 'application/json'
@@ -253,17 +255,18 @@ test.describe('WORKING Full User Journey - Backend APIs + Frontend UI', () => {
     
     // Test AI content generation API
     if (createdData.property) {
-      const aiContentResponse = await page.request.post('http://localhost:8000/api/v1/ai/generate-content', {
+      const aiContentResponse = await page.request.post('http://localhost:8000/api/v1/social-publishing/generate', {
         headers: {
           'Authorization': `Bearer ${createdData.authToken}`,
           'Content-Type': 'application/json'
         },
         data: {
           property_id: createdData.property.id,
-          content_type: 'social_post',
-          platform: 'facebook',
-          tone: 'professional',
-          language: 'en'
+          language: 'en',
+          channels: ['facebook', 'instagram'],
+          tone: 'friendly',
+          length: 'medium',
+          agent_id: createdData.user.id
         }
       });
       
