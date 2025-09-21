@@ -75,7 +75,7 @@ test.describe('WORKING Full User Journey - Backend APIs + Frontend UI', () => {
     console.log('🔐 PHASE 2: LOGIN VIA WORKING BACKEND API');
     console.log('🔐 ===========================================');
     
-    const loginResponse = await page.request.post('http://localhost:8000/api/v1/auth/jwt/login', {
+    const loginResponse = await page.request.post('http://localhost:8000/api/v1/auth/login', {
       form: {
         username: testUser.email,
         password: testUser.password
