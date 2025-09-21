@@ -1,111 +1,111 @@
 {
-  "timestamp": "2025-09-21T09:26:57.963131",
+  "timestamp": "2025-09-21T14:20:36.720779",
   "tests": {
     "MongoDB Connection": {
       "status": "PASS",
       "details": "Database is accessible",
-      "timestamp": "2025-09-21T09:26:58.024294"
+      "timestamp": "2025-09-21T14:20:36.795876"
     },
     "Backend API": {
       "status": "PASS",
       "details": "API health check accessible",
-      "timestamp": "2025-09-21T09:26:58.027349"
+      "timestamp": "2025-09-21T14:20:36.810786"
     },
     "Frontend Application": {
-      "status": "PASS",
-      "details": "Frontend is accessible",
-      "timestamp": "2025-09-21T09:26:58.051601"
+      "status": "FAIL",
+      "details": "Status: 500",
+      "timestamp": "2025-09-21T14:20:38.557690"
     },
     "API Endpoint: Health Check": {
       "status": "PASS",
       "details": "Status: 200",
-      "timestamp": "2025-09-21T09:26:58.054052"
+      "timestamp": "2025-09-21T14:20:38.562005"
     },
     "API Endpoint: User Registration": {
       "status": "PASS",
       "details": "Status: 422",
-      "timestamp": "2025-09-21T09:26:58.059087"
+      "timestamp": "2025-09-21T14:20:38.570167"
     },
     "API Endpoint: User Login": {
       "status": "PASS",
       "details": "Status: 422",
-      "timestamp": "2025-09-21T09:26:58.062656"
+      "timestamp": "2025-09-21T14:20:38.576271"
     },
     "API Endpoint: Public Properties": {
       "status": "PASS",
       "details": "Status: 200",
-      "timestamp": "2025-09-21T09:26:58.065990"
+      "timestamp": "2025-09-21T14:20:38.587212"
     },
     "API Endpoint: Property Search": {
       "status": "PASS",
       "details": "Status: 401",
-      "timestamp": "2025-09-21T09:26:58.068427"
+      "timestamp": "2025-09-21T14:20:38.590537"
     },
     "User Registration": {
       "status": "PASS",
       "details": "Status: 400",
-      "timestamp": "2025-09-21T09:26:58.075849"
+      "timestamp": "2025-09-21T14:20:38.598987"
     },
     "User Login": {
       "status": "PASS",
       "details": "Status: 200",
-      "timestamp": "2025-09-21T09:26:58.121117"
+      "timestamp": "2025-09-21T14:20:38.672954"
     },
     "Public Properties API": {
       "status": "PASS",
       "details": "Properties accessible",
-      "timestamp": "2025-09-21T09:26:58.123768"
+      "timestamp": "2025-09-21T14:20:38.676388"
     },
     "Property Search API": {
       "status": "PASS",
       "details": "Status: 401 (401 expected without auth)",
-      "timestamp": "2025-09-21T09:26:58.125948"
+      "timestamp": "2025-09-21T14:20:38.679053"
     },
     "Social Publishing: Content Generation": {
       "status": "PASS",
       "details": "Status: 401",
-      "timestamp": "2025-09-21T09:26:58.128529"
+      "timestamp": "2025-09-21T14:20:38.682388"
     },
     "Social Publishing: Get Drafts": {
       "status": "PASS",
       "details": "Status: 200",
-      "timestamp": "2025-09-21T09:26:58.131601"
+      "timestamp": "2025-09-21T14:20:38.687514"
     },
     "Frontend: Home Page": {
-      "status": "PASS",
-      "details": "Page loads successfully",
-      "timestamp": "2025-09-21T09:26:58.147381"
+      "status": "FAIL",
+      "details": "Status: 500",
+      "timestamp": "2025-09-21T14:20:38.712439"
     },
     "Frontend: Login Page": {
-      "status": "PASS",
-      "details": "Page loads successfully",
-      "timestamp": "2025-09-21T09:26:58.163170"
+      "status": "FAIL",
+      "details": "Status: 500",
+      "timestamp": "2025-09-21T14:20:38.735254"
     },
     "Frontend: Registration Page": {
-      "status": "PASS",
-      "details": "Page loads successfully",
-      "timestamp": "2025-09-21T09:26:58.179366"
+      "status": "FAIL",
+      "details": "Status: 500",
+      "timestamp": "2025-09-21T14:20:39.026426"
     },
     "Frontend: Dashboard Page": {
-      "status": "PASS",
-      "details": "Page loads successfully",
-      "timestamp": "2025-09-21T09:26:58.195051"
+      "status": "FAIL",
+      "details": "Status: 500",
+      "timestamp": "2025-09-21T14:20:39.084602"
     },
     "API Response Time": {
       "status": "PASS",
-      "details": "1.93ms",
-      "timestamp": "2025-09-21T09:26:58.197037"
+      "details": "2.64ms",
+      "timestamp": "2025-09-21T14:20:39.087291"
     },
     "Frontend Load Time": {
       "status": "PASS",
-      "details": "15.81ms",
-      "timestamp": "2025-09-21T09:26:58.212873"
+      "details": "109.13ms",
+      "timestamp": "2025-09-21T14:20:39.196443"
     }
   },
   "summary": {
     "total": 20,
-    "passed": 20,
-    "failed": 0,
+    "passed": 15,
+    "failed": 5,
     "errors": 0
   }
 }
