@@ -245,6 +245,156 @@ class AnalyticsService(BaseService):
         except Exception as e:
             logger.error(f"Failed to get dashboard metrics for user {user_id}: {e}")
             raise Exception(f"Failed to get dashboard metrics: {str(e)}")
+    
+    async def get_top_performing_posts(self, user_id: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Get top performing posts for a user.
+        
+        Args:
+            user_id (str): User ID
+            limit (int): Number of posts to return
+            
+        Returns:
+            List[Dict[str, Any]]: Top performing posts
+        """
+        try:
+            logger.info(f"Getting top performing posts for user {user_id}")
+            
+            # Get all analytics for the user
+            analytics_records = await self.get_all(
+                {"user_id": user_id}
+            )
+            
+            if not analytics_records:
+                return []
+            
+            # Calculate performance score for each post
+            post_scores = {}
+            for record in analytics_records:
+                post_id = record.get("post_id")
+                if not post_id:
+                    continue
+                    
+                if post_id not in post_scores:
+                    post_scores[post_id] = {
+                        "post_id": post_id,
+                        "total_views": 0,
+                        "total_likes": 0,
+                        "total_shares": 0,
+                        "total_comments": 0,
+                        "platforms": set()
+                    }
+                
+                metrics = record.get("metrics", {})
+                post_scores[post_id]["total_views"] += metrics.get("views", 0)
+                post_scores[post_id]["total_likes"] += metrics.get("likes", 0)
+                post_scores[post_id]["total_shares"] += metrics.get("shares", 0)
+                post_scores[post_id]["total_comments"] += metrics.get("comments", 0)
+                post_scores[post_id]["platforms"].add(record.get("platform", "unknown"))
+            
+            # Calculate performance score (weighted combination)
+            top_posts = []
+            for post_id, data in post_scores.items():
+                performance_score = (
+                    data["total_views"] * 0.3 +
+                    data["total_likes"] * 0.4 +
+                    data["total_shares"] * 0.2 +
+                    data["total_comments"] * 0.1
+                )
+                
+                top_posts.append({
+                    "post_id": post_id,
+                    "performance_score": round(performance_score, 2),
+                    "total_views": data["total_views"],
+                    "total_likes": data["total_likes"],
+                    "total_shares": data["total_shares"],
+                    "total_comments": data["total_comments"],
+                    "platforms": list(data["platforms"])
+                })
+            
+            # Sort by performance score and return top N
+            top_posts.sort(key=lambda x: x["performance_score"], reverse=True)
+            
+            logger.debug(f"Retrieved top {min(limit, len(top_posts))} performing posts for user {user_id}")
+            return top_posts[:limit]
+            
+        except Exception as e:
+            logger.error(f"Failed to get top performing posts for user {user_id}: {e}")
+            raise Exception(f"Failed to get top performing posts: {str(e)}")
+    
+    async def export_analytics(self, user_id: str, format: str = "json", days: int = 30) -> Dict[str, Any]:
+        """
+        Export analytics data for a user.
+        
+        Args:
+            user_id (str): User ID
+            format (str): Export format (json, csv)
+            days (int): Number of days to export
+            
+        Returns:
+            Dict[str, Any]: Exported analytics data
+        """
+        try:
+            logger.info(f"Exporting analytics for user {user_id} in {format} format")
+            
+            # Get comprehensive analytics data
+            user_analytics = await self.get_user_analytics(user_id, days=days)
+            dashboard_metrics = await self.get_dashboard_metrics(user_id)
+            top_posts = await self.get_top_performing_posts(user_id, limit=10)
+            
+            # Combine all data
+            combined_data = {
+                "user_analytics": user_analytics,
+                "dashboard_metrics": dashboard_metrics,
+                "top_posts": top_posts
+            }
+            
+            if format.lower() == "csv":
+                # Convert to CSV format
+                csv_data = self._convert_to_csv(user_analytics)
+                return {
+                    "user_id": user_id,
+                    "format": "csv",
+                    "data": csv_data,
+                    "exported_at": datetime.utcnow().isoformat()
+                }
+            else:
+                # Return as JSON
+                return {
+                    "user_id": user_id,
+                    "format": "json",
+                    "data": combined_data,
+                    "exported_at": datetime.utcnow().isoformat()
+                }
+            
+        except Exception as e:
+            logger.error(f"Failed to export analytics for user {user_id}: {e}")
+            raise Exception(f"Failed to export analytics: {str(e)}")
+    
+    def _convert_to_csv(self, analytics_data: Dict[str, Any]) -> str:
+        """Convert analytics data to CSV format."""
+        import csv
+        import io
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow([
+            "Metric", "Value", "Platform", "Date"
+        ])
+        
+        # Write data
+        for platform, data in analytics_data.get("platform_breakdown", {}).items():
+            for metric, value in data.items():
+                writer.writerow([
+                    metric,
+                    value,
+                    platform,
+                    analytics_data.get("generated_at", "")
+                ])
+        
+        return output.getvalue()
 
 
 # Create a singleton instance (lazy initialization)

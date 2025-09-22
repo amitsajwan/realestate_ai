@@ -29,7 +29,7 @@ class TestPostManagementService:
         return {
             "id": "property_123",
             "title": "Beautiful 3BR Apartment",
-            "location": "Downtown Mumbai",
+            "property_location": "Downtown Mumbai",
             "price": "₹50,00,000",
             "property_type": "apartment"
         }
@@ -142,7 +142,11 @@ class TestPostManagementService:
             "status": "draft",
             "content": "Test content",
             "channels": ["facebook", "instagram"],
-            "property_title": "Test Property"
+            "property_title": "Test Property",
+            "property_location": "Test Location",
+            "property_price": "₹50,00,000",
+            "language": "en",
+            "created_at": datetime.utcnow()
         }
         
         # Mock services
@@ -331,6 +335,8 @@ class TestPostManagementService:
         post_data = {
             "_id": "post_123",
             "status": "published",
+            "created_at": datetime.utcnow(),
+            "channels": ["facebook", "instagram"],
             "publishing_results": {
                 "facebook": {"status": "success", "metrics": {"views": 100, "likes": 10}},
                 "instagram": {"status": "success", "metrics": {"views": 50, "likes": 5}}
@@ -346,7 +352,7 @@ class TestPostManagementService:
         assert result["post_id"] == "post_123"
         assert result["status"] == "published"
         assert "total_metrics" in result
-        assert "platform_metrics" in result
+        assert "channel_metrics" in result
     
     @pytest.mark.asyncio
     async def test_get_user_post_stats(self, post_service):

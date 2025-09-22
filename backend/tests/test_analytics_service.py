@@ -255,7 +255,7 @@ class TestAnalyticsService:
         assert len(result) == 2  # Two unique posts
         assert result[0]["post_id"] == "post_2"  # Higher engagement score
         assert result[0]["total_views"] == 200
-        assert result[0]["engagement_score"] > result[1]["engagement_score"]
+        assert result[0]["performance_score"] > result[1]["performance_score"]
         assert "facebook" in result[0]["platforms"]
     
     @pytest.mark.asyncio

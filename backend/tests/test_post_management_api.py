@@ -63,10 +63,26 @@ class TestPostManagementAPI:
             "updated_at": "2024-01-01T00:00:00Z"
         }
     
+    @pytest.fixture
+    def sample_post_response(self):
+        """Sample post response data."""
+        return {
+            "_id": "post_123",
+            "property_id": "property_123",
+            "property_title": "Beautiful 3BR Apartment",
+            "property_location": "Downtown Mumbai",
+            "property_price": "₹50,00,000",
+            "content": "Generated content",
+            "channels": ["facebook", "instagram", "linkedin"],
+            "status": "draft",
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-01T00:00:00Z"
+        }
+    
     def test_create_post_success(self, client, mock_user, sample_post_data, sample_post_response):
         """Test successful post creation."""
         with patch('app.api.v1.endpoints.post_management.current_active_user', return_value=mock_user), \
-             patch('app.api.v1.endpoints.post_management.post_service') as mock_service:
+             patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
             
             # Mock service methods
             mock_service.create_post = AsyncMock(return_value=sample_post_response)
@@ -108,7 +124,7 @@ class TestPostManagementAPI:
     def test_create_post_service_error(self, client, mock_user, sample_post_data):
         """Test post creation with service error."""
         with patch('app.api.v1.endpoints.post_management.current_active_user', return_value=mock_user), \
-             patch('app.api.v1.endpoints.post_management.post_service') as mock_service:
+             patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
             
             # Mock service to raise exception
             mock_service.create_post = AsyncMock(side_effect=Exception("Service error"))
@@ -128,7 +144,7 @@ class TestPostManagementAPI:
     def test_get_post_success(self, client, mock_user, sample_post_response):
         """Test successful post retrieval."""
         with patch('app.api.v1.endpoints.post_management.current_active_user', return_value=mock_user), \
-             patch('app.api.v1.endpoints.post_management.post_service') as mock_service:
+             patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
             
             # Mock service methods
             mock_service.get_by_id = AsyncMock(return_value=sample_post_response)
@@ -149,7 +165,7 @@ class TestPostManagementAPI:
     def test_get_post_not_found(self, client, mock_user):
         """Test post retrieval with non-existent post."""
         with patch('app.api.v1.endpoints.post_management.current_active_user', return_value=mock_user), \
-             patch('app.api.v1.endpoints.post_management.post_service') as mock_service:
+             patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
             
             # Mock service to return None
             mock_service.get_by_id = AsyncMock(return_value=None)
@@ -170,7 +186,7 @@ class TestPostManagementAPI:
         posts_list = [sample_post_response, sample_post_response]
         
         with patch('app.api.v1.endpoints.post_management.current_active_user', return_value=mock_user), \
-             patch('app.api.v1.endpoints.post_management.post_service') as mock_service:
+             patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
             
             # Mock service methods
             mock_service.get_all = AsyncMock(return_value=posts_list)
@@ -191,7 +207,7 @@ class TestPostManagementAPI:
     def test_get_posts_with_filters(self, client, mock_user):
         """Test posts list retrieval with filters."""
         with patch('app.api.v1.endpoints.post_management.current_active_user', return_value=mock_user), \
-             patch('app.api.v1.endpoints.post_management.post_service') as mock_service:
+             patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
             
             # Mock service methods
             mock_service.get_all = AsyncMock(return_value=[])
@@ -220,7 +236,7 @@ class TestPostManagementAPI:
         }
         
         with patch('app.api.v1.endpoints.post_management.current_active_user', return_value=mock_user), \
-             patch('app.api.v1.endpoints.post_management.post_service') as mock_service:
+             patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
             
             # Mock service methods
             mock_service.schedule_post = AsyncMock(return_value=scheduled_post)
@@ -254,7 +270,7 @@ class TestPostManagementAPI:
         }
         
         with patch('app.api.v1.endpoints.post_management.current_active_user', return_value=mock_user), \
-             patch('app.api.v1.endpoints.post_management.post_service') as mock_service:
+             patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
             
             # Mock service methods
             mock_service.publish_post = AsyncMock(return_value=publish_result)
@@ -287,7 +303,7 @@ class TestPostManagementAPI:
         }
         
         with patch('app.api.v1.endpoints.post_management.current_active_user', return_value=mock_user), \
-             patch('app.api.v1.endpoints.post_management.post_service') as mock_service:
+             patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
             
             # Mock service methods
             mock_service.update = AsyncMock(return_value=updated_post)
@@ -333,7 +349,7 @@ class TestPostManagementAPI:
         }
         
         with patch('app.api.v1.endpoints.post_management.current_active_user', return_value=mock_user), \
-             patch('app.api.v1.endpoints.post_management.post_service') as mock_service:
+             patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
             
             # Mock service methods
             mock_service.regenerate_content = AsyncMock(return_value=regenerated_post)
@@ -360,7 +376,7 @@ class TestPostManagementAPI:
         }
         
         with patch('app.api.v1.endpoints.post_management.current_active_user', return_value=mock_user), \
-             patch('app.api.v1.endpoints.post_management.analytics_service') as mock_analytics:
+             patch('app.api.v1.endpoints.post_management.get_analytics_service') as mock_analytics:
             
             # Mock service methods
             mock_analytics.get_post_analytics = AsyncMock(return_value=analytics_data)
@@ -389,7 +405,7 @@ class TestPostManagementAPI:
         }
         
         with patch('app.api.v1.endpoints.post_management.current_active_user', return_value=mock_user), \
-             patch('app.api.v1.endpoints.post_management.post_service') as mock_service:
+             patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
             
             # Mock service methods
             mock_service.get_user_post_stats = AsyncMock(return_value=stats_data)
@@ -410,7 +426,7 @@ class TestPostManagementAPI:
     def test_delete_post_success(self, client, mock_user):
         """Test successful post deletion."""
         with patch('app.api.v1.endpoints.post_management.current_active_user', return_value=mock_user), \
-             patch('app.api.v1.endpoints.post_management.post_service') as mock_service:
+             patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
             
             # Mock service methods
             mock_service.delete = AsyncMock(return_value=True)
@@ -431,7 +447,7 @@ class TestPostManagementAPI:
     def test_delete_post_not_found(self, client, mock_user):
         """Test post deletion with non-existent post."""
         with patch('app.api.v1.endpoints.post_management.current_active_user', return_value=mock_user), \
-             patch('app.api.v1.endpoints.post_management.post_service') as mock_service:
+             patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
             
             # Mock service to return False (not found)
             mock_service.delete = AsyncMock(return_value=False)
