@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, patch
 from app.main import app
 from app.models.user import User
+from app.core.auth_backend import current_active_user
 
 
 class TestPostManagementAPI:
@@ -23,14 +24,17 @@ class TestPostManagementAPI:
     @pytest.fixture
     def mock_user(self):
         """Create a mock user for authentication."""
+        from unittest.mock import Mock
         from bson import ObjectId
-        return User(
-            id=ObjectId(),
-            email="test@example.com",
-            hashed_password="hashed_password_123",
-            is_active=True,
-            is_verified=True
-        )
+        
+        # Create a simple mock user object
+        mock_user = Mock()
+        mock_user.id = ObjectId()
+        mock_user.email = "test@example.com"
+        mock_user.hashed_password = "hashed_password_123"
+        mock_user.is_active = True
+        mock_user.is_verified = True
+        return mock_user
     
     @pytest.fixture
     def sample_post_data(self):
@@ -81,17 +85,17 @@ class TestPostManagementAPI:
     
     def test_create_post_success(self, client, mock_user, sample_post_data, sample_post_response):
         """Test successful post creation."""
-        with patch('app.api.v1.endpoints.post_management.current_active_user', return_value=mock_user), \
-             patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
-            
+        # Override the dependency
+        app.dependency_overrides[current_active_user] = lambda: mock_user
+        
+        with patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
             # Mock service methods
             mock_service.create_post = AsyncMock(return_value=sample_post_response)
             
             # Make request
             response = client.post(
                 "/api/v1/post-management/create",
-                json=sample_post_data,
-                headers={"Authorization": "Bearer test_token"}
+                json=sample_post_data
             )
             
             # Assertions
@@ -100,7 +104,10 @@ class TestPostManagementAPI:
             assert data["success"] is True
             assert data["message"] == "Post created successfully"
             assert data["data"]["_id"] == "post_123"
-            mock_service.create_post.assert_called_once()
+        
+        # Clean up
+        app.dependency_overrides.clear()
+        mock_service.create_post.assert_called_once()
     
     def test_create_post_validation_error(self, client, mock_user):
         """Test post creation with validation error."""
