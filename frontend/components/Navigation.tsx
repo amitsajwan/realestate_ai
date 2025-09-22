@@ -1,19 +1,23 @@
 'use client';
 
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
 import { authManager } from '@/lib/auth';
-import ThemeToggle from './ThemeToggle';
-import SearchBar from './SearchBar';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import NotificationCenter from './NotificationCenter';
+import SearchBar from './SearchBar';
+import ThemeToggle from './ThemeToggle';
 
 export default function Navigation() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
   const navRef = useRef<HTMLDivElement>(null);
+
+  // Check if we're on a public agent page
+  const isPublicAgentPage = pathname?.startsWith('/agent/') && !pathname.includes('/dashboard');
 
   useEffect(() => {
     const initAuth = async () => {
@@ -22,15 +26,15 @@ export default function Navigation() {
       setIsAuthenticated(state.isAuthenticated);
       setUser(state.user);
     };
-    
+
     initAuth();
-    
+
     // Subscribe to auth state changes
     const unsubscribe = authManager.subscribe((state) => {
       setIsAuthenticated(state.isAuthenticated);
       setUser(state.user);
     });
-    
+
     return unsubscribe;
   }, []);
 
@@ -76,7 +80,7 @@ export default function Navigation() {
             <NotificationCenter />
             <ThemeToggle />
 
-            {isAuthenticated ? (
+            {isAuthenticated && !isPublicAgentPage ? (
               <>
                 <Link href="/dashboard" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
                   Dashboard
@@ -133,8 +137,8 @@ export default function Navigation() {
         {isMenuOpen && (
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-gray-800 rounded-md mt-2">
-              <Link 
-                href="/" 
+              <Link
+                href="/"
                 className="text-gray-300 hover:text-white block px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
                 onClick={() => setIsMenuOpen(false)}
               >
@@ -152,29 +156,29 @@ export default function Navigation() {
 
               {isAuthenticated ? (
                 <>
-                  <Link 
-                    href="/dashboard" 
+                  <Link
+                    href="/dashboard"
                     className="text-gray-300 hover:text-white block px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Dashboard
                   </Link>
-                  <Link 
-                    href="/properties" 
+                  <Link
+                    href="/properties"
                     className="text-gray-300 hover:text-white block px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Properties
                   </Link>
-                  <Link 
-                    href="/posts" 
+                  <Link
+                    href="/posts"
                     className="text-gray-300 hover:text-white block px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Posts
                   </Link>
-                  <Link 
-                    href="/profile" 
+                  <Link
+                    href="/profile"
                     className="text-gray-300 hover:text-white block px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
                     onClick={() => setIsMenuOpen(false)}
                   >
@@ -192,15 +196,15 @@ export default function Navigation() {
                 </>
               ) : (
                 <>
-                  <Link 
-                    href="/login" 
+                  <Link
+                    href="/login"
                     className="text-gray-300 hover:text-white block px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Login
                   </Link>
-                  <Link 
-                    href="/register" 
+                  <Link
+                    href="/register"
                     className="bg-blue-600 hover:bg-blue-700 text-white block px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
                     onClick={() => setIsMenuOpen(false)}
                   >

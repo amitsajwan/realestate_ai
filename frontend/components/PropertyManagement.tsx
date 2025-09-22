@@ -85,6 +85,7 @@ export default function PropertyManagement({ onAddProperty }: PropertyManagement
           property_type: p.property_type || p.type || 'Unknown',
           features: p.features || [],
           amenities: p.amenities || '',
+          images: p.images || [],
           publishing_status: p.publishing_status || 'draft',
           published_at: p.published_at,
           target_languages: p.target_languages || [],

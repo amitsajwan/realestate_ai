@@ -3,7 +3,7 @@
 import Onboarding from '@/components/Onboarding';
 import { authManager, User } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 
 export default function OnboardingPage() {
@@ -41,11 +41,11 @@ export default function OnboardingPage() {
     initAuth();
   }, [router]);
 
-  const handleStepChange = (step: number) => {
+  const handleStepChange = useCallback((step: number) => {
     setCurrentStep(step);
-  };
+  }, []);
 
-  const handleOnboardingComplete = async () => {
+  const handleOnboardingComplete = useCallback(async () => {
     console.log('[OnboardingPage] Onboarding completed, redirecting to dashboard');
 
     try {
@@ -84,7 +84,7 @@ export default function OnboardingPage() {
         window.location.href = '/dashboard';
       }
     }
-  };
+  }, [router]);
 
   if (isLoading) {
     return (

@@ -93,7 +93,7 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
       location: '',
       address: '',
       area: undefined,
-      price: 0,
+      price: undefined,
       bedrooms: undefined,
       bathrooms: undefined,
       amenities: '',

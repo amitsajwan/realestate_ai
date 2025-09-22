@@ -5,9 +5,9 @@
  * with consistent error handling, authentication, and type safety.
  */
 
-import { User, AuthResponse, LoginData, RegisterData } from '../auth/types';
-import { Post, PostCreateRequest, PostUpdateRequest, PostFilters, AnalyticsResponse } from '../../types/post';
-import { PropertyCreate, PropertyUpdate, PropertyResponse } from '../../types/property';
+import { AnalyticsResponse, Post, PostCreateRequest, PostFilters, PostUpdateRequest } from '../../types/post';
+import { PropertyCreate, PropertyResponse, PropertyUpdate } from '../../types/property';
+import { AuthResponse, LoginData, RegisterData, User } from '../auth/types';
 import { APIError } from '../errors';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -45,7 +45,7 @@ class UnifiedAPIClient {
       } catch {
         errorData = { detail: `HTTP ${response.status}: ${response.statusText}` };
       }
-      
+
       throw new APIError(
         errorData.detail || errorData.message || `HTTP ${response.status}`,
         response.status,
@@ -275,14 +275,28 @@ class UnifiedAPIClient {
   // Upload methods
   async uploadImages(formData: FormData): Promise<any> {
     const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-    return this.request<any>('/api/v1/uploads/images', {
+    const url = `${this.baseUrl}/api/v1/uploads/images`;
+    const config: RequestInit = {
       method: 'POST',
       headers: {
         'Origin': 'http://localhost:3000',
         ...(token && { 'Authorization': `Bearer ${token}` })
       },
       body: formData,
-    });
+    };
+
+    try {
+      const response = await fetch(url, config);
+      return await this.handleResponse<any>(response);
+    } catch (error) {
+      if (error instanceof APIError) {
+        throw error;
+      }
+      throw new APIError(
+        error instanceof Error ? error.message : 'Network error',
+        0
+      );
+    }
   }
 
   // Onboarding methods
@@ -321,4 +335,4 @@ class UnifiedAPIClient {
 export const apiClient = new UnifiedAPIClient();
 
 // Export types
-export type { APIResponse, APIError };
+export type { APIError, APIResponse };

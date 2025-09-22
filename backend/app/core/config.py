@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from typing import Optional, List
 import os
 import json
@@ -14,7 +15,7 @@ class Settings(BaseSettings):
     app_name: str = "PropertyAI"
     app_version: str = "1.0.0"
     debug: bool = False
-    environment: str = "production"
+    environment: str = "development"
     
     # =============================================================================
     # DATABASE SETTINGS
@@ -63,6 +64,7 @@ class Settings(BaseSettings):
             except (json.JSONDecodeError, ValueError):
                 # Fall back to default if parsing fails
                 pass
+        
     cors_allow_credentials: bool = True
     cors_allow_methods: List[str] = ["*"]
     cors_allow_headers: List[str] = ["*"]
@@ -71,13 +73,24 @@ class Settings(BaseSettings):
     # FILE UPLOAD SETTINGS
     # =============================================================================
     max_file_size: int = 10 * 1024 * 1024  # 10MB
-    allowed_file_types: List[str] = [
-        "image/jpeg",
-        "image/png",
-        "image/webp",
-        "application/pdf"
-    ]
+    allowed_file_types: str = "image/jpeg,image/png,image/webp,application/pdf"
     upload_directory: str = "uploads"
+    
+    @property
+    def allowed_file_types_list(self) -> List[str]:
+        """Parse allowed_file_types string into a list"""
+        if isinstance(self.allowed_file_types, str):
+            if self.allowed_file_types.startswith('[') and self.allowed_file_types.endswith(']'):
+                # JSON array format
+                try:
+                    return json.loads(self.allowed_file_types)
+                except json.JSONDecodeError:
+                    pass
+            else:
+                # Comma-separated format
+                return [file_type.strip() for file_type in self.allowed_file_types.split(',') if file_type.strip()]
+        return self.allowed_file_types if isinstance(self.allowed_file_types, list) else []
+
     
     # =============================================================================
     # EMAIL SETTINGS

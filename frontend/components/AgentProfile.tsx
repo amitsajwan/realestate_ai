@@ -363,13 +363,15 @@ export function AgentProfile({ agent, properties, onContactClick }: AgentProfile
                                         >
                                             Send Message
                                         </Button>
-                                        <Button
-                                            size="lg"
-                                            variant="outline"
-                                            className="w-full"
-                                        >
-                                            View Properties
-                                        </Button>
+                                        <Link href={`/agent/${agent.slug}/properties`}>
+                                            <Button
+                                                size="lg"
+                                                variant="outline"
+                                                className="w-full"
+                                            >
+                                                View Properties
+                                            </Button>
+                                        </Link>
                                     </div>
                                 </CardBody>
                             </Card>
@@ -445,16 +447,101 @@ export function AgentProfile({ agent, properties, onContactClick }: AgentProfile
                 </div>
             </section>
 
+            {/* Featured Properties Section */}
+            {properties.length > 0 && (
+                <section className="py-16 md:py-20 bg-gray-50">
+                    <div className="container mx-auto px-4">
+                        <div className="text-center mb-12">
+                            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 flex items-center justify-center">
+                                <HomeIcon className="w-8 h-8 mr-3 text-blue-600" />
+                                Featured Properties
+                            </h2>
+                            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                                Discover some of the amazing properties currently available through {agent.agent_name}
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+                            {properties.slice(0, 6).map((property: any, index: number) => (
+                                <motion.div
+                                    key={property.id || index}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: index * 0.1 }}
+                                    className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
+                                >
+                                    <div className="relative h-48 bg-gray-200">
+                                        {property.images && property.images.length > 0 ? (
+                                            <img
+                                                src={property.images[0]}
+                                                alt={property.title}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center">
+                                                <HomeIcon className="w-16 h-16 text-gray-400" />
+                                            </div>
+                                        )}
+                                        <div className="absolute top-4 right-4">
+                                            <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                                                {property.property_type || 'Property'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="p-6">
+                                        <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-1">
+                                            {property.title}
+                                        </h3>
+                                        <div className="flex items-center text-gray-600 mb-3">
+                                            <MapPinIcon className="w-4 h-4 mr-2" />
+                                            <span className="text-sm">{property.location}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="text-2xl font-bold text-green-600">
+                                                {property.price ? `₹${(property.price / 100000).toFixed(0)}L` : 'Contact for price'}
+                                            </div>
+                                            <div className="flex items-center space-x-4 text-sm text-gray-600">
+                                                <span>{property.bedrooms || 0} bed</span>
+                                                <span>{property.bathrooms || 0} bath</span>
+                                                <span>{property.area_sqft ? `${property.area_sqft.toLocaleString()} sq ft` : 'N/A'}</span>
+                                            </div>
+                                        </div>
+                                        <Link
+                                            href={`/agent/${agent.slug}/properties/${property.id}`}
+                                            className="block w-full bg-blue-600 text-white text-center py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                                        >
+                                            View Details
+                                        </Link>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+
+                        {properties.length > 6 && (
+                            <div className="text-center">
+                                <Link
+                                    href={`/agent/${agent.slug}/properties`}
+                                    className="inline-flex items-center px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-lg font-semibold"
+                                >
+                                    <HomeIcon className="w-5 h-5 mr-2" />
+                                    View All Properties
+                                </Link>
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
+
             {/* Recent Posts/Blog Section */}
             <section className="py-16 md:py-20 bg-white">
                 <div className="container mx-auto px-4">
                     <div className="text-center mb-12">
                         <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 flex items-center justify-center">
                             <DocumentTextIcon className="w-8 h-8 mr-3 text-blue-600" />
-                            Latest Insights & Properties
+                            Latest Market Insights
                         </h2>
                         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                            Stay updated with the latest market insights, property updates, and real estate tips from {agent.agent_name}
+                            Stay updated with the latest market insights, real estate tips, and industry updates from {agent.agent_name}
                         </p>
                     </div>
 

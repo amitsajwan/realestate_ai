@@ -460,8 +460,12 @@ export const api = {
   },
 
   uploadImages: async (formData: FormData) => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/upload/images`, {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    const response = await fetch(`${API_BASE_URL}/api/v1/uploads/images`, {
       method: 'POST',
+      headers: {
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      },
       body: formData
     });
     return response.json();

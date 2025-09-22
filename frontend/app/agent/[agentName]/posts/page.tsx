@@ -1,12 +1,19 @@
 'use client'
 
-import { PostCard, type Post as PostCardPost } from '@/components/PostCard'
 import {
-    DocumentTextIcon,
-    FunnelIcon,
-    MagnifyingGlassIcon,
-    PlusIcon
+    ChatBubbleLeftIcon,
+    CurrencyDollarIcon,
+    EyeIcon,
+    HeartIcon,
+    HomeIcon,
+    MapPinIcon,
+    ShareIcon
 } from '@heroicons/react/24/outline'
+import {
+    HeartIcon as HeartSolidIcon
+} from '@heroicons/react/24/solid'
+import { motion } from 'framer-motion'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
@@ -18,6 +25,14 @@ interface Post {
     content: string
     property_id?: string
     property_title?: string
+    property_description?: string
+    property_price?: number
+    property_location?: string
+    property_bedrooms?: number
+    property_bathrooms?: number
+    property_area?: number
+    property_type?: string
+    property_images?: string[]
     language: string
     channels: string[]
     status: string
@@ -26,6 +41,8 @@ interface Post {
     like_count?: number
     share_count?: number
     comment_count?: number
+    agent_name?: string
+    agent_photo?: string
 }
 
 interface AgentInfo {
@@ -36,6 +53,7 @@ interface AgentInfo {
     phone: string
     email: string
     office_address: string
+    bio?: string
 }
 
 interface AgentPostsPageProps {
@@ -49,40 +67,15 @@ export default function AgentPostsPage({ params }: AgentPostsPageProps) {
     const [agent, setAgent] = useState<AgentInfo | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-
-    // Helper function to map API Post to PostCard compatible format
-    const mapToPostCardFormat = (post: Post): PostCardPost => ({
-        ...post,
-        agent_id: agent?.id || '',
-        ai_generated: false, // Default value
-        version: 1, // Default value
-        updated_at: post.created_at, // Fallback
-        property_id: post.property_id || '',
-        property_title: post.property_title, // Pass through from API
-        status: post.status as any, // Type assertion for enum compatibility
-        analytics: {
-            views: post.view_count || 0,
-            likes: post.like_count || 0,
-            shares: post.share_count || 0,
-            comments: post.comment_count || 0,
-            clicks: 0,
-            conversions: 0,
-            engagement_rate: 0,
-            reach: 0,
-            impressions: 0
-        }
-    } as PostCardPost)
     const [currentPage, setCurrentPage] = useState(1)
-    const [totalPages, setTotalPages] = useState(1)
-    const [searchQuery, setSearchQuery] = useState('')
-    const [selectedLanguage, setSelectedLanguage] = useState('')
-    const [selectedChannel, setSelectedChannel] = useState('')
+    const [hasMore, setHasMore] = useState(true)
+    const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set())
 
     const agentName = params.agentName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 
     useEffect(() => {
         loadAgentData()
-    }, [params.agentName, currentPage, searchQuery, selectedLanguage, selectedChannel])
+    }, [params.agentName, currentPage])
 
     const loadAgentData = async () => {
         try {
@@ -96,25 +89,19 @@ export default function AgentPostsPage({ params }: AgentPostsPageProps) {
                 setAgent(agentData)
             }
 
-            // Load agent posts with filters
-            const queryParams = new URLSearchParams({
-                page: currentPage.toString(),
-                limit: '12'
-            })
-
-            if (searchQuery) queryParams.append('search', searchQuery)
-            if (selectedLanguage) queryParams.append('language', selectedLanguage)
-            if (selectedChannel) queryParams.append('channel', selectedChannel)
-
-            const postsResponse = await fetch(`${API_BASE_URL}/api/v1/agent/public/${params.agentName}/posts?${queryParams}`)
+            // Load agent posts
+            const postsResponse = await fetch(`${API_BASE_URL}/api/v1/agent/public/${params.agentName}/posts?page=${currentPage}&limit=10&status=published`)
 
             if (postsResponse.ok) {
                 const postsData = await postsResponse.json()
-                setPosts(postsData.posts || postsData || [])
-                setTotalPages(postsData.total_pages || 1)
+                if (currentPage === 1) {
+                    setPosts(postsData.posts || [])
+                } else {
+                    setPosts(prev => [...prev, ...(postsData.posts || [])])
+                }
+                setHasMore(postsData.has_more || false)
             } else {
-                console.warn('Failed to load agent posts:', postsResponse.status)
-                setPosts([])
+                throw new Error('Failed to load posts')
             }
 
         } catch (err) {
@@ -124,41 +111,48 @@ export default function AgentPostsPage({ params }: AgentPostsPageProps) {
         }
     }
 
-    const clearFilters = () => {
-        setSearchQuery('')
-        setSelectedLanguage('')
-        setSelectedChannel('')
-        setCurrentPage(1)
+    const handleLike = (postId: string) => {
+        setLikedPosts(prev => {
+            const newSet = new Set(prev)
+            if (newSet.has(postId)) {
+                newSet.delete(postId)
+            } else {
+                newSet.add(postId)
+            }
+            return newSet
+        })
     }
 
-    const languages = [
-        { code: 'en', name: 'English' },
-        { code: 'hi', name: 'Hindi' },
-        { code: 'ta', name: 'Tamil' },
-        { code: 'te', name: 'Telugu' },
-        { code: 'bn', name: 'Bengali' },
-        { code: 'gu', name: 'Gujarati' },
-        { code: 'kn', name: 'Kannada' },
-        { code: 'ml', name: 'Malayalam' },
-        { code: 'mr', name: 'Marathi' },
-        { code: 'pa', name: 'Punjabi' },
-        { code: 'ur', name: 'Urdu' }
-    ]
+    const loadMore = () => {
+        setCurrentPage(prev => prev + 1)
+    }
 
-    const channels = [
-        { code: 'facebook', name: 'Facebook' },
-        { code: 'instagram', name: 'Instagram' },
-        { code: 'linkedin', name: 'LinkedIn' },
-        { code: 'twitter', name: 'Twitter' }
-    ]
+    const formatPrice = (price: number) => {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).format(price)
+    }
 
-    if (isLoading) {
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString)
+        const now = new Date()
+        const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
+
+        if (diffInHours < 1) return 'Just now'
+        if (diffInHours < 24) return `${diffInHours}h ago`
+        if (diffInHours < 48) return 'Yesterday'
+        return date.toLocaleDateString()
+    }
+
+    if (isLoading && currentPage === 1) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading Posts</h2>
-                    <p className="text-gray-600">Finding the latest insights from {agentName}...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading posts...</p>
                 </div>
             </div>
         )
@@ -166,18 +160,14 @@ export default function AgentPostsPage({ params }: AgentPostsPageProps) {
 
     if (error) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
-                <div className="text-center max-w-md mx-auto">
-                    <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <DocumentTextIcon className="w-10 h-10 text-red-500" />
-                    </div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-4">Oops! Something went wrong</h1>
-                    <p className="text-gray-600 mb-8">{error}</p>
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <p className="text-red-600 mb-4">Error: {error}</p>
                     <button
-                        onClick={loadAgentData}
-                        className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                        onClick={() => window.location.reload()}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
                     >
-                        Try Again
+                        Retry
                     </button>
                 </div>
             </div>
@@ -185,189 +175,196 @@ export default function AgentPostsPage({ params }: AgentPostsPageProps) {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-            {/* Hero Header */}
-            <header className="relative bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 text-white overflow-hidden">
-                <div className="absolute inset-0 bg-black/20"></div>
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600/30 to-purple-600/30"></div>
-                <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="min-h-screen bg-gray-50">
+            {/* Header */}
+            <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+                <div className="max-w-4xl mx-auto px-4 py-4">
                     <div className="flex items-center justify-between">
-                        <div>
-                            <Link href="/" className="text-4xl font-bold text-white hover:text-blue-200 transition-colors">
-                                PropertyAI
-                            </Link>
-                            <p className="text-blue-100 mt-3 text-xl">
-                                Latest Insights by {agentName}
-                            </p>
-                            <div className="flex items-center mt-4 space-x-6">
-                                <div className="flex items-center text-blue-200">
-                                    <DocumentTextIcon className="w-5 h-5 mr-2" />
-                                    <span>Real Estate Insights</span>
-                                </div>
-                                <div className="flex items-center text-blue-200">
-                                    <PlusIcon className="w-5 h-5 mr-2" />
-                                    <span>Market Updates</span>
-                                </div>
+                        <Link href={`/agent/${params.agentName}`} className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                                <span className="text-white font-bold text-lg">
+                                    {agent?.agent_name?.charAt(0) || 'A'}
+                                </span>
                             </div>
-                        </div>
-                        <div className="flex items-center space-x-6">
+                            <div>
+                                <h1 className="text-xl font-bold text-gray-900">{agent?.agent_name || 'Agent'}</h1>
+                                <p className="text-sm text-gray-500">Real Estate Agent</p>
+                            </div>
+                        </Link>
+                        <div className="flex items-center space-x-4">
                             <Link
-                                href={`/agent/${params.agentName}`}
-                                className="text-white/90 hover:text-white font-medium transition-colors"
+                                href={`/agent/${params.agentName}/contact`}
+                                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                             >
-                                Agent Profile
-                            </Link>
-                            <Link
-                                href={`/agent/${params.agentName}/properties`}
-                                className="bg-white/20 backdrop-blur-sm text-white px-8 py-3 rounded-full hover:bg-white/30 transition-all duration-300 font-medium shadow-lg hover:shadow-xl"
-                            >
-                                View Properties
+                                Contact
                             </Link>
                         </div>
                     </div>
                 </div>
-                {/* Decorative elements */}
-                <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-white/10 to-transparent rounded-full -translate-y-48 translate-x-48"></div>
-                <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-white/5 to-transparent rounded-full translate-y-32 -translate-x-32"></div>
             </header>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                {/* Search and Filters */}
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 mb-12">
-                    <div className="flex flex-col lg:flex-row gap-6">
-                        {/* Search Bar */}
-                        <div className="flex-1">
-                            <div className="relative group">
-                                <MagnifyingGlassIcon className="w-6 h-6 absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                                <input
-                                    type="text"
-                                    placeholder="Search posts by title or content..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 text-lg bg-white/50 backdrop-blur-sm"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Language Filter */}
-                        <select
-                            value={selectedLanguage}
-                            onChange={(e) => setSelectedLanguage(e.target.value)}
-                            className="px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 text-lg bg-white/50 backdrop-blur-sm"
-                        >
-                            <option value="">All Languages</option>
-                            {languages.map((lang) => (
-                                <option key={lang.code} value={lang.code}>
-                                    {lang.name}
-                                </option>
-                            ))}
-                        </select>
-
-                        {/* Channel Filter */}
-                        <select
-                            value={selectedChannel}
-                            onChange={(e) => setSelectedChannel(e.target.value)}
-                            className="px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 text-lg bg-white/50 backdrop-blur-sm"
-                        >
-                            <option value="">All Channels</option>
-                            {channels.map((channel) => (
-                                <option key={channel.code} value={channel.code}>
-                                    {channel.name}
-                                </option>
-                            ))}
-                        </select>
-
-                        {/* Clear Filters */}
-                        <button
-                            onClick={clearFilters}
-                            className="flex items-center px-6 py-4 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                        >
-                            <FunnelIcon className="w-5 h-5 mr-2" />
-                            Clear
-                        </button>
-                    </div>
+            {/* Posts Feed */}
+            <div className="max-w-2xl mx-auto py-6 px-4">
+                <div className="mb-8 text-center">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Marketing Updates</h2>
+                    <p className="text-gray-600">Stay updated with the latest property news and market insights from {agent?.agent_name || 'our agent'}.</p>
                 </div>
 
-                {/* Results Count */}
-                <div className="mb-8">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-3xl font-bold text-gray-900">
-                            Latest Posts
-                        </h2>
-                        <p className="text-gray-600 text-lg">
-                            {posts.length} {posts.length === 1 ? 'post' : 'posts'} found
-                        </p>
-                    </div>
-                </div>
-
-                {/* Posts Grid */}
-                {posts.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {posts.map((post) => (
-                            <PostCard
-                                key={post.id}
-                                post={mapToPostCardFormat(post)}
-                                agentName={params.agentName}
-                                showFullContent={false}
-                            />
-                        ))}
+                {posts.length === 0 ? (
+                    <div className="text-center py-12">
+                        <HomeIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No updates yet</h3>
+                        <p className="text-gray-500">This agent hasn't shared any marketing updates yet.</p>
                     </div>
                 ) : (
-                    <div className="text-center py-20">
-                        <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-8">
-                            <DocumentTextIcon className="w-12 h-12 text-blue-400" />
-                        </div>
-                        <h3 className="text-3xl font-bold text-gray-900 mb-4">No Posts Found</h3>
-                        <p className="text-gray-600 mb-8 text-lg max-w-md mx-auto">
-                            We couldn't find any posts matching your criteria. Try adjusting your search or clear the filters.
-                        </p>
-                        <button
-                            onClick={clearFilters}
-                            className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                        >
-                            Clear All Filters
-                        </button>
-                    </div>
-                )}
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                    <div className="mt-16 flex justify-center">
-                        <div className="flex items-center space-x-4">
-                            <button
-                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                disabled={currentPage === 1}
-                                className="px-6 py-3 border-2 border-gray-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 font-medium"
+                    <div className="space-y-6">
+                        {posts.map((post, index) => (
+                            <motion.article
+                                key={post.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3, delay: index * 0.1 }}
+                                className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
                             >
-                                Previous
-                            </button>
+                                {/* Post Header */}
+                                <div className="p-4 border-b border-gray-100">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                                            <span className="text-white font-medium text-sm">
+                                                {agent?.agent_name?.charAt(0) || 'A'}
+                                            </span>
+                                        </div>
+                                        <div className="flex-1">
+                                            <h3 className="font-semibold text-gray-900">{agent?.agent_name || 'Agent'}</h3>
+                                            <p className="text-sm text-gray-500">{formatDate(post.created_at)}</p>
+                                        </div>
+                                    </div>
+                                </div>
 
-                            <div className="flex items-center space-x-2">
-                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                    const page = i + 1
-                                    return (
-                                        <button
-                                            key={page}
-                                            onClick={() => setCurrentPage(page)}
-                                            className={`w-12 h-12 rounded-xl font-medium transition-all duration-300 ${currentPage === page
-                                                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
-                                                : 'text-gray-600 hover:bg-gray-100'
-                                                }`}
-                                        >
-                                            {page}
-                                        </button>
-                                    )
-                                })}
+                                {/* Post Content */}
+                                <div className="p-4">
+                                    <h2 className="text-lg font-semibold text-gray-900 mb-2">{post.title}</h2>
+                                    <p className="text-gray-700 mb-4 whitespace-pre-wrap">{post.content}</p>
+
+                                    {/* Property Details Card */}
+                                    {post.property_id && (
+                                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                                            <div className="flex items-start space-x-3">
+                                                <div className="flex-1">
+                                                    <h3 className="font-semibold text-gray-900 mb-2">
+                                                        {post.property_title || 'Property Details'}
+                                                    </h3>
+                                                    {post.property_description && (
+                                                        <p className="text-sm text-gray-600 mb-3">{post.property_description}</p>
+                                                    )}
+
+                                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                                        {post.property_price && (
+                                                            <div className="flex items-center space-x-2">
+                                                                <CurrencyDollarIcon className="w-4 h-4 text-green-600" />
+                                                                <span className="font-medium text-green-600">
+                                                                    {formatPrice(post.property_price)}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        {post.property_location && (
+                                                            <div className="flex items-center space-x-2">
+                                                                <MapPinIcon className="w-4 h-4 text-gray-500" />
+                                                                <span className="text-gray-600">{post.property_location}</span>
+                                                            </div>
+                                                        )}
+                                                        {post.property_bedrooms && (
+                                                            <div className="flex items-center space-x-2">
+                                                                <HomeIcon className="w-4 h-4 text-gray-500" />
+                                                                <span className="text-gray-600">{post.property_bedrooms} bed</span>
+                                                            </div>
+                                                        )}
+                                                        {post.property_bathrooms && (
+                                                            <div className="flex items-center space-x-2">
+                                                                <HomeIcon className="w-4 h-4 text-gray-500" />
+                                                                <span className="text-gray-600">{post.property_bathrooms} bath</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Property Images */}
+                                    {post.property_images && post.property_images.length > 0 && (
+                                        <div className="mb-4">
+                                            <div className="grid grid-cols-1 gap-2">
+                                                {post.property_images.slice(0, 3).map((image, imgIndex) => (
+                                                    <div key={imgIndex} className="relative aspect-video rounded-lg overflow-hidden">
+                                                        <Image
+                                                            src={image}
+                                                            alt={`Property image ${imgIndex + 1}`}
+                                                            fill
+                                                            className="object-cover"
+                                                            sizes="(max-width: 768px) 100vw, 50vw"
+                                                        />
+                                                    </div>
+                                                ))}
+                                                {post.property_images.length > 3 && (
+                                                    <div className="text-center py-2">
+                                                        <span className="text-sm text-gray-500">
+                                                            +{post.property_images.length - 3} more images
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Post Actions */}
+                                <div className="px-4 py-3 border-t border-gray-100">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center space-x-6">
+                                            <button
+                                                onClick={() => handleLike(post.id)}
+                                                className="flex items-center space-x-2 text-gray-600 hover:text-red-600 transition-colors"
+                                            >
+                                                {likedPosts.has(post.id) ? (
+                                                    <HeartSolidIcon className="w-5 h-5 text-red-600" />
+                                                ) : (
+                                                    <HeartIcon className="w-5 h-5" />
+                                                )}
+                                                <span className="text-sm font-medium">
+                                                    {post.like_count || 0 + (likedPosts.has(post.id) ? 1 : 0)}
+                                                </span>
+                                            </button>
+                                            <button className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors">
+                                                <ChatBubbleLeftIcon className="w-5 h-5" />
+                                                <span className="text-sm font-medium">{post.comment_count || 0}</span>
+                                            </button>
+                                            <button className="flex items-center space-x-2 text-gray-600 hover:text-green-600 transition-colors">
+                                                <ShareIcon className="w-5 h-5" />
+                                                <span className="text-sm font-medium">{post.share_count || 0}</span>
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center space-x-2 text-gray-500">
+                                            <EyeIcon className="w-4 h-4" />
+                                            <span className="text-sm">{post.view_count || 0}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.article>
+                        ))}
+
+                        {/* Load More Button */}
+                        {hasMore && (
+                            <div className="text-center py-6">
+                                <button
+                                    onClick={loadMore}
+                                    disabled={isLoading}
+                                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    {isLoading ? 'Loading...' : 'Load More Posts'}
+                                </button>
                             </div>
-
-                            <button
-                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                                disabled={currentPage === totalPages}
-                                className="px-6 py-3 border-2 border-gray-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 font-medium"
-                            >
-                                Next
-                            </button>
-                        </div>
+                        )}
                     </div>
                 )}
             </div>

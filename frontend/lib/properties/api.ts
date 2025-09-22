@@ -76,7 +76,12 @@ class PropertiesAPI {
             throw new Error(errorData.detail || `Create property failed: ${response.status}`);
         }
 
-        return response.json();
+        const createdProperty = await response.json();
+        // Wrap the response to match the expected format
+        return {
+            success: true,
+            data: createdProperty
+        };
     }
 
     /**

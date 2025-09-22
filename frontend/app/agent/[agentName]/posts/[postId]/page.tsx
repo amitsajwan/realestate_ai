@@ -2,11 +2,20 @@
 
 import {
     ArrowLeftIcon,
-    ChatBubbleLeftRightIcon,
-    DocumentTextIcon,
+    ChatBubbleLeftIcon,
+    EnvelopeIcon,
+    EyeIcon,
     HeartIcon,
+    HomeIcon,
+    MapPinIcon,
+    PhoneIcon,
     ShareIcon
 } from '@heroicons/react/24/outline'
+import {
+    HeartIcon as HeartSolidIcon
+} from '@heroicons/react/24/solid'
+import { motion } from 'framer-motion'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
@@ -18,14 +27,27 @@ interface Post {
     content: string
     property_id?: string
     property_title?: string
+    property_description?: string
+    property_price?: number
+    property_location?: string
+    property_bedrooms?: number
+    property_bathrooms?: number
+    property_area?: number
+    property_type?: string
+    property_images?: string[]
+    property_features?: string[]
+    property_amenities?: string[]
     language: string
     channels: string[]
     status: string
     created_at: string
+    updated_at: string
     view_count?: number
     like_count?: number
     share_count?: number
     comment_count?: number
+    agent_name?: string
+    agent_photo?: string
 }
 
 interface AgentInfo {
@@ -36,6 +58,7 @@ interface AgentInfo {
     phone: string
     email: string
     office_address: string
+    bio?: string
 }
 
 interface PostDetailPageProps {
@@ -50,6 +73,8 @@ export default function PostDetailPage({ params }: PostDetailPageProps) {
     const [agent, setAgent] = useState<AgentInfo | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [liked, setLiked] = useState(false)
+    const [selectedImageIndex, setSelectedImageIndex] = useState(0)
 
     useEffect(() => {
         loadPostData()
@@ -72,7 +97,7 @@ export default function PostDetailPage({ params }: PostDetailPageProps) {
 
             if (postResponse.ok) {
                 const postData = await postResponse.json()
-                setPost(postData.post)
+                setPost(postData)
             } else {
                 throw new Error('Post not found')
             }
@@ -84,8 +109,22 @@ export default function PostDetailPage({ params }: PostDetailPageProps) {
         }
     }
 
+    const handleLike = () => {
+        setLiked(!liked)
+    }
+
+    const formatPrice = (price: number) => {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).format(price)
+    }
+
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
+        const date = new Date(dateString)
+        return date.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
             day: 'numeric'
@@ -94,11 +133,10 @@ export default function PostDetailPage({ params }: PostDetailPageProps) {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading Post</h2>
-                    <p className="text-gray-600">Loading the latest insights...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading post...</p>
                 </div>
             </div>
         )
@@ -106,250 +144,294 @@ export default function PostDetailPage({ params }: PostDetailPageProps) {
 
     if (error || !post) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
-                <div className="text-center max-w-md mx-auto">
-                    <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <DocumentTextIcon className="w-10 h-10 text-red-500" />
-                    </div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-4">Post Not Found</h1>
-                    <p className="text-gray-600 mb-8">{error || 'The post you\'re looking for doesn\'t exist or is not public.'}</p>
-                    <div className="space-x-4">
-                        <Link
-                            href={`/agent/${params.agentName}/posts`}
-                            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                            View All Posts
-                        </Link>
-                        <Link
-                            href={`/agent/${params.agentName}`}
-                            className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                        >
-                            Agent Profile
-                        </Link>
-                    </div>
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <p className="text-red-600 mb-4">Error: {error || 'Post not found'}</p>
+                    <Link
+                        href={`/agent/${params.agentName}/posts`}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                    >
+                        Back to Posts
+                    </Link>
                 </div>
             </div>
         )
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+        <div className="min-h-screen bg-gray-50">
             {/* Header */}
-            <header className="bg-white shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+                <div className="max-w-6xl mx-auto px-4 py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
                             <Link
                                 href={`/agent/${params.agentName}/posts`}
-                                className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                             >
-                                <ArrowLeftIcon className="w-5 h-5 mr-2" />
-                                Back to Posts
+                                <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
                             </Link>
-                            <div className="text-gray-300">|</div>
-                            <Link href="/" className="text-xl font-bold text-blue-600">
-                                PropertyAI
-                            </Link>
+                            <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                                    <span className="text-white font-bold text-lg">
+                                        {agent?.agent_name?.charAt(0) || 'A'}
+                                    </span>
+                                </div>
+                                <div>
+                                    <h1 className="text-xl font-bold text-gray-900">{agent?.agent_name || 'Agent'}</h1>
+                                    <p className="text-sm text-gray-500">Real Estate Agent</p>
+                                </div>
+                            </div>
                         </div>
-                        <div className="flex items-center space-x-4">
-                            <Link
-                                href={`/agent/${params.agentName}`}
-                                className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
-                            >
-                                Agent Profile
-                            </Link>
-                            <Link
-                                href={`/agent/${params.agentName}/properties`}
-                                className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
-                            >
-                                Properties
-                            </Link>
-                        </div>
+                        <Link
+                            href={`/agent/${params.agentName}/contact`}
+                            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            Contact Agent
+                        </Link>
                     </div>
                 </div>
             </header>
 
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="max-w-6xl mx-auto py-6 px-4">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Main Content */}
+                    {/* Main Post Content */}
                     <div className="lg:col-span-2">
-                        <article className="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <motion.article
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+                        >
                             {/* Post Header */}
-                            <div className="p-8 border-b border-gray-100">
-                                <div className="flex items-start justify-between mb-4">
+                            <div className="p-6 border-b border-gray-100">
+                                <div className="flex items-center space-x-3">
+                                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                                        <span className="text-white font-medium text-lg">
+                                            {agent?.agent_name?.charAt(0) || 'A'}
+                                        </span>
+                                    </div>
                                     <div className="flex-1">
-                                        <h1 className="text-3xl font-bold text-gray-900 mb-4">
-                                            {post.title}
-                                        </h1>
-                                        <div className="flex items-center space-x-4 text-sm text-gray-500 mb-4">
-                                            <div className="flex items-center">
-                                                <DocumentTextIcon className="w-4 h-4 mr-1" />
-                                                <span>{formatDate(post.created_at)}</span>
-                                            </div>
-                                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${post.status === 'published'
-                                                ? 'bg-green-100 text-green-800'
-                                                : 'bg-yellow-100 text-yellow-800'
-                                                }`}>
-                                                {post.status}
-                                            </span>
-                                            <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                                                {post.language?.toUpperCase() || 'EN'}
-                                            </span>
-                                        </div>
+                                        <h3 className="font-semibold text-gray-900">{agent?.agent_name || 'Agent'}</h3>
+                                        <p className="text-sm text-gray-500">{formatDate(post.created_at)}</p>
                                     </div>
                                 </div>
-
-                                {/* Social Media Channels */}
-                                {post.channels && post.channels.length > 0 && (
-                                    <div className="flex items-center space-x-2">
-                                        <span className="text-sm text-gray-600">Posted on:</span>
-                                        {post.channels.map((channel, index) => (
-                                            <span
-                                                key={index}
-                                                className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
-                                            >
-                                                {channel?.charAt(0).toUpperCase() + channel?.slice(1) || 'Unknown'}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
 
                             {/* Post Content */}
-                            <div className="p-8">
-                                <div className="prose prose-lg max-w-none">
-                                    <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">
-                                        {post.content}
+                            <div className="p-6">
+                                <h1 className="text-2xl font-bold text-gray-900 mb-4">{post.title}</h1>
+                                <div className="prose max-w-none">
+                                    <p className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                                </div>
+                            </div>
+
+                            {/* Property Images Gallery */}
+                            {post.property_images && post.property_images.length > 0 && (
+                                <div className="p-6 border-t border-gray-100">
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Property Images</h3>
+                                    <div className="space-y-4">
+                                        {/* Main Image */}
+                                        <div className="relative aspect-video rounded-lg overflow-hidden">
+                                            <Image
+                                                src={post.property_images[selectedImageIndex]}
+                                                alt={`Property image ${selectedImageIndex + 1}`}
+                                                fill
+                                                className="object-cover"
+                                                sizes="(max-width: 768px) 100vw, 66vw"
+                                            />
+                                        </div>
+
+                                        {/* Thumbnail Grid */}
+                                        {post.property_images.length > 1 && (
+                                            <div className="grid grid-cols-4 gap-2">
+                                                {post.property_images.map((image, index) => (
+                                                    <button
+                                                        key={index}
+                                                        onClick={() => setSelectedImageIndex(index)}
+                                                        className={`relative aspect-video rounded-lg overflow-hidden border-2 ${selectedImageIndex === index
+                                                                ? 'border-blue-600'
+                                                                : 'border-gray-200 hover:border-gray-300'
+                                                            }`}
+                                                    >
+                                                        <Image
+                                                            src={image}
+                                                            alt={`Property thumbnail ${index + 1}`}
+                                                            fill
+                                                            className="object-cover"
+                                                            sizes="(max-width: 768px) 25vw, 16vw"
+                                                        />
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
+                            )}
 
-                                {/* Related Property */}
-                                {post.property_id && post.property_title && (
-                                    <div className="mt-8 p-6 bg-blue-50 rounded-xl">
-                                        <div className="flex items-center mb-3">
-                                            <DocumentTextIcon className="w-6 h-6 text-blue-600 mr-2" />
-                                            <h3 className="text-lg font-semibold text-blue-900">Related Property</h3>
-                                        </div>
-                                        <p className="text-blue-800 font-medium">{post.property_title}</p>
-                                        <Link
-                                            href={`/agent/${params.agentName}/properties/${post.property_id}`}
-                                            className="inline-flex items-center mt-3 text-blue-600 hover:text-blue-800 font-medium"
+                            {/* Post Actions */}
+                            <div className="px-6 py-4 border-t border-gray-100">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-6">
+                                        <button
+                                            onClick={handleLike}
+                                            className="flex items-center space-x-2 text-gray-600 hover:text-red-600 transition-colors"
                                         >
-                                            View Property Details →
-                                        </Link>
+                                            {liked ? (
+                                                <HeartSolidIcon className="w-6 h-6 text-red-600" />
+                                            ) : (
+                                                <HeartIcon className="w-6 h-6" />
+                                            )}
+                                            <span className="font-medium">
+                                                {post.like_count || 0 + (liked ? 1 : 0)}
+                                            </span>
+                                        </button>
+                                        <button className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors">
+                                            <ChatBubbleLeftIcon className="w-6 h-6" />
+                                            <span className="font-medium">{post.comment_count || 0}</span>
+                                        </button>
+                                        <button className="flex items-center space-x-2 text-gray-600 hover:text-green-600 transition-colors">
+                                            <ShareIcon className="w-6 h-6" />
+                                            <span className="font-medium">{post.share_count || 0}</span>
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center space-x-2 text-gray-500">
+                                        <EyeIcon className="w-5 h-5" />
+                                        <span>{post.view_count || 0}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.article>
+                    </div>
+
+                    {/* Property Details Sidebar */}
+                    {post.property_id && (
+                        <div className="lg:col-span-1">
+                            <motion.div
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-24"
+                            >
+                                <h2 className="text-xl font-bold text-gray-900 mb-6">Property Details</h2>
+
+                                {/* Price */}
+                                {post.property_price && (
+                                    <div className="mb-6">
+                                        <div className="text-3xl font-bold text-green-600">
+                                            {formatPrice(post.property_price)}
+                                        </div>
+                                        <div className="text-sm text-gray-500">Asking Price</div>
                                     </div>
                                 )}
 
-                                {/* Engagement Stats */}
-                                <div className="mt-8 pt-6 border-t border-gray-100">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-6 text-sm text-gray-500">
-                                            {post.view_count !== undefined && (
-                                                <div className="flex items-center">
-                                                    <DocumentTextIcon className="w-4 h-4 mr-1" />
-                                                    <span>{post.view_count} views</span>
-                                                </div>
-                                            )}
-                                            {post.like_count !== undefined && (
-                                                <div className="flex items-center">
-                                                    <HeartIcon className="w-4 h-4 mr-1" />
-                                                    <span>{post.like_count} likes</span>
-                                                </div>
-                                            )}
-                                            {post.share_count !== undefined && (
-                                                <div className="flex items-center">
-                                                    <ShareIcon className="w-4 h-4 mr-1" />
-                                                    <span>{post.share_count} shares</span>
-                                                </div>
-                                            )}
-                                            {post.comment_count !== undefined && (
-                                                <div className="flex items-center">
-                                                    <ChatBubbleLeftRightIcon className="w-4 h-4 mr-1" />
-                                                    <span>{post.comment_count} comments</span>
-                                                </div>
-                                            )}
+                                {/* Basic Info */}
+                                <div className="space-y-4 mb-6">
+                                    {post.property_type && (
+                                        <div className="flex items-center space-x-3">
+                                            <HomeIcon className="w-5 h-5 text-gray-500" />
+                                            <span className="text-gray-700">{post.property_type}</span>
+                                        </div>
+                                    )}
+                                    {post.property_location && (
+                                        <div className="flex items-center space-x-3">
+                                            <MapPinIcon className="w-5 h-5 text-gray-500" />
+                                            <span className="text-gray-700">{post.property_location}</span>
+                                        </div>
+                                    )}
+                                    {post.property_bedrooms && (
+                                        <div className="flex items-center space-x-3">
+                                            <HomeIcon className="w-5 h-5 text-gray-500" />
+                                            <span className="text-gray-700">{post.property_bedrooms} Bedrooms</span>
+                                        </div>
+                                    )}
+                                    {post.property_bathrooms && (
+                                        <div className="flex items-center space-x-3">
+                                            <HomeIcon className="w-5 h-5 text-gray-500" />
+                                            <span className="text-gray-700">{post.property_bathrooms} Bathrooms</span>
+                                        </div>
+                                    )}
+                                    {post.property_area && (
+                                        <div className="flex items-center space-x-3">
+                                            <HomeIcon className="w-5 h-5 text-gray-500" />
+                                            <span className="text-gray-700">{post.property_area.toLocaleString()} sq ft</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Description */}
+                                {post.property_description && (
+                                    <div className="mb-6">
+                                        <h3 className="font-semibold text-gray-900 mb-2">Description</h3>
+                                        <p className="text-gray-700 text-sm leading-relaxed">{post.property_description}</p>
+                                    </div>
+                                )}
+
+                                {/* Features */}
+                                {post.property_features && post.property_features.length > 0 && (
+                                    <div className="mb-6">
+                                        <h3 className="font-semibold text-gray-900 mb-3">Features</h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {post.property_features.map((feature, index) => (
+                                                <span
+                                                    key={index}
+                                                    className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
+                                                >
+                                                    {feature}
+                                                </span>
+                                            ))}
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                        </article>
-                    </div>
+                                )}
 
-                    {/* Sidebar */}
-                    <div className="lg:col-span-1">
-                        {/* Agent Contact Card */}
-                        {agent && (
-                            <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 sticky top-6">
-                                <h3 className="text-lg font-semibold text-gray-900 mb-4">About the Author</h3>
-
-                                <div className="flex items-center mb-4">
-                                    {agent.photo ? (
-                                        <img
-                                            src={agent.photo}
-                                            alt={agent.agent_name}
-                                            className="w-12 h-12 rounded-full object-cover mr-3"
-                                        />
-                                    ) : (
-                                        <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mr-3">
-                                            <span className="text-gray-400 text-sm">AG</span>
+                                {/* Amenities */}
+                                {post.property_amenities && post.property_amenities.length > 0 && (
+                                    <div className="mb-6">
+                                        <h3 className="font-semibold text-gray-900 mb-3">Amenities</h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {post.property_amenities.map((amenity, index) => (
+                                                <span
+                                                    key={index}
+                                                    className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full"
+                                                >
+                                                    {amenity}
+                                                </span>
+                                            ))}
                                         </div>
-                                    )}
-                                    <div>
-                                        <div className="font-medium text-gray-900">{agent.agent_name}</div>
-                                        <div className="text-sm text-gray-600">Real Estate Agent</div>
+                                    </div>
+                                )}
+
+                                {/* Contact Agent */}
+                                <div className="border-t border-gray-200 pt-6">
+                                    <h3 className="font-semibold text-gray-900 mb-4">Contact Agent</h3>
+                                    <div className="space-y-3">
+                                        {agent?.phone && (
+                                            <a
+                                                href={`tel:${agent.phone}`}
+                                                className="flex items-center space-x-3 text-gray-700 hover:text-blue-600 transition-colors"
+                                            >
+                                                <PhoneIcon className="w-5 h-5" />
+                                                <span>{agent.phone}</span>
+                                            </a>
+                                        )}
+                                        {agent?.email && (
+                                            <a
+                                                href={`mailto:${agent.email}`}
+                                                className="flex items-center space-x-3 text-gray-700 hover:text-blue-600 transition-colors"
+                                            >
+                                                <EnvelopeIcon className="w-5 h-5" />
+                                                <span>{agent.email}</span>
+                                            </a>
+                                        )}
+                                        <Link
+                                            href={`/agent/${params.agentName}/contact`}
+                                            className="w-full bg-blue-600 text-white text-center py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors block"
+                                        >
+                                            Get More Information
+                                        </Link>
                                     </div>
                                 </div>
-
-                                <div className="space-y-3 mb-6">
-                                    {agent.phone && (
-                                        <div className="flex items-center text-gray-700">
-                                            <span className="mr-2">📞</span>
-                                            <a href={`tel:${agent.phone}`} className="hover:text-blue-600">
-                                                {agent.phone}
-                                            </a>
-                                        </div>
-                                    )}
-                                    {agent.email && (
-                                        <div className="flex items-center text-gray-700">
-                                            <span className="mr-2">✉️</span>
-                                            <a href={`mailto:${agent.email}`} className="hover:text-blue-600">
-                                                {agent.email}
-                                            </a>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="space-y-3">
-                                    <Link
-                                        href={`/agent/${params.agentName}`}
-                                        className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-center block"
-                                    >
-                                        View Profile
-                                    </Link>
-                                    <Link
-                                        href={`/agent/${params.agentName}/properties`}
-                                        className="w-full border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 transition-colors text-center block"
-                                    >
-                                        View Properties
-                                    </Link>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* More Posts */}
-                        <div className="bg-white rounded-2xl shadow-lg p-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">More Posts</h3>
-                            <p className="text-gray-600 text-sm mb-4">
-                                Discover more insights and property updates from {agent?.agent_name || 'this agent'}.
-                            </p>
-                            <Link
-                                href={`/agent/${params.agentName}/posts`}
-                                className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
-                            >
-                                View All Posts →
-                            </Link>
+                            </motion.div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
         </div>

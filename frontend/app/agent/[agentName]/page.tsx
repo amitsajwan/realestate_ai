@@ -143,24 +143,6 @@ export default function AgentPublicPage({ params }: AgentPublicPageProps) {
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
               <Link
-                href={`/agent/${agent.slug}/properties`}
-                className="text-slate-600 hover:text-slate-900 font-medium transition-colors text-sm"
-              >
-                Properties
-              </Link>
-              <Link
-                href={`/agent/${agent.slug}/posts`}
-                className="text-slate-600 hover:text-slate-900 font-medium transition-colors text-sm"
-              >
-                Posts
-              </Link>
-              <Link
-                href={`/agent/${agent.slug}/contact`}
-                className="text-slate-600 hover:text-slate-900 font-medium transition-colors text-sm"
-              >
-                Contact
-              </Link>
-              <Link
                 href={`/agent/${agent.slug}/contact`}
                 onClick={handleContactClick}
                 className="bg-brand-primary text-white px-4 py-2 rounded-lg hover:opacity-90 transition-colors text-sm font-medium"
