@@ -6,8 +6,7 @@ Comprehensive tests for the post management API endpoints.
 
 import pytest
 import json
-import httpx
-import pytest
+from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, patch
 from app.main import app
 from app.models.user import User
@@ -26,8 +25,15 @@ class TestPostManagementAPI:
     
     @pytest.fixture
     def client(self):
-        """Create an async test client."""
-        return httpx.AsyncClient(app=app, base_url="http://test")
+        """Create a test client."""
+        # Ensure database is initialized for the FastAPI app context
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(init_database())
+        # Don't close the loop - FastAPI needs it
+        
+        return TestClient(app)
     
     @pytest.fixture
     def mock_user(self):
@@ -91,26 +97,24 @@ class TestPostManagementAPI:
             "updated_at": "2024-01-01T00:00:00Z"
         }
     
-    @pytest.mark.asyncio
-    async def test_create_post_success(self, client, mock_user, sample_post_data):
+    def test_create_post_success(self, client, mock_user, sample_post_data):
         """Test successful post creation."""
         # Override the dependency
         app.dependency_overrides[current_active_user] = lambda: mock_user
         
         try:
             # Make request (no mocking - use real service)
-            async with client as ac:
-                response = await ac.post(
-                    "/api/v1/post-management/create",
-                    json=sample_post_data
-                )
-                
-                # Assertions
-                assert response.status_code == 201
-                data = response.json()
-                assert data["success"] is True
-                assert data["message"] == "Post created successfully"
-                assert data["data"]["_id"] is not None
+            response = client.post(
+                "/api/v1/post-management/create",
+                json=sample_post_data
+            )
+            
+            # Assertions
+            assert response.status_code == 201
+            data = response.json()
+            assert data["success"] is True
+            assert data["message"] == "Post created successfully"
+            assert data["data"]["_id"] is not None
         finally:
             # Clean up
             app.dependency_overrides.clear()
