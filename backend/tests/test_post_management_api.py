@@ -95,9 +95,20 @@ class TestPostManagementAPI:
         # Override the dependency
         app.dependency_overrides[current_active_user] = lambda: mock_user
         
-        # Mock the post service to avoid database issues
-        with patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
-            mock_service.create_post = AsyncMock(return_value={
+        # Mock both the post service and AI service to avoid database and API issues
+        with patch('app.api.v1.endpoints.post_management.get_post_service') as mock_post_service, \
+             patch('app.services.ai_content_service.AIContentService.generate_content') as mock_ai_service:
+            
+            # Mock AI service
+            mock_ai_service.return_value = {
+                "content": "Generated content",
+                "model": "llama-3.1-8b-instant",
+                "tokens_used": 100,
+                "timestamp": "2024-01-01T00:00:00Z"
+            }
+            
+            # Mock post service
+            mock_post_service.create_post = AsyncMock(return_value={
                 "_id": "post_123",
                 "property_id": "property_123",
                 "content": "Generated content",
