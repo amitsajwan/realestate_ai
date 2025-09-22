@@ -6,7 +6,8 @@ Comprehensive tests for the post management API endpoints.
 
 import pytest
 import json
-from fastapi.testclient import TestClient
+import httpx
+import pytest
 from unittest.mock import AsyncMock, patch
 from app.main import app
 from app.models.user import User
@@ -18,19 +19,15 @@ class TestPostManagementAPI:
     """Test cases for post management API endpoints."""
     
     @pytest.fixture(autouse=True)
-    def setup_database(self):
+    def setup_database(self, test_db):
         """Initialize database for each test."""
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(init_database())
+        # Database is already initialized in conftest.py
         yield
-        loop.close()
     
     @pytest.fixture
     def client(self):
-        """Create a test client."""
-        return TestClient(app)
+        """Create an async test client."""
+        return httpx.AsyncClient(app=app, base_url="http://test")
     
     @pytest.fixture
     def mock_user(self):
@@ -100,21 +97,23 @@ class TestPostManagementAPI:
         # Override the dependency
         app.dependency_overrides[current_active_user] = lambda: mock_user
         
-        # Make request (no mocking - use real service)
-        response = client.post(
-            "/api/v1/post-management/create",
-            json=sample_post_data
-        )
-        
-        # Assertions
-        assert response.status_code == 201
-        data = response.json()
-        assert data["success"] is True
-        assert data["message"] == "Post created successfully"
-        assert data["data"]["_id"] is not None
-        
-        # Clean up
-        app.dependency_overrides.clear()
+        try:
+            # Make request (no mocking - use real service)
+            async with client as ac:
+                response = await ac.post(
+                    "/api/v1/post-management/create",
+                    json=sample_post_data
+                )
+                
+                # Assertions
+                assert response.status_code == 201
+                data = response.json()
+                assert data["success"] is True
+                assert data["message"] == "Post created successfully"
+                assert data["data"]["_id"] is not None
+        finally:
+            # Clean up
+            app.dependency_overrides.clear()
     
     def test_create_post_validation_error(self, client, mock_user):
         """Test post creation with validation error."""
