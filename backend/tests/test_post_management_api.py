@@ -94,31 +94,27 @@ class TestPostManagementAPI:
             "updated_at": "2024-01-01T00:00:00Z"
         }
     
-    def test_create_post_success(self, client, mock_user, sample_post_data, sample_post_response):
+    @pytest.mark.asyncio
+    async def test_create_post_success(self, client, mock_user, sample_post_data):
         """Test successful post creation."""
         # Override the dependency
         app.dependency_overrides[current_active_user] = lambda: mock_user
         
-        with patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
-            # Mock service methods
-            mock_service.create_post = AsyncMock(return_value=sample_post_response)
-            
-            # Make request
-            response = client.post(
-                "/api/v1/post-management/create",
-                json=sample_post_data
-            )
-            
-            # Assertions
-            assert response.status_code == 201
-            data = response.json()
-            assert data["success"] is True
-            assert data["message"] == "Post created successfully"
-            assert data["data"]["_id"] == "post_123"
+        # Make request (no mocking - use real service)
+        response = client.post(
+            "/api/v1/post-management/create",
+            json=sample_post_data
+        )
+        
+        # Assertions
+        assert response.status_code == 201
+        data = response.json()
+        assert data["success"] is True
+        assert data["message"] == "Post created successfully"
+        assert data["data"]["_id"] is not None
         
         # Clean up
         app.dependency_overrides.clear()
-        mock_service.create_post.assert_called_once()
     
     def test_create_post_validation_error(self, client, mock_user):
         """Test post creation with validation error."""
@@ -199,26 +195,20 @@ class TestPostManagementAPI:
             data = response.json()
             assert "Post not found" in data["detail"]
     
-    def test_get_posts_list_success(self, client, mock_user, sample_post_response):
+    def test_get_posts_list_success(self, client, mock_user):
         """Test successful posts list retrieval."""
-        posts_list = [sample_post_response, sample_post_response]
-        
         # Override the dependency
         app.dependency_overrides[current_active_user] = lambda: mock_user
         
-        with patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
-            # Mock service methods
-            mock_service.get_all = AsyncMock(return_value=posts_list)
-            
-            # Make request
-            response = client.get("/api/v1/posts/")
-            
-            # Assertions
-            assert response.status_code == 200
-            data = response.json()
-            assert data["success"] is True
-            assert len(data["data"]) == 2
-            assert "pagination" in data
+        # Make request (no mocking - use real service)
+        response = client.get("/api/v1/posts/")
+        
+        # Assertions
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "data" in data
+        assert "pagination" in data
         
         # Clean up
         app.dependency_overrides.clear()
