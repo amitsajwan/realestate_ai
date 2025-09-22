@@ -19,11 +19,9 @@ class TestPostManagementService:
     @pytest.fixture
     def post_service(self):
         """Create a PostManagementService instance for testing."""
-        with patch('app.core.database.get_database') as mock_db:
-            mock_db.return_value = AsyncMock()
-            service = PostManagementService()
-            service.collection = AsyncMock()
-            return service
+        # Use real database connection
+        service = PostManagementService()
+        return service
     
     @pytest.fixture
     def sample_property_data(self):

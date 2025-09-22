@@ -23,8 +23,9 @@ class TestPostManagementAPI:
     @pytest.fixture
     def mock_user(self):
         """Create a mock user for authentication."""
+        from bson import ObjectId
         return User(
-            id="user_123",
+            id=ObjectId(),
             email="test@example.com",
             hashed_password="hashed_password_123",
             is_active=True,

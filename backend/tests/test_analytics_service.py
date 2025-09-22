@@ -17,11 +17,9 @@ class TestAnalyticsService:
     @pytest.fixture
     def analytics_service(self):
         """Create an AnalyticsService instance for testing."""
-        with patch('app.core.database.get_database') as mock_db:
-            mock_db.return_value = AsyncMock()
-            service = AnalyticsService()
-            service.collection = AsyncMock()
-            return service
+        # Use real database connection
+        service = AnalyticsService()
+        return service
     
     @pytest.fixture
     def sample_metrics(self):
@@ -328,7 +326,7 @@ class TestAnalyticsService:
         assert result["user_id"] == "user_123"
     
     @pytest.mark.asyncio
-    async def test_analytics_service_initialization(self, analytics_service):
+    async def test_analytics_service_initialization(self, analytics_service, test_db):
         """Test analytics service initialization."""
         # Assertions
         assert analytics_service.collection_name == "analytics"
