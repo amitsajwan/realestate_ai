@@ -83,7 +83,7 @@ except ImportError:
 class AIContentService:
     def __init__(self):
         self._groq_client = None
-        self.model = os.getenv("GROQ_MODEL", "llama3-8b-8192")
+        self.model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
     
     @property
     def groq_client(self):
@@ -429,7 +429,7 @@ class AIContentService:
                     "model": self.model,
                     "response_length": len(response_content),
                     "api_time_ms": round(api_time * 1000, 2),
-                    "tokens_used": getattr(response, 'usage', {}).get('total_tokens', 'unknown'),
+                    "tokens_used": getattr(response.usage, 'total_tokens', 'unknown') if hasattr(response, 'usage') and response.usage else 'unknown',
                     "timestamp": datetime.utcnow().isoformat()
                 }
             )

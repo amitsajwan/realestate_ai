@@ -11,10 +11,18 @@ from unittest.mock import AsyncMock, patch
 from app.main import app
 from app.models.user import User
 from app.core.auth_backend import current_active_user
+from app.core.database import init_database
 
 
 class TestPostManagementAPI:
     """Test cases for post management API endpoints."""
+    
+    @pytest.fixture(autouse=True)
+    async def setup_database(self):
+        """Initialize database for each test."""
+        await init_database()
+        yield
+        # Cleanup if needed
     
     @pytest.fixture
     def client(self):
