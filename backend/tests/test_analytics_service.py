@@ -303,7 +303,7 @@ class TestAnalyticsService:
         assert "user_analytics" in result["data"]
         assert "dashboard_metrics" in result["data"]
         assert "top_posts" in result["data"]
-        assert "export_date" in result
+        assert "exported_at" in result
     
     @pytest.mark.asyncio
     async def test_export_analytics_csv_format(self, analytics_service):

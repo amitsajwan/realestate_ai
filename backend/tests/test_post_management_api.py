@@ -18,11 +18,14 @@ class TestPostManagementAPI:
     """Test cases for post management API endpoints."""
     
     @pytest.fixture(autouse=True)
-    async def setup_database(self):
+    def setup_database(self):
         """Initialize database for each test."""
-        await init_database()
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(init_database())
         yield
-        # Cleanup if needed
+        loop.close()
     
     @pytest.fixture
     def client(self):
@@ -37,7 +40,7 @@ class TestPostManagementAPI:
         
         # Create a simple mock user object
         mock_user = Mock()
-        mock_user.id = ObjectId()
+        mock_user.id = str(ObjectId())  # Convert to string
         mock_user.email = "test@example.com"
         mock_user.hashed_password = "hashed_password_123"
         mock_user.is_active = True
@@ -196,21 +199,19 @@ class TestPostManagementAPI:
             data = response.json()
             assert "Post not found" in data["detail"]
     
-    def test_get_posts_list_success(self, client, mock_user):
+    def test_get_posts_list_success(self, client, mock_user, sample_post_response):
         """Test successful posts list retrieval."""
         posts_list = [sample_post_response, sample_post_response]
         
-        with patch('app.api.v1.endpoints.post_management.current_active_user', return_value=mock_user), \
-             patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
-            
+        # Override the dependency
+        app.dependency_overrides[current_active_user] = lambda: mock_user
+        
+        with patch('app.api.v1.endpoints.post_management.get_post_service') as mock_service:
             # Mock service methods
             mock_service.get_all = AsyncMock(return_value=posts_list)
             
             # Make request
-            response = client.get(
-                "/api/v1/posts/",
-                headers={"Authorization": "Bearer test_token"}
-            )
+            response = client.get("/api/v1/posts/")
             
             # Assertions
             assert response.status_code == 200
@@ -218,6 +219,9 @@ class TestPostManagementAPI:
             assert data["success"] is True
             assert len(data["data"]) == 2
             assert "pagination" in data
+        
+        # Clean up
+        app.dependency_overrides.clear()
     
     def test_get_posts_with_filters(self, client, mock_user):
         """Test posts list retrieval with filters."""
