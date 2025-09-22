@@ -323,3 +323,25 @@ async def get_metrics_summary(
             status_code=500,
             detail=f"Failed to get metrics summary: {str(e)}"
         )
+
+
+@router.get("/top-posts", response_model=List[Dict[str, Any]])
+async def get_top_performing_posts(
+    limit: int = Query(10, ge=1, le=100, description="Number of posts to return"),
+    current_user: User = Depends(current_active_user)
+):
+    """Get top performing posts for the current user."""
+    try:
+        logger.info(f"Getting top {limit} performing posts for user {current_user.id}")
+        
+        result = await analytics_service.get_top_performing_posts(
+            user_id=str(current_user.id),
+            limit=limit
+        )
+        
+        logger.debug(f"Retrieved {len(result)} top performing posts for user {current_user.id}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Failed to get top performing posts: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

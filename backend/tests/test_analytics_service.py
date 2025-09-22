@@ -17,11 +17,9 @@ class TestAnalyticsService:
     @pytest.fixture
     def analytics_service(self):
         """Create an AnalyticsService instance for testing."""
-        with patch('app.core.database.get_database') as mock_db:
-            mock_db.return_value = AsyncMock()
-            service = AnalyticsService()
-            service.collection = AsyncMock()
-            return service
+        # Use real database connection
+        service = AnalyticsService()
+        return service
     
     @pytest.fixture
     def sample_metrics(self):
@@ -257,7 +255,7 @@ class TestAnalyticsService:
         assert len(result) == 2  # Two unique posts
         assert result[0]["post_id"] == "post_2"  # Higher engagement score
         assert result[0]["total_views"] == 200
-        assert result[0]["engagement_score"] > result[1]["engagement_score"]
+        assert result[0]["performance_score"] > result[1]["performance_score"]
         assert "facebook" in result[0]["platforms"]
     
     @pytest.mark.asyncio
@@ -305,7 +303,7 @@ class TestAnalyticsService:
         assert "user_analytics" in result["data"]
         assert "dashboard_metrics" in result["data"]
         assert "top_posts" in result["data"]
-        assert "export_date" in result
+        assert "exported_at" in result
     
     @pytest.mark.asyncio
     async def test_export_analytics_csv_format(self, analytics_service):
@@ -328,7 +326,7 @@ class TestAnalyticsService:
         assert result["user_id"] == "user_123"
     
     @pytest.mark.asyncio
-    async def test_analytics_service_initialization(self, analytics_service):
+    async def test_analytics_service_initialization(self, analytics_service, test_db):
         """Test analytics service initialization."""
         # Assertions
         assert analytics_service.collection_name == "analytics"

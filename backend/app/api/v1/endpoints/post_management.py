@@ -20,7 +20,7 @@ from app.services.analytics_service import AnalyticsService
 logger = logging.getLogger(__name__)
 
 # Create router
-router = APIRouter(prefix="/posts", tags=["Post Management"])
+router = APIRouter(prefix="", tags=["Post Management"])
 
 # Service dependencies
 def get_post_service() -> PostManagementService:
