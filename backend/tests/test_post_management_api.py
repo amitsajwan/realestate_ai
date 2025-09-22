@@ -90,7 +90,8 @@ class TestPostManagementAPI:
             "updated_at": "2024-01-01T00:00:00Z"
         }
     
-    def test_create_post_success(self, client, mock_user, sample_post_data):
+    @pytest.mark.asyncio
+    async def test_create_post_success(self, client, mock_user, sample_post_data):
         """Test successful post creation."""
         # Override the dependency
         app.dependency_overrides[current_active_user] = lambda: mock_user
