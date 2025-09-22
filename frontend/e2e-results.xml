@@ -1,5 +1,5 @@
-<testsuites id="" name="" tests="145" failures="120" skipped="25" errors="0" time="37.897574999999996">
-<testsuite name="01-authentication-flow.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="chromium" tests="2" failures="2" skipped="0" time="0.004" errors="0">
+<testsuites id="" name="" tests="145" failures="120" skipped="25" errors="0" time="36.737534999999994">
+<testsuite name="01-authentication-flow.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="chromium" tests="2" failures="2" skipped="0" time="0.004" errors="0">
 <testcase name="Authentication Flow - Natural Language Testing › User can register and login successfully" classname="01-authentication-flow.spec.ts" time="0.002">
 <failure message="01-authentication-flow.spec.ts:18:7 User can register and login successfully" type="FAILURE">
 <![CDATA[  [chromium] › 01-authentication-flow.spec.ts:18:7 › Authentication Flow - Natural Language Testing › User can register and login successfully 
@@ -33,7 +33,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="02-property-management.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="chromium" tests="1" failures="1" skipped="0" time="0.002" errors="0">
+<testsuite name="02-property-management.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="chromium" tests="1" failures="1" skipped="0" time="0.002" errors="0">
 <testcase name="Property Management Flow - Natural Language Testing › User can create and manage properties" classname="02-property-management.spec.ts" time="0.002">
 <failure message="02-property-management.spec.ts:27:7 User can create and manage properties" type="FAILURE">
 <![CDATA[  [chromium] › 02-property-management.spec.ts:27:7 › Property Management Flow - Natural Language Testing › User can create and manage properties 
@@ -51,7 +51,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="03-social-publishing.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="chromium" tests="2" failures="2" skipped="0" time="0.005" errors="0">
+<testsuite name="03-social-publishing.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="chromium" tests="2" failures="2" skipped="0" time="0.004" errors="0">
 <testcase name="Social Media Publishing Flow - Natural Language Testing › User can generate and publish AI content" classname="03-social-publishing.spec.ts" time="0.002">
 <failure message="03-social-publishing.spec.ts:27:7 User can generate and publish AI content" type="FAILURE">
 <![CDATA[  [chromium] › 03-social-publishing.spec.ts:27:7 › Social Media Publishing Flow - Natural Language Testing › User can generate and publish AI content 
@@ -68,7 +68,7 @@
 ]]>
 </failure>
 </testcase>
-<testcase name="Social Media Publishing Flow - Natural Language Testing › User can save content as draft" classname="03-social-publishing.spec.ts" time="0.003">
+<testcase name="Social Media Publishing Flow - Natural Language Testing › User can save content as draft" classname="03-social-publishing.spec.ts" time="0.002">
 <failure message="03-social-publishing.spec.ts:81:7 User can save content as draft" type="FAILURE">
 <![CDATA[  [chromium] › 03-social-publishing.spec.ts:81:7 › Social Media Publishing Flow - Natural Language Testing › User can save content as draft 
 
@@ -85,7 +85,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="04-analytics-dashboard.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="chromium" tests="2" failures="2" skipped="0" time="0.004" errors="0">
+<testsuite name="04-analytics-dashboard.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="chromium" tests="2" failures="2" skipped="0" time="0.006" errors="0">
 <testcase name="Analytics Dashboard Flow - Natural Language Testing › User can view and interact with analytics dashboard" classname="04-analytics-dashboard.spec.ts" time="0.002">
 <failure message="04-analytics-dashboard.spec.ts:27:7 User can view and interact with analytics dashboard" type="FAILURE">
 <![CDATA[  [chromium] › 04-analytics-dashboard.spec.ts:27:7 › Analytics Dashboard Flow - Natural Language Testing › User can view and interact with analytics dashboard 
@@ -102,7 +102,7 @@
 ]]>
 </failure>
 </testcase>
-<testcase name="Analytics Dashboard Flow - Natural Language Testing › User can view detailed property analytics" classname="04-analytics-dashboard.spec.ts" time="0.002">
+<testcase name="Analytics Dashboard Flow - Natural Language Testing › User can view detailed property analytics" classname="04-analytics-dashboard.spec.ts" time="0.004">
 <failure message="04-analytics-dashboard.spec.ts:73:7 User can view detailed property analytics" type="FAILURE">
 <![CDATA[  [chromium] › 04-analytics-dashboard.spec.ts:73:7 › Analytics Dashboard Flow - Natural Language Testing › User can view detailed property analytics 
 
@@ -119,7 +119,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="05-complete-user-journey.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="chromium" tests="1" failures="1" skipped="0" time="0.002" errors="0">
+<testsuite name="05-complete-user-journey.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="chromium" tests="1" failures="1" skipped="0" time="0.002" errors="0">
 <testcase name="Complete User Journey - Natural Language Testing › Complete end-to-end user workflow" classname="05-complete-user-journey.spec.ts" time="0.002">
 <failure message="05-complete-user-journey.spec.ts:20:7 Complete end-to-end user workflow" type="FAILURE">
 <![CDATA[  [chromium] › 05-complete-user-journey.spec.ts:20:7 › Complete User Journey - Natural Language Testing › Complete end-to-end user workflow 
@@ -137,7 +137,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="agent-profile-creation-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="chromium" tests="1" failures="1" skipped="0" time="0" errors="0">
+<testsuite name="agent-profile-creation-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="chromium" tests="1" failures="1" skipped="0" time="0" errors="0">
 <testcase name="Agent Profile Creation Test › Test agent profile creation during onboarding completion" classname="agent-profile-creation-test.spec.ts" time="0">
 <failure message="agent-profile-creation-test.spec.ts:50:7 Test agent profile creation during onboarding completion" type="FAILURE">
 <![CDATA[  [chromium] › agent-profile-creation-test.spec.ts:50:7 › Agent Profile Creation Test › Test agent profile creation during onboarding completion 
@@ -157,7 +157,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="complete-agent-website-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="chromium" tests="1" failures="1" skipped="0" time="0" errors="0">
+<testsuite name="complete-agent-website-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="chromium" tests="1" failures="1" skipped="0" time="0" errors="0">
 <testcase name="Complete Agent Website Test › Complete user journey with agent website verification" classname="complete-agent-website-test.spec.ts" time="0">
 <failure message="complete-agent-website-test.spec.ts:60:7 Complete user journey with agent website verification" type="FAILURE">
 <![CDATA[  [chromium] › complete-agent-website-test.spec.ts:60:7 › Complete Agent Website Test › Complete user journey with agent website verification 
@@ -177,7 +177,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="error-scenarios-and-edge-cases.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="chromium" tests="7" failures="2" skipped="5" time="0" errors="0">
+<testsuite name="error-scenarios-and-edge-cases.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="chromium" tests="7" failures="2" skipped="5" time="0" errors="0">
 <testcase name="Error Scenarios and Edge Cases › Invalid Authentication Scenarios" classname="error-scenarios-and-edge-cases.spec.ts" time="0">
 <failure message="error-scenarios-and-edge-cases.spec.ts:42:7 Invalid Authentication Scenarios" type="FAILURE">
 <![CDATA[  [chromium] › error-scenarios-and-edge-cases.spec.ts:42:7 › Error Scenarios and Edge Cases › Invalid Authentication Scenarios 
@@ -235,7 +235,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="parallel-user-journey.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="chromium" tests="4" failures="4" skipped="0" time="0.004" errors="0">
+<testsuite name="parallel-user-journey.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="chromium" tests="4" failures="4" skipped="0" time="0.012" errors="0">
 <testcase name="Parallel User Journey Tests › User 1: Complete Real Estate Agent Journey" classname="parallel-user-journey.spec.ts" time="0.001">
 <failure message="parallel-user-journey.spec.ts:59:7 User 1: Complete Real Estate Agent Journey" type="FAILURE">
 <![CDATA[  [chromium] › parallel-user-journey.spec.ts:59:7 › Parallel User Journey Tests › User 1: Complete Real Estate Agent Journey 
@@ -257,7 +257,7 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="Parallel User Journey Tests › User 2: Property Management Focus" classname="parallel-user-journey.spec.ts" time="0.001">
+<testcase name="Parallel User Journey Tests › User 2: Property Management Focus" classname="parallel-user-journey.spec.ts" time="0.005">
 <failure message="parallel-user-journey.spec.ts:139:7 User 2: Property Management Focus" type="FAILURE">
 <![CDATA[  [chromium] › parallel-user-journey.spec.ts:139:7 › Parallel User Journey Tests › User 2: Property Management Focus 
 
@@ -278,7 +278,7 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="Parallel User Journey Tests › User 3: Social Media Marketing Specialist" classname="parallel-user-journey.spec.ts" time="0.001">
+<testcase name="Parallel User Journey Tests › User 3: Social Media Marketing Specialist" classname="parallel-user-journey.spec.ts" time="0.005">
 <failure message="parallel-user-journey.spec.ts:229:7 User 3: Social Media Marketing Specialist" type="FAILURE">
 <![CDATA[  [chromium] › parallel-user-journey.spec.ts:229:7 › Parallel User Journey Tests › User 3: Social Media Marketing Specialist 
 
@@ -321,7 +321,7 @@
 </system-out>
 </testcase>
 </testsuite>
-<testsuite name="simple-auth-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="chromium" tests="1" failures="1" skipped="0" time="0.002" errors="0">
+<testsuite name="simple-auth-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="chromium" tests="1" failures="1" skipped="0" time="0.002" errors="0">
 <testcase name="Simple Authentication Test › Login and access properties page" classname="simple-auth-test.spec.ts" time="0.002">
 <failure message="simple-auth-test.spec.ts:4:7 Login and access properties page" type="FAILURE">
 <![CDATA[  [chromium] › simple-auth-test.spec.ts:4:7 › Simple Authentication Test › Login and access properties page 
@@ -339,7 +339,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="chromium" tests="7" failures="7" skipped="0" time="0.014" errors="0">
+<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="chromium" tests="7" failures="7" skipped="0" time="0.014" errors="0">
 <testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="0.002">
 <failure message="working-e2e-test.spec.ts:13:7 Backend API is accessible and healthy" type="FAILURE">
 <![CDATA[  [chromium] › working-e2e-test.spec.ts:13:7 › PropertyAI Working E2E Tests › Backend API is accessible and healthy 
@@ -453,7 +453,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="01-authentication-flow.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="firefox" tests="2" failures="2" skipped="0" time="0.004" errors="0">
+<testsuite name="01-authentication-flow.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="firefox" tests="2" failures="2" skipped="0" time="0.004" errors="0">
 <testcase name="Authentication Flow - Natural Language Testing › User can register and login successfully" classname="01-authentication-flow.spec.ts" time="0.002">
 <failure message="01-authentication-flow.spec.ts:18:7 User can register and login successfully" type="FAILURE">
 <![CDATA[  [firefox] › 01-authentication-flow.spec.ts:18:7 › Authentication Flow - Natural Language Testing › User can register and login successfully 
@@ -487,7 +487,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="02-property-management.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="firefox" tests="1" failures="1" skipped="0" time="0.002" errors="0">
+<testsuite name="02-property-management.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="firefox" tests="1" failures="1" skipped="0" time="0.002" errors="0">
 <testcase name="Property Management Flow - Natural Language Testing › User can create and manage properties" classname="02-property-management.spec.ts" time="0.002">
 <failure message="02-property-management.spec.ts:27:7 User can create and manage properties" type="FAILURE">
 <![CDATA[  [firefox] › 02-property-management.spec.ts:27:7 › Property Management Flow - Natural Language Testing › User can create and manage properties 
@@ -505,7 +505,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="03-social-publishing.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="firefox" tests="2" failures="2" skipped="0" time="0.004" errors="0">
+<testsuite name="03-social-publishing.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="firefox" tests="2" failures="2" skipped="0" time="0.004" errors="0">
 <testcase name="Social Media Publishing Flow - Natural Language Testing › User can generate and publish AI content" classname="03-social-publishing.spec.ts" time="0.002">
 <failure message="03-social-publishing.spec.ts:27:7 User can generate and publish AI content" type="FAILURE">
 <![CDATA[  [firefox] › 03-social-publishing.spec.ts:27:7 › Social Media Publishing Flow - Natural Language Testing › User can generate and publish AI content 
@@ -539,7 +539,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="04-analytics-dashboard.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="firefox" tests="2" failures="2" skipped="0" time="0.004" errors="0">
+<testsuite name="04-analytics-dashboard.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="firefox" tests="2" failures="2" skipped="0" time="0.004" errors="0">
 <testcase name="Analytics Dashboard Flow - Natural Language Testing › User can view and interact with analytics dashboard" classname="04-analytics-dashboard.spec.ts" time="0.002">
 <failure message="04-analytics-dashboard.spec.ts:27:7 User can view and interact with analytics dashboard" type="FAILURE">
 <![CDATA[  [firefox] › 04-analytics-dashboard.spec.ts:27:7 › Analytics Dashboard Flow - Natural Language Testing › User can view and interact with analytics dashboard 
@@ -573,7 +573,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="05-complete-user-journey.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="firefox" tests="1" failures="1" skipped="0" time="0.002" errors="0">
+<testsuite name="05-complete-user-journey.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="firefox" tests="1" failures="1" skipped="0" time="0.002" errors="0">
 <testcase name="Complete User Journey - Natural Language Testing › Complete end-to-end user workflow" classname="05-complete-user-journey.spec.ts" time="0.002">
 <failure message="05-complete-user-journey.spec.ts:20:7 Complete end-to-end user workflow" type="FAILURE">
 <![CDATA[  [firefox] › 05-complete-user-journey.spec.ts:20:7 › Complete User Journey - Natural Language Testing › Complete end-to-end user workflow 
@@ -591,7 +591,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="agent-profile-creation-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="firefox" tests="1" failures="1" skipped="0" time="0" errors="0">
+<testsuite name="agent-profile-creation-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="firefox" tests="1" failures="1" skipped="0" time="0" errors="0">
 <testcase name="Agent Profile Creation Test › Test agent profile creation during onboarding completion" classname="agent-profile-creation-test.spec.ts" time="0">
 <failure message="agent-profile-creation-test.spec.ts:50:7 Test agent profile creation during onboarding completion" type="FAILURE">
 <![CDATA[  [firefox] › agent-profile-creation-test.spec.ts:50:7 › Agent Profile Creation Test › Test agent profile creation during onboarding completion 
@@ -611,7 +611,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="complete-agent-website-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="firefox" tests="1" failures="1" skipped="0" time="0" errors="0">
+<testsuite name="complete-agent-website-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="firefox" tests="1" failures="1" skipped="0" time="0" errors="0">
 <testcase name="Complete Agent Website Test › Complete user journey with agent website verification" classname="complete-agent-website-test.spec.ts" time="0">
 <failure message="complete-agent-website-test.spec.ts:60:7 Complete user journey with agent website verification" type="FAILURE">
 <![CDATA[  [firefox] › complete-agent-website-test.spec.ts:60:7 › Complete Agent Website Test › Complete user journey with agent website verification 
@@ -631,7 +631,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="error-scenarios-and-edge-cases.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="firefox" tests="7" failures="2" skipped="5" time="0" errors="0">
+<testsuite name="error-scenarios-and-edge-cases.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="firefox" tests="7" failures="2" skipped="5" time="0" errors="0">
 <testcase name="Error Scenarios and Edge Cases › Invalid Authentication Scenarios" classname="error-scenarios-and-edge-cases.spec.ts" time="0">
 <failure message="error-scenarios-and-edge-cases.spec.ts:42:7 Invalid Authentication Scenarios" type="FAILURE">
 <![CDATA[  [firefox] › error-scenarios-and-edge-cases.spec.ts:42:7 › Error Scenarios and Edge Cases › Invalid Authentication Scenarios 
@@ -689,7 +689,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="parallel-user-journey.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="firefox" tests="4" failures="4" skipped="0" time="0.006" errors="0">
+<testsuite name="parallel-user-journey.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="firefox" tests="4" failures="4" skipped="0" time="0.005" errors="0">
 <testcase name="Parallel User Journey Tests › User 1: Complete Real Estate Agent Journey" classname="parallel-user-journey.spec.ts" time="0.001">
 <failure message="parallel-user-journey.spec.ts:59:7 User 1: Complete Real Estate Agent Journey" type="FAILURE">
 <![CDATA[  [firefox] › parallel-user-journey.spec.ts:59:7 › Parallel User Journey Tests › User 1: Complete Real Estate Agent Journey 
@@ -711,7 +711,7 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="Parallel User Journey Tests › User 2: Property Management Focus" classname="parallel-user-journey.spec.ts" time="0.003">
+<testcase name="Parallel User Journey Tests › User 2: Property Management Focus" classname="parallel-user-journey.spec.ts" time="0.001">
 <failure message="parallel-user-journey.spec.ts:139:7 User 2: Property Management Focus" type="FAILURE">
 <![CDATA[  [firefox] › parallel-user-journey.spec.ts:139:7 › Parallel User Journey Tests › User 2: Property Management Focus 
 
@@ -753,7 +753,7 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="Parallel User Journey Tests › Concurrent Property Creation Stress Test" classname="parallel-user-journey.spec.ts" time="0.001">
+<testcase name="Parallel User Journey Tests › Concurrent Property Creation Stress Test" classname="parallel-user-journey.spec.ts" time="0.002">
 <failure message="parallel-user-journey.spec.ts:329:7 Concurrent Property Creation Stress Test" type="FAILURE">
 <![CDATA[  [firefox] › parallel-user-journey.spec.ts:329:7 › Parallel User Journey Tests › Concurrent Property Creation Stress Test 
 
@@ -775,7 +775,7 @@
 </system-out>
 </testcase>
 </testsuite>
-<testsuite name="simple-auth-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="firefox" tests="1" failures="1" skipped="0" time="0.002" errors="0">
+<testsuite name="simple-auth-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="firefox" tests="1" failures="1" skipped="0" time="0.002" errors="0">
 <testcase name="Simple Authentication Test › Login and access properties page" classname="simple-auth-test.spec.ts" time="0.002">
 <failure message="simple-auth-test.spec.ts:4:7 Login and access properties page" type="FAILURE">
 <![CDATA[  [firefox] › simple-auth-test.spec.ts:4:7 › Simple Authentication Test › Login and access properties page 
@@ -793,7 +793,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="firefox" tests="7" failures="7" skipped="0" time="0.014" errors="0">
+<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="firefox" tests="7" failures="7" skipped="0" time="0.018" errors="0">
 <testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="0.002">
 <failure message="working-e2e-test.spec.ts:13:7 Backend API is accessible and healthy" type="FAILURE">
 <![CDATA[  [firefox] › working-e2e-test.spec.ts:13:7 › PropertyAI Working E2E Tests › Backend API is accessible and healthy 
@@ -858,7 +858,7 @@
 ]]>
 </failure>
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="0.002">
+<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="0.006">
 <failure message="working-e2e-test.spec.ts:58:7 Properties page is accessible" type="FAILURE">
 <![CDATA[  [firefox] › working-e2e-test.spec.ts:58:7 › PropertyAI Working E2E Tests › Properties page is accessible 
 
@@ -907,7 +907,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="01-authentication-flow.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="webkit" tests="2" failures="2" skipped="0" time="0.004" errors="0">
+<testsuite name="01-authentication-flow.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="webkit" tests="2" failures="2" skipped="0" time="0.004" errors="0">
 <testcase name="Authentication Flow - Natural Language Testing › User can register and login successfully" classname="01-authentication-flow.spec.ts" time="0.002">
 <failure message="01-authentication-flow.spec.ts:18:7 User can register and login successfully" type="FAILURE">
 <![CDATA[  [webkit] › 01-authentication-flow.spec.ts:18:7 › Authentication Flow - Natural Language Testing › User can register and login successfully 
@@ -941,8 +941,8 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="02-property-management.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="webkit" tests="1" failures="1" skipped="0" time="0.002" errors="0">
-<testcase name="Property Management Flow - Natural Language Testing › User can create and manage properties" classname="02-property-management.spec.ts" time="0.002">
+<testsuite name="02-property-management.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="webkit" tests="1" failures="1" skipped="0" time="0.003" errors="0">
+<testcase name="Property Management Flow - Natural Language Testing › User can create and manage properties" classname="02-property-management.spec.ts" time="0.003">
 <failure message="02-property-management.spec.ts:27:7 User can create and manage properties" type="FAILURE">
 <![CDATA[  [webkit] › 02-property-management.spec.ts:27:7 › Property Management Flow - Natural Language Testing › User can create and manage properties 
 
@@ -959,7 +959,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="03-social-publishing.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="webkit" tests="2" failures="2" skipped="0" time="0.004" errors="0">
+<testsuite name="03-social-publishing.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="webkit" tests="2" failures="2" skipped="0" time="0.004" errors="0">
 <testcase name="Social Media Publishing Flow - Natural Language Testing › User can generate and publish AI content" classname="03-social-publishing.spec.ts" time="0.002">
 <failure message="03-social-publishing.spec.ts:27:7 User can generate and publish AI content" type="FAILURE">
 <![CDATA[  [webkit] › 03-social-publishing.spec.ts:27:7 › Social Media Publishing Flow - Natural Language Testing › User can generate and publish AI content 
@@ -993,7 +993,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="04-analytics-dashboard.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="webkit" tests="2" failures="2" skipped="0" time="0.004" errors="0">
+<testsuite name="04-analytics-dashboard.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="webkit" tests="2" failures="2" skipped="0" time="0.004" errors="0">
 <testcase name="Analytics Dashboard Flow - Natural Language Testing › User can view and interact with analytics dashboard" classname="04-analytics-dashboard.spec.ts" time="0.002">
 <failure message="04-analytics-dashboard.spec.ts:27:7 User can view and interact with analytics dashboard" type="FAILURE">
 <![CDATA[  [webkit] › 04-analytics-dashboard.spec.ts:27:7 › Analytics Dashboard Flow - Natural Language Testing › User can view and interact with analytics dashboard 
@@ -1027,7 +1027,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="05-complete-user-journey.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="webkit" tests="1" failures="1" skipped="0" time="0.002" errors="0">
+<testsuite name="05-complete-user-journey.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="webkit" tests="1" failures="1" skipped="0" time="0.002" errors="0">
 <testcase name="Complete User Journey - Natural Language Testing › Complete end-to-end user workflow" classname="05-complete-user-journey.spec.ts" time="0.002">
 <failure message="05-complete-user-journey.spec.ts:20:7 Complete end-to-end user workflow" type="FAILURE">
 <![CDATA[  [webkit] › 05-complete-user-journey.spec.ts:20:7 › Complete User Journey - Natural Language Testing › Complete end-to-end user workflow 
@@ -1045,8 +1045,8 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="agent-profile-creation-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="webkit" tests="1" failures="1" skipped="0" time="0" errors="0">
-<testcase name="Agent Profile Creation Test › Test agent profile creation during onboarding completion" classname="agent-profile-creation-test.spec.ts" time="0">
+<testsuite name="agent-profile-creation-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="webkit" tests="1" failures="1" skipped="0" time="0.001" errors="0">
+<testcase name="Agent Profile Creation Test › Test agent profile creation during onboarding completion" classname="agent-profile-creation-test.spec.ts" time="0.001">
 <failure message="agent-profile-creation-test.spec.ts:50:7 Test agent profile creation during onboarding completion" type="FAILURE">
 <![CDATA[  [webkit] › agent-profile-creation-test.spec.ts:50:7 › Agent Profile Creation Test › Test agent profile creation during onboarding completion 
 
@@ -1065,7 +1065,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="complete-agent-website-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="webkit" tests="1" failures="1" skipped="0" time="0" errors="0">
+<testsuite name="complete-agent-website-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="webkit" tests="1" failures="1" skipped="0" time="0" errors="0">
 <testcase name="Complete Agent Website Test › Complete user journey with agent website verification" classname="complete-agent-website-test.spec.ts" time="0">
 <failure message="complete-agent-website-test.spec.ts:60:7 Complete user journey with agent website verification" type="FAILURE">
 <![CDATA[  [webkit] › complete-agent-website-test.spec.ts:60:7 › Complete Agent Website Test › Complete user journey with agent website verification 
@@ -1085,7 +1085,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="error-scenarios-and-edge-cases.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="webkit" tests="7" failures="2" skipped="5" time="0" errors="0">
+<testsuite name="error-scenarios-and-edge-cases.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="webkit" tests="7" failures="2" skipped="5" time="0" errors="0">
 <testcase name="Error Scenarios and Edge Cases › Invalid Authentication Scenarios" classname="error-scenarios-and-edge-cases.spec.ts" time="0">
 <failure message="error-scenarios-and-edge-cases.spec.ts:42:7 Invalid Authentication Scenarios" type="FAILURE">
 <![CDATA[  [webkit] › error-scenarios-and-edge-cases.spec.ts:42:7 › Error Scenarios and Edge Cases › Invalid Authentication Scenarios 
@@ -1143,8 +1143,8 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="parallel-user-journey.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="webkit" tests="4" failures="4" skipped="0" time="0.004" errors="0">
-<testcase name="Parallel User Journey Tests › User 1: Complete Real Estate Agent Journey" classname="parallel-user-journey.spec.ts" time="0.001">
+<testsuite name="parallel-user-journey.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="webkit" tests="4" failures="4" skipped="0" time="0.005" errors="0">
+<testcase name="Parallel User Journey Tests › User 1: Complete Real Estate Agent Journey" classname="parallel-user-journey.spec.ts" time="0.002">
 <failure message="parallel-user-journey.spec.ts:59:7 User 1: Complete Real Estate Agent Journey" type="FAILURE">
 <![CDATA[  [webkit] › parallel-user-journey.spec.ts:59:7 › Parallel User Journey Tests › User 1: Complete Real Estate Agent Journey 
 
@@ -1229,7 +1229,7 @@
 </system-out>
 </testcase>
 </testsuite>
-<testsuite name="simple-auth-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="webkit" tests="1" failures="1" skipped="0" time="0.002" errors="0">
+<testsuite name="simple-auth-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="webkit" tests="1" failures="1" skipped="0" time="0.002" errors="0">
 <testcase name="Simple Authentication Test › Login and access properties page" classname="simple-auth-test.spec.ts" time="0.002">
 <failure message="simple-auth-test.spec.ts:4:7 Login and access properties page" type="FAILURE">
 <![CDATA[  [webkit] › simple-auth-test.spec.ts:4:7 › Simple Authentication Test › Login and access properties page 
@@ -1247,7 +1247,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="webkit" tests="7" failures="7" skipped="0" time="0.018" errors="0">
+<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="webkit" tests="7" failures="7" skipped="0" time="0.014" errors="0">
 <testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="0.002">
 <failure message="working-e2e-test.spec.ts:13:7 Backend API is accessible and healthy" type="FAILURE">
 <![CDATA[  [webkit] › working-e2e-test.spec.ts:13:7 › PropertyAI Working E2E Tests › Backend API is accessible and healthy 
@@ -1312,7 +1312,7 @@
 ]]>
 </failure>
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="0.006">
+<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="0.002">
 <failure message="working-e2e-test.spec.ts:58:7 Properties page is accessible" type="FAILURE">
 <![CDATA[  [webkit] › working-e2e-test.spec.ts:58:7 › PropertyAI Working E2E Tests › Properties page is accessible 
 
@@ -1361,7 +1361,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="01-authentication-flow.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-chrome" tests="2" failures="2" skipped="0" time="0.004" errors="0">
+<testsuite name="01-authentication-flow.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-chrome" tests="2" failures="2" skipped="0" time="0.004" errors="0">
 <testcase name="Authentication Flow - Natural Language Testing › User can register and login successfully" classname="01-authentication-flow.spec.ts" time="0.002">
 <failure message="01-authentication-flow.spec.ts:18:7 User can register and login successfully" type="FAILURE">
 <![CDATA[  [mobile-chrome] › 01-authentication-flow.spec.ts:18:7 › Authentication Flow - Natural Language Testing › User can register and login successfully 
@@ -1395,7 +1395,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="02-property-management.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-chrome" tests="1" failures="1" skipped="0" time="0.002" errors="0">
+<testsuite name="02-property-management.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-chrome" tests="1" failures="1" skipped="0" time="0.002" errors="0">
 <testcase name="Property Management Flow - Natural Language Testing › User can create and manage properties" classname="02-property-management.spec.ts" time="0.002">
 <failure message="02-property-management.spec.ts:27:7 User can create and manage properties" type="FAILURE">
 <![CDATA[  [mobile-chrome] › 02-property-management.spec.ts:27:7 › Property Management Flow - Natural Language Testing › User can create and manage properties 
@@ -1413,7 +1413,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="03-social-publishing.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-chrome" tests="2" failures="2" skipped="0" time="0.005" errors="0">
+<testsuite name="03-social-publishing.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-chrome" tests="2" failures="2" skipped="0" time="0.004" errors="0">
 <testcase name="Social Media Publishing Flow - Natural Language Testing › User can generate and publish AI content" classname="03-social-publishing.spec.ts" time="0.002">
 <failure message="03-social-publishing.spec.ts:27:7 User can generate and publish AI content" type="FAILURE">
 <![CDATA[  [mobile-chrome] › 03-social-publishing.spec.ts:27:7 › Social Media Publishing Flow - Natural Language Testing › User can generate and publish AI content 
@@ -1430,7 +1430,7 @@
 ]]>
 </failure>
 </testcase>
-<testcase name="Social Media Publishing Flow - Natural Language Testing › User can save content as draft" classname="03-social-publishing.spec.ts" time="0.003">
+<testcase name="Social Media Publishing Flow - Natural Language Testing › User can save content as draft" classname="03-social-publishing.spec.ts" time="0.002">
 <failure message="03-social-publishing.spec.ts:81:7 User can save content as draft" type="FAILURE">
 <![CDATA[  [mobile-chrome] › 03-social-publishing.spec.ts:81:7 › Social Media Publishing Flow - Natural Language Testing › User can save content as draft 
 
@@ -1447,8 +1447,8 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="04-analytics-dashboard.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-chrome" tests="2" failures="2" skipped="0" time="0.004" errors="0">
-<testcase name="Analytics Dashboard Flow - Natural Language Testing › User can view and interact with analytics dashboard" classname="04-analytics-dashboard.spec.ts" time="0.002">
+<testsuite name="04-analytics-dashboard.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-chrome" tests="2" failures="2" skipped="0" time="0.009" errors="0">
+<testcase name="Analytics Dashboard Flow - Natural Language Testing › User can view and interact with analytics dashboard" classname="04-analytics-dashboard.spec.ts" time="0.006">
 <failure message="04-analytics-dashboard.spec.ts:27:7 User can view and interact with analytics dashboard" type="FAILURE">
 <![CDATA[  [mobile-chrome] › 04-analytics-dashboard.spec.ts:27:7 › Analytics Dashboard Flow - Natural Language Testing › User can view and interact with analytics dashboard 
 
@@ -1464,7 +1464,7 @@
 ]]>
 </failure>
 </testcase>
-<testcase name="Analytics Dashboard Flow - Natural Language Testing › User can view detailed property analytics" classname="04-analytics-dashboard.spec.ts" time="0.002">
+<testcase name="Analytics Dashboard Flow - Natural Language Testing › User can view detailed property analytics" classname="04-analytics-dashboard.spec.ts" time="0.003">
 <failure message="04-analytics-dashboard.spec.ts:73:7 User can view detailed property analytics" type="FAILURE">
 <![CDATA[  [mobile-chrome] › 04-analytics-dashboard.spec.ts:73:7 › Analytics Dashboard Flow - Natural Language Testing › User can view detailed property analytics 
 
@@ -1481,7 +1481,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="05-complete-user-journey.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-chrome" tests="1" failures="1" skipped="0" time="0.002" errors="0">
+<testsuite name="05-complete-user-journey.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-chrome" tests="1" failures="1" skipped="0" time="0.002" errors="0">
 <testcase name="Complete User Journey - Natural Language Testing › Complete end-to-end user workflow" classname="05-complete-user-journey.spec.ts" time="0.002">
 <failure message="05-complete-user-journey.spec.ts:20:7 Complete end-to-end user workflow" type="FAILURE">
 <![CDATA[  [mobile-chrome] › 05-complete-user-journey.spec.ts:20:7 › Complete User Journey - Natural Language Testing › Complete end-to-end user workflow 
@@ -1499,7 +1499,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="agent-profile-creation-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-chrome" tests="1" failures="1" skipped="0" time="0" errors="0">
+<testsuite name="agent-profile-creation-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-chrome" tests="1" failures="1" skipped="0" time="0" errors="0">
 <testcase name="Agent Profile Creation Test › Test agent profile creation during onboarding completion" classname="agent-profile-creation-test.spec.ts" time="0">
 <failure message="agent-profile-creation-test.spec.ts:50:7 Test agent profile creation during onboarding completion" type="FAILURE">
 <![CDATA[  [mobile-chrome] › agent-profile-creation-test.spec.ts:50:7 › Agent Profile Creation Test › Test agent profile creation during onboarding completion 
@@ -1519,7 +1519,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="complete-agent-website-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-chrome" tests="1" failures="1" skipped="0" time="0" errors="0">
+<testsuite name="complete-agent-website-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-chrome" tests="1" failures="1" skipped="0" time="0" errors="0">
 <testcase name="Complete Agent Website Test › Complete user journey with agent website verification" classname="complete-agent-website-test.spec.ts" time="0">
 <failure message="complete-agent-website-test.spec.ts:60:7 Complete user journey with agent website verification" type="FAILURE">
 <![CDATA[  [mobile-chrome] › complete-agent-website-test.spec.ts:60:7 › Complete Agent Website Test › Complete user journey with agent website verification 
@@ -1539,7 +1539,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="error-scenarios-and-edge-cases.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-chrome" tests="7" failures="2" skipped="5" time="0" errors="0">
+<testsuite name="error-scenarios-and-edge-cases.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-chrome" tests="7" failures="2" skipped="5" time="0" errors="0">
 <testcase name="Error Scenarios and Edge Cases › Invalid Authentication Scenarios" classname="error-scenarios-and-edge-cases.spec.ts" time="0">
 <failure message="error-scenarios-and-edge-cases.spec.ts:42:7 Invalid Authentication Scenarios" type="FAILURE">
 <![CDATA[  [mobile-chrome] › error-scenarios-and-edge-cases.spec.ts:42:7 › Error Scenarios and Edge Cases › Invalid Authentication Scenarios 
@@ -1597,7 +1597,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="parallel-user-journey.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-chrome" tests="4" failures="4" skipped="0" time="0.006" errors="0">
+<testsuite name="parallel-user-journey.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-chrome" tests="4" failures="4" skipped="0" time="0.005" errors="0">
 <testcase name="Parallel User Journey Tests › User 1: Complete Real Estate Agent Journey" classname="parallel-user-journey.spec.ts" time="0.001">
 <failure message="parallel-user-journey.spec.ts:59:7 User 1: Complete Real Estate Agent Journey" type="FAILURE">
 <![CDATA[  [mobile-chrome] › parallel-user-journey.spec.ts:59:7 › Parallel User Journey Tests › User 1: Complete Real Estate Agent Journey 
@@ -1619,7 +1619,7 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="Parallel User Journey Tests › User 2: Property Management Focus" classname="parallel-user-journey.spec.ts" time="0.001">
+<testcase name="Parallel User Journey Tests › User 2: Property Management Focus" classname="parallel-user-journey.spec.ts" time="0.002">
 <failure message="parallel-user-journey.spec.ts:139:7 User 2: Property Management Focus" type="FAILURE">
 <![CDATA[  [mobile-chrome] › parallel-user-journey.spec.ts:139:7 › Parallel User Journey Tests › User 2: Property Management Focus 
 
@@ -1661,7 +1661,7 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="Parallel User Journey Tests › Concurrent Property Creation Stress Test" classname="parallel-user-journey.spec.ts" time="0.003">
+<testcase name="Parallel User Journey Tests › Concurrent Property Creation Stress Test" classname="parallel-user-journey.spec.ts" time="0.001">
 <failure message="parallel-user-journey.spec.ts:329:7 Concurrent Property Creation Stress Test" type="FAILURE">
 <![CDATA[  [mobile-chrome] › parallel-user-journey.spec.ts:329:7 › Parallel User Journey Tests › Concurrent Property Creation Stress Test 
 
@@ -1683,7 +1683,7 @@
 </system-out>
 </testcase>
 </testsuite>
-<testsuite name="simple-auth-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-chrome" tests="1" failures="1" skipped="0" time="0.002" errors="0">
+<testsuite name="simple-auth-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-chrome" tests="1" failures="1" skipped="0" time="0.002" errors="0">
 <testcase name="Simple Authentication Test › Login and access properties page" classname="simple-auth-test.spec.ts" time="0.002">
 <failure message="simple-auth-test.spec.ts:4:7 Login and access properties page" type="FAILURE">
 <![CDATA[  [mobile-chrome] › simple-auth-test.spec.ts:4:7 › Simple Authentication Test › Login and access properties page 
@@ -1701,7 +1701,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-chrome" tests="7" failures="7" skipped="0" time="0.014" errors="0">
+<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-chrome" tests="7" failures="7" skipped="0" time="0.014" errors="0">
 <testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="0.002">
 <failure message="working-e2e-test.spec.ts:13:7 Backend API is accessible and healthy" type="FAILURE">
 <![CDATA[  [mobile-chrome] › working-e2e-test.spec.ts:13:7 › PropertyAI Working E2E Tests › Backend API is accessible and healthy 
@@ -1815,7 +1815,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="01-authentication-flow.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-safari" tests="2" failures="2" skipped="0" time="0.004" errors="0">
+<testsuite name="01-authentication-flow.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-safari" tests="2" failures="2" skipped="0" time="0.004" errors="0">
 <testcase name="Authentication Flow - Natural Language Testing › User can register and login successfully" classname="01-authentication-flow.spec.ts" time="0.002">
 <failure message="01-authentication-flow.spec.ts:18:7 User can register and login successfully" type="FAILURE">
 <![CDATA[  [mobile-safari] › 01-authentication-flow.spec.ts:18:7 › Authentication Flow - Natural Language Testing › User can register and login successfully 
@@ -1849,7 +1849,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="02-property-management.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-safari" tests="1" failures="1" skipped="0" time="0.002" errors="0">
+<testsuite name="02-property-management.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-safari" tests="1" failures="1" skipped="0" time="0.002" errors="0">
 <testcase name="Property Management Flow - Natural Language Testing › User can create and manage properties" classname="02-property-management.spec.ts" time="0.002">
 <failure message="02-property-management.spec.ts:27:7 User can create and manage properties" type="FAILURE">
 <![CDATA[  [mobile-safari] › 02-property-management.spec.ts:27:7 › Property Management Flow - Natural Language Testing › User can create and manage properties 
@@ -1867,7 +1867,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="03-social-publishing.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-safari" tests="2" failures="2" skipped="0" time="0.004" errors="0">
+<testsuite name="03-social-publishing.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-safari" tests="2" failures="2" skipped="0" time="0.005" errors="0">
 <testcase name="Social Media Publishing Flow - Natural Language Testing › User can generate and publish AI content" classname="03-social-publishing.spec.ts" time="0.002">
 <failure message="03-social-publishing.spec.ts:27:7 User can generate and publish AI content" type="FAILURE">
 <![CDATA[  [mobile-safari] › 03-social-publishing.spec.ts:27:7 › Social Media Publishing Flow - Natural Language Testing › User can generate and publish AI content 
@@ -1884,7 +1884,7 @@
 ]]>
 </failure>
 </testcase>
-<testcase name="Social Media Publishing Flow - Natural Language Testing › User can save content as draft" classname="03-social-publishing.spec.ts" time="0.002">
+<testcase name="Social Media Publishing Flow - Natural Language Testing › User can save content as draft" classname="03-social-publishing.spec.ts" time="0.003">
 <failure message="03-social-publishing.spec.ts:81:7 User can save content as draft" type="FAILURE">
 <![CDATA[  [mobile-safari] › 03-social-publishing.spec.ts:81:7 › Social Media Publishing Flow - Natural Language Testing › User can save content as draft 
 
@@ -1901,7 +1901,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="04-analytics-dashboard.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-safari" tests="2" failures="2" skipped="0" time="0.004" errors="0">
+<testsuite name="04-analytics-dashboard.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-safari" tests="2" failures="2" skipped="0" time="0.004" errors="0">
 <testcase name="Analytics Dashboard Flow - Natural Language Testing › User can view and interact with analytics dashboard" classname="04-analytics-dashboard.spec.ts" time="0.002">
 <failure message="04-analytics-dashboard.spec.ts:27:7 User can view and interact with analytics dashboard" type="FAILURE">
 <![CDATA[  [mobile-safari] › 04-analytics-dashboard.spec.ts:27:7 › Analytics Dashboard Flow - Natural Language Testing › User can view and interact with analytics dashboard 
@@ -1935,7 +1935,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="05-complete-user-journey.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-safari" tests="1" failures="1" skipped="0" time="0.002" errors="0">
+<testsuite name="05-complete-user-journey.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-safari" tests="1" failures="1" skipped="0" time="0.002" errors="0">
 <testcase name="Complete User Journey - Natural Language Testing › Complete end-to-end user workflow" classname="05-complete-user-journey.spec.ts" time="0.002">
 <failure message="05-complete-user-journey.spec.ts:20:7 Complete end-to-end user workflow" type="FAILURE">
 <![CDATA[  [mobile-safari] › 05-complete-user-journey.spec.ts:20:7 › Complete User Journey - Natural Language Testing › Complete end-to-end user workflow 
@@ -1953,7 +1953,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="agent-profile-creation-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-safari" tests="1" failures="1" skipped="0" time="0" errors="0">
+<testsuite name="agent-profile-creation-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-safari" tests="1" failures="1" skipped="0" time="0" errors="0">
 <testcase name="Agent Profile Creation Test › Test agent profile creation during onboarding completion" classname="agent-profile-creation-test.spec.ts" time="0">
 <failure message="agent-profile-creation-test.spec.ts:50:7 Test agent profile creation during onboarding completion" type="FAILURE">
 <![CDATA[  [mobile-safari] › agent-profile-creation-test.spec.ts:50:7 › Agent Profile Creation Test › Test agent profile creation during onboarding completion 
@@ -1973,7 +1973,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="complete-agent-website-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-safari" tests="1" failures="1" skipped="0" time="0" errors="0">
+<testsuite name="complete-agent-website-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-safari" tests="1" failures="1" skipped="0" time="0" errors="0">
 <testcase name="Complete Agent Website Test › Complete user journey with agent website verification" classname="complete-agent-website-test.spec.ts" time="0">
 <failure message="complete-agent-website-test.spec.ts:60:7 Complete user journey with agent website verification" type="FAILURE">
 <![CDATA[  [mobile-safari] › complete-agent-website-test.spec.ts:60:7 › Complete Agent Website Test › Complete user journey with agent website verification 
@@ -1993,7 +1993,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="error-scenarios-and-edge-cases.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-safari" tests="7" failures="2" skipped="5" time="0" errors="0">
+<testsuite name="error-scenarios-and-edge-cases.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-safari" tests="7" failures="2" skipped="5" time="0" errors="0">
 <testcase name="Error Scenarios and Edge Cases › Invalid Authentication Scenarios" classname="error-scenarios-and-edge-cases.spec.ts" time="0">
 <failure message="error-scenarios-and-edge-cases.spec.ts:42:7 Invalid Authentication Scenarios" type="FAILURE">
 <![CDATA[  [mobile-safari] › error-scenarios-and-edge-cases.spec.ts:42:7 › Error Scenarios and Edge Cases › Invalid Authentication Scenarios 
@@ -2051,7 +2051,7 @@
 </skipped>
 </testcase>
 </testsuite>
-<testsuite name="parallel-user-journey.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-safari" tests="4" failures="4" skipped="0" time="0.008" errors="0">
+<testsuite name="parallel-user-journey.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-safari" tests="4" failures="4" skipped="0" time="0.004" errors="0">
 <testcase name="Parallel User Journey Tests › User 1: Complete Real Estate Agent Journey" classname="parallel-user-journey.spec.ts" time="0.001">
 <failure message="parallel-user-journey.spec.ts:59:7 User 1: Complete Real Estate Agent Journey" type="FAILURE">
 <![CDATA[  [mobile-safari] › parallel-user-journey.spec.ts:59:7 › Parallel User Journey Tests › User 1: Complete Real Estate Agent Journey 
@@ -2094,7 +2094,7 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="Parallel User Journey Tests › User 3: Social Media Marketing Specialist" classname="parallel-user-journey.spec.ts" time="0.003">
+<testcase name="Parallel User Journey Tests › User 3: Social Media Marketing Specialist" classname="parallel-user-journey.spec.ts" time="0.001">
 <failure message="parallel-user-journey.spec.ts:229:7 User 3: Social Media Marketing Specialist" type="FAILURE">
 <![CDATA[  [mobile-safari] › parallel-user-journey.spec.ts:229:7 › Parallel User Journey Tests › User 3: Social Media Marketing Specialist 
 
@@ -2115,7 +2115,7 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="Parallel User Journey Tests › Concurrent Property Creation Stress Test" classname="parallel-user-journey.spec.ts" time="0.003">
+<testcase name="Parallel User Journey Tests › Concurrent Property Creation Stress Test" classname="parallel-user-journey.spec.ts" time="0.001">
 <failure message="parallel-user-journey.spec.ts:329:7 Concurrent Property Creation Stress Test" type="FAILURE">
 <![CDATA[  [mobile-safari] › parallel-user-journey.spec.ts:329:7 › Parallel User Journey Tests › Concurrent Property Creation Stress Test 
 
@@ -2137,7 +2137,7 @@
 </system-out>
 </testcase>
 </testsuite>
-<testsuite name="simple-auth-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-safari" tests="1" failures="1" skipped="0" time="0.002" errors="0">
+<testsuite name="simple-auth-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-safari" tests="1" failures="1" skipped="0" time="0.002" errors="0">
 <testcase name="Simple Authentication Test › Login and access properties page" classname="simple-auth-test.spec.ts" time="0.002">
 <failure message="simple-auth-test.spec.ts:4:7 Login and access properties page" type="FAILURE">
 <![CDATA[  [mobile-safari] › simple-auth-test.spec.ts:4:7 › Simple Authentication Test › Login and access properties page 
@@ -2155,7 +2155,7 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-22T06:10:10.239Z" hostname="mobile-safari" tests="7" failures="7" skipped="0" time="0.015" errors="0">
+<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-22T06:12:26.466Z" hostname="mobile-safari" tests="7" failures="7" skipped="0" time="0.016" errors="0">
 <testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="0.002">
 <failure message="working-e2e-test.spec.ts:13:7 Backend API is accessible and healthy" type="FAILURE">
 <![CDATA[  [mobile-safari] › working-e2e-test.spec.ts:13:7 › PropertyAI Working E2E Tests › Backend API is accessible and healthy 
@@ -2172,7 +2172,7 @@
 ]]>
 </failure>
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Frontend application loads" classname="working-e2e-test.spec.ts" time="0.003">
+<testcase name="PropertyAI Working E2E Tests › Frontend application loads" classname="working-e2e-test.spec.ts" time="0.002">
 <failure message="working-e2e-test.spec.ts:22:7 Frontend application loads" type="FAILURE">
 <![CDATA[  [mobile-safari] › working-e2e-test.spec.ts:22:7 › PropertyAI Working E2E Tests › Frontend application loads 
 
@@ -2220,7 +2220,7 @@
 ]]>
 </failure>
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="0.002">
+<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="0.004">
 <failure message="working-e2e-test.spec.ts:58:7 Properties page is accessible" type="FAILURE">
 <![CDATA[  [mobile-safari] › working-e2e-test.spec.ts:58:7 › PropertyAI Working E2E Tests › Properties page is accessible 
 
