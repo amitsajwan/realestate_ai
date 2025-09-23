@@ -40,6 +40,13 @@ interface UserProfile {
   languages?: string[]
   logo_url?: string
   brandingSuggestions?: BrandingSuggestions | null
+  // Additional branding fields from onboarding
+  branding_data?: any
+  brand_theme?: any
+  brand_style?: string
+  brand_personality?: string
+  brand_keywords?: string
+  brand_inspiration?: string
 }
 
 export default function ProfileSettings() {
@@ -61,8 +68,17 @@ export default function ProfileSettings() {
     pincode: '',
     languages: [],
     logo_url: '',
-    brandingSuggestions: null
+    brandingSuggestions: null,
+    branding_data: null,
+    brand_theme: null,
+    brand_style: '',
+    brand_personality: '',
+    brand_keywords: '',
+    brand_inspiration: ''
   })
+
+  const [brandingSuggestions, setBrandingSuggestions] = useState<any[]>([])
+  const [selectedBranding, setSelectedBranding] = useState<number | null>(null)
 
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
   const [isProfileLoaded, setIsProfileLoaded] = useState(false)
@@ -185,12 +201,12 @@ export default function ProfileSettings() {
         name: profileData?.name || (currentUser ? `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() : ''),
         email: profileData?.email || currentUser?.email || '',
         phone: profileData?.phone || currentUser?.phone || '',
-        whatsapp: profileData?.phone || currentUser?.phone || '',
+        whatsapp: profileData?.whatsapp || profileData?.phone || currentUser?.phone || '',
         company: profileData?.company || '',
         experience_years: profileData?.experience_years || '0',
         specialization_areas: profileData?.specialization_areas || '',
         tagline: profileData?.tagline || '',
-        social_bio: profileData?.about || '',
+        social_bio: profileData?.social_bio || profileData?.about || '',
         about: profileData?.about || '',
         address: profileData?.address || '',
         city: profileData?.city || '',
@@ -198,7 +214,14 @@ export default function ProfileSettings() {
         pincode: profileData?.pincode || '',
         languages: profileData?.languages || [],
         logo_url: profileData?.logo_url || '',
-        brandingSuggestions: profileData?.brandingSuggestions || null
+        brandingSuggestions: profileData?.brandingSuggestions || null,
+        // Include all branding fields from onboarding
+        branding_data: profileData?.branding_data || null,
+        brand_theme: profileData?.brand_theme || null,
+        brand_style: profileData?.brand_style || '',
+        brand_personality: profileData?.brand_personality || '',
+        brand_keywords: profileData?.brand_keywords || '',
+        brand_inspiration: profileData?.brand_inspiration || ''
       }
 
       console.log('[ProfileSettings] About to update state with merged data:', mergedData)
@@ -335,7 +358,7 @@ export default function ProfileSettings() {
       return
     }
 
-    const suggestions = await brandingOperation.execute(
+    const response = await brandingOperation.execute(
       () => apiService.getBrandingSuggestions({
         company_name: formData.company || '',
         agent_name: formData.name,
@@ -350,8 +373,30 @@ export default function ProfileSettings() {
       }
     )
 
-    if (suggestions && Array.isArray(suggestions) && suggestions.length > 0) {
-      const suggestion = suggestions[0] // Use first suggestion
+    if (response?.suggestions && response.suggestions.length > 0) {
+      // Store all suggestions for selection
+      setBrandingSuggestions(response.suggestions)
+      setSelectedBranding(response.selectedIndex || 0)
+
+      // Transform the selected suggestion for formData
+      const selectedSuggestion = response.suggestions[response.selectedIndex || 0]
+      const transformedSuggestion = {
+        tagline: selectedSuggestion.tagline || `${formData.company} - Professional Real Estate Services`,
+        about: selectedSuggestion.about || `Welcome to ${formData.company}, your trusted partner in real estate.`,
+        colors: {
+          primary: selectedSuggestion.colorPalette?.primary || selectedSuggestion.primaryColor || '#3b82f6',
+          secondary: selectedSuggestion.colorPalette?.secondary || selectedSuggestion.secondaryColor || '#64748b',
+          accent: selectedSuggestion.colorPalette?.accent || '#10b981'
+        }
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        brandingSuggestions: transformedSuggestion
+      }))
+    } else if (response && Array.isArray(response) && response.length > 0) {
+      // Fallback for old API format
+      const suggestion = response[0]
       setFormData(prev => ({
         ...prev,
         brandingSuggestions: {
@@ -359,6 +404,28 @@ export default function ProfileSettings() {
           about: suggestion.about,
           colors: suggestion.colors
         }
+      }))
+    }
+  }
+
+  const handleSelectBranding = (index: number) => {
+    if (brandingSuggestions[index]) {
+      setSelectedBranding(index)
+      const selectedSuggestion = brandingSuggestions[index]
+
+      const transformedSuggestion = {
+        tagline: selectedSuggestion.tagline || `${formData.company} - Professional Real Estate Services`,
+        about: selectedSuggestion.about || `Welcome to ${formData.company}, your trusted partner in real estate.`,
+        colors: {
+          primary: selectedSuggestion.colorPalette?.primary || selectedSuggestion.primaryColor || '#3b82f6',
+          secondary: selectedSuggestion.colorPalette?.secondary || selectedSuggestion.secondaryColor || '#64748b',
+          accent: selectedSuggestion.colorPalette?.accent || '#10b981'
+        }
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        brandingSuggestions: transformedSuggestion
       }))
     }
   }
@@ -581,12 +648,12 @@ export default function ProfileSettings() {
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      value={formData.tagline}
+                      value={formData.tagline || ''}
                       onChange={(e) => handleInputChange('tagline', e.target.value)}
                       onBlur={() => handleBlur('tagline')}
                       className={`form-input flex-1 ${validator.hasFieldError('tagline') ? 'border-red-300' : validator.isFieldValid('tagline') ? 'border-green-300' : ''
                         }`}
-                      placeholder="Your professional tagline"
+                      placeholder={formData.tagline || "Your professional tagline"}
                       aria-describedby={validator.hasFieldError('tagline') ? 'tagline-error' : undefined}
                     />
                     {formData.brandingSuggestions && (
@@ -609,16 +676,117 @@ export default function ProfileSettings() {
               </div>
             </div>
 
+            {/* Onboarding Branding Status Section - Show if branding exists from onboarding */}
+            {(formData.branding_data || formData.brand_theme) && (
+              <div className="glass-card p-6">
+                <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+                  <CheckIcon className="w-5 h-5 text-green-400" />
+                  Your Onboarding Branding
+                </h3>
+
+                <div className="bg-green-900/20 border border-green-700 rounded-lg p-4 mb-6">
+                  <div className="flex items-center mb-2">
+                    <CheckIcon className="w-5 h-5 text-green-400 mr-2" />
+                    <h4 className="text-lg font-medium text-green-100">Branding Setup Complete</h4>
+                  </div>
+                  <p className="text-green-200 text-sm">
+                    Your branding was configured during onboarding and is active across your platform.
+                  </p>
+                </div>
+
+                {/* Display branding details */}
+                <div className="space-y-4">
+                  {formData.tagline && (
+                    <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                      <h4 className="text-lg font-medium text-white mb-2">Current Tagline</h4>
+                      <p className="text-gray-100">{formData.tagline}</p>
+                    </div>
+                  )}
+
+                  {formData.about && (
+                    <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                      <h4 className="text-lg font-medium text-white mb-2">About Description</h4>
+                      <p className="text-gray-100 leading-relaxed">{formData.about}</p>
+                    </div>
+                  )}
+
+                  {formData.brand_theme && (
+                    <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                      <h4 className="text-lg font-medium text-white mb-3">Active Brand Colors</h4>
+                      <div className="flex gap-4">
+                        <div className="text-center">
+                          <div
+                            className="w-12 h-12 rounded-lg mb-2 border-2 border-gray-600 shadow-sm"
+                            style={{ backgroundColor: formData.brand_theme.primary || '#3b82f6' }}
+                          ></div>
+                          <p className="text-xs text-gray-300 font-medium">Primary</p>
+                          <p className="text-xs text-gray-100 font-mono">{formData.brand_theme.primary || '#3b82f6'}</p>
+                        </div>
+                        <div className="text-center">
+                          <div
+                            className="w-12 h-12 rounded-lg mb-2 border-2 border-gray-600 shadow-sm"
+                            style={{ backgroundColor: formData.brand_theme.secondary || '#64748b' }}
+                          ></div>
+                          <p className="text-xs text-gray-300 font-medium">Secondary</p>
+                          <p className="text-xs text-gray-100 font-mono">{formData.brand_theme.secondary || '#64748b'}</p>
+                        </div>
+                        <div className="text-center">
+                          <div
+                            className="w-12 h-12 rounded-lg mb-2 border-2 border-gray-600 shadow-sm"
+                            style={{ backgroundColor: formData.brand_theme.accent || '#10b981' }}
+                          ></div>
+                          <p className="text-xs text-gray-300 font-medium">Accent</p>
+                          <p className="text-xs text-gray-100 font-mono">{formData.brand_theme.accent || '#10b981'}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-green-300 mt-2">✓ These colors are your established brand theme</p>
+                    </div>
+                  )}
+
+                  {(formData.brand_style || formData.brand_personality) && (
+                    <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+                      <h4 className="text-lg font-medium text-white mb-3">Brand Personality</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        {formData.brand_style && (
+                          <div>
+                            <p className="text-sm text-gray-300 font-medium">Style</p>
+                            <p className="text-gray-100">{formData.brand_style}</p>
+                          </div>
+                        )}
+                        {formData.brand_personality && (
+                          <div>
+                            <p className="text-sm text-gray-300 font-medium">Personality</p>
+                            <p className="text-gray-100">{formData.brand_personality}</p>
+                          </div>
+                        )}
+                      </div>
+                      {formData.brand_keywords && (
+                        <div className="mt-3">
+                          <p className="text-sm text-gray-300 font-medium">Keywords</p>
+                          <p className="text-gray-100">{formData.brand_keywords}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* AI Branding Section */}
             <div className="glass-card p-6">
               <h3 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
                 <SparklesIcon className="w-5 h-5 text-purple-400" />
-                AI Branding
+                AI Branding {(formData.branding_data || formData.brand_theme) ? '- Generate New Options' : ''}
               </h3>
 
               {!formData.brandingSuggestions ? (
                 <div className="text-center py-8">
-                  <p className="text-gray-400 mb-4">Generate AI-powered branding suggestions for your business</p>
+                  <p className="text-gray-400 mb-4">
+                    {(formData.branding_data || formData.brand_theme)
+                      ? 'Generate new AI-powered branding alternatives or refresh your current branding'
+                      : 'Generate AI-powered branding suggestions for your business'
+                    }
+                  </p>
                   <LoadingButton
                     onClick={handleGenerateBranding}
                     isLoading={brandingOperation.isLoading}
@@ -632,77 +800,130 @@ export default function ProfileSettings() {
                   )}
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <div className="bg-gray-800/50 rounded-lg p-4">
+                <div className="space-y-6">
+                  {/* Multiple Branding Options */}
+                  {brandingSuggestions.length > 0 && (
+                    <div>
+                      <h4 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                        <SparklesIcon className="w-5 h-5 text-purple-400" />
+                        Choose Your Brand Style ({brandingSuggestions.length} Options)
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        {brandingSuggestions.map((suggestion, index) => (
+                          <div
+                            key={index}
+                            onClick={() => handleSelectBranding(index)}
+                            className={`cursor-pointer p-4 rounded-lg border-2 transition-all duration-200 ${selectedBranding === index
+                              ? 'border-purple-500 bg-purple-900/20 shadow-md'
+                              : 'border-gray-600 hover:border-gray-500 hover:shadow-sm bg-gray-800/30'
+                              }`}
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <h5 className="font-semibold text-gray-200">{suggestion.designStyle || 'Modern'}</h5>
+                              {selectedBranding === index && (
+                                <CheckIcon className="w-5 h-5 text-purple-400" />
+                              )}
+                            </div>
+
+                            {/* Color Palette Preview */}
+                            <div className="flex space-x-2 mb-3">
+                              <div
+                                className="w-6 h-6 rounded-full border border-gray-500 shadow-sm"
+                                style={{ backgroundColor: suggestion.colorPalette?.primary || suggestion.primaryColor || '#3b82f6' }}
+                                title="Primary"
+                              />
+                              <div
+                                className="w-6 h-6 rounded-full border border-gray-500 shadow-sm"
+                                style={{ backgroundColor: suggestion.colorPalette?.secondary || suggestion.secondaryColor || '#64748b' }}
+                                title="Secondary"
+                              />
+                              <div
+                                className="w-6 h-6 rounded-full border border-gray-500 shadow-sm"
+                                style={{ backgroundColor: suggestion.colorPalette?.accent || '#10b981' }}
+                                title="Accent"
+                              />
+                            </div>
+
+                            {/* Brand Personality */}
+                            <p className="text-sm text-gray-300 mb-2">{suggestion.brandPersonality || 'Professional & Trustworthy'}</p>
+                            <p className="text-xs text-gray-400">{suggestion.fontFamily || 'Clean Typography'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Selected Branding Details */}
+                  <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
                     <h4 className="text-lg font-medium text-white mb-2">Suggested Tagline</h4>
-                    <p className="text-gray-300">{formData.brandingSuggestions.tagline}</p>
+                    <p className="text-gray-100">{formData.brandingSuggestions.tagline}</p>
                   </div>
 
-                  <div className="bg-gray-800/50 rounded-lg p-4">
+                  <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
                     <h4 className="text-lg font-medium text-white mb-2">About Description</h4>
-                    <p className="text-gray-300">{formData.brandingSuggestions.about}</p>
+                    <p className="text-gray-100 leading-relaxed">{formData.brandingSuggestions.about}</p>
                   </div>
 
-                  <div className="bg-gray-800/50 rounded-lg p-4">
+                  <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
                     <h4 className="text-lg font-medium text-white mb-3">Current Applied Brand Colors</h4>
                     <div className="flex gap-4">
                       <div className="text-center">
                         <div
-                          className="w-12 h-12 rounded-lg mb-2 border border-gray-600"
+                          className="w-12 h-12 rounded-lg mb-2 border-2 border-gray-600 shadow-sm"
                           style={{ backgroundColor: currentAppliedTheme?.primary || '#3b82f6' }}
                         ></div>
-                        <p className="text-xs text-gray-400">Primary</p>
-                        <p className="text-xs text-white font-mono">{currentAppliedTheme?.primary || '#3b82f6'}</p>
+                        <p className="text-xs text-gray-300 font-medium">Primary</p>
+                        <p className="text-xs text-gray-100 font-mono">{currentAppliedTheme?.primary || '#3b82f6'}</p>
                       </div>
                       <div className="text-center">
                         <div
-                          className="w-12 h-12 rounded-lg mb-2 border border-gray-600"
+                          className="w-12 h-12 rounded-lg mb-2 border-2 border-gray-600 shadow-sm"
                           style={{ backgroundColor: currentAppliedTheme?.secondary || '#64748b' }}
                         ></div>
-                        <p className="text-xs text-gray-400">Secondary</p>
-                        <p className="text-xs text-white font-mono">{currentAppliedTheme?.secondary || '#64748b'}</p>
+                        <p className="text-xs text-gray-300 font-medium">Secondary</p>
+                        <p className="text-xs text-gray-100 font-mono">{currentAppliedTheme?.secondary || '#64748b'}</p>
                       </div>
                       <div className="text-center">
                         <div
-                          className="w-12 h-12 rounded-lg mb-2 border border-gray-600"
+                          className="w-12 h-12 rounded-lg mb-2 border-2 border-gray-600 shadow-sm"
                           style={{ backgroundColor: currentAppliedTheme?.accent || '#10b981' }}
                         ></div>
-                        <p className="text-xs text-gray-400">Accent</p>
-                        <p className="text-xs text-white font-mono">{currentAppliedTheme?.accent || '#10b981'}</p>
+                        <p className="text-xs text-gray-300 font-medium">Accent</p>
+                        <p className="text-xs text-gray-100 font-mono">{currentAppliedTheme?.accent || '#10b981'}</p>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-400 mt-2">These colors are currently applied to your app theme</p>
+                    <p className="text-xs text-gray-300 mt-2">✓ These colors are currently applied to your app theme</p>
                   </div>
 
-                  <div className="bg-gray-800/50 rounded-lg p-4">
+                  <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
                     <h4 className="text-lg font-medium text-white mb-3">AI Suggested Colors</h4>
                     <div className="flex gap-4">
                       <div className="text-center">
                         <div
-                          className="w-12 h-12 rounded-lg mb-2 border border-gray-600"
+                          className="w-12 h-12 rounded-lg mb-2 border-2 border-gray-600 shadow-sm"
                           style={{ backgroundColor: formData.brandingSuggestions?.colors?.primary || '#3b82f6' }}
                         ></div>
-                        <p className="text-xs text-gray-400">Primary</p>
-                        <p className="text-xs text-white font-mono">{formData.brandingSuggestions?.colors?.primary || '#3b82f6'}</p>
+                        <p className="text-xs text-gray-300 font-medium">Primary</p>
+                        <p className="text-xs text-gray-100 font-mono">{formData.brandingSuggestions?.colors?.primary || '#3b82f6'}</p>
                       </div>
                       <div className="text-center">
                         <div
-                          className="w-12 h-12 rounded-lg mb-2 border border-gray-600"
+                          className="w-12 h-12 rounded-lg mb-2 border-2 border-gray-600 shadow-sm"
                           style={{ backgroundColor: formData.brandingSuggestions?.colors?.secondary || '#64748b' }}
                         ></div>
-                        <p className="text-xs text-gray-400">Secondary</p>
-                        <p className="text-xs text-white font-mono">{formData.brandingSuggestions?.colors?.secondary || '#64748b'}</p>
+                        <p className="text-xs text-gray-300 font-medium">Secondary</p>
+                        <p className="text-xs text-gray-100 font-mono">{formData.brandingSuggestions?.colors?.secondary || '#64748b'}</p>
                       </div>
                       <div className="text-center">
                         <div
-                          className="w-12 h-12 rounded-lg mb-2 border border-gray-600"
+                          className="w-12 h-12 rounded-lg mb-2 border-2 border-gray-600 shadow-sm"
                           style={{ backgroundColor: formData.brandingSuggestions?.colors?.accent || '#06b6d4' }}
                         ></div>
-                        <p className="text-xs text-gray-400">Accent</p>
-                        <p className="text-xs text-white font-mono">{formData.brandingSuggestions?.colors?.accent || '#06b6d4'}</p>
+                        <p className="text-xs text-gray-300 font-medium">Accent</p>
+                        <p className="text-xs text-gray-100 font-mono">{formData.brandingSuggestions?.colors?.accent || '#06b6d4'}</p>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-400 mt-2">Click "Apply Branding" to use these colors</p>
+                    <p className="text-xs text-gray-300 mt-2">💡 Click "Apply Branding" to use these colors</p>
                   </div>
 
                   <div className="flex gap-3">

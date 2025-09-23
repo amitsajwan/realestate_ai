@@ -21,8 +21,14 @@ class BaseRepository:
         """Get collection instance"""
         if self._collection is None:
             from app.core.database import get_database
-            database = get_database()
-            self._collection = database[self.collection_name]
+            try:
+                database = get_database()
+                if database is None:
+                    raise RuntimeError("Database connection is None")
+                self._collection = database[self.collection_name]
+            except Exception as e:
+                self.logger.error(f"Failed to get database collection {self.collection_name}: {e}")
+                raise RuntimeError(f"Database service is not available: {e}")
         return self._collection
     
     def _prepare_document(self, document: Dict[str, Any]) -> Dict[str, Any]:

@@ -13,5 +13,8 @@ export { AuthManager, authManager } from './manager';
 // Export API
 export { authAPI } from './api';
 
+// Export interceptor
+export { AuthInterceptor, authInterceptor, fetchWithAuthInterceptor } from './interceptor';
+
 // Re-export for backward compatibility
 export { authManager as default } from './manager';

@@ -12,6 +12,7 @@ export default function Navigation() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const navRef = useRef<HTMLDivElement>(null);
@@ -38,25 +39,26 @@ export default function Navigation() {
     return unsubscribe;
   }, []);
 
-  // Handle click outside to close mobile menu
+  // Handle click outside to close mobile menu and user dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (navRef.current && !navRef.current.contains(event.target as Node)) {
         setIsMenuOpen(false);
+        setIsUserDropdownOpen(false);
       }
     };
 
-    if (isMenuOpen) {
+    if (isMenuOpen || isUserDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => {
         document.removeEventListener('mousedown', handleClickOutside);
       };
     }
-  }, [isMenuOpen]);
+  }, [isMenuOpen, isUserDropdownOpen]);
 
   const handleLogout = async () => {
     await authManager.logout();
-    router.push('/');
+    router.push('/login');
   };
 
   return (
@@ -85,30 +87,38 @@ export default function Navigation() {
                 <Link href="/dashboard" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
                   Dashboard
                 </Link>
-                <Link href="/properties" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
+                <Link href="/dashboard?section=properties" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
                   Properties
                 </Link>
-                <Link href="/posts" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
+                <Link href="/dashboard?section=posts" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
                   Posts
                 </Link>
-                <Link href="/profile" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
+                <Link href="/dashboard?section=profile" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
                   Profile
                 </Link>
-                <div className="relative group">
-                  <button className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium flex items-center">
+                <div className="relative">
+                  <button
+                    onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+                    className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium flex items-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
                     {user?.firstName || 'User'} ▼
                   </button>
-                  <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg py-1 z-50 hidden group-hover:block">
-                    <button
-                      onClick={handleLogout}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
-                    >
-                      Logout
-                    </button>
-                  </div>
+                  {isUserDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg py-1 z-50 border border-gray-700">
+                      <button
+                        onClick={() => {
+                          handleLogout();
+                          setIsUserDropdownOpen(false);
+                        }}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors focus:outline-none focus:bg-gray-700"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  )}
                 </div>
               </>
-            ) : (
+            ) : !isPublicAgentPage ? (
               <>
                 <Link href="/login" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">
                   Login
@@ -117,7 +127,7 @@ export default function Navigation() {
                   Register
                 </Link>
               </>
-            )}
+            ) : null}
           </div>
 
           {/* Mobile menu button */}
@@ -154,7 +164,7 @@ export default function Navigation() {
                 <ThemeToggle />
               </div>
 
-              {isAuthenticated ? (
+              {isAuthenticated && !isPublicAgentPage ? (
                 <>
                   <Link
                     href="/dashboard"
@@ -164,21 +174,21 @@ export default function Navigation() {
                     Dashboard
                   </Link>
                   <Link
-                    href="/properties"
+                    href="/dashboard?section=properties"
                     className="text-gray-300 hover:text-white block px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Properties
                   </Link>
                   <Link
-                    href="/posts"
+                    href="/dashboard?section=posts"
                     className="text-gray-300 hover:text-white block px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Posts
                   </Link>
                   <Link
-                    href="/profile"
+                    href="/dashboard?section=profile"
                     className="text-gray-300 hover:text-white block px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
                     onClick={() => setIsMenuOpen(false)}
                   >
@@ -194,7 +204,7 @@ export default function Navigation() {
                     Logout
                   </button>
                 </>
-              ) : (
+              ) : !isPublicAgentPage ? (
                 <>
                   <Link
                     href="/login"
@@ -211,7 +221,7 @@ export default function Navigation() {
                     Register
                   </Link>
                 </>
-              )}
+              ) : null}
             </div>
           </div>
         )}

@@ -64,26 +64,33 @@ def setup_additional_endpoints(app: FastAPI):
         return {"status": "healthy", "message": "PropertyAI API is running"}
 
     @app.get("/api/v1/dashboard/stats")
-    async def get_dashboard_stats():
-        """Get dashboard statistics from database (MongoDB or Mock)"""
+    async def get_dashboard_stats(current_user: User = Depends(current_active_user)):
+        """Get dashboard statistics from database (MongoDB or Mock) for the current user"""
         try:
             from app.core.database import get_database
             db = get_database()
 
-            # Get real stats from database
-            total_properties = await db.properties.count_documents({})
-            active_listings = await db.properties.count_documents({"status": "available"})
-            total_leads = await db.leads.count_documents({})
-            total_users = await db.users.count_documents({})
+            # Get real stats from database for the current user
+            user_id = getattr(current_user, "id", "anonymous")
+            agent_id = str(user_id)  # Convert to string for consistency
+            
+            total_properties = await db.properties.count_documents({"agent_id": agent_id})
+            active_listings = await db.properties.count_documents({"agent_id": agent_id, "status": "available"})
+            total_leads = await db.leads.count_documents({"agent_id": agent_id})
+            
+            # Calculate total views and revenue based on user's properties
+            total_views = total_properties * 10 if total_properties > 0 else 1247  # Mock calculation
+            monthly_leads = total_leads if total_leads > 0 else 23  # Use real leads or mock
+            revenue = f"₹{(total_properties * 500000)}" if total_properties > 0 else "₹45,00,000"  # Mock calculation
 
             stats = {
                 "total_properties": total_properties,
                 "active_listings": active_listings,
                 "total_leads": total_leads,
-                "total_users": total_users,
-                "total_views": 1247,  # Mock for now
-                "monthly_leads": 23,  # Mock for now
-                "revenue": "₹45,00,000"  # Mock for now
+                "total_users": 1,  # Current user count
+                "total_views": total_views,
+                "monthly_leads": monthly_leads,
+                "revenue": revenue
             }
 
             return {
@@ -327,35 +334,109 @@ def setup_additional_endpoints(app: FastAPI):
                     }
                 }
 
-            # Mock AI suggestions with agent profile integration
-            logger.info("Building final suggestions response")
-            suggestions = {
-                "success": True,
-                "data": [
-                    {
-                        "title": f"{title_prefix}Beautiful {bedrooms}BHK {property_type} in {location}",
-                        "price": budget_amount,
-                        "description": specialized_desc + location_insights.get('description_suffix', ''),
-                        "amenities": specialized_amenities,
-                        "location_score": location_insights.get('score', 8.0),
-                        "market_insights": location_insights.get('market_data', {}),
-                        "property_details": {
-                            "bedrooms": bedrooms,
-                            "bathrooms": bathrooms,
-                            "area": area,
-                            "property_type": property_type,
-                            "location": location
+            # Use Enhanced AI Property Intelligence System
+            logger.info("Generating AI suggestions using enhanced intelligence system")
+            
+            try:
+                from app.services.unified_property_service import UnifiedPropertyService
+                from app.core.database import get_database
+                
+                # Create temporary property data for AI analysis
+                temp_property_data = {
+                    "address": request_data.address or f"{location}, India",
+                    "location": location,
+                    "property_type": property_type,
+                    "price": budget_amount,
+                    "area": area,
+                    "bedrooms": bedrooms,
+                    "bathrooms": bathrooms,
+                    "features": [],
+                    "amenities": []
+                }
+                
+                # Get database and create unified property service
+                db = get_database()
+                property_service = UnifiedPropertyService(db)
+                
+                # Generate AI-enhanced suggestions using web intelligence
+                ai_suggestions = await property_service.generate_ai_suggestions_for_new_property(
+                    temp_property_data, 
+                    "temp_user"
+                )
+                
+                logger.info("AI suggestions generated successfully using enhanced system")
+                
+                # Extract the enhanced suggestions
+                title_suggestions = ai_suggestions.get("title_suggestions", [])
+                description_suggestions = ai_suggestions.get("description_suggestions", [])
+                pricing_suggestions = ai_suggestions.get("price_suggestions", {})
+                amenities_suggestions = ai_suggestions.get("amenities_suggestions", [])
+                feature_highlights = ai_suggestions.get("feature_highlights", [])
+                quality_score = ai_suggestions.get("quality_score", {})
+                
+                # Format response for frontend compatibility
+                suggestions = {
+                    "success": True,
+                    "suggestions": {
+                        "title_suggestions": title_suggestions,
+                        "description_suggestions": description_suggestions,
+                        "price_suggestions": pricing_suggestions,
+                        "amenities_suggestions": amenities_suggestions,
+                        "features_suggestions": feature_highlights,
+                        "market_insights": ai_suggestions.get("market_insights", {}),
+                        "neighborhood_analysis": ai_suggestions.get("neighborhood_analysis", {}),
+                        "building_intelligence": ai_suggestions.get("building_intelligence", {}),
+                        "quality_score": {
+                            "overall": quality_score.get("overall", 85),
+                            "seo": quality_score.get("seo_optimized", 90),
+                            "readability": quality_score.get("completeness", 85),
+                            "market_relevance": quality_score.get("market_relevance", 80),
+                            "uniqueness": quality_score.get("uniqueness", 85)
                         },
-                        "highlights": [
+                        "ai_powered": True,
+                        "data_sources": ai_suggestions.get("data_sources", []),
+                        "enrichment_metadata": ai_suggestions.get("enrichment_metadata", {})
+                    }
+                }
+                
+            except Exception as ai_error:
+                logger.error(f"Enhanced AI system failed, falling back to basic suggestions: {ai_error}")
+                
+                # Fallback to basic suggestions if enhanced AI fails
+                suggestions = {
+                    "success": True,
+                    "suggestions": {
+                        "title_suggestions": [
+                            f"{title_prefix}Beautiful {bedrooms}BHK {property_type} in {location}",
+                            f"Premium {bedrooms}-Bedroom {property_type} with Modern Amenities",
+                            f"Spacious {property_type} in Prime {location} Location"
+                        ],
+                        "description_suggestions": [
+                            f"{specialized_desc} This {bedrooms}-bedroom {property_type} offers {area} sq ft of living space in {location}.",
+                            f"Perfect for families, this {property_type} features {bedrooms} bedrooms and {bathrooms} bathrooms with modern amenities.",
+                            f"Investment opportunity in {location} with excellent connectivity and growth potential."
+                        ],
+                        "price_suggestions": {
+                            "suggested": budget_amount,
+                            "current": budget_amount,
+                            "reason": "Competitive market pricing"
+                        },
+                        "amenities_suggestions": specialized_amenities,
+                        "features_suggestions": [
                             f"Spacious {bedrooms}BHK with {bathrooms} bathrooms",
                             f"Area: {area} sq ft",
-                            f"Tailored for {specialization} market",
-                            "Professional agent-curated listing",
-                            "Close to schools, hospitals, and shopping centers"
-                        ]
+                            f"Tailored for {specialization} market"
+                        ],
+                        "quality_score": {
+                            "overall": 75,
+                            "seo": 80,
+                            "readability": 75,
+                            "market_relevance": 70,
+                            "uniqueness": 70
+                        },
+                        "ai_powered": False
                     }
-                ]
-            }
+                }
 
             logger.info("Successfully generated AI property suggestions")
             return suggestions

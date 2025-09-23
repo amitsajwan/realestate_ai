@@ -19,7 +19,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
 
 interface Property {
     id: string
@@ -164,7 +164,7 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
 
     const formatPrice = (price: number) => {
         if (price == null || price === 0) return 'Contact for price'
-        
+
         if (price >= 10000000) {
             return `₹${(price / 10000000).toFixed(1)}Cr`
         } else if (price >= 100000) {
@@ -332,8 +332,8 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
                                                         key={index}
                                                         onClick={() => setSelectedImageIndex(index)}
                                                         className={`relative aspect-video rounded-lg overflow-hidden border-2 ${selectedImageIndex === index
-                                                                ? 'border-blue-600'
-                                                                : 'border-gray-200 hover:border-gray-300'
+                                                            ? 'border-blue-600'
+                                                            : 'border-gray-200 hover:border-gray-300'
                                                             }`}
                                                     >
                                                         <Image
@@ -367,10 +367,10 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
                                             {property.price ? formatPrice(property.price) : 'Price on request'}
                                         </div>
                                         <span className={`inline-block px-3 py-1 text-sm font-medium rounded-full ${property.status === 'active'
-                                                ? 'bg-green-100 text-green-800'
-                                                : property.status === 'pending'
-                                                    ? 'bg-yellow-100 text-yellow-800'
-                                                    : 'bg-red-100 text-red-800'
+                                            ? 'bg-green-100 text-green-800'
+                                            : property.status === 'pending'
+                                                ? 'bg-yellow-100 text-yellow-800'
+                                                : 'bg-red-100 text-red-800'
                                             }`}>
                                             {property.status === 'active' ? 'Available' :
                                                 property.status === 'pending' ? 'Pending' : 'Sold'}

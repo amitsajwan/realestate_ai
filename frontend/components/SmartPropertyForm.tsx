@@ -178,6 +178,8 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
         bedrooms: processedData.bedrooms,
         bathrooms: processedData.bathrooms,
         area: processedData.area,
+        price: processedData.price || undefined,
+        budget: processedData.price || undefined,
         user_profile: userProfile,
         agent_profile: agentProfile
       })

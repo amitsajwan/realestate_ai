@@ -117,6 +117,13 @@ class AgentProfileBase(BaseModel):
     facebook_url: Optional[str] = None
     profile_image_url: Optional[str] = None
     facebook_connected: bool = False
+    # Branding fields
+    branding_data: Optional[Dict[str, Any]] = None
+    brand_theme: Optional[Dict[str, Any]] = None
+    brand_style: Optional[str] = None
+    brand_personality: Optional[str] = None
+    brand_keywords: Optional[str] = None
+    brand_inspiration: Optional[str] = None
 
 class AgentProfileCreate(AgentProfileBase):
     pass

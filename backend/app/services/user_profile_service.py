@@ -89,6 +89,11 @@ class UserProfileService:
             
             if updated_profile:
                 logger.info(f"✅ Profile updated for user: {user_id}")
+                
+                # If branding data was updated, sync it to agent public profile
+                if any(key in profile_data for key in ['branding_data', 'brand_theme', 'tagline', 'about', 'brandingSuggestions']):
+                    await self._sync_branding_to_agent_profile(user_id, profile_data)
+                
                 return AgentProfile(**updated_profile)
             
             return None
@@ -180,6 +185,42 @@ class UserProfileService:
                 "recent_profiles": 0,
                 "completion_rate": 0
             }
+    
+    async def _sync_branding_to_agent_profile(self, user_id: str, profile_data: Dict[str, Any]):
+        """Sync branding changes from user profile to agent public profile."""
+        try:
+            from app.core.database import get_database
+            
+            db = get_database()
+            agents_collection = db.get_collection("agent_public_profiles")
+            
+            # Prepare branding update data
+            branding_update = {"updated_at": datetime.utcnow()}
+            
+            # Extract branding data to sync
+            if "tagline" in profile_data and profile_data["tagline"]:
+                branding_update["tagline"] = profile_data["tagline"]
+            
+            if "about" in profile_data and profile_data["about"]:
+                branding_update["bio"] = profile_data["about"]
+            
+            if "branding_data" in profile_data and profile_data["branding_data"]:
+                branding_update["branding_data"] = profile_data["branding_data"]
+            
+            # Update agent profile if we have data to sync
+            if len(branding_update) > 1:  # More than just updated_at
+                result = await agents_collection.update_one(
+                    {"_id": user_id},
+                    {"$set": branding_update}
+                )
+                
+                if result.matched_count > 0:
+                    logger.info(f"✅ Synced branding data to agent profile for user: {user_id}")
+                else:
+                    logger.debug(f"No agent profile found to sync branding for user: {user_id}")
+                    
+        except Exception as e:
+            logger.error(f"❌ Error syncing branding to agent profile for user {user_id}: {e}")
 
 # Create service instance
 user_profile_service = UserProfileService()

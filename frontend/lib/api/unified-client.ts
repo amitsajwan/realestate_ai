@@ -9,6 +9,7 @@ import { AnalyticsResponse, Post, PostCreateRequest, PostFilters, PostUpdateRequ
 import { PropertyCreate, PropertyResponse, PropertyUpdate } from '../../types/property';
 import { AuthResponse, LoginData, RegisterData, User } from '../auth/types';
 import { APIError } from '../errors';
+import { fetchWithAuthInterceptor } from '../auth/interceptor';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -75,7 +76,7 @@ class UnifiedAPIClient {
     };
 
     try {
-      const response = await fetch(url, config);
+      const response = await fetchWithAuthInterceptor(url, config);
       return await this.handleResponse<T>(response);
     } catch (error) {
       if (error instanceof APIError) {
@@ -286,7 +287,7 @@ class UnifiedAPIClient {
     };
 
     try {
-      const response = await fetch(url, config);
+      const response = await fetchWithAuthInterceptor(url, config);
       return await this.handleResponse<any>(response);
     } catch (error) {
       if (error instanceof APIError) {

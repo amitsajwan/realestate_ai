@@ -6,9 +6,9 @@ import FacebookIntegration from '@/components/FacebookIntegration'
 import { MobileNavigation } from '@/components/MobileNavigation'
 import ProfileSettings from '@/components/ProfileSettings'
 import Properties from '@/components/Properties'
-import PropertyManagement from '@/components/PropertyManagement'
 import SmartPropertyForm from '@/components/SmartPropertyForm'
 import { Button, Card, CardBody, CardHeader } from '@/components/UI'
+import UnifiedPublishingDashboard from '@/components/UnifiedPublishingDashboard'
 import { apiService } from '@/lib/api'
 import { authManager } from '@/lib/auth'
 import { propertiesAPI } from '@/lib/properties'
@@ -40,25 +40,26 @@ const UXDemo = lazy(() => import('@/components/UXDemo'))
 
 const navigation = [
   { name: 'Dashboard', icon: HomeIcon, id: 'dashboard' },
+  { name: 'Property Marketing Hub', icon: BuildingOfficeIcon, id: 'property-marketing-hub', highlight: true, badge: 'NEW' },
   { name: 'Properties', icon: BuildingOfficeIcon, id: 'properties' },
-  { name: 'Property Management', icon: BuildingOfficeIcon, id: 'property-management' },
   { name: 'Add Property', icon: PlusIcon, id: 'property-form' },
-  { name: 'AI Tools', icon: SparklesIcon, id: 'ai-content' },
-  { name: 'Public Website', icon: GlobeAltIcon, id: 'public-website' },
   { name: 'Analytics', icon: ChartBarIcon, id: 'analytics' },
   { name: 'CRM', icon: UsersIcon, id: 'crm' },
   { name: 'Team Management', icon: UsersIcon, id: 'team-management' },
-  { name: 'UX Demo', icon: SparklesIcon, id: 'ux-demo' },
+  { name: 'Public Website', icon: GlobeAltIcon, id: 'public-website' },
   { name: 'Facebook', icon: CogIcon, id: 'facebook' },
   { name: 'Profile', icon: UserIcon, id: 'profile' },
+  // Moved to bottom as utility
+  { name: 'UX Demo', icon: SparklesIcon, id: 'ux-demo', position: 'bottom' },
 ]
 
 export default function Dashboard() {
-  const [activeSection, setActiveSection] = useState('dashboard')
+  const [activeSection, setActiveSection] = useState('property-marketing-hub')
   const [user, setUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [properties, setProperties] = useState<any[]>([])
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [selectedPropertyForContent, setSelectedPropertyForContent] = useState<string | undefined>(undefined)
   const [stats, setStats] = useState({
     total_properties: 0,
     active_listings: 0,
@@ -76,6 +77,14 @@ export default function Dashboard() {
       if (typeof window !== 'undefined') {
         console.debug('[DashboardPage] Current URL:', window.location.href)
         console.debug('[DashboardPage] URL params:', Object.fromEntries(new URLSearchParams(window.location.search).entries()))
+
+        // Handle URL section parameter
+        const urlParams = new URLSearchParams(window.location.search)
+        const sectionParam = urlParams.get('section')
+        if (sectionParam) {
+          console.debug('[DashboardPage] Setting active section from URL:', sectionParam)
+          setActiveSection(sectionParam)
+        }
       }
 
       try {
@@ -124,7 +133,23 @@ export default function Dashboard() {
 
     initAuth()
 
-    return () => clearTimeout(timeout)
+    // Subscribe to auth state changes to handle logout
+    const unsubscribe = authManager.subscribe((state) => {
+      console.debug('[DashboardPage] Auth state changed:', {
+        isAuthenticated: state.isAuthenticated,
+        hasUser: !!state.user
+      })
+
+      if (!state.isAuthenticated) {
+        console.info('[DashboardPage] User logged out, redirecting to login')
+        router.push('/login')
+      }
+    })
+
+    return () => {
+      clearTimeout(timeout)
+      unsubscribe()
+    }
   }, [router, isLoading])
 
   const fetchStats = async () => {
@@ -180,18 +205,34 @@ export default function Dashboard() {
 
   // Removed testThemePersistence function to prevent theme initialization loops
 
+  const handleGenerateContent = (propertyId: string) => {
+    setSelectedPropertyForContent(propertyId)
+    setActiveSection('property-marketing-hub')
+  }
+
+  const handleSectionChange = (section: string) => {
+    setActiveSection(section)
+    // Clear selected property when navigating away from marketing hub
+    if (section !== 'property-marketing-hub') {
+      setSelectedPropertyForContent(undefined)
+    }
+  }
+
   const renderSection = () => {
     switch (activeSection) {
+      case 'property-marketing-hub':
+        return <UnifiedPublishingDashboard
+          onRefresh={loadProperties}
+          preselectedPropertyId={selectedPropertyForContent}
+          onClearPreselectedProperty={() => setSelectedPropertyForContent(undefined)}
+        />
       case 'properties':
         return <Properties
           onAddProperty={() => setActiveSection('property-form')}
           properties={properties}
           setProperties={setProperties}
           onRefresh={loadProperties}
-        />
-      case 'property-management':
-        return <PropertyManagement
-          onAddProperty={() => setActiveSection('property-form')}
+          onGenerateContent={handleGenerateContent}
         />
       case 'property-form':
         return (
@@ -273,6 +314,7 @@ export default function Dashboard() {
               onNavigateToAI={() => setActiveSection('ai-content')}
               onNavigateToAnalytics={() => setActiveSection('analytics')}
               onNavigateToSmartForm={() => setActiveSection('property-form')}
+              onNavigateToPosts={() => setActiveSection('property-marketing-hub')}
             />
 
 
@@ -372,7 +414,7 @@ export default function Dashboard() {
                 {navigation.slice(0, 5).map((item) => (
                   <button
                     key={item.id}
-                    onClick={() => setActiveSection(item.id)}
+                    onClick={() => handleSectionChange(item.id)}
                     className={`relative flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeSection === item.id
                       ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-sm'
                       : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white'
@@ -425,15 +467,22 @@ export default function Dashboard() {
                   {navigation.map((item) => (
                     <button
                       key={item.id}
-                      onClick={() => setActiveSection(item.id)}
+                      onClick={() => handleSectionChange(item.id)}
                       className={`relative w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200 group hover-lift click-shrink ${activeSection === item.id
                         ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-[1.02] animate-scale-in'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white hover:transform hover:scale-[1.01]'
+                        : item.highlight
+                          ? 'bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-700 dark:text-purple-300'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white hover:transform hover:scale-[1.01]'
                         }`}
                     >
                       <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110 hover-rotate ${activeSection === item.id ? 'text-white' : ''
                         }`} />
                       <span className="font-medium">{item.name}</span>
+                      {item.badge && (
+                        <span className="ml-auto px-2 py-1 text-xs font-semibold bg-green-100 text-green-800 rounded-full">
+                          {item.badge}
+                        </span>
+                      )}
                       {activeSection === item.id && (
                         <div className="ml-auto w-2 h-2 bg-white rounded-full animate-pulse" />
                       )}
@@ -468,16 +517,23 @@ export default function Dashboard() {
                         <button
                           key={item.id}
                           onClick={() => {
-                            setActiveSection(item.id)
+                            handleSectionChange(item.id)
                             setIsMobileMenuOpen(false)
                           }}
                           className={`relative w-full flex items-center space-x-4 px-4 py-4 rounded-xl text-left transition-all duration-200 ${activeSection === item.id
                             ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
-                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10'
+                            : item.highlight
+                              ? 'bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-700 dark:text-purple-300'
+                              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10'
                             }`}
                         >
                           <item.icon className="w-6 h-6" />
                           <span className="font-medium text-lg">{item.name}</span>
+                          {item.badge && (
+                            <span className="ml-auto px-2 py-1 text-xs font-semibold bg-green-100 text-green-800 rounded-full">
+                              {item.badge}
+                            </span>
+                          )}
                         </button>
                       ))}
                     </div>
@@ -505,7 +561,7 @@ export default function Dashboard() {
           {/* Mobile Navigation */}
           <MobileNavigation
             activeSection={activeSection}
-            onSectionChange={setActiveSection}
+            onSectionChange={handleSectionChange}
             isOpen={isMobileMenuOpen}
             onClose={() => setIsMobileMenuOpen(false)}
           />

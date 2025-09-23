@@ -89,7 +89,7 @@ export default function Analytics({ properties = [] }: AnalyticsProps) {
           name: 'Average Deal Value',
           value: 475000,
           type: 'sum',
-          unit: '$',
+          unit: '₹',
           description: 'Average value of converted deals'
         }
       ],

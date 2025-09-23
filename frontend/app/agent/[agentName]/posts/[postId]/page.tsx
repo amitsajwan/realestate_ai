@@ -19,7 +19,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
 
 interface Post {
     id: string
@@ -114,12 +114,15 @@ export default function PostDetailPage({ params }: PostDetailPageProps) {
     }
 
     const formatPrice = (price: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(price)
+        if (price == null || price === 0) return 'Contact for price';
+
+        if (price >= 10000000) {
+            return `₹${(price / 10000000).toFixed(1)}Cr`;
+        } else if (price >= 100000) {
+            return `₹${(price / 100000).toFixed(0)}L`;
+        } else {
+            return `₹${price.toLocaleString()}`;
+        }
     }
 
     const formatDate = (dateString: string) => {
@@ -249,8 +252,8 @@ export default function PostDetailPage({ params }: PostDetailPageProps) {
                                                         key={index}
                                                         onClick={() => setSelectedImageIndex(index)}
                                                         className={`relative aspect-video rounded-lg overflow-hidden border-2 ${selectedImageIndex === index
-                                                                ? 'border-blue-600'
-                                                                : 'border-gray-200 hover:border-gray-300'
+                                                            ? 'border-blue-600'
+                                                            : 'border-gray-200 hover:border-gray-300'
                                                             }`}
                                                     >
                                                         <Image

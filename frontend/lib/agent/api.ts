@@ -16,6 +16,8 @@ import {
     BrandingSuggestion
 } from './types';
 
+import { fetchWithAuthInterceptor } from '../auth/interceptor';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 class AgentAPI {
@@ -38,7 +40,7 @@ class AgentAPI {
      * Get current agent profile
      */
     async getAgentProfile(): Promise<AgentResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/agent/dashboard/profile`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/agent/dashboard/profile`, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });
@@ -55,7 +57,7 @@ class AgentAPI {
      * Update agent profile
      */
     async updateAgentProfile(agentData: AgentUpdate): Promise<AgentResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/agent/dashboard/profile`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/agent/dashboard/profile`, {
             method: 'PUT',
             headers: this.getAuthHeaders(),
             body: JSON.stringify(agentData)
@@ -73,7 +75,7 @@ class AgentAPI {
      * Create agent profile
      */
     async createAgentProfile(agentData: AgentCreate): Promise<AgentResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/agent/dashboard/create-profile`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/agent/dashboard/create-profile`, {
             method: 'POST',
             headers: this.getAuthHeaders(),
             body: JSON.stringify(agentData)
@@ -91,7 +93,7 @@ class AgentAPI {
      * Get agent dashboard data
      */
     async getAgentDashboard(): Promise<AgentDashboardResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/agent/dashboard/stats`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/agent/dashboard/stats`, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });
@@ -108,7 +110,7 @@ class AgentAPI {
      * Get agent inquiries
      */
     async getAgentInquiries(skip: number = 0, limit: number = 100): Promise<AgentInquiriesResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/agent/dashboard/inquiries?skip=${skip}&limit=${limit}`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/agent/dashboard/inquiries?skip=${skip}&limit=${limit}`, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });
@@ -125,7 +127,7 @@ class AgentAPI {
      * Get public agent profile by slug
      */
     async getPublicAgentProfile(agentSlug: string): Promise<AgentPublicProfileResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/agent/public/${agentSlug}`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/agent/public/${agentSlug}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -152,7 +154,7 @@ class AgentAPI {
             });
         }
 
-        const response = await fetch(`${this.baseUrl}/api/v1/agent/public/${agentSlug}/properties?${params}`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/agent/public/${agentSlug}/properties?${params}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -172,7 +174,7 @@ class AgentAPI {
      * Get public agent stats
      */
     async getPublicAgentStats(agentSlug: string): Promise<{ success: boolean; data?: any; error?: string }> {
-        const response = await fetch(`${this.baseUrl}/api/v1/agent/public/${agentSlug}/stats`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/agent/public/${agentSlug}/stats`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -192,7 +194,7 @@ class AgentAPI {
      * Submit contact inquiry
      */
     async submitContactInquiry(agentSlug: string, inquiryData: any): Promise<{ success: boolean; data?: any; error?: string }> {
-        const response = await fetch(`${this.baseUrl}/api/v1/agent/public/${agentSlug}/contact`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/agent/public/${agentSlug}/contact`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -213,7 +215,7 @@ class AgentAPI {
      * Track contact inquiry
      */
     async trackContactInquiry(agentSlug: string, trackingData: any): Promise<{ success: boolean; error?: string }> {
-        const response = await fetch(`${this.baseUrl}/api/v1/agent/public/${agentSlug}/track-contact`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/agent/public/${agentSlug}/track-contact`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -234,7 +236,7 @@ class AgentAPI {
      * Get agent language preferences
      */
     async getAgentLanguagePreferences(): Promise<AgentLanguagePreferencesResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/properties/publishing/agents/me/language-preferences`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/properties/publishing/agents/me/language-preferences`, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });
@@ -251,7 +253,7 @@ class AgentAPI {
      * Update agent language preferences
      */
     async updateAgentLanguagePreferences(preferences: Partial<AgentLanguagePreferences>): Promise<AgentLanguagePreferencesResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/properties/publishing/agents/me/language-preferences`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/properties/publishing/agents/me/language-preferences`, {
             method: 'PUT',
             headers: this.getAuthHeaders(),
             body: JSON.stringify(preferences)
@@ -269,7 +271,7 @@ class AgentAPI {
      * Get branding suggestions
      */
     async getBrandingSuggestions(agentData: any): Promise<{ success: boolean; data?: BrandingSuggestion; error?: string }> {
-        const response = await fetch(`${this.baseUrl}/api/v1/agent/onboarding/branding-suggest`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/agent/onboarding/branding-suggest`, {
             method: 'POST',
             headers: this.getAuthHeaders(),
             body: JSON.stringify(agentData)
@@ -287,7 +289,7 @@ class AgentAPI {
      * Complete agent onboarding
      */
     async completeAgentOnboarding(onboardingData: any): Promise<{ success: boolean; data?: any; error?: string }> {
-        const response = await fetch(`${this.baseUrl}/api/v1/agent/onboarding/onboard`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/agent/onboarding/onboard`, {
             method: 'POST',
             headers: this.getAuthHeaders(),
             body: JSON.stringify(onboardingData)

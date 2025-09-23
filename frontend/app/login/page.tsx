@@ -121,8 +121,18 @@ const LoginPage: React.FC = () => {
 
         // Check onboarding status and redirect accordingly
         if (authState.user?.onboarding_completed) {
-          console.log('[LoginPage] Redirecting to dashboard...');
-          router.push('/');
+          // Check if we came from an agent page and redirect back there
+          const referrer = document.referrer;
+          const urlParams = new URLSearchParams(window.location.search);
+          const redirectTo = urlParams.get('redirect') || referrer;
+
+          if (redirectTo && redirectTo.includes('/agent/')) {
+            console.log('[LoginPage] Redirecting back to agent page:', redirectTo);
+            window.location.href = redirectTo;
+          } else {
+            console.log('[LoginPage] Redirecting to dashboard...');
+            router.push('/');
+          }
         } else {
           console.log('[LoginPage] Redirecting to onboarding...');
           router.push('/onboarding');

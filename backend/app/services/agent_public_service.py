@@ -76,11 +76,11 @@ class AgentPublicService:
                         logger.warning(f"Skipping property {doc.get('_id')} - location too short: '{location}'")
                         continue
                     
-                    # Handle price validation - set minimum price to 1 if 0
+                    # Handle price validation - keep 0 for "Contact for price" display
                     price = doc.get("price", 0)
-                    if price <= 0:
-                        logger.warning(f"Property {doc.get('_id')} has invalid price {price}, setting to 1")
-                        price = 1  # Set to minimum valid price instead of skipping
+                    if price < 0:
+                        logger.warning(f"Property {doc.get('_id')} has negative price {price}, setting to 0")
+                        price = 0  # Set negative prices to 0
                     
                     property_obj = PublicProperty(
                         id=str(doc.get("_id", "")),
@@ -234,11 +234,29 @@ class AgentPublicService:
                 print(f"DEBUG: Fetching properties for agent_id: {profile.agent_id}")
                 properties = await self._get_agent_properties_from_db(profile.agent_id)
                 print(f"DEBUG: Found {len(properties)} properties")
-                # Add properties to the profile
+                
+                # Create final profile dict with all data
                 profile_dict = profile.model_dump()
                 profile_dict['properties'] = [prop.model_dump() for prop in properties]
-                print(f"DEBUG: Returning profile with {len(profile_dict['properties'])} properties")
-                return AgentPublicProfile(**profile_dict)
+                
+                # Add branding data if available
+                branding_data = agent_doc.get("branding_data")
+                if branding_data:
+                    print(f"DEBUG: Found branding data for agent: {branding_data}")
+                    profile_dict['branding_data'] = branding_data
+                    print(f"DEBUG: Profile dict after adding branding: {profile_dict.get('branding_data')}")
+                else:
+                    print(f"DEBUG: No branding data found in agent_doc")
+                    print(f"DEBUG: Available keys in agent_doc: {list(agent_doc.keys())}")
+                
+                print(f"DEBUG: Returning profile with {len(profile_dict['properties'])} properties and branding: {branding_data is not None}")
+                
+                # Create the profile and check the result
+                final_profile = AgentPublicProfile(**profile_dict)
+                print(f"DEBUG: Final profile branding_data: {final_profile.branding_data}")
+                print(f"DEBUG: Final profile model dump branding: {final_profile.model_dump().get('branding_data')}")
+                
+                return final_profile
             
             # Fallback to global cache if not in database (disabled for debugging)
             # if slug in _global_agent_profiles:
@@ -492,9 +510,9 @@ class AgentPublicService:
             if property_doc:
                 # Validate property data before creating PublicProperty (relaxed validation)
                 price = property_doc.get("price", 0)
-                if price <= 0:
-                    logger.warning(f"Property {property_doc.get('_id')} has invalid price {price}, setting to 1")
-                    price = 1  # Set to minimum valid price instead of skipping
+                if price < 0:
+                    logger.warning(f"Property {property_doc.get('_id')} has negative price {price}, setting to 0")
+                    price = 0  # Set negative prices to 0
                 
                 return PublicProperty(
                     id=str(property_doc.get("_id", "")),
@@ -545,10 +563,11 @@ class AgentPublicService:
             for post in posts:
                 result.append({
                     "id": str(post.get("_id", "")),
+                    "property_id": str(post.get("property_id", "")),  # Ensure property_id is string
                     "title": post.get("title", ""),
                     "content": post.get("content", ""),
                     "status": post.get("status", ""),
-                    "created_at": post.get("created_at"),
+                    "created_at": str(post.get("created_at", "")),  # Ensure created_at is string
                     "media_urls": post.get("media_urls", []),
                     "channels": post.get("channels", ["website"]),  # Default to website for regular posts
                     "property_title": post.get("property_title", ""),  # Add property context
@@ -615,10 +634,11 @@ class AgentPublicService:
                 
                 result.append({
                     "id": str(post.get("_id", "")),
+                    "property_id": str(post.get("property_id", post.get("_id", ""))),  # Ensure property_id is string
                     "title": enhanced_title,
                     "content": enhanced_content,
                     "status": post.get("status", ""),
-                    "created_at": post.get("published_at", post.get("created_at")),
+                    "created_at": str(post.get("published_at", post.get("created_at", ""))),  # Ensure created_at is string
                     "media_urls": [],  # Social posts don't have media_urls in the same format
                     "channels": [post.get("platform", "social")],  # Add channels field with platform
                     "property_title": "Beautiful Property in Prime Location",  # Add property context

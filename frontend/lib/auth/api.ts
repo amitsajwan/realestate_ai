@@ -5,6 +5,7 @@
  */
 
 import { AuthResponse, LoginRequest, RegisterRequest } from './types';
+import { fetchWithAuthInterceptor } from './interceptor';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -19,7 +20,7 @@ class AuthAPI {
      * Register a new user
      */
     async register(userData: RegisterRequest): Promise<AuthResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/auth/register`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/auth/register`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -44,7 +45,7 @@ class AuthAPI {
         formData.append('username', credentials.username);
         formData.append('password', credentials.password);
 
-        const response = await fetch(`${this.baseUrl}/api/v1/auth/login`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/auth/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -65,7 +66,7 @@ class AuthAPI {
      * Get current user info
      */
     async getCurrentUser(token: string): Promise<AuthResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/auth/me`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/auth/me`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -86,7 +87,7 @@ class AuthAPI {
      * Update user data
      */
     async updateUser(userData: any, token: string): Promise<AuthResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/auth/me`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/auth/me`, {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -108,7 +109,7 @@ class AuthAPI {
      * Update onboarding step
      */
     async updateOnboarding(userId: string, data: any, token: string): Promise<AuthResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/onboarding/${userId}`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/onboarding/${userId}`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -130,7 +131,7 @@ class AuthAPI {
      * Complete onboarding
      */
     async completeOnboarding(userId: string, token: string): Promise<AuthResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/onboarding/${userId}/complete`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/onboarding/${userId}/complete`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -151,7 +152,7 @@ class AuthAPI {
      * Logout user
      */
     async logout(token: string): Promise<void> {
-        const response = await fetch(`${this.baseUrl}/api/v1/auth/logout`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/auth/logout`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,

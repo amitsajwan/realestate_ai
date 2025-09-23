@@ -110,6 +110,7 @@ class AgentPublicProfile(AgentPublicProfileBase):
     view_count: int = Field(0, description="Total profile views")
     contact_count: int = Field(0, description="Total contact form submissions")
     properties: List['PublicProperty'] = Field(default_factory=list, description="Agent's properties")
+    branding_data: Optional[dict] = Field(None, description="Agent's branding data including colors, fonts, tagline")
 
     class Config:
         from_attributes = True
@@ -120,7 +121,7 @@ class PublicPropertyBase(BaseModel):
     agent_id: str = Field(..., description="Agent ID who owns this property")
     title: str = Field(..., min_length=3, max_length=200, description="Property title")
     description: str = Field(..., min_length=3, max_length=2000, description="Property description")
-    price: float = Field(..., gt=0, description="Property price")
+    price: float = Field(..., ge=0, description="Property price")
     property_type: PropertyType = Field(..., description="Type of property")
     bedrooms: Optional[int] = Field(None, ge=0, description="Number of bedrooms")
     bathrooms: Optional[int] = Field(None, ge=0, description="Number of bathrooms")
@@ -141,7 +142,7 @@ class PublicPropertyUpdate(BaseModel):
     """Schema for updating public property"""
     title: Optional[str] = Field(None, min_length=3, max_length=200)
     description: Optional[str] = Field(None, min_length=3, max_length=2000)
-    price: Optional[float] = Field(None, gt=0)
+    price: Optional[float] = Field(None, ge=0)
     property_type: Optional[PropertyType] = None
     bedrooms: Optional[int] = Field(None, ge=0)
     bathrooms: Optional[int] = Field(None, ge=0)

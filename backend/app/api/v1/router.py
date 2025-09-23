@@ -20,13 +20,18 @@ from app.api.v1.endpoints.uploads import router as uploads_router
 from app.api.v1.endpoints.agent_public import router as agent_public_router
 from app.api.v1.endpoints.agent_dashboard import router as agent_dashboard_router
 from app.api.v1.endpoints.property_publishing import router as property_publishing_router
-from app.api.v1.endpoints.posts import router as posts_router
-from app.api.v1.endpoints.templates import router as templates_router
+# from app.api.v1.endpoints.posts import router as posts_router  # Removed during cleanup
+# from app.api.v1.endpoints.templates import router as templates_router  # Removed during cleanup
 from app.api.v1.endpoints.enhanced_post_management import router as enhanced_posts_router
 from app.api.v1.endpoints.branding import router as branding_router
 from app.api.v1.endpoints.social_publishing import router as social_publishing_router
 from app.api.v1.endpoints.enhanced_templates import router as enhanced_templates_router
 from app.api.v1.endpoints.post_management import router as post_management_router
+from app.api.v1.endpoints.unified_publishing import router as unified_publishing_router
+from app.api.v1.endpoints.content_library import router as content_library_router
+from app.api.v1.endpoints.publishing_logs import router as publishing_logs_router
+from app.api.v1.endpoints.analytics_data import router as analytics_data_router
+from app.api.v1.endpoints.ai_content_generation import router as ai_content_generation_router
 from app.routers.agents import router as agents_router
 from app.routers.crm import router as crm_router
 
@@ -48,13 +53,18 @@ api_router.include_router(uploads_router, prefix="/uploads", tags=["uploads"])
 api_router.include_router(agent_public_router, prefix="/agent/public", tags=["agent-public"])
 api_router.include_router(agent_dashboard_router, prefix="/agent/dashboard", tags=["agent-dashboard"])
 api_router.include_router(property_publishing_router, prefix="/properties/publishing", tags=["property-publishing"])
-api_router.include_router(posts_router, prefix="/posts", tags=["posts"])
-api_router.include_router(templates_router, prefix="/templates", tags=["templates"])
+# api_router.include_router(posts_router, prefix="/posts", tags=["posts"])  # Removed during cleanup
+# api_router.include_router(templates_router, prefix="/templates", tags=["templates"])  # Removed during cleanup
 api_router.include_router(enhanced_posts_router, prefix="/enhanced-posts", tags=["enhanced-posts"])
 api_router.include_router(branding_router, prefix="/branding", tags=["branding"])
 api_router.include_router(social_publishing_router, prefix="/social-publishing", tags=["social-publishing"])
 api_router.include_router(enhanced_templates_router, prefix="/enhanced-templates", tags=["enhanced-templates"])
 api_router.include_router(post_management_router, prefix="/post-management", tags=["post-management"])
+api_router.include_router(unified_publishing_router, prefix="/publishing", tags=["unified-publishing"])
+api_router.include_router(content_library_router, prefix="/content", tags=["content-library"])
+api_router.include_router(publishing_logs_router, prefix="/publishing-logs", tags=["publishing-logs"])
+api_router.include_router(analytics_data_router, prefix="/analytics", tags=["analytics"])
+api_router.include_router(ai_content_generation_router, prefix="/ai-content", tags=["ai-content-generation"])
 api_router.include_router(agents_router, prefix="/agent", tags=["agents"])
 api_router.include_router(crm_router, prefix="/crm", tags=["crm"])
 

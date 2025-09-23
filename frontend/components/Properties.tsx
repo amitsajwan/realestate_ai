@@ -22,7 +22,6 @@ import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { useState } from 'react'
 import toast from 'react-hot-toast'
-import PostManagementDashboard from './PostManagement/PostManagementDashboard'
 
 interface Property {
   id: string
@@ -45,13 +44,15 @@ interface PropertiesProps {
   properties?: Property[]
   setProperties?: (properties: Property[]) => void
   onRefresh?: () => void
+  onGenerateContent?: (propertyId: string) => void
 }
 
 export default function Properties({
   onAddProperty,
   properties: propProperties = [],
   setProperties: propSetProperties,
-  onRefresh
+  onRefresh,
+  onGenerateContent
 }: PropertiesProps) {
   console.log('[Properties] Component rendered with properties:', propProperties.length, propProperties)
 
@@ -510,6 +511,17 @@ export default function Properties({
                 >
                   View Details
                 </button>
+                {onGenerateContent && (
+                  <button
+                    onClick={() => onGenerateContent(property.id)}
+                    className="p-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-lg transition-all duration-200"
+                    title="Generate AI Content"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </button>
+                )}
                 <button
                   onClick={() => handleManagePosts(property)}
                   className="p-2.5 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-lg transition-all duration-200"
@@ -708,15 +720,36 @@ export default function Properties({
         </div>
       )}
 
-      {/* Post Management Modal */}
+      {/* Post Management Modal - Redirect to Property Marketing Hub */}
       {showPostManagement && selectedPropertyForPosts && (
-        <PostManagementDashboard
-          propertyId={selectedPropertyForPosts.id}
-          onClose={() => {
-            setShowPostManagement(false)
-            setSelectedPropertyForPosts(null)
-          }}
-        />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-medium mb-4">Property Marketing</h3>
+            <p className="text-gray-600 mb-4">
+              Property marketing features have been moved to the unified Property Marketing Hub.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowPostManagement(false)
+                  setSelectedPropertyForPosts(null)
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  // Navigate to Property Marketing Hub
+                  window.location.href = '/?section=property-marketing-hub'
+                }}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Go to Marketing Hub
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

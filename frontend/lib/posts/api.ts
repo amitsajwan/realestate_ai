@@ -19,6 +19,8 @@ import {
     PostUpdate
 } from './types';
 
+import { fetchWithAuthInterceptor } from '../auth/interceptor';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 class PostsAPI {
@@ -41,7 +43,7 @@ class PostsAPI {
      * Get all posts for the current user
      */
     async getPosts(skip: number = 0, limit: number = 100): Promise<PostsResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/posts/?skip=${skip}&limit=${limit}`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/posts/?skip=${skip}&limit=${limit}`, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });
@@ -58,7 +60,7 @@ class PostsAPI {
      * Get posts by property ID
      */
     async getPostsByProperty(propertyId: string): Promise<PostsResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/posts/property/${propertyId}`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/posts/property/${propertyId}`, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });
@@ -75,7 +77,7 @@ class PostsAPI {
      * Get a specific post by ID
      */
     async getPost(postId: string): Promise<PostResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/posts/${postId}`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/posts/${postId}`, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });
@@ -92,7 +94,7 @@ class PostsAPI {
      * Create a new post
      */
     async createPost(postData: PostCreate): Promise<PostResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/posts/`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/posts/`, {
             method: 'POST',
             headers: this.getAuthHeaders(),
             body: JSON.stringify(postData)
@@ -110,7 +112,7 @@ class PostsAPI {
      * Update an existing post
      */
     async updatePost(postId: string, postData: PostUpdate): Promise<PostResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/posts/${postId}`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/posts/${postId}`, {
             method: 'PUT',
             headers: this.getAuthHeaders(),
             body: JSON.stringify(postData)
@@ -128,7 +130,7 @@ class PostsAPI {
      * Delete a post
      */
     async deletePost(postId: string): Promise<{ success: boolean; error?: string }> {
-        const response = await fetch(`${this.baseUrl}/api/v1/posts/${postId}`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/posts/${postId}`, {
             method: 'DELETE',
             headers: this.getAuthHeaders()
         });
@@ -145,7 +147,7 @@ class PostsAPI {
      * Publish a post
      */
     async publishPost(postId: string): Promise<PostPublishingResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/posts/${postId}/publish`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/posts/${postId}/publish`, {
             method: 'POST',
             headers: this.getAuthHeaders()
         });
@@ -162,7 +164,7 @@ class PostsAPI {
      * Unpublish a post
      */
     async unpublishPost(postId: string): Promise<{ success: boolean; error?: string }> {
-        const response = await fetch(`${this.baseUrl}/api/v1/posts/${postId}/unpublish`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/posts/${postId}/unpublish`, {
             method: 'POST',
             headers: this.getAuthHeaders()
         });
@@ -179,7 +181,7 @@ class PostsAPI {
      * Get post analytics
      */
     async getPostAnalytics(postId: string): Promise<PostAnalyticsResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/posts/${postId}/analytics`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/posts/${postId}/analytics`, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });
@@ -196,7 +198,7 @@ class PostsAPI {
      * Get AI suggestions for a post
      */
     async getAIPostSuggestions(postId: string): Promise<{ success: boolean; data?: any; error?: string }> {
-        const response = await fetch(`${this.baseUrl}/api/v1/posts/${postId}/ai-suggestions`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/posts/${postId}/ai-suggestions`, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });
@@ -213,7 +215,7 @@ class PostsAPI {
      * Enhance post with AI
      */
     async enhancePost(postId: string, enhancementData: any): Promise<PostResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/posts/${postId}/enhance`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/posts/${postId}/enhance`, {
             method: 'POST',
             headers: this.getAuthHeaders(),
             body: JSON.stringify(enhancementData)
@@ -235,7 +237,7 @@ class PostsAPI {
         if (propertyType) params.append('property_type', propertyType);
         if (language) params.append('language', language);
 
-        const response = await fetch(`${this.baseUrl}/api/v1/templates/?${params}`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/templates/?${params}`, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });
@@ -252,7 +254,7 @@ class PostsAPI {
      * Get a specific post template
      */
     async getPostTemplate(templateId: string): Promise<PostTemplateResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/templates/${templateId}`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/templates/${templateId}`, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });
@@ -269,7 +271,7 @@ class PostsAPI {
      * Generate AI post content
      */
     async generateAIPost(generationData: AIPostGenerationRequest): Promise<AIPostGenerationResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/posts/generate`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/posts/generate`, {
             method: 'POST',
             headers: this.getAuthHeaders(),
             body: JSON.stringify(generationData)
@@ -287,7 +289,7 @@ class PostsAPI {
      * Get supported languages
      */
     async getSupportedLanguages(): Promise<{ success: boolean; data?: string[]; error?: string }> {
-        const response = await fetch(`${this.baseUrl}/api/v1/posts/languages/supported`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/posts/languages/supported`, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });

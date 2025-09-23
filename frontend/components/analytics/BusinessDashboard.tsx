@@ -1,18 +1,33 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardBody as CardContent, CardHeader, CardTitle } from '@/components/UI/Card';
-import { Button } from '@/components/UI/Button';
 import { Badge } from '@/components/UI/Badge';
+import { Button } from '@/components/UI/Button';
+import { Card, CardBody as CardContent, CardHeader, CardTitle } from '@/components/UI/Card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/Tabs';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell, Area, AreaChart
-} from 'recharts';
-import { 
-  TrendingUp, TrendingDown, Users, Home, DollarSign, 
-  Target, Calendar, Filter, Download, RefreshCw, Sparkles
+import {
+  DollarSign,
+  Download,
+  Home,
+  RefreshCw, Sparkles,
+  Target,
+  TrendingUp,
+  Users
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  Area, AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis, YAxis
+} from 'recharts';
 import AIInsightsPanel from './AIInsightsPanel';
 
 interface BusinessMetrics {
@@ -121,7 +136,7 @@ export default function BusinessDashboard() {
           'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         },
       });
-      
+
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -164,8 +179,8 @@ export default function BusinessDashboard() {
           <p className="text-gray-300">Comprehensive analytics for your real estate platform</p>
         </div>
         <div className="flex items-center space-x-2">
-          <select 
-            value={dateRange} 
+          <select
+            value={dateRange}
             onChange={(e) => setDateRange(e.target.value)}
             className="px-3 py-2 border rounded-md"
           >
@@ -221,10 +236,10 @@ export default function BusinessDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${metrics.totalRevenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">₹{(metrics.totalRevenue / 100000).toFixed(0)}L</div>
             <div className="flex items-center text-xs text-muted-foreground">
               <TrendingUp className="h-3 w-3 mr-1 text-green-500" />
-              +${metrics.revenueThisMonth.toLocaleString()} this month
+              +₹{(metrics.revenueThisMonth / 100000).toFixed(0)}L this month
             </div>
           </CardContent>
         </Card>
@@ -269,11 +284,11 @@ export default function BusinessDashboard() {
                   <XAxis dataKey="month" />
                   <YAxis />
                   <Tooltip />
-                  <Area 
-                    type="monotone" 
-                    dataKey="revenue" 
-                    stroke="#8884d8" 
-                    fill="#8884d8" 
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#8884d8"
+                    fill="#8884d8"
                     fillOpacity={0.6}
                   />
                 </AreaChart>
@@ -364,7 +379,7 @@ export default function BusinessDashboard() {
                         <td className="p-2">
                           <Badge variant={
                             property.status === 'sold' ? 'default' :
-                            property.status === 'pending' ? 'secondary' : 'outline'
+                              property.status === 'pending' ? 'secondary' : 'outline'
                           }>
                             {property.status}
                           </Badge>
@@ -459,7 +474,7 @@ export default function BusinessDashboard() {
                       {propertyAnalytics.reduce((sum, p) => sum + p.inquiries, 0).toLocaleString()}
                     </div>
                     <div className="text-sm text-green-600">
-                      {((propertyAnalytics.reduce((sum, p) => sum + p.inquiries, 0) / 
+                      {((propertyAnalytics.reduce((sum, p) => sum + p.inquiries, 0) /
                         propertyAnalytics.reduce((sum, p) => sum + p.views, 0)) * 100).toFixed(1)}%
                     </div>
                   </div>
@@ -475,7 +490,7 @@ export default function BusinessDashboard() {
                       {propertyAnalytics.filter(p => p.status === 'sold').length}
                     </div>
                     <div className="text-sm text-green-600">
-                      {((propertyAnalytics.filter(p => p.status === 'sold').length / 
+                      {((propertyAnalytics.filter(p => p.status === 'sold').length /
                         propertyAnalytics.length) * 100).toFixed(1)}%
                     </div>
                   </div>
@@ -486,7 +501,7 @@ export default function BusinessDashboard() {
         </TabsContent>
 
         <TabsContent value="ai-insights" className="space-y-4">
-          <AIInsightsPanel 
+          <AIInsightsPanel
             performanceData={{
               posts: propertyAnalytics.length,
               views: propertyAnalytics.reduce((sum, p) => sum + p.views, 0),

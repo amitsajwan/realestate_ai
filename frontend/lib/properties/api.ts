@@ -8,6 +8,8 @@
 import { authManager } from '@/lib/auth';
 import { PropertiesResponse, PropertyCreate, PropertyResponse, PropertyUpdate, PublishingRequest, PublishingStatusResponse } from './types';
 
+import { fetchWithAuthInterceptor } from '../auth/interceptor';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 class PropertiesAPI {
@@ -31,7 +33,7 @@ class PropertiesAPI {
      * Get all properties for the current user
      */
     async getProperties(skip: number = 0, limit: number = 100): Promise<PropertiesResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/properties/?skip=${skip}&limit=${limit}`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/properties/?skip=${skip}&limit=${limit}`, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });
@@ -48,7 +50,7 @@ class PropertiesAPI {
      * Get a specific property by ID
      */
     async getProperty(propertyId: string): Promise<PropertyResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/properties/${propertyId}`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/properties/${propertyId}`, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });
@@ -65,7 +67,7 @@ class PropertiesAPI {
      * Create a new property
      */
     async createProperty(propertyData: PropertyCreate): Promise<PropertyResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/properties/`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/properties/`, {
             method: 'POST',
             headers: this.getAuthHeaders(),
             body: JSON.stringify(propertyData)
@@ -88,7 +90,7 @@ class PropertiesAPI {
      * Update an existing property
      */
     async updateProperty(propertyId: string, propertyData: PropertyUpdate): Promise<PropertyResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/properties/${propertyId}`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/properties/${propertyId}`, {
             method: 'PUT',
             headers: this.getAuthHeaders(),
             body: JSON.stringify(propertyData)
@@ -106,7 +108,7 @@ class PropertiesAPI {
      * Delete a property
      */
     async deleteProperty(propertyId: string): Promise<{ success: boolean; error?: string }> {
-        const response = await fetch(`${this.baseUrl}/api/v1/properties/${propertyId}`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/properties/${propertyId}`, {
             method: 'DELETE',
             headers: this.getAuthHeaders()
         });
@@ -124,7 +126,7 @@ class PropertiesAPI {
      */
     async getAIPropertySuggestions(propertyId: string, data: any): Promise<{ success: boolean; suggestions?: any; error?: string; generated_at?: string }> {
         try {
-            const response = await fetch(`${this.baseUrl}/api/v1/properties/${propertyId}/ai-suggestions`, {
+            const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/properties/${propertyId}/ai-suggestions`, {
                 method: 'POST',
                 headers: this.getAuthHeaders(),
                 body: JSON.stringify(data)
@@ -163,7 +165,7 @@ class PropertiesAPI {
      * Get market insights for a property
      */
     async getMarketInsights(propertyId: string): Promise<{ success: boolean; data?: any; error?: string }> {
-        const response = await fetch(`${this.baseUrl}/api/v1/properties/${propertyId}/market-insights`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/properties/${propertyId}/market-insights`, {
             method: 'POST',
             headers: this.getAuthHeaders()
         });
@@ -180,7 +182,7 @@ class PropertiesAPI {
      * Get property analytics
      */
     async getPropertyAnalytics(propertyId: string): Promise<{ success: boolean; data?: any; error?: string }> {
-        const response = await fetch(`${this.baseUrl}/api/v1/properties/${propertyId}/analytics`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/properties/${propertyId}/analytics`, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });
@@ -204,7 +206,7 @@ class PropertiesAPI {
             });
         }
 
-        const response = await fetch(`${this.baseUrl}/api/v1/properties/search?${searchParams}`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/properties/search?${searchParams}`, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });
@@ -221,7 +223,7 @@ class PropertiesAPI {
      * Publish property to channels
      */
     async publishProperty(publishData: PublishingRequest): Promise<PublishingStatusResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/properties/${publishData.propertyId}/publish`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/properties/${publishData.propertyId}/publish`, {
             method: 'POST',
             headers: this.getAuthHeaders(),
             body: JSON.stringify(publishData)
@@ -239,7 +241,7 @@ class PropertiesAPI {
      * Get publishing status
      */
     async getPublishingStatus(propertyId: string): Promise<PublishingStatusResponse> {
-        const response = await fetch(`${this.baseUrl}/api/v1/properties/${propertyId}/status`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/properties/${propertyId}/status`, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });

@@ -34,6 +34,14 @@ class UserProfile(BaseModel):
     pincode: Optional[str] = None
     languages: Optional[List[str]] = None
     logo_url: Optional[str] = None
+    # Branding fields to sync with onboarding
+    brandingSuggestions: Optional[Dict[str, Any]] = None
+    branding_data: Optional[Dict[str, Any]] = None
+    brand_theme: Optional[Dict[str, Any]] = None
+    brand_style: Optional[str] = None
+    brand_personality: Optional[str] = None
+    brand_keywords: Optional[str] = None
+    brand_inspiration: Optional[str] = None
 
 class UserProfileResponse(BaseModel):
     success: bool

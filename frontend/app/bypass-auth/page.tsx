@@ -10,7 +10,7 @@ export default function BypassAuthPage() {
   useEffect(() => {
     // Simulate bypassing authentication
     const mockUser = {
-      id: '68c815c945c1268def229bc1',
+      id: '68d22d7ff1bbb379a40f5dda',  // Same ID as backend mock user
       email: 'test@example.com',
       firstName: 'Test',
       lastName: 'User',

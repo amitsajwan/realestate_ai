@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     debug: bool = False
     environment: str = "development"
     
+    # Demo/Sample data settings
+    enable_sample_data: bool = False
+    create_demo_posts: bool = False
+    
     # =============================================================================
     # DATABASE SETTINGS
     # =============================================================================

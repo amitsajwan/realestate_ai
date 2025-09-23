@@ -45,7 +45,7 @@ class PropertyPost(BaseModel):
     analytics: Optional[PostAnalytics] = None
 
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }
@@ -65,7 +65,7 @@ class PostTemplate(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True
         json_encoders = {
             datetime: lambda v: v.isoformat()
         }

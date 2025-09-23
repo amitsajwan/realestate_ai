@@ -51,10 +51,15 @@ export default function PropertiesPage() {
   };
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(price);
+    if (price == null || price === 0) return 'Contact for price';
+
+    if (price >= 10000000) {
+      return `₹${(price / 10000000).toFixed(1)}Cr`;
+    } else if (price >= 100000) {
+      return `₹${(price / 100000).toFixed(0)}L`;
+    } else {
+      return `₹${price.toLocaleString()}`;
+    }
   };
 
   if (loading) {

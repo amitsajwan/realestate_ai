@@ -4,9 +4,9 @@ import { Button, Card, CardBody } from '@/components/UI'
 import {
   ChartBarIcon,
   CurrencyDollarIcon,
+  DocumentTextIcon,
   EyeIcon,
   HomeIcon,
-  PlusIcon,
   SparklesIcon,
   UserGroupIcon
 } from '@heroicons/react/24/outline'
@@ -25,6 +25,7 @@ interface DashboardStatsProps {
   onNavigateToAI: () => void
   onNavigateToAnalytics: () => void
   onNavigateToSmartForm: () => void
+  onNavigateToPosts: () => void
 }
 
 export function DashboardStats({
@@ -32,7 +33,8 @@ export function DashboardStats({
   onAddProperty,
   onNavigateToAI,
   onNavigateToAnalytics,
-  onNavigateToSmartForm
+  onNavigateToSmartForm,
+  onNavigateToPosts
 }: DashboardStatsProps) {
   const currentDate = new Date().toLocaleDateString('en-US', {
     weekday: 'short',
@@ -51,6 +53,15 @@ export function DashboardStats({
       onClick: onAddProperty
     },
     {
+      id: 'manage-posts',
+      title: 'Manage Posts',
+      description: 'Create, edit, and publish social media content for your properties',
+      icon: DocumentTextIcon,
+      variant: 'outline' as const,
+      tag: 'Content',
+      onClick: onNavigateToPosts
+    },
+    {
       id: 'ai-tools',
       title: 'AI Tools',
       description: 'Generate compelling content, market analysis, and property descriptions automatically',
@@ -67,15 +78,6 @@ export function DashboardStats({
       variant: 'outline' as const,
       tag: 'Insights',
       onClick: onNavigateToAnalytics
-    },
-    {
-      id: 'smart-form',
-      title: 'Smart Form Demo',
-      description: 'Experience our intelligent property form with step-by-step guidance & AI assistance',
-      icon: PlusIcon,
-      variant: 'outline' as const,
-      tag: 'New',
-      onClick: onNavigateToSmartForm
     }
   ]
 
@@ -190,9 +192,9 @@ export function DashboardStats({
                     <action.icon className="w-6 h-6 text-gray-600 group-hover:text-blue-600 transition-colors" />
                   </div>
                   <span className={`px-3 py-1 rounded-full text-xs font-medium ${action.tag === 'Popular' ? 'bg-blue-100 text-blue-800' :
-                      action.tag === 'AI Powered' ? 'bg-purple-100 text-purple-800' :
-                        action.tag === 'Insights' ? 'bg-green-100 text-green-800' :
-                          'bg-orange-100 text-orange-800'
+                    action.tag === 'AI Powered' ? 'bg-purple-100 text-purple-800' :
+                      action.tag === 'Insights' ? 'bg-green-100 text-green-800' :
+                        'bg-orange-100 text-orange-800'
                     }`}>
                     {action.tag}
                   </span>

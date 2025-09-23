@@ -116,8 +116,8 @@ class AIContentGenerationService:
     def __init__(self):
         self.logger = logger
         
-    def build_prompt(self, context: AIGenerationContext) -> str:
-        """Build AI prompt for content generation"""
+    def build_prompt(self, context: AIGenerationContext, enriched_data: Dict[str, Any] = None) -> str:
+        """Build AI prompt for content generation with enriched property data"""
         
         # Channel-specific instructions with platform optimization
         channel_instructions = {
@@ -140,6 +140,9 @@ class AIContentGenerationService:
             "long": "Comprehensive with all details, market insights, and neighborhood highlights"
         }
         
+        # Build enriched property context
+        enriched_context = self._build_enriched_context(enriched_data) if enriched_data else ""
+        
         prompt = f"""
 You are an expert real estate marketing strategist and content creator with deep knowledge of the Indian property market. Create compelling, conversion-focused social media content that drives inquiries and builds trust.
 
@@ -159,6 +162,8 @@ PROPERTY DETAILS:
 - Amenities: {', '.join(context.property.amenities)}
 - Features: {', '.join(context.property.features)}
 
+{enriched_context}
+
 AGENT CONTACT (MUST INCLUDE):
 - Agent: {context.agent.name}
 - Phone: {context.agent.phone}
@@ -167,11 +172,13 @@ AGENT CONTACT (MUST INCLUDE):
 - Website: {context.agent.website or 'Visit our website'}
 
 MARKET INTELLIGENCE TO INCLUDE:
-- Highlight unique selling propositions
-- Mention nearby landmarks, schools, hospitals, metro stations
-- Include market trends and investment potential
-- Add lifestyle benefits and community features
-- Reference local development projects or infrastructure
+- Highlight unique selling propositions based on enriched data
+- Mention specific nearby landmarks, schools, hospitals, metro stations from web data
+- Include real market trends and investment potential from market analysis
+- Add lifestyle benefits and community features from neighborhood insights
+- Reference actual local development projects and infrastructure from government data
+- Use building details like construction year, amenities, and architectural features
+- Incorporate connectivity data, safety scores, and demographic insights
 
 CONTENT STRATEGY:
 1. Create emotionally engaging content that connects with buyer aspirations
@@ -207,7 +214,123 @@ IMPORTANT:
 
         return prompt.strip()
     
-    async def generate_content(self, context: AIGenerationContext) -> AIDraft:
+    def _build_enriched_context(self, enriched_data: Dict[str, Any]) -> str:
+        """Build enriched context from web-fetched property data"""
+        if not enriched_data:
+            return ""
+        
+        context_parts = []
+        
+        # Building details
+        building_data = enriched_data.get("building_details", {})
+        if building_data and "error" not in building_data:
+            context_parts.append("BUILDING INTELLIGENCE:")
+            if building_data.get("construction_year"):
+                context_parts.append(f"- Built in {building_data['construction_year']} ({building_data.get('building_age', 'Unknown')} years old)")
+            if building_data.get("building_type"):
+                context_parts.append(f"- Building Type: {building_data['building_type']}")
+            if building_data.get("builder_name"):
+                context_parts.append(f"- Developer: {building_data['builder_name']}")
+            if building_data.get("building_amenities"):
+                context_parts.append(f"- Building Amenities: {', '.join(building_data['building_amenities'][:5])}")
+            if building_data.get("building_approval", {}).get("rera_approved"):
+                context_parts.append(f"- RERA Approved: {building_data['building_approval']['rera_number']}")
+        
+        # Neighborhood insights
+        neighborhood_data = enriched_data.get("neighborhood_insights", {})
+        if neighborhood_data and "error" not in neighborhood_data:
+            context_parts.append("\nNEIGHBORHOOD INTELLIGENCE:")
+            safety = neighborhood_data.get("safety_and_security", {})
+            if safety.get("safety_score"):
+                context_parts.append(f"- Safety Score: {safety['safety_score']}/10")
+            if safety.get("crime_rate"):
+                context_parts.append(f"- Crime Rate: {safety['crime_rate']}")
+            
+            development = neighborhood_data.get("development_projects", [])
+            if development:
+                context_parts.append(f"- Upcoming Projects: {', '.join(development[:3])}")
+            
+            demographics = neighborhood_data.get("demographic_profile", {})
+            if demographics.get("average_household_income"):
+                context_parts.append(f"- Average Income: {demographics['average_household_income']}")
+        
+        # Market data
+        market_data = enriched_data.get("market_data", {})
+        if market_data and "error" not in market_data:
+            context_parts.append("\nMARKET INTELLIGENCE:")
+            current_rates = market_data.get("current_market_rates", {})
+            if current_rates.get("price_per_sqft"):
+                context_parts.append(f"- Market Rate: ₹{current_rates['price_per_sqft']:,.0f} per sq ft")
+            
+            trends = market_data.get("price_trends", {})
+            if trends.get("1_year"):
+                context_parts.append(f"- 1-Year Appreciation: {trends['1_year']}")
+            
+            rental = market_data.get("rental_market", {})
+            if rental.get("rental_yield"):
+                context_parts.append(f"- Rental Yield: {rental['rental_yield']}")
+        
+        # Amenities and facilities
+        amenities_data = enriched_data.get("amenities_facilities", {})
+        if amenities_data and "error" not in amenities_data:
+            context_parts.append("\nLOCATION AMENITIES:")
+            
+            # Educational institutions
+            schools = amenities_data.get("educational_institutions", [])
+            if schools:
+                context_parts.append(f"- Education: {schools[0]['name']} ({schools[0]['distance']})")
+            
+            # Healthcare
+            hospitals = amenities_data.get("healthcare_facilities", [])
+            if hospitals:
+                context_parts.append(f"- Healthcare: {hospitals[0]['name']} ({hospitals[0]['distance']})")
+            
+            # Shopping
+            shopping = amenities_data.get("shopping_and_entertainment", [])
+            if shopping:
+                context_parts.append(f"- Shopping: {shopping[0]['name']} ({shopping[0]['distance']})")
+            
+            # Transportation
+            transport = amenities_data.get("transportation_hubs", [])
+            if transport:
+                metro_stations = [t for t in transport if t['type'] == 'Metro']
+                if metro_stations:
+                    context_parts.append(f"- Metro: {metro_stations[0]['name']} ({metro_stations[0]['distance']})")
+        
+        # Connectivity data
+        connectivity_data = enriched_data.get("connectivity_data", {})
+        if connectivity_data and "error" not in connectivity_data:
+            context_parts.append("\nCONNECTIVITY INTELLIGENCE:")
+            metro = connectivity_data.get("metro_connectivity", {})
+            if metro.get("connectivity_score"):
+                context_parts.append(f"- Metro Connectivity Score: {metro['connectivity_score']}/10")
+            if metro.get("travel_time"):
+                context_parts.append(f"- Metro Access: {metro['travel_time']}")
+            
+            road = connectivity_data.get("road_connectivity", {})
+            if road.get("major_roads"):
+                context_parts.append(f"- Major Roads: {', '.join(road['major_roads'][:2])}")
+        
+        # AI insights
+        ai_insights = enriched_data.get("ai_insights", {})
+        if ai_insights and "error" not in ai_insights:
+            context_parts.append("\nAI MARKET INSIGHTS:")
+            investment = ai_insights.get("investment_recommendation", {})
+            if investment.get("recommendation"):
+                context_parts.append(f"- Investment Grade: {investment['recommendation']} ({investment.get('confidence', 'N/A')} confidence)")
+            
+            advantages = ai_insights.get("competitive_advantages", [])
+            if advantages:
+                context_parts.append(f"- Key Advantages: {', '.join(advantages[:3])}")
+            
+            target_buyers = ai_insights.get("target_buyer_profile", [])
+            if target_buyers:
+                top_buyer = target_buyers[0]
+                context_parts.append(f"- Ideal For: {top_buyer['profile']} (Match: {top_buyer['match_score']})")
+        
+        return "\n".join(context_parts) if context_parts else ""
+    
+    async def generate_content(self, context: AIGenerationContext, enriched_data: Dict[str, Any] = None) -> AIDraft:
         """Generate AI content for a specific property and channel"""
         import uuid
         request_id = str(uuid.uuid4())
@@ -217,8 +340,8 @@ IMPORTANT:
             # Log generation start
             AIContentLogger.log_generation_start(context, request_id)
             
-            # Build the prompt
-            prompt = self.build_prompt(context)
+            # Build the prompt with enriched data
+            prompt = self.build_prompt(context, enriched_data)
             AIContentLogger.log_prompt_built(prompt, context, request_id)
             
             # For now, we'll use a mock AI response

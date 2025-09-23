@@ -4,6 +4,8 @@
  * Service for communicating with the advanced CRM backend
  */
 
+import { fetchWithAuthInterceptor } from './auth/interceptor';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 export interface Lead {
@@ -172,17 +174,6 @@ class CRMApiService {
 
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
-      if (response.status === 401) {
-        // Token might be expired or invalid
-        console.warn('[CRM API] 401 Unauthorized - token may be expired or invalid')
-        // Clear the stored token
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('auth_token')
-        }
-        this.token = null
-        throw new Error('Authentication failed. Please log in again.')
-      }
-
       const error = await response.json().catch(() => ({ detail: 'Unknown error' }))
       throw new Error(error.detail || `HTTP ${response.status}`)
     }
@@ -192,7 +183,7 @@ class CRMApiService {
 
   // Lead Management
   async createLead(leadData: Partial<Lead>): Promise<Lead> {
-    const response = await fetch(`${this.baseUrl}/leads`, {
+    const response = await fetchWithAuthInterceptor(`${this.baseUrl}/leads`, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(leadData),
@@ -210,7 +201,7 @@ class CRMApiService {
       ),
     })
 
-    const response = await fetch(`${this.baseUrl}/leads?${params}`, {
+    const response = await fetchWithAuthInterceptor(`${this.baseUrl}/leads?${params}`, {
       method: 'GET',
       headers: this.getHeaders(),
     })
@@ -219,7 +210,7 @@ class CRMApiService {
   }
 
   async getLead(leadId: string): Promise<Lead> {
-    const response = await fetch(`${this.baseUrl}/leads/${leadId}`, {
+    const response = await fetchWithAuthInterceptor(`${this.baseUrl}/leads/${leadId}`, {
       method: 'GET',
       headers: this.getHeaders(),
     })
@@ -228,7 +219,7 @@ class CRMApiService {
   }
 
   async updateLead(leadId: string, updateData: Partial<Lead>): Promise<Lead> {
-    const response = await fetch(`${this.baseUrl}/leads/${leadId}`, {
+    const response = await fetchWithAuthInterceptor(`${this.baseUrl}/leads/${leadId}`, {
       method: 'PUT',
       headers: this.getHeaders(),
       body: JSON.stringify(updateData),
@@ -238,7 +229,7 @@ class CRMApiService {
   }
 
   async getLeadStats(): Promise<LeadStats> {
-    const response = await fetch(`${this.baseUrl}/leads/stats`, {
+    const response = await fetchWithAuthInterceptor(`${this.baseUrl}/leads/stats`, {
       method: 'GET',
       headers: this.getHeaders(),
     })
@@ -254,7 +245,7 @@ class CRMApiService {
       ...(endDate && { end_date: endDate }),
     })
 
-    const response = await fetch(`${this.baseUrl}/analytics/dashboard?${params}`, {
+    const response = await fetchWithAuthInterceptor(`${this.baseUrl}/analytics/dashboard?${params}`, {
       method: 'GET',
       headers: this.getHeaders(),
     })
@@ -264,7 +255,7 @@ class CRMApiService {
 
   // Team Management
   async createTeam(teamData: Partial<Team>): Promise<Team> {
-    const response = await fetch(`${this.baseUrl}/teams`, {
+    const response = await fetchWithAuthInterceptor(`${this.baseUrl}/teams`, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(teamData),
@@ -274,7 +265,7 @@ class CRMApiService {
   }
 
   async getTeam(teamId: string): Promise<Team> {
-    const response = await fetch(`${this.baseUrl}/teams/${teamId}`, {
+    const response = await fetchWithAuthInterceptor(`${this.baseUrl}/teams/${teamId}`, {
       method: 'GET',
       headers: this.getHeaders(),
     })
@@ -283,7 +274,7 @@ class CRMApiService {
   }
 
   async updateTeam(teamId: string, updateData: Partial<Team>): Promise<Team> {
-    const response = await fetch(`${this.baseUrl}/teams/${teamId}`, {
+    const response = await fetchWithAuthInterceptor(`${this.baseUrl}/teams/${teamId}`, {
       method: 'PUT',
       headers: this.getHeaders(),
       body: JSON.stringify(updateData),
@@ -298,7 +289,7 @@ class CRMApiService {
     permissions: string[]
     message?: string
   }): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/teams/${teamId}/invite`, {
+    const response = await fetchWithAuthInterceptor(`${this.baseUrl}/teams/${teamId}/invite`, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(invitation),
@@ -308,7 +299,7 @@ class CRMApiService {
   }
 
   async acceptInvitation(invitationToken: string): Promise<Team> {
-    const response = await fetch(`${this.baseUrl}/teams/invitations/${invitationToken}/accept`, {
+    const response = await fetchWithAuthInterceptor(`${this.baseUrl}/teams/invitations/${invitationToken}/accept`, {
       method: 'POST',
       headers: this.getHeaders(),
     })
@@ -317,7 +308,7 @@ class CRMApiService {
   }
 
   async removeMember(teamId: string, memberId: string): Promise<{ success: boolean }> {
-    const response = await fetch(`${this.baseUrl}/teams/${teamId}/members/${memberId}`, {
+    const response = await fetchWithAuthInterceptor(`${this.baseUrl}/teams/${teamId}/members/${memberId}`, {
       method: 'DELETE',
       headers: this.getHeaders(),
     })
@@ -326,7 +317,7 @@ class CRMApiService {
   }
 
   async getTeamStats(teamId: string): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/teams/${teamId}/stats`, {
+    const response = await fetchWithAuthInterceptor(`${this.baseUrl}/teams/${teamId}/stats`, {
       method: 'GET',
       headers: this.getHeaders(),
     })
@@ -340,7 +331,7 @@ class CRMApiService {
       offset: offset.toString(),
     })
 
-    const response = await fetch(`${this.baseUrl}/teams/${teamId}/audit-logs?${params}`, {
+    const response = await fetchWithAuthInterceptor(`${this.baseUrl}/teams/${teamId}/audit-logs?${params}`, {
       method: 'GET',
       headers: this.getHeaders(),
     })

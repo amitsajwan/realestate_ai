@@ -1,7 +1,7 @@
 'use client'
 
-import React, { memo, useMemo } from 'react'
 import { motion } from 'framer-motion'
+import React, { memo, useMemo } from 'react'
 
 // Memoized Navigation Item
 interface NavItemProps {
@@ -12,15 +12,15 @@ interface NavItemProps {
   className?: string
 }
 
-export const NavItem = memo<NavItemProps>(({ 
-  href, 
-  label, 
-  isActive = false, 
+export const NavItem = memo<NavItemProps>(({
+  href,
+  label,
+  isActive = false,
   onClick,
-  className = '' 
+  className = ''
 }) => {
   return (
-    <a 
+    <a
       href={href}
       onClick={onClick}
       className={`${className} ${isActive ? 'font-bold' : ''}`}
@@ -41,12 +41,12 @@ interface StatCardProps {
   className?: string
 }
 
-export const StatCard = memo<StatCardProps>(({ 
-  icon: Icon, 
-  value, 
-  label, 
+export const StatCard = memo<StatCardProps>(({
+  icon: Icon,
+  value,
+  label,
   trend,
-  className = '' 
+  className = ''
 }) => {
   const trendColor = useMemo(() => {
     if (!trend) return ''
@@ -96,17 +96,21 @@ interface PropertyCardProps {
   className?: string
 }
 
-export const PropertyCard = memo<PropertyCardProps>(({ 
-  property, 
+export const PropertyCard = memo<PropertyCardProps>(({
+  property,
   onClick,
-  className = '' 
+  className = ''
 }) => {
   const formattedPrice = useMemo(() => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0
-    }).format(property.price)
+    if (property.price == null || property.price === 0) return 'Contact for price';
+
+    if (property.price >= 10000000) {
+      return `₹${(property.price / 10000000).toFixed(1)}Cr`;
+    } else if (property.price >= 100000) {
+      return `₹${(property.price / 100000).toFixed(0)}L`;
+    } else {
+      return `₹${property.price.toLocaleString()}`;
+    }
   }, [property.price])
 
   const handleClick = () => {
@@ -120,27 +124,27 @@ export const PropertyCard = memo<PropertyCardProps>(({
       onClick={handleClick}
     >
       {property.image ? (
-        <img 
-          src={property.image} 
+        <img
+          src={property.image}
           alt={property.title}
           className="w-full h-48 object-cover"
         />
       ) : (
         <div className="w-full h-48 bg-gray-200" />
       )}
-      
+
       <div className="p-4">
         <h3 className="text-lg font-semibold text-gray-900 mb-1">
           {property.title}
         </h3>
         <p className="text-sm text-gray-600 mb-3">{property.location}</p>
-        
+
         <div className="flex justify-between items-center mb-3">
           <span className="text-2xl font-bold text-blue-600">
             {formattedPrice}
           </span>
         </div>
-        
+
         <div className="flex items-center space-x-4 text-sm text-gray-500">
           <span>{property.bedrooms} beds</span>
           <span>•</span>
@@ -164,20 +168,20 @@ interface FilterButtonProps {
   className?: string
 }
 
-export const FilterButton = memo<FilterButtonProps>(({ 
-  label, 
-  isActive, 
-  onClick, 
+export const FilterButton = memo<FilterButtonProps>(({
+  label,
+  isActive,
+  onClick,
   count,
-  className = '' 
+  className = ''
 }) => {
   return (
     <button
       onClick={onClick}
       className={`
         px-4 py-2 rounded-full text-sm font-medium transition-colors
-        ${isActive 
-          ? 'bg-blue-600 text-white' 
+        ${isActive
+          ? 'bg-blue-600 text-white'
           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
         }
         ${className}
@@ -202,12 +206,12 @@ interface VirtualListProps<T> {
   className?: string
 }
 
-export function VirtualList<T>({ 
-  items, 
-  renderItem, 
-  itemHeight, 
+export function VirtualList<T>({
+  items,
+  renderItem,
+  itemHeight,
   containerHeight,
-  className = '' 
+  className = ''
 }: VirtualListProps<T>) {
   const [scrollTop, setScrollTop] = React.useState(0)
 

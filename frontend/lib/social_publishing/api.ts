@@ -5,6 +5,7 @@
  */
 
 import { authManager } from '@/lib/auth';
+import { fetchWithAuthInterceptor } from '../auth/interceptor';
 import {
     AIDraft,
     DraftsResponse,
@@ -76,7 +77,7 @@ class SocialPublishingAPI {
 
     async generateContent(request: GenerateContentRequest): Promise<GenerateContentResponse> {
         const snakeCaseRequest = this.camelToSnake(request);
-        const response = await fetch(`${this.baseUrl}/generate`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/generate`, {
             method: 'POST',
             headers: this.getHeaders(),
             body: JSON.stringify(snakeCaseRequest)
@@ -86,7 +87,7 @@ class SocialPublishingAPI {
 
     async updateDraft(draftId: string, request: UpdateDraftRequest): Promise<AIDraft> {
         const snakeCaseRequest = this.camelToSnake(request);
-        const response = await fetch(`${this.baseUrl}/draft/${draftId}`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/draft/${draftId}`, {
             method: 'PUT',
             headers: this.getHeaders(),
             body: JSON.stringify(snakeCaseRequest)
@@ -96,7 +97,7 @@ class SocialPublishingAPI {
 
     async markDraftsReady(request: MarkReadyRequest): Promise<{ message: string }> {
         const snakeCaseRequest = this.camelToSnake(request);
-        const response = await fetch(`${this.baseUrl}/mark-ready`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/mark-ready`, {
             method: 'POST',
             headers: this.getHeaders(),
             body: JSON.stringify(snakeCaseRequest)
@@ -106,7 +107,7 @@ class SocialPublishingAPI {
 
     async publishDrafts(request: PublishRequest): Promise<PublishResponse> {
         const snakeCaseRequest = this.camelToSnake(request);
-        const response = await fetch(`${this.baseUrl}/publish`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/publish`, {
             method: 'POST',
             headers: this.getHeaders(),
             body: JSON.stringify(snakeCaseRequest)
@@ -120,7 +121,7 @@ class SocialPublishingAPI {
             params.append('language', language);
         }
 
-        const response = await fetch(`${this.baseUrl}/drafts?${params}`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/drafts?${params}`, {
             method: 'GET',
             headers: this.getHeaders()
         });
@@ -128,7 +129,7 @@ class SocialPublishingAPI {
     }
 
     async getPublishedPosts(propertyId: string): Promise<{ posts: any[] }> {
-        const response = await fetch(`${this.baseUrl}/posts/${propertyId}`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/posts/${propertyId}`, {
             method: 'GET',
             headers: this.getHeaders()
         });

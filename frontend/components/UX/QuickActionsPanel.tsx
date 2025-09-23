@@ -1,22 +1,23 @@
 "use client";
 
-import React, { useState } from 'react';
-import { 
-  PlusIcon, 
-  DocumentTextIcon, 
-  ChartBarIcon, 
-  CogIcon,
-  XMarkIcon,
-  SparklesIcon,
+import {
   BuildingOfficeIcon,
-  UsersIcon
+  ChartBarIcon,
+  CogIcon,
+  DocumentTextIcon,
+  PlusIcon,
+  SparklesIcon,
+  UsersIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
+import React, { useState } from 'react';
 
 interface QuickAction {
   id: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  section?: string;
   href?: string;
   onClick?: () => void;
   color: string;
@@ -25,10 +26,12 @@ interface QuickAction {
 
 interface QuickActionsPanelProps {
   onActionClick?: (actionId: string) => void;
+  onNavigate?: (section: string) => void;
 }
 
-export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({ 
-  onActionClick 
+export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
+  onActionClick,
+  onNavigate
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -37,7 +40,7 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
       id: 'add-property',
       label: 'Add Property',
       icon: BuildingOfficeIcon,
-      href: '/dashboard?section=property-form',
+      section: 'property-form',
       color: 'bg-blue-500',
       description: 'Create a new property listing'
     },
@@ -45,7 +48,7 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
       id: 'create-post',
       label: 'Create Post',
       icon: DocumentTextIcon,
-      href: '/dashboard?section=ai-content',
+      section: 'posts',
       color: 'bg-green-500',
       description: 'Generate AI content for social media'
     },
@@ -53,7 +56,7 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
       id: 'view-analytics',
       label: 'Analytics',
       icon: ChartBarIcon,
-      href: '/dashboard?section=analytics',
+      section: 'analytics',
       color: 'bg-purple-500',
       description: 'View performance metrics'
     },
@@ -61,7 +64,7 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
       id: 'manage-team',
       label: 'Team',
       icon: UsersIcon,
-      href: '/dashboard?section=team-management',
+      section: 'team-management',
       color: 'bg-orange-500',
       description: 'Manage team members'
     },
@@ -69,7 +72,7 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
       id: 'ai-tools',
       label: 'AI Tools',
       icon: SparklesIcon,
-      href: '/dashboard?section=ai-content',
+      section: 'ai-content',
       color: 'bg-indigo-500',
       description: 'Access AI-powered features'
     },
@@ -77,7 +80,7 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
       id: 'settings',
       label: 'Settings',
       icon: CogIcon,
-      href: '/dashboard?section=profile',
+      section: 'profile',
       color: 'bg-gray-500',
       description: 'Configure your preferences'
     }
@@ -86,14 +89,16 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
   const handleActionClick = (action: QuickAction) => {
     if (action.onClick) {
       action.onClick();
+    } else if (action.section && onNavigate) {
+      onNavigate(action.section);
     } else if (action.href) {
       window.location.href = action.href;
     }
-    
+
     if (onActionClick) {
       onActionClick(action.id);
     }
-    
+
     setIsOpen(false);
   };
 
@@ -102,9 +107,8 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
       {/* Floating Action Button */}
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white transition-all duration-200 ${
-          isOpen ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-600 hover:bg-blue-700'
-        }`}
+        className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white transition-all duration-200 ${isOpen ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-600 hover:bg-blue-700'
+          }`}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         aria-label={isOpen ? 'Close quick actions' : 'Open quick actions'}

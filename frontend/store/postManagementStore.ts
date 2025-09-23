@@ -32,7 +32,25 @@ export const usePostManagementStore = create<PostManagementState>((set, get) => 
         set({ loading: true, error: null });
         try {
             const posts = await api.enhancedPosts.get(filters);
-            set({ posts, loading: false });
+
+            // Filter out sample/demo posts during development
+            const samplePostTitles = [
+                'WEEKEND OPEN HOUSES',
+                'SOLD ABOVE ASKING',
+                'INVESTMENT OPPORTUNITY',
+                'COMING SOON',
+                'HOT MARKET UPDATE',
+                'PRICE REDUCTION',
+                'JUST LISTED'
+            ];
+
+            const filteredPosts = posts.filter(post =>
+                !samplePostTitles.some(sample =>
+                    post.title.includes(sample)
+                )
+            );
+
+            set({ posts: filteredPosts, loading: false });
         } catch (error: any) {
             set({ error: error.message || 'Failed to fetch posts', loading: false });
             throw error;

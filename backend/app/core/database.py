@@ -57,4 +57,6 @@ async def close_database():
 
 def get_database():
     """Get database instance"""
+    if database is None:
+        raise RuntimeError("Database not initialized. Make sure to call init_database() first.")
     return database

@@ -332,7 +332,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
       brand_inspiration: formData.brandInspiration
     });
 
-    const suggestions = await brandingOperation.execute(
+    const response = await brandingOperation.execute(
       () => apiService.getBrandingSuggestions({
         company_name: formData.company,
         agent_name: `${formData.first_name} ${formData.last_name}`.trim(),
@@ -340,9 +340,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
         business_type: formData.businessType || 'Residential',
         target_audience: formData.targetAudience || 'General clients',
         brand_style: formData.brandStyle,
-        brand_personality: formData.brandPersonality,
-        brand_keywords: formData.brandKeywords,
-        brand_inspiration: formData.brandInspiration
+        brand_tone: formData.aiTone,
+        additionalContext: formData.brandKeywords
       }),
       {
         successMessage: 'Branding suggestions generated successfully!',
@@ -350,41 +349,51 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
       }
     )
 
-    if (suggestions && suggestions.length > 0) {
-      console.log('[Onboarding] Received branding suggestions:', suggestions);
+    if (response?.suggestions && response.suggestions.length > 0) {
+      console.log('[Onboarding] Received branding response:', response);
 
-      // Transform API response to match formData structure
-      const suggestion = suggestions[0] // Use first suggestion
-      console.log('[Onboarding] Raw suggestion data:', suggestion);
+      // Store all suggestions for selection
+      setBrandingSuggestions(response.suggestions)
+      setSelectedBranding(response.selectedIndex || 0)
 
+      // Transform the selected suggestion for formData
+      const selectedSuggestion = response.suggestions[response.selectedIndex || 0]
       const transformedSuggestion = {
-        tagline: suggestion.tagline || `${formData.company} - Professional Real Estate Services`,
-        about: suggestion.about || `Welcome to ${formData.company}, your trusted partner in real estate. We specialize in helping you find your dream home with personalized service and expert guidance.`,
+        tagline: selectedSuggestion.tagline || `${formData.company} - Professional Real Estate Services`,
+        about: selectedSuggestion.about || `Welcome to ${formData.company}, your trusted partner in real estate. We specialize in helping you find your dream home with personalized service and expert guidance.`,
         colors: {
-          primary: suggestion.colorPalette?.primary || suggestion.primaryColor || '#3b82f6',
-          secondary: suggestion.colorPalette?.secondary || suggestion.secondaryColor || '#64748b',
-          accent: suggestion.colorPalette?.accent || '#10b981'
+          primary: selectedSuggestion.colorPalette?.primary || selectedSuggestion.primaryColor || '#3b82f6',
+          secondary: selectedSuggestion.colorPalette?.secondary || selectedSuggestion.secondaryColor || '#64748b',
+          accent: selectedSuggestion.colorPalette?.accent || '#10b981'
         }
       }
 
-      console.log('[Onboarding] Transformed suggestion:', transformedSuggestion);
-
-      // Update suggestions state first
-      setBrandingSuggestions(suggestions) // Keep original API response for reference
-
-      // Update form data with branding suggestions
       setFormData(prev => ({
         ...prev,
         brandingSuggestions: transformedSuggestion
       }));
+    }
+  }
 
-      // Force a re-render to ensure UI updates
-      setTimeout(() => {
-        setFormData(prev => ({
-          ...prev,
-          brandingSuggestions: transformedSuggestion
-        }));
-      }, 50);
+  const handleSelectBranding = (index: number) => {
+    if (brandingSuggestions[index]) {
+      setSelectedBranding(index)
+      const selectedSuggestion = brandingSuggestions[index]
+
+      const transformedSuggestion = {
+        tagline: selectedSuggestion.tagline || `${formData.company} - Professional Real Estate Services`,
+        about: selectedSuggestion.about || `Welcome to ${formData.company}, your trusted partner in real estate. We specialize in helping you find your dream home with personalized service and expert guidance.`,
+        colors: {
+          primary: selectedSuggestion.colorPalette?.primary || selectedSuggestion.primaryColor || '#3b82f6',
+          secondary: selectedSuggestion.colorPalette?.secondary || selectedSuggestion.secondaryColor || '#64748b',
+          accent: selectedSuggestion.colorPalette?.accent || '#10b981'
+        }
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        brandingSuggestions: transformedSuggestion
+      }));
     }
   }
 
@@ -636,107 +645,320 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                 </div>
               </div>
 
-              <div className="text-center">
-                <LoadingButton
-                  onClick={handleGenerateBranding}
-                  isLoading={brandingOperation.isLoading}
-                  disabled={!formData.company || !formData.businessType || !formData.targetAudience}
-                  className="btn-primary"
-                >
-                  {formData.brandingSuggestions ? 'Regenerate Branding' : 'Generate Branding'}
-                </LoadingButton>
-                {(!formData.company || !formData.businessType || !formData.targetAudience) && (
-                  <p className="text-sm text-orange-600 mt-2">
-                    Please complete the company information in the previous step
+              <div className="text-center py-8">
+                <div className="max-w-md mx-auto">
+                  <SparklesIcon className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">AI-Powered Branding</h3>
+                  <p className="text-gray-600 mb-6">
+                    Let our AI create personalized branding suggestions for your real estate business, including colors,
+                    fonts, taglines, and content that matches your style and target audience.
                   </p>
-                )}
-                {/* Debug info */}
-                <div className="mt-4 p-2 bg-gray-100 rounded text-xs text-gray-600">
-                  Debug: Has branding suggestions: {formData.brandingSuggestions ? 'Yes' : 'No'}
-                  <br />
-                  Branding suggestions count: {brandingSuggestions.length}
+
+                  {(!formData.company || !formData.businessType || !formData.targetAudience) ? (
+                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg mb-4">
+                      <p className="text-sm text-orange-700 mb-2">
+                        <strong>Complete these steps first:</strong>
+                      </p>
+                      <ul className="text-sm text-orange-600 text-left list-disc list-inside space-y-1">
+                        {!formData.company && <li>Add your company name</li>}
+                        {!formData.businessType && <li>Select your business type</li>}
+                        {!formData.targetAudience && <li>Define your target audience</li>}
+                      </ul>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg mb-4">
+                      <p className="text-sm text-green-700">
+                        ✓ Ready to generate branding for <strong>{formData.company}</strong> targeting <strong>{formData.targetAudience}</strong>
+                      </p>
+                    </div>
+                  )}
+
+                  <LoadingButton
+                    onClick={handleGenerateBranding}
+                    isLoading={brandingOperation.isLoading}
+                    disabled={!formData.company || !formData.businessType || !formData.targetAudience}
+                    className="btn-primary px-8 py-3"
+                  >
+                    {brandingOperation.isLoading ? (
+                      <span className="flex items-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Generating branding ideas...
+                      </span>
+                    ) : (
+                      <span className="flex items-center">
+                        <SparklesIcon className="w-4 h-4 mr-2" />
+                        {brandingSuggestions.length > 0 ? 'Generate New Ideas' : 'Generate Branding'}
+                      </span>
+                    )}
+                  </LoadingButton>
+
+                  {brandingOperation.error && (
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-700">
+                        <strong>Error:</strong> {brandingOperation.error.message || 'Failed to generate branding suggestions'}
+                      </p>
+                      <button
+                        onClick={handleGenerateBranding}
+                        className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
+                      >
+                        Try again
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* AI Branding Suggestions */}
-            {formData.brandingSuggestions && (
-              <div key={`branding-${Date.now()}`} className="bg-white p-6 rounded-lg border border-gray-200">
+            {brandingSuggestions.length > 0 && (
+              <div className="bg-white p-6 rounded-lg border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                   <SparklesIcon className="w-5 h-5 mr-2 text-green-600" />
-                  Generated Branding Suggestions
+                  Choose Your Brand Style ({brandingSuggestions.length} Options)
                 </h3>
-                {/* Debug info - remove in production */}
-                <div className="mb-4 p-2 bg-gray-100 rounded text-xs text-gray-600">
-                  Debug: Branding suggestions loaded: {JSON.stringify(formData.brandingSuggestions, null, 2)}
+
+                {/* Branding Options Selector */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  {brandingSuggestions.map((suggestion, index) => (
+                    <div
+                      key={index}
+                      onClick={() => handleSelectBranding(index)}
+                      className={`cursor-pointer p-4 rounded-lg border-2 transition-all duration-200 ${selectedBranding === index
+                          ? 'border-blue-500 bg-blue-50 shadow-md'
+                          : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                        }`}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-gray-800">{suggestion.designStyle}</h4>
+                        {selectedBranding === index && (
+                          <CheckIcon className="w-5 h-5 text-blue-600" />
+                        )}
+                      </div>
+
+                      {/* Color Palette Preview */}
+                      <div className="flex space-x-2 mb-3">
+                        <div
+                          className="w-8 h-8 rounded-full border-2 border-white shadow-sm"
+                          style={{ backgroundColor: suggestion.colorPalette?.primary || suggestion.primaryColor }}
+                          title="Primary"
+                        />
+                        <div
+                          className="w-8 h-8 rounded-full border-2 border-white shadow-sm"
+                          style={{ backgroundColor: suggestion.colorPalette?.secondary || suggestion.secondaryColor }}
+                          title="Secondary"
+                        />
+                        <div
+                          className="w-8 h-8 rounded-full border-2 border-white shadow-sm"
+                          style={{ backgroundColor: suggestion.colorPalette?.accent || '#10b981' }}
+                          title="Accent"
+                        />
+                      </div>
+
+                      {/* Brand Personality */}
+                      <p className="text-sm text-gray-600 mb-2">{suggestion.brandPersonality}</p>
+                      <p className="text-xs text-gray-500">{suggestion.fontFamily}</p>
+                    </div>
+                  ))}
                 </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Suggested Tagline
-                    </label>
-                    <div className="p-3 bg-gray-50 rounded border">
-                      <p className="text-gray-800 font-medium">{formData.brandingSuggestions.tagline}</p>
+                {/* Selected Branding Details */}
+                {selectedBranding !== null && brandingSuggestions[selectedBranding] && (
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200 mb-4">
+                    <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                      <SparklesIcon className="w-5 h-5 mr-2 text-blue-600" />
+                      {brandingSuggestions[selectedBranding].designStyle} Style Preview
+                    </h4>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Left Column - Content */}
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Tagline</label>
+                          <div className="p-3 bg-white rounded border border-gray-200">
+                            <p className="text-gray-800 font-medium">{brandingSuggestions[selectedBranding].tagline}</p>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">About Section</label>
+                          <div className="p-3 bg-white rounded border border-gray-200 max-h-32 overflow-y-auto">
+                            <p className="text-gray-700 text-sm leading-relaxed">{brandingSuggestions[selectedBranding].about}</p>
+                          </div>
+                        </div>
+
+                        {/* Logo Ideas */}
+                        {brandingSuggestions[selectedBranding].logoIdeas && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Logo Concepts</label>
+                            <div className="space-y-2">
+                              {brandingSuggestions[selectedBranding].logoIdeas.map((idea, idx) => (
+                                <div key={idx} className="p-2 bg-white rounded border border-gray-200">
+                                  <p className="text-sm text-gray-700">{idea}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right Column - Visual Elements */}
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Color Palette</label>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="text-center">
+                              <div
+                                className="w-16 h-16 rounded-lg border-2 border-white shadow-md mx-auto mb-2"
+                                style={{ backgroundColor: brandingSuggestions[selectedBranding].colorPalette?.primary || brandingSuggestions[selectedBranding].primaryColor }}
+                              />
+                              <span className="text-xs text-gray-600 font-medium">Primary</span>
+                              <p className="text-xs text-gray-500">{brandingSuggestions[selectedBranding].colorPalette?.primary || brandingSuggestions[selectedBranding].primaryColor}</p>
+                            </div>
+                            <div className="text-center">
+                              <div
+                                className="w-16 h-16 rounded-lg border-2 border-white shadow-md mx-auto mb-2"
+                                style={{ backgroundColor: brandingSuggestions[selectedBranding].colorPalette?.secondary || brandingSuggestions[selectedBranding].secondaryColor }}
+                              />
+                              <span className="text-xs text-gray-600 font-medium">Secondary</span>
+                              <p className="text-xs text-gray-500">{brandingSuggestions[selectedBranding].colorPalette?.secondary || brandingSuggestions[selectedBranding].secondaryColor}</p>
+                            </div>
+                            <div className="text-center">
+                              <div
+                                className="w-16 h-16 rounded-lg border-2 border-white shadow-md mx-auto mb-2"
+                                style={{ backgroundColor: brandingSuggestions[selectedBranding].colorPalette?.accent || '#10b981' }}
+                              />
+                              <span className="text-xs text-gray-600 font-medium">Accent</span>
+                              <p className="text-xs text-gray-500">{brandingSuggestions[selectedBranding].colorPalette?.accent || '#10b981'}</p>
+                            </div>
+                            <div className="text-center">
+                              <div
+                                className="w-16 h-16 rounded-lg border-2 border-white shadow-md mx-auto mb-2"
+                                style={{ backgroundColor: brandingSuggestions[selectedBranding].colorPalette?.neutral || '#f7fafc' }}
+                              />
+                              <span className="text-xs text-gray-600 font-medium">Neutral</span>
+                              <p className="text-xs text-gray-500">{brandingSuggestions[selectedBranding].colorPalette?.neutral || '#f7fafc'}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Typography</label>
+                          <div className="p-4 bg-white rounded border border-gray-200">
+                            <div className="space-y-2">
+                              <div style={{ fontFamily: brandingSuggestions[selectedBranding].fontFamily }}>
+                                <p className="text-lg font-bold text-gray-800">Heading Sample</p>
+                                <p className="text-sm text-gray-600">Body text in {brandingSuggestions[selectedBranding].fontFamily}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Brand Voice</label>
+                          <div className="p-3 bg-white rounded border border-gray-200">
+                            <p className="text-sm text-gray-700">{brandingSuggestions[selectedBranding].brandVoice}</p>
+                            <p className="text-xs text-gray-500 mt-1">{brandingSuggestions[selectedBranding].targetMessage}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Website Preview */}
+                    <div className="mt-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-3">Website Preview</label>
+                      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                        {/* Mock Website Header */}
+                        <div
+                          className="p-4 text-white"
+                          style={{
+                            backgroundColor: brandingSuggestions[selectedBranding].colorPalette?.primary || brandingSuggestions[selectedBranding].primaryColor,
+                            fontFamily: brandingSuggestions[selectedBranding].fontFamily
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h2 className="text-xl font-bold">{formData.company}</h2>
+                              <p className="text-sm opacity-90">{brandingSuggestions[selectedBranding].tagline}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm">{formData.first_name} {formData.last_name}</p>
+                              <p className="text-xs opacity-75">{formData.position || 'Real Estate Agent'}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Mock Website Content */}
+                        <div className="p-4 bg-gray-50">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="md:col-span-2">
+                              <h3
+                                className="font-semibold mb-2 text-gray-800"
+                                style={{ fontFamily: brandingSuggestions[selectedBranding].fontFamily }}
+                              >
+                                About {formData.company}
+                              </h3>
+                              <p className="text-sm text-gray-600 leading-relaxed">
+                                {brandingSuggestions[selectedBranding].about?.substring(0, 150)}...
+                              </p>
+                              <button
+                                className="mt-3 px-4 py-2 text-white text-sm rounded font-medium"
+                                style={{ backgroundColor: brandingSuggestions[selectedBranding].colorPalette?.secondary || brandingSuggestions[selectedBranding].secondaryColor }}
+                              >
+                                Contact Us
+                              </button>
+                            </div>
+                            <div className="bg-white p-3 rounded border">
+                              <h4
+                                className="font-medium mb-2 text-gray-800"
+                                style={{
+                                  color: brandingSuggestions[selectedBranding].colorPalette?.primary || brandingSuggestions[selectedBranding].primaryColor,
+                                  fontFamily: brandingSuggestions[selectedBranding].fontFamily
+                                }}
+                              >
+                                Featured Property
+                              </h4>
+                              <div className="h-20 bg-gray-200 rounded mb-2"></div>
+                              <p className="text-xs text-gray-600">Beautiful 3BR home...</p>
+                              <div
+                                className="mt-2 text-xs font-medium"
+                                style={{ color: brandingSuggestions[selectedBranding].colorPalette?.accent || '#10b981' }}
+                              >
+                                $450,000
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Reasoning */}
+                    <div className="mt-4 p-3 bg-blue-100 rounded border border-blue-200">
+                      <p className="text-sm text-blue-800">
+                        <strong>Why this style:</strong> {brandingSuggestions[selectedBranding].reasoning}
+                      </p>
                     </div>
                   </div>
+                )}
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      About Description
-                    </label>
-                    <div className="p-3 bg-gray-50 rounded border">
-                      <p className="text-gray-700">{formData.brandingSuggestions.about}</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Brand Colors
-                    </label>
-                    <div className="flex space-x-4">
-                      <div className="text-center">
-                        <div
-                          className="w-12 h-12 rounded-full border-2 border-gray-300 mx-auto mb-1"
-                          style={{ backgroundColor: formData.brandingSuggestions.colors.primary }}
-                        ></div>
-                        <span className="text-xs text-gray-600">Primary</span>
-                        <p className="text-xs text-gray-500 mt-1">{formData.brandingSuggestions.colors.primary}</p>
-                      </div>
-                      <div className="text-center">
-                        <div
-                          className="w-12 h-12 rounded-full border-2 border-gray-300 mx-auto mb-1"
-                          style={{ backgroundColor: formData.brandingSuggestions.colors.secondary }}
-                        ></div>
-                        <span className="text-xs text-gray-600">Secondary</span>
-                        <p className="text-xs text-gray-500 mt-1">{formData.brandingSuggestions.colors.secondary}</p>
-                      </div>
-                      <div className="text-center">
-                        <div
-                          className="w-12 h-12 rounded-full border-2 border-gray-300 mx-auto mb-1"
-                          style={{ backgroundColor: formData.brandingSuggestions.colors.accent }}
-                        ></div>
-                        <span className="text-xs text-gray-600">Accent</span>
-                        <p className="text-xs text-gray-500 mt-1">{formData.brandingSuggestions.colors.accent}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex space-x-3">
-                    <LoadingButton
-                      onClick={handleGenerateBranding}
-                      isLoading={brandingOperation.isLoading}
-                      className="btn-outline flex-1"
-                    >
-                      Regenerate
-                    </LoadingButton>
-                    <button
-                      onClick={handleApplyBranding}
-                      className="btn-brand flex-1"
-                    >
-                      Apply Branding
-                    </button>
-                  </div>
+                {/* Action Buttons */}
+                <div className="flex space-x-3">
+                  <LoadingButton
+                    onClick={handleGenerateBranding}
+                    isLoading={brandingOperation.isLoading}
+                    className="btn-outline flex-1"
+                  >
+                    Generate New Options
+                  </LoadingButton>
+                  <button
+                    onClick={handleApplyBranding}
+                    disabled={selectedBranding === null}
+                    className="btn-brand flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Apply Selected Style
+                  </button>
                 </div>
               </div>
             )}

@@ -39,3 +39,18 @@ class PropertyNotFoundError(CRMException):
 class DatabaseError(CRMException):
     def __init__(self, message: str = "Database operation failed"):
         super().__init__(message, "DATABASE_ERROR")
+
+class ContentNotFoundError(CRMException):
+    def __init__(self, content_id: str = None):
+        message = f"Content not found" if not content_id else f"Content {content_id} not found"
+        super().__init__(message, "CONTENT_NOT_FOUND")
+
+class PublishingLogNotFoundError(CRMException):
+    def __init__(self, log_id: str = None):
+        message = f"Publishing log not found" if not log_id else f"Publishing log {log_id} not found"
+        super().__init__(message, "PUBLISHING_LOG_NOT_FOUND")
+
+class AnalyticsDataNotFoundError(CRMException):
+    def __init__(self, data_id: str = None):
+        message = f"Analytics data not found" if not data_id else f"Analytics data {data_id} not found"
+        super().__init__(message, "ANALYTICS_DATA_NOT_FOUND")
