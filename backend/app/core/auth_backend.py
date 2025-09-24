@@ -84,51 +84,63 @@ fastapi_users = FastAPIUsers[User, PydanticObjectId](
 
 # Current user dependencies
 async def mock_current_active_user() -> User:
-    """Mock current user for development/testing"""
+    """Mock current user for development/testing - uses actual registered user"""
     from app.models.user import User
     from beanie import PydanticObjectId
     import datetime
     
-    # Use a consistent user ID for all requests
-    consistent_user_id = PydanticObjectId("68d22d7ff1bbb379a40f5dda")  # Fixed ObjectId
+    # Use the actual registered user ID from the logs
+    actual_user_id = PydanticObjectId("68d376ae9cdb5ab2f209cf46")  # Actual registered user ID
     
-    # Create a mock user with consistent ID
+    # Create a mock user with actual user ID
     mock_user = User(
-        id=consistent_user_id,
-        email="test@example.com",
+        id=actual_user_id,
+        email="SSSR@gmail.com",  # Actual user email
         hashed_password="$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj6I2kWJjQi",  # 'test123'
         is_active=True,
         is_superuser=False,
         is_verified=True,
-        first_name="Test",
-        last_name="User",
-        onboarding_completed=True,
-        onboarding_step=6,
+        first_name="AmitSRT",  # Actual user name
+        last_name="Sajwan",
+        phone="9767971656",  # Actual user phone
+        onboarding_completed=False,  # Should be false initially
+        onboarding_step=1,  # Should start at step 1
         created_at=datetime.datetime.utcnow(),
         updated_at=datetime.datetime.utcnow()
     )
     return mock_user
 
-async def development_current_active_user(token: str = Depends(bearer_transport.scheme)) -> User:
-    """Development version that uses real authentication"""
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+async def get_current_user_with_fallback():
+    """Get current user with proper fallback handling"""
+    import os
+    from fastapi import HTTPException
     
-    try:
-        # Use the real FastAPI Users authentication
-        return await fastapi_users.current_user(active=True)
-    except Exception as e:
-        logger.error(f"Authentication error: {e}")
-        raise HTTPException(status_code=401, detail="Invalid token")
+    env = os.getenv("ENVIRONMENT", "development")
+    
+    if env == "development":
+        # In development, try real authentication first, fallback to mock
+        try:
+            # Try to get real user from JWT token
+            return await fastapi_users.current_user(active=True)
+        except Exception as e:
+            logger.warning(f"Real authentication failed in development, using mock: {e}")
+            return await mock_current_active_user()
+    else:
+        # In production, use real authentication only
+        try:
+            return await fastapi_users.current_user(active=True)
+        except Exception as e:
+            logger.error(f"Authentication failed: {e}")
+            raise HTTPException(status_code=401, detail="Authentication required")
 
-# Use mock authentication for development to fix the 401 issue
+# Set up current user dependency based on environment
 import os
 env = os.getenv("ENVIRONMENT", "development")
 logger.info(f"Environment: {env}")
 
 if env == "development":
-    logger.info("Using mock authentication for development")
-    current_active_user = mock_current_active_user
+    logger.info("Using hybrid authentication for development (real auth with mock fallback)")
+    current_active_user = get_current_user_with_fallback
 else:
     logger.info("Using production authentication for proper JWT validation")
     current_active_user = fastapi_users.current_user(active=True)

@@ -41,11 +41,6 @@ def get_unified_property_service() -> UnifiedPropertyService:
     """Get unified property service instance"""
     try:
         db = get_database()
-        if db is None:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Database service is not available"
-            )
         return UnifiedPropertyService(db)
     except RuntimeError as e:
         logger.error(f"Database connection error: {e}")

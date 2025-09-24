@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional
 from app.schemas.content_library import ContentItem, ContentItemCreate, ContentItemUpdate, ContentItemResponse
 from app.services.content_library_service import ContentLibraryService
+from app.services.unified_content_service import UnifiedContentService
 from app.core.database import get_database
 from app.models.user import User
 from app.core.auth_backend import current_active_user
@@ -21,23 +22,28 @@ def get_content_library_service(db: AsyncIOMotorDatabase = Depends(get_database)
     """Get content library service instance"""
     return ContentLibraryService(db)
 
-@router.get("/", response_model=List[ContentItemResponse])
+def get_unified_content_service(db: AsyncIOMotorDatabase = Depends(get_database)) -> UnifiedContentService:
+    """Get unified content service instance"""
+    return UnifiedContentService(db)
+
+@router.get("/")
 async def get_content_items(
     property_id: Optional[str] = None,
     content_type: Optional[str] = None,
     status: Optional[str] = None,
     current_user: User = Depends(current_active_user),
-    service: ContentLibraryService = Depends(get_content_library_service)
+    service: UnifiedContentService = Depends(get_unified_content_service)
 ):
-    """Get content items with optional filtering - only returns user's own content"""
+    """Get unified content items with optional filtering - includes both content library and social drafts"""
     try:
-        # Always filter by current user to ensure agents only see their own content
-        return await service.get_content_items(
+        # Get unified content items (content library + social drafts)
+        unified_items = await service.get_unified_content_items(
+            user_id=str(current_user.id),
             property_id=property_id, 
             content_type=content_type, 
-            status=status,
-            user_id=str(current_user.id)
+            status=status
         )
+        return unified_items
     except Exception as e:
         logger.error(f"Error getting content items: {e}")
         raise HTTPException(status_code=500, detail="Failed to get content items")
@@ -80,3 +86,36 @@ async def delete_content_item(
     except Exception as e:
         logger.error(f"Error deleting content item: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete content item")
+
+@router.post("/publish-drafts")
+async def publish_drafts(
+    draft_ids: List[str],
+    current_user: User = Depends(current_active_user),
+    service: UnifiedContentService = Depends(get_unified_content_service)
+):
+    """Publish drafts from content library"""
+    try:
+        result = await service.publish_drafts_from_content_library(
+            draft_ids=draft_ids,
+            user_id=str(current_user.id)
+        )
+        
+        logger.info(f"Published {result.published_count} drafts successfully")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error publishing drafts: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to publish drafts: {str(e)}")
+
+@router.get("/stats")
+async def get_content_stats(
+    current_user: User = Depends(current_active_user),
+    service: UnifiedContentService = Depends(get_unified_content_service)
+):
+    """Get unified content statistics"""
+    try:
+        stats = await service.get_content_stats(str(current_user.id))
+        return stats
+    except Exception as e:
+        logger.error(f"Error getting content stats: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get content stats")

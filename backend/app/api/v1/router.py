@@ -32,6 +32,8 @@ from app.api.v1.endpoints.content_library import router as content_library_route
 from app.api.v1.endpoints.publishing_logs import router as publishing_logs_router
 from app.api.v1.endpoints.analytics_data import router as analytics_data_router
 from app.api.v1.endpoints.ai_content_generation import router as ai_content_generation_router
+from app.api.v1.endpoints.unified_ai_content import router as unified_ai_content_router
+from app.api.v1.endpoints.quick_posts import router as quick_posts_router
 from app.routers.agents import router as agents_router
 from app.routers.crm import router as crm_router
 
@@ -65,6 +67,8 @@ api_router.include_router(content_library_router, prefix="/content", tags=["cont
 api_router.include_router(publishing_logs_router, prefix="/publishing-logs", tags=["publishing-logs"])
 api_router.include_router(analytics_data_router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(ai_content_generation_router, prefix="/ai-content", tags=["ai-content-generation"])
+api_router.include_router(unified_ai_content_router, prefix="/unified-ai", tags=["unified-ai-content"])
+api_router.include_router(quick_posts_router, prefix="/quick-posts", tags=["quick-posts"])
 api_router.include_router(agents_router, prefix="/agent", tags=["agents"])
 api_router.include_router(crm_router, prefix="/crm", tags=["crm"])
 

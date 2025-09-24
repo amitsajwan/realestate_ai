@@ -302,7 +302,7 @@ class AgentPublicService:
         try:
             print(f"DEBUG: Looking up agent profile for ID: {agent_id}")
             agents_collection = self.db.get_collection("agent_public_profiles")
-            agent_doc = await agents_collection.find_one({"_id": agent_id})
+            agent_doc = await agents_collection.find_one({"agent_id": agent_id})
             print(f"DEBUG: Database lookup result for ID: {agent_doc is not None}")
             
             if agent_doc:
@@ -587,6 +587,38 @@ class AgentPublicService:
             social_posts_cursor = social_posts_collection.find(social_posts_query).sort("published_at", -1).skip(skip).limit(limit)
             social_posts = await social_posts_cursor.to_list(length=limit)
             logger.info(f"DEBUG: Found {len(social_posts)} social posts with primary agent_id")
+            
+            # Also check for published social drafts (since our system creates drafts that get published)
+            if status == "published":
+                social_drafts_collection = self.db.social_drafts
+                drafts_query = {
+                    "agent_id": agent_id,
+                    "status": "published"
+                }
+                logger.info(f"DEBUG: Social drafts query: {drafts_query}")
+                
+                drafts_cursor = social_drafts_collection.find(drafts_query).sort("published_at", -1).skip(skip).limit(limit)
+                published_drafts = await drafts_cursor.to_list(length=limit)
+                logger.info(f"DEBUG: Found {len(published_drafts)} published social drafts")
+                
+                # Add published drafts to the result
+                for draft in published_drafts:
+                    result.append({
+                        "id": str(draft.get("_id", "")),
+                        "property_id": str(draft.get("property_id", "")),
+                        "title": draft.get("title", "Social Media Post"),
+                        "content": draft.get("body", "Published social media content"),
+                        "status": "published",
+                        "created_at": str(draft.get("created_at", "")),
+                        "published_at": str(draft.get("published_at", "")),
+                        "media_urls": draft.get("media_ids", []),
+                        "channels": [draft.get("channel", "website")],
+                        "property_title": draft.get("title", ""),
+                        "language": draft.get("language", "en"),
+                        "platform": draft.get("channel", "website"),
+                        "platform_post_id": draft.get("platform_post_id", ""),
+                        "platform_post_url": draft.get("platform_post_url", "")
+                    })
             
             # If no posts found with primary agent_id, try with user_id as agent_id
             if len(social_posts) == 0:

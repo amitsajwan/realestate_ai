@@ -4,7 +4,7 @@ User Model for FastAPI Users 13.0.0
 Following the official FastAPI Users documentation
 """
 
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from beanie import Document, PydanticObjectId
 from fastapi_users import schemas
@@ -28,6 +28,27 @@ class User(Document):
     last_name: Optional[str] = None
     phone: Optional[str] = None
     company: Optional[str] = None
+    
+    # Professional details from onboarding
+    position: Optional[str] = None
+    license_number: Optional[str] = None
+    business_type: Optional[str] = None
+    target_audience: Optional[str] = None
+    
+    # AI preferences from onboarding
+    ai_style: Optional[str] = None
+    ai_tone: Optional[str] = None
+    
+    # Branding information from onboarding
+    brand_style: Optional[str] = None
+    brand_personality: Optional[str] = None
+    brand_keywords: Optional[str] = None
+    brand_inspiration: Optional[str] = None
+    
+    # Social media and preferences
+    facebook_page: Optional[str] = None
+    preferences: Optional[List[str]] = []
+    profile_photo: Optional[str] = None
     
     # Onboarding fields
     onboarding_completed: bool = False

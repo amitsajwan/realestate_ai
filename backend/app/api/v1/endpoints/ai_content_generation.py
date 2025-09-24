@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from app.models.user import User
 from app.core.auth_backend import current_active_user
 from app.core.database import get_database
-from app.services.ai_content_service import AIContentService
+from app.services.unified_ai_content_service import UnifiedAIContentService, ContentChannel, ContentTone, ContentLength
 from app.services.content_library_service import ContentLibraryService
 from app.services.unified_property_service import UnifiedPropertyService
 from app.schemas.content_library import ContentItemCreate, ContentType, ContentStatus, PublishingChannel
@@ -39,9 +39,9 @@ class AIContentGenerationResponse(BaseModel):
     generated_at: datetime
     metadata: Dict[str, Any] = {}
 
-def get_ai_content_service() -> AIContentService:
-    """Get AI content service instance"""
-    return AIContentService()
+def get_ai_content_service(db: AsyncIOMotorDatabase = Depends(get_database)) -> UnifiedAIContentService:
+    """Get unified AI content service instance"""
+    return UnifiedAIContentService(db)
 
 def get_content_library_service(db: AsyncIOMotorDatabase = Depends(get_database)) -> ContentLibraryService:
     """Get content library service instance"""
@@ -55,7 +55,7 @@ def get_property_service(db: AsyncIOMotorDatabase = Depends(get_database)) -> Un
 async def generate_ai_content(
     request: AIContentGenerationRequest,
     current_user: User = Depends(current_active_user),
-    ai_service: AIContentService = Depends(get_ai_content_service),
+    ai_service: UnifiedAIContentService = Depends(get_ai_content_service),
     content_service: ContentLibraryService = Depends(get_content_library_service),
     property_service: UnifiedPropertyService = Depends(get_property_service)
 ):
@@ -71,12 +71,16 @@ async def generate_ai_content(
         # Create property context for AI generation
         property_context = property_data.model_dump()
         
-        # Generate AI content using the AI service
-        generated_content_text = await ai_service.generate_content(
+        # Generate AI content using the unified AI service
+        result = await ai_service.generate_content(
             property_data=property_context,
-            prompt=request.custom_prompt or f"Generate {request.content_type} for this property",
-            language=request.language
+            channel=ContentChannel.WEBSITE,
+            tone=ContentTone.FRIENDLY,
+            length=ContentLength.MEDIUM,
+            language=request.language,
+            custom_prompt=request.custom_prompt or f"Generate {request.content_type} for this property"
         )
+        generated_content_text = result.get("content", {}).get("body", "")
         
         # Create a structured response
         generated_content = {
@@ -122,6 +126,128 @@ async def generate_ai_content(
     except Exception as e:
         logger.error(f"Error generating AI content: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to generate AI content: {str(e)}")
+
+@router.post("/generate-content", response_model=Dict[str, Any])
+async def generate_content_from_data(
+    request: Dict[str, Any],
+    current_user: User = Depends(current_active_user),
+    ai_service: UnifiedAIContentService = Depends(get_ai_content_service)
+):
+    """Generate AI content from property data (for frontend compatibility)"""
+    try:
+        logger.info(f"Generating AI content from property data for user {current_user.id}")
+        logger.info(f"Request received: {request}")
+        
+        # Extract request data
+        property_data = request.get("property_data", {})
+        language = request.get("language", "en")
+        custom_prompt = request.get("custom_prompt", "")
+        
+        logger.info(f"Property data extracted: {property_data}")
+        logger.info(f"Price before conversion: {property_data.get('price')} (type: {type(property_data.get('price'))})")
+        
+        # Convert price from string to number if needed
+        if "price" in property_data and isinstance(property_data["price"], str):
+            try:
+                # Handle various price formats
+                price_str = property_data["price"].replace('₹', '').replace(',', '').replace(' ', '').strip()
+                if price_str.lower().endswith('l'):
+                    property_data["price"] = float(price_str[:-1]) * 100000
+                elif price_str.lower().endswith('cr'):
+                    property_data["price"] = float(price_str[:-2]) * 10000000
+                else:
+                    property_data["price"] = float(price_str)
+            except (ValueError, AttributeError):
+                property_data["price"] = 0
+        
+        logger.info(f"Price after conversion: {property_data.get('price')} (type: {type(property_data.get('price'))})")
+        
+        # Generate AI content using the AI service
+        logger.info(f"=== CALLING AI SERVICE ===")
+        logger.info(f"Property data being sent to AI service: {property_data}")
+        logger.info(f"Custom prompt: {custom_prompt}")
+        logger.info(f"Language: {language}")
+        
+        result = await ai_service.generate_content(
+            property_data=property_data,
+            channel=ContentChannel.WEBSITE,
+            tone=ContentTone.FRIENDLY,
+            length=ContentLength.MEDIUM,
+            language=language,
+            custom_prompt=custom_prompt
+        )
+        generated_content = result.get("content", {}).get("body", "")
+        
+        logger.info(f"=== AI SERVICE RESPONSE ===")
+        logger.info(f"Generated content length: {len(generated_content)} characters")
+        logger.info(f"Generated content: {generated_content}")
+        logger.info(f"=== END AI SERVICE RESPONSE ===")
+        
+        return {
+            "success": True,
+            "data": {
+                "content": generated_content,
+                "language": language,
+                "generated_at": datetime.now(timezone.utc).isoformat()
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating AI content from data: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate AI content: {str(e)}")
+
+@router.get("/test-groq", response_model=Dict[str, Any])
+async def test_groq_connection(
+    current_user: User = Depends(current_active_user),
+    ai_service: UnifiedAIContentService = Depends(get_ai_content_service)
+):
+    """Test Groq API connection"""
+    try:
+        logger.info("=== TESTING GROQ CONNECTION ===")
+        logger.info("This will show you the FULL prompt and response from Groq API")
+        
+        # Test with simple property data
+        test_property_data = {
+            "id": "test-123",
+            "title": "Test Property",
+            "price": 5000000,
+            "location": "Mumbai",
+            "bedrooms": 2,
+            "bathrooms": 2,
+            "area_sqft": 1200,
+            "property_type": "Apartment",
+            "description": "A beautiful test property"
+        }
+        
+        logger.info(f"Testing with property data: {test_property_data}")
+        
+        # Generate content
+        result = await ai_service.generate_content(
+            property_data=test_property_data,
+            channel=ContentChannel.WEBSITE,
+            tone=ContentTone.FRIENDLY,
+            length=ContentLength.SHORT,
+            language="en",
+            custom_prompt="Generate a short property description"
+        )
+        generated_content = result.get("content", {}).get("body", "")
+        
+        logger.info(f"Test generation successful: {len(generated_content)} characters")
+        
+        return {
+            "success": True,
+            "message": "Groq API connection successful",
+            "test_content": generated_content,
+            "content_length": len(generated_content)
+        }
+        
+    except Exception as e:
+        logger.error(f"Groq API test failed: {e}")
+        return {
+            "success": False,
+            "message": f"Groq API test failed: {str(e)}",
+            "error": str(e)
+        }
 
 @router.get("/properties", response_model=List[Dict[str, Any]])
 async def get_user_properties(

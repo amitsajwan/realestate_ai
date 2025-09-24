@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 import logging
 from app.services.base_service import BaseService
-from app.services.ai_content_service import AIContentService
+from app.services.unified_ai_content_service import UnifiedAIContentService, ContentChannel, ContentTone, ContentLength
 from app.services.multi_channel_publishing_service import MultiChannelPublishingService
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class PostManagementService(BaseService):
     
     def __init__(self):
         super().__init__("posts")
-        self.ai_service = AIContentService()
+        self.ai_service = UnifiedAIContentService()
         self.publishing_service = MultiChannelPublishingService()
         
         logger.info("Initialized PostManagementService")
@@ -51,11 +51,15 @@ class PostManagementService(BaseService):
             logger.info(f"Creating post for property: {property_data.get('id', 'unknown')}")
             
             # 1. Generate AI content
-            ai_content = await self.ai_service.generate_content(
+            result = await self.ai_service.generate_content(
                 property_data=property_data,
-                prompt=custom_prompt,
-                language=language
+                channel=ContentChannel.WEBSITE,
+                tone=ContentTone.FRIENDLY,
+                length=ContentLength.MEDIUM,
+                language=language,
+                custom_prompt=custom_prompt
             )
+            ai_content = result.get("content", {}).get("body", "")
             
             # 2. Optimize content for different platforms
             optimized_content = await self.ai_service.optimize_content_for_engagement(
@@ -364,11 +368,15 @@ class PostManagementService(BaseService):
             }
             
             # Generate new content
-            new_content = await self.ai_service.generate_content(
+            result = await self.ai_service.generate_content(
                 property_data=property_data,
-                prompt=custom_prompt or post.get("custom_prompt", ""),
-                language=language
+                channel=ContentChannel.WEBSITE,
+                tone=ContentTone.FRIENDLY,
+                length=ContentLength.MEDIUM,
+                language=language,
+                custom_prompt=custom_prompt or post.get("custom_prompt", "")
             )
+            new_content = result.get("content", {}).get("body", "")
             
             # Update post with new content
             update_data = {

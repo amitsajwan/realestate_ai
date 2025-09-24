@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { SparklesIcon, LanguageIcon, DocumentTextIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { authManager } from '@/lib/auth';
+import { ArrowPathIcon, DocumentTextIcon, LanguageIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import React, { useEffect, useState } from 'react';
 
 interface PropertyData {
   id: string;
@@ -30,9 +30,9 @@ interface AIContentGeneratorProps {
   onContentGenerated?: (content: GeneratedContent) => void;
 }
 
-const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({ 
-  propertyData, 
-  onContentGenerated 
+const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
+  propertyData,
+  onContentGenerated
 }) => {
   const [selectedProperty, setSelectedProperty] = useState<PropertyData | null>(propertyData || null);
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
@@ -42,7 +42,7 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [availableProperties, setAvailableProperties] = useState<PropertyData[]>([]);
-  const [availableTemplates, setAvailableTemplates] = useState<Array<{id: string, name: string}>>([]);
+  const [availableTemplates, setAvailableTemplates] = useState<Array<{ id: string, name: string }>>([]);
 
   const languages = [
     { code: 'en', name: 'English' },
@@ -66,7 +66,7 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
 
   const loadAvailableProperties = async () => {
     try {
-      const response = await fetch('/api/properties', {
+      const response = await fetch('/api/v1/ai-content/properties', {
         headers: {
           'Authorization': `Bearer ${authManager.getState().token}`,
           'Content-Type': 'application/json'
@@ -110,18 +110,26 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
       setIsGenerating(true);
       setError(null);
 
-      const response = await fetch('/api/ai/generate-content', {
+      const requestData = {
+        property_data: selectedProperty,
+        language: selectedLanguage,
+        custom_prompt: customPrompt,
+        template_id: selectedTemplate || null
+      };
+
+      console.log('=== FRONTEND AI REQUEST ===');
+      console.log('Request URL:', '/api/v1/ai-content/generate-content');
+      console.log('Request data:', requestData);
+      console.log('Selected property:', selectedProperty);
+      console.log('=== END FRONTEND REQUEST ===');
+
+      const response = await fetch('/api/v1/ai-content/generate-content', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${authManager.getState().token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          property_data: selectedProperty,
-          language: selectedLanguage,
-          custom_prompt: customPrompt,
-          template_id: selectedTemplate || null
-        })
+        body: JSON.stringify(requestData)
       });
 
       if (!response.ok) {
@@ -129,8 +137,15 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
       }
 
       const data = await response.json();
+
+      console.log('=== FRONTEND AI RESPONSE ===');
+      console.log('Response status:', response.status);
+      console.log('Response data:', data);
+      console.log('Generated content:', data.data);
+      console.log('=== END FRONTEND RESPONSE ===');
+
       setGeneratedContent(data.data);
-      
+
       if (onContentGenerated) {
         onContentGenerated(data.data);
       }
@@ -143,7 +158,7 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
 
   const regenerateContent = async () => {
     if (!selectedProperty) return;
-    
+
     try {
       setIsGenerating(true);
       setError(null);

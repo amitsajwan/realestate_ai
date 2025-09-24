@@ -11,6 +11,7 @@ from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 import logging
+import re
 
 from app.schemas.unified_property import (
     PropertyCreate,
@@ -21,6 +22,7 @@ from app.schemas.unified_property import (
 from app.core.exceptions import NotFoundError, ValidationError
 from app.services.analytics_service import get_analytics_service
 from app.services.ai_property_intelligence_service import AIPropertyIntelligenceService
+from app.services.unified_ai_content_service import UnifiedAIContentService, ContentChannel, ContentTone, ContentLength
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +33,8 @@ class UnifiedPropertyService:
         self.db = db
         self.collection = db.properties
         self.ai_intelligence_service = AIPropertyIntelligenceService()
+        self.ai_content_service = UnifiedAIContentService(db)  # Add Groq-integrated AI service
         self.logger = logging.getLogger(__name__)
-        
-        # Ensure database connection is valid
-        if self.db is None:
-            raise RuntimeError("Database connection is None. Make sure database is initialized.")
     
     def _convert_doc_to_response(self, doc: dict) -> PropertyResponse:
         """Convert MongoDB document to PropertyResponse, handling ObjectId conversion"""
@@ -266,22 +265,52 @@ class UnifiedPropertyService:
         Generate AI suggestions for a new property based on provided data.
         """
         # Create a temporary property response for AI generation
+        # Handle price extraction with proper conversion
+        price = property_data.get("price", 0.0)
+        if price is None or price == "":
+            price = 0.0
+        elif isinstance(price, str):
+            try:
+                # Remove currency symbols and commas
+                clean_price = price.replace('₹', '').replace(',', '').replace(' ', '').strip()
+                if clean_price.lower().endswith('l'):
+                    price = float(clean_price[:-1]) * 100000  # Convert lakhs to rupees
+                elif clean_price.lower().endswith('cr'):
+                    price = float(clean_price[:-2]) * 10000000  # Convert crores to rupees
+                else:
+                    price = float(clean_price)
+            except (ValueError, AttributeError):
+                price = 0.0
+        
+        self.logger.info(f"Processing price: {property_data.get('price')} -> {price}")
+        
+        # Log all received data for debugging
+        self.logger.info(f"=== RECEIVED PROPERTY DATA ===")
+        self.logger.info(f"Title: {property_data.get('title', 'Not provided')}")
+        self.logger.info(f"Description: {property_data.get('description', 'Not provided')}")
+        self.logger.info(f"Amenities: {property_data.get('amenities', 'Not provided')}")
+        self.logger.info(f"Features: {property_data.get('features', 'Not provided')}")
+        self.logger.info(f"Price: {property_data.get('price', 'Not provided')}")
+        self.logger.info(f"=== END RECEIVED DATA ===")
+        
         temp_property = PropertyResponse(
             id="temp",
-            title=property_data.get("address", "New Property"),
-            description="",
+            title=property_data.get("title", property_data.get("address", "New Property")),
+            description=property_data.get("description", ""),
             property_type=property_data.get("property_type", "Apartment"),
-            price=0.0,  # Default price
+            price=float(price),  # Use actual price from request
             location=property_data.get("address", ""),
             bedrooms=property_data.get("bedrooms", 2),
             bathrooms=float(property_data.get("bathrooms", 2)),
             area_sqft=property_data.get("area"),
-            features=[],
-            amenities=None,
+            features=property_data.get("features", []),
+            amenities=property_data.get("amenities", ""),
             status="active",
             agent_id=str(user_id),  # Convert ObjectId to string
             images=[],
-            smart_features={},
+            smart_features={
+                "ai_hint": property_data.get("ai_hint", "")
+            },
             ai_insights={},
             market_analysis={},
             created_at=datetime.utcnow(),
@@ -427,23 +456,42 @@ class UnifiedPropertyService:
     
     async def _generate_ai_content(self, property_doc: PropertyDocument) -> str:
         """
-        Generate AI content for a property.
+        Generate AI content for a property using the unified AI service.
         """
         try:
-            # Simple AI content generation (replace with real AI service)
-            content = f"🏠 {property_doc.title}\n\n"
-            content += f"📍 {property_doc.location}\n"
-            content += f"💰 ₹{property_doc.price:,.0f}\n"
-            content += f"🏠 {property_doc.bedrooms} bed • {property_doc.bathrooms} bath\n"
-            content += f"📐 {property_doc.area_sqft} sq ft\n\n"
-            content += f"{property_doc.description}\n\n"
+            # Convert property document to dict
+            property_data = property_doc.model_dump()
             
-            if property_doc.amenities:
-                content += f"✨ Amenities: {property_doc.amenities}\n"
+            # Get agent data if available
+            agent_data = None
+            if hasattr(property_doc, 'agent_id') and property_doc.agent_id:
+                try:
+                    # Try to get agent information
+                    agents_collection = self.db.get_collection("agent_public_profiles")
+                    agent_doc = await agents_collection.find_one({"agent_id": str(property_doc.agent_id)})
+                    if agent_doc:
+                        agent_data = {
+                            "agent_name": agent_doc.get("agent_name", "Agent"),
+                            "phone": agent_doc.get("phone", ""),
+                            "email": agent_doc.get("email", ""),
+                            "whatsapp": agent_doc.get("phone", ""),
+                            "website": agent_doc.get("website", "")
+                        }
+                except Exception as e:
+                    self.logger.warning(f"Could not fetch agent data: {e}")
             
-            content += "\n📞 Contact us for viewing! #RealEstate #PropertyForSale"
+            # Generate content using unified AI service
+            result = await self.ai_content_service.generate_content(
+                property_data=property_data,
+                channel=ContentChannel.WEBSITE,
+                tone=ContentTone.FRIENDLY,
+                length=ContentLength.MEDIUM,
+                language="en",
+                agent_data=agent_data
+            )
             
-            return content
+            # Return the generated body content
+            return result.get("content", {}).get("body", f"Beautiful {property_doc.property_type} at {property_doc.location} for ₹{property_doc.price:,.0f}.")
             
         except Exception as e:
             self.logger.error(f"Error generating AI content: {e}")
@@ -486,7 +534,8 @@ class UnifiedPropertyService:
         Generate enhanced AI suggestions for a property using comprehensive web-fetched data.
         """
         try:
-            self.logger.info(f"Generating AI suggestions with web intelligence for property {property_data.id}")
+            self.logger.info(f"=== GENERATING AI SUGGESTIONS FOR PROPERTY {property_data.id} ===")
+            self.logger.info(f"Property data: {property_data.title}, Price: {property_data.price}, Location: {property_data.location}")
             
             # Convert property data to dict for the intelligence service
             property_dict = {
@@ -499,16 +548,99 @@ class UnifiedPropertyService:
                 "bedrooms": property_data.bedrooms,
                 "bathrooms": property_data.bathrooms,
                 "features": getattr(property_data, 'features', []),
-                "amenities": getattr(property_data, 'amenities', [])
+                "amenities": getattr(property_data, 'amenities', []),
+                "ai_hint": (getattr(property_data, 'smart_features', {}) or {}).get('ai_hint', '')
             }
+            
+            self.logger.info(f"Property dict for AI: {property_dict}")
             
             # Fetch enriched data from web sources using AI
             enriched_data = await self.ai_intelligence_service.enrich_property_data(property_dict)
             
+            # Generate AI content using Groq for titles and descriptions
+            self.logger.info("=== CALLING GROQ FOR AI CONTENT GENERATION ===")
+            
+            # Generate enhanced prompts with location-specific details
+            location_context = self._get_location_context(property_data.location)
+            features_context = self._get_features_context(property_dict.get('features', []), property_dict.get('amenities', ''))
+            
+            # Generate title using Groq with enhanced context
+            agent_title = property_data.title if property_data.title and property_data.title != "New Property" else ""
+            agent_description = property_data.description if property_data.description else ""
+            agent_hint = ""
+            try:
+                # Optional hint coming from frontend generateAISuggestions call
+                agent_hint = property_dict.get('ai_hint', '') or ''
+            except Exception:
+                agent_hint = ''
+            
+            title_prompt = f"""Generate 3 compelling property titles for a {property_data.property_type} in {property_data.location} with {property_data.bedrooms} bedrooms, {property_data.bathrooms} bathrooms, {property_dict.get('area', 1000)} sq ft. Price: ₹{property_data.price}.
+
+LOCATION CONTEXT: {location_context}
+FEATURES: {features_context}
+AGENT TITLE: {agent_title}
+AGENT DESCRIPTION: {agent_description}
+AGENT HINT: {agent_hint}
+
+Make them engaging, marketable, and location-specific. Use the location context to add relevant details about the area. If the agent provided a title or description, use that as inspiration but make it more compelling and marketable."""
+            
+            title_result = await self.ai_content_service.generate_content(
+                property_data=property_dict,
+                channel=ContentChannel.WEBSITE,
+                tone=ContentTone.FRIENDLY,
+                length=ContentLength.SHORT,
+                language="en",
+                custom_prompt=title_prompt
+            )
+            title_content = title_result.get("content", {}).get("body", "")
+            
+            # Generate description using Groq with enhanced context
+            description_prompt = f"""Generate 2 detailed property descriptions for a {property_data.property_type} in {property_data.location} with {property_data.bedrooms} bedrooms, {property_data.bathrooms} bathrooms, {property_dict.get('area', 1000)} sq ft. Price: ₹{property_data.price}.
+
+LOCATION CONTEXT: {location_context}
+FEATURES: {features_context}
+AGENT TITLE: {agent_title}
+AGENT DESCRIPTION: {agent_description}
+AGENT HINT: {agent_hint}
+
+Make them persuasive, highlight key features, and include location-specific benefits. Use the location context to add relevant details about nearby amenities, connectivity, and area highlights. If the agent provided a title or description, use that as inspiration but expand it into compelling marketing content."""
+            
+            description_result = await self.ai_content_service.generate_content(
+                property_data=property_dict,
+                channel=ContentChannel.WEBSITE,
+                tone=ContentTone.FRIENDLY,
+                length=ContentLength.LONG,
+                language="en",
+                custom_prompt=description_prompt
+            )
+            description_content = description_result.get("content", {}).get("body", "")
+            
+            self.logger.info(f"=== GROQ GENERATED CONTENT ===")
+            self.logger.info(f"Title content: {title_content}")
+            self.logger.info(f"Description content: {description_content}")
+            self.logger.info(f"=== END GROQ CONTENT ===")
+            
+            # Parse the AI-generated content into suggestions
+            title_suggestions = self._parse_ai_titles(title_content)
+            description_suggestions = self._parse_ai_descriptions(description_content)
+            
             # Generate enhanced suggestions using enriched data
-            title_suggestions = self._generate_ai_enhanced_titles(property_data, enriched_data)
-            description_suggestions = self._generate_ai_enhanced_descriptions(property_data, enriched_data)
             pricing_insights = self._generate_ai_enhanced_pricing(property_data, enriched_data)
+            
+            # Inject calculated price into AI-generated content
+            suggested_price = pricing_insights.get("suggested", 0)
+            if suggested_price > 0:
+                # Format price for display
+                formatted_price = self._format_price(suggested_price)
+                self.logger.info(f"Injecting calculated price {formatted_price} into AI content")
+                
+                # Replace ₹0.0 and similar patterns in title and description content
+                title_content = self._inject_price_into_content(title_content, formatted_price)
+                description_content = self._inject_price_into_content(description_content, formatted_price)
+                
+                # Re-parse the updated content
+                title_suggestions = self._parse_ai_titles(title_content)
+                description_suggestions = self._parse_ai_descriptions(description_content)
             
             # Extract AI-sourced amenities and features
             ai_amenities = self._extract_ai_amenities(enriched_data)
@@ -554,6 +686,177 @@ class UnifiedPropertyService:
                 "quality_score": {"overall": 50, "seo": 50, "readability": 50, "market_relevance": 50, "uniqueness": 50},
                 "generated_at": datetime.utcnow().isoformat()
             }
+    
+    def _parse_ai_titles(self, ai_content: str) -> List[str]:
+        """Parse AI-generated content into title suggestions"""
+        try:
+            titles = []
+            
+            # Look for specific patterns in the AI content
+            if "**Option 1:**" in ai_content:
+                # Parse structured format with options
+                option_pattern = r'\*\*Option \d+:\*\* (.+?)(?=\*\*Option \d+:\*\*|$)'
+                matches = re.findall(option_pattern, ai_content, re.DOTALL)
+                for match in matches:
+                    clean_title = match.strip()
+                    if clean_title and len(clean_title) > 10:
+                        titles.append(clean_title)
+            else:
+                # Fallback to line-by-line parsing
+                lines = ai_content.split('\n')
+                for line in lines:
+                    line = line.strip()
+                    if line and not line.startswith('#') and len(line) > 10:
+                        # Remove numbering and bullet points
+                        clean_title = re.sub(r'^\d+\.\s*', '', line)
+                        clean_title = re.sub(r'^[-*]\s*', '', clean_title)
+                        if clean_title and len(clean_title) > 10:
+                            titles.append(clean_title)
+            
+            # If we don't have enough titles, create some fallbacks
+            if len(titles) < 2:
+                titles.extend([
+                    "Beautiful Property in Prime Location",
+                    "Modern Home with Great Amenities",
+                    "Spacious Property with Excellent Connectivity"
+                ])
+            
+            self.logger.info(f"Parsed {len(titles)} titles: {titles}")
+            return titles[:3]  # Return max 3 titles
+            
+        except Exception as e:
+            self.logger.error(f"Error parsing AI titles: {e}")
+            return [
+                "Beautiful Property in Prime Location",
+                "Modern Home with Great Amenities",
+                "Spacious Property with Excellent Connectivity"
+            ]
+    
+    def _parse_ai_descriptions(self, ai_content: str) -> List[str]:
+        """Parse AI-generated content into description suggestions"""
+        try:
+            descriptions = []
+            
+            # Look for structured format with "Property Description 1:" and "Property Description 2:"
+            if "**Property Description 1:**" in ai_content:
+                # Split by property description markers
+                desc_pattern = r'\*\*Property Description \d+:\*\* (.+?)(?=\*\*Property Description \d+:\*\*|$)'
+                matches = re.findall(desc_pattern, ai_content, re.DOTALL)
+                for match in matches:
+                    clean_desc = match.strip()
+                    if clean_desc and len(clean_desc) > 50:
+                        descriptions.append(clean_desc)
+            else:
+                # Fallback to paragraph-based parsing
+                paragraphs = ai_content.split('\n\n')
+                for para in paragraphs:
+                    para = para.strip()
+                    if para and len(para) > 50:  # Only include substantial paragraphs
+                        # Remove numbering and bullet points
+                        clean_desc = re.sub(r'^\d+\.\s*', '', para)
+                        clean_desc = re.sub(r'^[-*]\s*', '', clean_desc)
+                        if clean_desc and len(clean_desc) > 50:
+                            descriptions.append(clean_desc)
+            
+            # If we don't have enough descriptions, create some fallbacks
+            if len(descriptions) < 2:
+                descriptions.extend([
+                    "This beautiful property offers modern amenities and excellent connectivity. Perfect for families looking for a comfortable living space in a prime location.",
+                    "Located in a well-connected area, this property provides easy access to schools, hospitals, and shopping centers. The property features spacious rooms and modern facilities."
+                ])
+            
+            self.logger.info(f"Parsed {len(descriptions)} descriptions")
+            return descriptions[:2]  # Return max 2 descriptions
+            
+        except Exception as e:
+            self.logger.error(f"Error parsing AI descriptions: {e}")
+            return [
+                "This beautiful property offers modern amenities and excellent connectivity. Perfect for families looking for a comfortable living space in a prime location.",
+                "Located in a well-connected area, this property provides easy access to schools, hospitals, and shopping centers. The property features spacious rooms and modern facilities."
+            ]
+    
+    def _format_price(self, price: float) -> str:
+        """Format price for display"""
+        if price >= 10000000:  # 1 crore or more
+            return f"₹{price/10000000:.1f}Cr"
+        elif price >= 100000:  # 1 lakh or more
+            return f"₹{price/100000:.1f}L"
+        else:
+            return f"₹{price:,.0f}"
+    
+    def _inject_price_into_content(self, content: str, formatted_price: str) -> str:
+        """Inject calculated price into AI-generated content"""
+        
+        # Replace various patterns of ₹0.0, ₹0, Price: ₹0.0, etc.
+        patterns = [
+            r'₹0\.0',
+            r'₹0',
+            r'Price: ₹0\.0',
+            r'Price: ₹0',
+            r'price of ₹0\.0',
+            r'price of ₹0',
+            r'₹0\.0 \(Yes, you read that right!',
+            r'₹0 \(Yes, you read that right!',
+        ]
+        
+        updated_content = content
+        for pattern in patterns:
+            if 'Price:' in pattern:
+                updated_content = re.sub(pattern, f'Price: {formatted_price}', updated_content)
+            elif 'price of' in pattern:
+                updated_content = re.sub(pattern, f'price of {formatted_price}', updated_content)
+            elif 'Yes, you read that right!' in pattern:
+                updated_content = re.sub(pattern, f'{formatted_price} (Yes, you read that right!', updated_content)
+            else:
+                updated_content = re.sub(pattern, formatted_price, updated_content)
+        
+        self.logger.info(f"Price injection: {formatted_price} injected into content")
+        return updated_content
+    
+    def _get_location_context(self, location: str) -> str:
+        """Get location-specific context for AI prompts"""
+        location_lower = location.lower()
+        
+        # Mumbai locations
+        if any(area in location_lower for area in ['bandra', 'khar', 'santacruz', 'juhu']):
+            return "Prime Mumbai suburb known for its vibrant lifestyle, excellent connectivity, proximity to the airport, and upscale dining and entertainment options. Popular among young professionals and celebrities."
+        elif any(area in location_lower for area in ['powai', 'andheri', 'malad', 'goregaon']):
+            return "Well-connected Mumbai suburb with good IT presence, shopping malls, and residential complexes. Excellent connectivity via metro and highways."
+        elif any(area in location_lower for area in ['thane', 'mulund', 'bhandup', 'vikroli']):
+            return "Growing residential area in Mumbai with good infrastructure, shopping centers, and connectivity to both Mumbai and Navi Mumbai."
+        
+        # Pune locations
+        elif any(area in location_lower for area in ['kharadi', 'hinjewadi', 'wakad', 'baner']):
+            return "IT hub in Pune with excellent connectivity, modern infrastructure, shopping malls, and residential complexes. Popular among IT professionals."
+        elif any(area in location_lower for area in ['koregaon park', 'camp', 'deccan']):
+            return "Prime Pune location known for its cosmopolitan culture, excellent restaurants, shopping, and proximity to business districts."
+        
+        # Bangalore locations
+        elif any(area in location_lower for area in ['koramangala', 'indiranagar', 'whitefield', 'electronic city']):
+            return "Popular Bangalore area known for its IT presence, good connectivity, shopping, and dining options. Well-developed infrastructure."
+        
+        # Delhi locations
+        elif any(area in location_lower for area in ['gurgaon', 'noida', 'greater noida']):
+            return "Modern planned city with excellent infrastructure, IT parks, shopping malls, and good connectivity to Delhi. Popular among professionals."
+        
+        # Generic context
+        else:
+            return f"Located in {location}, this area offers good connectivity and modern amenities. The location provides easy access to schools, hospitals, shopping centers, and transportation hubs."
+    
+    def _get_features_context(self, features: list, amenities: str) -> str:
+        """Get features and amenities context for AI prompts"""
+        context_parts = []
+        
+        if features:
+            context_parts.append(f"Key features: {', '.join(features)}")
+        
+        if amenities:
+            context_parts.append(f"Amenities: {amenities}")
+        
+        if not context_parts:
+            context_parts.append("Modern amenities and features included")
+        
+        return ". ".join(context_parts)
     
     def _calculate_quality_score(self, property_data: PropertyResponse) -> Dict[str, int]:
         """
@@ -745,11 +1048,23 @@ class UnifiedPropertyService:
         # Use AI-fetched market rate if available
         market_price_per_sqft = current_rates.get("price_per_sqft", base_price / area if area > 0 else 0)
         
+        # If base price is 0 or very low, use market-based pricing
+        if base_price <= 0 or base_price < 100000:  # Less than 1 lakh
+            # Calculate suggested price based on market rate
+            suggested_price = market_price_per_sqft * area if area > 0 else 0
+            ai_valuation = suggested_price
+            self.logger.info(f"Using market-based pricing: base_price={base_price}, market_rate={market_price_per_sqft}, area={area}, suggested={suggested_price}")
+        else:
+            # Use the actual price provided by the user (no market adjustments)
+            suggested_price = base_price
+            ai_valuation = market_price_per_sqft * area if area > 0 else base_price
+            self.logger.info(f"Using user-provided price: base_price={base_price}, suggested={suggested_price}")
+        
         return {
             "current": base_price,
-            "suggested": base_price * 1.05,
+            "suggested": suggested_price,
             "market_rate_per_sqft": market_price_per_sqft,
-            "ai_valuation": market_price_per_sqft * area if area > 0 else base_price,
+            "ai_valuation": ai_valuation,
             "market_position": current_rates.get("market_position", "competitive"),
             "appreciation_forecast": market_data.get("price_trends", {}),
             "rental_potential": market_data.get("rental_market", {})

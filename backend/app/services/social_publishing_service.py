@@ -63,11 +63,10 @@ class SocialPublishingService:
                     "website": ""
                 }
             
-            # Import AI content generation service
-            from app.services.ai_content_generation_service import AIContentGenerationService
-            from app.schemas.social_publishing import AIGenerationContext, PropertyContext, ContactInfo
+            # Import unified AI content generation service
+            from app.services.unified_ai_content_service import UnifiedAIContentService, ContentChannel, ContentTone, ContentLength
             
-            ai_service = AIContentGenerationService()
+            ai_service = UnifiedAIContentService(self.db)
             drafts = []
             
             for channel in request.channels:
@@ -111,8 +110,52 @@ class SocialPublishingService:
                     length=request.length or "medium"
                 )
                 
-                # Generate AI content
-                ai_draft = await ai_service.generate_content(ai_context)
+                # Generate AI content using the new service
+                property_data = {
+                    "id": request.property_id,
+                    "title": property_context.title,
+                    "price": property_context.price,
+                    "location": property_context.location,
+                    "bedrooms": property_context.bedrooms,
+                    "bathrooms": property_context.bathrooms,
+                    "area_sqft": property_context.area_sqft,
+                    "property_type": property_context.property_type,
+                    "description": property_context.description,
+                    "amenities": property_context.amenities,
+                    "features": property_context.features
+                }
+                
+                logger.info(f"=== SOCIAL PUBLISHING AI GENERATION ===")
+                logger.info(f"Channel: {channel.value}")
+                logger.info(f"Property data: {property_data}")
+                logger.info(f"Custom prompt: {request.custom_prompt}")
+                logger.info(f"Language: {request.language}")
+                
+                # Map channel to ContentChannel enum
+                content_channel = ContentChannel.WEBSITE  # Default
+                if channel.value.lower() == "facebook":
+                    content_channel = ContentChannel.FACEBOOK
+                elif channel.value.lower() == "instagram":
+                    content_channel = ContentChannel.INSTAGRAM
+                elif channel.value.lower() == "whatsapp":
+                    content_channel = ContentChannel.WHATSAPP
+                elif channel.value.lower() == "email":
+                    content_channel = ContentChannel.EMAIL
+                
+                result = await ai_service.generate_content(
+                    property_data=property_data,
+                    channel=content_channel,
+                    tone=ContentTone.FRIENDLY,
+                    length=ContentLength.MEDIUM,
+                    language=request.language,
+                    custom_prompt=request.custom_prompt or f"Generate {channel.value} content",
+                    agent_data=agent_data
+                )
+                
+                generated_content = result.get("content", {}).get("body", "")
+                
+                logger.info(f"Generated content length: {len(generated_content)}")
+                logger.info(f"Generated content preview: {generated_content[:200]}...")
                 
                 # Create social draft
                 draft = SocialDraft(
@@ -120,11 +163,11 @@ class SocialPublishingService:
                     agent_id=agent_id,
                     language=request.language,
                     channel=channel,
-                    title=ai_draft.title,
-                    body=ai_draft.body,
-                    hashtags=ai_draft.hashtags,
-                    media_ids=ai_draft.media_ids,
-                    contact_included=ai_draft.contact_included,
+                    title=f"AI Generated {channel.value} Content",
+                    body=generated_content,
+                    hashtags=["#realestate", "#property", f"#{channel.value}"],
+                    media_ids=[],
+                    contact_included=True,
                     status=DraftStatus.GENERATED
                 )
                 
@@ -167,64 +210,79 @@ class SocialPublishingService:
             return None
     
     async def _get_agent_data(self, agent_id: str) -> Optional[Dict[str, Any]]:
-        """Get agent data from database"""
+        """Get comprehensive agent data using unified agent data service"""
         try:
-            from bson import ObjectId
+            # Use the new unified agent data service
+            from app.services.unified_agent_data_service import UnifiedAgentDataService
             
-            # Try to get agent from agents collection
-            try:
-                obj_id = ObjectId(agent_id)
-            except:
-                # If agent_id is not a valid ObjectId, it might be a user_id
-                # Try to get from agent_public_profiles first
-                agent_doc = await self.db.agent_public_profiles.find_one({"agent_id": agent_id})
-                if agent_doc:
-                    # Convert ObjectId to string for JSON serialization
-                    if "_id" in agent_doc:
-                        agent_doc["_id"] = str(agent_doc["_id"])
-                    return agent_doc
+            unified_service = UnifiedAgentDataService(self.db)
+            agent_context = await unified_service.get_agent_context_for_ai(agent_id)
+            
+            # Convert to the format expected by the existing code
+            agent_data = {
+                "_id": agent_context.get("user_id", agent_id),
+                "name": agent_context.get("agent_name", "Agent"),
+                "agent_name": agent_context.get("agent_name", "Agent"),
+                "email": agent_context.get("email", ""),
+                "phone": agent_context.get("phone", ""),
+                "whatsapp": agent_context.get("whatsapp", ""),
+                "website": agent_context.get("website", ""),
                 
-                # If still not found, try to get user data and create fallback agent data
-                try:
-                    user_doc = await self.db.users.find_one({"_id": ObjectId(agent_id)})
-                    if user_doc:
-                        # Create fallback agent data from user data
-                        fallback_agent = {
-                            "_id": str(user_doc["_id"]),
-                            "name": user_doc.get("full_name", user_doc.get("username", "Agent")),
-                            "email": user_doc.get("email", ""),
-                            "phone": "",
-                            "whatsapp": "",
-                            "website": ""
-                        }
-                        logger.info(f"Created fallback agent data for user_id: {agent_id}")
-                        return fallback_agent
-                    else:
-                        logger.warning(f"User not found in users collection: {agent_id}")
-                except Exception as e:
-                    logger.error(f"Error looking up user {agent_id}: {e}")
-                
-                return None
+                # Include business context for enhanced AI generation
+                "business_type": agent_context.get("business_type", "Residential"),
+                "target_audience": agent_context.get("target_audience", "General clients"),
+                "company": agent_context.get("company", ""),
+                "position": agent_context.get("position", ""),
+                "ai_style": agent_context.get("ai_style", "Professional"),
+                "ai_tone": agent_context.get("ai_tone", "Friendly"),
+                "brand_style": agent_context.get("brand_style", "Professional"),
+                "brand_personality": agent_context.get("brand_personality", "Trustworthy"),
+                "brand_keywords": agent_context.get("brand_keywords", ""),
+                "brand_inspiration": agent_context.get("brand_inspiration", ""),
+                "specialties": agent_context.get("specialties", []),
+                "experience": agent_context.get("experience", ""),
+                "languages": agent_context.get("languages", ["English"]),
+                "bio": agent_context.get("bio", ""),
+                "tagline": agent_context.get("tagline", ""),
+                "brand_theme": agent_context.get("brand_theme", {}),
+                "facebook_page": agent_context.get("facebook_page", ""),
+                "preferences": agent_context.get("preferences", [])
+            }
             
-            # Query the agents collection directly
-            agent_doc = await self.db.agents.find_one({"_id": obj_id})
-            if agent_doc:
-                # Convert ObjectId to string for JSON serialization
-                agent_doc["_id"] = str(agent_doc["_id"])
-                return agent_doc
+            logger.info(f"Retrieved comprehensive agent data for {agent_id}")
+            return agent_data
             
-            # If not found in agents collection, try to get from agent_public_profiles
-            agent_doc = await self.db.agent_public_profiles.find_one({"agent_id": agent_id})
-            if agent_doc:
-                # Convert ObjectId to string for JSON serialization
-                if "_id" in agent_doc:
-                    agent_doc["_id"] = str(agent_doc["_id"])
-                return agent_doc
-            
-            return None
         except Exception as e:
-            logger.error(f"Error getting agent data: {e}")
-            return None
+            logger.error(f"Error getting agent data using unified service: {e}")
+            
+            # Fallback to basic agent data
+            return {
+                "_id": agent_id,
+                "name": "Agent",
+                "agent_name": "Agent",
+                "email": "",
+                "phone": "",
+                "whatsapp": "",
+                "website": "",
+                "business_type": "Residential",
+                "target_audience": "General clients",
+                "company": "",
+                "position": "",
+                "ai_style": "Professional",
+                "ai_tone": "Friendly",
+                "brand_style": "Professional",
+                "brand_personality": "Trustworthy",
+                "brand_keywords": "",
+                "brand_inspiration": "",
+                "specialties": [],
+                "experience": "",
+                "languages": ["English"],
+                "bio": "",
+                "tagline": "",
+                "brand_theme": {},
+                "facebook_page": "",
+                "preferences": []
+            }
     
     async def update_draft(self, draft_id: str, updates: UpdateDraftRequest, agent_id: str) -> Optional[SocialDraft]:
         """Update a draft"""
@@ -256,13 +314,13 @@ class SocialPublishingService:
             # Convert string IDs to ObjectId
             object_ids = [ObjectId(draft_id) for draft_id in draft_ids]
             
-            # Get ready drafts
+            # Get drafts that can be published (GENERATED, EDITED, or READY status)
             drafts = await SocialDraft.find(
-                {"_id": {"$in": object_ids}, "status": DraftStatus.READY}
+                {"_id": {"$in": object_ids}, "status": {"$in": [DraftStatus.GENERATED, DraftStatus.EDITED, DraftStatus.READY]}}
             ).to_list()
             
             if not drafts:
-                raise ValueError("No ready drafts found")
+                raise ValueError("No publishable drafts found")
             
             published_posts = []
             failed_posts = []

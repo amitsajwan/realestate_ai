@@ -9,9 +9,10 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 import logging
 from beanie import PydanticObjectId
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.models.post import Post, PostAnalytics, PostTemplate, PostStatus, PublishingChannel, PublishingStatus
-from app.services.ai_content_service import AIContentService
+from app.services.unified_ai_content_service import UnifiedAIContentService, ContentChannel, ContentTone, ContentLength
 from app.services.multi_channel_publishing_service import MultiChannelPublishingService
 
 logger = logging.getLogger(__name__)
@@ -23,8 +24,9 @@ class EnhancedPostManagementService:
     and multi-channel publishing capabilities using Beanie document models.
     """
     
-    def __init__(self):
-        self.ai_service = AIContentService()
+    def __init__(self, db: AsyncIOMotorDatabase = None):
+        self.db = db
+        self.ai_service = UnifiedAIContentService(db)
         self.publishing_service = MultiChannelPublishingService()
         logger.info("Initialized EnhancedPostManagementService")
     
@@ -78,12 +80,15 @@ class EnhancedPostManagementService:
                     property_data = await self._get_property_data(property_id)
                     
                     # Generate AI content
-                    generated_content = await self.ai_service.generate_content(
+                    result = await self.ai_service.generate_content(
                         property_data=property_data,
-                        prompt=ai_prompt,
-                        language=language
+                        channel=ContentChannel.WEBSITE,
+                        tone=ContentTone.FRIENDLY,
+                        length=ContentLength.MEDIUM,
+                        language=language,
+                        custom_prompt=ai_prompt
                     )
-                    content = generated_content
+                    content = result.get("content", {}).get("body", "")
                     ai_generated = True
                     logger.info(f"AI content generated for post: {len(content)} characters")
                 except Exception as e:
@@ -506,17 +511,40 @@ class EnhancedPostManagementService:
     
     async def _get_property_data(self, property_id: str) -> Dict[str, Any]:
         """Get property data for AI context."""
-        # This would fetch property data from the properties collection
-        # For now, return mock data
-        return {
-            "id": property_id,
-            "title": "Sample Property",
-            "description": "A beautiful property",
-            "price": 5000000,
-            "location": "Mumbai, India",
-            "property_type": "Apartment",
-            "features": ["3 BHK", "Parking", "Gym"]
-        }
+        try:
+            from bson import ObjectId
+            
+            # Get actual property data from database
+            obj_id = ObjectId(property_id)
+            property_doc = await self.db.properties.find_one({"_id": obj_id})
+            
+            if not property_doc:
+                logger.error(f"Property {property_id} not found in database")
+                raise ValueError(f"Property {property_id} not found")
+            
+            # Convert ObjectId to string for JSON serialization
+            property_doc["_id"] = str(property_doc["_id"])
+            
+            logger.info(f"Retrieved property data for {property_id}: {property_doc.get('title', 'Unknown')}")
+            return property_doc
+            
+        except Exception as e:
+            logger.error(f"Error getting property data for {property_id}: {e}")
+            # Return fallback data with the actual property ID
+            return {
+                "id": property_id,
+                "_id": property_id,
+                "title": f"Property {property_id}",
+                "description": "Property details not available",
+                "price": 0,
+                "location": "Location not specified",
+                "property_type": "Property",
+                "bedrooms": 0,
+                "bathrooms": 0,
+                "area_sqft": 0,
+                "features": [],
+                "amenities": ""
+            }
     
     def _apply_template(self, template: PostTemplate, content: str, variables: Dict[str, Any]) -> str:
         """Apply template to content."""

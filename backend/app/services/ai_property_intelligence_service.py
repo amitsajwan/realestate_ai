@@ -200,6 +200,7 @@ class AIPropertyIntelligenceService:
         try:
             # Mock implementation - replace with actual market APIs
             base_price_per_sqft = self._estimate_market_price(location, property_type)
+            self.logger.info(f"Estimated market price for {location} {property_type}: ₹{base_price_per_sqft} per sq ft")
             
             market_data = {
                 "current_market_rates": {

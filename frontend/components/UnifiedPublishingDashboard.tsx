@@ -15,6 +15,7 @@ import {
     X
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import PublishDraftsButton from './PublishDraftsButton'
 
 // Content Types
 enum ContentType {
@@ -230,18 +231,18 @@ export default function UnifiedPublishingDashboard({ onRefresh, preselectedPrope
 
             // Transform API data to our ContentItem format
             const transformedContent: ContentItem[] = contentData.map((item: any) => ({
-                id: item._id || item.id,
+                id: item.content_id || item._id || item.id,
                 content_type: mapContentType(item.content_type),
                 title: item.title,
-                description: item.content?.substring(0, 100) + '...',
+                description: (item.content || item.body || '')?.substring(0, 100) + '...',
                 status: mapPublishingStatus(item.status),
                 channels: item.channels || [],
                 scheduled_at: item.scheduled_at,
                 published_at: item.published_at,
                 created_at: item.created_at,
                 updated_at: item.updated_at,
-                thumbnail: item.media_urls?.[0],
-                ai_generated: item.metadata?.ai_generated || false
+                thumbnail: item.media_urls?.[0] || item.media_ids?.[0],
+                ai_generated: item.metadata?.ai_generated || item.is_draft || false
             }))
 
             setContentItems(transformedContent)
@@ -260,6 +261,10 @@ export default function UnifiedPublishingDashboard({ onRefresh, preselectedPrope
             case 'property': return ContentType.PROPERTY
             case 'marketing_post': return ContentType.MARKETING_POST
             case 'ai_draft': return ContentType.AI_DRAFT
+            case 'ai_facebook_post': return ContentType.AI_DRAFT
+            case 'ai_instagram_post': return ContentType.AI_DRAFT
+            case 'ai_website_post': return ContentType.AI_DRAFT
+            case 'ai_social_post': return ContentType.AI_DRAFT
             default: return ContentType.ENHANCED_POST
         }
     }
@@ -306,6 +311,13 @@ export default function UnifiedPublishingDashboard({ onRefresh, preselectedPrope
     }
 
     const clearSelection = () => {
+        setSelectedItems([])
+    }
+
+    const handlePublishSuccess = () => {
+        // Refresh content after successful publishing
+        loadContent()
+        // Clear selection
         setSelectedItems([])
     }
 
@@ -445,12 +457,11 @@ export default function UnifiedPublishingDashboard({ onRefresh, preselectedPrope
                                     <span className="text-sm text-gray-600">
                                         {selectedItems.length} selected
                                     </span>
-                                    <button
-                                        onClick={() => setShowBatchPublish(true)}
-                                        className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-                                    >
-                                        Batch Publish
-                                    </button>
+                                    <PublishDraftsButton
+                                        draftIds={selectedItems}
+                                        onPublishSuccess={handlePublishSuccess}
+                                        className="px-3 py-1 text-sm"
+                                    />
                                 </div>
                             )}
                         </div>

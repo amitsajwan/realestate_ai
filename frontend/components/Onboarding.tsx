@@ -362,8 +362,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
         tagline: selectedSuggestion.tagline || `${formData.company} - Professional Real Estate Services`,
         about: selectedSuggestion.about || `Welcome to ${formData.company}, your trusted partner in real estate. We specialize in helping you find your dream home with personalized service and expert guidance.`,
         colors: {
-          primary: selectedSuggestion.colorPalette?.primary || selectedSuggestion.primaryColor || '#3b82f6',
-          secondary: selectedSuggestion.colorPalette?.secondary || selectedSuggestion.secondaryColor || '#64748b',
+          primary: selectedSuggestion.colorPalette?.primary || selectedSuggestion.primary_color || '#3b82f6',
+          secondary: selectedSuggestion.colorPalette?.secondary || selectedSuggestion.secondary_color || '#64748b',
           accent: selectedSuggestion.colorPalette?.accent || '#10b981'
         }
       }
@@ -384,8 +384,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
         tagline: selectedSuggestion.tagline || `${formData.company} - Professional Real Estate Services`,
         about: selectedSuggestion.about || `Welcome to ${formData.company}, your trusted partner in real estate. We specialize in helping you find your dream home with personalized service and expert guidance.`,
         colors: {
-          primary: selectedSuggestion.colorPalette?.primary || selectedSuggestion.primaryColor || '#3b82f6',
-          secondary: selectedSuggestion.colorPalette?.secondary || selectedSuggestion.secondaryColor || '#64748b',
+          primary: selectedSuggestion.colorPalette?.primary || selectedSuggestion.primary_color || '#3b82f6',
+          secondary: selectedSuggestion.colorPalette?.secondary || selectedSuggestion.secondary_color || '#64748b',
           accent: selectedSuggestion.colorPalette?.accent || '#10b981'
         }
       }
@@ -698,7 +698,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                   {brandingOperation.error && (
                     <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                       <p className="text-sm text-red-700">
-                        <strong>Error:</strong> {brandingOperation.error.message || 'Failed to generate branding suggestions'}
+                        <strong>Error:</strong> {String(brandingOperation.error) || 'Failed to generate branding suggestions'}
                       </p>
                       <button
                         onClick={handleGenerateBranding}
@@ -727,12 +727,12 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                       key={index}
                       onClick={() => handleSelectBranding(index)}
                       className={`cursor-pointer p-4 rounded-lg border-2 transition-all duration-200 ${selectedBranding === index
-                          ? 'border-blue-500 bg-blue-50 shadow-md'
-                          : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                        ? 'border-blue-500 bg-blue-50 shadow-md'
+                        : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                         }`}
                     >
                       <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-semibold text-gray-800">{suggestion.designStyle}</h4>
+                        <h4 className="font-semibold text-gray-800">{suggestion.logoStyle}</h4>
                         {selectedBranding === index && (
                           <CheckIcon className="w-5 h-5 text-blue-600" />
                         )}

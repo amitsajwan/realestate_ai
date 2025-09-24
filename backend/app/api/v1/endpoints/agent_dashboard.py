@@ -31,27 +31,46 @@ async def get_agent_public_profile_for_dashboard(
         profile = await service.get_agent_by_id(current_user.id)
         
         if not profile:
-            # Return default profile structure if none exists
-            return {
-                "id": None,
-                "agent_id": current_user.id,
-                "agent_name": (current_user.first_name + " " + current_user.last_name) if current_user.first_name and current_user.last_name else current_user.email,
-                "slug": current_user.email.split('@')[0].lower().replace('.', '-').replace('_', '-'),
-                "bio": "",
-                "photo": None,
-                "phone": None,
-                "email": current_user.email,
-                "office_address": "",
-                "specialties": [],
-                "experience": "",
-                "languages": [],
-                "is_active": True,
-                "is_public": False,
-                "view_count": 0,
-                "contact_count": 0,
-                "created_at": None,
-                "updated_at": None
-            }
+            # Create agent profile if none exists
+            from app.schemas.agent_public import AgentPublicProfileCreate
+            create_data = AgentPublicProfileCreate(
+                agent_name=(current_user.first_name + " " + current_user.last_name) if current_user.first_name and current_user.last_name else current_user.email,
+                slug=current_user.email.split('@')[0].lower().replace('.', '-').replace('_', '-'),
+                bio="",
+                photo=None,
+                phone=None,
+                email=current_user.email,
+                office_address="",
+                specialties=[],
+                experience="",
+                languages=[],
+                is_active=True,
+                is_public=True
+            )
+            profile = await service.create_agent_profile(current_user.id, create_data)
+            
+            if not profile:
+                # Return default profile structure if creation fails
+                return {
+                    "id": None,
+                    "agent_id": current_user.id,
+                    "agent_name": (current_user.first_name + " " + current_user.last_name) if current_user.first_name and current_user.last_name else current_user.email,
+                    "slug": current_user.email.split('@')[0].lower().replace('.', '-').replace('_', '-'),
+                    "bio": "",
+                    "photo": None,
+                    "phone": None,
+                    "email": current_user.email,
+                    "office_address": "",
+                    "specialties": [],
+                    "experience": "",
+                    "languages": [],
+                    "is_active": True,
+                    "is_public": False,
+                    "view_count": 0,
+                    "contact_count": 0,
+                    "created_at": None,
+                    "updated_at": None
+                }
         
         return profile
         

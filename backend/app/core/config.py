@@ -192,6 +192,11 @@ class Settings(BaseSettings):
     reload: bool = False
     workers: int = 1
     
+    # Development authentication settings
+    enable_mock_auth_fallback: bool = True
+    development_user_email: str = "test@example.com"
+    development_user_password: str = "test123"
+    
     model_config = {
         "env_file": ".env",
         "case_sensitive": False,

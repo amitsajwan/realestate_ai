@@ -6,7 +6,7 @@ FastAPI Users integration with frontend-compatible endpoints
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPBearer
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from app.models.user import User, UserCreate, UserUpdate, UserRead
 from app.core.auth_backend import (
     fastapi_users, 
@@ -17,10 +17,12 @@ from app.core.auth_backend import (
     jwt_strategy
 )
 from app.core.database import get_database
+from app.services.development_auth_service import development_auth_service
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 from datetime import datetime
 import logging
+import os
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -147,6 +149,69 @@ async def update_current_user(
         logger.error(f"Error updating user {user_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to update user")
 
+# Development authentication endpoints
+@router.post("/dev/login")
+async def development_login(
+    email: str,
+    password: str
+):
+    """Login with development credentials (development only)"""
+    if os.getenv("ENVIRONMENT", "development") != "development":
+        raise HTTPException(status_code=404, detail="Development endpoint not available")
+    
+    try:
+        tokens = await development_auth_service.login_development_user(email, password)
+        return {
+            "message": "Development login successful",
+            "environment": "development",
+            **tokens
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Development login error: {e}")
+        raise HTTPException(status_code=500, detail="Development login failed")
+
+@router.get("/dev/tokens")
+async def get_development_tokens():
+    """Get development tokens (development only)"""
+    if os.getenv("ENVIRONMENT", "development") != "development":
+        raise HTTPException(status_code=404, detail="Development endpoint not available")
+    
+    try:
+        tokens = await development_auth_service.get_development_tokens()
+        return {
+            "message": "Development tokens generated",
+            "environment": "development",
+            **tokens
+        }
+    except Exception as e:
+        logger.error(f"Error generating development tokens: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate development tokens")
+
+@router.post("/dev/setup-user")
+async def setup_development_user():
+    """Setup development user in database (development only)"""
+    if os.getenv("ENVIRONMENT", "development") != "development":
+        raise HTTPException(status_code=404, detail="Development endpoint not available")
+    
+    try:
+        user = await development_auth_service.ensure_development_user_exists()
+        return {
+            "message": "Development user setup successful",
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "onboarding_completed": user.onboarding_completed,
+                "onboarding_step": user.onboarding_step
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error setting up development user: {e}")
+        raise HTTPException(status_code=500, detail="Failed to setup development user")
+
 # Health check endpoint
 @router.get("/health")
 async def auth_health():
@@ -154,5 +219,7 @@ async def auth_health():
     return {
         "status": "healthy",
         "service": "authentication",
-        "version": "2.0.0"
+        "version": "2.0.0",
+        "environment": os.getenv("ENVIRONMENT", "development"),
+        "auth_mode": "hybrid" if os.getenv("ENVIRONMENT", "development") == "development" else "production"
     }

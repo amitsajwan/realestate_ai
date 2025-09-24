@@ -157,6 +157,9 @@ class OnboardingService:
                 "brand_personality": latest_step_data.get("brandPersonality"),
                 "brand_keywords": latest_step_data.get("brandKeywords"),
                 "brand_inspiration": latest_step_data.get("brandInspiration"),
+                "facebook_page": latest_step_data.get("facebookPage"),
+                "preferences": latest_step_data.get("preferences", []),
+                "profile_photo": latest_step_data.get("profilePhoto"),
                 "updated_at": datetime.utcnow(),
             }
             
@@ -225,9 +228,13 @@ class OnboardingService:
                         "brand_style": step_data.get("brandStyle", "Professional"),
                         "brand_personality": step_data.get("brandPersonality", "Trustworthy"),
                         "brand_keywords": step_data.get("brandKeywords", ""),
-                        "brand_inspiration": step_data.get("brandInspiration", "")
+                        "brand_inspiration": step_data.get("brandInspiration", ""),
+                        "ai_style": step_data.get("aiStyle", "Professional"),
+                        "ai_tone": step_data.get("aiTone", "Friendly"),
+                        "business_type": step_data.get("businessType", "Residential"),
+                        "target_audience": step_data.get("targetAudience", "General clients")
                     }
-                    self.logger.info(f"Found branding data in step {step_num}: {branding_data}")
+                    self.logger.info(f"Found comprehensive branding data in step {step_num}: {branding_data}")
                     break
             
             # Create agent public profile
@@ -359,7 +366,7 @@ class OnboardingService:
             first_name = onboarding_data.get("first_name", "")
             last_name = onboarding_data.get("last_name", "")
             agent_name = f"{first_name} {last_name}".strip() or email.split("@")[0]
-            agent_slug = email.split("@")[0]  # Use email prefix as slug
+            agent_slug = email.split("@")[0].lower().replace('.', '-').replace('_', '-')  # Use email prefix as slug with transformations
             
             # Create agent public profile data
             agent_profile_data = {

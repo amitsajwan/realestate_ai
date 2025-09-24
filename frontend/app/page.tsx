@@ -6,6 +6,7 @@ import FacebookIntegration from '@/components/FacebookIntegration'
 import { MobileNavigation } from '@/components/MobileNavigation'
 import ProfileSettings from '@/components/ProfileSettings'
 import Properties from '@/components/Properties'
+import PublishingWorkflowManager from '@/components/PublishingWorkflowManager'
 import SmartPropertyForm from '@/components/SmartPropertyForm'
 import { Button, Card, CardBody, CardHeader } from '@/components/UI'
 import UnifiedPublishingDashboard from '@/components/UnifiedPublishingDashboard'
@@ -60,6 +61,8 @@ export default function Dashboard() {
   const [properties, setProperties] = useState<any[]>([])
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [selectedPropertyForContent, setSelectedPropertyForContent] = useState<string | undefined>(undefined)
+  const [showWorkflow, setShowWorkflow] = useState(false)
+  const [workflowPropertyData, setWorkflowPropertyData] = useState<any>(null)
   const [stats, setStats] = useState({
     total_properties: 0,
     active_listings: 0,
@@ -237,14 +240,21 @@ export default function Dashboard() {
       case 'property-form':
         return (
           <SmartPropertyForm
-            onSuccess={() => {
-              console.log('[DashboardPage] Property created successfully, switching to properties view and refreshing...')
+            onSuccess={(propertyData) => {
+              console.log('[DashboardPage] Property created successfully:', propertyData)
+              console.log('[DashboardPage] Current showWorkflow state:', showWorkflow)
+              console.log('[DashboardPage] Current workflowPropertyData state:', workflowPropertyData)
               try {
-                setActiveSection('properties')
-                loadProperties() // Refresh the properties list
-                console.log('[DashboardPage] Successfully switched to properties view')
+                // Set the property data for the workflow
+                setWorkflowPropertyData(propertyData)
+                setShowWorkflow(true)
+                console.log('[DashboardPage] Starting property-to-post workflow...')
+                console.log('[DashboardPage] Workflow state updated - showWorkflow: true, workflowPropertyData:', propertyData)
               } catch (error) {
                 console.error('[DashboardPage] Error in onSuccess callback:', error)
+                // Fallback to old behavior
+                setActiveSection('properties')
+                loadProperties()
               }
             }}
           />
@@ -567,6 +577,22 @@ export default function Dashboard() {
           />
         </div>
       </div>
+
+      {/* Property-to-Post Workflow */}
+      <PublishingWorkflowManager
+        propertyData={workflowPropertyData}
+        isOpen={showWorkflow}
+        onClose={() => {
+          setShowWorkflow(false)
+          setWorkflowPropertyData(null)
+        }}
+        onComplete={() => {
+          setShowWorkflow(false)
+          setWorkflowPropertyData(null)
+          setActiveSection('properties')
+          loadProperties()
+        }}
+      />
     </div>
   )
 }
