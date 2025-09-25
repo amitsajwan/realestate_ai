@@ -1067,15 +1067,45 @@
 
 /* === RESPONSIVE UTILITIES === */
 .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Mobile-first responsive improvements */
+@media (max-width: 640px) {
+  .container {
+    padding: 0 var(--space-3);
+  }
+  
+  .btn {
+    min-height: 48px; /* Larger touch targets on mobile */
+    font-size: var(--font-size-base);
+  }
+  
+  .form-input {
+    min-height: 48px; /* Larger touch targets on mobile */
+    font-size: var(--font-size-base);
+  }
+  
+  .card {
+    margin: var(--space-2);
+    border-radius: var(--radius-lg);
+  }
+  
+  .card-body {
+    padding: var(--space-4);
+  }
+  
+  .card-header {
+    padding: var(--space-4);
+  }
 }
 
 .not-sr-only {

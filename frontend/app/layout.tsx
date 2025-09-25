@@ -13,6 +13,7 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'PropertyAI - AI-Powered Real Estate Platform',
   description: 'Modern real estate platform with AI-powered property management and lead generation',
+  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
 }
 
 export default function RootLayout({
