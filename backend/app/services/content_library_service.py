@@ -83,8 +83,8 @@ class ContentLibraryService:
     async def create_content_item(self, content_data: ContentItemCreate, user_id: str) -> ContentItemResponse:
         """Create a new content item"""
         try:
-            # Generate unique content ID
-            content_id = f"content_{ObjectId()}"
+            # Generate unique content ID using proper ObjectId format
+            content_id = str(ObjectId())
             
             # Create document
             doc = {

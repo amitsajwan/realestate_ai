@@ -1,13 +1,12 @@
-import React from 'react'
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import './globals.css'
-import { Toaster } from 'react-hot-toast'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { ThemeProvider } from 'next-themes'
-import { SkipLink } from '@/lib/accessibility'
 import Navigation from '@/components/Navigation'
-import BreadcrumbNavigation from '@/components/BreadcrumbNavigation'
+import { SkipLink } from '@/lib/accessibility'
+import type { Metadata } from 'next'
+import { ThemeProvider } from 'next-themes'
+import { Inter } from 'next/font/google'
+import React from 'react'
+import { Toaster } from 'react-hot-toast'
+import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -30,10 +29,7 @@ export default function RootLayout({
             <SkipLink href="#navigation">Skip to navigation</SkipLink>
             <Navigation />
             <main id="main-content" className="min-h-screen bg-gray-50 dark:bg-gray-900">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <BreadcrumbNavigation />
-                {children}
-              </div>
+              {children}
             </main>
           </ErrorBoundary>
         </ThemeProvider>

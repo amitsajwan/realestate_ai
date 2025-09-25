@@ -58,17 +58,17 @@ export class ABTesting {
     // Simple hash-based assignment for consistent user experience
     const hash = this.hashUserId(userId)
     const percentage = hash % 100
-    
+
     // Start with 10% of users getting the new form
     const rolloutPercentage = parseInt(process.env.NEXT_PUBLIC_ROLLOUT_PERCENTAGE || '10')
-    
+
     this.userVariant = percentage < rolloutPercentage ? 'new' : 'old'
-    
+
     // Store in localStorage for consistency
     if (typeof window !== 'undefined') {
       localStorage.setItem('property-form-variant', this.userVariant)
     }
-    
+
     return this.userVariant
   }
 
@@ -77,7 +77,7 @@ export class ABTesting {
    */
   getStoredVariant(): 'old' | 'new' | null {
     if (typeof window === 'undefined') return null
-    
+
     const stored = localStorage.getItem('property-form-variant')
     return stored as 'old' | 'new' | null
   }
@@ -128,7 +128,7 @@ export function useFeatureFlags(): FeatureFlags {
  */
 export function useABTesting(userId?: string) {
   const abTesting = ABTesting.getInstance()
-  
+
   const getVariant = () => {
     if (userId) {
       return abTesting.getUserVariant(userId)
@@ -156,7 +156,7 @@ export const ENV_CONFIG = {
   ROLLOUT_PERCENTAGE: parseInt(process.env.NEXT_PUBLIC_ROLLOUT_PERCENTAGE || '10'),
   ANALYTICS_ENABLED: process.env.NEXT_PUBLIC_ANALYTICS_ENABLED === 'true',
   SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
+  API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || ''
 }
 
 // Global type declaration for gtag

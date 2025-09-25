@@ -4,8 +4,6 @@
 # This file extends docker-compose.yml for ngrok deployment
 # Application services remain unchanged - only nginx configuration changes
 
-version: '3.8'
-
 services:
   # Override nginx configuration for ngrok
   nginx:
@@ -15,18 +13,19 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./docker/nginx-ngrok.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - frontend
       - backend
     networks:
       - real-estate-network
 
-  # Frontend remains unchanged - uses relative API URLs
+  # Frontend configured for ngrok deployment
   frontend:
     environment:
-      # API Configuration - Use relative paths (unchanged)
+      # API Configuration - Use relative paths for ngrok
       - NEXT_PUBLIC_API_BASE_URL=
+      - NEXT_PUBLIC_API_URL=
       - NEXT_PUBLIC_APP_URL=
       
       # Environment

@@ -9,6 +9,7 @@ import logging
 import httpx
 from datetime import datetime
 from app.core.config import settings
+from app.utils.http_client import get_httpx_client
 
 logger = logging.getLogger(__name__)
 

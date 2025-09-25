@@ -16,7 +16,7 @@ class AgentOnboardingService:
     def __init__(self, db):
         self.db = db
 
-    async def onboard(self, data: AgentOnboardingData) -> AgentProfile:
+    async def onboard(self, data: AgentOnboardingData, user_id: str = None) -> AgentProfile:
         agent = await self.db.agent_profiles.find_one({"email": data.email})
         if agent:
             return AgentProfile(**agent)
@@ -26,7 +26,7 @@ class AgentOnboardingService:
             tagline = branding.get("tagline")
             about = branding.get("about")
         agent_doc = AgentProfile(
-            user_id=data.email,
+            user_id=user_id or data.email,  # Use actual user_id if provided, fallback to email
             username=data.name,
             email=data.email,
             phone=data.whatsapp,

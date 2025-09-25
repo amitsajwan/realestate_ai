@@ -9,6 +9,7 @@ import logging
 import httpx
 from datetime import datetime
 from app.core.config import settings
+from app.utils.http_client import get_httpx_client
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class FacebookService:
             facebook_post = self._prepare_facebook_post(post_data)
             
             # Publish to Facebook
-            async with httpx.AsyncClient() as client:
+            async with get_httpx_client() as client:
                 response = await client.post(
                     f"{self.base_url}/me/feed",
                     data=facebook_post,
@@ -115,7 +116,7 @@ class FacebookService:
             if not post_id:
                 return {}
             
-            async with httpx.AsyncClient() as client:
+            async with get_httpx_client() as client:
                 response = await client.get(
                     f"{self.base_url}/{post_id}/insights",
                     params={
@@ -162,7 +163,7 @@ class FacebookService:
                 }
             
             # Test API connection
-            async with httpx.AsyncClient() as client:
+            async with get_httpx_client() as client:
                 response = await client.get(
                     f"{self.base_url}/me",
                     params={"access_token": self.access_token}
@@ -197,7 +198,7 @@ class FacebookService:
             if not self.access_token:
                 raise ValueError("Facebook access token not configured")
             
-            async with httpx.AsyncClient() as client:
+            async with get_httpx_client() as client:
                 response = await client.get(
                     f"{self.base_url}/me",
                     params={
@@ -238,7 +239,7 @@ class FacebookService:
             facebook_post["published"] = False
             
             # Schedule post
-            async with httpx.AsyncClient() as client:
+            async with get_httpx_client() as client:
                 response = await client.post(
                     f"{self.base_url}/me/feed",
                     data=facebook_post,
@@ -269,7 +270,7 @@ class FacebookService:
             if not self.access_token:
                 raise ValueError("Facebook access token not configured")
             
-            async with httpx.AsyncClient() as client:
+            async with get_httpx_client() as client:
                 response = await client.get(
                     f"{self.base_url}/me/posts",
                     params={
@@ -303,7 +304,7 @@ class FacebookService:
             if not self.access_token:
                 raise ValueError("Facebook access token not configured")
             
-            async with httpx.AsyncClient() as client:
+            async with get_httpx_client() as client:
                 response = await client.delete(
                     f"{self.base_url}/{post_id}",
                     params={"access_token": self.access_token}

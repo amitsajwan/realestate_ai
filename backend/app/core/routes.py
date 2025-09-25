@@ -11,8 +11,8 @@ from typing import Optional, Dict, Any, List
 # Removed duplicate smart_properties import - using unified_properties now
 from app.core.auth_backend import current_active_user
 from app.models.user import User
-# Import authentication module
-from modules.auth.integration import integrate_auth_module, get_auth_config
+# Import authentication module - disabled to avoid conflicts
+# from modules.auth.integration import integrate_auth_module, get_auth_config
 
 
 class AIPropertySuggestRequest(BaseModel):
@@ -41,13 +41,14 @@ def setup_routes(app: FastAPI):
     app.include_router(api_router, prefix="/api/v1")
     # app.include_router(simple_auth.router)
     
-    # Integrate authentication module
-    try:
-        auth_config = get_auth_config()
-        integrate_auth_module(app, auth_config)
-    except Exception as e:
-        print(f"Warning: Could not integrate authentication module: {e}")
-        print("Falling back to existing authentication system")
+    # Authentication module integration disabled to avoid conflicts with FastAPI Users
+    # The FastAPI Users system in /app/api/v1/endpoints/auth.py is sufficient
+    # try:
+    #     auth_config = get_auth_config()
+    #     integrate_auth_module(app, auth_config)
+    # except Exception as e:
+    #     print(f"Warning: Could not integrate authentication module: {e}")
+    #     print("Falling back to existing authentication system")
 
     # Mount static files for uploads
     app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

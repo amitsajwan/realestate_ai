@@ -310,7 +310,7 @@ class AgentPublicService:
                 # Create profile from database
                 profile = AgentPublicProfile(
                     id=str(agent_doc.get("_id", "")),
-                    agent_id=agent_doc.get("agent_id", ""),
+                    agent_id=str(agent_doc.get("agent_id", "")),
                     agent_name=agent_doc.get("agent_name", ""),
                     slug=agent_doc.get("slug", ""),
                     bio=agent_doc.get("bio", ""),
@@ -514,11 +514,17 @@ class AgentPublicService:
                     logger.warning(f"Property {property_doc.get('_id')} has negative price {price}, setting to 0")
                     price = 0  # Set negative prices to 0
                 
+                # Truncate description if too long (max 2000 characters)
+                description = property_doc.get("description", "")
+                if len(description) > 2000:
+                    logger.warning(f"Property {property_doc.get('_id')} description too long ({len(description)} chars), truncating to 2000")
+                    description = description[:2000]
+                
                 return PublicProperty(
                     id=str(property_doc.get("_id", "")),
                     agent_id=property_doc.get("agent_id", ""),
                     title=property_doc.get("title", ""),
-                    description=property_doc.get("description", ""),
+                    description=description,
                     price=price,
                     property_type=property_doc.get("property_type", "house"),
                     bedrooms=property_doc.get("bedrooms"),

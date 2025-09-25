@@ -1,5 +1,6 @@
 'use client';
 
+import { API_BASE_URL } from '@/lib/config/api';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -28,7 +29,6 @@ export default function PropertiesPage() {
   const fetchProperties = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
       const response = await fetch(`${API_BASE_URL}/api/v1/properties/`, {
         headers: {

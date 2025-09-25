@@ -31,6 +31,13 @@ class AISuggestionsRequest(BaseModel):
     bedrooms: Optional[int] = None
     bathrooms: Optional[int] = None
     area: Optional[int] = None
+    price: Optional[float] = None
+    budget: Optional[float] = None
+    amenities: Optional[str] = None
+    features: Optional[List[str]] = None
+    description: Optional[str] = None
+    title: Optional[str] = None
+    ai_hint: Optional[str] = None
     user_profile: Optional[Dict[str, Any]] = None
     agent_profile: Optional[Dict[str, Any]] = None
 
@@ -465,7 +472,10 @@ async def publish_property(
                 detail="Property not found"
             )
         
-        logger.info(f"Property {property_id} published successfully")
+        # Create posts for the published property
+        posts_created = await service.create_posts_for_published_property(property_id, str(user_id), publish_data)
+        
+        logger.info(f"Property {property_id} published successfully with {len(posts_created)} posts created")
         
         return {
             "success": True,
@@ -473,6 +483,7 @@ async def publish_property(
             "property_id": property_id,
             "publishing_status": "published",
             "published_at": updated_property.updated_at.isoformat(),
+            "posts_created": len(posts_created),
             "published_channels": publish_data.publishing_channels,
             "target_languages": publish_data.target_languages,
             "facebook_page_mappings": publish_data.facebook_page_mappings

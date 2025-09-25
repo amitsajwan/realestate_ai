@@ -5,7 +5,6 @@
  */
 
 import { authManager } from '@/lib/auth';
-import { fetchWithAuthInterceptor } from '../auth/interceptor';
 import {
     AIDraft,
     DraftsResponse,
@@ -16,8 +15,9 @@ import {
     PublishResponse,
     UpdateDraftRequest
 } from '@/types/social_publishing';
+import { fetchWithAuthInterceptor } from '../auth/interceptor';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { API_BASE_URL } from '../config/api';
 
 class SocialPublishingAPI {
     private baseUrl: string;

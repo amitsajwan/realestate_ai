@@ -113,17 +113,34 @@ export interface AgentBranding {
 }
 
 export interface BrandingSuggestion {
+    // Core branding properties
     tagline: string;
     about: string;
     primaryColor: string;
     secondaryColor: string;
     fontFamily: string;
-    logoStyle: string;
+    brandVoice: string;
+    designStyle: string;
+    reasoning: string;
+    brandPersonality: string;
+    targetMessage: string;
+
+    // Color and typography
     colorPalette: {
         primary: string;
         secondary: string;
         accent: string;
+        neutral?: string;
     };
+    typography: {
+        primary: string;
+        headings: string;
+        body: string;
+        accent: string;
+    };
+
+    // Logo and design
+    logoIdeas: string[];
 }
 
 // Agent Social Media

@@ -7,11 +7,11 @@
 
 import { AnalyticsResponse, Post, PostCreateRequest, PostFilters, PostUpdateRequest } from '../../types/post';
 import { PropertyCreate, PropertyResponse, PropertyUpdate } from '../../types/property';
+import { fetchWithAuthInterceptor } from '../auth/interceptor';
 import { AuthResponse, LoginData, RegisterData, User } from '../auth/types';
 import { APIError } from '../errors';
-import { fetchWithAuthInterceptor } from '../auth/interceptor';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { API_BASE_URL } from '../config/api';
 
 // API Response wrapper
 interface APIResponse<T = any> {
@@ -337,3 +337,4 @@ export const apiClient = new UnifiedAPIClient();
 
 // Export types
 export type { APIError, APIResponse };
+

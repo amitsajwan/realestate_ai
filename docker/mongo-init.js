@@ -6,13 +6,13 @@ db.createCollection('users', {
   validator: {
     $jsonSchema: {
       bsonType: 'object',
-      required: ['email', 'password_hash', 'created_at'],
+      required: ['email', 'hashed_password', 'created_at'],
       properties: {
         email: {
           bsonType: 'string',
           pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$'
         },
-        password_hash: {
+        hashed_password: {
           bsonType: 'string'
         },
         created_at: {

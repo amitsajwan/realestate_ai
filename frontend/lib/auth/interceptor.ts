@@ -36,10 +36,9 @@ export class AuthInterceptor {
             // This prevents logout loops during login attempts
             if (currentState.isAuthenticated && currentState.token && !isAuthEndpoint) {
                 logger.warn('[AuthInterceptor] 401 Unauthorized detected - token expired, logging out', {
-                    url: originalUrl,
-                    wasAuthenticated: currentState.isAuthenticated,
-                    hasToken: !!currentState.token,
-                    isAuthEndpoint
+                    endpoint: originalUrl,
+                    component: 'AuthInterceptor',
+                    action: 'token_expiration'
                 });
 
                 await this.handleTokenExpiration();
@@ -149,8 +148,9 @@ export async function fetchWithAuthInterceptor(
         return response;
     } catch (error) {
         logger.error('[AuthInterceptor] Fetch error', {
-            url: typeof input === 'string' ? input : input.toString(),
-            errorDetails: error instanceof Error ? error.message : String(error)
+            endpoint: typeof input === 'string' ? input : input.toString(),
+            component: 'AuthInterceptor',
+            action: 'fetch_error'
         });
         throw error;
     }

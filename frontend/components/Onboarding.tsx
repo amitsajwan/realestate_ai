@@ -2,9 +2,9 @@
 
 import { LoadingButton } from '@/components/LoadingStates';
 import { useAsyncOperation, useMultipleLoading } from '@/hooks/useLoading';
+import { BrandingSuggestion } from '@/lib/agent/types';
 import { apiService } from '@/lib/api';
 import { authManager, User } from '@/lib/auth';
-import { BrandingSuggestion } from '@/lib/auth/types';
 import { withErrorHandling } from '@/lib/error-handler';
 import { applyBrandTheme } from '@/lib/theme';
 import { ArrowLeftIcon, ArrowRightIcon, BuildingOfficeIcon, CheckIcon, DocumentTextIcon, PhotoIcon, ShareIcon, SparklesIcon, UserIcon } from '@heroicons/react/24/outline';
@@ -362,8 +362,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
         tagline: selectedSuggestion.tagline || `${formData.company} - Professional Real Estate Services`,
         about: selectedSuggestion.about || `Welcome to ${formData.company}, your trusted partner in real estate. We specialize in helping you find your dream home with personalized service and expert guidance.`,
         colors: {
-          primary: selectedSuggestion.colorPalette?.primary || selectedSuggestion.primary_color || '#3b82f6',
-          secondary: selectedSuggestion.colorPalette?.secondary || selectedSuggestion.secondary_color || '#64748b',
+          primary: selectedSuggestion.colorPalette?.primary || selectedSuggestion.primaryColor || '#3b82f6',
+          secondary: selectedSuggestion.colorPalette?.secondary || selectedSuggestion.secondaryColor || '#64748b',
           accent: selectedSuggestion.colorPalette?.accent || '#10b981'
         }
       }
@@ -384,8 +384,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
         tagline: selectedSuggestion.tagline || `${formData.company} - Professional Real Estate Services`,
         about: selectedSuggestion.about || `Welcome to ${formData.company}, your trusted partner in real estate. We specialize in helping you find your dream home with personalized service and expert guidance.`,
         colors: {
-          primary: selectedSuggestion.colorPalette?.primary || selectedSuggestion.primary_color || '#3b82f6',
-          secondary: selectedSuggestion.colorPalette?.secondary || selectedSuggestion.secondary_color || '#64748b',
+          primary: selectedSuggestion.colorPalette?.primary || selectedSuggestion.primaryColor || '#3b82f6',
+          secondary: selectedSuggestion.colorPalette?.secondary || selectedSuggestion.secondaryColor || '#64748b',
           accent: selectedSuggestion.colorPalette?.accent || '#10b981'
         }
       }
@@ -455,7 +455,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
     switch (currentStep) {
       case 1:
         return (
-          <div className="space-y-6">
+          <div className="space-y-6 px-2">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -499,7 +499,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
 
       case 2:
         return (
-          <div className="space-y-6">
+          <div className="space-y-6 px-2">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Company Name *
@@ -575,7 +575,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
 
       case 3:
         return (
-          <div className="space-y-6">
+          <div className="space-y-6 px-2">
             {/* Branding Preferences */}
             <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg border">
               <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
@@ -732,7 +732,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                         }`}
                     >
                       <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-semibold text-gray-800">{suggestion.logoStyle}</h4>
+                        <h4 className="font-semibold text-gray-800">{suggestion.designStyle}</h4>
                         {selectedBranding === index && (
                           <CheckIcon className="w-5 h-5 text-blue-600" />
                         )}
@@ -794,7 +794,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Logo Concepts</label>
                             <div className="space-y-2">
-                              {brandingSuggestions[selectedBranding].logoIdeas.map((idea, idx) => (
+                              {brandingSuggestions[selectedBranding].logoIdeas.map((idea: string, idx: number) => (
                                 <div key={idx} className="p-2 bg-white rounded border border-gray-200">
                                   <p className="text-sm text-gray-700">{idea}</p>
                                 </div>
@@ -812,18 +812,18 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                             <div className="text-center">
                               <div
                                 className="w-16 h-16 rounded-lg border-2 border-white shadow-md mx-auto mb-2"
-                                style={{ backgroundColor: brandingSuggestions[selectedBranding].colorPalette?.primary || brandingSuggestions[selectedBranding].primaryColor }}
+                                style={{ backgroundColor: brandingSuggestions[selectedBranding].colorPalette?.primary }}
                               />
                               <span className="text-xs text-gray-600 font-medium">Primary</span>
-                              <p className="text-xs text-gray-500">{brandingSuggestions[selectedBranding].colorPalette?.primary || brandingSuggestions[selectedBranding].primaryColor}</p>
+                              <p className="text-xs text-gray-500">{brandingSuggestions[selectedBranding].colorPalette?.primary}</p>
                             </div>
                             <div className="text-center">
                               <div
                                 className="w-16 h-16 rounded-lg border-2 border-white shadow-md mx-auto mb-2"
-                                style={{ backgroundColor: brandingSuggestions[selectedBranding].colorPalette?.secondary || brandingSuggestions[selectedBranding].secondaryColor }}
+                                style={{ backgroundColor: brandingSuggestions[selectedBranding].colorPalette?.secondary }}
                               />
                               <span className="text-xs text-gray-600 font-medium">Secondary</span>
-                              <p className="text-xs text-gray-500">{brandingSuggestions[selectedBranding].colorPalette?.secondary || brandingSuggestions[selectedBranding].secondaryColor}</p>
+                              <p className="text-xs text-gray-500">{brandingSuggestions[selectedBranding].colorPalette?.secondary}</p>
                             </div>
                             <div className="text-center">
                               <div
@@ -874,7 +874,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                         <div
                           className="p-4 text-white"
                           style={{
-                            backgroundColor: brandingSuggestions[selectedBranding].colorPalette?.primary || brandingSuggestions[selectedBranding].primaryColor,
+                            backgroundColor: brandingSuggestions[selectedBranding].colorPalette?.primary,
                             fontFamily: brandingSuggestions[selectedBranding].fontFamily
                           }}
                         >
@@ -905,7 +905,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                               </p>
                               <button
                                 className="mt-3 px-4 py-2 text-white text-sm rounded font-medium"
-                                style={{ backgroundColor: brandingSuggestions[selectedBranding].colorPalette?.secondary || brandingSuggestions[selectedBranding].secondaryColor }}
+                                style={{ backgroundColor: brandingSuggestions[selectedBranding].colorPalette?.secondary }}
                               >
                                 Contact Us
                               </button>
@@ -914,7 +914,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                               <h4
                                 className="font-medium mb-2 text-gray-800"
                                 style={{
-                                  color: brandingSuggestions[selectedBranding].colorPalette?.primary || brandingSuggestions[selectedBranding].primaryColor,
+                                  color: brandingSuggestions[selectedBranding].colorPalette?.primary,
                                   fontFamily: brandingSuggestions[selectedBranding].fontFamily
                                 }}
                               >
@@ -1001,7 +1001,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
 
       case 4:
         return (
-          <div className="space-y-6">
+          <div className="space-y-6 px-2">
             <div className="text-center">
               <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -1023,7 +1023,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
 
       case 5:
         return (
-          <div className="space-y-6">
+          <div className="space-y-6 px-2">
             <div className="flex items-start space-x-3">
               <input
                 type="checkbox"
@@ -1053,7 +1053,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
 
       case 6:
         return (
-          <div className="space-y-6">
+          <div className="space-y-6 px-2">
             <div className="text-center">
               <PhotoIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-800 mb-2">
@@ -1102,9 +1102,9 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
-        <div className="glass-card bg-white">
+        <div className="glass-card bg-white p-6 md:p-8">
           {/* Progress Bar */}
-          <div className="mb-8">
+          <div className="mb-8 px-2">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-bold text-gray-800">
                 {onboardingSteps[currentStep - 1].title}
@@ -1152,7 +1152,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
           </AnimatePresence>
 
           {/* Navigation */}
-          <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
+          <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200 px-2">
             <div className="flex space-x-3">
               <button
                 onClick={handleBack}

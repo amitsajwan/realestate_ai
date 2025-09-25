@@ -13,6 +13,7 @@ import time
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import httpx
+from app.utils.http_client import get_httpx_client
 import re
 from urllib.parse import quote
 
@@ -27,7 +28,7 @@ class AIPropertyIntelligenceService:
     
     def __init__(self):
         self.logger = logger
-        self.session = httpx.AsyncClient(timeout=30.0)
+        self.session = get_httpx_client(timeout=30.0)
         
     async def enrich_property_data(self, property_data: Dict[str, Any]) -> Dict[str, Any]:
         """

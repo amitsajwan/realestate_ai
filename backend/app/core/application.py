@@ -15,7 +15,14 @@ from app.core.error_handlers import register_error_handlers
 from app.core.logging_config import setup_logging, get_logger
 from app.core.security import SecurityMiddleware, get_security_headers
 from app.api.v1.endpoints.health import router as health_router
+from app.services.token_cleanup_service import start_token_cleanup, stop_token_cleanup
 import logging
+
+# Import SSL configuration to initialize it
+try:
+    import ssl_config
+except ImportError:
+    pass
 
 
 @asynccontextmanager
@@ -38,6 +45,10 @@ async def lifespan(app: FastAPI):
         # Analytics service will be initialized when needed
         logger.info("📈 Analytics service ready")
         
+        # Start token cleanup service
+        await start_token_cleanup()
+        logger.info("🧹 Token cleanup service started")
+        
     except Exception as e:
         logger.error(f"❌ Failed to connect to MongoDB: {e}")
         # Don't raise the exception - let the app start with mock database
@@ -46,6 +57,9 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
+    await stop_token_cleanup()
+    logger.info("🧹 Token cleanup service stopped")
+    
     await close_database()
     logger.info("📊 Database connection closed")
 

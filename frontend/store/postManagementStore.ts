@@ -44,7 +44,7 @@ export const usePostManagementStore = create<PostManagementState>((set, get) => 
                 'JUST LISTED'
             ];
 
-            const filteredPosts = posts.filter(post =>
+            const filteredPosts = posts.filter((post: any) =>
                 !samplePostTitles.some(sample =>
                     post.title.includes(sample)
                 )

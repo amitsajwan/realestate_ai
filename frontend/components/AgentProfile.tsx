@@ -55,7 +55,7 @@ interface AgentProfileProps {
 }
 
 export function AgentProfile({ agent, properties, onContactClick }: AgentProfileProps) {
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://'
 
     // Use cached data hook for posts
     const {

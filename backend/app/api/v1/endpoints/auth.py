@@ -18,6 +18,7 @@ from app.core.auth_backend import (
 )
 from app.core.database import get_database
 from app.services.development_auth_service import development_auth_service
+from app.core.security import SecurityManager
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 from datetime import datetime
@@ -152,12 +153,28 @@ async def update_current_user(
 # Development authentication endpoints
 @router.post("/dev/login")
 async def development_login(
+    request: Request,
     email: str,
     password: str
 ):
     """Login with development credentials (development only)"""
     if os.getenv("ENVIRONMENT", "development") != "development":
         raise HTTPException(status_code=404, detail="Development endpoint not available")
+    
+    # Apply rate limiting
+    security_manager = SecurityManager()
+    client_ip = security_manager.get_client_ip(request)
+    
+    if not security_manager.check_rate_limit(client_ip):
+        raise HTTPException(
+            status_code=429, 
+            detail="Rate limit exceeded. Please try again later.",
+            headers={"Retry-After": "60"}
+        )
+    
+    # Validate input
+    if not security_manager.validate_email(email):
+        raise HTTPException(status_code=400, detail="Invalid email format")
     
     try:
         tokens = await development_auth_service.login_development_user(email, password)

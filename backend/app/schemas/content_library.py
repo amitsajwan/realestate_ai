@@ -41,12 +41,14 @@ class ContentItemBase(BaseModel):
     content_type: ContentType = Field(..., description="Type of content")
     title: str = Field(..., min_length=1, max_length=200, description="Content title")
     content: str = Field(..., min_length=1, description="Content text")
+    language: str = Field(default="en", description="Content language code")
     media_urls: List[str] = Field(default=[], description="Media file URLs")
     status: ContentStatus = Field(default=ContentStatus.DRAFT, description="Content status")
     scheduled_at: Optional[datetime] = Field(None, description="Scheduled publishing time")
     published_at: Optional[datetime] = Field(None, description="Actual publishing time")
     channels: List[PublishingChannel] = Field(default=[], description="Target publishing channels")
     tags: List[str] = Field(default=[], description="Content tags")
+    hashtags: List[str] = Field(default=[], description="Content hashtags")
     metadata: Dict[str, Any] = Field(default={}, description="Additional metadata")
 
 class ContentItemCreate(ContentItemBase):
@@ -57,11 +59,13 @@ class ContentItemUpdate(BaseModel):
     """Schema for updating content items"""
     title: Optional[str] = Field(None, min_length=1, max_length=200)
     content: Optional[str] = Field(None, min_length=1)
+    language: Optional[str] = None
     media_urls: Optional[List[str]] = None
     status: Optional[ContentStatus] = None
     scheduled_at: Optional[datetime] = None
     channels: Optional[List[PublishingChannel]] = None
     tags: Optional[List[str]] = None
+    hashtags: Optional[List[str]] = None
     metadata: Optional[Dict[str, Any]] = None
 
 class ContentItem(ContentItemBase):
@@ -87,12 +91,14 @@ class ContentItemResponse(BaseModel):
     content_type: ContentType
     title: str
     content: str
+    language: str = Field(default="en")
     media_urls: List[str]
     status: ContentStatus
     scheduled_at: Optional[datetime]
     published_at: Optional[datetime]
     channels: List[PublishingChannel]
     tags: List[str] = Field(default=[])
+    hashtags: List[str] = Field(default=[])
     metadata: Dict[str, Any] = Field(default={})
     user_id: str
     created_at: datetime

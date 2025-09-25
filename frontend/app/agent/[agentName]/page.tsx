@@ -3,7 +3,8 @@
 import AgentNavigation from '@/components/AgentNavigation'
 import { initializeBrandTheme } from '@/lib/theme'
 import {
-  CalendarIcon,
+  BuildingOfficeIcon,
+  DocumentTextIcon,
   EnvelopeIcon,
   EyeIcon,
   HeartIcon,
@@ -19,7 +20,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { toast } from 'react-hot-toast'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+import { API_BASE_URL } from '@/lib/config/api'
 
 interface AgentProfile {
   id: string
@@ -247,17 +248,27 @@ export default function AgentPublicPage({ params }: AgentPublicPageProps) {
 
                 <div className="flex flex-col sm:flex-row gap-4">
                   <Link
+                    href={`/agent/${params.agentName}/properties`}
+                    className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium text-center"
+                  >
+                    <BuildingOfficeIcon className="w-5 h-5 inline mr-2" />
+                    View Properties
+                  </Link>
+                  <Link
+                    href={`/agent/${params.agentName}/posts`}
+                    className="bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium text-center"
+                  >
+                    <DocumentTextIcon className="w-5 h-5 inline mr-2" />
+                    Read Posts
+                  </Link>
+                  <Link
                     href={`/agent/${params.agentName}/contact`}
                     onClick={handleContactClick}
-                    className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium text-center"
+                    className="bg-white text-blue-600 border-2 border-blue-600 px-8 py-3 rounded-lg hover:bg-blue-50 transition-colors font-medium text-center"
                   >
                     <PhoneIcon className="w-5 h-5 inline mr-2" />
                     Contact Me
                   </Link>
-                  <button className="bg-white text-blue-600 border-2 border-blue-600 px-8 py-3 rounded-lg hover:bg-blue-50 transition-colors font-medium">
-                    <CalendarIcon className="w-5 h-5 inline mr-2" />
-                    Schedule Viewing
-                  </button>
                 </div>
               </motion.div>
             </div>
@@ -288,6 +299,48 @@ export default function AgentPublicPage({ params }: AgentPublicPageProps) {
                     <span className="text-gray-600">Experience</span>
                     <span className="font-semibold text-blue-600">{agent?.experience || 'Professional'}</span>
                   </div>
+                </div>
+              </motion.div>
+
+              {/* Quick Links */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+                className="bg-white rounded-xl shadow-lg p-6 mt-6"
+              >
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Access</h3>
+                <div className="space-y-3">
+                  <Link
+                    href={`/agent/${params.agentName}/properties`}
+                    className="flex items-center space-x-3 p-3 rounded-lg hover:bg-blue-50 transition-colors group"
+                  >
+                    <BuildingOfficeIcon className="w-5 h-5 text-blue-600 group-hover:text-blue-700" />
+                    <div>
+                      <p className="font-medium text-gray-900">Browse Properties</p>
+                      <p className="text-sm text-gray-500">View all available listings</p>
+                    </div>
+                  </Link>
+                  <Link
+                    href={`/agent/${params.agentName}/posts`}
+                    className="flex items-center space-x-3 p-3 rounded-lg hover:bg-green-50 transition-colors group"
+                  >
+                    <DocumentTextIcon className="w-5 h-5 text-green-600 group-hover:text-green-700" />
+                    <div>
+                      <p className="font-medium text-gray-900">Read Latest Posts</p>
+                      <p className="text-sm text-gray-500">Stay updated with market insights</p>
+                    </div>
+                  </Link>
+                  <Link
+                    href={`/agent/${params.agentName}/contact`}
+                    className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+                  >
+                    <PhoneIcon className="w-5 h-5 text-gray-600 group-hover:text-gray-700" />
+                    <div>
+                      <p className="font-medium text-gray-900">Get In Touch</p>
+                      <p className="text-sm text-gray-500">Contact for inquiries</p>
+                    </div>
+                  </Link>
                 </div>
               </motion.div>
             </div>
@@ -476,6 +529,37 @@ export default function AgentPublicPage({ params }: AgentPublicPageProps) {
               </Link>
             </div>
           )}
+        </div>
+      </section>
+
+      {/* Latest Posts Section */}
+      <section className="py-16 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Latest Market Insights</h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Stay informed with the latest real estate trends, market updates, and property insights from {agent?.agent_name || 'our expert agent'}.
+            </p>
+          </div>
+
+          {/* Posts will be loaded here */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* Placeholder for posts - will be populated by AgentProfile component */}
+            <div className="text-center py-16 col-span-full">
+              <DocumentTextIcon className="w-20 h-20 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-xl font-medium text-gray-900 mb-2">Posts Loading...</h3>
+              <p className="text-gray-500 mb-6">Latest market insights will appear here.</p>
+              <Link
+                href={`/agent/${params.agentName}/posts`}
+                className="inline-flex items-center px-6 py-3 border border-green-600 text-green-600 rounded-lg hover:bg-green-50 transition-colors font-medium"
+              >
+                View All Posts
+                <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 

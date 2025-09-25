@@ -168,11 +168,11 @@ class UnifiedAIContentService:
             ContentTone.PROFESSIONAL: "Professional, informative, business-focused tone"
         }
         
-        # Length instructions
+        # Length instructions with specific constraints
         length_instructions = {
-            ContentLength.SHORT: "Keep it concise and punchy with strong call-to-action (100-300 words)",
-            ContentLength.MEDIUM: "Balanced length with key details and emotional appeal (300-600 words)",
-            ContentLength.LONG: "Comprehensive with all details, market insights, and neighborhood highlights (600+ words)"
+            ContentLength.SHORT: "Keep it concise and punchy with strong call-to-action (100-300 words, 2-3 paragraphs max)",
+            ContentLength.MEDIUM: "Balanced length with key details and emotional appeal (300-600 words, 3-5 paragraphs)",
+            ContentLength.LONG: "Comprehensive with all details, market insights, and neighborhood highlights (600+ words, 5-8 paragraphs)"
         }
         
         # Language instructions
@@ -180,8 +180,22 @@ class UnifiedAIContentService:
             "en": "Generate engaging English content",
             "hi": "Generate engaging Hindi content (use Devanagari script)",
             "mr": "Generate engaging Marathi content (use Devanagari script)",
-            "gu": "Generate engaging Gujarati content (use Gujarati script)"
+            "gu": "Generate engaging Gujarati content (use Gujarati script)",
+            "te": "Generate engaging Telugu content (use Telugu script)",
+            "ta": "Generate engaging Tamil content (use Tamil script)",
+            "kn": "Generate engaging Kannada content (use Kannada script)",
+            "ml": "Generate engaging Malayalam content (use Malayalam script)",
+            "bn": "Generate engaging Bengali content (use Bengali script)",
+            "pa": "Generate engaging Punjabi content (use Gurmukhi script)",
+            "ur": "Generate engaging Urdu content (use Urdu script)"
         }
+        
+        # Debug logging for language handling
+        self.logger.info(f"=== LANGUAGE DEBUG ===")
+        self.logger.info(f"Language parameter received: '{language}' (type: {type(language)})")
+        self.logger.info(f"Language instructions keys: {list(language_instructions.keys())}")
+        self.logger.info(f"Language instruction for '{language}': {language_instructions.get(language, 'NOT FOUND')}")
+        self.logger.info(f"=== END LANGUAGE DEBUG ===")
         
         # Extract property information
         property_info = self._extract_property_info(property_data)
@@ -203,6 +217,23 @@ CHANNEL: {channel_instructions.get(channel, 'Social media post')}
 TONE: {tone_instructions.get(effective_tone, 'Friendly, trustworthy')} (Agent's preferred tone: {agent_tone})
 LENGTH: {length_instructions.get(length, 'Balanced length')}
 
+CRITICAL REQUIREMENTS:
+- Generate content ONLY in the specified language ({language}) - DO NOT mix languages
+- Create content that looks like a real social media post, not technical documentation
+- Use natural, engaging language that flows well in the target language
+- Include relevant emojis and hashtags naturally in the target language
+- Make it shareable and professional
+- If language is Telugu (te), write entirely in Telugu script
+- If language is Hindi (hi), write entirely in Devanagari script
+- If language is Marathi (mr), write entirely in Devanagari script
+- If language is Tamil (ta), write entirely in Tamil script
+- If language is Kannada (kn), write entirely in Kannada script
+- If language is Malayalam (ml), write entirely in Malayalam script
+- If language is Bengali (bn), write entirely in Bengali script
+- If language is Gujarati (gu), write entirely in Gujarati script
+- If language is Punjabi (pa), write entirely in Gurmukhi script
+- If language is Urdu (ur), write entirely in Urdu script
+
 PROPERTY DETAILS:
 - Title: {property_info.get('title', 'Property')}
 - Type: {property_info.get('property_type', 'Property')}
@@ -214,7 +245,8 @@ PROPERTY DETAILS:
 - Area: {property_info.get('area_sqft', 0)} sq ft
 - Description: {property_info.get('description', '')}
 - Amenities: {property_info.get('amenities', '')}
-- Features: {', '.join(property_info.get('features', []))}
+- Features: {', '.join(property_info.get('features', []) or [])}
+- AI Hint: {property_info.get('ai_hint', '')}
 
 {building_context}
 
@@ -223,6 +255,15 @@ PROPERTY DETAILS:
 {agent_context}
 
 {custom_prompt if custom_prompt else ''}
+
+SPECIAL INSTRUCTIONS:
+- If AI Hint is provided, it contains important local context and nearby landmarks that should be prominently featured in the content
+- Use the AI Hint to add specific location benefits, nearby amenities, and local insights
+- Make the AI Hint content feel natural and integrated, not just mentioned
+- ALWAYS include local area intelligence: nearby schools, hospitals, shopping centers, transportation hubs, and landmarks
+- Add building-specific details: construction quality, developer reputation, building amenities, and neighborhood characteristics
+- Include market insights: price trends, investment potential, and area development plans
+- Mention local lifestyle benefits: parks, restaurants, entertainment, and community features
 
 CONTENT STRATEGY:
 1. Create emotionally engaging content that connects with buyer aspirations
@@ -242,23 +283,38 @@ CONTENT STRATEGY:
 15. PROFESSIONAL CONTEXT: Incorporate agent's company, position, and specialties naturally
 16. TARGETED MESSAGING: Tailor content to agent's target audience (investors, first-time buyers, etc.)
 
-OUTPUT FORMAT (JSON):
-{{
-    "title": "Compelling headline (max 100 chars) with emotional hook",
-    "body": "Main post content with agent contact embedded naturally, market insights, building details, and strong CTA",
-    "hashtags": ["#realestate", "#property", "#location", "#investment", "#home", "#localmarket", "#building", "#area"],
-    "call_to_action": "Clear action-oriented CTA",
-    "key_features": ["Feature 1", "Feature 2", "Feature 3"],
-    "building_highlights": ["Building feature 1", "Building feature 2"],
-    "area_benefits": ["Area benefit 1", "Area benefit 2"]
-}}
+OUTPUT FORMAT:
+Generate clean, professional social media content that looks like a real post. Do NOT include JSON formatting, brackets, or technical markup. 
+
+CONTENT STRUCTURE RULES:
+1. **Title/Headline**: Max 100 characters, compelling and emotional
+2. **Main Content**: 
+   - Use proper paragraph breaks (double line breaks)
+   - Each paragraph: 2-4 sentences max
+   - Include emojis naturally (1-3 per paragraph)
+   - Use bullet points (•) for features when appropriate
+3. **Hashtags**: 5-10 relevant hashtags at the end
+4. **Call-to-Action**: Clear, action-oriented (Contact, Call, Visit, etc.)
+5. **Line Breaks**: Use proper spacing for readability
+
+FORMATTING REQUIREMENTS:
+- Start with emoji + compelling headline
+- Use line breaks between sections
+- Include property details with emojis (🏠 📍 💰)
+- Add features as bullet points
+- End with hashtags and CTA
+- Keep paragraphs short and scannable
+
+IMPORTANT: Return ONLY the final formatted content, not JSON or any technical formatting. The content should be ready to publish directly on social media platforms.
 
 PLATFORM-SPECIFIC OPTIMIZATION:
-- For Instagram: Visual storytelling, lifestyle focus, max 30 hashtags, use relevant emojis
-- For Facebook: Community-focused, encourage comments and shares, longer content acceptable
-- For Website: SEO-optimized, comprehensive details, local market analysis, professional tone
-- For WhatsApp: Personal, direct, concise communication
-- For Email: Professional, detailed, formal business communication
+- **Instagram**: Visual storytelling, lifestyle focus, max 30 hashtags, 2,200 character limit, use relevant emojis
+- **Facebook**: Community-focused, encourage comments and shares, max 63,206 characters, longer content acceptable
+- **Website**: SEO-optimized, comprehensive details, local market analysis, professional tone, 1,500-3,000 words
+- **WhatsApp**: Personal, direct, concise communication, max 4,096 characters, 2-3 paragraphs
+- **Email**: Professional, detailed, formal business communication, 500-1,000 words, proper email formatting
+- **Twitter**: Concise, engaging, max 280 characters, use hashtags strategically
+- **LinkedIn**: Professional tone, business-focused, 1,300 character limit, industry-relevant content
 
 IMPORTANT: 
 - Always include agent contact in the body text naturally
@@ -268,6 +324,13 @@ IMPORTANT:
 - Include neighborhood highlights and lifestyle benefits
 - Emphasize building quality, area utilization, and construction details
 - Include specific measurements and space descriptions
+
+FINAL LANGUAGE REQUIREMENT:
+- The ENTIRE content must be written in {language} language only
+- Do NOT use English words or phrases in the content
+- Use proper script for the language (Telugu script for Telugu, Devanagari for Hindi/Marathi, etc.)
+- Write as a native speaker would write in that language
+- Include hashtags in the target language where appropriate
 """
         
         return prompt.strip()
@@ -305,6 +368,7 @@ IMPORTANT:
             "description": property_data.get("description", ""),
             "amenities": property_data.get("amenities", ""),
             "features": property_data.get("features", []),
+            "ai_hint": property_data.get("ai_hint", ""),
             "images": property_data.get("images", []),
             "year_built": property_data.get("year_built"),
             "parking_spaces": property_data.get("parking_spaces"),
@@ -331,7 +395,11 @@ IMPORTANT:
             if property_data.get("balcony_area"):
                 context_parts.append(f"- Balcony Area: {property_data['balcony_area']} sq ft")
             if property_data.get("security_features"):
-                context_parts.append(f"- Security: {', '.join(property_data['security_features'])}")
+                security_features = property_data['security_features']
+                if isinstance(security_features, list):
+                    context_parts.append(f"- Security: {', '.join(security_features)}")
+                else:
+                    context_parts.append(f"- Security: {security_features}")
         
         # Enhanced building details from enriched data
         if enriched_data and enriched_data.get("building_details"):
@@ -345,7 +413,11 @@ IMPORTANT:
                 if building_data.get("builder_name"):
                     context_parts.append(f"- Developer: {building_data['builder_name']}")
                 if building_data.get("building_amenities"):
-                    context_parts.append(f"- Building Amenities: {', '.join(building_data['building_amenities'][:5])}")
+                    amenities = building_data['building_amenities']
+                    if isinstance(amenities, list):
+                        context_parts.append(f"- Building Amenities: {', '.join(amenities[:5])}")
+                    else:
+                        context_parts.append(f"- Building Amenities: {amenities}")
                 if building_data.get("building_approval", {}).get("rera_approved"):
                     context_parts.append(f"- RERA Approved: {building_data['building_approval']['rera_number']}")
         
@@ -367,8 +439,10 @@ IMPORTANT:
                 context_parts.append(f"- Safety Score: {safety['safety_score']}/10")
             
             development = neighborhood_data.get("development_projects", [])
-            if development:
+            if development and isinstance(development, list):
                 context_parts.append(f"- Upcoming Projects: {', '.join(development[:3])}")
+            elif development:
+                context_parts.append(f"- Upcoming Projects: {development}")
         
         # Market data
         market_data = enriched_data.get("market_data", {})
@@ -474,23 +548,32 @@ IMPORTANT:
     async def _generate_with_groq(self, prompt: str) -> Dict[str, Any]:
         """Generate content using Groq API"""
         try:
+            # Create system message to reinforce language requirement
+            system_message = f"You are a professional real estate content creator. You MUST generate content ONLY in the specified language. Do not mix languages or use English when a different language is requested."
+            
             response = self._groq_client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.5,  # Lower temperature for more consistent language adherence
                 max_tokens=1500,
             )
             
             generated_text = response.choices[0].message.content if response.choices else ""
             
+            # Clean the generated text to remove any malformed JSON fragments
+            cleaned_text = self._clean_generated_content(generated_text)
+            
             # Try to parse JSON response
             try:
-                return json.loads(generated_text)
+                return json.loads(cleaned_text)
             except json.JSONDecodeError:
-                # If not JSON, create structured response
+                # If not JSON, create structured response with cleaned content
                 return {
                     "title": f"Property Listing",
-                    "body": generated_text,
+                    "body": cleaned_text,
                     "hashtags": ["#realestate", "#property", "#investment", "#home"],
                     "call_to_action": "Contact us for more details",
                     "key_features": [],
@@ -501,6 +584,93 @@ IMPORTANT:
         except Exception as e:
             self.logger.error(f"Error calling Groq API: {e}")
             raise
+    
+    def _clean_generated_content(self, content: str) -> str:
+        """Clean generated content to remove malformed JSON fragments and technical markup"""
+        if not content:
+            return content
+        
+        # Remove common malformed JSON patterns
+        import re
+        
+        # Remove broken JSON fragments like: "key": "value", } or { "key": "value"
+        content = re.sub(r'["\']\w+["\']\s*:\s*["\'][^"\']*["\']\s*,?\s*}?\s*', '', content)
+        
+        # Remove standalone JSON brackets and braces
+        content = re.sub(r'[{}[\]]+', '', content)
+        
+        # Remove technical phrases that shouldn't be in social media content
+        technical_phrases = [
+            "Since the AI Hint is not provided",
+            "I will create the content based on",
+            "Here is the content in",
+            "OUTPUT FORMAT",
+            "JSON:",
+            "```json",
+            "```",
+            "{\n",
+            "}\n",
+            '"title":',
+            '"body":',
+            '"hashtags":',
+            '"call_to_action":',
+            '"key_features":',
+            '"building_highlights":',
+            '"area_benefits":'
+        ]
+        
+        for phrase in technical_phrases:
+            content = content.replace(phrase, '')
+        
+        # Clean up multiple spaces and newlines
+        content = re.sub(r'\n\s*\n', '\n\n', content)
+        content = re.sub(r' +', ' ', content)
+        
+        # Remove leading/trailing whitespace
+        content = content.strip()
+        
+        return content
+    
+    def _validate_content_structure(self, content: str, channel: ContentChannel) -> Dict[str, Any]:
+        """Validate content structure and provide feedback"""
+        validation_result = {
+            "is_valid": True,
+            "issues": [],
+            "suggestions": [],
+            "character_count": len(content),
+            "word_count": len(content.split()),
+            "paragraph_count": len([p for p in content.split('\n\n') if p.strip()]),
+            "hashtag_count": len([h for h in content.split() if h.startswith('#')]),
+            "emoji_count": sum(1 for char in content if ord(char) > 127)
+        }
+        
+        # Platform-specific validation
+        if channel == ContentChannel.INSTAGRAM:
+            if validation_result["character_count"] > 2200:
+                validation_result["issues"].append("Content exceeds Instagram's 2,200 character limit")
+            if validation_result["hashtag_count"] > 30:
+                validation_result["issues"].append("Too many hashtags for Instagram (max 30)")
+        
+        elif channel == ContentChannel.FACEBOOK:
+            if validation_result["character_count"] > 63206:
+                validation_result["issues"].append("Content exceeds Facebook's character limit")
+        
+        # General validation
+        if validation_result["word_count"] < 50:
+            validation_result["issues"].append("Content is too short (minimum 50 words recommended)")
+        
+        if validation_result["paragraph_count"] < 2:
+            validation_result["suggestions"].append("Consider adding more paragraphs for better readability")
+        
+        if validation_result["hashtag_count"] < 3:
+            validation_result["suggestions"].append("Add more relevant hashtags for better reach")
+        
+        if validation_result["emoji_count"] == 0:
+            validation_result["suggestions"].append("Consider adding emojis to make content more engaging")
+        
+        validation_result["is_valid"] = len(validation_result["issues"]) == 0
+        
+        return validation_result
     
     def _generate_fallback_content(
         self, 
@@ -520,6 +690,34 @@ IMPORTANT:
             title = f"🏠 {property_info.get('title', 'प्रॉपर्टी')}"
             body = f"📍 {property_info.get('location', 'स्थान')}\n💰 {price_text}\n🏠 {property_info.get('bedrooms', 0)} बेड • {property_info.get('bathrooms', 0)} बाथ\n📐 {property_info.get('area_sqft', 0)} वर्ग फुट\n\n{property_info.get('description', '')}\n\n📞 विवरण के लिए संपर्क करें!"
             hashtags = ["#रियलएस्टेट", "#प्रॉपर्टी", "#नयाघर"]
+        elif language == "mr":
+            title = f"🏠 {property_info.get('title', 'मालमत्ता')}"
+            body = f"📍 {property_info.get('location', 'स्थान')}\n💰 {price_text}\n🏠 {property_info.get('bedrooms', 0)} बेडरूम • {property_info.get('bathrooms', 0)} बाथरूम\n📐 {property_info.get('area_sqft', 0)} चौरस फुट\n\n{property_info.get('description', '')}\n\n📞 अधिक माहितीसाठी संपर्क करा!"
+            hashtags = ["#रिअलएस्टेट", "#मालमत्ता", "#नवीनघर"]
+        elif language == "te":
+            title = f"🏠 {property_info.get('title', 'ఇల్లు')}"
+            body = f"📍 {property_info.get('location', 'స్థానం')}\n💰 {price_text}\n🏠 {property_info.get('bedrooms', 0)} బెడ్రూమ్ • {property_info.get('bathrooms', 0)} బాత్రూమ్\n📐 {property_info.get('area_sqft', 0)} చదరపు అడుగులు\n\n{property_info.get('description', '')}\n\n📞 మరిన్ని వివరాలకు సంప్రదించండి!"
+            hashtags = ["#రియల్ ఎస్టేట్", "#ఇల్లు", "#ఇన్వెస్ట్‌మెంట్"]
+        elif language == "ta":
+            title = f"🏠 {property_info.get('title', 'வீடு')}"
+            body = f"📍 {property_info.get('location', 'இடம்')}\n💰 {price_text}\n🏠 {property_info.get('bedrooms', 0)} படுக்கையறை • {property_info.get('bathrooms', 0)} குளியலறை\n📐 {property_info.get('area_sqft', 0)} சதுர அடி\n\n{property_info.get('description', '')}\n\n📞 மேலும் விவரங்களுக்கு தொடர்பு கொள்ளுங்கள்!"
+            hashtags = ["#ரியல் எஸ்டேட்", "#வீடு", "#முதலீடு"]
+        elif language == "kn":
+            title = f"🏠 {property_info.get('title', 'ಮನೆ')}"
+            body = f"📍 {property_info.get('location', 'ಸ್ಥಳ')}\n💰 {price_text}\n🏠 {property_info.get('bedrooms', 0)} ಮಲಗುವ ಕೋಣೆ • {property_info.get('bathrooms', 0)} ಸ್ನಾನದ ಕೋಣೆ\n📐 {property_info.get('area_sqft', 0)} ಚದರ ಅಡಿ\n\n{property_info.get('description', '')}\n\n📞 ಹೆಚ್ಚಿನ ವಿವರಗಳಿಗಾಗಿ ಸಂಪರ್ಕಿಸಿ!"
+            hashtags = ["#ರಿಯಲ್ ಎಸ್ಟೇಟ್", "#ಮನೆ", "#ಹೂಡಿಕೆ"]
+        elif language == "ml":
+            title = f"🏠 {property_info.get('title', 'വീട്')}"
+            body = f"📍 {property_info.get('location', 'സ്ഥലം')}\n💰 {price_text}\n🏠 {property_info.get('bedrooms', 0)} കിടപ്പുമുറി • {property_info.get('bathrooms', 0)} കുളിമുറി\n📐 {property_info.get('area_sqft', 0)} ചതുരശ്ര അടി\n\n{property_info.get('description', '')}\n\n📞 കൂടുതൽ വിവരങ്ങൾക്കായി ബന്ധപ്പെടുക!"
+            hashtags = ["#റിയൽ എസ്റ്റേറ്റ്", "#വീട്", "#നിക്ഷേപം"]
+        elif language == "bn":
+            title = f"🏠 {property_info.get('title', 'বাড়ি')}"
+            body = f"📍 {property_info.get('location', 'অবস্থান')}\n💰 {price_text}\n🏠 {property_info.get('bedrooms', 0)} শোবার ঘর • {property_info.get('bathrooms', 0)} স্নানের ঘর\n📐 {property_info.get('area_sqft', 0)} বর্গফুট\n\n{property_info.get('description', '')}\n\n📞 আরও বিস্তারিত জানতে যোগাযোগ করুন!"
+            hashtags = ["#রিয়েল এস্টেট", "#বাড়ি", "#বিনিয়োগ"]
+        elif language == "gu":
+            title = f"🏠 {property_info.get('title', 'ઘર')}"
+            body = f"📍 {property_info.get('location', 'સ્થાન')}\n💰 {price_text}\n🏠 {property_info.get('bedrooms', 0)} બેડરૂમ • {property_info.get('bathrooms', 0)} બાથરૂમ\n📐 {property_info.get('area_sqft', 0)} ચોરસ ફૂટ\n\n{property_info.get('description', '')}\n\n📞 વધુ વિગતો માટે સંપર્ક કરો!"
+            hashtags = ["#રિયલ એસ્ટેટ", "#ઘર", "#નિવેશ"]
         else:
             title = f"🏠 {property_info.get('title', 'Property')}"
             body = f"📍 {property_info.get('location', 'Location')}\n💰 {price_text}\n🏠 {property_info.get('bedrooms', 0)} bed • {property_info.get('bathrooms', 0)} bath\n📐 {property_info.get('area_sqft', 0)} sq ft\n\n{property_info.get('description', '')}\n\n📞 Contact us for details!"
@@ -578,10 +776,10 @@ IMPORTANT:
     
     def _format_price(self, price: int) -> str:
         """Format price in Indian currency format"""
-        if price >= 10000000:  # 1 crore
+        if price >= 10000000:  # 1 crore or more
             return f"₹{(price / 10000000):.1f}Cr"
-        elif price >= 100000:  # 1 lakh
-            return f"₹{(price / 100000):.0f}L"
+        elif price >= 100000:  # 1 lakh or more
+            return f"₹{(price / 100000):.1f}L"
         else:
             return f"₹{price:,}"
     

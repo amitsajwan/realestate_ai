@@ -89,20 +89,20 @@ async def mock_current_active_user() -> User:
     from beanie import PydanticObjectId
     import datetime
     
-    # Use the actual registered user ID from the logs
-    actual_user_id = PydanticObjectId("68d376ae9cdb5ab2f209cf46")  # Actual registered user ID
+    # Use the latest registered user ID from the logs - updated to match the actual user
+    actual_user_id = PydanticObjectId("68d4bc6051e88bcc67ea4659")  # Updated to match the actual user ID from logs
     
     # Create a mock user with actual user ID
     mock_user = User(
         id=actual_user_id,
-        email="SSSR@gmail.com",  # Actual user email
+        email="user@example.com",  # Default email for mock user
         hashed_password="$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj6I2kWJjQi",  # 'test123'
         is_active=True,
         is_superuser=False,
         is_verified=True,
-        first_name="AmitSRT",  # Actual user name
-        last_name="Sajwan",
-        phone="9767971656",  # Actual user phone
+        first_name="User",  # Default name for mock user
+        last_name="Test",
+        phone="1234567890",  # Default phone for mock user
         onboarding_completed=False,  # Should be false initially
         onboarding_step=1,  # Should start at step 1
         created_at=datetime.datetime.utcnow(),
@@ -113,25 +113,68 @@ async def mock_current_active_user() -> User:
 async def get_current_user_with_fallback():
     """Get current user with proper fallback handling"""
     import os
-    from fastapi import HTTPException
+    from fastapi import HTTPException, Request
+    from fastapi_users import FastAPIUsers
+    from app.models.user import User
+    from beanie import PydanticObjectId
+    import jwt
+    import datetime
     
     env = os.getenv("ENVIRONMENT", "development")
     
     if env == "development":
-        # In development, try real authentication first, fallback to mock
+        # In development, try to validate JWT token first, fallback to mock user
         try:
-            # Try to get real user from JWT token
-            return await fastapi_users.current_user(active=True)
+            # Try to get the request context to extract the Authorization header
+            from fastapi import Request
+            from starlette.requests import Request as StarletteRequest
+            
+            # This is a bit hacky but works for development
+            # In a real app, you'd use proper dependency injection
+            request = None
+            try:
+                # Try to get request from context
+                from contextvars import ContextVar
+                request_var = ContextVar('request')
+                request = request_var.get()
+            except:
+                pass
+            
+            if request and hasattr(request, 'headers'):
+                auth_header = request.headers.get('authorization')
+                if auth_header and auth_header.startswith('Bearer '):
+                    token = auth_header[7:]  # Remove 'Bearer ' prefix
+                    
+                    try:
+                        # Decode the JWT token
+                        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+                        user_id = payload.get('sub')
+                        
+                        if user_id:
+                            # Try to get the actual user from database
+                            from app.core.simple_user_db import get_user_db
+                            async for user_db in get_user_db():
+                                user = await user_db.get(PydanticObjectId(user_id))
+                                if user:
+                                    logger.debug(f"Found authenticated user: {user.email}")
+                                    return user
+                    except jwt.ExpiredSignatureError:
+                        logger.warn("JWT token expired")
+                    except jwt.InvalidTokenError as e:
+                        logger.warn(f"Invalid JWT token: {e}")
+                    except Exception as e:
+                        logger.warn(f"Error validating JWT token: {e}")
         except Exception as e:
-            logger.warning(f"Real authentication failed in development, using mock: {e}")
-            return await mock_current_active_user()
+            logger.debug(f"JWT validation failed, using mock user: {e}")
+        
+        # Fallback to mock user for development
+        logger.debug("Using mock user for development")
+        return await mock_current_active_user()
     else:
-        # In production, use real authentication only
-        try:
-            return await fastapi_users.current_user(active=True)
-        except Exception as e:
-            logger.error(f"Authentication failed: {e}")
-            raise HTTPException(status_code=401, detail="Authentication required")
+        # In production, use real authentication
+        # For now, we'll use the FastAPI Users dependency directly
+        # This will be handled by the dependency injection system
+        raise HTTPException(status_code=401, detail="Authentication required")
 
 # Set up current user dependency based on environment
 import os
@@ -139,8 +182,9 @@ env = os.getenv("ENVIRONMENT", "development")
 logger.info(f"Environment: {env}")
 
 if env == "development":
-    logger.info("Using hybrid authentication for development (real auth with mock fallback)")
-    current_active_user = get_current_user_with_fallback
+    logger.info("Using JWT-based authentication for development")
+    # Use the FastAPI Users JWT strategy for proper token validation
+    current_active_user = fastapi_users.current_user(active=True)
 else:
     logger.info("Using production authentication for proper JWT validation")
     current_active_user = fastapi_users.current_user(active=True)

@@ -86,6 +86,7 @@ services:
       - ./backend:/app
       - ./backend/uploads:/app/uploads
       - ./backend/logs:/app/logs
+      - backend_packages:/usr/local/lib/python3.11/site-packages
     command: ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
   # Frontend Application for Development
@@ -137,12 +138,14 @@ services:
       - ./frontend:/app
       - /app/node_modules
       - /app/.next
-    command: ["npm", "run", "dev"]
+    command: ["./node_modules/.bin/next", "dev"]
 
 volumes:
   mongodb_dev_data:
     driver: local
   redis_dev_data:
+    driver: local
+  backend_packages:
     driver: local
 
 networks:

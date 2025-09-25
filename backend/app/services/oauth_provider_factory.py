@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from app.core.config import settings
 from app.schemas.errors import create_oauth_error, ErrorCodes
+from app.utils.http_client import get_httpx_client
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +116,7 @@ class FacebookOAuthProvider(OAuthProvider):
     async def exchange_code_for_token(self, code: str, state: str) -> OAuthTokenData:
         """Exchange code for Facebook access token"""
         try:
-            async with httpx.AsyncClient() as client:
+            async with get_httpx_client() as client:
                 response = await client.post(
                     self.config.token_url,
                     data={
@@ -147,7 +148,7 @@ class FacebookOAuthProvider(OAuthProvider):
     async def get_user_info(self, access_token: str) -> OAuthUserInfo:
         """Get Facebook user information"""
         try:
-            async with httpx.AsyncClient() as client:
+            async with get_httpx_client() as client:
                 response = await client.get(
                     self.config.user_info_url,
                     params={
@@ -180,7 +181,7 @@ class FacebookOAuthProvider(OAuthProvider):
     async def refresh_token(self, refresh_token: str) -> OAuthTokenData:
         """Refresh Facebook access token"""
         try:
-            async with httpx.AsyncClient() as client:
+            async with get_httpx_client() as client:
                 response = await client.get(
                     f"{self.config.token_url}",
                     params={
@@ -211,7 +212,7 @@ class FacebookOAuthProvider(OAuthProvider):
     async def revoke_token(self, access_token: str) -> bool:
         """Revoke Facebook access token"""
         try:
-            async with httpx.AsyncClient() as client:
+            async with get_httpx_client() as client:
                 response = await client.delete(
                     f"{self.config.api_base_url}/me/permissions",
                     params={"access_token": access_token}
@@ -248,7 +249,7 @@ class GoogleOAuthProvider(OAuthProvider):
     async def exchange_code_for_token(self, code: str, state: str) -> OAuthTokenData:
         """Exchange code for Google access token"""
         try:
-            async with httpx.AsyncClient() as client:
+            async with get_httpx_client() as client:
                 response = await client.post(
                     self.config.token_url,
                     data={
@@ -282,7 +283,7 @@ class GoogleOAuthProvider(OAuthProvider):
     async def get_user_info(self, access_token: str) -> OAuthUserInfo:
         """Get Google user information"""
         try:
-            async with httpx.AsyncClient() as client:
+            async with get_httpx_client() as client:
                 response = await client.get(
                     self.config.user_info_url,
                     headers={"Authorization": f"Bearer {access_token}"}
@@ -312,7 +313,7 @@ class GoogleOAuthProvider(OAuthProvider):
     async def refresh_token(self, refresh_token: str) -> OAuthTokenData:
         """Refresh Google access token"""
         try:
-            async with httpx.AsyncClient() as client:
+            async with get_httpx_client() as client:
                 response = await client.post(
                     self.config.token_url,
                     data={
@@ -344,7 +345,7 @@ class GoogleOAuthProvider(OAuthProvider):
     async def revoke_token(self, access_token: str) -> bool:
         """Revoke Google access token"""
         try:
-            async with httpx.AsyncClient() as client:
+            async with get_httpx_client() as client:
                 response = await client.post(
                     "https://oauth2.googleapis.com/revoke",
                     params={"token": access_token}
@@ -379,7 +380,7 @@ class LinkedInOAuthProvider(OAuthProvider):
     async def exchange_code_for_token(self, code: str, state: str) -> OAuthTokenData:
         """Exchange code for LinkedIn access token"""
         try:
-            async with httpx.AsyncClient() as client:
+            async with get_httpx_client() as client:
                 response = await client.post(
                     self.config.token_url,
                     data={
@@ -412,7 +413,7 @@ class LinkedInOAuthProvider(OAuthProvider):
     async def get_user_info(self, access_token: str) -> OAuthUserInfo:
         """Get LinkedIn user information"""
         try:
-            async with httpx.AsyncClient() as client:
+            async with get_httpx_client() as client:
                 response = await client.get(
                     self.config.user_info_url,
                     headers={"Authorization": f"Bearer {access_token}"}
@@ -451,7 +452,7 @@ class LinkedInOAuthProvider(OAuthProvider):
     async def revoke_token(self, access_token: str) -> bool:
         """Revoke LinkedIn access token"""
         try:
-            async with httpx.AsyncClient() as client:
+            async with get_httpx_client() as client:
                 response = await client.post(
                     "https://www.linkedin.com/oauth/v2/revoke",
                     params={"token": access_token}

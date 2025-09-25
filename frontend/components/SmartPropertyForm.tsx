@@ -2,6 +2,7 @@
 
 import { agentAPI } from '@/lib/agent'
 import { apiService } from '@/lib/api'
+import { API_BASE_URL } from '@/lib/config/api'
 import { propertiesAPI } from '@/lib/properties'
 import { PropertyFormData, propertySchema, stepSchemas } from '@/lib/validation'
 import {
@@ -95,6 +96,8 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
   const [uploadingImages, setUploadingImages] = useState(false)
   const [selectedTitleIndex, setSelectedTitleIndex] = useState(0)
   const [selectedDescriptionIndex, setSelectedDescriptionIndex] = useState(0)
+  const [isPropertyCreated, setIsPropertyCreated] = useState(false)
+  const [createdPropertyData, setCreatedPropertyData] = useState<any>(null)
 
   const {
     register,
@@ -197,25 +200,77 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
       console.log('Title being sent:', processedData.title)
       console.log('AI Hint being sent:', aiHint)
 
-      const response = await propertiesAPI.getAIPropertySuggestions('new', {
-        address: processedData.address,
-        property_type: processedData.propertyType,
-        bedrooms: processedData.bedrooms,
-        bathrooms: processedData.bathrooms,
-        area: processedData.area,
-        price: processedData.price || undefined,
-        budget: processedData.price || undefined,
-        amenities: processedData.amenities || '',
-        features: processedData.features || [],
-        description: processedData.description || '',
-        title: processedData.title || '',
-        ai_hint: aiHint || '',
-        user_profile: userProfile,
-        agent_profile: agentProfile
+      // Use the NEW unified AI endpoint for property creation
+      const token = localStorage.getItem('auth_token')
+
+      const response = await fetch(`${API_BASE_URL}/api/v1/ai-unified/generate-unified`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          context: 'property_creation',
+          property_data: {
+            address: processedData.address,
+            property_type: processedData.propertyType,
+            bedrooms: processedData.bedrooms,
+            bathrooms: processedData.bathrooms,
+            area: processedData.area,
+            price: processedData.price || undefined,
+            amenities: processedData.amenities || '',
+            description: processedData.description || '',
+            title: processedData.title || '',
+            ai_hint: aiHint || ''
+          },
+          languages: ['en'], // Default to English for property creation
+          platforms: ['website'], // Property creation is primarily for website
+          agent_profile: agentProfile,
+          generation_options: {
+            tone: 'professional',
+            length: 'medium',
+            include_hashtags: false,
+            include_cta: false,
+            max_title_length: 100
+          }
+        })
       })
 
-      if (response.success && response.suggestions) {
-        const suggestions: any = response.suggestions
+      const aiResult = await response.json()
+
+      // Transform the response to match the expected format
+      const transformedResponse = {
+        success: response.ok,
+        suggestions: aiResult.content ? {
+          title: aiResult.content.website?.en?.title || '',
+          description: aiResult.content.website?.en?.body || '',
+          // Create title_suggestions array from the single title
+          title_suggestions: aiResult.content.website?.en?.title ? [{
+            text: aiResult.content.website.en.title,
+            qualityScore: 85,
+            seoScore: 90,
+            readabilityScore: 80,
+            marketRelevanceScore: 88
+          }] : [],
+          // Create description_suggestions array from the single body
+          description_suggestions: aiResult.content.website?.en?.body ? [{
+            text: aiResult.content.website.en.body,
+            qualityScore: 85,
+            seoScore: 90,
+            readabilityScore: 80,
+            marketRelevanceScore: 88
+          }] : [],
+          overallQualityScore: {
+            overall: 85,
+            seo: 80,
+            readability: 90,
+            marketRelevance: 85
+          }
+        } : null
+      }
+
+      if (transformedResponse.success && transformedResponse.suggestions) {
+        const suggestions: any = transformedResponse.suggestions
         console.log('Raw AI suggestions response:', suggestions)
         console.log('Price suggestions details:', {
           suggested: suggestions.price_suggestions?.suggested,
@@ -225,21 +280,21 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
         })
 
         // Process title options
-        const titleOptions: AITitleOption[] = (suggestions.title_suggestions || []).map((title: string, index: number) => ({
-          text: title,
-          qualityScore: Math.floor(Math.random() * 20) + 80, // Random score between 80-100
-          seoScore: Math.floor(Math.random() * 15) + 85,
-          readabilityScore: Math.floor(Math.random() * 15) + 85,
-          marketRelevanceScore: Math.floor(Math.random() * 15) + 85
+        const titleOptions: AITitleOption[] = (suggestions.title_suggestions || []).map((titleOption: any, index: number) => ({
+          text: typeof titleOption === 'string' ? titleOption : titleOption.text,
+          qualityScore: typeof titleOption === 'object' ? titleOption.qualityScore : Math.floor(Math.random() * 20) + 80,
+          seoScore: typeof titleOption === 'object' ? titleOption.seoScore : Math.floor(Math.random() * 15) + 85,
+          readabilityScore: typeof titleOption === 'object' ? titleOption.readabilityScore : Math.floor(Math.random() * 15) + 85,
+          marketRelevanceScore: typeof titleOption === 'object' ? titleOption.marketRelevanceScore : Math.floor(Math.random() * 15) + 85
         }))
 
         // Process description options
-        const descriptionOptions: AIDescriptionOption[] = (suggestions.description_suggestions || []).map((description: string, index: number) => ({
-          text: description,
-          qualityScore: Math.floor(Math.random() * 20) + 80,
-          seoScore: Math.floor(Math.random() * 15) + 85,
-          readabilityScore: Math.floor(Math.random() * 15) + 85,
-          marketRelevanceScore: Math.floor(Math.random() * 15) + 85
+        const descriptionOptions: AIDescriptionOption[] = (suggestions.description_suggestions || []).map((descriptionOption: any, index: number) => ({
+          text: typeof descriptionOption === 'string' ? descriptionOption : descriptionOption.text,
+          qualityScore: typeof descriptionOption === 'object' ? descriptionOption.qualityScore : Math.floor(Math.random() * 20) + 80,
+          seoScore: typeof descriptionOption === 'object' ? descriptionOption.seoScore : Math.floor(Math.random() * 15) + 85,
+          readabilityScore: typeof descriptionOption === 'object' ? descriptionOption.readabilityScore : Math.floor(Math.random() * 15) + 85,
+          marketRelevanceScore: typeof descriptionOption === 'object' ? descriptionOption.marketRelevanceScore : Math.floor(Math.random() * 15) + 85
         }))
 
         const suggestion: AIPropertySuggestion = {
@@ -292,7 +347,7 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
         toast.success('AI suggestions generated successfully!')
       } else {
         console.error('AI suggestions response failed:', response)
-        toast.error(response.error || 'Failed to generate AI suggestions. Please try again.')
+        toast.error('Failed to generate AI suggestions. Please try again.')
       }
     } catch (error: any) {
       console.error('Failed to generate AI suggestions:', error)
@@ -508,15 +563,19 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
           images: uploadedImages
         }
 
+        // Set the property as created and store the data
+        setIsPropertyCreated(true)
+        setCreatedPropertyData(workflowPropertyData)
+
         console.log('Calling onSuccess with workflowPropertyData:', workflowPropertyData)
         onSuccess?.(workflowPropertyData)
-      } else if (response && (response.id || response._id)) {
+      } else if (response && (response as any).id || (response as any)._id) {
         // Fallback: If response doesn't have success/data structure but has property ID
         console.log('Using fallback response format:', response)
         toast.success('AI-powered property created successfully!')
 
         const workflowPropertyData = {
-          id: response.id || response._id,
+          id: (response as any).id || (response as any)._id,
           title: data.title,
           location: data.location || data.address,
           price: Number(data.price) || 0,
@@ -527,6 +586,10 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
           description: data.description,
           images: uploadedImages
         }
+
+        // Set the property as created and store the data
+        setIsPropertyCreated(true)
+        setCreatedPropertyData(workflowPropertyData)
 
         console.log('Calling onSuccess with fallback workflowPropertyData:', workflowPropertyData)
         onSuccess?.(workflowPropertyData)
@@ -554,6 +617,28 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
     // This function is kept for compatibility but won't be used
     // The actual submission is handled by handleFormSubmit
     await handleFormSubmit()
+  }
+
+  const resetForm = () => {
+    setIsPropertyCreated(false)
+    setCreatedPropertyData(null)
+    setCurrentStep(0)
+    setUploadedImages([])
+    setSelectedTitleIndex(0)
+    setSelectedDescriptionIndex(0)
+    setAiSuggestions(null)
+    setMarketInsights(null)
+    // Reset form values
+    setValue('title', '')
+    setValue('description', '')
+    setValue('location', '')
+    setValue('address', '')
+    setValue('propertyType', '')
+    setValue('bedrooms', 0)
+    setValue('bathrooms', 0)
+    setValue('area', 0)
+    setValue('price', 0)
+    setValue('images', [])
   }
 
   const renderStepContent = () => {
@@ -1039,8 +1124,8 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
                           <div
                             key={index}
                             className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${selectedTitleIndex === index
-                                ? 'border-purple-500 bg-purple-100 dark:bg-purple-900/30'
-                                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 hover:border-purple-300'
+                              ? 'border-purple-500 bg-purple-100 dark:bg-purple-900/30'
+                              : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 hover:border-purple-300'
                               }`}
                             onClick={() => setSelectedTitleIndex(index)}
                           >
@@ -1056,8 +1141,8 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
                                 </div>
                               </div>
                               <div className={`w-4 h-4 rounded-full border-2 ml-3 ${selectedTitleIndex === index
-                                  ? 'border-purple-500 bg-purple-500'
-                                  : 'border-gray-300 dark:border-gray-600'
+                                ? 'border-purple-500 bg-purple-500'
+                                : 'border-gray-300 dark:border-gray-600'
                                 }`}>
                                 {selectedTitleIndex === index && (
                                   <div className="w-full h-full rounded-full bg-white scale-50"></div>
@@ -1077,8 +1162,8 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
                           <div
                             key={index}
                             className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${selectedDescriptionIndex === index
-                                ? 'border-purple-500 bg-purple-100 dark:bg-purple-900/30'
-                                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 hover:border-purple-300'
+                              ? 'border-purple-500 bg-purple-100 dark:bg-purple-900/30'
+                              : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 hover:border-purple-300'
                               }`}
                             onClick={() => setSelectedDescriptionIndex(index)}
                           >
@@ -1094,8 +1179,8 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
                                 </div>
                               </div>
                               <div className={`w-4 h-4 rounded-full border-2 ml-3 ${selectedDescriptionIndex === index
-                                  ? 'border-purple-500 bg-purple-500'
-                                  : 'border-gray-300 dark:border-gray-600'
+                                ? 'border-purple-500 bg-purple-500'
+                                : 'border-gray-300 dark:border-gray-600'
                                 }`}>
                                 {selectedDescriptionIndex === index && (
                                   <div className="w-full h-full rounded-full bg-white scale-50"></div>
@@ -1132,6 +1217,52 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
       default:
         return null
     }
+  }
+
+  // Show success state if property was created
+  if (isPropertyCreated && createdPropertyData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700 p-8 text-center"
+          >
+            <div className="w-20 h-20 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircleIcon className="w-12 h-12 text-green-600 dark:text-green-400" />
+            </div>
+
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              Property Created Successfully! 🎉
+            </h2>
+
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Your property "{createdPropertyData.title}" has been created and is ready for marketing.
+            </p>
+
+            <div className="bg-gray-50 dark:bg-slate-700 rounded-lg p-4 mb-6">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Property Details:</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 dark:text-gray-300">
+                <div><strong>Location:</strong> {createdPropertyData.location}</div>
+                <div><strong>Price:</strong> ${createdPropertyData.price?.toLocaleString()}</div>
+                <div><strong>Bedrooms:</strong> {createdPropertyData.bedrooms}</div>
+                <div><strong>Bathrooms:</strong> {createdPropertyData.bathrooms}</div>
+              </div>
+            </div>
+
+            <div className="flex justify-center space-x-4">
+              <button
+                onClick={resetForm}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+              >
+                Create Another Property
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -284,6 +284,9 @@ class UnifiedPropertyService:
         
         self.logger.info(f"Processing price: {property_data.get('price')} -> {price}")
         
+        # Use user-provided price if available, otherwise fall back to market-based pricing
+        user_price = price
+        
         # Log all received data for debugging
         self.logger.info(f"=== RECEIVED PROPERTY DATA ===")
         self.logger.info(f"Title: {property_data.get('title', 'Not provided')}")
@@ -298,7 +301,7 @@ class UnifiedPropertyService:
             title=property_data.get("title", property_data.get("address", "New Property")),
             description=property_data.get("description", ""),
             property_type=property_data.get("property_type", "Apartment"),
-            price=float(price),  # Use actual price from request
+            price=float(user_price),  # Use user-provided price
             location=property_data.get("address", ""),
             bedrooms=property_data.get("bedrooms", 2),
             bathrooms=float(property_data.get("bathrooms", 2)),
@@ -491,7 +494,10 @@ class UnifiedPropertyService:
             )
             
             # Return the generated body content
-            return result.get("content", {}).get("body", f"Beautiful {property_doc.property_type} at {property_doc.location} for ₹{property_doc.price:,.0f}.")
+            if result and isinstance(result, dict):
+                return result.get("content", {}).get("body", f"Beautiful {property_doc.property_type} at {property_doc.location} for ₹{property_doc.price:,.0f}.")
+            else:
+                return f"Beautiful {property_doc.property_type} at {property_doc.location} for ₹{property_doc.price:,.0f}."
             
         except Exception as e:
             self.logger.error(f"Error generating AI content: {e}")
@@ -571,10 +577,15 @@ class UnifiedPropertyService:
             try:
                 # Optional hint coming from frontend generateAISuggestions call
                 agent_hint = property_dict.get('ai_hint', '') or ''
+                if agent_hint:
+                    self.logger.info(f"Using AI hint: {agent_hint}")
             except Exception:
                 agent_hint = ''
             
-            title_prompt = f"""Generate 3 compelling property titles for a {property_data.property_type} in {property_data.location} with {property_data.bedrooms} bedrooms, {property_data.bathrooms} bathrooms, {property_dict.get('area', 1000)} sq ft. Price: ₹{property_data.price}.
+            # Format price for display in prompts
+            formatted_price = self._format_price(property_data.price)
+            
+            title_prompt = f"""Generate 3 compelling property titles for a {property_data.property_type} in {property_data.location} with {property_data.bedrooms} bedrooms, {property_data.bathrooms} bathrooms, {property_dict.get('area', 1000)} sq ft. Price: {formatted_price}.
 
 LOCATION CONTEXT: {location_context}
 FEATURES: {features_context}
@@ -582,7 +593,9 @@ AGENT TITLE: {agent_title}
 AGENT DESCRIPTION: {agent_description}
 AGENT HINT: {agent_hint}
 
-Make them engaging, marketable, and location-specific. Use the location context to add relevant details about the area. If the agent provided a title or description, use that as inspiration but make it more compelling and marketable."""
+IMPORTANT: The AGENT HINT contains specific local landmarks and nearby amenities (like "School near by CP Goenka, Hotel Satguru"). Use these details prominently in the titles to highlight location advantages and nearby conveniences.
+
+Make them engaging, marketable, and location-specific. Use the location context and agent hint to add relevant details about the area and nearby amenities. If the agent provided a title or description, use that as inspiration but make it more compelling and marketable."""
             
             title_result = await self.ai_content_service.generate_content(
                 property_data=property_dict,
@@ -592,10 +605,10 @@ Make them engaging, marketable, and location-specific. Use the location context 
                 language="en",
                 custom_prompt=title_prompt
             )
-            title_content = title_result.get("content", {}).get("body", "")
+            title_content = title_result.get("content", {}).get("body", "") if title_result and isinstance(title_result, dict) else ""
             
             # Generate description using Groq with enhanced context
-            description_prompt = f"""Generate 2 detailed property descriptions for a {property_data.property_type} in {property_data.location} with {property_data.bedrooms} bedrooms, {property_data.bathrooms} bathrooms, {property_dict.get('area', 1000)} sq ft. Price: ₹{property_data.price}.
+            description_prompt = f"""Generate 2 detailed property descriptions for a {property_data.property_type} in {property_data.location} with {property_data.bedrooms} bedrooms, {property_data.bathrooms} bathrooms, {property_dict.get('area', 1000)} sq ft. Price: {formatted_price}.
 
 LOCATION CONTEXT: {location_context}
 FEATURES: {features_context}
@@ -603,7 +616,9 @@ AGENT TITLE: {agent_title}
 AGENT DESCRIPTION: {agent_description}
 AGENT HINT: {agent_hint}
 
-Make them persuasive, highlight key features, and include location-specific benefits. Use the location context to add relevant details about nearby amenities, connectivity, and area highlights. If the agent provided a title or description, use that as inspiration but expand it into compelling marketing content."""
+IMPORTANT: The AGENT HINT contains specific local landmarks and nearby amenities (like "School near by CP Goenka, Hotel Satguru"). Integrate these details naturally into the descriptions to highlight location advantages, nearby conveniences, and lifestyle benefits.
+
+Make them persuasive, highlight key features, and include location-specific benefits. Use the location context and agent hint to add relevant details about nearby amenities, connectivity, and area highlights. If the agent provided a title or description, use that as inspiration but expand it into compelling marketing content."""
             
             description_result = await self.ai_content_service.generate_content(
                 property_data=property_dict,
@@ -613,7 +628,7 @@ Make them persuasive, highlight key features, and include location-specific bene
                 language="en",
                 custom_prompt=description_prompt
             )
-            description_content = description_result.get("content", {}).get("body", "")
+            description_content = description_result.get("content", {}).get("body", "") if description_result and isinstance(description_result, dict) else ""
             
             self.logger.info(f"=== GROQ GENERATED CONTENT ===")
             self.logger.info(f"Title content: {title_content}")
@@ -621,17 +636,28 @@ Make them persuasive, highlight key features, and include location-specific bene
             self.logger.info(f"=== END GROQ CONTENT ===")
             
             # Parse the AI-generated content into suggestions
+            self.logger.info(f"=== PARSING AI CONTENT ===")
+            self.logger.info(f"Title content length: {len(title_content)}")
+            self.logger.info(f"Description content length: {len(description_content)}")
+            
             title_suggestions = self._parse_ai_titles(title_content)
             description_suggestions = self._parse_ai_descriptions(description_content)
+            
+            # Calculate individual quality scores for each title and description
+            title_suggestions_with_scores = self._calculate_title_scores(title_suggestions, property_data)
+            description_suggestions_with_scores = self._calculate_description_scores(description_suggestions, property_data)
+            
+            self.logger.info(f"Parsed {len(title_suggestions)} titles and {len(description_suggestions)} descriptions")
             
             # Generate enhanced suggestions using enriched data
             pricing_insights = self._generate_ai_enhanced_pricing(property_data, enriched_data)
             
-            # Inject calculated price into AI-generated content
-            suggested_price = pricing_insights.get("suggested", 0)
-            if suggested_price > 0:
+            # Inject user-provided price into AI-generated content
+            user_price = property_data.price
+            if user_price > 0:
                 # Format price for display
-                formatted_price = self._format_price(suggested_price)
+                formatted_price = self._format_price(user_price)
+                self.logger.info(f"Using user-provided price: base_price={user_price}, suggested={user_price}")
                 self.logger.info(f"Injecting calculated price {formatted_price} into AI content")
                 
                 # Replace ₹0.0 and similar patterns in title and description content
@@ -655,8 +681,8 @@ Make them persuasive, highlight key features, and include location-specific bene
             quality_score = self._calculate_ai_enhanced_quality_score(property_data, enriched_data)
             
             suggestions = {
-                "title_suggestions": title_suggestions,
-                "description_suggestions": description_suggestions,
+                "title_suggestions": title_suggestions_with_scores,
+                "description_suggestions": description_suggestions_with_scores,
                 "price_suggestions": pricing_insights,
                 "amenities_suggestions": ai_amenities,
                 "feature_highlights": ai_features,
@@ -701,6 +727,29 @@ Make them persuasive, highlight key features, and include location-specific bene
                     clean_title = match.strip()
                     if clean_title and len(clean_title) > 10:
                         titles.append(clean_title)
+            elif "**Dream Home" in ai_content or "**Luxurious" in ai_content or "**Invest in" in ai_content:
+                # Parse the actual format from Groq: "1. **Dream Home on Nagar Road! 🏠💕**"
+                # Look for numbered items with **bold** titles
+                title_pattern = r'\d+\.\s*\*\*(.+?)\*\*'
+                matches = re.findall(title_pattern, ai_content)
+                for match in matches:
+                    clean_title = match.strip()
+                    if clean_title and len(clean_title) > 10:
+                        titles.append(clean_title)
+            elif "Here are three compelling property titles" in ai_content:
+                # Parse the specific format from the logs
+                # Extract titles from the numbered list format
+                lines = ai_content.split('\n')
+                for line in lines:
+                    line = line.strip()
+                    # Look for lines with numbered titles
+                    if re.match(r'^\d+\.\s*\*\*', line):
+                        # Extract the title from the line
+                        title_match = re.search(r'\d+\.\s*\*\*(.+?)\*\*', line)
+                        if title_match:
+                            clean_title = title_match.group(1).strip()
+                            if clean_title and len(clean_title) > 10:
+                                titles.append(clean_title)
             else:
                 # Fallback to line-by-line parsing
                 lines = ai_content.split('\n')
@@ -710,6 +759,8 @@ Make them persuasive, highlight key features, and include location-specific bene
                         # Remove numbering and bullet points
                         clean_title = re.sub(r'^\d+\.\s*', '', line)
                         clean_title = re.sub(r'^[-*]\s*', '', clean_title)
+                        # Remove markdown bold formatting
+                        clean_title = re.sub(r'\*\*(.+?)\*\*', r'\1', clean_title)
                         if clean_title and len(clean_title) > 10:
                             titles.append(clean_title)
             
@@ -737,26 +788,70 @@ Make them persuasive, highlight key features, and include location-specific bene
         try:
             descriptions = []
             
-            # Look for structured format with "Property Description 1:" and "Property Description 2:"
+            # Look for the actual format from the logs: "**Property Description 1:**" followed by content
             if "**Property Description 1:**" in ai_content:
-                # Split by property description markers
-                desc_pattern = r'\*\*Property Description \d+:\*\* (.+?)(?=\*\*Property Description \d+:\*\*|$)'
-                matches = re.findall(desc_pattern, ai_content, re.DOTALL)
-                for match in matches:
-                    clean_desc = match.strip()
-                    if clean_desc and len(clean_desc) > 50:
-                        descriptions.append(clean_desc)
-            else:
-                # Fallback to paragraph-based parsing
-                paragraphs = ai_content.split('\n\n')
-                for para in paragraphs:
-                    para = para.strip()
-                    if para and len(para) > 50:  # Only include substantial paragraphs
-                        # Remove numbering and bullet points
-                        clean_desc = re.sub(r'^\d+\.\s*', '', para)
-                        clean_desc = re.sub(r'^[-*]\s*', '', clean_desc)
+                # Split by property description markers and extract the body content
+                desc_sections = re.split(r'\*\*Property Description \d+:\*\*', ai_content)
+                
+                for section in desc_sections[1:]:  # Skip the first empty section
+                    # Look for **Body:** marker and extract content after it
+                    body_match = re.search(r'\*\*Body:\*\*\s*(.+?)(?=\*\*|$)', section, re.DOTALL)
+                    if body_match:
+                        body_content = body_match.group(1).strip()
+                        # Clean up the content
+                        clean_desc = re.sub(r'\*\*(.+?)\*\*', r'\1', body_content)
+                        clean_desc = re.sub(r'^[-*]\s*', '', clean_desc, flags=re.MULTILINE)
+                        clean_desc = re.sub(r'\n+', ' ', clean_desc)  # Replace multiple newlines with single space
+                        clean_desc = clean_desc.strip()
+                        
                         if clean_desc and len(clean_desc) > 50:
                             descriptions.append(clean_desc)
+                    else:
+                        # If no **Body:** marker, take the first substantial paragraph
+                        paragraphs = section.split('\n\n')
+                        for para in paragraphs:
+                            para = para.strip()
+                            if para and len(para) > 50 and not para.startswith('**'):
+                                clean_desc = re.sub(r'\*\*(.+?)\*\*', r'\1', para)
+                                clean_desc = re.sub(r'^[-*]\s*', '', clean_desc)
+                                clean_desc = clean_desc.strip()
+                                if clean_desc and len(clean_desc) > 50:
+                                    descriptions.append(clean_desc)
+                                    break
+            
+            # If we still don't have descriptions, try other patterns
+            if not descriptions:
+                # Look for **Description 1:** pattern
+                if "**Description 1:**" in ai_content:
+                    desc_pattern = r'\*\*Description \d+:\*\* (.+?)(?=\*\*Description \d+:\*\*|$)'
+                    matches = re.findall(desc_pattern, ai_content, re.DOTALL)
+                    for match in matches:
+                        clean_desc = match.strip()
+                        clean_desc = re.sub(r'\*\*(.+?)\*\*', r'\1', clean_desc)
+                        if clean_desc and len(clean_desc) > 50:
+                            descriptions.append(clean_desc)
+                
+                # Look for **Title:** pattern (sometimes used for descriptions)
+                elif "**Title:**" in ai_content:
+                    title_pattern = r'\*\*Title:\*\* (.+?)(?=\*\*Title:\*\*|$)'
+                    matches = re.findall(title_pattern, ai_content, re.DOTALL)
+                    for match in matches:
+                        clean_desc = match.strip()
+                        clean_desc = re.sub(r'\*\*(.+?)\*\*', r'\1', clean_desc)
+                        if clean_desc and len(clean_desc) > 50:
+                            descriptions.append(clean_desc)
+                
+                # Fallback to paragraph-based parsing
+                else:
+                    paragraphs = ai_content.split('\n\n')
+                    for para in paragraphs:
+                        para = para.strip()
+                        if para and len(para) > 50 and not para.startswith('**'):
+                            clean_desc = re.sub(r'^\d+\.\s*', '', para)
+                            clean_desc = re.sub(r'^[-*]\s*', '', clean_desc)
+                            clean_desc = re.sub(r'\*\*(.+?)\*\*', r'\1', clean_desc)
+                            if clean_desc and len(clean_desc) > 50:
+                                descriptions.append(clean_desc)
             
             # If we don't have enough descriptions, create some fallbacks
             if len(descriptions) < 2:
@@ -765,7 +860,10 @@ Make them persuasive, highlight key features, and include location-specific bene
                     "Located in a well-connected area, this property provides easy access to schools, hospitals, and shopping centers. The property features spacious rooms and modern facilities."
                 ])
             
-            self.logger.info(f"Parsed {len(descriptions)} descriptions")
+            self.logger.info(f"Parsed {len(descriptions)} descriptions from AI content")
+            for i, desc in enumerate(descriptions):
+                self.logger.info(f"Description {i+1}: {desc[:100]}...")
+            
             return descriptions[:2]  # Return max 2 descriptions
             
         except Exception as e:
@@ -775,6 +873,265 @@ Make them persuasive, highlight key features, and include location-specific bene
                 "Located in a well-connected area, this property provides easy access to schools, hospitals, and shopping centers. The property features spacious rooms and modern facilities."
             ]
     
+    def _calculate_title_scores(self, titles: List[str], property_data: PropertyResponse) -> List[Dict[str, Any]]:
+        """Calculate quality scores for each title suggestion"""
+        scored_titles = []
+        
+        for title in titles:
+            # Calculate quality score based on various factors
+            quality_score = self._calculate_title_quality_score(title, property_data)
+            seo_score = self._calculate_title_seo_score(title, property_data)
+            readability_score = self._calculate_title_readability_score(title, property_data)
+            market_relevance_score = self._calculate_title_market_relevance_score(title, property_data)
+            
+            scored_titles.append({
+                "text": title,
+                "qualityScore": quality_score,
+                "seoScore": seo_score,
+                "readabilityScore": readability_score,
+                "marketRelevanceScore": market_relevance_score
+            })
+        
+        return scored_titles
+    
+    def _calculate_description_scores(self, descriptions: List[str], property_data: PropertyResponse) -> List[Dict[str, Any]]:
+        """Calculate quality scores for each description suggestion"""
+        scored_descriptions = []
+        
+        for description in descriptions:
+            # Calculate quality score based on various factors
+            quality_score = self._calculate_description_quality_score(description, property_data)
+            seo_score = self._calculate_description_seo_score(description, property_data)
+            readability_score = self._calculate_description_readability_score(description, property_data)
+            market_relevance_score = self._calculate_description_market_relevance_score(description, property_data)
+            
+            scored_descriptions.append({
+                "text": description,
+                "qualityScore": quality_score,
+                "seoScore": seo_score,
+                "readabilityScore": readability_score,
+                "marketRelevanceScore": market_relevance_score
+            })
+        
+        return scored_descriptions
+    
+    def _calculate_title_quality_score(self, title: str, property_data: PropertyResponse) -> int:
+        """Calculate quality score for a title (0-100)"""
+        score = 50  # Base score
+        
+        # Length scoring (optimal: 40-80 characters)
+        length = len(title)
+        if 40 <= length <= 80:
+            score += 20
+        elif 30 <= length < 40 or 80 < length <= 100:
+            score += 10
+        
+        # Emotional appeal scoring
+        emotional_words = ['dream', 'luxury', 'beautiful', 'stunning', 'perfect', 'amazing', 'excellent', 'prime', 'premium']
+        emotional_count = sum(1 for word in emotional_words if word.lower() in title.lower())
+        score += min(emotional_count * 5, 15)
+        
+        # Location mention scoring
+        if property_data.location.lower() in title.lower():
+            score += 10
+        
+        # Property type mention scoring
+        if property_data.property_type.lower() in title.lower():
+            score += 5
+        
+        # Price mention scoring
+        if '₹' in title or 'lakh' in title.lower() or 'cr' in title.lower():
+            score += 5
+        
+        return min(score, 100)
+    
+    def _calculate_title_seo_score(self, title: str, property_data: PropertyResponse) -> int:
+        """Calculate SEO score for a title (0-100)"""
+        score = 50  # Base score
+        
+        # Location keyword scoring
+        if property_data.location.lower() in title.lower():
+            score += 20
+        
+        # Property type keyword scoring
+        if property_data.property_type.lower() in title.lower():
+            score += 15
+        
+        # Bedroom count scoring
+        if f"{property_data.bedrooms}bhk" in title.lower() or f"{property_data.bedrooms} bhk" in title.lower():
+            score += 10
+        
+        # Area mention scoring
+        if 'sq ft' in title.lower() or 'sqft' in title.lower():
+            score += 5
+        
+        # Length scoring (SEO optimal: 50-60 characters)
+        length = len(title)
+        if 50 <= length <= 60:
+            score += 10
+        elif 40 <= length < 50 or 60 < length <= 70:
+            score += 5
+        
+        return min(score, 100)
+    
+    def _calculate_title_readability_score(self, title: str, property_data: PropertyResponse) -> int:
+        """Calculate readability score for a title (0-100)"""
+        score = 50  # Base score
+        
+        # Length scoring (readability optimal: 30-50 characters)
+        length = len(title)
+        if 30 <= length <= 50:
+            score += 25
+        elif 20 <= length < 30 or 50 < length <= 70:
+            score += 15
+        
+        # Word count scoring (optimal: 4-8 words)
+        word_count = len(title.split())
+        if 4 <= word_count <= 8:
+            score += 15
+        elif 3 <= word_count < 4 or 8 < word_count <= 10:
+            score += 10
+        
+        # Punctuation scoring (avoid excessive punctuation)
+        punctuation_count = sum(1 for char in title if char in '!@#$%^&*()_+-=[]{}|;:,.<>?')
+        if punctuation_count == 0:
+            score += 10
+        elif punctuation_count <= 2:
+            score += 5
+        
+        return min(score, 100)
+    
+    def _calculate_title_market_relevance_score(self, title: str, property_data: PropertyResponse) -> int:
+        """Calculate market relevance score for a title (0-100)"""
+        score = 50  # Base score
+        
+        # Location relevance scoring
+        if property_data.location.lower() in title.lower():
+            score += 20
+        
+        # Property type relevance scoring
+        if property_data.property_type.lower() in title.lower():
+            score += 15
+        
+        # Market keywords scoring
+        market_keywords = ['investment', 'rent', 'sale', 'buy', 'property', 'home', 'apartment', 'house']
+        market_count = sum(1 for word in market_keywords if word.lower() in title.lower())
+        score += min(market_count * 5, 15)
+        
+        return min(score, 100)
+    
+    def _calculate_description_quality_score(self, description: str, property_data: PropertyResponse) -> int:
+        """Calculate quality score for a description (0-100)"""
+        score = 50  # Base score
+        
+        # Length scoring (optimal: 100-300 words)
+        word_count = len(description.split())
+        if 100 <= word_count <= 300:
+            score += 20
+        elif 50 <= word_count < 100 or 300 < word_count <= 500:
+            score += 10
+        
+        # Emotional appeal scoring
+        emotional_words = ['beautiful', 'stunning', 'luxury', 'modern', 'spacious', 'comfortable', 'convenient', 'excellent', 'perfect']
+        emotional_count = sum(1 for word in emotional_words if word.lower() in description.lower())
+        score += min(emotional_count * 3, 15)
+        
+        # Location mention scoring
+        if property_data.location.lower() in description.lower():
+            score += 10
+        
+        # Property details scoring
+        if f"{property_data.bedrooms}" in description and f"{property_data.bathrooms}" in description:
+            score += 10
+        
+        # Call to action scoring
+        cta_words = ['contact', 'call', 'visit', 'inquiry', 'more information', 'details']
+        cta_count = sum(1 for word in cta_words if word.lower() in description.lower())
+        score += min(cta_count * 5, 10)
+        
+        return min(score, 100)
+    
+    def _calculate_description_seo_score(self, description: str, property_data: PropertyResponse) -> int:
+        """Calculate SEO score for a description (0-100)"""
+        score = 50  # Base score
+        
+        # Location keyword density scoring
+        location_count = description.lower().count(property_data.location.lower())
+        if location_count >= 2:
+            score += 20
+        elif location_count == 1:
+            score += 10
+        
+        # Property type keyword scoring
+        if property_data.property_type.lower() in description.lower():
+            score += 15
+        
+        # Bedroom/Bathroom mention scoring
+        if f"{property_data.bedrooms}" in description and f"{property_data.bathrooms}" in description:
+            score += 10
+        
+        # Area mention scoring
+        if 'sq ft' in description.lower() or 'sqft' in description.lower():
+            score += 5
+        
+        # Length scoring (SEO optimal: 150-300 words)
+        word_count = len(description.split())
+        if 150 <= word_count <= 300:
+            score += 10
+        elif 100 <= word_count < 150 or 300 < word_count <= 400:
+            score += 5
+        
+        return min(score, 100)
+    
+    def _calculate_description_readability_score(self, description: str, property_data: PropertyResponse) -> int:
+        """Calculate readability score for a description (0-100)"""
+        score = 50  # Base score
+        
+        # Sentence length scoring (optimal: 15-20 words per sentence)
+        sentences = description.split('.')
+        if sentences:
+            avg_sentence_length = sum(len(sentence.split()) for sentence in sentences) / len(sentences)
+            if 15 <= avg_sentence_length <= 20:
+                score += 20
+            elif 10 <= avg_sentence_length < 15 or 20 < avg_sentence_length <= 25:
+                score += 10
+        
+        # Paragraph structure scoring
+        paragraphs = description.split('\n\n')
+        if 2 <= len(paragraphs) <= 4:
+            score += 15
+        elif len(paragraphs) == 1 or len(paragraphs) == 5:
+            score += 10
+        
+        # Word complexity scoring (avoid overly complex words)
+        complex_words = ['utilize', 'facilitate', 'implement', 'comprehensive', 'sophisticated']
+        complex_count = sum(1 for word in complex_words if word.lower() in description.lower())
+        if complex_count == 0:
+            score += 15
+        elif complex_count <= 2:
+            score += 10
+        
+        return min(score, 100)
+    
+    def _calculate_description_market_relevance_score(self, description: str, property_data: PropertyResponse) -> int:
+        """Calculate market relevance score for a description (0-100)"""
+        score = 50  # Base score
+        
+        # Location relevance scoring
+        if property_data.location.lower() in description.lower():
+            score += 20
+        
+        # Property type relevance scoring
+        if property_data.property_type.lower() in description.lower():
+            score += 15
+        
+        # Market keywords scoring
+        market_keywords = ['investment', 'rent', 'sale', 'buy', 'property', 'home', 'apartment', 'house', 'family', 'professional']
+        market_count = sum(1 for word in market_keywords if word.lower() in description.lower())
+        score += min(market_count * 3, 15)
+        
+        return min(score, 100)
+
     def _format_price(self, price: float) -> str:
         """Format price for display"""
         if price >= 10000000:  # 1 crore or more
@@ -847,8 +1204,10 @@ Make them persuasive, highlight key features, and include location-specific bene
         """Get features and amenities context for AI prompts"""
         context_parts = []
         
-        if features:
+        if features and isinstance(features, list):
             context_parts.append(f"Key features: {', '.join(features)}")
+        elif features:
+            context_parts.append(f"Key features: {features}")
         
         if amenities:
             context_parts.append(f"Amenities: {amenities}")
@@ -1048,17 +1407,17 @@ Make them persuasive, highlight key features, and include location-specific bene
         # Use AI-fetched market rate if available
         market_price_per_sqft = current_rates.get("price_per_sqft", base_price / area if area > 0 else 0)
         
-        # If base price is 0 or very low, use market-based pricing
-        if base_price <= 0 or base_price < 100000:  # Less than 1 lakh
-            # Calculate suggested price based on market rate
-            suggested_price = market_price_per_sqft * area if area > 0 else 0
-            ai_valuation = suggested_price
-            self.logger.info(f"Using market-based pricing: base_price={base_price}, market_rate={market_price_per_sqft}, area={area}, suggested={suggested_price}")
-        else:
+        # Prioritize user-provided price over market-based pricing
+        if base_price > 0 and base_price >= 100000:  # User provided a valid price (1 lakh or more)
             # Use the actual price provided by the user (no market adjustments)
             suggested_price = base_price
             ai_valuation = market_price_per_sqft * area if area > 0 else base_price
             self.logger.info(f"Using user-provided price: base_price={base_price}, suggested={suggested_price}")
+        else:
+            # Only use market-based pricing if user didn't provide a valid price
+            suggested_price = market_price_per_sqft * area if area > 0 else 0
+            ai_valuation = suggested_price
+            self.logger.info(f"Using market-based pricing: base_price={base_price}, market_rate={market_price_per_sqft}, area={area}, suggested={suggested_price}")
         
         return {
             "current": base_price,
@@ -1159,3 +1518,85 @@ Make them persuasive, highlight key features, and include location-specific bene
             "uniqueness": 90,
             "completeness": 95
         }
+    
+    async def create_posts_for_published_property(
+        self,
+        property_id: str,
+        user_id: str,
+        publish_data: Any
+    ) -> List[Dict[str, Any]]:
+        """
+        Create posts for a published property to make them visible on the posts page.
+        """
+        try:
+            # Get the published property
+            property_data = await self.get_property(property_id, user_id)
+            if not property_data:
+                self.logger.error(f"Property {property_id} not found for post creation")
+                return []
+            
+            posts_created = []
+            
+            # Create posts for each publishing channel and language combination
+            for channel in publish_data.publishing_channels:
+                for language in publish_data.target_languages:
+                    try:
+                        # Generate AI content for this channel and language
+                        ai_content = await self.ai_content_service.generate_content(
+                            property_data=property_data.model_dump(),
+                            channel=self._map_channel(channel),
+                            tone=ContentTone.FRIENDLY,
+                            length=ContentLength.MEDIUM,
+                            language=language,
+                            agent_data=None  # Will be populated from user data
+                        )
+                        
+                        content = ai_content.get("content", {})
+                        
+                        # Create post document
+                        post_data = {
+                            "property_id": property_id,
+                            "agent_id": user_id,
+                            "title": content.get("title", f"{property_data.title} - {channel.title()}"),
+                            "content": content.get("body", property_data.description or ""),
+                            "language": language,
+                            "channels": [channel],
+                            "ai_generated": True,
+                            "ai_prompt": f"Generated for {channel} in {language}",
+                            "status": "published",
+                            "hashtags": content.get("hashtags", []),
+                            "media_urls": property_data.images or [],
+                            "created_at": datetime.utcnow(),
+                            "updated_at": datetime.utcnow(),
+                            "published_at": datetime.utcnow()
+                        }
+                        
+                        # Save post to posts collection
+                        posts_collection = self.db.posts
+                        result = await posts_collection.insert_one(post_data)
+                        post_data['_id'] = str(result.inserted_id)
+                        posts_created.append(post_data)
+                        
+                        self.logger.info(f"Created post {result.inserted_id} for property {property_id} on {channel} in {language}")
+                        
+                    except Exception as e:
+                        self.logger.error(f"Error creating post for {channel}/{language}: {e}")
+                        continue
+            
+            self.logger.info(f"Created {len(posts_created)} posts for property {property_id}")
+            return posts_created
+            
+        except Exception as e:
+            self.logger.error(f"Error creating posts for published property {property_id}: {e}")
+            return []
+    
+    def _map_channel(self, channel: str) -> ContentChannel:
+        """Map channel string to ContentChannel enum"""
+        channel_mapping = {
+            "website": ContentChannel.WEBSITE,
+            "facebook": ContentChannel.FACEBOOK,
+            "instagram": ContentChannel.INSTAGRAM,
+            "whatsapp": ContentChannel.WHATSAPP,
+            "email": ContentChannel.EMAIL
+        }
+        return channel_mapping.get(channel.lower(), ContentChannel.WEBSITE)

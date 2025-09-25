@@ -42,7 +42,7 @@ export default function ProfilePage() {
         return;
       }
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -77,7 +77,7 @@ export default function ProfilePage() {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
         method: 'PUT',
         headers: {

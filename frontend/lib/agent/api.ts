@@ -18,7 +18,7 @@ import {
 
 import { fetchWithAuthInterceptor } from '../auth/interceptor';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { API_BASE_URL } from '../config/api';
 
 class AgentAPI {
     private baseUrl: string;
@@ -236,7 +236,7 @@ class AgentAPI {
      * Get agent language preferences
      */
     async getAgentLanguagePreferences(): Promise<AgentLanguagePreferencesResponse> {
-        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/properties/publishing/agents/me/language-preferences`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/agent/preferences/language-preferences`, {
             method: 'GET',
             headers: this.getAuthHeaders()
         });
@@ -253,7 +253,7 @@ class AgentAPI {
      * Update agent language preferences
      */
     async updateAgentLanguagePreferences(preferences: Partial<AgentLanguagePreferences>): Promise<AgentLanguagePreferencesResponse> {
-        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/properties/publishing/agents/me/language-preferences`, {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/agent/preferences/language-preferences`, {
             method: 'PUT',
             headers: this.getAuthHeaders(),
             body: JSON.stringify(preferences)

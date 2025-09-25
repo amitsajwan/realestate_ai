@@ -17,6 +17,7 @@ import {
     X
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { STANDARD_LANGUAGES } from '../lib/languageConfig'
 
 interface PropertyData {
     id: string
@@ -45,7 +46,7 @@ interface QuickPostGeneratorProps {
     isOpen: boolean
     onClose: () => void
     propertyData: PropertyData
-    onPublish: (content: GeneratedContent[]) => void
+    onPublish: (content: GeneratedContent[], language?: string) => void
     onBack: () => void
 }
 
@@ -74,9 +75,101 @@ export default function QuickPostGenerator({
     const generateContent = async () => {
         setIsGenerating(true)
         try {
-            // Simulate AI content generation
-            await new Promise(resolve => setTimeout(resolve, 2000))
+            // Use real AI content generation with language selection
+            const token = localStorage.getItem('auth_token')
+            if (!token) {
+                throw new Error('Authentication required')
+            }
 
+            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
+
+            const requestData = {
+                property_data: {
+                    id: propertyData.id,
+                    title: propertyData.title,
+                    location: propertyData.location,
+                    price: propertyData.price,
+                    bedrooms: propertyData.bedrooms,
+                    bathrooms: propertyData.bathrooms,
+                    property_type: propertyData.propertyType,
+                    area: propertyData.area,
+                    description: propertyData.description,
+                    images: propertyData.images
+                },
+                platforms: [
+                    { platform: 'website' },
+                    { platform: 'facebook' },
+                    { platform: 'instagram' }
+                ],
+                language: language, // Use the selected language (Malayalam)
+                custom_prompt: customPrompt || undefined,
+                generation_options: {
+                    tone: 'friendly',
+                    length: 'medium',
+                    include_hashtags: true,
+                    include_cta: true
+                }
+            }
+
+            console.log('=== QUICK POST GENERATOR AI REQUEST ===')
+            console.log('Language selected:', language)
+            console.log('Request data:', requestData)
+            console.log('=== END REQUEST ===')
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/ai-unified/generate-unified`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    context: 'publishing',
+                    property_data: requestData.property_data,
+                    languages: [language],
+                    platforms: [selectedPlatform],
+                    generation_options: {
+                        tone: 'friendly',
+                        length: 'medium',
+                        include_hashtags: true,
+                        include_cta: true,
+                        max_title_length: 200
+                    }
+                }),
+                redirect: 'follow'
+            })
+
+            if (!response.ok) {
+                throw new Error('Failed to generate AI content')
+            }
+
+            const result = await response.json()
+            console.log('=== QUICK POST GENERATOR AI RESPONSE ===')
+            console.log('Generated content:', result)
+            console.log('=== END RESPONSE ===')
+
+            // Transform unified API response to our GeneratedContent format
+            const generatedContent: GeneratedContent[] = []
+
+            if (result.content) {
+                Object.entries(result.content).forEach(([platform, languages]: [string, any]) => {
+                    Object.entries(languages).forEach(([lang, content]: [string, any]) => {
+                        generatedContent.push({
+                            id: `${platform}-${lang}-${Date.now()}`,
+                            platform: platform as 'website' | 'facebook' | 'instagram',
+                            content: content.body || content.content || '',
+                            hashtags: content.hashtags || ['#RealEstate', '#Property', '#DreamHome'],
+                            media_urls: propertyData.images || [],
+                            status: 'draft',
+                            created_at: new Date().toISOString()
+                        })
+                    })
+                })
+            }
+
+            setGeneratedContent(generatedContent)
+        } catch (error) {
+            console.error('Error generating AI content:', error)
+            // Fallback to mock content if AI generation fails
             const mockContent: GeneratedContent[] = [
                 {
                     id: '1',
@@ -86,21 +179,9 @@ export default function QuickPostGenerator({
                     media_urls: propertyData.images || [],
                     status: 'draft',
                     created_at: new Date().toISOString()
-                },
-                {
-                    id: '2',
-                    platform: 'facebook',
-                    content: `Just Listed! This beautiful ${propertyData.bedrooms} bed, ${propertyData.bathrooms} bath home in ${propertyData.location} is perfect for your family. Features include modern amenities and a great location. Asking ${formatPrice(propertyData.price)}!`,
-                    hashtags: ['#RealEstate', '#NewHome', '#Property', '#DreamHome'],
-                    media_urls: propertyData.images || [],
-                    status: 'draft',
-                    created_at: new Date().toISOString()
                 }
             ]
-
             setGeneratedContent(mockContent)
-        } catch (error) {
-            console.error('Error generating content:', error)
         } finally {
             setIsGenerating(false)
         }
@@ -134,17 +215,69 @@ export default function QuickPostGenerator({
     const handlePublish = async () => {
         setIsPublishing(true)
         try {
-            // Simulate publishing
-            await new Promise(resolve => setTimeout(resolve, 1500))
+            // Real publishing to the selected platform
+            const token = localStorage.getItem('auth_token')
+            if (!token) {
+                throw new Error('Authentication required')
+            }
+
+            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
+            const currentContent = generatedContent.find(content => content.platform === selectedPlatform)
+
+            if (!currentContent) {
+                throw new Error('No content to publish')
+            }
+
+            const publishData = {
+                content_type: "property",
+                content_id: propertyData.id,
+                channels: [selectedPlatform],
+                auto_translate: true,
+                target_languages: [language],
+                facebook_page_mappings: {}
+            }
+
+            console.log('=== QUICK POST GENERATOR PUBLISH REQUEST ===')
+            console.log('Publishing to:', selectedPlatform)
+            console.log('Language:', language)
+            console.log('Publish data:', publishData)
+            console.log('=== END PUBLISH REQUEST ===')
+
+            const response = await fetch(`${API_BASE_URL}/api/v1/publishing/publish`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(publishData),
+                redirect: 'follow'
+            })
+
+            if (!response.ok) {
+                throw new Error('Failed to publish content')
+            }
+
+            const result = await response.json()
+            console.log('=== QUICK POST GENERATOR PUBLISH RESPONSE ===')
+            console.log('Publish result:', result)
+            console.log('=== END PUBLISH RESPONSE ===')
 
             // Update status to published
             setGeneratedContent(prev =>
-                prev.map(content => ({ ...content, status: 'published' as const }))
+                prev.map(content =>
+                    content.platform === selectedPlatform
+                        ? { ...content, status: 'published' as const }
+                        : content
+                )
             )
 
-            onPublish(generatedContent)
+            onPublish(generatedContent, language)
+
+            // Show success message
+            alert(`Content successfully published to ${selectedPlatform} in ${language.toUpperCase()}!`)
         } catch (error) {
             console.error('Error publishing:', error)
+            alert(`Failed to publish content: ${error instanceof Error ? error.message : 'Unknown error'}`)
         } finally {
             setIsPublishing(false)
         }
@@ -236,10 +369,11 @@ export default function QuickPostGenerator({
                                                     onChange={(e) => setLanguage(e.target.value)}
                                                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 >
-                                                    <option value="en">English</option>
-                                                    <option value="hi">Hindi</option>
-                                                    <option value="ta">Tamil</option>
-                                                    <option value="te">Telugu</option>
+                                                    {STANDARD_LANGUAGES.map((lang) => (
+                                                        <option key={lang.code} value={lang.code}>
+                                                            {lang.name}
+                                                        </option>
+                                                    ))}
                                                 </select>
                                             </div>
 

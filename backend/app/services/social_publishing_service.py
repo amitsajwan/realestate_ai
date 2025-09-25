@@ -152,7 +152,7 @@ class SocialPublishingService:
                     agent_data=agent_data
                 )
                 
-                generated_content = result.get("content", {}).get("body", "")
+                generated_content = result.get("content", {}).get("body", "") if result and isinstance(result, dict) else ""
                 
                 logger.info(f"Generated content length: {len(generated_content)}")
                 logger.info(f"Generated content preview: {generated_content[:200]}...")
@@ -311,8 +311,21 @@ class SocialPublishingService:
         try:
             logger.info(f"Publishing {len(draft_ids)} drafts")
             
-            # Convert string IDs to ObjectId
-            object_ids = [ObjectId(draft_id) for draft_id in draft_ids]
+            # Convert string IDs to ObjectId, handling both formats
+            object_ids = []
+            for draft_id in draft_ids:
+                try:
+                    # Handle content library IDs that start with "content_"
+                    if draft_id.startswith("content_"):
+                        # Extract the ObjectId part after "content_"
+                        object_id_str = draft_id[8:]  # Remove "content_" prefix
+                        object_ids.append(ObjectId(object_id_str))
+                    else:
+                        # Regular ObjectId format
+                        object_ids.append(ObjectId(draft_id))
+                except Exception as e:
+                    logger.error(f"Invalid draft ID format: {draft_id}, error: {e}")
+                    raise ValueError(f"Invalid draft ID format: {draft_id}")
             
             # Get drafts that can be published (GENERATED, EDITED, or READY status)
             drafts = await SocialDraft.find(

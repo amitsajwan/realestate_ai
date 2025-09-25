@@ -101,16 +101,4 @@ export interface ValidationErrors {
     [key: string]: string;
 }
 
-export interface BrandingSuggestion {
-    tagline: string;
-    about: string;
-    primary_color: string;
-    secondary_color: string;
-    font_family: string;
-    logo_style: string;
-    colorPalette: {
-        primary: string;
-        secondary: string;
-        accent: string;
-    };
-}
+// BrandingSuggestion interface moved to @/lib/agent/types for consistency

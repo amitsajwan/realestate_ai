@@ -153,6 +153,11 @@ def setup_comprehensive_logging():
     security_logger.setLevel(logging.INFO)
     security_logger.propagate = False
     
+    # Disable verbose httpx logging
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("requests").setLevel(logging.WARNING)
+    
     print(f"[OK] Comprehensive logging initialized - Level: {log_level}, Environment: {environment}")
     print(f"[OK] Log files location: {LOGS_DIR.absolute()}")
 

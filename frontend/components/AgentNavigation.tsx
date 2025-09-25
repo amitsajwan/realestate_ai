@@ -1,14 +1,16 @@
 'use client';
 
+import {
+  Bars3Icon,
+  BuildingOfficeIcon,
+  DocumentTextIcon,
+  HomeIcon,
+  PhoneIcon,
+  XMarkIcon
+} from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import {
-  HomeIcon,
-  PhoneIcon,
-  Bars3Icon,
-  XMarkIcon
-} from '@heroicons/react/24/outline';
 
 interface AgentNavigationProps {
   agent: {
@@ -25,10 +27,22 @@ export default function AgentNavigation({ agent }: AgentNavigationProps) {
 
   const navItems = [
     {
-      name: 'Properties',
+      name: 'Home',
       href: `/agent/${agent.slug}`,
       icon: HomeIcon,
       isActive: pathname === `/agent/${agent.slug}`
+    },
+    {
+      name: 'Properties',
+      href: `/agent/${agent.slug}/properties`,
+      icon: BuildingOfficeIcon,
+      isActive: pathname === `/agent/${agent.slug}/properties`
+    },
+    {
+      name: 'Posts',
+      href: `/agent/${agent.slug}/posts`,
+      icon: DocumentTextIcon,
+      isActive: pathname === `/agent/${agent.slug}/posts`
     },
     {
       name: 'Contact',
@@ -65,18 +79,17 @@ export default function AgentNavigation({ agent }: AgentNavigationProps) {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    item.isActive
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${item.isActive
                       ? 'bg-blue-50 text-blue-700'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   <span>{item.name}</span>
                 </Link>
               );
             })}
-            
+
             {/* Primary CTA */}
             <Link
               href={`/agent/${agent.slug}/contact`}
@@ -117,11 +130,10 @@ export default function AgentNavigation({ agent }: AgentNavigationProps) {
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`flex items-center space-x-3 px-3 py-3 rounded-md text-base font-medium transition-colors ${
-                      item.isActive
+                    className={`flex items-center space-x-3 px-3 py-3 rounded-md text-base font-medium transition-colors ${item.isActive
                         ? 'bg-blue-50 text-blue-700'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
+                      }`}
                     onClick={() => setIsMenuOpen(false)}
                   >
                     <Icon className="w-5 h-5" />
@@ -129,7 +141,7 @@ export default function AgentNavigation({ agent }: AgentNavigationProps) {
                   </Link>
                 );
               })}
-              
+
               {/* Mobile CTA */}
               <Link
                 href={`/agent/${agent.slug}/contact`}

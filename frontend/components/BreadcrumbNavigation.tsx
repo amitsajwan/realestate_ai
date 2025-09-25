@@ -1,107 +1,159 @@
-'use client';
+'use client'
 
-import React from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { ChevronRightIcon, HomeIcon } from '@heroicons/react/24/outline'
+import Link from 'next/link'
+import { usePathname, useSearchParams } from 'next/navigation'
+import { useMemo } from 'react'
 
 interface BreadcrumbItem {
-  label: string;
-  href?: string;
-  isActive?: boolean;
+  label: string
+  href?: string
+  icon?: React.ReactNode
+  isActive?: boolean
 }
 
-export default function BreadcrumbNavigation() {
-  const pathname = usePathname();
+interface BreadcrumbNavigationProps {
+  className?: string
+  showHome?: boolean
+  customItems?: BreadcrumbItem[]
+}
 
-  // Generate breadcrumbs based on current path
-  const generateBreadcrumbs = (): BreadcrumbItem[] => {
-    const segments = pathname.split('/').filter(Boolean);
-    const breadcrumbs: BreadcrumbItem[] = [
-      { label: 'Home', href: '/' }
-    ];
+export default function BreadcrumbNavigation({
+  className = '',
+  showHome = true,
+  customItems
+}: BreadcrumbNavigationProps) {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
-    let currentPath = '';
-    
+  const breadcrumbs = useMemo(() => {
+    if (customItems) {
+      return customItems
+    }
+
+    const segments = pathname.split('/').filter(Boolean)
+    const items: BreadcrumbItem[] = []
+
+    // Add home if requested
+    if (showHome) {
+      items.push({
+        label: 'Dashboard',
+        href: '/',
+        icon: <HomeIcon className="w-4 h-4" />
+      })
+    }
+
+    // Build breadcrumbs from path segments
+    let currentPath = ''
     segments.forEach((segment, index) => {
-      currentPath += `/${segment}`;
-      const isLast = index === segments.length - 1;
-      
-      // Format segment name
-      let label = segment;
-      if (segment === 'dashboard') label = 'Dashboard';
-      else if (segment === 'properties') label = 'Properties';
-      else if (segment === 'social-publishing') label = 'Social Publishing';
-      else if (segment === 'analytics') label = 'Analytics';
-      else if (segment === 'profile') label = 'Profile';
-      else if (segment === 'login') label = 'Login';
-      else if (segment === 'register') label = 'Register';
-      else if (segment === 'onboarding') label = 'Onboarding';
-      else if (segment === 'posts') label = 'Posts';
-      else if (segment === 'create') label = 'Create';
-      else if (segment === 'agent') label = 'Agent';
-      else if (segment === 'contact') label = 'Contact';
-      else {
-        // Capitalize first letter and replace hyphens with spaces
-        label = segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
+      currentPath += `/${segment}`
+      const isLast = index === segments.length - 1
+
+      // Skip certain segments
+      if (segment === 'app' || segment === 'api') return
+
+      // Handle special cases
+      let label = segment
+      let href = isLast ? undefined : currentPath
+
+      // Handle dynamic routes
+      if (segment.startsWith('[') && segment.endsWith(']')) {
+        // Try to get meaningful label from search params or context
+        const paramName = segment.slice(1, -1)
+        const paramValue = searchParams.get(paramName)
+        label = paramValue || segment
       }
 
-      breadcrumbs.push({
+      // Handle specific route labels
+      switch (segment) {
+        case 'agent':
+          label = 'Agent Profile'
+          break
+        case 'properties':
+          label = 'Properties'
+          break
+        case 'create':
+          label = 'Create Property'
+          break
+        case 'contact':
+          label = 'Contact'
+          break
+        case 'posts':
+          label = 'Posts'
+          break
+        case 'analytics':
+          label = 'Analytics'
+          break
+        case 'profile':
+          label = 'Profile'
+          break
+        case 'login':
+          label = 'Sign In'
+          break
+        case 'register':
+          label = 'Sign Up'
+          break
+        case 'onboarding':
+          label = 'Onboarding'
+          break
+        default:
+          // Capitalize and clean up the label
+          label = segment
+            .split('-')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ')
+      }
+
+      items.push({
         label,
-        href: isLast ? undefined : currentPath,
+        href,
         isActive: isLast
-      });
-    });
+      })
+    })
 
-    return breadcrumbs;
-  };
+    return items
+  }, [pathname, searchParams, showHome, customItems])
 
-  const breadcrumbs = generateBreadcrumbs();
-
-  // Don't show breadcrumbs on home page
-  if (pathname === '/') {
-    return null;
+  // Don't show breadcrumbs on root page or if only one item
+  if (breadcrumbs.length <= 1) {
+    return null
   }
 
   return (
-    <nav className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-6" aria-label="Breadcrumb">
-      <ol className="flex items-center space-x-2">
+    <nav
+      className={`flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400 ${className}`}
+      aria-label="Breadcrumb"
+    >
+      <ol className="flex items-center space-x-1">
         {breadcrumbs.map((item, index) => (
           <li key={index} className="flex items-center">
             {index > 0 && (
-              <svg
-                className="w-4 h-4 mx-2 text-gray-400"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-                aria-hidden="true"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
+              <ChevronRightIcon className="w-4 h-4 mx-2 text-gray-400" />
             )}
-            {item.href && !item.isActive ? (
+
+            {item.href ? (
               <Link
                 href={item.href}
-                className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200"
+                className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200"
               >
-                {item.label}
+                {item.icon && <span className="flex-shrink-0">{item.icon}</span>}
+                <span className="truncate max-w-[200px]">{item.label}</span>
               </Link>
             ) : (
               <span
-                className={`${
-                  item.isActive
+                className={`flex items-center space-x-1 ${item.isActive
                     ? 'text-gray-900 dark:text-white font-medium'
-                    : 'text-gray-600 dark:text-gray-400'
-                }`}
+                    : 'text-gray-500 dark:text-gray-400'
+                  }`}
+                aria-current={item.isActive ? 'page' : undefined}
               >
-                {item.label}
+                {item.icon && <span className="flex-shrink-0">{item.icon}</span>}
+                <span className="truncate max-w-[200px]">{item.label}</span>
               </span>
             )}
           </li>
         ))}
       </ol>
     </nav>
-  );
+  )
 }

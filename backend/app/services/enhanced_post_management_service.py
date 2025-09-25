@@ -88,7 +88,7 @@ class EnhancedPostManagementService:
                         language=language,
                         custom_prompt=ai_prompt
                     )
-                    content = result.get("content", {}).get("body", "")
+                    content = result.get("content", {}).get("body", "") if result and isinstance(result, dict) else ""
                     ai_generated = True
                     logger.info(f"AI content generated for post: {len(content)} characters")
                 except Exception as e:

@@ -1,19 +1,24 @@
 'use client'
 
+import BreadcrumbNavigation from '@/components/BreadcrumbNavigation'
 import CRM from '@/components/CRM'
+import DashboardCustomization from '@/components/DashboardCustomization'
 import { DashboardStats } from '@/components/DashboardStats'
+import EnhancedPropertyMarketingHub from '@/components/EnhancedPropertyMarketingHub'
 import FacebookIntegration from '@/components/FacebookIntegration'
+import GlobalSearch from '@/components/GlobalSearch'
+import MobileBottomNavigation from '@/components/MobileBottomNavigation'
 import { MobileNavigation } from '@/components/MobileNavigation'
 import ProfileSettings from '@/components/ProfileSettings'
 import Properties from '@/components/Properties'
 import PublishingWorkflowManager from '@/components/PublishingWorkflowManager'
 import SmartPropertyForm from '@/components/SmartPropertyForm'
 import { Button, Card, CardBody, CardHeader } from '@/components/UI'
-import UnifiedPublishingDashboard from '@/components/UnifiedPublishingDashboard'
 import { apiService } from '@/lib/api'
 import { authManager } from '@/lib/auth'
 import { propertiesAPI } from '@/lib/properties'
 import {
+  AdjustmentsHorizontalIcon,
   ArrowRightOnRectangleIcon,
   Bars3Icon,
   BellIcon,
@@ -34,15 +39,25 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 
 // Lazy load heavy components
 const AIContentGenerator = lazy(() => import('@/components/AIContentGenerator'))
+const AIContentGeneratorModal = lazy(() => import('@/components/AIContentGeneratorModal'))
 const Analytics = lazy(() => import('@/components/Analytics'))
 const PublicWebsiteManagement = lazy(() => import('@/components/PublicWebsiteManagement'))
 const TeamManagement = lazy(() => import('@/components/TeamManagement'))
 const UXDemo = lazy(() => import('@/components/UXDemo'))
 
-const navigation = [
+interface NavigationItem {
+  name: string
+  icon: any
+  id: string
+  highlight?: boolean
+  badge?: string
+  position?: 'bottom'
+}
+
+const navigation: NavigationItem[] = [
   { name: 'Dashboard', icon: HomeIcon, id: 'dashboard' },
-  { name: 'Property Marketing Hub', icon: BuildingOfficeIcon, id: 'property-marketing-hub', highlight: true, badge: 'NEW' },
   { name: 'Properties', icon: BuildingOfficeIcon, id: 'properties' },
+  { name: 'Property Marketing Hub', icon: BuildingOfficeIcon, id: 'property-marketing-hub', highlight: true },
   { name: 'Add Property', icon: PlusIcon, id: 'property-form' },
   { name: 'Analytics', icon: ChartBarIcon, id: 'analytics' },
   { name: 'CRM', icon: UsersIcon, id: 'crm' },
@@ -63,6 +78,10 @@ export default function Dashboard() {
   const [selectedPropertyForContent, setSelectedPropertyForContent] = useState<string | undefined>(undefined)
   const [showWorkflow, setShowWorkflow] = useState(false)
   const [workflowPropertyData, setWorkflowPropertyData] = useState<any>(null)
+  const [isAIContentModalOpen, setIsAIContentModalOpen] = useState(false)
+  const [selectedPropertyForAI, setSelectedPropertyForAI] = useState<any>(null)
+  const [showDashboardCustomization, setShowDashboardCustomization] = useState(false)
+  const [dashboardWidgets, setDashboardWidgets] = useState<any[]>([])
   const [stats, setStats] = useState({
     total_properties: 0,
     active_listings: 0,
@@ -209,8 +228,12 @@ export default function Dashboard() {
   // Removed testThemePersistence function to prevent theme initialization loops
 
   const handleGenerateContent = (propertyId: string) => {
-    setSelectedPropertyForContent(propertyId)
-    setActiveSection('property-marketing-hub')
+    // Find the property data
+    const property = properties.find(p => p.id === propertyId)
+    if (property) {
+      setSelectedPropertyForAI(property)
+      setIsAIContentModalOpen(true)
+    }
   }
 
   const handleSectionChange = (section: string) => {
@@ -224,7 +247,7 @@ export default function Dashboard() {
   const renderSection = () => {
     switch (activeSection) {
       case 'property-marketing-hub':
-        return <UnifiedPublishingDashboard
+        return <EnhancedPropertyMarketingHub
           onRefresh={loadProperties}
           preselectedPropertyId={selectedPropertyForContent}
           onClearPreselectedProperty={() => setSelectedPropertyForContent(undefined)}
@@ -438,6 +461,39 @@ export default function Dashboard() {
 
               {/* Right Side Actions */}
               <div className="flex items-center space-x-3">
+                {/* Global Search */}
+                <GlobalSearch className="hidden md:block" />
+
+                {/* Dashboard Customization Button */}
+                <button
+                  onClick={() => setShowDashboardCustomization(true)}
+                  className="hidden lg:flex items-center space-x-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  title="Customize Dashboard"
+                >
+                  <AdjustmentsHorizontalIcon className="w-4 h-4" />
+                  <span className="text-sm font-medium hidden xl:block">Customize</span>
+                </button>
+
+                {/* Create Post Button - Desktop */}
+                {properties.length > 0 && (
+                  <button
+                    onClick={() => setIsAIContentModalOpen(true)}
+                    className="hidden sm:flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                  >
+                    <SparklesIcon className="w-4 h-4" />
+                    <span className="text-sm font-medium">Create Post</span>
+                  </button>
+                )}
+                {/* Create Post Button - Mobile */}
+                {properties.length > 0 && (
+                  <button
+                    onClick={() => setIsAIContentModalOpen(true)}
+                    className="sm:hidden p-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg"
+                    title="Create Post"
+                  >
+                    <SparklesIcon className="w-5 h-5" />
+                  </button>
+                )}
                 <button className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors relative">
                   <BellIcon className="w-5 h-5" />
                   <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
@@ -556,6 +612,9 @@ export default function Dashboard() {
           {/* Main Content */}
           <main id="main-content" className="flex-1 min-h-screen bg-gray-50 pb-20 lg:pb-0">
             <div className="p-4 sm:p-6 lg:p-8">
+              {/* Breadcrumb Navigation */}
+              <BreadcrumbNavigation className="mb-6" />
+
               <motion.div
                 key={activeSection}
                 initial={{ opacity: 0, y: 20 }}
@@ -575,6 +634,13 @@ export default function Dashboard() {
             isOpen={isMobileMenuOpen}
             onClose={() => setIsMobileMenuOpen(false)}
           />
+
+          {/* Mobile Bottom Navigation */}
+          <MobileBottomNavigation
+            activeSection={activeSection}
+            onSectionChange={handleSectionChange}
+            className="lg:hidden"
+          />
         </div>
       </div>
 
@@ -592,6 +658,34 @@ export default function Dashboard() {
           setActiveSection('properties')
           loadProperties()
         }}
+      />
+
+      {/* AI Content Generator Modal */}
+      <Suspense fallback={
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      }>
+        <AIContentGeneratorModal
+          isOpen={isAIContentModalOpen}
+          onClose={() => {
+            setIsAIContentModalOpen(false)
+            setSelectedPropertyForAI(null)
+          }}
+          propertyData={selectedPropertyForAI}
+        />
+      </Suspense>
+
+      {/* Dashboard Customization Modal */}
+      <DashboardCustomization
+        isOpen={showDashboardCustomization}
+        onClose={() => setShowDashboardCustomization(false)}
+        onSave={(widgets) => {
+          setDashboardWidgets(widgets)
+          // Save to localStorage or API
+          localStorage.setItem('dashboardWidgets', JSON.stringify(widgets))
+        }}
+        currentWidgets={dashboardWidgets}
       />
     </div>
   )

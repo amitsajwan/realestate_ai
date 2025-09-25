@@ -3,6 +3,7 @@
 import { authManager } from '@/lib/auth';
 import { ArrowPathIcon, DocumentTextIcon, LanguageIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import React, { useEffect, useState } from 'react';
+import { STANDARD_LANGUAGES } from '../lib/languageConfig';
 
 interface PropertyData {
   id: string;
@@ -44,19 +45,7 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
   const [availableProperties, setAvailableProperties] = useState<PropertyData[]>([]);
   const [availableTemplates, setAvailableTemplates] = useState<Array<{ id: string, name: string }>>([]);
 
-  const languages = [
-    { code: 'en', name: 'English' },
-    { code: 'hi', name: 'Hindi' },
-    { code: 'ta', name: 'Tamil' },
-    { code: 'te', name: 'Telugu' },
-    { code: 'bn', name: 'Bengali' },
-    { code: 'gu', name: 'Gujarati' },
-    { code: 'kn', name: 'Kannada' },
-    { code: 'ml', name: 'Malayalam' },
-    { code: 'mr', name: 'Marathi' },
-    { code: 'pa', name: 'Punjabi' },
-    { code: 'ur', name: 'Urdu' }
-  ];
+  // Language configuration is now imported from shared config
 
   // Load available properties and templates on component mount
   useEffect(() => {
@@ -163,7 +152,7 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
       setIsGenerating(true);
       setError(null);
 
-      const response = await fetch(`/api/posts/${selectedProperty.id}/regenerate`, {
+      const response = await fetch(`/api/v1/ai-content/regenerate/${selectedProperty.id}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${authManager.getState().token}`,
@@ -264,7 +253,7 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
               onChange={(e) => setSelectedLanguage(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
-              {languages.map((lang) => (
+              {STANDARD_LANGUAGES.map((lang) => (
                 <option key={lang.code} value={lang.code}>
                   {lang.name}
                 </option>

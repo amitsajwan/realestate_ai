@@ -1,8 +1,9 @@
 'use client'
 
+import { unifiedAuthService } from '@/lib/auth/unified-auth'
 import { Loader2, Send } from 'lucide-react'
 import { useState } from 'react'
-import { Button } from './ui/button'
+import { Button } from './UI/Button'
 
 interface PublishDraftsButtonProps {
     draftIds: string[]
@@ -28,17 +29,8 @@ export default function PublishDraftsButton({
         setIsPublishing(true)
 
         try {
-            const token = localStorage.getItem('auth_token')
-            if (!token) {
-                throw new Error('No authentication token found')
-            }
-
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/content/publish-drafts`, {
+            const response = await unifiedAuthService.authenticatedRequest(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/content/publish-drafts`, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
                 body: JSON.stringify(draftIds)
             })
 
@@ -73,7 +65,7 @@ export default function PublishDraftsButton({
             onClick={handlePublish}
             disabled={disabled || isPublishing || draftIds.length === 0}
             className={`${className}`}
-            variant="default"
+            variant="primary"
         >
             {isPublishing ? (
                 <>

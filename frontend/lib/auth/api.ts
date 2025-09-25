@@ -4,10 +4,10 @@
  * API calls for authentication operations
  */
 
-import { AuthResponse, LoginRequest, RegisterRequest } from './types';
 import { fetchWithAuthInterceptor } from './interceptor';
+import { AuthResponse, LoginRequest, RegisterRequest } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { API_BASE_URL } from '../config/api';
 
 class AuthAPI {
     private baseUrl: string;
