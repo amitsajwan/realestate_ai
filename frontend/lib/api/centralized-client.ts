@@ -102,6 +102,10 @@ export class CentralizedAPIClient {
 
   // Property methods
   async getProperties(skip: number = 0, limit: number = 100): Promise<any[]> {
+    return this.request(`/api/v1/ai-unified/properties?skip=${skip}&limit=${limit}`);
+  }
+
+  async getPropertiesLegacy(skip: number = 0, limit: number = 100): Promise<any[]> {
     return this.request(`/api/v1/properties/?skip=${skip}&limit=${limit}`);
   }
 
@@ -144,11 +148,33 @@ export class CentralizedAPIClient {
     });
   }
 
+  // Legacy AI Content Generation (for backward compatibility)
+  async generateLegacyAIContent(data: any): Promise<any> {
+    return this.request('/api/v1/ai-content/generate-content', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async regenerateLegacyAIContent(propertyId: string, data: any): Promise<any> {
+    return this.request(`/api/v1/ai-content/regenerate/${propertyId}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   // Social Publishing
   async publishToSocialMedia(data: any): Promise<any> {
     return this.request('/api/v1/social-publishing/', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  }
+
+  async publishContent(publishData: any): Promise<any> {
+    return this.request('/api/v1/publishing/publish', {
+      method: 'POST',
+      body: JSON.stringify(publishData),
     });
   }
 
@@ -177,8 +203,19 @@ export class CentralizedAPIClient {
     return this.request('/api/v1/content/');
   }
 
-  async getPublishingLogs(): Promise<any[]> {
-    return this.request('/api/v1/publishing-logs/');
+  async getContent(query?: string): Promise<any> {
+    return this.request(`/api/v1/content/${query || ''}`);
+  }
+
+  async getPublishingLogs(query?: string): Promise<any> {
+    return this.request(`/api/v1/publishing-logs/${query || ''}`);
+  }
+
+  async createPost(postData: any): Promise<any> {
+    return this.request('/api/v1/enhanced-post-management/', {
+      method: 'POST',
+      body: JSON.stringify(postData),
+    });
   }
 
   // File Upload
@@ -218,6 +255,10 @@ export class CentralizedAPIClient {
   // Dashboard
   async getDashboardStats(): Promise<any> {
     return this.request('/api/v1/dashboard/stats');
+  }
+
+  async getAnalytics(): Promise<any> {
+    return this.request('/api/analytics/dashboard');
   }
 
   // Branding

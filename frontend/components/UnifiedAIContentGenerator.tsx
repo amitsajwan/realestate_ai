@@ -3,6 +3,7 @@
 import { authManager } from '@/lib/auth';
 import { ArrowPathIcon, LanguageIcon, SparklesIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useEffect, useState } from 'react';
+import { apiService } from '@/lib/api/centralized-client';
 import { STANDARD_LANGUAGES, getLanguageName } from '../lib/languageConfig';
 
 // Types
@@ -101,17 +102,8 @@ export default function UnifiedAIContentGenerator({
 
     const loadAvailableProperties = async () => {
         try {
-            const response = await fetch('/api/v1/ai-unified/properties', {
-                headers: {
-                    'Authorization': `Bearer ${authManager.getState().token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setAvailableProperties(data.data || []);
-            }
+            const data = await apiService.getProperties();
+            setAvailableProperties(data.data || []);
         } catch (err) {
             console.error('Failed to load properties:', err);
         }
@@ -180,28 +172,12 @@ export default function UnifiedAIContentGenerator({
             };
 
             console.log('=== UNIFIED AI REQUEST ===');
-            console.log('Request URL:', '/api/v1/ai-unified/generate-unified');
             console.log('Request data:', requestData);
             console.log('=== END REQUEST ===');
 
-            const response = await fetch('/api/v1/ai-unified/generate-unified', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${authManager.getState().token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestData)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Failed to generate content');
-            }
-
-            const data = await response.json();
+            const data = await apiService.generateAIContent(requestData);
 
             console.log('=== UNIFIED AI RESPONSE ===');
-            console.log('Response status:', response.status);
             console.log('Response data:', data);
             console.log('=== END RESPONSE ===');
 

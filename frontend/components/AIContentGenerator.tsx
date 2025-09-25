@@ -3,6 +3,7 @@
 import { authManager } from '@/lib/auth';
 import { ArrowPathIcon, DocumentTextIcon, LanguageIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import React, { useEffect, useState } from 'react';
+import { apiService } from '@/lib/api/centralized-client';
 import { STANDARD_LANGUAGES } from '../lib/languageConfig';
 
 interface PropertyData {
@@ -55,17 +56,8 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
 
   const loadAvailableProperties = async () => {
     try {
-      const response = await fetch('/api/v1/ai-content/properties', {
-        headers: {
-          'Authorization': `Bearer ${authManager.getState().token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setAvailableProperties(data.data || []);
-      }
+      const data = await apiService.getProperties();
+      setAvailableProperties(data.data || []);
     } catch (err) {
       console.error('Failed to load properties:', err);
     }
@@ -107,28 +99,13 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
       };
 
       console.log('=== FRONTEND AI REQUEST ===');
-      console.log('Request URL:', '/api/v1/ai-content/generate-content');
       console.log('Request data:', requestData);
       console.log('Selected property:', selectedProperty);
       console.log('=== END FRONTEND REQUEST ===');
 
-      const response = await fetch('/api/v1/ai-content/generate-content', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${authManager.getState().token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate content');
-      }
-
-      const data = await response.json();
+      const data = await apiService.generateLegacyAIContent(requestData);
 
       console.log('=== FRONTEND AI RESPONSE ===');
-      console.log('Response status:', response.status);
       console.log('Response data:', data);
       console.log('Generated content:', data.data);
       console.log('=== END FRONTEND RESPONSE ===');
@@ -152,23 +129,11 @@ const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
       setIsGenerating(true);
       setError(null);
 
-      const response = await fetch(`/api/v1/ai-content/regenerate/${selectedProperty.id}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${authManager.getState().token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          language: selectedLanguage,
-          custom_prompt: customPrompt
-        })
+      const data = await apiService.regenerateLegacyAIContent(selectedProperty.id, {
+        language: selectedLanguage,
+        custom_prompt: customPrompt
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to regenerate content');
-      }
-
-      const data = await response.json();
       setGeneratedContent(data.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
