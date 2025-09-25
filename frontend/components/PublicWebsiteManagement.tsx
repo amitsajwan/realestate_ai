@@ -1,7 +1,7 @@
 'use client'
 
 import { Button, Checkbox, Input, Textarea } from '@/components/UI'
-import { apiService } from '@/lib/api'
+import { apiService } from '@/lib/api/centralized-client'
 import {
   BuildingOfficeIcon,
   ChartBarIcon,

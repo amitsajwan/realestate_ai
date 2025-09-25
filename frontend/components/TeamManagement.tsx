@@ -17,7 +17,7 @@ import {
   ExclamationTriangleIcon,
   ArrowPathIcon
 } from '@heroicons/react/24/outline'
-import { crmApi, Team, TeamMember, LeadStats } from '@/lib/crm-api'
+import { apiService } from '@/lib/api/centralized-client'
 
 interface TeamManagementProps {
   teamId?: string

@@ -3,7 +3,7 @@
 import { LoadingButton } from '@/components/LoadingStates';
 import { useAsyncOperation, useMultipleLoading } from '@/hooks/useLoading';
 import { BrandingSuggestion } from '@/lib/agent/types';
-import { apiService } from '@/lib/api';
+import { apiService } from '@/lib/api/centralized-client';
 import { authManager, User } from '@/lib/auth';
 import { withErrorHandling } from '@/lib/error-handler';
 import { applyBrandTheme } from '@/lib/theme';

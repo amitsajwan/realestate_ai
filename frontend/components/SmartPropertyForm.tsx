@@ -1,7 +1,7 @@
 'use client'
 
 import { agentAPI } from '@/lib/agent'
-import { apiService } from '@/lib/api'
+import { apiService } from '@/lib/api/centralized-client'
 import { API_BASE_URL } from '@/lib/config/api'
 import { propertiesAPI } from '@/lib/properties'
 import { PropertyFormData, propertySchema, stepSchemas } from '@/lib/validation'
@@ -200,47 +200,36 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
       console.log('Title being sent:', processedData.title)
       console.log('AI Hint being sent:', aiHint)
 
-      // Use the NEW unified AI endpoint for property creation
-      const token = localStorage.getItem('auth_token')
-
-      const response = await fetch(`${API_BASE_URL}/api/v1/ai-unified/generate-unified`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      // Use centralized API service for AI content generation
+      const aiResult = await apiService.generateAIContent({
+        context: 'property_creation',
+        property_data: {
+          address: processedData.address,
+          property_type: processedData.propertyType,
+          bedrooms: processedData.bedrooms,
+          bathrooms: processedData.bathrooms,
+          area: processedData.area,
+          price: processedData.price || undefined,
+          amenities: processedData.amenities || '',
+          description: processedData.description || '',
+          title: processedData.title || '',
+          ai_hint: aiHint || ''
         },
-        body: JSON.stringify({
-          context: 'property_creation',
-          property_data: {
-            address: processedData.address,
-            property_type: processedData.propertyType,
-            bedrooms: processedData.bedrooms,
-            bathrooms: processedData.bathrooms,
-            area: processedData.area,
-            price: processedData.price || undefined,
-            amenities: processedData.amenities || '',
-            description: processedData.description || '',
-            title: processedData.title || '',
-            ai_hint: aiHint || ''
-          },
-          languages: ['en'], // Default to English for property creation
-          platforms: ['website'], // Property creation is primarily for website
-          agent_profile: agentProfile,
-          generation_options: {
-            tone: 'professional',
-            length: 'medium',
-            include_hashtags: false,
-            include_cta: false,
-            max_title_length: 100
-          }
-        })
+        languages: ['en'], // Default to English for property creation
+        platforms: ['website'], // Property creation is primarily for website
+        agent_profile: agentProfile,
+        generation_options: {
+          tone: 'professional',
+          length: 'medium',
+          include_hashtags: false,
+          include_cta: false,
+          max_title_length: 100
+        }
       })
-
-      const aiResult = await response.json()
 
       // Transform the response to match the expected format
       const transformedResponse = {
-        success: response.ok,
+        success: true,
         suggestions: aiResult.content ? {
           title: aiResult.content.website?.en?.title || '',
           description: aiResult.content.website?.en?.body || '',

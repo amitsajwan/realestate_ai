@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { apiService } from '@/lib/api/centralized-client';
 import { 
   ChartBarIcon, 
   EyeIcon, 
@@ -73,18 +74,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ userId }
   const loadAnalyticsData = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/analytics/dashboard`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to load analytics data');
-      }
-
-      const data = await response.json();
+      const data = await apiService.getAnalytics();
       setAnalyticsData(data.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');

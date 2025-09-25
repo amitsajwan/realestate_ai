@@ -18,6 +18,7 @@ import {
     X
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { apiService } from '@/lib/api/centralized-client';
 import { STANDARD_LANGUAGES, getLanguageName } from '../lib/languageConfig';
 import PublishDraftsButton from './PublishDraftsButton';
 
@@ -159,22 +160,9 @@ export default function EnhancedPropertyMarketingHub({
 
     const loadAgentProfile = async () => {
         try {
-            const token = localStorage.getItem('auth_token');
-            if (!token) return;
+            const response = await apiService.getAgentProfile();
 
-            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-            const response = await fetch(`${API_BASE_URL}/api/v1/agent/profile`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                redirect: 'follow'
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setAgentProfile(data.data || data);
-            }
+            setAgentProfile(response.data || response);
         } catch (error) {
             console.error('Failed to load agent profile:', error);
         }
@@ -182,11 +170,6 @@ export default function EnhancedPropertyMarketingHub({
 
     const saveGeneratedContent = async (aiResult: any, propertyId: string) => {
         try {
-            const token = localStorage.getItem('auth_token');
-            if (!token) return;
-
-            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-
             // Extract content from the AI result
             const content = aiResult.content;
             if (!content) {
@@ -210,19 +193,11 @@ export default function EnhancedPropertyMarketingHub({
                         status: 'draft'
                     };
 
-                    const response = await fetch(`${API_BASE_URL}/api/v1/enhanced-post-management/`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(postData)
-                    });
-
-                    if (response.ok) {
+                    try {
+                        await apiService.createPost(postData);
                         console.log(`Saved content for ${platform}/${language}`);
-                    } else {
-                        console.error(`Failed to save content for ${platform}/${language}:`, await response.text());
+                    } catch (error) {
+                        console.error(`Failed to save content for ${platform}/${language}:`, error);
                     }
                 }
             }
@@ -233,23 +208,9 @@ export default function EnhancedPropertyMarketingHub({
 
     const loadAvailableProperties = async () => {
         try {
-            const token = localStorage.getItem('auth_token');
-            if (!token) return;
-
-            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-            const response = await fetch(`${API_BASE_URL}/api/v1/ai-unified/properties`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                redirect: 'follow'
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                // The new API returns { success: true, data: [...], count: 5 }
-                setAvailableProperties(result.data || []);
-            }
+            const result = await apiService.getProperties();
+            // The new API returns { success: true, data: [...], count: 5 }
+            setAvailableProperties(result.data || []);
         } catch (error) {
             console.error('Error loading properties:', error);
         }
@@ -263,25 +224,11 @@ export default function EnhancedPropertyMarketingHub({
 
         setIsGenerating(true);
         try {
-            const token = localStorage.getItem('auth_token');
-            if (!token) {
-                alert('Authentication required');
-                return;
-            }
-
-            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-
-            // Use the unified AI endpoint
-            const response = await fetch(`${API_BASE_URL}/api/v1/ai-unified/generate-unified`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    context: 'standalone',
-                    property_data: availableProperties.find(p => p.id === selectedProperty),
-                    languages: [selectedLanguage],
+            // Use centralized API service for AI content generation
+            const response = await apiService.generateAIContent({
+                context: 'standalone',
+                property_data: availableProperties.find(p => p.id === selectedProperty),
+                languages: [selectedLanguage],
                     platforms: ['website', 'facebook', 'instagram'],
                     custom_prompts: customPrompt ? { website: customPrompt } : undefined,
                     agent_profile: agentProfile,
@@ -292,13 +239,11 @@ export default function EnhancedPropertyMarketingHub({
                         include_cta: true,
                         max_title_length: 200
                     }
-                }),
-                redirect: 'follow'
+                })
             });
 
-            if (response.ok) {
-                const result = await response.json();
-                console.log('Unified AI content generated:', result);
+            const result = response;
+            console.log('Unified AI content generated:', result);
 
                 // Save the generated content to database
                 await saveGeneratedContent(result, selectedProperty);
@@ -333,43 +278,14 @@ export default function EnhancedPropertyMarketingHub({
     const loadContent = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('auth_token');
-            if (!token) {
-                console.error('No auth token found - user may not be logged in');
-                setContentItems([]);
-                return;
-            }
-
             const timestamp = Date.now();
-            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
             const [contentResponse, publishingLogsResponse] = await Promise.all([
-                fetch(`${API_BASE_URL}/api/v1/content/?_t=${timestamp}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                }),
-                fetch(`${API_BASE_URL}/api/v1/publishing-logs/?_t=${timestamp}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                })
+                apiService.getContent(`?_t=${timestamp}`),
+                apiService.getPublishingLogs(`?_t=${timestamp}`)
             ]);
 
-            if (!contentResponse.ok) {
-                const errorText = await contentResponse.text();
-                console.error(`Content API error: ${contentResponse.status}`, errorText);
-                if (contentResponse.status === 401) {
-                    console.error('Authentication failed - user may not be logged in');
-                    setContentItems([]);
-                    return;
-                }
-                throw new Error(`Content API error: ${contentResponse.status} - ${errorText}`);
-            }
-
-            const contentData = await contentResponse.json();
-            const publishingLogsData = publishingLogsResponse.ok ? await publishingLogsResponse.json() : [];
+            const contentData = contentResponse;
+            const publishingLogsData = publishingLogsResponse || [];
 
             // Transform API data to our ContentItem format
             const transformedContent: ContentItem[] = contentData.map((item: any) => ({

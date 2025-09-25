@@ -17,6 +17,7 @@ import {
     X
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { apiService } from '@/lib/api/centralized-client'
 import { STANDARD_LANGUAGES } from '../lib/languageConfig'
 
 interface PropertyData {
@@ -75,13 +76,7 @@ export default function QuickPostGenerator({
     const generateContent = async () => {
         setIsGenerating(true)
         try {
-            // Use real AI content generation with language selection
-            const token = localStorage.getItem('auth_token')
-            if (!token) {
-                throw new Error('Authentication required')
-            }
-
-            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
+            // Use centralized API service for AI content generation
 
             const requestData = {
                 property_data: {
@@ -116,33 +111,21 @@ export default function QuickPostGenerator({
             console.log('Request data:', requestData)
             console.log('=== END REQUEST ===')
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/ai-unified/generate-unified`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    context: 'publishing',
-                    property_data: requestData.property_data,
-                    languages: [language],
-                    platforms: [selectedPlatform],
-                    generation_options: {
-                        tone: 'friendly',
-                        length: 'medium',
-                        include_hashtags: true,
-                        include_cta: true,
-                        max_title_length: 200
-                    }
-                }),
-                redirect: 'follow'
+            const response = await apiService.generateAIContent({
+                context: 'publishing',
+                property_data: requestData.property_data,
+                languages: [language],
+                platforms: [selectedPlatform],
+                generation_options: {
+                    tone: 'friendly',
+                    length: 'medium',
+                    include_hashtags: true,
+                    include_cta: true,
+                    max_title_length: 200
+                }
             })
 
-            if (!response.ok) {
-                throw new Error('Failed to generate AI content')
-            }
-
-            const result = await response.json()
+            const result = response
             console.log('=== QUICK POST GENERATOR AI RESPONSE ===')
             console.log('Generated content:', result)
             console.log('=== END RESPONSE ===')
@@ -215,13 +198,7 @@ export default function QuickPostGenerator({
     const handlePublish = async () => {
         setIsPublishing(true)
         try {
-            // Real publishing to the selected platform
-            const token = localStorage.getItem('auth_token')
-            if (!token) {
-                throw new Error('Authentication required')
-            }
-
-            const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
+            // Use centralized API service for publishing
             const currentContent = generatedContent.find(content => content.platform === selectedPlatform)
 
             if (!currentContent) {
@@ -243,21 +220,7 @@ export default function QuickPostGenerator({
             console.log('Publish data:', publishData)
             console.log('=== END PUBLISH REQUEST ===')
 
-            const response = await fetch(`${API_BASE_URL}/api/v1/publishing/publish`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(publishData),
-                redirect: 'follow'
-            })
-
-            if (!response.ok) {
-                throw new Error('Failed to publish content')
-            }
-
-            const result = await response.json()
+            const result = await apiService.publishContent(publishData)
             console.log('=== QUICK POST GENERATOR PUBLISH RESPONSE ===')
             console.log('Publish result:', result)
             console.log('=== END PUBLISH RESPONSE ===')

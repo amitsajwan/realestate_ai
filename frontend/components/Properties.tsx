@@ -1,6 +1,6 @@
 'use client'
 
-import { apiService } from '@/lib/api'
+import { apiService } from '@/lib/api/centralized-client'
 import { formatPrice, formatStatusLabel } from '@/lib/formatters'
 import {
   ArrowPathIcon,

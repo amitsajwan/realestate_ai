@@ -14,7 +14,7 @@ import Properties from '@/components/Properties'
 import PublishingWorkflowManager from '@/components/PublishingWorkflowManager'
 import SmartPropertyForm from '@/components/SmartPropertyForm'
 import { Button, Card, CardBody, CardHeader } from '@/components/UI'
-import { apiService } from '@/lib/api'
+import { apiService } from '@/lib/api/centralized-client'
 import { authManager } from '@/lib/auth'
 import { propertiesAPI } from '@/lib/properties'
 import {

@@ -1,6 +1,7 @@
 'use client'
 
 import { API_BASE_URL } from '@/lib/config/api'
+import { apiService } from '@/lib/api/centralized-client'
 import { generatePropertyUrl, getAgentSlug } from '@/lib/utils/slug'
 import { useEffect, useState } from 'react'
 import PropertySuccessModal from './PropertySuccessModal'
@@ -75,26 +76,12 @@ export default function PublishingWorkflowManager({
         let agentSlug = 'default-agent' // fallback
 
         try {
-            const token = localStorage.getItem('auth_token')
-            if (token) {
-                // Use the same API endpoint as other components for consistency
-                const response = await fetch(`${API_BASE_URL}/api/v1/agent/public/profile`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                })
+            // Use centralized API service for agent profile
+            const agentInfo = await apiService.getAgentProfile()
+            console.log('Agent profile retrieved for URL generation:', agentInfo)
 
-                if (response.ok) {
-                    const agentInfo = await response.json()
-                    console.log('Agent profile retrieved for URL generation:', agentInfo)
-
-                    // Use the centralized slug utility for consistency
-                    agentSlug = getAgentSlug(agentInfo)
-                } else {
-                    console.warn('Failed to get agent profile, using fallback slug')
-                }
-            }
+            // Use the centralized slug utility for consistency
+            agentSlug = getAgentSlug(agentInfo)
         } catch (error) {
             console.log('Could not get agent slug, using fallback:', error)
         }
@@ -103,24 +90,13 @@ export default function PublishingWorkflowManager({
         const results: PublishingResult[] = []
 
         try {
-            const token = localStorage.getItem('auth_token')
-            if (!token) {
-                throw new Error('No authentication token found')
-            }
-
-            // Use the NEW unified AI endpoint for content generation
-            const aiResponse = await fetch(`${API_BASE_URL}/api/v1/ai-unified/generate-unified`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    context: 'publishing',
-                    property_data: propertyData,
-                    languages: [language || selectedLanguage],
-                    platforms: ['website', 'facebook'],
-                    generation_options: {
+            // Use centralized API service for AI content generation
+            const aiResponse = await apiService.generateAIContent({
+                context: 'publishing',
+                property_data: propertyData,
+                languages: [language || selectedLanguage],
+                platforms: ['website', 'facebook'],
+                generation_options: {
                         tone: 'friendly',
                         length: 'medium',
                         include_hashtags: true,
@@ -130,11 +106,7 @@ export default function PublishingWorkflowManager({
                 })
             })
 
-            if (!aiResponse.ok) {
-                throw new Error('Failed to generate AI content')
-            }
-
-            const aiResult = await aiResponse.json()
+            const aiResult = aiResponse
             console.log('AI content generated:', aiResult)
 
             // Save the generated content using the NEW enhanced post management
@@ -155,18 +127,9 @@ export default function PublishingWorkflowManager({
                             status: 'published'
                         }
 
-                        const saveResponse = await fetch(`${API_BASE_URL}/api/v1/enhanced-post-management/`, {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${token}`,
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(postData)
-                        })
+                        const saveResponse = await apiService.createPost(postData)
 
-                        if (saveResponse.ok) {
-                            console.log(`Saved content for ${platform}/${lang}`)
-                        }
+                        console.log(`Saved content for ${platform}/${lang}`)
                     }
                 }
             }
