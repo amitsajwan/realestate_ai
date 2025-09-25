@@ -229,43 +229,38 @@ export default function EnhancedPropertyMarketingHub({
                 context: 'standalone',
                 property_data: availableProperties.find(p => p.id === selectedProperty),
                 languages: [selectedLanguage],
-                    platforms: ['website', 'facebook', 'instagram'],
-                    custom_prompts: customPrompt ? { website: customPrompt } : undefined,
-                    agent_profile: agentProfile,
-                    generation_options: {
-                        tone: 'friendly',
-                        length: 'medium',
-                        include_hashtags: true,
-                        include_cta: true,
-                        max_title_length: 200
-                    }
-                })
+                platforms: ['website', 'facebook', 'instagram'],
+                custom_prompts: customPrompt ? { website: customPrompt } : undefined,
+                agent_profile: agentProfile,
+                generation_options: {
+                    tone: 'friendly',
+                    length: 'medium',
+                    include_hashtags: true,
+                    include_cta: true,
+                    max_title_length: 200
+                }
             });
 
             const result = response;
             console.log('Unified AI content generated:', result);
 
-                // Save the generated content to database
-                await saveGeneratedContent(result, selectedProperty);
+            // Save the generated content to database
+            await saveGeneratedContent(result, selectedProperty);
 
-                // Refresh content list
-                await loadContent();
+            // Refresh content list
+            await loadContent();
 
-                // Close modal and reset form
-                setShowAIModal(false);
-                setSelectedProperty('');
-                setCustomPrompt('');
-                setPropertySearchTerm('');
+            // Close modal and reset form
+            setShowAIModal(false);
+            setSelectedProperty('');
+            setCustomPrompt('');
+            setPropertySearchTerm('');
 
-                if (onClearPreselectedProperty) {
-                    onClearPreselectedProperty();
-                }
-
-                alert('AI content generated and saved successfully!');
-            } else {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to generate content');
+            if (onClearPreselectedProperty) {
+                onClearPreselectedProperty();
             }
+
+            alert('AI content generated and saved successfully!');
         } catch (error) {
             console.error('Error generating AI content:', error);
             const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';

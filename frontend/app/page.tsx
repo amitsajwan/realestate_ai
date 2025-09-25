@@ -16,7 +16,6 @@ import SmartPropertyForm from '@/components/SmartPropertyForm'
 import { Button, Card, CardBody, CardHeader } from '@/components/UI'
 import { apiService } from '@/lib/api/centralized-client'
 import { authManager } from '@/lib/auth'
-import { propertiesAPI } from '@/lib/properties'
 import {
   AdjustmentsHorizontalIcon,
   ArrowRightOnRectangleIcon,
@@ -188,7 +187,7 @@ export default function Dashboard() {
   const loadProperties = async () => {
     try {
       console.log('[DashboardPage] Fetching properties from API...')
-      const response = await propertiesAPI.getProperties()
+      const response = await apiService.getProperties()
       console.log('[DashboardPage] API response:', response)
 
       // Handle both direct array response and wrapped response
