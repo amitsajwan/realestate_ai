@@ -59,6 +59,7 @@ api_router.include_router(agent_preferences_router, prefix="/agent", tags=["agen
 # api_router.include_router(posts_router, prefix="/posts", tags=["posts"])  # Removed during cleanup
 # api_router.include_router(templates_router, prefix="/templates", tags=["templates"])  # Removed during cleanup
 api_router.include_router(enhanced_posts_router, prefix="/enhanced-posts", tags=["enhanced-posts"])
+api_router.include_router(enhanced_posts_router, prefix="/enhanced-post-management", tags=["enhanced-post-management"])
 api_router.include_router(branding_router, prefix="/branding", tags=["branding"])
 api_router.include_router(social_publishing_router, prefix="/social-publishing", tags=["social-publishing"])
 api_router.include_router(enhanced_templates_router, prefix="/enhanced-templates", tags=["enhanced-templates"])

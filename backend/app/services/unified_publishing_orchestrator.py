@@ -60,7 +60,8 @@ class UnifiedPublishingRequest:
         schedule_at: Optional[datetime] = None,
         auto_translate: bool = True,
         target_languages: List[str] = None,
-        facebook_page_mappings: Dict[str, str] = None
+        facebook_page_mappings: Dict[str, str] = None,
+        content: Optional[List[Dict[str, Any]]] = None
     ):
         self.content_type = content_type
         self.content_id = content_id
@@ -70,6 +71,7 @@ class UnifiedPublishingRequest:
         self.auto_translate = auto_translate
         self.target_languages = target_languages or ["en"]
         self.facebook_page_mappings = facebook_page_mappings or {}
+        self.content = content or []
 
 
 class UnifiedPublishingResponse:
@@ -154,6 +156,65 @@ class UnifiedPublishingOrchestrator:
     async def _publish_property(self, request: UnifiedPublishingRequest) -> UnifiedPublishingResponse:
         """Publish property listing content"""
         try:
+            # If we have content data from frontend, create posts directly
+            if request.content and len(request.content) > 0:
+                logger.info(f"Creating posts directly from content data for property {request.content_id}")
+                
+                if not self.enhanced_post_service:
+                    return UnifiedPublishingResponse(
+                        success=False,
+                        content_type=ContentType.PROPERTY,
+                        content_id=request.content_id,
+                        status=PublishingStatus.FAILED,
+                        error="Enhanced post service not available"
+                    )
+                
+                created_posts = []
+                for content_item in request.content:
+                    try:
+                        # Map platform to PublishingChannel enum
+                        platform = content_item.get('platform', 'website')
+                        from app.models.post import PublishingChannel
+                        
+                        channel_mapping = {
+                            'website': PublishingChannel.WEBSITE,
+                            'facebook': PublishingChannel.FACEBOOK,
+                            'instagram': PublishingChannel.INSTAGRAM,
+                            'linkedin': PublishingChannel.LINKEDIN,
+                            'twitter': PublishingChannel.TWITTER,
+                            'email': PublishingChannel.EMAIL
+                        }
+                        
+                        channel = channel_mapping.get(platform, PublishingChannel.WEBSITE)
+                        
+                        # Create post using enhanced post service
+                        post = await self.enhanced_post_service.create_post(
+                            property_id=request.content_id,
+                            agent_id=request.agent_id,
+                            title=content_item.get('title', 'Property Post'),
+                            content=content_item.get('content', ''),
+                            language=content_item.get('language', 'en'),
+                            channels=[channel],
+                            hashtags=content_item.get('hashtags', []),
+                            media_urls=content_item.get('media_urls', []),
+                            ai_prompt=content_item.get('ai_prompt')
+                        )
+                        created_posts.append(post)
+                        logger.info(f"Created post for {platform} with {len(content_item.get('media_urls', []))} images")
+                    except Exception as e:
+                        logger.error(f"Failed to create post for {content_item.get('platform')}: {e}")
+                
+                return UnifiedPublishingResponse(
+                    success=True,
+                    content_type=ContentType.PROPERTY,
+                    content_id=request.content_id,
+                    status=PublishingStatus.PUBLISHED,
+                    published_channels=request.channels,
+                    message=f"Created {len(created_posts)} posts successfully",
+                    publishing_results={"created_posts": len(created_posts)}
+                )
+            
+            # Fallback to original property publishing service
             if not self.property_publisher:
                 return UnifiedPublishingResponse(
                     success=False,

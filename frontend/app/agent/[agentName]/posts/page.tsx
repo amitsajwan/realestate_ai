@@ -141,14 +141,40 @@ export default function AgentPostsPage({ params }: AgentPostsPageProps) {
     }
 
     const formatDate = (dateString: string) => {
-        const date = new Date(dateString)
-        const now = new Date()
-        const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
+        try {
+            // Handle backend date format with microseconds
+            let cleanDateString = dateString
 
-        if (diffInHours < 1) return 'Just now'
-        if (diffInHours < 24) return `${diffInHours}h ago`
-        if (diffInHours < 48) return 'Yesterday'
-        return date.toLocaleDateString()
+            // If the date string has microseconds but no timezone, add UTC timezone
+            if (dateString.includes('.') && !dateString.endsWith('Z') && !dateString.includes('+') && !dateString.includes('-', 10)) {
+                // Remove microseconds and add Z for proper ISO parsing
+                const parts = dateString.split('.')
+                if (parts.length === 2) {
+                    // Keep only the first 6 digits of microseconds (milliseconds)
+                    const microseconds = parts[1].substring(0, 6)
+                    cleanDateString = parts[0] + '.' + microseconds + 'Z'
+                }
+            }
+
+            const date = new Date(cleanDateString)
+
+            // Check if date is valid
+            if (isNaN(date.getTime())) {
+                console.error('Invalid date:', dateString, 'cleaned:', cleanDateString)
+                return 'Date unavailable'
+            }
+
+            const now = new Date()
+            const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
+
+            if (diffInHours < 1) return 'Just now'
+            if (diffInHours < 24) return `${diffInHours}h ago`
+            if (diffInHours < 48) return 'Yesterday'
+            return date.toLocaleDateString()
+        } catch (error) {
+            console.error('Date formatting error:', error, 'for date:', dateString)
+            return 'Invalid Date'
+        }
     }
 
     if (isLoading && currentPage === 1) {

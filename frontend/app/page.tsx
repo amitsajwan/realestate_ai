@@ -213,7 +213,21 @@ export default function Dashboard() {
           bathrooms: property.bathrooms,
           area: property.area_sqft,
           address: property.location,
-          date_added: property.created_at ? new Date(property.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          date_added: property.created_at ? (() => {
+            try {
+              let cleanDateString = property.created_at;
+              if (cleanDateString.includes('.') && !cleanDateString.endsWith('Z') && !cleanDateString.includes('+') && !cleanDateString.includes('-', 10)) {
+                const parts = cleanDateString.split('.');
+                if (parts.length === 2) {
+                  const microseconds = parts[1].substring(0, 6);
+                  cleanDateString = parts[0] + '.' + microseconds + 'Z';
+                }
+              }
+              return new Date(cleanDateString).toISOString().split('T')[0];
+            } catch {
+              return new Date().toISOString().split('T')[0];
+            }
+          })() : new Date().toISOString().split('T')[0],
           description: property.description,
           images: property.images || [],
           image: property.images?.[0] || null

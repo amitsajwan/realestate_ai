@@ -123,7 +123,9 @@ class UnifiedAIContentService:
             
         except Exception as e:
             self.logger.error(f"Error generating content: {e}")
-            return self._generate_fallback_content(property_data, channel, tone, language, agent_data)
+            # Re-raise the exception instead of returning fallback content
+            # This allows the endpoint to handle the error properly
+            raise
     
     def _build_unified_prompt(
         self,

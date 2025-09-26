@@ -115,19 +115,9 @@ export default function UnifiedPostingHub({
   const [searchTerm, setSearchTerm] = useState('')
   const [isRateLimited, setIsRateLimited] = useState(false)
   const [publishingStatus, setPublishingStatus] = useState<'idle' | 'publishing' | 'success' | 'error'>('idle')
-  const [showManualEditor, setShowManualEditor] = useState(false)
-  const [manualContent, setManualContent] = useState<{
-    title: string
-    content: string
-    hashtags: string[]
-  }>({
-    title: '',
-    content: '',
-    hashtags: []
-  })
   const [savedDrafts, setSavedDrafts] = useState<GeneratedContent[]>([])
   const [showDraftManager, setShowDraftManager] = useState(false)
-  
+
   // Image inheritance state
   const [selectedImages, setSelectedImages] = useState<string[]>([])
   const [showImageSelection, setShowImageSelection] = useState(false)
@@ -157,9 +147,12 @@ export default function UnifiedPostingHub({
       propertyData,
       selectedProperty,
       hasPropertyData: !!propertyData,
-      hasSelectedProperty: !!selectedProperty
+      hasSelectedProperty: !!selectedProperty,
+      selectedPlatforms,
+      generatedContent: generatedContent.length
     })
-  }, [mode, propertyData, selectedProperty])
+  }, [mode, propertyData, selectedProperty, selectedPlatforms, generatedContent])
+
 
   // Ensure property data is set when component receives it
   useEffect(() => {
@@ -171,7 +164,8 @@ export default function UnifiedPostingHub({
 
   // Auto-select images when property changes
   useEffect(() => {
-    if (selectedProperty?.images && selectedProperty.images.length > 0) {
+    const images = selectedProperty?.images || propertyData?.images
+    if (images && images.length > 0) {
       if (imageSelectionMode === 'auto') {
         // Auto-select images based on platform limits
         const maxImages = Math.min(
@@ -186,13 +180,13 @@ export default function UnifiedPostingHub({
             return limits[platform as keyof typeof limits] || 10
           })
         )
-        
-        const autoSelected = selectedProperty.images.slice(0, maxImages)
+
+        const autoSelected = images.slice(0, maxImages)
         setSelectedImages(autoSelected)
         console.log('[UnifiedPostingHub] Auto-selected images:', autoSelected)
       }
     }
-  }, [selectedProperty, selectedPlatforms, imageSelectionMode])
+  }, [selectedProperty, propertyData, selectedPlatforms, imageSelectionMode])
 
   // Reset component state when opening in property-creation mode
   useEffect(() => {
@@ -210,6 +204,8 @@ export default function UnifiedPostingHub({
       setIsRateLimited(false)
       setSavedDrafts([])
       setShowDraftManager(false)
+      setSelectedImages([])
+      setShowImageSelection(false)
     }
   }, [mode, isOpen])
 
@@ -221,6 +217,100 @@ export default function UnifiedPostingHub({
       console.error('Error loading properties:', error)
     }
   }
+
+  const populateContentWithPropertyData = useCallback(() => {
+    console.log('[UnifiedPostingHub] populateContentWithPropertyData called')
+    console.log('[UnifiedPostingHub] selectedProperty:', selectedProperty)
+    console.log('[UnifiedPostingHub] propertyData:', propertyData)
+    console.log('[UnifiedPostingHub] selectedPlatforms:', selectedPlatforms)
+    const property = selectedProperty || propertyData
+    console.log('[UnifiedPostingHub] Using property:', property)
+    if (!property) {
+      console.log('[UnifiedPostingHub] No property data available for fallback')
+      toast.error('No property data available for fallback content generation')
+      return
+    }
+
+    // Create content for selected platforms, or all platforms if none selected
+    const platformsToUse = selectedPlatforms.length > 0 ? selectedPlatforms : ['website', 'facebook', 'instagram', 'linkedin', 'twitter']
+    console.log('[UnifiedPostingHub] Using platforms:', platformsToUse)
+    console.log('[UnifiedPostingHub] Property details:', {
+      title: property.title,
+      description: property.description,
+      location: property.location,
+      price: property.price,
+      bedrooms: property.bedrooms,
+      bathrooms: property.bathrooms,
+      propertyType: property.propertyType
+    })
+
+    const populatedContent: GeneratedContent[] = platformsToUse.map(platform => {
+      const title = property.title || 'Property Listing'
+      // Check if description is empty or contains placeholder text
+      const isPlaceholderDescription = !property.description ||
+        property.description.includes('AI-generated description will appear here') ||
+        property.description.includes('description will appear here') ||
+        property.description.trim() === ''
+
+      console.log('[UnifiedPostingHub] Property description check:', {
+        description: property.description,
+        isPlaceholder: isPlaceholderDescription
+      })
+
+      const content = isPlaceholderDescription ? `🏡 ${property.title || 'Property'} in ${property.location || 'Location'}! 
+
+This beautiful ${property.propertyType || 'property'} features ${property.bedrooms || 0} bedrooms and ${property.bathrooms || 0} bathrooms.
+
+💰 Price: ₹${(property.price / 100000).toFixed(0)}L
+📍 Location: ${property.location || 'Location'}
+🏠 ${property.bedrooms || 0} bed • ${property.bathrooms || 0} bath
+📐 Area: ${property.area || (property as any).area_sqft || 'N/A'} sq ft
+
+Contact me for more details! 📞` : (property.description || 'Property description not available')
+
+      const hashtags = [
+        '#realestate',
+        '#property',
+        '#investment',
+        '#home',
+        property.location ? `#${property.location.toLowerCase().replace(/\s+/g, '')}` : '',
+        property.propertyType ? `#${property.propertyType.toLowerCase()}` : ''
+      ].filter(Boolean)
+
+      return {
+        id: `populated_${platform}_${Date.now()}`,
+        platform: platform as 'website' | 'facebook' | 'instagram' | 'linkedin' | 'twitter',
+        content: content,
+        title: title,
+        hashtags: hashtags,
+        media_urls: selectedImages.length > 0 ? selectedImages : (property.images || []),
+        status: 'draft' as const,
+        created_at: new Date().toISOString(),
+        language: selectedLanguage,
+        ai_generated: false
+      }
+    })
+
+    console.log('[UnifiedPostingHub] Generated populated content:', populatedContent)
+    console.log('[UnifiedPostingHub] Selected images for content:', selectedImages)
+    console.log('[UnifiedPostingHub] Property images:', property.images)
+    setGeneratedContent(populatedContent)
+    setCurrentStep(2)
+    setSuccess('Content populated with property data for all platforms!')
+    toast.success('AI failed - Content populated with property data for all platforms!')
+
+    if (onContentGenerated) {
+      onContentGenerated(populatedContent)
+    }
+  }, [selectedProperty, propertyData, selectedPlatforms, selectedLanguage, selectedImages, onContentGenerated])
+
+  // Auto-populate content when property data is available and no content exists
+  useEffect(() => {
+    if ((selectedProperty || propertyData) && generatedContent.length === 0 && selectedPlatforms.length > 0) {
+      console.log('[UnifiedPostingHub] Auto-populating content with property data')
+      populateContentWithPropertyData()
+    }
+  }, [selectedProperty, propertyData, selectedPlatforms, generatedContent.length, populateContentWithPropertyData])
 
   const generateContent = useCallback(async () => {
     if (!selectedProperty && mode !== 'standalone') {
@@ -279,7 +369,7 @@ export default function UnifiedPostingHub({
               content: content.body || content.content || '',
               title: content.title || '',
               hashtags: content.hashtags || ['#RealEstate', '#Property', '#DreamHome'],
-              media_urls: selectedImages.length > 0 ? selectedImages : (selectedProperty?.images || []),
+              media_urls: selectedImages.length > 0 ? selectedImages : (selectedProperty?.images || propertyData?.images || []),
               status: 'draft',
               created_at: new Date().toISOString(),
               language: lang
@@ -305,81 +395,31 @@ export default function UnifiedPostingHub({
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate content'
       setError(errorMessage)
       console.error('Error generating content:', error)
+      console.log('[UnifiedPostingHub] Error details:', {
+        statusCode: error.statusCode,
+        message: errorMessage,
+        error: error
+      })
 
-      // Handle rate limiting and show manual editor as fallback
-      if (error.status === 429 || errorMessage.includes('Rate limit') || errorMessage.includes('rate limit')) {
+      // Handle rate limiting and AI failures by populating content with property data
+      if (error.statusCode === 503 || error.statusCode === 429 || errorMessage.includes('Rate limit') || errorMessage.includes('rate limit')) {
+        console.log('[UnifiedPostingHub] Rate limit detected, calling populateContentWithPropertyData')
         setIsRateLimited(true)
-        setShowManualEditor(true)
-        toast.error('AI rate limit reached. You can create content manually below.')
+        // Auto-populate content with property data instead of showing manual editor
+        populateContentWithPropertyData()
+        toast.error('AI rate limit reached. Content populated with property data - you can edit as needed.')
       } else {
+        console.log('[UnifiedPostingHub] AI generation failed, calling populateContentWithPropertyData')
         toast.error(errorMessage)
-        // Show manual editor as fallback for any AI generation failure
-        setShowManualEditor(true)
-        toast('AI generation failed. You can create content manually below.')
+        // Auto-populate content with property data for any AI generation failure
+        populateContentWithPropertyData()
+        toast('AI generation failed. Content populated with property data - you can edit as needed.')
       }
     } finally {
       setIsGenerating(false)
     }
   }, [selectedProperty, mode, propertyData, selectedLanguage, selectedPlatforms, customPrompt, isRateLimited, onContentGenerated])
 
-  const createManualContent = useCallback(() => {
-    if (!manualContent.title.trim() || !manualContent.content.trim()) {
-      toast.error('Please enter both title and content')
-      return
-    }
-
-    const manualGeneratedContent: GeneratedContent[] = selectedPlatforms.map(platform => ({
-      id: `manual_${platform}_${Date.now()}`,
-      platform: platform as 'website' | 'facebook' | 'instagram' | 'linkedin' | 'twitter',
-      language: selectedLanguage,
-      title: manualContent.title,
-      content: manualContent.content,
-      hashtags: manualContent.hashtags,
-      status: 'ready' as const,
-      ai_generated: false,
-      media_urls: selectedImages.length > 0 ? selectedImages : (selectedProperty?.images || []),
-      created_at: new Date().toISOString()
-    }))
-
-    console.log('[UnifiedPostingHub] Manual content created:', JSON.stringify(manualGeneratedContent, null, 2))
-    setGeneratedContent(manualGeneratedContent)
-    setShowManualEditor(false)
-    setCurrentStep(2)
-    toast.success('Manual content created successfully!')
-  }, [manualContent, selectedPlatforms, selectedLanguage])
-
-  const handleEditContent = useCallback((content: GeneratedContent) => {
-    setEditingContent(content)
-    setManualContent({
-      title: content.title || '',
-      content: content.content || '',
-      hashtags: content.hashtags || []
-    })
-    setShowManualEditor(true)
-  }, [])
-
-  const saveEditedContent = useCallback(() => {
-    if (!editingContent || !manualContent.title.trim() || !manualContent.content.trim()) {
-      toast.error('Please enter both title and content')
-      return
-    }
-
-    setGeneratedContent(prev => prev.map(content =>
-      content.id === editingContent.id
-        ? {
-          ...content,
-          title: manualContent.title,
-          content: manualContent.content,
-          hashtags: manualContent.hashtags
-        }
-        : content
-    ))
-
-    setEditingContent(null)
-    setShowManualEditor(false)
-    setManualContent({ title: '', content: '', hashtags: [] })
-    toast.success('Content updated successfully!')
-  }, [editingContent, manualContent])
 
   const publishContent = useCallback(async () => {
     if (generatedContent.length === 0) {
@@ -393,8 +433,7 @@ export default function UnifiedPostingHub({
     )
 
     if (!hasValidContent) {
-      toast.error('No valid content to publish. Please create content manually.')
-      setShowManualEditor(true)
+      toast.error('No valid content to publish. Please generate content first.')
       return
     }
 
@@ -411,8 +450,12 @@ export default function UnifiedPostingHub({
           title: content.title,
           content: content.content,
           hashtags: content.hashtags,
-          language: content.language
+          language: content.language,
+          media_urls: content.media_urls || []
         }))
+
+      console.log('[UnifiedPostingHub] Content for publishing:', contentForPublishing)
+      console.log('[UnifiedPostingHub] Selected images:', selectedImages)
 
       const publishData = {
         content_type: "property",
@@ -451,8 +494,8 @@ export default function UnifiedPostingHub({
               content: contentItem.content || 'Content published successfully',
               language: contentItem.language || selectedLanguage,
               channels: [contentItem.platform],
-              ai_generated: contentItem.ai_generated || false, // Use the actual ai_generated flag from content
-              ai_prompt: contentItem.ai_generated ? 'AI generated content for publishing' : undefined, // Don't send ai_prompt for manual content
+              ai_generated: (contentItem as any).ai_generated || false, // Use the actual ai_generated flag from content
+              ai_prompt: (contentItem as any).ai_generated ? 'AI generated content for publishing' : undefined, // Don't send ai_prompt for manual content
               hashtags: contentItem.hashtags || [],
               tags: [], // Add required fields
               media_urls: [] // Add required fields
@@ -587,6 +630,8 @@ export default function UnifiedPostingHub({
     setError(null)
     setSuccess(null)
     setCurrentStep(1)
+    setSelectedImages([])
+    setShowImageSelection(false)
   }
 
   console.log('[UnifiedPostingHub] Render check - isOpen:', isOpen, 'currentStep:', currentStep, 'mode:', mode)
@@ -809,54 +854,6 @@ export default function UnifiedPostingHub({
                   />
                 </div>
 
-                {/* Image Selection */}
-                {selectedProperty?.images && selectedProperty.images.length > 0 && (
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <label className="block text-sm font-medium text-gray-700">
-                        Select Images ({selectedImages.length} selected)
-                      </label>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => setImageSelectionMode('auto')}
-                          className={`px-3 py-1 text-xs rounded-md ${
-                            imageSelectionMode === 'auto'
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}
-                        >
-                          Auto
-                        </button>
-                        <button
-                          onClick={() => setImageSelectionMode('manual')}
-                          className={`px-3 py-1 text-xs rounded-md ${
-                            imageSelectionMode === 'manual'
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}
-                        >
-                          Manual
-                        </button>
-                        <button
-                          onClick={() => setShowImageSelection(!showImageSelection)}
-                          className="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200"
-                        >
-                          {showImageSelection ? 'Hide' : 'Select'}
-                        </button>
-                      </div>
-                    </div>
-                    
-                    {showImageSelection && (
-                      <ImageSelectionPanel
-                        propertyImages={selectedProperty.images}
-                        selectedImages={selectedImages}
-                        onImageSelect={setSelectedImages}
-                        platforms={selectedPlatforms}
-                        className="mb-4"
-                      />
-                    )}
-                  </div>
-                )}
 
                 {/* Error/Success Messages */}
                 {error && (
@@ -872,13 +869,7 @@ export default function UnifiedPostingHub({
                 )}
 
                 {/* Generate Button */}
-                <div className="flex justify-end space-x-3">
-                  <button
-                    onClick={() => setShowManualEditor(true)}
-                    className="px-6 py-3 bg-gray-600 text-white rounded-md hover:bg-gray-700 flex items-center space-x-2"
-                  >
-                    <span>Create Manually</span>
-                  </button>
+                <div className="flex justify-end">
                   <button
                     onClick={generateContent}
                     disabled={isGenerating || (!selectedProperty && mode !== 'property-creation')}
@@ -898,90 +889,6 @@ export default function UnifiedPostingHub({
                   </button>
                 </div>
 
-                {/* Manual Content Editor - Fallback when AI fails or for editing */}
-                {showManualEditor && (
-                  <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <div className="flex items-center space-x-2 mb-4">
-                      <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                      <h3 className="text-lg font-medium text-yellow-800">
-                        {editingContent ? 'Edit Content' : 'Manual Content Editor'}
-                      </h3>
-                    </div>
-                    <p className="text-sm text-yellow-700 mb-4">
-                      {editingContent
-                        ? 'Edit your content below. Changes will be saved to the existing content.'
-                        : 'AI generation is currently unavailable. You can create your content manually below.'
-                      }
-                    </p>
-
-                    <div className="space-y-4">
-                      {/* Title Input */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Post Title *
-                        </label>
-                        <input
-                          type="text"
-                          value={manualContent.title}
-                          onChange={(e) => setManualContent(prev => ({ ...prev, title: e.target.value }))}
-                          placeholder="Enter a compelling title for your post..."
-                          className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-
-                      {/* Content Input */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Post Content *
-                        </label>
-                        <textarea
-                          value={manualContent.content}
-                          onChange={(e) => setManualContent(prev => ({ ...prev, content: e.target.value }))}
-                          placeholder="Write your post content here... Be engaging and include relevant details about the property."
-                          className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          rows={6}
-                        />
-                      </div>
-
-                      {/* Hashtags Input */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Hashtags (comma-separated)
-                        </label>
-                        <input
-                          type="text"
-                          value={manualContent.hashtags.join(', ')}
-                          onChange={(e) => setManualContent(prev => ({
-                            ...prev,
-                            hashtags: e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag)
-                          }))}
-                          placeholder="realestate, luxury, downtown, investment"
-                          className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex justify-end space-x-3">
-                        <button
-                          onClick={() => {
-                            setShowManualEditor(false)
-                            setEditingContent(null)
-                            setManualContent({ title: '', content: '', hashtags: [] })
-                          }}
-                          className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={editingContent ? saveEditedContent : createManualContent}
-                          className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center space-x-2"
-                        >
-                          <span>{editingContent ? 'Save Changes' : 'Create Content'}</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </motion.div>
             )}
 
@@ -1006,6 +913,78 @@ export default function UnifiedPostingHub({
                     <span>Back to Settings</span>
                   </button>
                 </div>
+
+                {/* AI Failed Notice */}
+                {generatedContent.some(content => !(content as any).ai_generated) && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+                    <div className="flex items-center">
+                      <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+                      <div>
+                        <p className="text-sm font-medium text-red-800">
+                          AI Generation Failed
+                        </p>
+                        <p className="text-sm text-red-600">
+                          Content has been populated with property data. You can edit and customize as needed.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Image Selection for Generated Content */}
+                {(selectedProperty || propertyData) && (
+                  <div className="bg-gray-50 p-4 rounded-lg border">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Select Images for Posts ({selectedImages.length} selected)
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => setImageSelectionMode('auto')}
+                          className={`px-3 py-1 text-xs rounded-md ${imageSelectionMode === 'auto'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-gray-100 text-gray-600'
+                            }`}
+                        >
+                          Auto
+                        </button>
+                        <button
+                          onClick={() => setImageSelectionMode('manual')}
+                          className={`px-3 py-1 text-xs rounded-md ${imageSelectionMode === 'manual'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-gray-100 text-gray-600'
+                            }`}
+                        >
+                          Manual
+                        </button>
+                        <button
+                          onClick={() => setShowImageSelection(!showImageSelection)}
+                          className="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200"
+                        >
+                          {showImageSelection ? 'Hide' : 'Select Images'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {showImageSelection && (
+                      ((selectedProperty?.images && selectedProperty.images.length > 0) || (propertyData?.images && propertyData.images.length > 0)) ? (
+                        <ImageSelectionPanel
+                          propertyImages={selectedProperty?.images || propertyData?.images || []}
+                          selectedImages={selectedImages}
+                          onImageSelect={setSelectedImages}
+                          platforms={selectedPlatforms}
+                          className="mb-4"
+                        />
+                      ) : (
+                        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md mb-4">
+                          <p className="text-sm text-yellow-700">
+                            No images found for this property. Please upload images to the property first.
+                          </p>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
 
                 <div className="space-y-4">
                   {generatedContent.map((content) => {

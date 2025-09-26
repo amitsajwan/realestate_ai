@@ -1,22 +1,21 @@
 'use client'
 
-import React, { memo, useMemo } from 'react'
-import { Post } from '../../types/post'
-import { motion } from 'framer-motion'
-import Link from 'next/link'
 import {
-  CalendarIcon,
   ChatBubbleLeftRightIcon,
   EyeIcon,
+  GlobeAltIcon,
   HeartIcon,
+  PencilIcon,
   ShareIcon,
   SparklesIcon,
-  PencilIcon,
-  TrashIcon,
-  GlobeAltIcon
+  TrashIcon
 } from '@heroicons/react/24/outline'
-import { Card, CardBody, CardHeader } from './index'
+import { motion } from 'framer-motion'
+import Link from 'next/link'
+import React, { memo, useMemo } from 'react'
+import { Post } from '../../types/post'
 import ChannelBadge from './ChannelBadge'
+import { Card, CardBody, CardHeader } from './index'
 import StatusBadge from './StatusBadge'
 
 // Re-export for convenience
@@ -49,20 +48,50 @@ const UnifiedPostCard: React.FC<UnifiedPostCardProps> = memo(({
 }) => {
   // Memoize formatted date
   const formattedDate = useMemo(() => {
-    return new Date(post.created_at).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      ...(variant === 'management' && { hour: '2-digit', minute: '2-digit' })
-    })
+    try {
+      let cleanDateString = post.created_at;
+      if (cleanDateString.includes('.') && !cleanDateString.endsWith('Z') && !cleanDateString.includes('+') && !cleanDateString.includes('-', 10)) {
+        const parts = cleanDateString.split('.');
+        if (parts.length === 2) {
+          const microseconds = parts[1].substring(0, 6);
+          cleanDateString = parts[0] + '.' + microseconds + 'Z';
+        }
+      }
+      
+      const date = new Date(cleanDateString);
+      
+      // Check if date is valid and not in the future (more than 1 year ahead)
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date:', post.created_at);
+        return 'Date unavailable';
+      }
+      
+      const now = new Date();
+      const oneYearFromNow = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+      
+      if (date > oneYearFromNow) {
+        console.warn('Future date detected:', post.created_at);
+        return 'Recently created';
+      }
+      
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        ...(variant === 'management' && { hour: '2-digit', minute: '2-digit' })
+      });
+    } catch (error) {
+      console.error('Date formatting error:', error, 'for date:', post.created_at);
+      return 'Date unavailable';
+    }
   }, [post.created_at, variant])
 
   // Memoize content truncation
   const displayContent = useMemo(() => {
     if (showFullContent || viewMode === 'list') return post.content
     const maxLength = viewMode === 'grid' ? 150 : 200
-    return post.content.length > maxLength 
-      ? post.content.substring(0, maxLength) + '...' 
+    return post.content.length > maxLength
+      ? post.content.substring(0, maxLength) + '...'
       : post.content
   }, [post.content, showFullContent, viewMode])
 
@@ -105,13 +134,13 @@ const UnifiedPostCard: React.FC<UnifiedPostCardProps> = memo(({
               </div>
               <time className="text-xs text-gray-500">{formattedDate}</time>
             </div>
-            
+
             <Link href={`/agent/${agentName}/posts/${post.id}`}>
               <h3 className="text-lg font-bold text-gray-900 hover:text-blue-600 transition-colors line-clamp-2">
                 {post.title}
               </h3>
             </Link>
-            
+
             {post.property_title && (
               <p className="text-sm text-gray-600 mt-2 flex items-center">
                 <GlobeAltIcon className="w-4 h-4 mr-1" />
@@ -119,12 +148,12 @@ const UnifiedPostCard: React.FC<UnifiedPostCardProps> = memo(({
               </p>
             )}
           </CardHeader>
-          
+
           <CardBody className="p-4 pt-0">
             <p className="text-gray-700 text-sm mb-4 line-clamp-3">
               {displayContent}
             </p>
-            
+
             {/* Stats Grid */}
             <div className="grid grid-cols-4 gap-2 text-center border-t pt-4">
               {stats.map((stat, idx) => (
@@ -137,7 +166,7 @@ const UnifiedPostCard: React.FC<UnifiedPostCardProps> = memo(({
                 </div>
               ))}
             </div>
-            
+
             {/* Language Badge */}
             <div className="mt-4 flex items-center justify-between">
               <span className="text-xs bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
