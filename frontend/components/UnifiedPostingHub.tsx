@@ -18,11 +18,18 @@ import {
   Share,
   Sparkles,
   Twitter,
-  X
+  X,
+  Clock,
+  Calendar,
+  Save,
+  Copy,
+  ExternalLink,
+  AlertCircle
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { apiService } from '@/lib/api/centralized-client'
 import { STANDARD_LANGUAGES, getLanguageName } from '@/lib/languageConfig'
+import toast from 'react-hot-toast'
 
 // Unified Types
 interface PropertyData {
@@ -105,6 +112,11 @@ export default function UnifiedPostingHub({
   const [success, setSuccess] = useState<string | null>(null)
   const [currentStep, setCurrentStep] = useState(1)
   const [editingContent, setEditingContent] = useState<GeneratedContent | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [isRateLimited, setIsRateLimited] = useState(false)
+  const [publishingStatus, setPublishingStatus] = useState<'idle' | 'publishing' | 'success' | 'error'>('idle')
+  const [savedDrafts, setSavedDrafts] = useState<GeneratedContent[]>([])
+  const [showDraftManager, setShowDraftManager] = useState(false)
 
   // Load available properties for standalone and marketing-hub modes
   useEffect(() => {
@@ -132,15 +144,23 @@ export default function UnifiedPostingHub({
     }
   }
 
-  const generateContent = async () => {
+  const generateContent = useCallback(async () => {
     if (!selectedProperty && mode !== 'standalone') {
-      setError('Please select a property first')
+      toast.error('Please select a property first')
+      return
+    }
+
+    if (isRateLimited) {
+      toast.error('Please wait before generating more content')
       return
     }
 
     setIsGenerating(true)
     setError(null)
     setSuccess(null)
+    setPublishingStatus('idle')
+
+    const startTime = performance.now()
 
     try {
       const requestData = {
@@ -193,20 +213,43 @@ export default function UnifiedPostingHub({
       setGeneratedContent(transformedContent)
       setCurrentStep(2)
 
+      // Track performance
+      const duration = performance.now() - startTime
+      console.log(`Content generation took ${duration.toFixed(2)}ms`)
+
+      toast.success('Content generated successfully!')
+      setSuccess('Content generated successfully!')
+
       if (onContentGenerated) {
         onContentGenerated(transformedContent)
       }
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to generate content')
+    } catch (error: any) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate content'
+      setError(errorMessage)
       console.error('Error generating content:', error)
+      
+      // Handle rate limiting
+      if (error.status === 429) {
+        setIsRateLimited(true)
+        toast.error('Rate limit reached. Please wait a moment.')
+        setTimeout(() => setIsRateLimited(false), 60000) // 1 minute
+      } else {
+        toast.error(errorMessage)
+      }
     } finally {
       setIsGenerating(false)
     }
-  }
+  }, [selectedProperty, mode, propertyData, selectedLanguage, selectedPlatforms, customPrompt, isRateLimited, onContentGenerated])
 
-  const publishContent = async () => {
+  const publishContent = useCallback(async () => {
+    if (generatedContent.length === 0) {
+      toast.error('No content to publish')
+      return
+    }
+
     setIsPublishing(true)
     setError(null)
+    setPublishingStatus('publishing')
 
     try {
       const publishData = {
@@ -229,21 +272,32 @@ export default function UnifiedPostingHub({
         )
       )
 
+      setPublishingStatus('success')
       setSuccess('Content published successfully!')
       setCurrentStep(3)
+
+      toast.success('Content published successfully!')
 
       if (onPublish) {
         onPublish(generatedContent, selectedLanguage)
       }
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to publish content')
+    } catch (error: any) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to publish content'
+      setError(errorMessage)
+      setPublishingStatus('error')
       console.error('Error publishing content:', error)
+      toast.error(errorMessage)
     } finally {
       setIsPublishing(false)
     }
-  }
+  }, [generatedContent, selectedProperty, propertyData, selectedPlatforms, selectedLanguage, onPublish])
 
-  const saveAsDraft = async () => {
+  const saveAsDraft = useCallback(async () => {
+    if (generatedContent.length === 0) {
+      toast.error('No content to save')
+      return
+    }
+
     try {
       for (const content of generatedContent) {
         const postData = {
@@ -261,12 +315,35 @@ export default function UnifiedPostingHub({
         await apiService.createPost(postData)
       }
 
+      // Add to local drafts
+      setSavedDrafts(prev => [...prev, ...generatedContent])
       setSuccess('Content saved as draft!')
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to save draft')
+      toast.success('Content saved as draft!')
+    } catch (error: any) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save draft'
+      setError(errorMessage)
       console.error('Error saving draft:', error)
+      toast.error(errorMessage)
     }
-  }
+  }, [generatedContent, selectedProperty, propertyData, customPrompt])
+
+  const copyToClipboard = useCallback(async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.success('Content copied to clipboard!')
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error)
+      toast.error('Failed to copy to clipboard')
+    }
+  }, [])
+
+  const filteredProperties = useMemo(() => {
+    if (!searchTerm) return availableProperties
+    return availableProperties.filter(property =>
+      property.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      property.location.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [availableProperties, searchTerm])
 
   const handleEditContent = (content: GeneratedContent) => {
     setEditingContent(content)
@@ -351,21 +428,70 @@ export default function UnifiedPostingHub({
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Select Property
                     </label>
-                    <select
-                      value={selectedProperty?.id || ''}
-                      onChange={(e) => {
-                        const property = availableProperties.find(p => p.id === e.target.value)
-                        setSelectedProperty(property || null)
-                      }}
-                      className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="">Choose a property...</option>
-                      {availableProperties.map((property) => (
-                        <option key={property.id} value={property.id}>
-                          {property.title} - {property.location}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search properties..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      {searchTerm && (
+                        <button
+                          onClick={() => setSearchTerm('')}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="mt-2 max-h-48 overflow-y-auto border border-gray-300 rounded-md">
+                      {filteredProperties.length === 0 ? (
+                        <div className="p-3 text-sm text-gray-500 text-center">
+                          {searchTerm ? 'No properties found' : 'No properties available'}
+                        </div>
+                      ) : (
+                        filteredProperties.map((property) => (
+                          <button
+                            key={property.id}
+                            onClick={() => setSelectedProperty(property)}
+                            className={`w-full p-3 text-left hover:bg-gray-50 transition-colors ${
+                              selectedProperty?.id === property.id
+                                ? 'bg-blue-50 border-l-4 border-blue-500'
+                                : 'border-l-4 border-transparent'
+                            }`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="font-medium text-gray-900">{property.title}</div>
+                                <div className="text-sm text-gray-600">{property.location}</div>
+                                <div className="text-xs text-gray-500">{property.propertyType}</div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-semibold text-gray-900">₹{(property.price / 100000).toFixed(0)}L</div>
+                                <div className="text-xs text-gray-500">{property.bedrooms} bed • {property.bathrooms} bath</div>
+                              </div>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                    {selectedProperty && (
+                      <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-sm font-medium text-blue-900">Selected Property</div>
+                            <div className="text-sm text-blue-700">{selectedProperty.title}</div>
+                          </div>
+                          <button
+                            onClick={() => setSelectedProperty(null)}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -378,20 +504,22 @@ export default function UnifiedPostingHub({
                     {Object.entries(PLATFORMS).map(([key, platform]) => {
                       const Icon = platform.icon
                       return (
-                        <button
+                        <motion.button
                           key={key}
                           onClick={() => handlePlatformToggle(key)}
-                          className={`p-3 rounded-lg border-2 transition-all ${
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          className={`p-4 rounded-xl border-2 transition-all duration-200 min-h-[80px] flex flex-col items-center justify-center ${
                             selectedPlatforms.includes(key)
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 hover:border-gray-300'
+                              ? 'border-blue-500 bg-blue-50 shadow-md'
+                              : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                           }`}
                         >
-                          <Icon className={`h-6 w-6 mx-auto mb-2 ${platform.color}`} />
+                          <Icon className={`h-6 w-6 mb-2 ${platform.color}`} />
                           <span className="text-sm font-medium text-gray-700">
                             {platform.name}
                           </span>
-                        </button>
+                        </motion.button>
                       )
                     })}
                   </div>
@@ -507,14 +635,32 @@ export default function UnifiedPostingHub({
                             <span className="text-sm text-gray-500">
                               ({getLanguageName(content.language)})
                             </span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              content.status === 'draft' 
+                                ? 'bg-gray-100 text-gray-700' 
+                                : content.status === 'published'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-blue-100 text-blue-700'
+                            }`}>
+                              {content.status}
+                            </span>
                           </div>
-                          <button
-                            onClick={() => handleEditContent(content)}
-                            className="text-blue-600 hover:text-blue-700 flex items-center space-x-1"
-                          >
-                            <Edit3 className="h-4 w-4" />
-                            <span>Edit</span>
-                          </button>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => copyToClipboard(content.content)}
+                              className="text-gray-600 hover:text-gray-700 p-1"
+                              title="Copy content"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleEditContent(content)}
+                              className="text-blue-600 hover:text-blue-700 flex items-center space-x-1"
+                            >
+                              <Edit3 className="h-4 w-4" />
+                              <span>Edit</span>
+                            </button>
+                          </div>
                         </div>
                         
                         {content.title && (
@@ -543,24 +689,46 @@ export default function UnifiedPostingHub({
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex justify-between">
-                  <button
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={saveAsDraft}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 flex items-center space-x-2"
+                    className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center justify-center space-x-2 transition-colors"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Save className="h-4 w-4" />
                     <span>Save as Draft</span>
-                  </button>
+                  </motion.button>
                   
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={publishContent}
-                    disabled={isPublishing}
-                    className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                    disabled={isPublishing || generatedContent.length === 0}
+                    className={`flex-1 px-6 py-3 rounded-lg font-medium flex items-center justify-center space-x-2 transition-all ${
+                      isPublishing || generatedContent.length === 0
+                        ? 'bg-gray-400 text-white cursor-not-allowed'
+                        : publishingStatus === 'success'
+                        ? 'bg-green-600 text-white'
+                        : publishingStatus === 'error'
+                        ? 'bg-red-600 text-white'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
                   >
                     {isPublishing ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                         <span>Publishing...</span>
+                      </>
+                    ) : publishingStatus === 'success' ? (
+                      <>
+                        <CheckCircle className="h-4 w-4" />
+                        <span>Published!</span>
+                      </>
+                    ) : publishingStatus === 'error' ? (
+                      <>
+                        <AlertCircle className="h-4 w-4" />
+                        <span>Failed</span>
                       </>
                     ) : (
                       <>
@@ -568,8 +736,21 @@ export default function UnifiedPostingHub({
                         <span>Publish Now</span>
                       </>
                     )}
-                  </button>
+                  </motion.button>
                 </div>
+
+                {/* Draft Manager Toggle */}
+                {savedDrafts.length > 0 && (
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => setShowDraftManager(!showDraftManager)}
+                      className="text-sm text-blue-600 hover:text-blue-700 flex items-center space-x-1"
+                    >
+                      <Clock className="h-4 w-4" />
+                      <span>View Saved Drafts ({savedDrafts.length})</span>
+                    </button>
+                  </div>
+                )}
               </motion.div>
             )}
 

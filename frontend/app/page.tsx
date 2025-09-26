@@ -13,6 +13,7 @@ import ProfileSettings from '@/components/ProfileSettings'
 import Properties from '@/components/Properties'
 import PublishingWorkflowManager from '@/components/PublishingWorkflowManager'
 import SmartPropertyForm from '@/components/SmartPropertyForm'
+import UnifiedPostingHub from '@/components/UnifiedPostingHub'
 import { Button, Card, CardBody, CardHeader } from '@/components/UI'
 import { apiService } from '@/lib/api/centralized-client'
 import { authManager } from '@/lib/auth'
@@ -81,6 +82,9 @@ export default function Dashboard() {
   const [selectedPropertyForAI, setSelectedPropertyForAI] = useState<any>(null)
   const [showDashboardCustomization, setShowDashboardCustomization] = useState(false)
   const [dashboardWidgets, setDashboardWidgets] = useState<any[]>([])
+  const [showUnifiedPosting, setShowUnifiedPosting] = useState(false)
+  const [unifiedPostingMode, setUnifiedPostingMode] = useState<'quick-post' | 'standalone' | 'marketing-hub' | 'property-creation'>('quick-post')
+  const [unifiedPostingProperty, setUnifiedPostingProperty] = useState<any>(null)
   const [stats, setStats] = useState({
     total_properties: 0,
     active_listings: 0,
@@ -230,8 +234,9 @@ export default function Dashboard() {
     // Find the property data
     const property = properties.find(p => p.id === propertyId)
     if (property) {
-      setSelectedPropertyForAI(property)
-      setIsAIContentModalOpen(true)
+      setUnifiedPostingProperty(property)
+      setUnifiedPostingMode('quick-post')
+      setShowUnifiedPosting(true)
     }
   }
 
@@ -343,10 +348,16 @@ export default function Dashboard() {
             <DashboardStats
               stats={stats}
               onAddProperty={() => setActiveSection('property-form')}
-              onNavigateToAI={() => setActiveSection('ai-content')}
+              onNavigateToAI={() => {
+                setUnifiedPostingMode('standalone')
+                setShowUnifiedPosting(true)
+              }}
               onNavigateToAnalytics={() => setActiveSection('analytics')}
               onNavigateToSmartForm={() => setActiveSection('property-form')}
-              onNavigateToPosts={() => setActiveSection('property-marketing-hub')}
+              onNavigateToPosts={() => {
+                setUnifiedPostingMode('marketing-hub')
+                setShowUnifiedPosting(true)
+              }}
             />
 
 
