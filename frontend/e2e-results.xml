@@ -1,12 +1,12 @@
-<testsuites id="" name="" tests="40" failures="22" skipped="0" errors="0" time="38.441432999999996">
-<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T02:30:14.027Z" hostname="chromium" tests="8" failures="2" skipped="0" time="17.983" errors="0">
-<testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="0.624">
+<testsuites id="" name="" tests="40" failures="22" skipped="0" errors="0" time="39.572968">
+<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T03:12:36.068Z" hostname="chromium" tests="8" failures="2" skipped="0" time="21.132" errors="0">
+<testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="0.662">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Frontend application loads" classname="working-e2e-test.spec.ts" time="1.254">
+<testcase name="PropertyAI Working E2E Tests › Frontend application loads" classname="working-e2e-test.spec.ts" time="1.193">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Login page is accessible" classname="working-e2e-test.spec.ts" time="0.989">
+<testcase name="PropertyAI Working E2E Tests › Login page is accessible" classname="working-e2e-test.spec.ts" time="2.334">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Analytics page is accessible" classname="working-e2e-test.spec.ts" time="6.69">
+<testcase name="PropertyAI Working E2E Tests › Analytics page is accessible" classname="working-e2e-test.spec.ts" time="7.941">
 <failure message="working-e2e-test.spec.ts:43:7 Analytics page is accessible" type="FAILURE">
 <![CDATA[  [chromium] › working-e2e-test.spec.ts:43:7 › PropertyAI Working E2E Tests › Analytics page is accessible 
 
@@ -52,11 +52,11 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="0.582">
+<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="1.038">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › User can interact with basic elements" classname="working-e2e-test.spec.ts" time="0.571">
+<testcase name="PropertyAI Working E2E Tests › User can interact with basic elements" classname="working-e2e-test.spec.ts" time="0.603">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › UnifiedPostingHub integration works" classname="working-e2e-test.spec.ts" time="6.342">
+<testcase name="PropertyAI Working E2E Tests › UnifiedPostingHub integration works" classname="working-e2e-test.spec.ts" time="6.462">
 <failure message="working-e2e-test.spec.ts:82:7 UnifiedPostingHub integration works" type="FAILURE">
 <![CDATA[  [chromium] › working-e2e-test.spec.ts:82:7 › PropertyAI Working E2E Tests › UnifiedPostingHub integration works 
 
@@ -102,17 +102,17 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Application has proper meta information" classname="working-e2e-test.spec.ts" time="0.931">
+<testcase name="PropertyAI Working E2E Tests › Application has proper meta information" classname="working-e2e-test.spec.ts" time="0.899">
 </testcase>
 </testsuite>
-<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T02:30:14.027Z" hostname="firefox" tests="8" failures="2" skipped="0" time="20.173" errors="0">
-<testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="1.026">
+<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T03:12:36.068Z" hostname="firefox" tests="8" failures="2" skipped="0" time="20.2" errors="0">
+<testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="1.005">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Frontend application loads" classname="working-e2e-test.spec.ts" time="1.432">
+<testcase name="PropertyAI Working E2E Tests › Frontend application loads" classname="working-e2e-test.spec.ts" time="1.627">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Login page is accessible" classname="working-e2e-test.spec.ts" time="0.957">
+<testcase name="PropertyAI Working E2E Tests › Login page is accessible" classname="working-e2e-test.spec.ts" time="0.934">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Analytics page is accessible" classname="working-e2e-test.spec.ts" time="7.167">
+<testcase name="PropertyAI Working E2E Tests › Analytics page is accessible" classname="working-e2e-test.spec.ts" time="6.991">
 <failure message="working-e2e-test.spec.ts:43:7 Analytics page is accessible" type="FAILURE">
 <![CDATA[  [firefox] › working-e2e-test.spec.ts:43:7 › PropertyAI Working E2E Tests › Analytics page is accessible 
 
@@ -158,11 +158,11 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="0.822">
+<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="0.758">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › User can interact with basic elements" classname="working-e2e-test.spec.ts" time="0.881">
+<testcase name="PropertyAI Working E2E Tests › User can interact with basic elements" classname="working-e2e-test.spec.ts" time="0.945">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › UnifiedPostingHub integration works" classname="working-e2e-test.spec.ts" time="6.418">
+<testcase name="PropertyAI Working E2E Tests › UnifiedPostingHub integration works" classname="working-e2e-test.spec.ts" time="6.465">
 <failure message="working-e2e-test.spec.ts:82:7 UnifiedPostingHub integration works" type="FAILURE">
 <![CDATA[  [firefox] › working-e2e-test.spec.ts:82:7 › PropertyAI Working E2E Tests › UnifiedPostingHub integration works 
 
@@ -208,11 +208,11 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Application has proper meta information" classname="working-e2e-test.spec.ts" time="1.47">
+<testcase name="PropertyAI Working E2E Tests › Application has proper meta information" classname="working-e2e-test.spec.ts" time="1.475">
 </testcase>
 </testsuite>
-<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T02:30:14.027Z" hostname="webkit" tests="8" failures="8" skipped="0" time="0.019" errors="0">
-<testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="0.005">
+<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T03:12:36.068Z" hostname="webkit" tests="8" failures="8" skipped="0" time="0.016" errors="0">
+<testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="0.002">
 <failure message="working-e2e-test.spec.ts:13:7 Backend API is accessible and healthy" type="FAILURE">
 <![CDATA[  [webkit] › working-e2e-test.spec.ts:13:7 › PropertyAI Working E2E Tests › Backend API is accessible and healthy 
 
@@ -365,14 +365,14 @@
 </failure>
 </testcase>
 </testsuite>
-<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T02:30:14.027Z" hostname="mobile-chrome" tests="8" failures="2" skipped="0" time="19.158" errors="0">
-<testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="0.548">
+<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T03:12:36.068Z" hostname="mobile-chrome" tests="8" failures="2" skipped="0" time="18.681" errors="0">
+<testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="0.625">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Frontend application loads" classname="working-e2e-test.spec.ts" time="1.321">
+<testcase name="PropertyAI Working E2E Tests › Frontend application loads" classname="working-e2e-test.spec.ts" time="1.265">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Login page is accessible" classname="working-e2e-test.spec.ts" time="1.074">
+<testcase name="PropertyAI Working E2E Tests › Login page is accessible" classname="working-e2e-test.spec.ts" time="1.148">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Analytics page is accessible" classname="working-e2e-test.spec.ts" time="6.972">
+<testcase name="PropertyAI Working E2E Tests › Analytics page is accessible" classname="working-e2e-test.spec.ts" time="6.743">
 <failure message="working-e2e-test.spec.ts:43:7 Analytics page is accessible" type="FAILURE">
 <![CDATA[  [mobile-chrome] › working-e2e-test.spec.ts:43:7 › PropertyAI Working E2E Tests › Analytics page is accessible 
 
@@ -418,11 +418,11 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="0.625">
+<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="0.7">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › User can interact with basic elements" classname="working-e2e-test.spec.ts" time="0.856">
+<testcase name="PropertyAI Working E2E Tests › User can interact with basic elements" classname="working-e2e-test.spec.ts" time="0.776">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › UnifiedPostingHub integration works" classname="working-e2e-test.spec.ts" time="6.496">
+<testcase name="PropertyAI Working E2E Tests › UnifiedPostingHub integration works" classname="working-e2e-test.spec.ts" time="6.485">
 <failure message="working-e2e-test.spec.ts:82:7 UnifiedPostingHub integration works" type="FAILURE">
 <![CDATA[  [mobile-chrome] › working-e2e-test.spec.ts:82:7 › PropertyAI Working E2E Tests › UnifiedPostingHub integration works 
 
@@ -468,10 +468,10 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Application has proper meta information" classname="working-e2e-test.spec.ts" time="1.266">
+<testcase name="PropertyAI Working E2E Tests › Application has proper meta information" classname="working-e2e-test.spec.ts" time="0.939">
 </testcase>
 </testsuite>
-<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T02:30:14.027Z" hostname="mobile-safari" tests="8" failures="8" skipped="0" time="0.019" errors="0">
+<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T03:12:36.068Z" hostname="mobile-safari" tests="8" failures="8" skipped="0" time="0.016" errors="0">
 <testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="0.002">
 <failure message="working-e2e-test.spec.ts:13:7 Backend API is accessible and healthy" type="FAILURE">
 <![CDATA[  [mobile-safari] › working-e2e-test.spec.ts:13:7 › PropertyAI Working E2E Tests › Backend API is accessible and healthy 
@@ -491,7 +491,7 @@
 ]]>
 </failure>
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Frontend application loads" classname="working-e2e-test.spec.ts" time="0.003">
+<testcase name="PropertyAI Working E2E Tests › Frontend application loads" classname="working-e2e-test.spec.ts" time="0.002">
 <failure message="working-e2e-test.spec.ts:22:7 Frontend application loads" type="FAILURE">
 <![CDATA[  [mobile-safari] › working-e2e-test.spec.ts:22:7 › PropertyAI Working E2E Tests › Frontend application loads 
 
@@ -529,7 +529,7 @@
 ]]>
 </failure>
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Analytics page is accessible" classname="working-e2e-test.spec.ts" time="0.004">
+<testcase name="PropertyAI Working E2E Tests › Analytics page is accessible" classname="working-e2e-test.spec.ts" time="0.002">
 <failure message="working-e2e-test.spec.ts:43:7 Analytics page is accessible" type="FAILURE">
 <![CDATA[  [mobile-safari] › working-e2e-test.spec.ts:43:7 › PropertyAI Working E2E Tests › Analytics page is accessible 
 
