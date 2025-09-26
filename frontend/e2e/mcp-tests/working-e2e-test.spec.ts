@@ -84,11 +84,23 @@ test.describe('PropertyAI Working E2E Tests', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     
-    // Natural Language: "Check that AI Tools button is available"
-    await expect(page.locator('text=AI Tools')).toBeVisible();
+    // Natural Language: "Check if we're redirected to login"
+    const currentUrl = page.url();
+    if (currentUrl.includes('/login')) {
+      // Natural Language: "Fill in login form with test credentials"
+      await page.fill('input[name="email"]', 'test@example.com');
+      await page.fill('input[name="password"]', 'password123');
+      await page.click('button[type="submit"]');
+      
+      // Natural Language: "Wait for redirect to dashboard"
+      await page.waitForURL('**/', { timeout: 10000 });
+    }
     
-    // Natural Language: "Click AI Tools to open UnifiedPostingHub"
-    await page.click('text=AI Tools');
+    // Natural Language: "Check that AI Generator button is available"
+    await expect(page.locator('text=AI Generator')).toBeVisible();
+    
+    // Natural Language: "Click AI Generator to open UnifiedPostingHub"
+    await page.click('text=AI Generator');
     
     // Natural Language: "Wait for UnifiedPostingHub modal to appear"
     await page.waitForSelector('[data-testid="unified-posting-hub"]', { timeout: 10000 });
