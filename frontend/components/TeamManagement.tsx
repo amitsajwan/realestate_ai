@@ -19,6 +19,23 @@ import {
 } from '@heroicons/react/24/outline'
 import { apiService } from '@/lib/api/centralized-client'
 
+interface Team {
+  id: string
+  name: string
+  members: TeamMember[]
+  created_at: string
+  updated_at: string
+}
+
+interface TeamMember {
+  id: string
+  name: string
+  email: string
+  role: string
+  status: string
+  avatar?: string
+}
+
 interface TeamManagementProps {
   teamId?: string
 }
@@ -49,7 +66,7 @@ export default function TeamManagement({ teamId }: TeamManagementProps) {
       setIsLoading(true)
       setError(null)
       
-      const teamData = await crmApi.getTeam(teamId)
+      const teamData = await apiService.getTeam(teamId)
       setTeam(teamData)
       
     } catch (err) {
@@ -65,7 +82,7 @@ export default function TeamManagement({ teamId }: TeamManagementProps) {
     if (!teamId) return
 
     try {
-      await crmApi.inviteMember(teamId, {
+      await apiService.inviteTeamMember(teamId, {
         ...inviteData,
         permissions: inviteData.role === 'admin' ? ['all'] : ['read', 'write']
       })
@@ -83,7 +100,7 @@ export default function TeamManagement({ teamId }: TeamManagementProps) {
     if (!teamId) return
 
     try {
-      await crmApi.removeMember(teamId, memberId)
+      await apiService.removeTeamMember(teamId, memberId)
       loadTeam() // Reload team data
       
     } catch (err) {
@@ -163,7 +180,7 @@ export default function TeamManagement({ teamId }: TeamManagementProps) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Team Management</h1>
-          <p className="text-gray-300">{team.name} • {team.member_count} members</p>
+          <p className="text-gray-300">{team.name} • {team.members?.length || 0} members</p>
         </div>
         <button
           onClick={() => setShowInviteModal(true)}
@@ -182,7 +199,7 @@ export default function TeamManagement({ teamId }: TeamManagementProps) {
               <UsersIcon className="w-6 h-6 text-white" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-white">{team.member_count}</p>
+              <p className="text-2xl font-bold text-white">{team.members?.length || 0}</p>
               <p className="text-gray-300 text-sm">Total Members</p>
             </div>
           </div>
@@ -195,7 +212,7 @@ export default function TeamManagement({ teamId }: TeamManagementProps) {
             </div>
             <div>
               <p className="text-2xl font-bold text-white">
-                {team.members.filter(m => m.is_active).length}
+                {team.members.filter(m => m.status === 'active').length}
               </p>
               <p className="text-gray-300 text-sm">Active Members</p>
             </div>
@@ -227,7 +244,7 @@ export default function TeamManagement({ teamId }: TeamManagementProps) {
             
             return (
               <motion.div
-                key={member.user_id}
+                key={member.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
@@ -235,12 +252,12 @@ export default function TeamManagement({ teamId }: TeamManagementProps) {
               >
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
-                    {member.first_name.charAt(0)}{member.last_name.charAt(0)}
+                    {member.name.split(' ').map(n => n.charAt(0)).join('').substring(0, 2)}
                   </div>
                   
                   <div>
                     <h3 className="text-lg font-semibold text-white">
-                      {member.first_name} {member.last_name}
+                      {member.name}
                     </h3>
                     <p className="text-gray-300 text-sm">{member.email}</p>
                     <div className="flex items-center space-x-2 mt-1">
@@ -248,7 +265,7 @@ export default function TeamManagement({ teamId }: TeamManagementProps) {
                         <RoleIcon className="w-3 h-3 inline mr-1" />
                         {member.role.replace('_', ' ').toUpperCase()}
                       </span>
-                      {member.is_active ? (
+                      {member.status === 'active' ? (
                         <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 border border-green-200">
                           Active
                         </span>
@@ -273,7 +290,7 @@ export default function TeamManagement({ teamId }: TeamManagementProps) {
                   </button>
                   
                   <button
-                    onClick={() => handleRemoveMember(member.user_id)}
+                    onClick={() => handleRemoveMember(member.id)}
                     className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                   >
                     <TrashIcon className="w-4 h-4" />

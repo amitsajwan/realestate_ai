@@ -130,6 +130,25 @@ export class CentralizedAPIClient {
     return this.request('/api/v1/agent/public-stats');
   }
 
+  // Team Management
+  async getTeam(teamId?: string): Promise<any> {
+    const endpoint = teamId ? `/api/v1/teams/${teamId}` : '/api/v1/teams/current';
+    return this.request(endpoint);
+  }
+
+  async inviteTeamMember(teamId: string, data: any): Promise<any> {
+    return this.request(`/api/v1/teams/${teamId}/invite`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async removeTeamMember(teamId: string, memberId: string): Promise<any> {
+    return this.request(`/api/v1/teams/${teamId}/members/${memberId}`, {
+      method: 'DELETE',
+    });
+  }
+
   async updateUser(userData: any): Promise<any> {
     return this.request('/api/v1/auth/me', {
       method: 'PUT',

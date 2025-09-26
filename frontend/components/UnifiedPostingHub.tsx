@@ -138,7 +138,7 @@ export default function UnifiedPostingHub({
   const loadAvailableProperties = async () => {
     try {
       const data = await apiService.getProperties()
-      setAvailableProperties(data.data || [])
+      setAvailableProperties(Array.isArray(data) ? data : (data as any)?.data || [])
     } catch (error) {
       console.error('Error loading properties:', error)
     }
