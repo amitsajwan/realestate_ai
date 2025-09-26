@@ -92,7 +92,14 @@ export class AuthManager {
                 }
             }
 
-            this.setState({ isLoading: false, error: null });
+            // No valid token found - set as unauthenticated
+            this.setState({ 
+                isAuthenticated: false, 
+                isLoading: false, 
+                error: null,
+                user: null,
+                token: null
+            });
         } catch (error) {
             logger.error('[AuthManager] Init error', { errorDetails: error instanceof Error ? error.message : String(error) });
             this.setState({ isLoading: false, error: 'Authentication initialization failed' });
