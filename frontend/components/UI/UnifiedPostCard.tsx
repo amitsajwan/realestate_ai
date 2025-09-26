@@ -24,7 +24,12 @@ export type { Post }
 
 // Image Gallery Component
 const ImageGallery: React.FC<{ mediaUrls: string[] }> = ({ mediaUrls }) => {
-  if (!mediaUrls || mediaUrls.length === 0) return null;
+  if (!mediaUrls || mediaUrls.length === 0) {
+    console.log('No media URLs provided to ImageGallery');
+    return null;
+  }
+  
+  console.log('ImageGallery rendering with URLs:', mediaUrls);
   
   const displayImages = mediaUrls.slice(0, 3);
   const remainingCount = mediaUrls.length - 3;
@@ -37,18 +42,28 @@ const ImageGallery: React.FC<{ mediaUrls: string[] }> = ({ mediaUrls }) => {
                             'repeat(3, 1fr)'
       }}>
         {displayImages.map((url, index) => (
-          <div key={url} className="relative aspect-square rounded-lg overflow-hidden">
+          <div key={url} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
             <Image
               src={url}
               alt={`Post image ${index + 1}`}
               fill
               className="object-cover hover:scale-105 transition-transform cursor-pointer"
               sizes="(max-width: 768px) 50vw, 33vw"
+              onLoad={() => console.log('Image loaded successfully:', url)}
               onError={(e) => {
                 console.error('Failed to load image:', url);
+                // Show a placeholder instead of hiding
                 e.currentTarget.style.display = 'none';
+                const placeholder = e.currentTarget.parentElement?.querySelector('.image-placeholder');
+                if (placeholder) {
+                  (placeholder as HTMLElement).style.display = 'flex';
+                }
               }}
             />
+            {/* Fallback placeholder */}
+            <div className="image-placeholder absolute inset-0 bg-gray-200 flex items-center justify-center text-gray-500 text-sm" style={{display: 'none'}}>
+              Image {index + 1}
+            </div>
             {index === 2 && remainingCount > 0 && (
               <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center text-white font-semibold">
                 +{remainingCount}
@@ -86,23 +101,41 @@ const UnifiedPostCard: React.FC<UnifiedPostCardProps> = memo(({
   showActions = false,
   className = ''
 }) => {
-  // Memoize formatted date - simplified logic
+  // Memoize formatted date - improved logic
   const formattedDate = useMemo(() => {
     try {
       let dateString = post.created_at || post.published_at;
       
-      if (dateString) {
-        // Simple cleanup for consistent parsing
-        dateString = dateString.replace(/\+00:00$/, '');
+      if (!dateString) {
+        return 'Recently created';
+      }
+      
+      // Handle various date formats more robustly
+      if (dateString.includes('T')) {
+        // ISO format - clean up timezone issues
+        dateString = dateString.replace(/\+00:00$/, 'Z');
         if (!dateString.endsWith('Z') && !dateString.includes('+') && !dateString.includes('-', 10)) {
           dateString += 'Z';
         }
+      } else if (dateString.includes(' ')) {
+        // Space-separated format - convert to ISO
+        dateString = dateString.replace(' ', 'T') + 'Z';
       }
       
       const date = new Date(dateString);
       
       if (isNaN(date.getTime())) {
-        return 'Invalid date';
+        console.warn('Invalid date string:', dateString);
+        return 'Recently created';
+      }
+      
+      // Check if date is reasonable (not too far in future or past)
+      const now = new Date();
+      const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+      const oneYearFromNow = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+      
+      if (date < oneYearAgo || date > oneYearFromNow) {
+        return 'Recently created';
       }
       
       return date.toLocaleDateString('en-US', {
@@ -117,7 +150,7 @@ const UnifiedPostCard: React.FC<UnifiedPostCardProps> = memo(({
       });
     } catch (error) {
       console.error('Date formatting error:', error);
-      return 'Date error';
+      return 'Recently created';
     }
   }, [post.created_at, post.published_at, variant])
 
@@ -190,9 +223,16 @@ const UnifiedPostCard: React.FC<UnifiedPostCardProps> = memo(({
             </p>
 
             {/* Image Gallery */}
-            {post.media_urls && post.media_urls.length > 0 && (
-              <ImageGallery mediaUrls={post.media_urls} />
-            )}
+            {(() => {
+              console.log('Post data for image display (public variant):', {
+                hasMediaUrls: !!post.media_urls,
+                mediaUrlsLength: post.media_urls?.length || 0,
+                mediaUrls: post.media_urls
+              });
+              return post.media_urls && post.media_urls.length > 0 && (
+                <ImageGallery mediaUrls={post.media_urls} />
+              );
+            })()}
 
             {/* Stats Grid */}
             <div className="grid grid-cols-4 gap-2 text-center border-t pt-4">
@@ -246,9 +286,16 @@ const UnifiedPostCard: React.FC<UnifiedPostCardProps> = memo(({
             </p>
 
             {/* Image Gallery */}
-            {post.media_urls && post.media_urls.length > 0 && (
-              <ImageGallery mediaUrls={post.media_urls} />
-            )}
+            {(() => {
+              console.log('Post data for image display (management variant):', {
+                hasMediaUrls: !!post.media_urls,
+                mediaUrlsLength: post.media_urls?.length || 0,
+                mediaUrls: post.media_urls
+              });
+              return post.media_urls && post.media_urls.length > 0 && (
+                <ImageGallery mediaUrls={post.media_urls} />
+              );
+            })()}
 
             <div className="flex flex-wrap gap-2 mb-4">
               {post.channels.map((channel) => (
