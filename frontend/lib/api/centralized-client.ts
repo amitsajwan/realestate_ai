@@ -87,6 +87,49 @@ export class CentralizedAPIClient {
     return this.request('/api/v1/auth/me');
   }
 
+  async updateCurrentUser(data: any): Promise<any> {
+    return this.request('/api/v1/user/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Facebook Integration
+  async getFacebookStatus(): Promise<any> {
+    return this.request('/api/v1/facebook/status');
+  }
+
+  async connectFacebook(): Promise<any> {
+    return this.request('/api/v1/facebook/connect', {
+      method: 'POST',
+    });
+  }
+
+  async disconnectFacebook(): Promise<any> {
+    return this.request('/api/v1/facebook/disconnect', {
+      method: 'POST',
+    });
+  }
+
+  async getFacebookLoginUrl(): Promise<any> {
+    return this.request('/api/v1/facebook/auth-url');
+  }
+
+  async getUserProfile(userId: string): Promise<any> {
+    return this.request(`/api/v1/user/profile/${userId}`);
+  }
+
+  async updateUserProfile(userId: string, data: any): Promise<any> {
+    return this.request(`/api/v1/user/profile/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getAgentPublicStats(): Promise<any> {
+    return this.request('/api/v1/agent/public-stats');
+  }
+
   async updateUser(userData: any): Promise<any> {
     return this.request('/api/v1/auth/me', {
       method: 'PUT',
@@ -272,6 +315,3 @@ export class CentralizedAPIClient {
 
 // Export singleton instance
 export const apiService = new CentralizedAPIClient();
-
-// Export the class for testing
-export { CentralizedAPIClient };

@@ -39,15 +39,12 @@ export default function ProfilePage() {
     try {
       const userData = await apiService.getCurrentUser();
       setUser(userData);
-        setFormData({
-          first_name: userData.first_name || '',
-          last_name: userData.last_name || '',
-          phone: userData.phone || '',
-          company: userData.company || ''
-        });
-      } else {
-        setError('Failed to fetch profile');
-      }
+      setFormData({
+        first_name: userData.first_name || '',
+        last_name: userData.last_name || '',
+        phone: userData.phone || '',
+        company: userData.company || ''
+      });
     } catch (err) {
       setError('Network error');
     } finally {

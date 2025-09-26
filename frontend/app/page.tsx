@@ -4,7 +4,6 @@ import BreadcrumbNavigation from '@/components/BreadcrumbNavigation'
 import CRM from '@/components/CRM'
 import DashboardCustomization from '@/components/DashboardCustomization'
 import { DashboardStats } from '@/components/DashboardStats'
-import EnhancedPropertyMarketingHub from '@/components/EnhancedPropertyMarketingHub'
 import FacebookIntegration from '@/components/FacebookIntegration'
 import GlobalSearch from '@/components/GlobalSearch'
 import MobileBottomNavigation from '@/components/MobileBottomNavigation'
@@ -38,7 +37,6 @@ import { useRouter } from 'next/navigation'
 import { lazy, Suspense, useEffect, useState } from 'react'
 
 // Lazy load heavy components
-const AIContentGenerator = lazy(() => import('@/components/AIContentGenerator'))
 const AIContentGeneratorModal = lazy(() => import('@/components/AIContentGeneratorModal'))
 const Analytics = lazy(() => import('@/components/Analytics'))
 const PublicWebsiteManagement = lazy(() => import('@/components/PublicWebsiteManagement'))
@@ -195,7 +193,7 @@ export default function Dashboard() {
       console.log('[DashboardPage] API response:', response)
 
       // Handle both direct array response and wrapped response
-      const propertiesData = Array.isArray(response) ? response : (response?.data || [])
+      const propertiesData = Array.isArray(response) ? response : (response as any)?.data || []
 
       if (propertiesData && propertiesData.length > 0) {
         // Transform the API response to match the expected format

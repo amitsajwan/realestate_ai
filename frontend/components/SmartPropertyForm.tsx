@@ -335,7 +335,7 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
         setAiSuggestions(suggestion)
         toast.success('AI suggestions generated successfully!')
       } else {
-        console.error('AI suggestions response failed:', response)
+        console.error('AI suggestions response failed:', aiResult)
         toast.error('Failed to generate AI suggestions. Please try again.')
       }
     } catch (error: any) {
