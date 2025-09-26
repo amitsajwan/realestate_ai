@@ -8,12 +8,13 @@ import FacebookIntegration from '@/components/FacebookIntegration'
 import GlobalSearch from '@/components/GlobalSearch'
 import MobileBottomNavigation from '@/components/MobileBottomNavigation'
 import { MobileNavigation } from '@/components/MobileNavigation'
+import PostsManagementHub from '@/components/PostsManagementHub'
 import ProfileSettings from '@/components/ProfileSettings'
 import Properties from '@/components/Properties'
 import PublishingWorkflowManager from '@/components/PublishingWorkflowManager'
 import SmartPropertyForm from '@/components/SmartPropertyForm'
-import UnifiedPostingHub from '@/components/UnifiedPostingHub'
 import { Button, Card, CardBody, CardHeader } from '@/components/UI'
+import UnifiedPostingHub from '@/components/UnifiedPostingHub'
 import { apiService } from '@/lib/api/centralized-client'
 import { authManager } from '@/lib/auth'
 import {
@@ -24,6 +25,7 @@ import {
   BuildingOfficeIcon,
   ChartBarIcon,
   CogIcon,
+  DocumentTextIcon,
   GlobeAltIcon,
   HomeIcon,
   PlusIcon,
@@ -56,6 +58,7 @@ const navigation: NavigationItem[] = [
   { name: 'Dashboard', icon: HomeIcon, id: 'dashboard' },
   { name: 'Properties', icon: BuildingOfficeIcon, id: 'properties' },
   { name: 'Property Marketing Hub', icon: BuildingOfficeIcon, id: 'property-marketing-hub', highlight: true },
+  { name: 'Posts', icon: DocumentTextIcon, id: 'posts' },
   { name: 'Add Property', icon: PlusIcon, id: 'property-form' },
   { name: 'Analytics', icon: ChartBarIcon, id: 'analytics' },
   { name: 'CRM', icon: UsersIcon, id: 'crm' },
@@ -252,39 +255,13 @@ export default function Dashboard() {
   const renderSection = () => {
     switch (activeSection) {
       case 'property-marketing-hub':
-        return (
-          <div className="text-center py-16">
-            <div className="max-w-lg mx-auto">
-              <div className="w-20 h-20 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                <BuildingOfficeIcon className="w-10 h-10 text-white" />
-              </div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">Property Marketing Hub</h2>
-              <p className="text-gray-600 mb-8">Unified workspace for property marketing, content creation, and publishing</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <button
-                  onClick={() => {
-                    setUnifiedPostingMode('marketing-hub')
-                    setShowUnifiedPosting(true)
-                  }}
-                  className="bg-gradient-to-r from-green-600 to-blue-600 text-white px-6 py-4 rounded-lg font-semibold hover:from-green-700 hover:to-blue-700 transition-all duration-200 flex flex-col items-center space-y-2"
-                >
-                  <BuildingOfficeIcon className="w-6 h-6" />
-                  <span>Marketing Hub</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setUnifiedPostingMode('standalone')
-                    setShowUnifiedPosting(true)
-                  }}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-4 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 transition-all duration-200 flex flex-col items-center space-y-2"
-                >
-                  <SparklesIcon className="w-6 h-6" />
-                  <span>AI Generator</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )
+        return <PostsManagementHub
+          onCreatePost={() => {
+            setUnifiedPostingProperty(null)
+            setUnifiedPostingMode('standalone')
+            setShowUnifiedPosting(true)
+          }}
+        />
       case 'properties':
         return <Properties
           onAddProperty={() => setActiveSection('property-form')}
@@ -293,6 +270,42 @@ export default function Dashboard() {
           onRefresh={loadProperties}
           onGenerateContent={handleGenerateContent}
         />
+      case 'posts':
+        return (
+          <div className="text-center py-16">
+            <div className="max-w-lg mx-auto">
+              <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <DocumentTextIcon className="w-10 h-10 text-white" />
+              </div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">Posts Management</h2>
+              <p className="text-gray-600 mb-8">View and manage your published content, track performance, and analyze engagement</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button
+                  onClick={() => {
+                    console.log('[DashboardPage] Opening Posts Management')
+                    setUnifiedPostingProperty(null)
+                    setUnifiedPostingMode('standalone')
+                    setShowUnifiedPosting(true)
+                  }}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-4 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 flex flex-col items-center space-y-2"
+                >
+                  <DocumentTextIcon className="w-6 h-6" />
+                  <span>Create New Post</span>
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('[DashboardPage] Opening Posts Management Hub')
+                    setActiveSection('property-marketing-hub')
+                  }}
+                  className="bg-gradient-to-r from-gray-600 to-gray-700 text-white px-6 py-4 rounded-lg font-semibold hover:from-gray-700 hover:to-gray-800 transition-all duration-200 flex flex-col items-center space-y-2"
+                >
+                  <ChartBarIcon className="w-6 h-6" />
+                  <span>View Analytics</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )
       case 'property-form':
         return (
           <SmartPropertyForm
@@ -302,10 +315,22 @@ export default function Dashboard() {
               console.log('[DashboardPage] Current workflowPropertyData state:', workflowPropertyData)
               try {
                 // Use UnifiedPostingHub for property creation workflow
+                console.log('[DashboardPage] Setting unified posting property:', propertyData)
                 setUnifiedPostingProperty(propertyData)
+                console.log('[DashboardPage] Setting unified posting mode to property-creation')
                 setUnifiedPostingMode('property-creation')
+                console.log('[DashboardPage] Setting showUnifiedPosting to true')
                 setShowUnifiedPosting(true)
                 console.log('[DashboardPage] Starting property-to-post workflow with UnifiedPostingHub...')
+
+                // Debug: Check state after setting
+                setTimeout(() => {
+                  console.log('[DashboardPage] State after setting:', {
+                    showUnifiedPosting,
+                    unifiedPostingMode,
+                    unifiedPostingProperty
+                  })
+                }, 100)
               } catch (error) {
                 console.error('[DashboardPage] Error in onSuccess callback:', error)
                 // Fallback to old behavior

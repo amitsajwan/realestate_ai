@@ -47,11 +47,14 @@ class UserManager(BaseUserManager[User, PydanticObjectId]):
         """Create a new user"""
         logger.info(f"Creating user: {user_create.email}")
         
-        # Use the parent method directly without modifications
-        user = await super().create(user_create, safe, request)
-        logger.info(f"User created by parent method: {user.email}")
-        
-        return user
+        try:
+            # Create user using the parent method
+            user = await super().create(user_create, safe, request)
+            logger.info(f"User created successfully: {user.email}")
+            return user
+        except Exception as e:
+            logger.error(f"Failed to create user {user_create.email}: {e}")
+            raise
 
 # UserManager dependency
 async def get_user_manager():

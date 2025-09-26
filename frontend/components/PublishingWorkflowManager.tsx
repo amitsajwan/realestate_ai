@@ -1,6 +1,5 @@
 'use client'
 
-import { API_BASE_URL } from '@/lib/config/api'
 import { apiService } from '@/lib/api/centralized-client'
 import { generatePropertyUrl, getAgentSlug } from '@/lib/utils/slug'
 import { useEffect, useState } from 'react'
@@ -69,7 +68,7 @@ export default function PublishingWorkflowManager({
     const handlePublish = async (content: any) => {
         const results: PublishingResult[] = []
         const selectedLanguage = 'en'
-        
+
         try {
             console.log('AI content generated:', content)
 
@@ -85,7 +84,7 @@ export default function PublishingWorkflowManager({
                         ai_generated: true,
                         ai_prompt: 'AI generated content for publishing',
                         hashtags: contentItem.hashtags || [],
-                        status: 'published'
+                        status: 'draft'
                     }
 
                     await apiService.createPost(postData)

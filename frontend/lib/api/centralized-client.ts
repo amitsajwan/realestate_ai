@@ -5,7 +5,6 @@
  */
 
 import { fetchWithAuthInterceptor } from '../auth/interceptor';
-import { authManager } from '../auth/manager';
 import { API_BASE_URL } from '../config/api';
 
 export class CentralizedAPIClient {
@@ -27,7 +26,7 @@ export class CentralizedAPIClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    
+
     // All requests automatically get token via fetchWithAuthInterceptor
     const config: RequestInit = {
       ...options,
@@ -40,7 +39,7 @@ export class CentralizedAPIClient {
 
     try {
       const response = await fetchWithAuthInterceptor(url, config);
-      
+
       if (!response.ok) {
         let errorData: any = {};
         try {
@@ -234,6 +233,7 @@ export class CentralizedAPIClient {
   }
 
   async publishContent(publishData: any): Promise<any> {
+    console.log('[CentralizedAPIClient] Publishing with data:', JSON.stringify(publishData, null, 2))
     return this.request('/api/v1/publishing/publish', {
       method: 'POST',
       body: JSON.stringify(publishData),
@@ -274,7 +274,12 @@ export class CentralizedAPIClient {
   }
 
   async createPost(postData: any): Promise<any> {
-    return this.request('/api/v1/enhanced-post-management/', {
+    console.log('[CentralizedAPIClient] Creating post with data:', JSON.stringify(postData, null, 2))
+    console.log('[CentralizedAPIClient] Data type:', typeof postData)
+    console.log('[CentralizedAPIClient] Data keys:', Object.keys(postData))
+    console.log('[CentralizedAPIClient] Channels field:', postData.channels, 'Type:', typeof postData.channels)
+
+    return this.request('/api/v1/enhanced-posts/posts/', {
       method: 'POST',
       body: JSON.stringify(postData),
     });
@@ -283,7 +288,7 @@ export class CentralizedAPIClient {
   // File Upload
   async uploadImages(formData: FormData): Promise<any> {
     const url = `${this.baseUrl}/api/v1/uploads/images`;
-    
+
     // For file uploads, we need to handle FormData differently
     const config: RequestInit = {
       method: 'POST',
@@ -292,11 +297,11 @@ export class CentralizedAPIClient {
     };
 
     const response = await fetchWithAuthInterceptor(url, config);
-    
+
     if (!response.ok) {
       throw new Error(`Upload failed: ${response.status}`);
     }
-    
+
     return response.json();
   }
 

@@ -1,34 +1,25 @@
 'use client'
 
+import { apiService } from '@/lib/api/centralized-client'
+import { STANDARD_LANGUAGES, getLanguageName } from '@/lib/languageConfig'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
+  AlertCircle,
   ArrowLeft,
-  ArrowRight,
   CheckCircle,
-  Edit3,
-  Eye,
+  Clock,
+  Copy,
   Facebook,
   Globe,
-  Heart,
   Instagram,
   Linkedin,
-  MessageCircle,
-  Plus,
-  Settings,
+  Save,
   Share,
   Sparkles,
   Twitter,
-  X,
-  Clock,
-  Calendar,
-  Save,
-  Copy,
-  ExternalLink,
-  AlertCircle
+  X
 } from 'lucide-react'
-import { useEffect, useState, useMemo, useCallback } from 'react'
-import { apiService } from '@/lib/api/centralized-client'
-import { STANDARD_LANGUAGES, getLanguageName } from '@/lib/languageConfig'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 
 // Unified Types
@@ -61,18 +52,18 @@ interface GeneratedContent {
 interface UnifiedPostingHubProps {
   // Mode determines the behavior and UI
   mode: 'quick-post' | 'standalone' | 'marketing-hub' | 'property-creation'
-  
+
   // Property data (optional for standalone mode)
   propertyData?: PropertyData
-  
+
   // Callbacks
   onContentGenerated?: (content: GeneratedContent[]) => void
   onPublish?: (content: GeneratedContent[], language?: string) => void
   onClose?: () => void
-  
+
   // UI state
   isOpen?: boolean
-  
+
   // Preselected options
   preselectedLanguage?: string
   preselectedPlatforms?: string[]
@@ -99,6 +90,14 @@ export default function UnifiedPostingHub({
   preselectedPlatforms = ['website', 'facebook', 'instagram'],
   preselectedProperty
 }: UnifiedPostingHubProps) {
+  console.log('[UnifiedPostingHub] Component props:', {
+    mode,
+    propertyData,
+    isOpen,
+    preselectedLanguage,
+    preselectedPlatforms,
+    preselectedProperty
+  })
   // State management
   const [availableProperties, setAvailableProperties] = useState<PropertyData[]>([])
   const [selectedProperty, setSelectedProperty] = useState<PropertyData | null>(propertyData || null)
@@ -115,6 +114,16 @@ export default function UnifiedPostingHub({
   const [searchTerm, setSearchTerm] = useState('')
   const [isRateLimited, setIsRateLimited] = useState(false)
   const [publishingStatus, setPublishingStatus] = useState<'idle' | 'publishing' | 'success' | 'error'>('idle')
+  const [showManualEditor, setShowManualEditor] = useState(false)
+  const [manualContent, setManualContent] = useState<{
+    title: string
+    content: string
+    hashtags: string[]
+  }>({
+    title: '',
+    content: '',
+    hashtags: []
+  })
   const [savedDrafts, setSavedDrafts] = useState<GeneratedContent[]>([])
   const [showDraftManager, setShowDraftManager] = useState(false)
 
@@ -134,6 +143,44 @@ export default function UnifiedPostingHub({
       }
     }
   }, [preselectedProperty, availableProperties])
+
+  // Debug logging for property data
+  useEffect(() => {
+    console.log('[UnifiedPostingHub] Debug info:', {
+      mode,
+      propertyData,
+      selectedProperty,
+      hasPropertyData: !!propertyData,
+      hasSelectedProperty: !!selectedProperty
+    })
+  }, [mode, propertyData, selectedProperty])
+
+  // Ensure property data is set when component receives it
+  useEffect(() => {
+    if (propertyData && !selectedProperty) {
+      console.log('[UnifiedPostingHub] Setting property data from props:', propertyData)
+      setSelectedProperty(propertyData)
+    }
+  }, [propertyData, selectedProperty])
+
+  // Reset component state when opening in property-creation mode
+  useEffect(() => {
+    if (mode === 'property-creation' && isOpen) {
+      console.log('[UnifiedPostingHub] Resetting state for property-creation mode')
+      setCurrentStep(1)
+      setGeneratedContent([])
+      setError(null)
+      setSuccess(null)
+      setPublishingStatus('idle')
+      setIsGenerating(false)
+      setIsPublishing(false)
+      setEditingContent(null)
+      setSearchTerm('')
+      setIsRateLimited(false)
+      setSavedDrafts([])
+      setShowDraftManager(false)
+    }
+  }, [mode, isOpen])
 
   const loadAvailableProperties = async () => {
     try {
@@ -227,23 +274,96 @@ export default function UnifiedPostingHub({
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate content'
       setError(errorMessage)
       console.error('Error generating content:', error)
-      
-      // Handle rate limiting
-      if (error.status === 429) {
+
+      // Handle rate limiting and show manual editor as fallback
+      if (error.status === 429 || errorMessage.includes('Rate limit') || errorMessage.includes('rate limit')) {
         setIsRateLimited(true)
-        toast.error('Rate limit reached. Please wait a moment.')
-        setTimeout(() => setIsRateLimited(false), 60000) // 1 minute
+        setShowManualEditor(true)
+        toast.error('AI rate limit reached. You can create content manually below.')
       } else {
         toast.error(errorMessage)
+        // Show manual editor as fallback for any AI generation failure
+        setShowManualEditor(true)
+        toast('AI generation failed. You can create content manually below.')
       }
     } finally {
       setIsGenerating(false)
     }
   }, [selectedProperty, mode, propertyData, selectedLanguage, selectedPlatforms, customPrompt, isRateLimited, onContentGenerated])
 
+  const createManualContent = useCallback(() => {
+    if (!manualContent.title.trim() || !manualContent.content.trim()) {
+      toast.error('Please enter both title and content')
+      return
+    }
+
+    const manualGeneratedContent: GeneratedContent[] = selectedPlatforms.map(platform => ({
+      id: `manual_${platform}_${Date.now()}`,
+      platform: platform as 'website' | 'facebook' | 'instagram' | 'linkedin' | 'twitter',
+      language: selectedLanguage,
+      title: manualContent.title,
+      content: manualContent.content,
+      hashtags: manualContent.hashtags,
+      status: 'ready' as const,
+      ai_generated: false,
+      media_urls: [],
+      created_at: new Date().toISOString()
+    }))
+
+    console.log('[UnifiedPostingHub] Manual content created:', JSON.stringify(manualGeneratedContent, null, 2))
+    setGeneratedContent(manualGeneratedContent)
+    setShowManualEditor(false)
+    setCurrentStep(2)
+    toast.success('Manual content created successfully!')
+  }, [manualContent, selectedPlatforms, selectedLanguage])
+
+  const handleEditContent = useCallback((content: GeneratedContent) => {
+    setEditingContent(content)
+    setManualContent({
+      title: content.title || '',
+      content: content.content || '',
+      hashtags: content.hashtags || []
+    })
+    setShowManualEditor(true)
+  }, [])
+
+  const saveEditedContent = useCallback(() => {
+    if (!editingContent || !manualContent.title.trim() || !manualContent.content.trim()) {
+      toast.error('Please enter both title and content')
+      return
+    }
+
+    setGeneratedContent(prev => prev.map(content =>
+      content.id === editingContent.id
+        ? {
+          ...content,
+          title: manualContent.title,
+          content: manualContent.content,
+          hashtags: manualContent.hashtags
+        }
+        : content
+    ))
+
+    setEditingContent(null)
+    setShowManualEditor(false)
+    setManualContent({ title: '', content: '', hashtags: [] })
+    toast.success('Content updated successfully!')
+  }, [editingContent, manualContent])
+
   const publishContent = useCallback(async () => {
     if (generatedContent.length === 0) {
       toast.error('No content to publish')
+      return
+    }
+
+    // Check if all content is empty
+    const hasValidContent = generatedContent.some(content =>
+      content.content && content.content.trim() !== ''
+    )
+
+    if (!hasValidContent) {
+      toast.error('No valid content to publish. Please create content manually.')
+      setShowManualEditor(true)
       return
     }
 
@@ -252,16 +372,85 @@ export default function UnifiedPostingHub({
     setPublishingStatus('publishing')
 
     try {
+      // Prepare content for each platform
+      const contentForPublishing = generatedContent
+        .filter(content => selectedPlatforms.includes(content.platform))
+        .map(content => ({
+          platform: content.platform,
+          title: content.title,
+          content: content.content,
+          hashtags: content.hashtags,
+          language: content.language
+        }))
+
       const publishData = {
         content_type: "property",
         content_id: selectedProperty?.id || propertyData?.id,
         channels: selectedPlatforms,
         auto_translate: true,
         target_languages: [selectedLanguage],
-        facebook_page_mappings: {}
+        facebook_page_mappings: {},
+        schedule_at: new Date().toISOString(),  // Send current time for immediate publishing
+        content: contentForPublishing  // Include the actual content to publish
       }
 
+      console.log('[UnifiedPostingHub] Publishing with data:', JSON.stringify(publishData, null, 2))
       const result = await apiService.publishContent(publishData)
+
+      // Create a post record in the database for the Posts Management Hub
+      try {
+        console.log('[UnifiedPostingHub] Generated content array:', JSON.stringify(generatedContent, null, 2))
+        console.log('[UnifiedPostingHub] Selected platforms:', selectedPlatforms)
+
+        // Create a post record for each platform
+        for (const contentItem of generatedContent) {
+          console.log('[UnifiedPostingHub] Processing content item:', JSON.stringify(contentItem, null, 2))
+
+          if (selectedPlatforms.includes(contentItem.platform)) {
+            // Validate content before creating post
+            if (!contentItem.content || contentItem.content.trim() === '') {
+              console.error('[UnifiedPostingHub] Content is empty for platform:', contentItem.platform)
+              // Use a fallback content instead of skipping
+              contentItem.content = 'Content published successfully'
+            }
+
+            const postData = {
+              property_id: selectedProperty?.id || propertyData?.id,
+              title: contentItem.title || 'AI Generated Content',
+              content: contentItem.content || 'Content published successfully',
+              language: contentItem.language || selectedLanguage,
+              channels: [contentItem.platform],
+              ai_generated: contentItem.ai_generated || false, // Use the actual ai_generated flag from content
+              ai_prompt: contentItem.ai_generated ? 'AI generated content for publishing' : undefined, // Don't send ai_prompt for manual content
+              hashtags: contentItem.hashtags || [],
+              tags: [], // Add required fields
+              media_urls: [] // Add required fields
+            }
+
+            console.log('[UnifiedPostingHub] Raw contentItem:', JSON.stringify(contentItem, null, 2))
+            console.log('[UnifiedPostingHub] Constructed postData:', JSON.stringify(postData, null, 2))
+
+            // Final validation - ensure content is never empty
+            if (!postData.content || postData.content.trim() === '') {
+              console.error('[UnifiedPostingHub] Post data content is still empty, using fallback')
+              postData.content = 'Content published successfully'
+            }
+
+            console.log('[UnifiedPostingHub] Creating post record for platform:', contentItem.platform, JSON.stringify(postData, null, 2))
+            await apiService.createPost(postData)
+            console.log('[UnifiedPostingHub] Post record created successfully for platform:', contentItem.platform)
+          }
+        }
+
+        // Refresh the Posts Management Hub if it's available
+        if ((window as any).refreshPostsManagementHub) {
+          console.log('[UnifiedPostingHub] Refreshing Posts Management Hub...')
+            ; (window as any).refreshPostsManagementHub()
+        }
+      } catch (postError) {
+        console.error('[UnifiedPostingHub] Error creating post record:', postError)
+        // Don't fail the entire operation if post creation fails
+      }
 
       // Update status to published
       setGeneratedContent(prev =>
@@ -345,18 +534,6 @@ export default function UnifiedPostingHub({
     )
   }, [availableProperties, searchTerm])
 
-  const handleEditContent = (content: GeneratedContent) => {
-    setEditingContent(content)
-  }
-
-  const handleSaveEdit = (updatedContent: GeneratedContent) => {
-    setGeneratedContent(prev =>
-      prev.map(content =>
-        content.id === updatedContent.id ? updatedContent : content
-      )
-    )
-    setEditingContent(null)
-  }
 
   const handlePlatformToggle = (platform: string) => {
     setSelectedPlatforms(prev =>
@@ -381,7 +558,11 @@ export default function UnifiedPostingHub({
     setCurrentStep(1)
   }
 
-  if (!isOpen) return null
+  console.log('[UnifiedPostingHub] Render check - isOpen:', isOpen, 'currentStep:', currentStep, 'mode:', mode)
+  if (!isOpen) {
+    console.log('[UnifiedPostingHub] Component not rendering - isOpen is false')
+    return null
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -399,9 +580,14 @@ export default function UnifiedPostingHub({
             <h2 className="text-xl font-semibold text-gray-900" data-testid="hub-title">
               {mode === 'quick-post' && 'Quick Post Generator'}
               {mode === 'standalone' && 'AI Content Generator'}
-              {mode === 'marketing-hub' && 'Marketing Content Hub'}
+              {mode === 'marketing-hub' && 'Property Marketing Hub'}
               {mode === 'property-creation' && 'Property Content Creator'}
             </h2>
+            <p className="text-sm text-gray-600 mt-1">
+              {mode === 'standalone' && 'Create new content from scratch using AI'}
+              {mode === 'marketing-hub' && 'Manage marketing content for your properties'}
+              {mode === 'property-creation' && 'Generate content for your newly created property'}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -427,7 +613,7 @@ export default function UnifiedPostingHub({
                 {(mode === 'standalone' || mode === 'marketing-hub') && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Select Property
+                      {mode === 'marketing-hub' ? 'Select Property for Marketing' : 'Select Property for Content Creation'}
                     </label>
                     <div className="relative">
                       <input
@@ -456,11 +642,10 @@ export default function UnifiedPostingHub({
                           <button
                             key={property.id}
                             onClick={() => setSelectedProperty(property)}
-                            className={`w-full p-3 text-left hover:bg-gray-50 transition-colors ${
-                              selectedProperty?.id === property.id
-                                ? 'bg-blue-50 border-l-4 border-blue-500'
-                                : 'border-l-4 border-transparent'
-                            }`}
+                            className={`w-full p-3 text-left hover:bg-gray-50 transition-colors ${selectedProperty?.id === property.id
+                              ? 'bg-blue-50 border-l-4 border-blue-500'
+                              : 'border-l-4 border-transparent'
+                              }`}
                           >
                             <div className="flex justify-between items-start">
                               <div>
@@ -496,6 +681,39 @@ export default function UnifiedPostingHub({
                   </div>
                 )}
 
+                {/* Property Display (for property-creation mode) */}
+                {mode === 'property-creation' && selectedProperty && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Property for Content Generation
+                    </label>
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <span className="text-sm font-medium text-green-800">Newly Created Property</span>
+                          </div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-1">{selectedProperty.title}</h3>
+                          <div className="text-sm text-gray-600 mb-2">{selectedProperty.location}</div>
+                          <div className="flex items-center space-x-4 text-sm text-gray-500">
+                            <span>{selectedProperty.propertyType}</span>
+                            <span>•</span>
+                            <span>{selectedProperty.bedrooms} bed • {selectedProperty.bathrooms} bath</span>
+                            <span>•</span>
+                            <span className="font-semibold text-green-700">₹{(selectedProperty.price / 100000).toFixed(0)}L</span>
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                            <CheckCircle className="h-6 w-6 text-green-600" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Platform Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -510,11 +728,10 @@ export default function UnifiedPostingHub({
                           onClick={() => handlePlatformToggle(key)}
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
-                          className={`p-4 rounded-xl border-2 transition-all duration-200 min-h-[80px] flex flex-col items-center justify-center ${
-                            selectedPlatforms.includes(key)
-                              ? 'border-blue-500 bg-blue-50 shadow-md'
-                              : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-                          }`}
+                          className={`p-4 rounded-xl border-2 transition-all duration-200 min-h-[80px] flex flex-col items-center justify-center ${selectedPlatforms.includes(key)
+                            ? 'border-blue-500 bg-blue-50 shadow-md'
+                            : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                            }`}
                         >
                           <Icon className={`h-6 w-6 mb-2 ${platform.color}`} />
                           <span className="text-sm font-medium text-gray-700">
@@ -536,11 +753,10 @@ export default function UnifiedPostingHub({
                       <button
                         key={lang.code}
                         onClick={() => handleLanguageToggle(lang.code)}
-                        className={`p-2 rounded-md text-sm font-medium transition-colors ${
-                          selectedLanguage === lang.code
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
+                        className={`p-2 rounded-md text-sm font-medium transition-colors ${selectedLanguage === lang.code
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
                       >
                         {lang.name}
                       </button>
@@ -576,7 +792,13 @@ export default function UnifiedPostingHub({
                 )}
 
                 {/* Generate Button */}
-                <div className="flex justify-end">
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={() => setShowManualEditor(true)}
+                    className="px-6 py-3 bg-gray-600 text-white rounded-md hover:bg-gray-700 flex items-center space-x-2"
+                  >
+                    <span>Create Manually</span>
+                  </button>
                   <button
                     onClick={generateContent}
                     disabled={isGenerating || (!selectedProperty && mode !== 'property-creation')}
@@ -595,6 +817,91 @@ export default function UnifiedPostingHub({
                     )}
                   </button>
                 </div>
+
+                {/* Manual Content Editor - Fallback when AI fails or for editing */}
+                {showManualEditor && (
+                  <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                      <h3 className="text-lg font-medium text-yellow-800">
+                        {editingContent ? 'Edit Content' : 'Manual Content Editor'}
+                      </h3>
+                    </div>
+                    <p className="text-sm text-yellow-700 mb-4">
+                      {editingContent
+                        ? 'Edit your content below. Changes will be saved to the existing content.'
+                        : 'AI generation is currently unavailable. You can create your content manually below.'
+                      }
+                    </p>
+
+                    <div className="space-y-4">
+                      {/* Title Input */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Post Title *
+                        </label>
+                        <input
+                          type="text"
+                          value={manualContent.title}
+                          onChange={(e) => setManualContent(prev => ({ ...prev, title: e.target.value }))}
+                          placeholder="Enter a compelling title for your post..."
+                          className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      {/* Content Input */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Post Content *
+                        </label>
+                        <textarea
+                          value={manualContent.content}
+                          onChange={(e) => setManualContent(prev => ({ ...prev, content: e.target.value }))}
+                          placeholder="Write your post content here... Be engaging and include relevant details about the property."
+                          className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          rows={6}
+                        />
+                      </div>
+
+                      {/* Hashtags Input */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Hashtags (comma-separated)
+                        </label>
+                        <input
+                          type="text"
+                          value={manualContent.hashtags.join(', ')}
+                          onChange={(e) => setManualContent(prev => ({
+                            ...prev,
+                            hashtags: e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag)
+                          }))}
+                          placeholder="realestate, luxury, downtown, investment"
+                          className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex justify-end space-x-3">
+                        <button
+                          onClick={() => {
+                            setShowManualEditor(false)
+                            setEditingContent(null)
+                            setManualContent({ title: '', content: '', hashtags: [] })
+                          }}
+                          className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={editingContent ? saveEditedContent : createManualContent}
+                          className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center space-x-2"
+                        >
+                          <span>{editingContent ? 'Save Changes' : 'Create Content'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </motion.div>
             )}
 
@@ -624,7 +931,7 @@ export default function UnifiedPostingHub({
                   {generatedContent.map((content) => {
                     const platform = PLATFORMS[content.platform as keyof typeof PLATFORMS]
                     const Icon = platform?.icon || Globe
-                    
+
                     return (
                       <div key={content.id} className="border border-gray-200 rounded-lg p-4">
                         <div className="flex items-center justify-between mb-3">
@@ -636,13 +943,12 @@ export default function UnifiedPostingHub({
                             <span className="text-sm text-gray-500">
                               ({getLanguageName(content.language)})
                             </span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              content.status === 'draft' 
-                                ? 'bg-gray-100 text-gray-700' 
-                                : content.status === 'published'
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${content.status === 'draft'
+                              ? 'bg-gray-100 text-gray-700'
+                              : content.status === 'published'
                                 ? 'bg-green-100 text-green-700'
                                 : 'bg-blue-100 text-blue-700'
-                            }`}>
+                              }`}>
                               {content.status}
                             </span>
                           </div>
@@ -654,36 +960,76 @@ export default function UnifiedPostingHub({
                             >
                               <Copy className="h-4 w-4" />
                             </button>
-                            <button
-                              onClick={() => handleEditContent(content)}
-                              className="text-blue-600 hover:text-blue-700 flex items-center space-x-1"
-                            >
-                              <Edit3 className="h-4 w-4" />
-                              <span>Edit</span>
-                            </button>
                           </div>
                         </div>
-                        
-                        {content.title && (
-                          <h4 className="font-semibold text-gray-900 mb-2">{content.title}</h4>
-                        )}
-                        
-                        <p className="text-gray-700 mb-3 whitespace-pre-wrap">
-                          {content.content}
-                        </p>
-                        
-                        {content.hashtags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {content.hashtags.map((tag, index) => (
-                              <span
-                                key={index}
-                                className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+
+                        <div className="mb-3">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Title
+                          </label>
+                          <input
+                            type="text"
+                            value={content.title || ''}
+                            onChange={(e) => {
+                              console.log('[UnifiedPostingHub] Title changed for content ID:', content.id, 'New title:', e.target.value)
+                              setGeneratedContent(prev => {
+                                const updated = prev.map(c =>
+                                  c.id === content.id
+                                    ? { ...c, title: e.target.value }
+                                    : c
+                                )
+                                console.log('[UnifiedPostingHub] Updated generatedContent after title change:', JSON.stringify(updated, null, 2))
+                                return updated
+                              })
+                            }}
+                            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Enter a compelling title..."
+                          />
+                        </div>
+
+                        <div className="mb-3">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Content
+                          </label>
+                          <textarea
+                            value={content.content}
+                            onChange={(e) => {
+                              console.log('[UnifiedPostingHub] Content changed for content ID:', content.id, 'New content:', e.target.value)
+                              setGeneratedContent(prev => {
+                                const updated = prev.map(c =>
+                                  c.id === content.id
+                                    ? { ...c, content: e.target.value }
+                                    : c
+                                )
+                                console.log('[UnifiedPostingHub] Updated generatedContent after content change:', JSON.stringify(updated, null, 2))
+                                return updated
+                              })
+                            }}
+                            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            rows={4}
+                            placeholder="Enter your content here..."
+                          />
+                        </div>
+
+                        <div className="mb-3">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Hashtags (comma-separated)
+                          </label>
+                          <input
+                            type="text"
+                            value={content.hashtags.join(', ')}
+                            onChange={(e) => {
+                              const hashtags = e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag)
+                              setGeneratedContent(prev => prev.map(c =>
+                                c.id === content.id
+                                  ? { ...c, hashtags }
+                                  : c
+                              ))
+                            }}
+                            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="realestate, luxury, downtown, investment"
+                          />
+                        </div>
                       </div>
                     )
                   })}
@@ -700,21 +1046,20 @@ export default function UnifiedPostingHub({
                     <Save className="h-4 w-4" />
                     <span>Save as Draft</span>
                   </motion.button>
-                  
+
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={publishContent}
                     disabled={isPublishing || generatedContent.length === 0}
-                    className={`flex-1 px-6 py-3 rounded-lg font-medium flex items-center justify-center space-x-2 transition-all ${
-                      isPublishing || generatedContent.length === 0
-                        ? 'bg-gray-400 text-white cursor-not-allowed'
-                        : publishingStatus === 'success'
+                    className={`flex-1 px-6 py-3 rounded-lg font-medium flex items-center justify-center space-x-2 transition-all ${isPublishing || generatedContent.length === 0
+                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                      : publishingStatus === 'success'
                         ? 'bg-green-600 text-white'
                         : publishingStatus === 'error'
-                        ? 'bg-red-600 text-white'
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                    }`}
+                          ? 'bg-red-600 text-white'
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
                   >
                     {isPublishing ? (
                       <>
@@ -767,7 +1112,7 @@ export default function UnifiedPostingHub({
                 <div className="flex justify-center">
                   <CheckCircle className="h-16 w-16 text-green-500" />
                 </div>
-                
+
                 <div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
                     Content Published Successfully!

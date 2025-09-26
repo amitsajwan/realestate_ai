@@ -104,34 +104,42 @@ class UserRead(schemas.BaseUser[str]):
     @classmethod
     def model_validate(cls, obj, **kwargs):
         """Override to handle ObjectId conversion to string"""
-        # Handle both object and dictionary inputs
-        if isinstance(obj, dict):
-            # If it's already a dict, convert id if it's an ObjectId
-            if 'id' in obj and hasattr(obj['id'], '__str__') and not isinstance(obj['id'], str):
-                obj = obj.copy()
-                obj['id'] = str(obj['id'])
-            # Handle MongoDB _id to id mapping
-            if '_id' in obj and 'id' not in obj:
-                obj = obj.copy()
-                obj['id'] = str(obj['_id'])
-        elif hasattr(obj, 'id'):
-            # Convert ObjectId to string
-            if hasattr(obj, 'model_dump'):
-                obj_dict = obj.model_dump()
-            else:
-                obj_dict = obj.__dict__.copy()
-            obj_dict['id'] = str(obj.id)
-            obj = obj_dict
-        elif hasattr(obj, '_id'):
-            # Handle MongoDB _id field
-            if hasattr(obj, 'model_dump'):
-                obj_dict = obj.model_dump()
-            else:
-                obj_dict = obj.__dict__.copy()
-            obj_dict['id'] = str(obj._id)
-            obj = obj_dict
-        
-        return super().model_validate(obj, **kwargs)
+        try:
+            # Handle both object and dictionary inputs
+            if isinstance(obj, dict):
+                # If it's already a dict, convert id if it's an ObjectId
+                if 'id' in obj and hasattr(obj['id'], '__str__') and not isinstance(obj['id'], str):
+                    obj = obj.copy()
+                    obj['id'] = str(obj['id'])
+                # Handle MongoDB _id to id mapping
+                if '_id' in obj and 'id' not in obj:
+                    obj = obj.copy()
+                    obj['id'] = str(obj['_id'])
+                    if '_id' in obj:
+                        del obj['_id']
+            elif hasattr(obj, 'id'):
+                # Convert ObjectId to string
+                if hasattr(obj, 'model_dump'):
+                    obj_dict = obj.model_dump()
+                else:
+                    obj_dict = obj.__dict__.copy()
+                obj_dict['id'] = str(obj.id)
+                obj = obj_dict
+            elif hasattr(obj, '_id'):
+                # Handle MongoDB _id field
+                if hasattr(obj, 'model_dump'):
+                    obj_dict = obj.model_dump()
+                else:
+                    obj_dict = obj.__dict__.copy()
+                obj_dict['id'] = str(obj._id)
+                if '_id' in obj_dict:
+                    del obj_dict['_id']
+                obj = obj_dict
+            
+            return super().model_validate(obj, **kwargs)
+        except Exception as e:
+            # Fallback to default validation
+            return super().model_validate(obj, **kwargs)
     
     @classmethod
     def from_orm(cls, obj):
