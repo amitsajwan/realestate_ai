@@ -123,6 +123,7 @@ export default function Dashboard() {
         })
 
         if (!state.isAuthenticated) {
+          console.log("[DashboardPage] Redirecting to login - isAuthenticated:", state.isAuthenticated);
           console.log('[DashboardPage] Not authenticated, redirecting to login')
           setIsLoading(false)
           router.push('/login')
