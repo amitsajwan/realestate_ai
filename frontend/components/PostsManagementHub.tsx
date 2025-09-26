@@ -337,13 +337,53 @@ export default function PostsManagementHub({ onCreatePost }: PostsManagementHubP
                                 <h4 className="text-lg font-semibold text-gray-900 mb-2">{post.title}</h4>
                                 <p className="text-gray-700 mb-4 leading-relaxed">{post.content}</p>
 
-                                {/* Property Image Placeholder */}
-                                <div className="bg-gradient-to-r from-blue-100 to-purple-100 rounded-lg h-48 flex items-center justify-center mb-4">
-                                    <div className="text-center">
-                                        <BuildingOfficeIcon className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                                        <p className="text-gray-500 text-sm">Property Image</p>
+                                {/* Property Images */}
+                                {post.media_urls && post.media_urls.length > 0 ? (
+                                    <div className="mb-4">
+                                        <div className="grid gap-2" style={{
+                                            gridTemplateColumns: post.media_urls.length === 1 ? '1fr' : 
+                                                            post.media_urls.length === 2 ? 'repeat(2, 1fr)' : 
+                                                            'repeat(3, 1fr)'
+                                        }}>
+                                            {post.media_urls.slice(0, 3).map((url, index) => (
+                                                <div key={url} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
+                                                    <img
+                                                        src={url}
+                                                        alt={`Property image ${index + 1}`}
+                                                        className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
+                                                        onError={(e) => {
+                                                            console.error('Failed to load image:', url);
+                                                            e.currentTarget.style.display = 'none';
+                                                            const placeholder = e.currentTarget.parentElement?.querySelector('.image-placeholder');
+                                                            if (placeholder) {
+                                                                (placeholder as HTMLElement).style.display = 'flex';
+                                                            }
+                                                        }}
+                                                    />
+                                                    {/* Fallback placeholder */}
+                                                    <div className="image-placeholder absolute inset-0 bg-gray-200 flex items-center justify-center text-gray-500 text-sm" style={{display: 'none'}}>
+                                                        <div className="text-center">
+                                                            <BuildingOfficeIcon className="w-8 h-8 text-gray-400 mx-auto mb-1" />
+                                                            <p className="text-xs">Image {index + 1}</p>
+                                                        </div>
+                                                    </div>
+                                                    {index === 2 && post.media_urls.length > 3 && (
+                                                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center text-white font-semibold">
+                                                            +{post.media_urls.length - 3}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
+                                ) : (
+                                    <div className="bg-gradient-to-r from-blue-100 to-purple-100 rounded-lg h-48 flex items-center justify-center mb-4">
+                                        <div className="text-center">
+                                            <BuildingOfficeIcon className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                                            <p className="text-gray-500 text-sm">No Images</p>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Social Media Engagement */}
                                 {post.analytics && (

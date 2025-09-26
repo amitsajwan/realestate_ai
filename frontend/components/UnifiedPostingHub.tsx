@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { Reducer, useCallback, useEffect, useMemo, useReducer } from 'react'
 import toast from 'react-hot-toast'
+import ImageSelectionPanel from './ImageSelectionPanel'
 
 // --- TYPE DEFINITIONS ---
 interface PropertyData {
@@ -107,6 +108,8 @@ type Action =
   | { type: 'SET_STEP'; payload: number }
   | { type: 'SET_SEARCH_TERM'; payload: string }
   | { type: 'SET_SELECTED_IMAGES'; payload: string[] }
+  | { type: 'TOGGLE_IMAGE_SELECTION' }
+  | { type: 'SET_IMAGE_SELECTION_MODE'; payload: 'auto' | 'manual' }
   | { type: 'RESET'; payload: Partial<State> }
 
 const reducer: Reducer<State, Action> = (state, action) => {
@@ -150,6 +153,10 @@ const reducer: Reducer<State, Action> = (state, action) => {
       return { ...state, searchTerm: action.payload }
     case 'SET_SELECTED_IMAGES':
       return { ...state, selectedImages: action.payload }
+    case 'TOGGLE_IMAGE_SELECTION':
+      return { ...state, showImageSelection: !state.showImageSelection }
+    case 'SET_IMAGE_SELECTION_MODE':
+      return { ...state, imageSelectionMode: action.payload }
     case 'RESET':
       return { ...initialState, ...action.payload }
     default:
@@ -533,6 +540,54 @@ export default function UnifiedPostingHub({
           {isGenerating ? 'Regenerating...' : 'Regenerate'}
         </button>
       </div>
+      {/* Image Selection for Generated Content */}
+      <div className="bg-blue-50 p-4 rounded-lg">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Select Images for Posts ({selectedImages.length} selected)
+          </h3>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => dispatch({ type: 'SET_IMAGE_SELECTION_MODE', payload: 'auto' })}
+              className={`px-3 py-1 text-sm rounded-md ${
+                imageSelectionMode === 'auto' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-white text-gray-700 border border-gray-300'
+              }`}
+            >
+              Auto
+            </button>
+            <button
+              onClick={() => dispatch({ type: 'SET_IMAGE_SELECTION_MODE', payload: 'manual' })}
+              className={`px-3 py-1 text-sm rounded-md ${
+                imageSelectionMode === 'manual' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-white text-gray-700 border border-gray-300'
+              }`}
+            >
+              Manual
+            </button>
+            <button
+              onClick={() => dispatch({ type: 'TOGGLE_IMAGE_SELECTION' })}
+              className="px-3 py-1 text-sm bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              {showImageSelection ? 'Hide' : 'Select Images'}
+            </button>
+          </div>
+        </div>
+        
+        {showImageSelection && (
+          <div className="mt-4">
+            <ImageSelectionPanel
+              propertyImages={selectedProperty?.images || propertyData?.images || []}
+              selectedImages={selectedImages}
+              onImageSelect={(images) => dispatch({ type: 'SET_SELECTED_IMAGES', payload: images })}
+              platforms={selectedPlatforms}
+            />
+          </div>
+        )}
+      </div>
+
       <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
         {generatedContent.map(content => {
           const platformInfo = PLATFORMS[content.platform as keyof typeof PLATFORMS];
@@ -561,6 +616,7 @@ export default function UnifiedPostingHub({
                 className="w-full p-2 bg-white border border-gray-300 rounded-md text-sm"
               />
               <p className="mt-2 text-xs text-gray-500">Hashtags: {content.hashtags.join(' ')}</p>
+              <p className="mt-1 text-xs text-blue-600">Images: {selectedImages.length} selected</p>
             </div>
           );
         })}
