@@ -1,12 +1,12 @@
-<testsuites id="" name="" tests="8" failures="2" skipped="0" errors="0" time="9.90405">
-<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T02:17:52.235Z" hostname="chromium" tests="8" failures="2" skipped="0" time="17.414" errors="0">
-<testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="0.536">
+<testsuites id="" name="" tests="8" failures="2" skipped="0" errors="0" time="10.199007">
+<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T02:19:48.428Z" hostname="chromium" tests="8" failures="2" skipped="0" time="17.787" errors="0">
+<testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="0.567">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Frontend application loads" classname="working-e2e-test.spec.ts" time="1.057">
+<testcase name="PropertyAI Working E2E Tests › Frontend application loads" classname="working-e2e-test.spec.ts" time="1.07">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Login page is accessible" classname="working-e2e-test.spec.ts" time="0.888">
+<testcase name="PropertyAI Working E2E Tests › Login page is accessible" classname="working-e2e-test.spec.ts" time="0.81">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Analytics page is accessible" classname="working-e2e-test.spec.ts" time="6.683">
+<testcase name="PropertyAI Working E2E Tests › Analytics page is accessible" classname="working-e2e-test.spec.ts" time="6.731">
 <failure message="working-e2e-test.spec.ts:43:7 Analytics page is accessible" type="FAILURE">
 <![CDATA[  [chromium] › working-e2e-test.spec.ts:43:7 › PropertyAI Working E2E Tests › Analytics page is accessible 
 
@@ -52,11 +52,11 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="0.555">
+<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="0.587">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › User can interact with basic elements" classname="working-e2e-test.spec.ts" time="0.576">
+<testcase name="PropertyAI Working E2E Tests › User can interact with basic elements" classname="working-e2e-test.spec.ts" time="0.706">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › UnifiedPostingHub integration works" classname="working-e2e-test.spec.ts" time="6.353">
+<testcase name="PropertyAI Working E2E Tests › UnifiedPostingHub integration works" classname="working-e2e-test.spec.ts" time="6.392">
 <failure message="working-e2e-test.spec.ts:82:7 UnifiedPostingHub integration works" type="FAILURE">
 <![CDATA[  [chromium] › working-e2e-test.spec.ts:82:7 › PropertyAI Working E2E Tests › UnifiedPostingHub integration works 
 
@@ -102,7 +102,7 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Application has proper meta information" classname="working-e2e-test.spec.ts" time="0.766">
+<testcase name="PropertyAI Working E2E Tests › Application has proper meta information" classname="working-e2e-test.spec.ts" time="0.924">
 </testcase>
 </testsuite>
 </testsuites>
