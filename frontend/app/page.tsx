@@ -510,12 +510,13 @@ export default function Dashboard() {
         {/* Mobile-First Header */}
         <header className="sticky top-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-b border-gray-200 dark:border-white/20 shadow-sm">
           <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
+            <div className="flex justify-between items-center h-16 min-h-[64px]">
               {/* Logo and Mobile Menu Button */}
               <div className="flex items-center space-x-4">
                 <button
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                  className="lg:hidden p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                  className="lg:hidden p-3 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors min-h-[48px] min-w-[48px] flex items-center justify-center"
+                  aria-label="Toggle mobile menu"
                 >
                   {isMobileMenuOpen ? (
                     <XMarkIcon className="w-6 h-6" />
@@ -524,10 +525,10 @@ export default function Dashboard() {
                   )}
                 </button>
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <div className="w-10 h-10 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center shadow-lg">
                     <HomeIcon className="w-6 h-6 text-white" />
                   </div>
-                  <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  <h1 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-primary-500 to-secondary-500 bg-clip-text text-transparent">
                     PropertyAI
                   </h1>
                 </div>
@@ -666,7 +667,7 @@ export default function Dashboard() {
                   animate={{ x: 0 }}
                   exit={{ x: '-100%' }}
                   transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                  className="lg:hidden fixed left-0 top-16 bottom-0 z-50 w-80 bg-white dark:bg-slate-900 shadow-2xl overflow-y-auto"
+                  className="lg:hidden fixed left-0 top-16 bottom-0 z-50 w-80 max-w-[85vw] bg-white dark:bg-slate-900 shadow-2xl overflow-y-auto"
                 >
                   <div className="p-6">
                     <div className="space-y-2">
