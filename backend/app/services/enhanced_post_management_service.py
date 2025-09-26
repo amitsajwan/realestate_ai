@@ -72,6 +72,17 @@ class EnhancedPostManagementService:
             property_obj_id = PydanticObjectId(property_id)
             agent_obj_id = PydanticObjectId(agent_id)
             
+            # Handle image inheritance from property if no media_urls provided
+            if not media_urls:
+                try:
+                    property_data = await self._get_property_data(property_id)
+                    if property_data and hasattr(property_data, 'images') and property_data.images:
+                        media_urls = property_data.images[:10]  # Limit to 10 images
+                        logger.info(f"Auto-inherited {len(media_urls)} images from property")
+                except Exception as e:
+                    logger.warning(f"Could not inherit images from property: {e}")
+                    media_urls = []
+            
             # Generate AI content if prompt is provided
             ai_generated = False
             if ai_prompt:
