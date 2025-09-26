@@ -84,41 +84,41 @@ export function DashboardStats({
   return (
     <div className="space-y-8">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-4 sm:p-6 lg:p-8 text-white">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Good Morning! 👋</h1>
-            <p className="text-blue-100 text-lg">Ready to boost your real estate business today?</p>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2">Good Morning! 👋</h1>
+            <p className="text-blue-100 text-base sm:text-lg">Ready to boost your real estate business today?</p>
           </div>
-          <div className="text-right">
+          <div className="text-left sm:text-right">
             <p className="text-blue-100">Today</p>
             <p className="text-lg font-semibold">{currentDate}</p>
           </div>
         </div>
 
         {/* Primary KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
           <div className="text-center">
-            <div className="text-4xl font-bold">{stats.total_properties}</div>
-            <div className="text-blue-100">Properties</div>
+            <div className="text-2xl sm:text-3xl lg:text-4xl font-bold">{stats.total_properties}</div>
+            <div className="text-blue-100 text-sm sm:text-base">Properties</div>
           </div>
           <div className="text-center">
-            <div className="text-4xl font-bold">{stats.total_leads}</div>
-            <div className="text-blue-100">Active Leads</div>
+            <div className="text-2xl sm:text-3xl lg:text-4xl font-bold">{stats.total_leads}</div>
+            <div className="text-blue-100 text-sm sm:text-base">Active Leads</div>
           </div>
           <div className="text-center">
-            <div className="text-4xl font-bold">{stats.total_views}</div>
-            <div className="text-blue-100">Total Views</div>
+            <div className="text-2xl sm:text-3xl lg:text-4xl font-bold">{stats.total_views}</div>
+            <div className="text-blue-100 text-sm sm:text-base">Total Views</div>
           </div>
           <div className="text-center">
-            <div className="text-4xl font-bold">{stats.revenue}</div>
-            <div className="text-blue-100">Revenue</div>
+            <div className="text-2xl sm:text-3xl lg:text-4xl font-bold">{stats.revenue}</div>
+            <div className="text-blue-100 text-sm sm:text-base">Revenue</div>
           </div>
         </div>
       </div>
 
       {/* Secondary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <Card className="card-hover">
           <CardBody className="text-center">
             <div className="flex items-center justify-center mb-4">
@@ -179,7 +179,7 @@ export function DashboardStats({
           <p className="text-gray-600">Get started with these essential tasks</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {quickActions.map((action) => (
             <Card
               key={action.id}

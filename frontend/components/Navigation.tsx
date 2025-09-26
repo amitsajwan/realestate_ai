@@ -134,7 +134,8 @@ export default function Navigation() {
           <div className="md:hidden flex items-center">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white p-2 rounded-md transition-colors"
+              className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white p-3 rounded-md transition-colors min-h-[48px] min-w-[48px] flex items-center justify-center"
+              aria-label="Toggle mobile menu"
             >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -146,10 +147,10 @@ export default function Navigation() {
         {/* Mobile Navigation */}
         {isMenuOpen && (
           <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-gray-50 dark:bg-gray-800 rounded-md mt-2 border border-gray-200 dark:border-gray-700">
+            <div className="px-4 pt-4 pb-4 space-y-2 bg-gray-50 dark:bg-gray-800 rounded-md mt-2 border border-gray-200 dark:border-gray-700">
               <Link
                 href="/"
-                className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white block px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
+                className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white block px-4 py-4 rounded-md text-base font-medium transition-colors touch-manipulation min-h-[48px] flex items-center"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Home
