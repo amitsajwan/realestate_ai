@@ -73,10 +73,8 @@ export class AuthManager {
             const storedToken = this.getStoredToken();
             if (storedToken) {
                 try {
-                    // Verify token by getting current user with retry logic
-                    const userData = await this.retryApiCall(
-                        () => authAPI.getCurrentUser(storedToken)
-                    );
+                    // Verify token by getting current user (no retry for auth - should be fast)
+                    const userData = await authAPI.getCurrentUser(storedToken);
                     if (userData && (userData.id || userData.user?.id)) {
                         this.setState({
                             isAuthenticated: true,

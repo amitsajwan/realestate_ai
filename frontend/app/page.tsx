@@ -155,7 +155,7 @@ export default function Dashboard() {
         setIsLoading(false)
         router.push('/login')
       }
-    }, 10000) // 10 second timeout
+    }, 3000) // 3 second timeout
 
     initAuth()
 
