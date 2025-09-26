@@ -24,11 +24,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, isLoading = false }) =>
     const [showPassword, setShowPassword] = useState(false);
     const [validator] = useState(() => new FormValidator(loginSchema));
     const { submit } = useFormSubmission();
-    const [isClient, setIsClient] = useState(false);
-
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
+    // Removed hydration check - not needed for this form
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -77,61 +73,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, isLoading = false }) =>
         });
     };
 
-    if (!isClient) {
-        return (
-            <div className="mt-6 sm:mt-8 space-y-5 sm:space-y-6 animate-fade-in">
-                <div className="space-y-4 sm:space-y-5">
-                    <div>
-                        <label htmlFor="email" className="sr-only">Email address</label>
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Mail className="h-5 w-5 text-gray-400" />
-                            </div>
-                            <input
-                                id="email"
-                                name="email"
-                                type="email"
-                                autoComplete="email"
-                                required
-                                className="appearance-none relative block w-full px-3 py-3 sm:py-2 pl-10 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 text-base sm:text-sm transition-all duration-200 hover-lift"
-                                placeholder="Email address"
-                                value=""
-                                readOnly
-                            />
-                        </div>
-                    </div>
-                    <div>
-                        <label htmlFor="password" className="sr-only">Password</label>
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Lock className="h-5 w-5 text-gray-400" />
-                            </div>
-                            <input
-                                id="password"
-                                name="password"
-                                type="password"
-                                autoComplete="current-password"
-                                required
-                                className="appearance-none relative block w-full px-3 py-3 sm:py-2 pl-10 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 text-base sm:text-sm transition-all duration-200 hover-lift"
-                                placeholder="Password"
-                                value=""
-                                readOnly
-                            />
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <button
-                        type="submit"
-                        disabled
-                        className="group relative w-full flex justify-center py-3 sm:py-2 px-4 border border-transparent text-base sm:text-sm font-medium rounded-lg text-white min-h-[48px] bg-gray-400 cursor-not-allowed"
-                    >
-                        Loading...
-                    </button>
-                </div>
-            </div>
-        );
-    }
+    // Removed hydration check - form now works immediately
 
     return (
         <form className="mt-6 sm:mt-8 space-y-5 sm:space-y-6 animate-fade-in" onSubmit={handleSubmit}>
