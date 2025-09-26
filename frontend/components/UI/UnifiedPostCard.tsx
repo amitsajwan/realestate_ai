@@ -11,6 +11,7 @@ import {
   TrashIcon
 } from '@heroicons/react/24/outline'
 import { motion } from 'framer-motion'
+import Image from 'next/image'
 import Link from 'next/link'
 import React, { memo, useMemo } from 'react'
 import { Post } from '../../types/post'
@@ -20,6 +21,45 @@ import StatusBadge from './StatusBadge'
 
 // Re-export for convenience
 export type { Post }
+
+// Image Gallery Component
+const ImageGallery: React.FC<{ mediaUrls: string[] }> = ({ mediaUrls }) => {
+  if (!mediaUrls || mediaUrls.length === 0) return null;
+  
+  const displayImages = mediaUrls.slice(0, 3);
+  const remainingCount = mediaUrls.length - 3;
+  
+  return (
+    <div className="mt-3 mb-4">
+      <div className="grid gap-2" style={{
+        gridTemplateColumns: mediaUrls.length === 1 ? '1fr' : 
+                            mediaUrls.length === 2 ? 'repeat(2, 1fr)' : 
+                            'repeat(3, 1fr)'
+      }}>
+        {displayImages.map((url, index) => (
+          <div key={url} className="relative aspect-square rounded-lg overflow-hidden">
+            <Image
+              src={url}
+              alt={`Post image ${index + 1}`}
+              fill
+              className="object-cover hover:scale-105 transition-transform cursor-pointer"
+              sizes="(max-width: 768px) 50vw, 33vw"
+              onError={(e) => {
+                console.error('Failed to load image:', url);
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+            {index === 2 && remainingCount > 0 && (
+              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center text-white font-semibold">
+                +{remainingCount}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 interface UnifiedPostCardProps {
   post: Post
@@ -46,45 +86,40 @@ const UnifiedPostCard: React.FC<UnifiedPostCardProps> = memo(({
   showActions = false,
   className = ''
 }) => {
-  // Memoize formatted date
+  // Memoize formatted date - simplified logic
   const formattedDate = useMemo(() => {
     try {
-      let cleanDateString = post.created_at;
-      if (cleanDateString.includes('.') && !cleanDateString.endsWith('Z') && !cleanDateString.includes('+') && !cleanDateString.includes('-', 10)) {
-        const parts = cleanDateString.split('.');
-        if (parts.length === 2) {
-          const microseconds = parts[1].substring(0, 6);
-          cleanDateString = parts[0] + '.' + microseconds + 'Z';
+      let dateString = post.created_at || post.published_at;
+      
+      if (dateString) {
+        // Simple cleanup for consistent parsing
+        dateString = dateString.replace(/\+00:00$/, '');
+        if (!dateString.endsWith('Z') && !dateString.includes('+') && !dateString.includes('-', 10)) {
+          dateString += 'Z';
         }
       }
       
-      const date = new Date(cleanDateString);
+      const date = new Date(dateString);
       
-      // Check if date is valid and not in the future (more than 1 year ahead)
       if (isNaN(date.getTime())) {
-        console.warn('Invalid date:', post.created_at);
-        return 'Date unavailable';
-      }
-      
-      const now = new Date();
-      const oneYearFromNow = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
-      
-      if (date > oneYearFromNow) {
-        console.warn('Future date detected:', post.created_at);
-        return 'Recently created';
+        return 'Invalid date';
       }
       
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
-        ...(variant === 'management' && { hour: '2-digit', minute: '2-digit' })
+        ...(variant === 'management' && { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: false
+        })
       });
     } catch (error) {
-      console.error('Date formatting error:', error, 'for date:', post.created_at);
-      return 'Date unavailable';
+      console.error('Date formatting error:', error);
+      return 'Date error';
     }
-  }, [post.created_at, variant])
+  }, [post.created_at, post.published_at, variant])
 
   // Memoize content truncation
   const displayContent = useMemo(() => {
@@ -154,6 +189,11 @@ const UnifiedPostCard: React.FC<UnifiedPostCardProps> = memo(({
               {displayContent}
             </p>
 
+            {/* Image Gallery */}
+            {post.media_urls && post.media_urls.length > 0 && (
+              <ImageGallery mediaUrls={post.media_urls} />
+            )}
+
             {/* Stats Grid */}
             <div className="grid grid-cols-4 gap-2 text-center border-t pt-4">
               {stats.map((stat, idx) => (
@@ -204,6 +244,11 @@ const UnifiedPostCard: React.FC<UnifiedPostCardProps> = memo(({
             <p className={`text-gray-600 mb-4 ${viewMode === 'grid' ? 'line-clamp-3' : ''}`}>
               {displayContent}
             </p>
+
+            {/* Image Gallery */}
+            {post.media_urls && post.media_urls.length > 0 && (
+              <ImageGallery mediaUrls={post.media_urls} />
+            )}
 
             <div className="flex flex-wrap gap-2 mb-4">
               {post.channels.map((channel) => (
