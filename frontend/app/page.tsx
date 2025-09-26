@@ -251,11 +251,39 @@ export default function Dashboard() {
   const renderSection = () => {
     switch (activeSection) {
       case 'property-marketing-hub':
-        return <EnhancedPropertyMarketingHub
-          onRefresh={loadProperties}
-          preselectedPropertyId={selectedPropertyForContent}
-          onClearPreselectedProperty={() => setSelectedPropertyForContent(undefined)}
-        />
+        return (
+          <div className="text-center py-16">
+            <div className="max-w-lg mx-auto">
+              <div className="w-20 h-20 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <BuildingOfficeIcon className="w-10 h-10 text-white" />
+              </div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">Property Marketing Hub</h2>
+              <p className="text-gray-600 mb-8">Unified workspace for property marketing, content creation, and publishing</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button
+                  onClick={() => {
+                    setUnifiedPostingMode('marketing-hub')
+                    setShowUnifiedPosting(true)
+                  }}
+                  className="bg-gradient-to-r from-green-600 to-blue-600 text-white px-6 py-4 rounded-lg font-semibold hover:from-green-700 hover:to-blue-700 transition-all duration-200 flex flex-col items-center space-y-2"
+                >
+                  <BuildingOfficeIcon className="w-6 h-6" />
+                  <span>Marketing Hub</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setUnifiedPostingMode('standalone')
+                    setShowUnifiedPosting(true)
+                  }}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-4 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 transition-all duration-200 flex flex-col items-center space-y-2"
+                >
+                  <SparklesIcon className="w-6 h-6" />
+                  <span>AI Generator</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )
       case 'properties':
         return <Properties
           onAddProperty={() => setActiveSection('property-form')}
@@ -272,11 +300,11 @@ export default function Dashboard() {
               console.log('[DashboardPage] Current showWorkflow state:', showWorkflow)
               console.log('[DashboardPage] Current workflowPropertyData state:', workflowPropertyData)
               try {
-                // Set the property data for the workflow
-                setWorkflowPropertyData(propertyData)
-                setShowWorkflow(true)
-                console.log('[DashboardPage] Starting property-to-post workflow...')
-                console.log('[DashboardPage] Workflow state updated - showWorkflow: true, workflowPropertyData:', propertyData)
+                // Use UnifiedPostingHub for property creation workflow
+                setUnifiedPostingProperty(propertyData)
+                setUnifiedPostingMode('property-creation')
+                setShowUnifiedPosting(true)
+                console.log('[DashboardPage] Starting property-to-post workflow with UnifiedPostingHub...')
               } catch (error) {
                 console.error('[DashboardPage] Error in onSuccess callback:', error)
                 // Fallback to old behavior
@@ -288,13 +316,25 @@ export default function Dashboard() {
         )
       case 'ai-content':
         return (
-          <Suspense fallback={
-            <div className="flex items-center justify-center p-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+          <div className="text-center py-16">
+            <div className="max-w-md mx-auto">
+              <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <SparklesIcon className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">AI Content Generator</h2>
+              <p className="text-gray-600 mb-8">Create compelling content for your properties using AI</p>
+              <button
+                onClick={() => {
+                  setUnifiedPostingMode('standalone')
+                  setShowUnifiedPosting(true)
+                }}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 transition-all duration-200 flex items-center space-x-2 mx-auto"
+              >
+                <SparklesIcon className="w-5 h-5" />
+                <span>Start Creating Content</span>
+              </button>
             </div>
-          }>
-            <AIContentGenerator />
-          </Suspense>
+          </div>
         )
       case 'analytics':
         return (
@@ -668,6 +708,29 @@ export default function Dashboard() {
           setActiveSection('properties')
           loadProperties()
         }}
+      />
+
+      {/* Unified Posting Hub */}
+      <UnifiedPostingHub
+        mode={unifiedPostingMode}
+        propertyData={unifiedPostingProperty}
+        isOpen={showUnifiedPosting}
+        onClose={() => {
+          setShowUnifiedPosting(false)
+          setUnifiedPostingProperty(null)
+        }}
+        onContentGenerated={(content) => {
+          console.log('Content generated:', content)
+        }}
+        onPublish={(content, language) => {
+          console.log('Content published:', content, language)
+          setShowUnifiedPosting(false)
+          setUnifiedPostingProperty(null)
+          // Refresh properties to show updated content
+          loadProperties()
+        }}
+        preselectedLanguage="en"
+        preselectedPlatforms={['website', 'facebook', 'instagram']}
       />
 
       {/* AI Content Generator Modal */}
