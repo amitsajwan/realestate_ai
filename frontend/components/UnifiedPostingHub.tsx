@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
+import ImageSelectionPanel from './ImageSelectionPanel'
 
 // Unified Types
 interface PropertyData {
@@ -126,6 +127,11 @@ export default function UnifiedPostingHub({
   })
   const [savedDrafts, setSavedDrafts] = useState<GeneratedContent[]>([])
   const [showDraftManager, setShowDraftManager] = useState(false)
+  
+  // Image inheritance state
+  const [selectedImages, setSelectedImages] = useState<string[]>([])
+  const [showImageSelection, setShowImageSelection] = useState(false)
+  const [imageSelectionMode, setImageSelectionMode] = useState<'auto' | 'manual'>('auto')
 
   // Load available properties for standalone and marketing-hub modes
   useEffect(() => {
@@ -162,6 +168,31 @@ export default function UnifiedPostingHub({
       setSelectedProperty(propertyData)
     }
   }, [propertyData, selectedProperty])
+
+  // Auto-select images when property changes
+  useEffect(() => {
+    if (selectedProperty?.images && selectedProperty.images.length > 0) {
+      if (imageSelectionMode === 'auto') {
+        // Auto-select images based on platform limits
+        const maxImages = Math.min(
+          ...selectedPlatforms.map(platform => {
+            const limits = {
+              instagram: 10,
+              facebook: 20,
+              linkedin: 9,
+              twitter: 4,
+              website: 50
+            }
+            return limits[platform as keyof typeof limits] || 10
+          })
+        )
+        
+        const autoSelected = selectedProperty.images.slice(0, maxImages)
+        setSelectedImages(autoSelected)
+        console.log('[UnifiedPostingHub] Auto-selected images:', autoSelected)
+      }
+    }
+  }, [selectedProperty, selectedPlatforms, imageSelectionMode])
 
   // Reset component state when opening in property-creation mode
   useEffect(() => {
@@ -248,7 +279,7 @@ export default function UnifiedPostingHub({
               content: content.body || content.content || '',
               title: content.title || '',
               hashtags: content.hashtags || ['#RealEstate', '#Property', '#DreamHome'],
-              media_urls: selectedProperty?.images || [],
+              media_urls: selectedImages.length > 0 ? selectedImages : (selectedProperty?.images || []),
               status: 'draft',
               created_at: new Date().toISOString(),
               language: lang
@@ -306,7 +337,7 @@ export default function UnifiedPostingHub({
       hashtags: manualContent.hashtags,
       status: 'ready' as const,
       ai_generated: false,
-      media_urls: [],
+      media_urls: selectedImages.length > 0 ? selectedImages : (selectedProperty?.images || []),
       created_at: new Date().toISOString()
     }))
 
@@ -777,6 +808,55 @@ export default function UnifiedPostingHub({
                     rows={3}
                   />
                 </div>
+
+                {/* Image Selection */}
+                {selectedProperty?.images && selectedProperty.images.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Select Images ({selectedImages.length} selected)
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => setImageSelectionMode('auto')}
+                          className={`px-3 py-1 text-xs rounded-md ${
+                            imageSelectionMode === 'auto'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          Auto
+                        </button>
+                        <button
+                          onClick={() => setImageSelectionMode('manual')}
+                          className={`px-3 py-1 text-xs rounded-md ${
+                            imageSelectionMode === 'manual'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          Manual
+                        </button>
+                        <button
+                          onClick={() => setShowImageSelection(!showImageSelection)}
+                          className="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200"
+                        >
+                          {showImageSelection ? 'Hide' : 'Select'}
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {showImageSelection && (
+                      <ImageSelectionPanel
+                        propertyImages={selectedProperty.images}
+                        selectedImages={selectedImages}
+                        onImageSelect={setSelectedImages}
+                        platforms={selectedPlatforms}
+                        className="mb-4"
+                      />
+                    )}
+                  </div>
+                )}
 
                 {/* Error/Success Messages */}
                 {error && (
