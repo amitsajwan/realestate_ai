@@ -390,12 +390,13 @@ export default function UnifiedPostingHub({
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+        data-testid="unified-posting-hub"
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center space-x-3">
             <Sparkles className="h-6 w-6 text-blue-600" />
-            <h2 className="text-xl font-semibold text-gray-900">
+            <h2 className="text-xl font-semibold text-gray-900" data-testid="hub-title">
               {mode === 'quick-post' && 'Quick Post Generator'}
               {mode === 'standalone' && 'AI Content Generator'}
               {mode === 'marketing-hub' && 'Marketing Content Hub'}

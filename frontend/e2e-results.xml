@@ -1,0 +1,228 @@
+<testsuites id="" name="" tests="14" failures="14" skipped="0" errors="0" time="3.93721">
+<testsuite name="unified-posting-hub-test.spec.ts" timestamp="2025-09-26T01:07:58.339Z" hostname="chromium" tests="14" failures="14" skipped="0" time="0.036" errors="0">
+<testcase name="UnifiedPostingHub E2E Tests › Dashboard loads and shows unified posting options" classname="unified-posting-hub-test.spec.ts" time="0.003">
+<failure message="unified-posting-hub-test.spec.ts:19:7 Dashboard loads and shows unified posting options" type="FAILURE">
+<![CDATA[  [chromium] › unified-posting-hub-test.spec.ts:19:7 › UnifiedPostingHub E2E Tests › Dashboard loads and shows unified posting options 
+
+    Error: browserType.launch: Executable doesn't exist at /home/ubuntu/.cache/ms-playwright/chromium-1187/chrome-linux/chrome
+    ╔═════════════════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright Test or Playwright was just installed or updated. ║
+    ║ Please run the following command to download new browsers:              ║
+    ║                                                                         ║
+    ║     npx playwright install                                              ║
+    ║                                                                         ║
+    ║ <3 Playwright Team                                                      ║
+    ╚═════════════════════════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="UnifiedPostingHub E2E Tests › AI Tools button opens UnifiedPostingHub in standalone mode" classname="unified-posting-hub-test.spec.ts" time="0.002">
+<failure message="unified-posting-hub-test.spec.ts:33:7 AI Tools button opens UnifiedPostingHub in standalone mode" type="FAILURE">
+<![CDATA[  [chromium] › unified-posting-hub-test.spec.ts:33:7 › UnifiedPostingHub E2E Tests › AI Tools button opens UnifiedPostingHub in standalone mode 
+
+    Error: browserType.launch: Executable doesn't exist at /home/ubuntu/.cache/ms-playwright/chromium-1187/chrome-linux/chrome
+    ╔═════════════════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright Test or Playwright was just installed or updated. ║
+    ║ Please run the following command to download new browsers:              ║
+    ║                                                                         ║
+    ║     npx playwright install                                              ║
+    ║                                                                         ║
+    ║ <3 Playwright Team                                                      ║
+    ╚═════════════════════════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="UnifiedPostingHub E2E Tests › Manage Posts button opens UnifiedPostingHub in quick-post mode" classname="unified-posting-hub-test.spec.ts" time="0.006">
+<failure message="unified-posting-hub-test.spec.ts:50:7 Manage Posts button opens UnifiedPostingHub in quick-post mode" type="FAILURE">
+<![CDATA[  [chromium] › unified-posting-hub-test.spec.ts:50:7 › UnifiedPostingHub E2E Tests › Manage Posts button opens UnifiedPostingHub in quick-post mode 
+
+    Error: browserType.launch: Executable doesn't exist at /home/ubuntu/.cache/ms-playwright/chromium-1187/chrome-linux/chrome
+    ╔═════════════════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright Test or Playwright was just installed or updated. ║
+    ║ Please run the following command to download new browsers:              ║
+    ║                                                                         ║
+    ║     npx playwright install                                              ║
+    ║                                                                         ║
+    ║ <3 Playwright Team                                                      ║
+    ╚═════════════════════════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="UnifiedPostingHub E2E Tests › Property creation workflow opens UnifiedPostingHub" classname="unified-posting-hub-test.spec.ts" time="0.002">
+<failure message="unified-posting-hub-test.spec.ts:64:7 Property creation workflow opens UnifiedPostingHub" type="FAILURE">
+<![CDATA[  [chromium] › unified-posting-hub-test.spec.ts:64:7 › UnifiedPostingHub E2E Tests › Property creation workflow opens UnifiedPostingHub 
+
+    Error: browserType.launch: Executable doesn't exist at /home/ubuntu/.cache/ms-playwright/chromium-1187/chrome-linux/chrome
+    ╔═════════════════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright Test or Playwright was just installed or updated. ║
+    ║ Please run the following command to download new browsers:              ║
+    ║                                                                         ║
+    ║     npx playwright install                                              ║
+    ║                                                                         ║
+    ║ <3 Playwright Team                                                      ║
+    ╚═════════════════════════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="UnifiedPostingHub E2E Tests › UnifiedPostingHub property search functionality" classname="unified-posting-hub-test.spec.ts" time="0.002">
+<failure message="unified-posting-hub-test.spec.ts:90:7 UnifiedPostingHub property search functionality" type="FAILURE">
+<![CDATA[  [chromium] › unified-posting-hub-test.spec.ts:90:7 › UnifiedPostingHub E2E Tests › UnifiedPostingHub property search functionality 
+
+    Error: browserType.launch: Executable doesn't exist at /home/ubuntu/.cache/ms-playwright/chromium-1187/chrome-linux/chrome
+    ╔═════════════════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright Test or Playwright was just installed or updated. ║
+    ║ Please run the following command to download new browsers:              ║
+    ║                                                                         ║
+    ║     npx playwright install                                              ║
+    ║                                                                         ║
+    ║ <3 Playwright Team                                                      ║
+    ╚═════════════════════════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="UnifiedPostingHub E2E Tests › Platform selection works correctly" classname="unified-posting-hub-test.spec.ts" time="0.002">
+<failure message="unified-posting-hub-test.spec.ts:107:7 Platform selection works correctly" type="FAILURE">
+<![CDATA[  [chromium] › unified-posting-hub-test.spec.ts:107:7 › UnifiedPostingHub E2E Tests › Platform selection works correctly 
+
+    Error: browserType.launch: Executable doesn't exist at /home/ubuntu/.cache/ms-playwright/chromium-1187/chrome-linux/chrome
+    ╔═════════════════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright Test or Playwright was just installed or updated. ║
+    ║ Please run the following command to download new browsers:              ║
+    ║                                                                         ║
+    ║     npx playwright install                                              ║
+    ║                                                                         ║
+    ║ <3 Playwright Team                                                      ║
+    ╚═════════════════════════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="UnifiedPostingHub E2E Tests › Language selection works correctly" classname="unified-posting-hub-test.spec.ts" time="0.002">
+<failure message="unified-posting-hub-test.spec.ts:130:7 Language selection works correctly" type="FAILURE">
+<![CDATA[  [chromium] › unified-posting-hub-test.spec.ts:130:7 › UnifiedPostingHub E2E Tests › Language selection works correctly 
+
+    Error: browserType.launch: Executable doesn't exist at /home/ubuntu/.cache/ms-playwright/chromium-1187/chrome-linux/chrome
+    ╔═════════════════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright Test or Playwright was just installed or updated. ║
+    ║ Please run the following command to download new browsers:              ║
+    ║                                                                         ║
+    ║     npx playwright install                                              ║
+    ║                                                                         ║
+    ║ <3 Playwright Team                                                      ║
+    ╚═════════════════════════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="UnifiedPostingHub E2E Tests › Custom prompt input works" classname="unified-posting-hub-test.spec.ts" time="0.002">
+<failure message="unified-posting-hub-test.spec.ts:146:7 Custom prompt input works" type="FAILURE">
+<![CDATA[  [chromium] › unified-posting-hub-test.spec.ts:146:7 › UnifiedPostingHub E2E Tests › Custom prompt input works 
+
+    Error: browserType.launch: Executable doesn't exist at /home/ubuntu/.cache/ms-playwright/chromium-1187/chrome-linux/chrome
+    ╔═════════════════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright Test or Playwright was just installed or updated. ║
+    ║ Please run the following command to download new browsers:              ║
+    ║                                                                         ║
+    ║     npx playwright install                                              ║
+    ║                                                                         ║
+    ║ <3 Playwright Team                                                      ║
+    ╚═════════════════════════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="UnifiedPostingHub E2E Tests › Generate Content button triggers AI generation" classname="unified-posting-hub-test.spec.ts" time="0.002">
+<failure message="unified-posting-hub-test.spec.ts:163:7 Generate Content button triggers AI generation" type="FAILURE">
+<![CDATA[  [chromium] › unified-posting-hub-test.spec.ts:163:7 › UnifiedPostingHub E2E Tests › Generate Content button triggers AI generation 
+
+    Error: browserType.launch: Executable doesn't exist at /home/ubuntu/.cache/ms-playwright/chromium-1187/chrome-linux/chrome
+    ╔═════════════════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright Test or Playwright was just installed or updated. ║
+    ║ Please run the following command to download new browsers:              ║
+    ║                                                                         ║
+    ║     npx playwright install                                              ║
+    ║                                                                         ║
+    ║ <3 Playwright Team                                                      ║
+    ╚═════════════════════════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="UnifiedPostingHub E2E Tests › Draft management functionality" classname="unified-posting-hub-test.spec.ts" time="0.002">
+<failure message="unified-posting-hub-test.spec.ts:189:7 Draft management functionality" type="FAILURE">
+<![CDATA[  [chromium] › unified-posting-hub-test.spec.ts:189:7 › UnifiedPostingHub E2E Tests › Draft management functionality 
+
+    Error: browserType.launch: Executable doesn't exist at /home/ubuntu/.cache/ms-playwright/chromium-1187/chrome-linux/chrome
+    ╔═════════════════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright Test or Playwright was just installed or updated. ║
+    ║ Please run the following command to download new browsers:              ║
+    ║                                                                         ║
+    ║     npx playwright install                                              ║
+    ║                                                                         ║
+    ║ <3 Playwright Team                                                      ║
+    ╚═════════════════════════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="UnifiedPostingHub E2E Tests › Mobile responsive design works" classname="unified-posting-hub-test.spec.ts" time="0.002">
+<failure message="unified-posting-hub-test.spec.ts:205:7 Mobile responsive design works" type="FAILURE">
+<![CDATA[  [chromium] › unified-posting-hub-test.spec.ts:205:7 › UnifiedPostingHub E2E Tests › Mobile responsive design works 
+
+    Error: browserType.launch: Executable doesn't exist at /home/ubuntu/.cache/ms-playwright/chromium-1187/chrome-linux/chrome
+    ╔═════════════════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright Test or Playwright was just installed or updated. ║
+    ║ Please run the following command to download new browsers:              ║
+    ║                                                                         ║
+    ║     npx playwright install                                              ║
+    ║                                                                         ║
+    ║ <3 Playwright Team                                                      ║
+    ╚═════════════════════════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="UnifiedPostingHub E2E Tests › Close modal functionality works" classname="unified-posting-hub-test.spec.ts" time="0.002">
+<failure message="unified-posting-hub-test.spec.ts:222:7 Close modal functionality works" type="FAILURE">
+<![CDATA[  [chromium] › unified-posting-hub-test.spec.ts:222:7 › UnifiedPostingHub E2E Tests › Close modal functionality works 
+
+    Error: browserType.launch: Executable doesn't exist at /home/ubuntu/.cache/ms-playwright/chromium-1187/chrome-linux/chrome
+    ╔═════════════════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright Test or Playwright was just installed or updated. ║
+    ║ Please run the following command to download new browsers:              ║
+    ║                                                                         ║
+    ║     npx playwright install                                              ║
+    ║                                                                         ║
+    ║ <3 Playwright Team                                                      ║
+    ╚═════════════════════════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="UnifiedPostingHub E2E Tests › Error handling for API failures" classname="unified-posting-hub-test.spec.ts" time="0.004">
+<failure message="unified-posting-hub-test.spec.ts:236:7 Error handling for API failures" type="FAILURE">
+<![CDATA[  [chromium] › unified-posting-hub-test.spec.ts:236:7 › UnifiedPostingHub E2E Tests › Error handling for API failures 
+
+    Error: browserType.launch: Executable doesn't exist at /home/ubuntu/.cache/ms-playwright/chromium-1187/chrome-linux/chrome
+    ╔═════════════════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright Test or Playwright was just installed or updated. ║
+    ║ Please run the following command to download new browsers:              ║
+    ║                                                                         ║
+    ║     npx playwright install                                              ║
+    ║                                                                         ║
+    ║ <3 Playwright Team                                                      ║
+    ╚═════════════════════════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="UnifiedPostingHub E2E Tests › Navigation to different sections works" classname="unified-posting-hub-test.spec.ts" time="0.003">
+<failure message="unified-posting-hub-test.spec.ts:249:7 Navigation to different sections works" type="FAILURE">
+<![CDATA[  [chromium] › unified-posting-hub-test.spec.ts:249:7 › UnifiedPostingHub E2E Tests › Navigation to different sections works 
+
+    Error: browserType.launch: Executable doesn't exist at /home/ubuntu/.cache/ms-playwright/chromium-1187/chrome-linux/chrome
+    ╔═════════════════════════════════════════════════════════════════════════╗
+    ║ Looks like Playwright Test or Playwright was just installed or updated. ║
+    ║ Please run the following command to download new browsers:              ║
+    ║                                                                         ║
+    ║     npx playwright install                                              ║
+    ║                                                                         ║
+    ║ <3 Playwright Team                                                      ║
+    ╚═════════════════════════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+</testsuite>
+</testsuites>

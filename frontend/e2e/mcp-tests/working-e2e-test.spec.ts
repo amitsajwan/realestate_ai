@@ -79,6 +79,27 @@ test.describe('PropertyAI Working E2E Tests', () => {
     await expect(page.locator('text=Sign up')).toBeVisible();
   });
 
+  test('UnifiedPostingHub integration works', async ({ page }) => {
+    // Natural Language: "Go to the main dashboard"
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    
+    // Natural Language: "Check that AI Tools button is available"
+    await expect(page.locator('text=AI Tools')).toBeVisible();
+    
+    // Natural Language: "Click AI Tools to open UnifiedPostingHub"
+    await page.click('text=AI Tools');
+    
+    // Natural Language: "Wait for UnifiedPostingHub modal to appear"
+    await page.waitForSelector('[data-testid="unified-posting-hub"]', { timeout: 10000 });
+    
+    // Natural Language: "Verify UnifiedPostingHub is visible"
+    await expect(page.locator('[data-testid="unified-posting-hub"]')).toBeVisible();
+    
+    // Natural Language: "Check that it shows AI Content Generator"
+    await expect(page.locator('text=AI Content Generator')).toBeVisible();
+  });
+
   test('Application has proper meta information', async ({ page }) => {
     // Natural Language: "Go to the home page"
     await page.goto('/');
