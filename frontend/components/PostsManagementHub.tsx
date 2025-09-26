@@ -30,6 +30,7 @@ interface Post {
     promotedAt?: string
     propertyId?: string
     propertyTitle?: string
+    media_urls?: string[]
     analytics?: {
         views: number
         likes: number
@@ -341,9 +342,9 @@ export default function PostsManagementHub({ onCreatePost }: PostsManagementHubP
                                 {post.media_urls && post.media_urls.length > 0 ? (
                                     <div className="mb-4">
                                         <div className="grid gap-2" style={{
-                                            gridTemplateColumns: post.media_urls.length === 1 ? '1fr' : 
-                                                            post.media_urls.length === 2 ? 'repeat(2, 1fr)' : 
-                                                            'repeat(3, 1fr)'
+                                            gridTemplateColumns: post.media_urls.length === 1 ? '1fr' :
+                                                post.media_urls.length === 2 ? 'repeat(2, 1fr)' :
+                                                    'repeat(3, 1fr)'
                                         }}>
                                             {post.media_urls.slice(0, 3).map((url, index) => (
                                                 <div key={url} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
@@ -361,13 +362,13 @@ export default function PostsManagementHub({ onCreatePost }: PostsManagementHubP
                                                         }}
                                                     />
                                                     {/* Fallback placeholder */}
-                                                    <div className="image-placeholder absolute inset-0 bg-gray-200 flex items-center justify-center text-gray-500 text-sm" style={{display: 'none'}}>
+                                                    <div className="image-placeholder absolute inset-0 bg-gray-200 flex items-center justify-center text-gray-500 text-sm" style={{ display: 'none' }}>
                                                         <div className="text-center">
                                                             <BuildingOfficeIcon className="w-8 h-8 text-gray-400 mx-auto mb-1" />
                                                             <p className="text-xs">Image {index + 1}</p>
                                                         </div>
                                                     </div>
-                                                    {index === 2 && post.media_urls.length > 3 && (
+                                                    {index === 2 && post.media_urls && post.media_urls.length > 3 && (
                                                         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center text-white font-semibold">
                                                             +{post.media_urls.length - 3}
                                                         </div>

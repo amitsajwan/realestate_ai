@@ -1,8 +1,7 @@
 'use client'
 
-import { useState } from 'react'
 import ImageInheritanceTest from '@/components/ImageInheritanceTest'
-import { apiService } from '@/lib/api/centralized-client'
+import { useState } from 'react'
 
 export default function TestImageInheritancePage() {
   const [testResults, setTestResults] = useState<any>(null)
@@ -23,12 +22,12 @@ export default function TestImageInheritancePage() {
           max_images: 5
         })
       })
-      
+
       const result = await response.json()
       setTestResults(result)
     } catch (error) {
       console.error('Backend test failed:', error)
-      setTestResults({ error: error.message })
+      setTestResults({ error: error instanceof Error ? error.message : 'Unknown error' })
     } finally {
       setIsLoading(false)
     }
@@ -42,7 +41,7 @@ export default function TestImageInheritancePage() {
             Phase 1: Basic Image Inheritance Test
           </h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            This page tests the core fallback system implementation including auto-copy property images to posts, 
+            This page tests the core fallback system implementation including auto-copy property images to posts,
             basic image selection UI, platform-specific limits, and image preview functionality.
           </p>
         </div>
@@ -103,7 +102,7 @@ export default function TestImageInheritancePage() {
             >
               {isLoading ? 'Testing...' : 'Test Image Inheritance API'}
             </button>
-            
+
             {testResults && (
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                 <h3 className="font-semibold text-gray-900 mb-2">API Response:</h3>
@@ -140,7 +139,7 @@ export default function TestImageInheritancePage() {
                 </li>
               </ul>
             </div>
-            
+
             <div>
               <h3 className="font-semibold text-gray-900 mb-2">Backend Services</h3>
               <ul className="space-y-1 text-sm text-gray-600">

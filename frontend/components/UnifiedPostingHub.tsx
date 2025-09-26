@@ -222,6 +222,7 @@ export default function UnifiedPostingHub({
     isRateLimited,
     publishingStatus,
     selectedImages,
+    showImageSelection,
     imageSelectionMode
   } = state
 
@@ -556,21 +557,19 @@ export default function UnifiedPostingHub({
           <div className="flex space-x-2">
             <button
               onClick={() => dispatch({ type: 'SET_IMAGE_SELECTION_MODE', payload: 'auto' })}
-              className={`px-3 py-1 text-sm rounded-md ${
-                imageSelectionMode === 'auto' 
-                  ? 'bg-blue-600 text-white' 
+              className={`px-3 py-1 text-sm rounded-md ${imageSelectionMode === 'auto'
+                  ? 'bg-blue-600 text-white'
                   : 'bg-white text-gray-700 border border-gray-300'
-              }`}
+                }`}
             >
               Auto
             </button>
             <button
               onClick={() => dispatch({ type: 'SET_IMAGE_SELECTION_MODE', payload: 'manual' })}
-              className={`px-3 py-1 text-sm rounded-md ${
-                imageSelectionMode === 'manual' 
-                  ? 'bg-blue-600 text-white' 
+              className={`px-3 py-1 text-sm rounded-md ${imageSelectionMode === 'manual'
+                  ? 'bg-blue-600 text-white'
                   : 'bg-white text-gray-700 border border-gray-300'
-              }`}
+                }`}
             >
               Manual
             </button>
@@ -582,7 +581,7 @@ export default function UnifiedPostingHub({
             </button>
           </div>
         </div>
-        
+
         {showImageSelection && (
           <div className="mt-4">
             <ImageSelectionPanel
@@ -624,7 +623,7 @@ export default function UnifiedPostingHub({
               />
               <p className="mt-2 text-xs text-gray-500">Hashtags: {content.hashtags.join(' ')}</p>
               <p className="mt-1 text-xs text-blue-600">Images: {selectedImages.length} selected</p>
-              
+
               {/* Image Preview */}
               {selectedImages.length > 0 && (
                 <div className="mt-3">
