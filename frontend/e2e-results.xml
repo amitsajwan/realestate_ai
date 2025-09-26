@@ -1,12 +1,12 @@
-<testsuites id="" name="" tests="8" failures="2" skipped="0" errors="0" time="10.304881">
-<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T02:27:29.279Z" hostname="chromium" tests="8" failures="2" skipped="0" time="17.769" errors="0">
-<testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="0.618">
+<testsuites id="" name="" tests="40" failures="22" skipped="0" errors="0" time="38.441432999999996">
+<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T02:30:14.027Z" hostname="chromium" tests="8" failures="2" skipped="0" time="17.983" errors="0">
+<testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="0.624">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Frontend application loads" classname="working-e2e-test.spec.ts" time="1.15">
+<testcase name="PropertyAI Working E2E Tests › Frontend application loads" classname="working-e2e-test.spec.ts" time="1.254">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Login page is accessible" classname="working-e2e-test.spec.ts" time="0.819">
+<testcase name="PropertyAI Working E2E Tests › Login page is accessible" classname="working-e2e-test.spec.ts" time="0.989">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Analytics page is accessible" classname="working-e2e-test.spec.ts" time="6.704">
+<testcase name="PropertyAI Working E2E Tests › Analytics page is accessible" classname="working-e2e-test.spec.ts" time="6.69">
 <failure message="working-e2e-test.spec.ts:43:7 Analytics page is accessible" type="FAILURE">
 <![CDATA[  [chromium] › working-e2e-test.spec.ts:43:7 › PropertyAI Working E2E Tests › Analytics page is accessible 
 
@@ -52,11 +52,11 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="0.57">
+<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="0.582">
 </testcase>
 <testcase name="PropertyAI Working E2E Tests › User can interact with basic elements" classname="working-e2e-test.spec.ts" time="0.571">
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › UnifiedPostingHub integration works" classname="working-e2e-test.spec.ts" time="6.403">
+<testcase name="PropertyAI Working E2E Tests › UnifiedPostingHub integration works" classname="working-e2e-test.spec.ts" time="6.342">
 <failure message="working-e2e-test.spec.ts:82:7 UnifiedPostingHub integration works" type="FAILURE">
 <![CDATA[  [chromium] › working-e2e-test.spec.ts:82:7 › PropertyAI Working E2E Tests › UnifiedPostingHub integration works 
 
@@ -102,7 +102,527 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="PropertyAI Working E2E Tests › Application has proper meta information" classname="working-e2e-test.spec.ts" time="0.934">
+<testcase name="PropertyAI Working E2E Tests › Application has proper meta information" classname="working-e2e-test.spec.ts" time="0.931">
+</testcase>
+</testsuite>
+<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T02:30:14.027Z" hostname="firefox" tests="8" failures="2" skipped="0" time="20.173" errors="0">
+<testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="1.026">
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Frontend application loads" classname="working-e2e-test.spec.ts" time="1.432">
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Login page is accessible" classname="working-e2e-test.spec.ts" time="0.957">
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Analytics page is accessible" classname="working-e2e-test.spec.ts" time="7.167">
+<failure message="working-e2e-test.spec.ts:43:7 Analytics page is accessible" type="FAILURE">
+<![CDATA[  [firefox] › working-e2e-test.spec.ts:43:7 › PropertyAI Working E2E Tests › Analytics page is accessible 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator:  locator('h1')
+    Expected: visible
+    Received: <element(s) not found>
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('h1')
+
+
+      50 |     
+      51 |     // Natural Language: "Check that the page has content"
+    > 52 |     await expect(page.locator('h1')).toBeVisible();
+         |                                      ^
+      53 |     
+      54 |     // Natural Language: "Check that there's an analytics heading"
+      55 |     await expect(page.locator('text=Analytics Dashboard')).toBeVisible();
+        at /workspace/frontend/e2e/mcp-tests/working-e2e-test.spec.ts:52:38
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/working-e2e-test-PropertyA-37f02-nalytics-page-is-accessible-firefox/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/working-e2e-test-PropertyA-37f02-nalytics-page-is-accessible-firefox/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/working-e2e-test-PropertyA-37f02-nalytics-page-is-accessible-firefox/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results/working-e2e-test-PropertyA-37f02-nalytics-page-is-accessible-firefox/test-failed-1.png]]
+
+[[ATTACHMENT|test-results/working-e2e-test-PropertyA-37f02-nalytics-page-is-accessible-firefox/video.webm]]
+
+[[ATTACHMENT|test-results/working-e2e-test-PropertyA-37f02-nalytics-page-is-accessible-firefox/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="0.822">
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › User can interact with basic elements" classname="working-e2e-test.spec.ts" time="0.881">
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › UnifiedPostingHub integration works" classname="working-e2e-test.spec.ts" time="6.418">
+<failure message="working-e2e-test.spec.ts:82:7 UnifiedPostingHub integration works" type="FAILURE">
+<![CDATA[  [firefox] › working-e2e-test.spec.ts:82:7 › PropertyAI Working E2E Tests › UnifiedPostingHub integration works 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator:  locator('text=AI Generator')
+    Expected: visible
+    Received: <element(s) not found>
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('text=AI Generator')
+
+
+       98 |     
+       99 |     // Natural Language: "Check that AI Generator button is available"
+    > 100 |     await expect(page.locator('text=AI Generator')).toBeVisible();
+          |                                                     ^
+      101 |     
+      102 |     // Natural Language: "Click AI Generator to open UnifiedPostingHub"
+      103 |     await page.click('text=AI Generator');
+        at /workspace/frontend/e2e/mcp-tests/working-e2e-test.spec.ts:100:53
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/working-e2e-test-PropertyA-c1d4a-ostingHub-integration-works-firefox/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/working-e2e-test-PropertyA-c1d4a-ostingHub-integration-works-firefox/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/working-e2e-test-PropertyA-c1d4a-ostingHub-integration-works-firefox/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results/working-e2e-test-PropertyA-c1d4a-ostingHub-integration-works-firefox/test-failed-1.png]]
+
+[[ATTACHMENT|test-results/working-e2e-test-PropertyA-c1d4a-ostingHub-integration-works-firefox/video.webm]]
+
+[[ATTACHMENT|test-results/working-e2e-test-PropertyA-c1d4a-ostingHub-integration-works-firefox/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Application has proper meta information" classname="working-e2e-test.spec.ts" time="1.47">
+</testcase>
+</testsuite>
+<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T02:30:14.027Z" hostname="webkit" tests="8" failures="8" skipped="0" time="0.019" errors="0">
+<testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="0.005">
+<failure message="working-e2e-test.spec.ts:13:7 Backend API is accessible and healthy" type="FAILURE">
+<![CDATA[  [webkit] › working-e2e-test.spec.ts:13:7 › PropertyAI Working E2E Tests › Backend API is accessible and healthy 
+
+    Error: browserType.launch: 
+    ╔══════════════════════════════════════════════════════╗
+    ║ Host system is missing dependencies to run browsers. ║
+    ║ Please install them with the following command:      ║
+    ║                                                      ║
+    ║     sudo npx playwright install-deps                 ║
+    ║                                                      ║
+    ║ Alternatively, use apt:                              ║
+    ║     sudo apt-get install libicu74                    ║
+    ║                                                      ║
+    ║ <3 Playwright Team                                   ║
+    ╚══════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Frontend application loads" classname="working-e2e-test.spec.ts" time="0.002">
+<failure message="working-e2e-test.spec.ts:22:7 Frontend application loads" type="FAILURE">
+<![CDATA[  [webkit] › working-e2e-test.spec.ts:22:7 › PropertyAI Working E2E Tests › Frontend application loads 
+
+    Error: browserType.launch: 
+    ╔══════════════════════════════════════════════════════╗
+    ║ Host system is missing dependencies to run browsers. ║
+    ║ Please install them with the following command:      ║
+    ║                                                      ║
+    ║     sudo npx playwright install-deps                 ║
+    ║                                                      ║
+    ║ Alternatively, use apt:                              ║
+    ║     sudo apt-get install libicu74                    ║
+    ║                                                      ║
+    ║ <3 Playwright Team                                   ║
+    ╚══════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Login page is accessible" classname="working-e2e-test.spec.ts" time="0.002">
+<failure message="working-e2e-test.spec.ts:31:7 Login page is accessible" type="FAILURE">
+<![CDATA[  [webkit] › working-e2e-test.spec.ts:31:7 › PropertyAI Working E2E Tests › Login page is accessible 
+
+    Error: browserType.launch: 
+    ╔══════════════════════════════════════════════════════╗
+    ║ Host system is missing dependencies to run browsers. ║
+    ║ Please install them with the following command:      ║
+    ║                                                      ║
+    ║     sudo npx playwright install-deps                 ║
+    ║                                                      ║
+    ║ Alternatively, use apt:                              ║
+    ║     sudo apt-get install libicu74                    ║
+    ║                                                      ║
+    ║ <3 Playwright Team                                   ║
+    ╚══════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Analytics page is accessible" classname="working-e2e-test.spec.ts" time="0.002">
+<failure message="working-e2e-test.spec.ts:43:7 Analytics page is accessible" type="FAILURE">
+<![CDATA[  [webkit] › working-e2e-test.spec.ts:43:7 › PropertyAI Working E2E Tests › Analytics page is accessible 
+
+    Error: browserType.launch: 
+    ╔══════════════════════════════════════════════════════╗
+    ║ Host system is missing dependencies to run browsers. ║
+    ║ Please install them with the following command:      ║
+    ║                                                      ║
+    ║     sudo npx playwright install-deps                 ║
+    ║                                                      ║
+    ║ Alternatively, use apt:                              ║
+    ║     sudo apt-get install libicu74                    ║
+    ║                                                      ║
+    ║ <3 Playwright Team                                   ║
+    ╚══════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="0.002">
+<failure message="working-e2e-test.spec.ts:58:7 Properties page is accessible" type="FAILURE">
+<![CDATA[  [webkit] › working-e2e-test.spec.ts:58:7 › PropertyAI Working E2E Tests › Properties page is accessible 
+
+    Error: browserType.launch: 
+    ╔══════════════════════════════════════════════════════╗
+    ║ Host system is missing dependencies to run browsers. ║
+    ║ Please install them with the following command:      ║
+    ║                                                      ║
+    ║     sudo npx playwright install-deps                 ║
+    ║                                                      ║
+    ║ Alternatively, use apt:                              ║
+    ║     sudo apt-get install libicu74                    ║
+    ║                                                      ║
+    ║ <3 Playwright Team                                   ║
+    ╚══════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › User can interact with basic elements" classname="working-e2e-test.spec.ts" time="0.002">
+<failure message="working-e2e-test.spec.ts:67:7 User can interact with basic elements" type="FAILURE">
+<![CDATA[  [webkit] › working-e2e-test.spec.ts:67:7 › PropertyAI Working E2E Tests › User can interact with basic elements 
+
+    Error: browserType.launch: 
+    ╔══════════════════════════════════════════════════════╗
+    ║ Host system is missing dependencies to run browsers. ║
+    ║ Please install them with the following command:      ║
+    ║                                                      ║
+    ║     sudo npx playwright install-deps                 ║
+    ║                                                      ║
+    ║ Alternatively, use apt:                              ║
+    ║     sudo apt-get install libicu74                    ║
+    ║                                                      ║
+    ║ <3 Playwright Team                                   ║
+    ╚══════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › UnifiedPostingHub integration works" classname="working-e2e-test.spec.ts" time="0.002">
+<failure message="working-e2e-test.spec.ts:82:7 UnifiedPostingHub integration works" type="FAILURE">
+<![CDATA[  [webkit] › working-e2e-test.spec.ts:82:7 › PropertyAI Working E2E Tests › UnifiedPostingHub integration works 
+
+    Error: browserType.launch: 
+    ╔══════════════════════════════════════════════════════╗
+    ║ Host system is missing dependencies to run browsers. ║
+    ║ Please install them with the following command:      ║
+    ║                                                      ║
+    ║     sudo npx playwright install-deps                 ║
+    ║                                                      ║
+    ║ Alternatively, use apt:                              ║
+    ║     sudo apt-get install libicu74                    ║
+    ║                                                      ║
+    ║ <3 Playwright Team                                   ║
+    ╚══════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Application has proper meta information" classname="working-e2e-test.spec.ts" time="0.002">
+<failure message="working-e2e-test.spec.ts:115:7 Application has proper meta information" type="FAILURE">
+<![CDATA[  [webkit] › working-e2e-test.spec.ts:115:7 › PropertyAI Working E2E Tests › Application has proper meta information 
+
+    Error: browserType.launch: 
+    ╔══════════════════════════════════════════════════════╗
+    ║ Host system is missing dependencies to run browsers. ║
+    ║ Please install them with the following command:      ║
+    ║                                                      ║
+    ║     sudo npx playwright install-deps                 ║
+    ║                                                      ║
+    ║ Alternatively, use apt:                              ║
+    ║     sudo apt-get install libicu74                    ║
+    ║                                                      ║
+    ║ <3 Playwright Team                                   ║
+    ╚══════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+</testsuite>
+<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T02:30:14.027Z" hostname="mobile-chrome" tests="8" failures="2" skipped="0" time="19.158" errors="0">
+<testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="0.548">
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Frontend application loads" classname="working-e2e-test.spec.ts" time="1.321">
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Login page is accessible" classname="working-e2e-test.spec.ts" time="1.074">
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Analytics page is accessible" classname="working-e2e-test.spec.ts" time="6.972">
+<failure message="working-e2e-test.spec.ts:43:7 Analytics page is accessible" type="FAILURE">
+<![CDATA[  [mobile-chrome] › working-e2e-test.spec.ts:43:7 › PropertyAI Working E2E Tests › Analytics page is accessible 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator:  locator('h1')
+    Expected: visible
+    Received: <element(s) not found>
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('h1')
+
+
+      50 |     
+      51 |     // Natural Language: "Check that the page has content"
+    > 52 |     await expect(page.locator('h1')).toBeVisible();
+         |                                      ^
+      53 |     
+      54 |     // Natural Language: "Check that there's an analytics heading"
+      55 |     await expect(page.locator('text=Analytics Dashboard')).toBeVisible();
+        at /workspace/frontend/e2e/mcp-tests/working-e2e-test.spec.ts:52:38
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/working-e2e-test-PropertyA-37f02-nalytics-page-is-accessible-mobile-chrome/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/working-e2e-test-PropertyA-37f02-nalytics-page-is-accessible-mobile-chrome/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/working-e2e-test-PropertyA-37f02-nalytics-page-is-accessible-mobile-chrome/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results/working-e2e-test-PropertyA-37f02-nalytics-page-is-accessible-mobile-chrome/test-failed-1.png]]
+
+[[ATTACHMENT|test-results/working-e2e-test-PropertyA-37f02-nalytics-page-is-accessible-mobile-chrome/video.webm]]
+
+[[ATTACHMENT|test-results/working-e2e-test-PropertyA-37f02-nalytics-page-is-accessible-mobile-chrome/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="0.625">
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › User can interact with basic elements" classname="working-e2e-test.spec.ts" time="0.856">
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › UnifiedPostingHub integration works" classname="working-e2e-test.spec.ts" time="6.496">
+<failure message="working-e2e-test.spec.ts:82:7 UnifiedPostingHub integration works" type="FAILURE">
+<![CDATA[  [mobile-chrome] › working-e2e-test.spec.ts:82:7 › PropertyAI Working E2E Tests › UnifiedPostingHub integration works 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator:  locator('text=AI Generator')
+    Expected: visible
+    Received: <element(s) not found>
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('text=AI Generator')
+
+
+       98 |     
+       99 |     // Natural Language: "Check that AI Generator button is available"
+    > 100 |     await expect(page.locator('text=AI Generator')).toBeVisible();
+          |                                                     ^
+      101 |     
+      102 |     // Natural Language: "Click AI Generator to open UnifiedPostingHub"
+      103 |     await page.click('text=AI Generator');
+        at /workspace/frontend/e2e/mcp-tests/working-e2e-test.spec.ts:100:53
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/working-e2e-test-PropertyA-c1d4a-ostingHub-integration-works-mobile-chrome/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/working-e2e-test-PropertyA-c1d4a-ostingHub-integration-works-mobile-chrome/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/working-e2e-test-PropertyA-c1d4a-ostingHub-integration-works-mobile-chrome/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results/working-e2e-test-PropertyA-c1d4a-ostingHub-integration-works-mobile-chrome/test-failed-1.png]]
+
+[[ATTACHMENT|test-results/working-e2e-test-PropertyA-c1d4a-ostingHub-integration-works-mobile-chrome/video.webm]]
+
+[[ATTACHMENT|test-results/working-e2e-test-PropertyA-c1d4a-ostingHub-integration-works-mobile-chrome/error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Application has proper meta information" classname="working-e2e-test.spec.ts" time="1.266">
+</testcase>
+</testsuite>
+<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T02:30:14.027Z" hostname="mobile-safari" tests="8" failures="8" skipped="0" time="0.019" errors="0">
+<testcase name="PropertyAI Working E2E Tests › Backend API is accessible and healthy" classname="working-e2e-test.spec.ts" time="0.002">
+<failure message="working-e2e-test.spec.ts:13:7 Backend API is accessible and healthy" type="FAILURE">
+<![CDATA[  [mobile-safari] › working-e2e-test.spec.ts:13:7 › PropertyAI Working E2E Tests › Backend API is accessible and healthy 
+
+    Error: browserType.launch: 
+    ╔══════════════════════════════════════════════════════╗
+    ║ Host system is missing dependencies to run browsers. ║
+    ║ Please install them with the following command:      ║
+    ║                                                      ║
+    ║     sudo npx playwright install-deps                 ║
+    ║                                                      ║
+    ║ Alternatively, use apt:                              ║
+    ║     sudo apt-get install libicu74                    ║
+    ║                                                      ║
+    ║ <3 Playwright Team                                   ║
+    ╚══════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Frontend application loads" classname="working-e2e-test.spec.ts" time="0.003">
+<failure message="working-e2e-test.spec.ts:22:7 Frontend application loads" type="FAILURE">
+<![CDATA[  [mobile-safari] › working-e2e-test.spec.ts:22:7 › PropertyAI Working E2E Tests › Frontend application loads 
+
+    Error: browserType.launch: 
+    ╔══════════════════════════════════════════════════════╗
+    ║ Host system is missing dependencies to run browsers. ║
+    ║ Please install them with the following command:      ║
+    ║                                                      ║
+    ║     sudo npx playwright install-deps                 ║
+    ║                                                      ║
+    ║ Alternatively, use apt:                              ║
+    ║     sudo apt-get install libicu74                    ║
+    ║                                                      ║
+    ║ <3 Playwright Team                                   ║
+    ╚══════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Login page is accessible" classname="working-e2e-test.spec.ts" time="0.002">
+<failure message="working-e2e-test.spec.ts:31:7 Login page is accessible" type="FAILURE">
+<![CDATA[  [mobile-safari] › working-e2e-test.spec.ts:31:7 › PropertyAI Working E2E Tests › Login page is accessible 
+
+    Error: browserType.launch: 
+    ╔══════════════════════════════════════════════════════╗
+    ║ Host system is missing dependencies to run browsers. ║
+    ║ Please install them with the following command:      ║
+    ║                                                      ║
+    ║     sudo npx playwright install-deps                 ║
+    ║                                                      ║
+    ║ Alternatively, use apt:                              ║
+    ║     sudo apt-get install libicu74                    ║
+    ║                                                      ║
+    ║ <3 Playwright Team                                   ║
+    ╚══════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Analytics page is accessible" classname="working-e2e-test.spec.ts" time="0.004">
+<failure message="working-e2e-test.spec.ts:43:7 Analytics page is accessible" type="FAILURE">
+<![CDATA[  [mobile-safari] › working-e2e-test.spec.ts:43:7 › PropertyAI Working E2E Tests › Analytics page is accessible 
+
+    Error: browserType.launch: 
+    ╔══════════════════════════════════════════════════════╗
+    ║ Host system is missing dependencies to run browsers. ║
+    ║ Please install them with the following command:      ║
+    ║                                                      ║
+    ║     sudo npx playwright install-deps                 ║
+    ║                                                      ║
+    ║ Alternatively, use apt:                              ║
+    ║     sudo apt-get install libicu74                    ║
+    ║                                                      ║
+    ║ <3 Playwright Team                                   ║
+    ╚══════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Properties page is accessible" classname="working-e2e-test.spec.ts" time="0.002">
+<failure message="working-e2e-test.spec.ts:58:7 Properties page is accessible" type="FAILURE">
+<![CDATA[  [mobile-safari] › working-e2e-test.spec.ts:58:7 › PropertyAI Working E2E Tests › Properties page is accessible 
+
+    Error: browserType.launch: 
+    ╔══════════════════════════════════════════════════════╗
+    ║ Host system is missing dependencies to run browsers. ║
+    ║ Please install them with the following command:      ║
+    ║                                                      ║
+    ║     sudo npx playwright install-deps                 ║
+    ║                                                      ║
+    ║ Alternatively, use apt:                              ║
+    ║     sudo apt-get install libicu74                    ║
+    ║                                                      ║
+    ║ <3 Playwright Team                                   ║
+    ╚══════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › User can interact with basic elements" classname="working-e2e-test.spec.ts" time="0.002">
+<failure message="working-e2e-test.spec.ts:67:7 User can interact with basic elements" type="FAILURE">
+<![CDATA[  [mobile-safari] › working-e2e-test.spec.ts:67:7 › PropertyAI Working E2E Tests › User can interact with basic elements 
+
+    Error: browserType.launch: 
+    ╔══════════════════════════════════════════════════════╗
+    ║ Host system is missing dependencies to run browsers. ║
+    ║ Please install them with the following command:      ║
+    ║                                                      ║
+    ║     sudo npx playwright install-deps                 ║
+    ║                                                      ║
+    ║ Alternatively, use apt:                              ║
+    ║     sudo apt-get install libicu74                    ║
+    ║                                                      ║
+    ║ <3 Playwright Team                                   ║
+    ╚══════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › UnifiedPostingHub integration works" classname="working-e2e-test.spec.ts" time="0.002">
+<failure message="working-e2e-test.spec.ts:82:7 UnifiedPostingHub integration works" type="FAILURE">
+<![CDATA[  [mobile-safari] › working-e2e-test.spec.ts:82:7 › PropertyAI Working E2E Tests › UnifiedPostingHub integration works 
+
+    Error: browserType.launch: 
+    ╔══════════════════════════════════════════════════════╗
+    ║ Host system is missing dependencies to run browsers. ║
+    ║ Please install them with the following command:      ║
+    ║                                                      ║
+    ║     sudo npx playwright install-deps                 ║
+    ║                                                      ║
+    ║ Alternatively, use apt:                              ║
+    ║     sudo apt-get install libicu74                    ║
+    ║                                                      ║
+    ║ <3 Playwright Team                                   ║
+    ╚══════════════════════════════════════════════════════╝
+]]>
+</failure>
+</testcase>
+<testcase name="PropertyAI Working E2E Tests › Application has proper meta information" classname="working-e2e-test.spec.ts" time="0.002">
+<failure message="working-e2e-test.spec.ts:115:7 Application has proper meta information" type="FAILURE">
+<![CDATA[  [mobile-safari] › working-e2e-test.spec.ts:115:7 › PropertyAI Working E2E Tests › Application has proper meta information 
+
+    Error: browserType.launch: 
+    ╔══════════════════════════════════════════════════════╗
+    ║ Host system is missing dependencies to run browsers. ║
+    ║ Please install them with the following command:      ║
+    ║                                                      ║
+    ║     sudo npx playwright install-deps                 ║
+    ║                                                      ║
+    ║ Alternatively, use apt:                              ║
+    ║     sudo apt-get install libicu74                    ║
+    ║                                                      ║
+    ║ <3 Playwright Team                                   ║
+    ╚══════════════════════════════════════════════════════╝
+]]>
+</failure>
 </testcase>
 </testsuite>
 </testsuites>

@@ -111,10 +111,11 @@ export default function Dashboard() {
       }
 
       try {
+        console.log('[DashboardPage] Initializing authentication...')
         await authManager.init()
         const state = authManager.getState()
 
-        console.debug('[DashboardPage] Auth state after init:', {
+        console.log('[DashboardPage] Auth state after init:', {
           isAuthenticated: state.isAuthenticated,
           hasUser: !!state.user,
           user: state.user,
@@ -122,18 +123,20 @@ export default function Dashboard() {
         })
 
         if (!state.isAuthenticated) {
-          console.info('[DashboardPage] Not authenticated, redirecting to login')
+          console.log('[DashboardPage] Not authenticated, redirecting to login')
+          setIsLoading(false)
           router.push('/login')
           return
         }
 
         if (!state.user?.onboarding_completed) {
-          console.info('[DashboardPage] Onboarding not completed, redirecting to onboarding')
+          console.log('[DashboardPage] Onboarding not completed, redirecting to onboarding')
+          setIsLoading(false)
           router.push('/onboarding')
           return
         }
 
-        console.info('[DashboardPage] User authenticated and onboarded, loading dashboard data')
+        console.log('[DashboardPage] User authenticated and onboarded, loading dashboard data')
         setUser(state.user)
         setIsLoading(false)
         fetchStats()
@@ -456,6 +459,7 @@ export default function Dashboard() {
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-white">Loading...</p>
+          <p className="text-gray-300 text-sm mt-2">Initializing authentication...</p>
         </div>
       </div>
     )
