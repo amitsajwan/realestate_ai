@@ -1,6 +1,6 @@
-<testsuites id="" name="" tests="1" failures="1" skipped="0" errors="0" time="7.004009">
-<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T03:43:04.880Z" hostname="chromium" tests="1" failures="1" skipped="0" time="6.365" errors="0">
-<testcase name="PropertyAI Working E2E Tests › UnifiedPostingHub integration works" classname="working-e2e-test.spec.ts" time="6.365">
+<testsuites id="" name="" tests="1" failures="1" skipped="0" errors="0" time="7.310378">
+<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T04:15:47.485Z" hostname="chromium" tests="1" failures="1" skipped="0" time="6.335" errors="0">
+<testcase name="PropertyAI Working E2E Tests › UnifiedPostingHub integration works" classname="working-e2e-test.spec.ts" time="6.335">
 <failure message="working-e2e-test.spec.ts:82:7 UnifiedPostingHub integration works" type="FAILURE">
 <![CDATA[  [chromium] › working-e2e-test.spec.ts:82:7 › PropertyAI Working E2E Tests › UnifiedPostingHub integration works 
 
