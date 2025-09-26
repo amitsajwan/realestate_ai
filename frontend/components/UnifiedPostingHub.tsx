@@ -117,6 +117,7 @@ const reducer: Reducer<State, Action> = (state, action) => {
     case 'SET_PROPERTIES':
       return { ...state, availableProperties: action.payload }
     case 'SET_SELECTED_PROPERTY':
+      console.log('Setting selected property:', action.payload);
       return { ...state, selectedProperty: action.payload, searchTerm: '' }
     case 'SET_LANGUAGE':
       return { ...state, selectedLanguage: action.payload }
@@ -427,6 +428,8 @@ export default function UnifiedPostingHub({
   }, [])
 
   const filteredProperties = useMemo(() => {
+    console.log('Available properties:', availableProperties);
+    console.log('Search term:', searchTerm);
     if (!searchTerm) return availableProperties
     return availableProperties.filter(p =>
       p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -471,11 +474,15 @@ export default function UnifiedPostingHub({
             {filteredProperties.map((property) => (
               <button
                 key={property.id}
-                onClick={() => dispatch({ type: 'SET_SELECTED_PROPERTY', payload: property })}
+                onClick={() => {
+                  console.log('Property selected:', property);
+                  dispatch({ type: 'SET_SELECTED_PROPERTY', payload: property });
+                }}
                 className={`w-full p-3 text-left hover:bg-gray-50 ${selectedProperty?.id === property.id ? 'bg-blue-50' : ''}`}
               >
                 <div className="font-medium text-gray-900">{property.title}</div>
                 <div className="text-sm text-gray-600">{property.location}</div>
+                <div className="text-xs text-gray-500">Images: {property.images?.length || 0}</div>
               </button>
             ))}
           </div>
@@ -617,6 +624,33 @@ export default function UnifiedPostingHub({
               />
               <p className="mt-2 text-xs text-gray-500">Hashtags: {content.hashtags.join(' ')}</p>
               <p className="mt-1 text-xs text-blue-600">Images: {selectedImages.length} selected</p>
+              
+              {/* Image Preview */}
+              {selectedImages.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs text-gray-600 mb-2">Selected Images:</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {selectedImages.slice(0, 3).map((url, index) => (
+                      <div key={url} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
+                        <img
+                          src={url}
+                          alt={`Selected image ${index + 1}`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            console.error('Failed to load image:', url);
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                        {index === 2 && selectedImages.length > 3 && (
+                          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center text-white text-xs">
+                            +{selectedImages.length - 3}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
