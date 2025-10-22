@@ -35,6 +35,10 @@ body {
   -webkit-text-size-adjust: 100%;
   -ms-text-size-adjust: 100%;
   text-size-adjust: 100%;
+
+  /* Mobile-specific text rendering improvements */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   /* Prevent horizontal scroll on mobile */
   overflow-x: hidden;
   /* Improve touch scrolling */
@@ -443,116 +447,117 @@ body {
 
   /* Mobile-specific improvements */
   @media (max-width: 768px) {
+
     /* Larger touch targets */
     .btn {
       min-height: 48px;
       padding: 12px 16px;
       font-size: 16px;
     }
-    
+
     .form-input {
       min-height: 48px;
       font-size: 16px;
       padding: 12px 16px;
     }
-    
+
     /* Better spacing for mobile */
     .container {
       padding: 0 16px;
     }
-    
+
     /* Improved card layouts */
     .card {
       margin: 8px;
       border-radius: 12px;
     }
-    
+
     .card-body {
       padding: 16px;
     }
-    
+
     .card-header {
       padding: 16px;
     }
-    
+
     /* Better modal sizing */
     .modal-mobile {
       margin: 16px;
       max-height: calc(100vh - 32px);
       width: calc(100% - 32px);
     }
-    
+
     /* Improved grid layouts */
     .grid-mobile {
       grid-template-columns: 1fr;
       gap: 16px;
     }
-    
+
     /* Better text sizing */
     .text-mobile-lg {
       font-size: 18px;
       line-height: 1.4;
     }
-    
+
     .text-mobile-base {
       font-size: 16px;
       line-height: 1.5;
     }
-    
+
     /* Improved button groups */
     .btn-group-mobile {
       flex-direction: column;
       gap: 12px;
     }
-    
+
     .btn-group-mobile .btn {
       width: 100%;
     }
-    
+
     /* Better form layouts */
     .form-mobile {
       display: flex;
       flex-direction: column;
       gap: 16px;
     }
-    
+
     /* Improved navigation */
     .nav-mobile {
       padding: 12px 16px;
     }
-    
+
     /* Better spacing for mobile content */
     .content-mobile {
       padding: 16px;
     }
-    
+
     /* Improved image handling */
     .img-mobile {
       width: 100%;
       height: auto;
       object-fit: cover;
     }
-    
+
     /* Better list layouts */
     .list-mobile {
       display: flex;
       flex-direction: column;
       gap: 12px;
     }
-    
+
     /* Improved table responsiveness */
     .table-mobile {
       display: block;
       overflow-x: auto;
       white-space: nowrap;
     }
-    
+
     /* Better spacing for mobile headers */
     .header-mobile {
       padding: 16px;
       margin-bottom: 16px;
     }
-    
+
     /* Improved mobile navigation */
     .mobile-nav {
       position: fixed;
@@ -564,7 +569,7 @@ body {
       border-top: 1px solid #e5e7eb;
       padding: 8px 0;
     }
-    
+
     /* Better mobile modals */
     .modal-mobile-full {
       position: fixed;
@@ -576,14 +581,14 @@ body {
       background: white;
       overflow-y: auto;
     }
-    
+
     /* Improved mobile cards */
     .card-mobile {
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       margin-bottom: 16px;
     }
-    
+
     /* Better mobile buttons */
     .btn-mobile {
       min-height: 48px;
@@ -591,7 +596,7 @@ body {
       font-size: 16px;
       border-radius: 8px;
     }
-    
+
     /* Improved mobile inputs */
     .input-mobile {
       min-height: 48px;
@@ -599,16 +604,16 @@ body {
       padding: 12px 16px;
       border-radius: 8px;
     }
-    
+
     /* Better mobile spacing */
     .space-mobile {
       margin: 16px 0;
     }
-    
+
     .space-mobile-sm {
       margin: 8px 0;
     }
-    
+
     .space-mobile-lg {
       margin: 24px 0;
     }

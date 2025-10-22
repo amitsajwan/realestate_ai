@@ -24,9 +24,14 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* Text size adjustment for mobile browsers - proper order */
   -webkit-text-size-adjust: 100%;
   -ms-text-size-adjust: 100%;
   text-size-adjust: 100%;
+
+  /* Mobile-specific text rendering improvements */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
@@ -90,6 +95,7 @@ body {
 /* === ACCESSIBILITY === */
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -113,54 +119,119 @@ body {
 
 /* === MOBILE OPTIMIZATIONS === */
 @media (max-width: 768px) {
+
   /* Larger touch targets */
   .btn {
     min-height: var(--touch-target-comfortable);
     font-size: var(--text-body-large);
+    /* Ensure buttons are accessible on mobile */
+    min-width: 44px;
+    padding: 12px 16px;
   }
-  
+
   .form-input {
     min-height: var(--touch-target-comfortable);
     font-size: var(--text-body-large);
   }
-  
+
   /* Better spacing for mobile */
   .container {
-    padding: 0 var(--space-4);
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
-  
+
+  /* Improve button accessibility on mobile */
+  button:not([aria-label]):not([title]):not(.sr-only) {
+    position: relative;
+  }
+
+  /* Ensure all interactive elements have proper touch targets */
+  button,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Mobile-specific text truncation */
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
   /* Improved card layouts */
   .card {
     margin: var(--space-2);
     border-radius: var(--radius-lg);
   }
-  
+
   .card-body {
     padding: var(--space-4);
   }
-  
+
   .card-header {
     padding: var(--space-4);
   }
-  
+
   /* Better modal sizing */
   .modal {
     margin: var(--space-4);
     max-height: calc(100vh - var(--space-8));
   }
-  
+
   /* Improved typography for mobile */
-  .text-display-large { font-size: 2.5rem; }
-  .text-display-medium { font-size: 2rem; }
-  .text-display-small { font-size: 1.75rem; }
-  
-  .text-headline-large { font-size: 1.5rem; }
-  .text-headline-medium { font-size: 1.375rem; }
-  .text-headline-small { font-size: 1.25rem; }
-  
-  .text-title-large { font-size: 1.125rem; }
-  .text-title-medium { font-size: 1rem; }
-  .text-title-small { font-size: 0.875rem; }
+  .text-display-large {
+    font-size: 2.5rem;
+  }
+
+  .text-display-medium {
+    font-size: 2rem;
+  }
+
+  .text-display-small {
+    font-size: 1.75rem;
+  }
+
+  .text-headline-large {
+    font-size: 1.5rem;
+  }
+
+  .text-headline-medium {
+    font-size: 1.375rem;
+  }
+
+  .text-headline-small {
+    font-size: 1.25rem;
+  }
+
+  .text-title-large {
+    font-size: 1.125rem;
+  }
+
+  .text-title-medium {
+    font-size: 1rem;
+  }
+
+  .text-title-small {
+    font-size: 0.875rem;
+  }
 }
 
 /* === DARK MODE OPTIMIZATIONS === */
@@ -169,12 +240,12 @@ body {
   --color-text-primary: #f8fafc;
   --color-text-secondary: #cbd5e1;
   --color-text-tertiary: #94a3b8;
-  
+
   /* Better dark mode shadows */
   --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
-  
+
   /* Dark mode glass effects */
   .glass {
     background: rgba(0, 0, 0, 0.1);
@@ -203,6 +274,7 @@ body {
 
 /* === PRINT STYLES === */
 @media print {
+
   *,
   *::before,
   *::after {
@@ -259,52 +331,160 @@ body {
 
 /* === UTILITY CLASSES === */
 /* Display utilities */
-.hidden { display: none; }
-.block { display: block; }
-.inline { display: inline; }
-.inline-block { display: inline-block; }
-.flex { display: flex; }
-.inline-flex { display: inline-flex; }
-.grid { display: grid; }
-.inline-grid { display: inline-grid; }
+.hidden {
+  display: none;
+}
+
+.block {
+  display: block;
+}
+
+.inline {
+  display: inline;
+}
+
+.inline-block {
+  display: inline-block;
+}
+
+.flex {
+  display: flex;
+}
+
+.inline-flex {
+  display: inline-flex;
+}
+
+.grid {
+  display: grid;
+}
+
+.inline-grid {
+  display: inline-grid;
+}
 
 /* Position utilities */
-.static { position: static; }
-.relative { position: relative; }
-.absolute { position: absolute; }
-.fixed { position: fixed; }
-.sticky { position: sticky; }
+.static {
+  position: static;
+}
+
+.relative {
+  position: relative;
+}
+
+.absolute {
+  position: absolute;
+}
+
+.fixed {
+  position: fixed;
+}
+
+.sticky {
+  position: sticky;
+}
 
 /* Overflow utilities */
-.overflow-auto { overflow: auto; }
-.overflow-hidden { overflow: hidden; }
-.overflow-visible { overflow: visible; }
-.overflow-scroll { overflow: scroll; }
+.overflow-auto {
+  overflow: auto;
+}
 
-.overflow-x-auto { overflow-x: auto; }
-.overflow-x-hidden { overflow-x: hidden; }
-.overflow-x-visible { overflow-x: visible; }
-.overflow-x-scroll { overflow-x: scroll; }
+.overflow-hidden {
+  overflow: hidden;
+}
 
-.overflow-y-auto { overflow-y: auto; }
-.overflow-y-hidden { overflow-y: hidden; }
-.overflow-y-visible { overflow-y: visible; }
-.overflow-y-scroll { overflow-y: scroll; }
+.overflow-visible {
+  overflow: visible;
+}
+
+.overflow-scroll {
+  overflow: scroll;
+}
+
+.overflow-x-auto {
+  overflow-x: auto;
+}
+
+.overflow-x-hidden {
+  overflow-x: hidden;
+}
+
+.overflow-x-visible {
+  overflow-x: visible;
+}
+
+.overflow-x-scroll {
+  overflow-x: scroll;
+}
+
+.overflow-y-auto {
+  overflow-y: auto;
+}
+
+.overflow-y-hidden {
+  overflow-y: hidden;
+}
+
+.overflow-y-visible {
+  overflow-y: visible;
+}
+
+.overflow-y-scroll {
+  overflow-y: scroll;
+}
 
 /* Z-index utilities */
-.z-0 { z-index: var(--z-index-0); }
-.z-10 { z-index: var(--z-index-10); }
-.z-20 { z-index: var(--z-index-20); }
-.z-30 { z-index: var(--z-index-30); }
-.z-40 { z-index: var(--z-index-40); }
-.z-50 { z-index: var(--z-index-50); }
-.z-auto { z-index: var(--z-index-auto); }
-.z-dropdown { z-index: var(--z-dropdown); }
-.z-sticky { z-index: var(--z-sticky); }
-.z-fixed { z-index: var(--z-fixed); }
-.z-modal { z-index: var(--z-modal); }
-.z-popover { z-index: var(--z-popover); }
-.z-tooltip { z-index: var(--z-tooltip); }
+.z-0 {
+  z-index: var(--z-index-0);
+}
+
+.z-10 {
+  z-index: var(--z-index-10);
+}
+
+.z-20 {
+  z-index: var(--z-index-20);
+}
+
+.z-30 {
+  z-index: var(--z-index-30);
+}
+
+.z-40 {
+  z-index: var(--z-index-40);
+}
+
+.z-50 {
+  z-index: var(--z-index-50);
+}
+
+.z-auto {
+  z-index: var(--z-index-auto);
+}
+
+.z-dropdown {
+  z-index: var(--z-dropdown);
+}
+
+.z-sticky {
+  z-index: var(--z-sticky);
+}
+
+.z-fixed {
+  z-index: var(--z-fixed);
+}
+
+.z-modal {
+  z-index: var(--z-modal);
+}
+
+.z-popover {
+  z-index: var(--z-popover);
+}
+
+.z-tooltip {
+  z-index: var(--z-tooltip);
+}
 
 /* === COMPONENT VARIANTS === */
 /* Button variants with better accessibility */
@@ -393,12 +573,23 @@ body {
   overflow: hidden;
 }
 
-.aspect-ratio-1-1 { padding-bottom: 100%; }
-.aspect-ratio-16-9 { padding-bottom: 56.25%; }
-.aspect-ratio-4-3 { padding-bottom: 75%; }
-.aspect-ratio-3-2 { padding-bottom: 66.67%; }
+.aspect-ratio-1-1 {
+  padding-bottom: 100%;
+}
 
-.aspect-ratio > * {
+.aspect-ratio-16-9 {
+  padding-bottom: 56.25%;
+}
+
+.aspect-ratio-4-3 {
+  padding-bottom: 75%;
+}
+
+.aspect-ratio-3-2 {
+  padding-bottom: 66.67%;
+}
+
+.aspect-ratio>* {
   position: absolute;
   top: 0;
   left: 0;

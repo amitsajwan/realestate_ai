@@ -1,5 +1,6 @@
 'use client'
 
+import AdminPostsManagement from '@/components/AdminPostsManagement'
 import BreadcrumbNavigation from '@/components/BreadcrumbNavigation'
 import CRM from '@/components/CRM'
 import DashboardCustomization from '@/components/DashboardCustomization'
@@ -7,13 +8,13 @@ import { DashboardStats } from '@/components/DashboardStats'
 import FacebookIntegration from '@/components/FacebookIntegration'
 import GlobalSearch from '@/components/GlobalSearch'
 import MobileBottomNavigation from '@/components/MobileBottomNavigation'
+import MobileFirstNavigation from '@/components/MobileFirstNavigation'
 import { MobileNavigation } from '@/components/MobileNavigation'
-import PostsManagementHub from '@/components/PostsManagementHub'
+import MobilePropertyForm from '@/components/MobilePropertyForm'
 import ProfileSettings from '@/components/ProfileSettings'
 import Properties from '@/components/Properties'
 import PublishingWorkflowManager from '@/components/PublishingWorkflowManager'
-import SmartPropertyForm from '@/components/SmartPropertyForm'
-import { Button, Card, CardBody, CardHeader } from '@/components/UI'
+import { Button, Card, CardContent, CardHeader } from '@/components/UI'
 import UnifiedPostingHub from '@/components/UnifiedPostingHub'
 import { apiService } from '@/lib/api/centralized-client'
 import { authManager } from '@/lib/auth'
@@ -142,6 +143,10 @@ export default function Dashboard() {
         console.log('[DashboardPage] User authenticated and onboarded, loading dashboard data')
         setUser(state.user)
         setIsLoading(false)
+
+        // Wait a moment to ensure token is fully propagated before making API calls
+        await new Promise(resolve => setTimeout(resolve, 150))
+
         fetchStats()
         loadProperties()
       } catch (error) {
@@ -269,7 +274,8 @@ export default function Dashboard() {
   const renderSection = () => {
     switch (activeSection) {
       case 'property-marketing-hub':
-        return <PostsManagementHub
+        // Use admin interface for posts management
+        return <AdminPostsManagement
           onCreatePost={() => {
             setUnifiedPostingProperty(null)
             setUnifiedPostingMode('standalone')
@@ -285,72 +291,21 @@ export default function Dashboard() {
           onGenerateContent={handleGenerateContent}
         />
       case 'posts':
-        return (
-          <div className="text-center py-16">
-            <div className="max-w-lg mx-auto">
-              <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                <DocumentTextIcon className="w-10 h-10 text-white" />
-              </div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">Posts Management</h2>
-              <p className="text-gray-600 mb-8">View and manage your published content, track performance, and analyze engagement</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <button
-                  onClick={() => {
-                    console.log('[DashboardPage] Opening Posts Management')
-                    setUnifiedPostingProperty(null)
-                    setUnifiedPostingMode('standalone')
-                    setShowUnifiedPosting(true)
-                  }}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-4 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 flex flex-col items-center space-y-2"
-                >
-                  <DocumentTextIcon className="w-6 h-6" />
-                  <span>Create New Post</span>
-                </button>
-                <button
-                  onClick={() => {
-                    console.log('[DashboardPage] Opening Posts Management Hub')
-                    setActiveSection('property-marketing-hub')
-                  }}
-                  className="bg-gradient-to-r from-gray-600 to-gray-700 text-white px-6 py-4 rounded-lg font-semibold hover:from-gray-700 hover:to-gray-800 transition-all duration-200 flex flex-col items-center space-y-2"
-                >
-                  <ChartBarIcon className="w-6 h-6" />
-                  <span>View Analytics</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )
+        // Use admin interface for posts management
+        return <AdminPostsManagement
+          onCreatePost={() => {
+            setUnifiedPostingProperty(null)
+            setUnifiedPostingMode('standalone')
+            setShowUnifiedPosting(true)
+          }}
+        />
       case 'property-form':
         return (
-          <SmartPropertyForm
-            onSuccess={(propertyData) => {
-              console.log('[DashboardPage] Property created successfully:', propertyData)
-              console.log('[DashboardPage] Current showWorkflow state:', showWorkflow)
-              console.log('[DashboardPage] Current workflowPropertyData state:', workflowPropertyData)
-              try {
-                // Use UnifiedPostingHub for property creation workflow
-                console.log('[DashboardPage] Setting unified posting property:', propertyData)
-                setUnifiedPostingProperty(propertyData)
-                console.log('[DashboardPage] Setting unified posting mode to property-creation')
-                setUnifiedPostingMode('property-creation')
-                console.log('[DashboardPage] Setting showUnifiedPosting to true')
-                setShowUnifiedPosting(true)
-                console.log('[DashboardPage] Starting property-to-post workflow with UnifiedPostingHub...')
-
-                // Debug: Check state after setting
-                setTimeout(() => {
-                  console.log('[DashboardPage] State after setting:', {
-                    showUnifiedPosting,
-                    unifiedPostingMode,
-                    unifiedPostingProperty
-                  })
-                }, 100)
-              } catch (error) {
-                console.error('[DashboardPage] Error in onSuccess callback:', error)
-                // Fallback to old behavior
-                setActiveSection('properties')
-                loadProperties()
-              }
+          <MobilePropertyForm
+            onSuccess={() => {
+              console.log('[DashboardPage] Property form completed successfully')
+              setActiveSection('properties')
+              loadProperties()
             }}
           />
         )
@@ -456,7 +411,7 @@ export default function Dashboard() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardBody>
+              <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {properties.slice(0, 3).map((property, index) => (
                     <motion.div
@@ -485,7 +440,7 @@ export default function Dashboard() {
                     </motion.div>
                   ))}
                 </div>
-              </CardBody>
+              </CardContent>
             </Card>
           </div>
         )
@@ -505,10 +460,27 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900">
+    <div className="min-h-screen bg-gray-50">
       <div className="page-transition">
-        {/* Mobile-First Header */}
-        <header className="sticky top-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-b border-gray-200 dark:border-white/20 shadow-sm">
+        {/* Mobile-First Navigation */}
+        <MobileFirstNavigation
+          activeSection={activeSection}
+          onSectionChange={handleSectionChange}
+          user={user}
+          properties={properties}
+          onShowDashboardCustomization={() => setShowDashboardCustomization(true)}
+          onShowAIContentModal={() => setIsAIContentModalOpen(true)}
+        />
+
+        {/* Content Area */}
+        <div className="pb-20 md:pb-0 min-h-screen bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            {renderSection()}
+          </div>
+        </div>
+
+        {/* Desktop Header (hidden on mobile) */}
+        <header className="hidden md:block sticky top-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-b border-gray-200 dark:border-white/20 shadow-sm">
           <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16 min-h-[64px]">
               {/* Logo and Mobile Menu Button */}
@@ -517,6 +489,7 @@ export default function Dashboard() {
                   onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                   className="lg:hidden p-3 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors min-h-[48px] min-w-[48px] flex items-center justify-center"
                   aria-label="Toggle mobile menu"
+                  title="Toggle mobile menu"
                 >
                   {isMobileMenuOpen ? (
                     <XMarkIcon className="w-6 h-6" />
@@ -544,6 +517,8 @@ export default function Dashboard() {
                       ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-sm'
                       : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white'
                       }`}
+                    title={`Navigate to ${item.name}`}
+                    aria-label={`Navigate to ${item.name}`}
                   >
                     <item.icon className="w-4 h-4" />
                     <span className="hidden xl:block">{item.name}</span>
@@ -561,6 +536,7 @@ export default function Dashboard() {
                   onClick={() => setShowDashboardCustomization(true)}
                   className="hidden lg:flex items-center space-x-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                   title="Customize Dashboard"
+                  aria-label="Customize Dashboard"
                 >
                   <AdjustmentsHorizontalIcon className="w-4 h-4" />
                   <span className="text-sm font-medium hidden xl:block">Customize</span>
@@ -571,6 +547,8 @@ export default function Dashboard() {
                   <button
                     onClick={() => setIsAIContentModalOpen(true)}
                     className="hidden sm:flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                    title="Create Post"
+                    aria-label="Create Post"
                   >
                     <SparklesIcon className="w-4 h-4" />
                     <span className="text-sm font-medium">Create Post</span>
@@ -586,7 +564,11 @@ export default function Dashboard() {
                     <SparklesIcon className="w-5 h-5" />
                   </button>
                 )}
-                <button className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors relative">
+                <button
+                  className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors relative"
+                  title="Notifications"
+                  aria-label="Notifications"
+                >
                   <BellIcon className="w-5 h-5" />
                   <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
                 </button>

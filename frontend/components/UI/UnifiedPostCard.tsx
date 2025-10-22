@@ -16,7 +16,7 @@ import Link from 'next/link'
 import React, { memo, useMemo } from 'react'
 import { Post } from '../../types/post'
 import ChannelBadge from './ChannelBadge'
-import { Card, CardBody, CardHeader } from './index'
+import { Card, CardContent, CardHeader } from './index'
 import StatusBadge from './StatusBadge'
 
 // Re-export for convenience
@@ -28,18 +28,18 @@ const ImageGallery: React.FC<{ mediaUrls: string[] }> = ({ mediaUrls }) => {
     console.log('No media URLs provided to ImageGallery');
     return null;
   }
-  
+
   console.log('ImageGallery rendering with URLs:', mediaUrls);
-  
+
   const displayImages = mediaUrls.slice(0, 3);
   const remainingCount = mediaUrls.length - 3;
-  
+
   return (
     <div className="mt-3 mb-4">
       <div className="grid gap-2" style={{
-        gridTemplateColumns: mediaUrls.length === 1 ? '1fr' : 
-                            mediaUrls.length === 2 ? 'repeat(2, 1fr)' : 
-                            'repeat(3, 1fr)'
+        gridTemplateColumns: mediaUrls.length === 1 ? '1fr' :
+          mediaUrls.length === 2 ? 'repeat(2, 1fr)' :
+            'repeat(3, 1fr)'
       }}>
         {displayImages.map((url, index) => (
           <div key={url} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
@@ -61,7 +61,7 @@ const ImageGallery: React.FC<{ mediaUrls: string[] }> = ({ mediaUrls }) => {
               }}
             />
             {/* Fallback placeholder */}
-            <div className="image-placeholder absolute inset-0 bg-gray-200 flex items-center justify-center text-gray-500 text-sm" style={{display: 'none'}}>
+            <div className="image-placeholder absolute inset-0 bg-gray-200 flex items-center justify-center text-gray-500 text-sm" style={{ display: 'none' }}>
               Image {index + 1}
             </div>
             {index === 2 && remainingCount > 0 && (
@@ -105,11 +105,11 @@ const UnifiedPostCard: React.FC<UnifiedPostCardProps> = memo(({
   const formattedDate = useMemo(() => {
     try {
       let dateString = post.created_at || post.published_at;
-      
+
       if (!dateString) {
         return 'Recently created';
       }
-      
+
       // Handle various date formats more robustly
       if (dateString.includes('T')) {
         // ISO format - clean up timezone issues
@@ -121,29 +121,29 @@ const UnifiedPostCard: React.FC<UnifiedPostCardProps> = memo(({
         // Space-separated format - convert to ISO
         dateString = dateString.replace(' ', 'T') + 'Z';
       }
-      
+
       const date = new Date(dateString);
-      
+
       if (isNaN(date.getTime())) {
         console.warn('Invalid date string:', dateString);
         return 'Recently created';
       }
-      
+
       // Check if date is reasonable (not too far in future or past)
       const now = new Date();
       const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
       const oneYearFromNow = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
-      
+
       if (date < oneYearAgo || date > oneYearFromNow) {
         return 'Recently created';
       }
-      
+
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
-        ...(variant === 'management' && { 
-          hour: '2-digit', 
+        ...(variant === 'management' && {
+          hour: '2-digit',
           minute: '2-digit',
           hour12: false
         })
@@ -217,7 +217,7 @@ const UnifiedPostCard: React.FC<UnifiedPostCardProps> = memo(({
             )}
           </CardHeader>
 
-          <CardBody className="p-4 pt-0">
+          <CardContent className="p-4 pt-0">
             <p className="text-gray-700 text-sm mb-4 line-clamp-3">
               {displayContent}
             </p>
@@ -259,7 +259,7 @@ const UnifiedPostCard: React.FC<UnifiedPostCardProps> = memo(({
                 Read More →
               </Link>
             </div>
-          </CardBody>
+          </CardContent>
         </Card>
       </motion.div>
     )
@@ -273,7 +273,7 @@ const UnifiedPostCard: React.FC<UnifiedPostCardProps> = memo(({
         hover:shadow-lg transition-all duration-200
       `}>
         <div className={`${viewMode === 'list' ? 'flex-1 flex' : ''}`}>
-          <CardBody className={`${viewMode === 'list' ? 'flex-1 p-4' : 'p-6'}`}>
+          <CardContent className={`${viewMode === 'list' ? 'flex-1 p-4' : 'p-6'}`}>
             <div className="flex justify-between items-start mb-3">
               <h3 className="text-lg font-semibold text-gray-800 flex-1 mr-2">
                 {post.title}
@@ -345,7 +345,7 @@ const UnifiedPostCard: React.FC<UnifiedPostCardProps> = memo(({
                 )}
               </div>
             )}
-          </CardBody>
+          </CardContent>
         </div>
       </Card>
     </div>

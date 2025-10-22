@@ -22,7 +22,7 @@ class DevelopmentAuthService:
     def __init__(self):
         self.dev_user_email = "test@example.com"
         self.dev_user_password = "test123"
-        self.dev_user_id = PydanticObjectId("68d22d7ff1bbb379a40f5dda")
+        self.dev_user_id = PydanticObjectId("68d4bc2651e88bcc67ea4658")
     
     async def ensure_development_user_exists(self) -> User:
         """Ensure development user exists in database"""
@@ -36,9 +36,10 @@ class DevelopmentAuthService:
             
             if existing_user:
                 logger.info("Development user already exists")
-                # Convert MongoDB document to User model
-                existing_user['id'] = existing_user['_id']
-                del existing_user['_id']
+                # Convert MongoDB document to User model, using our intended user ID
+                existing_user['id'] = str(self.dev_user_id)
+                if '_id' in existing_user:
+                    del existing_user['_id']
                 # Return as dict to avoid User model issues
                 return existing_user
             
@@ -67,9 +68,10 @@ class DevelopmentAuthService:
             
             if result.inserted_id:
                 logger.info("Development user created successfully")
-                # Return as dict for consistency
-                user_dict['id'] = user_dict['_id']
-                del user_dict['_id']
+                # Return as dict for consistency, using our intended user ID
+                user_dict['id'] = str(self.dev_user_id)
+                if '_id' in user_dict:
+                    del user_dict['_id']
                 return user_dict
             else:
                 raise HTTPException(status_code=500, detail="Failed to create development user")

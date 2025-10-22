@@ -2,6 +2,7 @@
 
 import { agentAPI } from '@/lib/agent'
 import { apiService } from '@/lib/api/centralized-client'
+import { authManager } from '@/lib/auth'
 import { API_BASE_URL } from '@/lib/config/api'
 import { propertiesAPI } from '@/lib/properties'
 import { PropertyFormData, propertySchema, stepSchemas } from '@/lib/validation'
@@ -529,7 +530,13 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
       console.log('Form data being submitted:', propertyData)
       console.log('Amenities type:', typeof propertyData.amenities, 'Value:', propertyData.amenities)
 
+      console.log('🚀 About to call propertiesAPI.createProperty with:', propertyData)
+      console.log('🚀 API_BASE_URL:', API_BASE_URL)
+      console.log('🚀 Auth token available:', !!authManager.getState().token)
+
+      console.log('🚀 CALLING API with propertyData:', JSON.stringify(propertyData, null, 2))
       const response = await propertiesAPI.createProperty(propertyData)
+      console.log('🚀 API call completed, response:', response)
       console.log('Property creation response:', response)
       console.log('Response success:', response.success)
       console.log('Response data:', response.data)
@@ -587,7 +594,10 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
         toast.error('Failed to create property. Please try again.')
       }
     } catch (error: any) {
-      console.error('Failed to create property:', error)
+      console.error('❌ Failed to create property:', error)
+      console.error('❌ Error message:', error.message)
+      console.error('❌ Error stack:', error.stack)
+      console.error('❌ Full error object:', JSON.stringify(error, null, 2))
 
       // Handle specific error types
       if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
@@ -623,9 +633,9 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
     setValue('location', '')
     setValue('address', '')
     setValue('propertyType', '')
-    setValue('bedrooms', 0)
-    setValue('bathrooms', 0)
-    setValue('area', 0)
+    setValue('bedrooms', 1)
+    setValue('bathrooms', 1)
+    setValue('area', 1)
     setValue('price', 0)
     setValue('images', [])
   }

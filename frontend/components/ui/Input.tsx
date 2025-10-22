@@ -1,6 +1,6 @@
-import React from 'react';
-import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
+import { cva, type VariantProps } from 'class-variance-authority';
+import React from 'react';
 
 const inputVariants = cva(
   'flex w-full rounded-md border border-border bg-surface px-3 py-2 text-body-large text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-border-focus focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 transition-colors',
@@ -26,8 +26,8 @@ const inputVariants = cva(
 );
 
 export interface InputProps
-  extends React.InputHTMLAttributes<HTMLInputElement>,
-    VariantProps<typeof inputVariants> {
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'>,
+  VariantProps<typeof inputVariants> {
   label?: string;
   error?: string;
   help?: string;

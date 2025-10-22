@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, Card, CardBody } from '@/components/UI'
+import { Button, Card, CardContent } from '@/components/UI'
 import {
   ChartBarIcon,
   CurrencyDollarIcon,
@@ -120,7 +120,7 @@ export function DashboardStats({
       {/* Secondary Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <Card className="card-hover">
-          <CardBody className="text-center">
+          <CardContent className="text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <HomeIcon className="w-6 h-6 text-blue-600" />
@@ -129,11 +129,11 @@ export function DashboardStats({
             <div className="text-2xl font-bold text-gray-900 mb-1">{stats.total_properties}</div>
             <div className="text-sm text-gray-600 mb-2">Total Properties</div>
             <div className="text-xs text-green-600 font-medium">+12% this month</div>
-          </CardBody>
+          </CardContent>
         </Card>
 
         <Card className="card-hover">
-          <CardBody className="text-center">
+          <CardContent className="text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                 <CurrencyDollarIcon className="w-6 h-6 text-green-600" />
@@ -142,11 +142,11 @@ export function DashboardStats({
             <div className="text-2xl font-bold text-gray-900 mb-1">{stats.revenue}</div>
             <div className="text-sm text-gray-600 mb-2">Revenue</div>
             <div className="text-xs text-green-600 font-medium">+1% this quarter</div>
-          </CardBody>
+          </CardContent>
         </Card>
 
         <Card className="card-hover">
-          <CardBody className="text-center">
+          <CardContent className="text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                 <EyeIcon className="w-6 h-6 text-purple-600" />
@@ -155,11 +155,11 @@ export function DashboardStats({
             <div className="text-2xl font-bold text-gray-900 mb-1">{stats.total_views}</div>
             <div className="text-sm text-gray-600 mb-2">Property Views</div>
             <div className="text-xs text-green-600 font-medium">+24% vs last month</div>
-          </CardBody>
+          </CardContent>
         </Card>
 
         <Card className="card-hover">
-          <CardBody className="text-center">
+          <CardContent className="text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                 <UserGroupIcon className="w-6 h-6 text-orange-600" />
@@ -168,7 +168,7 @@ export function DashboardStats({
             <div className="text-2xl font-bold text-gray-900 mb-1">{stats.total_leads}</div>
             <div className="text-sm text-gray-600 mb-2">Active Leads</div>
             <div className="text-xs text-green-600 font-medium">+8% new this week</div>
-          </CardBody>
+          </CardContent>
         </Card>
       </div>
 
@@ -186,7 +186,7 @@ export function DashboardStats({
               className="hover:shadow-lg transition-all duration-200 cursor-pointer group"
               onClick={action.onClick}
             >
-              <CardBody className="p-6">
+              <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-blue-100 transition-colors">
                     <action.icon className="w-6 h-6 text-gray-600 group-hover:text-blue-600 transition-colors" />
@@ -212,7 +212,7 @@ export function DashboardStats({
                 >
                   Get Started
                 </Button>
-              </CardBody>
+              </CardContent>
             </Card>
           ))}
         </div>

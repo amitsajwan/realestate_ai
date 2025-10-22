@@ -93,9 +93,9 @@ export class AuthManager {
             }
 
             // No valid token found - set as unauthenticated
-            this.setState({ 
-                isAuthenticated: false, 
-                isLoading: false, 
+            this.setState({
+                isAuthenticated: false,
+                isLoading: false,
                 error: null,
                 user: null,
                 token: null
@@ -135,8 +135,14 @@ export class AuthManager {
                 });
 
                 if (loginResponse.access_token) {
-                    // Store tokens and user data
+                    // Set token BEFORE making any API calls so it's attached to requests
                     this.setStoredToken(loginResponse.access_token);
+
+                    // Set token in state immediately so API clients can use it
+                    this.setState({
+                        token: loginResponse.access_token,
+                        isLoading: true
+                    });
 
                     // Transform user data to expected format
                     const user = this.transformUserData(userResponse);
@@ -179,12 +185,20 @@ export class AuthManager {
             });
 
             if (response.access_token) {
-                // Get user data with retry logic
+                // 🔧 FIXED v2.1: Set token BEFORE making any API calls so it's attached to requests
+                console.log('🚀 NEW AUTHMANAGER CODE LOADED - Setting token before API calls');
+                this.setStoredToken(response.access_token);
+
+                // Set token in state immediately so API clients can use it
+                this.setState({
+                    token: response.access_token,
+                    isLoading: true
+                });
+
+                // Get user data with retry logic (token is now available for API calls)
                 const userData = await this.retryApiCall(
                     () => authAPI.getCurrentUser(response.access_token!)
                 );
-
-                this.setStoredToken(response.access_token);
 
                 this.setState({
                     isAuthenticated: true,

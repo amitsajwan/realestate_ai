@@ -3,17 +3,17 @@
 import {
     BuildingOfficeIcon,
     ChartBarIcon,
+    DocumentTextIcon,
     HomeIcon,
     PlusIcon,
     SparklesIcon,
-    UserGroupIcon,
     UserIcon
 } from '@heroicons/react/24/outline'
 import {
     BuildingOfficeIcon as BuildingSolidIcon,
     ChartBarIcon as ChartSolidIcon,
+    DocumentTextIcon as DocumentTextSolidIcon,
     HomeIcon as HomeSolidIcon,
-    UserGroupIcon as UserGroupSolidIcon,
     UserIcon as UserSolidIcon
 } from '@heroicons/react/24/solid'
 import { motion } from 'framer-motion'
@@ -58,18 +58,18 @@ export default function MobileBottomNavigation({
             href: '/properties'
         },
         {
+            id: 'posts',
+            label: 'Posts',
+            icon: DocumentTextIcon,
+            solidIcon: DocumentTextSolidIcon,
+            href: '/posts'
+        },
+        {
             id: 'analytics',
             label: 'Analytics',
             icon: ChartBarIcon,
             solidIcon: ChartSolidIcon,
             href: '/analytics'
-        },
-        {
-            id: 'crm',
-            label: 'CRM',
-            icon: UserGroupIcon,
-            solidIcon: UserGroupSolidIcon,
-            href: '/crm'
         },
         {
             id: 'profile',
@@ -157,8 +157,8 @@ export default function MobileBottomNavigation({
                             whileTap={{ scale: 0.95 }}
                             onClick={() => handleItemClick(item)}
                             className={`relative flex flex-col items-center space-y-1 p-3 rounded-lg transition-colors min-h-[48px] min-w-[48px] ${active
-                                    ? 'text-blue-600 dark:text-blue-400'
-                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                                ? 'text-blue-600 dark:text-blue-400'
+                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                                 }`}
                         >
                             {/* Badge */}
@@ -192,8 +192,8 @@ export default function MobileBottomNavigation({
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setShowQuickActions(!showQuickActions)}
                     className={`flex flex-col items-center space-y-1 p-3 rounded-lg transition-colors min-h-[48px] min-w-[48px] ${showQuickActions
-                            ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                        ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                         }`}
                 >
                     <motion.div

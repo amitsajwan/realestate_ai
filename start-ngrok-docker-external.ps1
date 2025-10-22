@@ -6,8 +6,11 @@
 
 param(
     [Parameter(Position=0)]
-    [ValidateSet("oneclick", "setup", "start", "status", "logs", "stop", "clean")]
-    [string]$Action = "oneclick"
+    [ValidateSet("oneclick", "setup", "start", "status", "logs", "stop", "clean", "help")]
+    [string]$Action = "oneclick",
+    
+    [Parameter()]
+    [switch]$Help = $false
 )
 
 # Colors for output
@@ -20,6 +23,40 @@ $Reset = "`e[0m"
 function Write-ColorOutput {
     param([string]$Message, [string]$Color = $Reset)
     Write-Host "$Color$Message$Reset"
+}
+
+function Show-Help {
+    Write-ColorOutput "Real Estate AI - Docker + ngrok Deployment" $Blue
+    Write-ColorOutput "===========================================" $Blue
+    Write-ColorOutput ""
+    Write-ColorOutput "Usage: .\start-ngrok-docker-external.ps1 [ACTION]" $Yellow
+    Write-ColorOutput ""
+    Write-ColorOutput "Actions:" $Cyan
+    Write-ColorOutput "  oneclick - One-click deployment (default)" $Reset
+    Write-ColorOutput "  setup    - Setup configuration files only" $Reset
+    Write-ColorOutput "  start    - Start Docker services + ngrok" $Reset
+    Write-ColorOutput "  status   - Check service status" $Reset
+    Write-ColorOutput "  logs     - View service logs" $Reset
+    Write-ColorOutput "  stop     - Stop all services" $Reset
+    Write-ColorOutput "  clean    - Clean up everything" $Reset
+    Write-ColorOutput "  help     - Show this help" $Reset
+    Write-ColorOutput ""
+    Write-ColorOutput "Prerequisites:" $Yellow
+    Write-ColorOutput "• Docker Desktop installed and running" $Reset
+    Write-ColorOutput "• ngrok installed and in PATH" $Reset
+    Write-ColorOutput ""
+    Write-ColorOutput "Examples:" $Yellow
+    Write-ColorOutput "  .\start-ngrok-docker-external.ps1              # One-click deployment" $Reset
+    Write-ColorOutput "  .\start-ngrok-docker-external.ps1 oneclick   # One-click deployment" $Reset
+    Write-ColorOutput "  .\start-ngrok-docker-external.ps1 status      # Check status" $Reset
+    Write-ColorOutput "  .\start-ngrok-docker-external.ps1 logs        # View logs" $Reset
+    Write-ColorOutput "  .\start-ngrok-docker-external.ps1 stop        # Stop services" $Reset
+    Write-ColorOutput ""
+    Write-ColorOutput "After deployment:" $Yellow
+    Write-ColorOutput "• Single public URL for entire application" $Reset
+    Write-ColorOutput "• nginx handles routing and CORS" $Reset
+    Write-ColorOutput "• Use ngrok dashboard (http://localhost:4040) for monitoring" $Reset
+    Write-ColorOutput "• API docs available at /docs" $Reset
 }
 
 function Test-Prerequisites {
@@ -106,6 +143,11 @@ function Start-DockerServices {
     
     if ($LASTEXITCODE -eq 0) {
         Write-ColorOutput "Docker services started" $Green
+        
+        # Ensure nginx service is running (it might not start automatically)
+        Write-ColorOutput "Ensuring nginx service is running..." $Blue
+        docker-compose -f docker-compose.yml -f docker-compose.ngrok.yml up -d nginx
+        
         return $true
     } else {
         Write-ColorOutput "Failed to start Docker services" $Red
@@ -191,6 +233,11 @@ function Show-AccessInfo {
 }
 
 # Main execution
+if ($Help) {
+    Show-Help
+    exit 0
+}
+
 Write-ColorOutput "Real Estate AI - ngrok + Docker Deployment" $Blue
 Write-ColorOutput "=============================================" $Blue
 
@@ -251,9 +298,14 @@ switch ($Action) {
         Clean-Up
     }
     
+    "help" {
+        Show-Help
+    }
+    
     default {
         Write-ColorOutput "Invalid action: $Action" $Red
-        Write-ColorOutput "Valid actions: oneclick, setup, start, status, logs, stop, clean" $Yellow
+        Write-ColorOutput "Valid actions: oneclick, setup, start, status, logs, stop, clean, help" $Yellow
+        Write-ColorOutput "Use -Help for detailed information" $Yellow
         exit 1
     }
 }

@@ -6,6 +6,10 @@ import { ThemeProvider } from 'next-themes'
 import { Inter } from 'next/font/google'
 import React from 'react'
 import { Toaster } from 'react-hot-toast'
+import '../styles/agent-website.css'
+import '../styles/mobile-first.css'
+import '../styles/mobile-forms.css'
+import '../styles/mobile.css'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })

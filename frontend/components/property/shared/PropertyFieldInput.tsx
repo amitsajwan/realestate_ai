@@ -8,9 +8,8 @@
 
 'use client'
 
+import { CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import React, { forwardRef } from 'react'
-import { ExclamationTriangleIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
-import { FormFieldProps } from '@/types/PropertyFormTypes'
 
 interface PropertyFieldInputProps {
   name: string
@@ -69,9 +68,9 @@ const PropertyFieldInput = forwardRef<HTMLInputElement | HTMLTextAreaElement | H
       w-full px-3 py-2 border rounded-md shadow-sm transition-colors duration-200
       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
       disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed
-      ${hasError 
-        ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
-        : isValid 
+      ${hasError
+        ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+        : isValid
           ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
           : 'border-gray-300 hover:border-gray-400'
       }
@@ -79,8 +78,18 @@ const PropertyFieldInput = forwardRef<HTMLInputElement | HTMLTextAreaElement | H
     `.trim()
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-      const newValue = type === 'number' ? Number(e.target.value) : e.target.value
-      onChange?.(newValue)
+      if (type === 'number') {
+        const value = e.target.value
+        // Handle empty string or invalid numbers properly
+        if (value === '' || value === null || value === undefined) {
+          onChange?.(0)
+        } else {
+          const numValue = Number(value)
+          onChange?.(isNaN(numValue) ? 0 : numValue)
+        }
+      } else {
+        onChange?.(e.target.value)
+      }
     }
 
     const renderInput = () => {
@@ -166,7 +175,7 @@ const PropertyFieldInput = forwardRef<HTMLInputElement | HTMLTextAreaElement | H
 
         <div className="relative">
           {renderInput()}
-          
+
           {/* Status Icons */}
           {hasError && (
             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
