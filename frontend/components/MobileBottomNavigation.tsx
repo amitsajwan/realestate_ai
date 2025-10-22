@@ -58,11 +58,11 @@ export default function MobileBottomNavigation({
             href: '/properties'
         },
         {
-            id: 'posts',
-            label: 'Posts',
+            id: 'property-marketing-hub',
+            label: 'Marketing Hub',
             icon: DocumentTextIcon,
             solidIcon: DocumentTextSolidIcon,
-            href: '/posts'
+            href: '/?section=property-marketing-hub'
         },
         {
             id: 'analytics',

@@ -79,7 +79,7 @@ export default function BreadcrumbNavigation({
           label = 'Contact'
           break
         case 'posts':
-          label = 'Posts'
+          label = 'Property Marketing Hub'
           break
         case 'analytics':
           label = 'Analytics'
@@ -142,8 +142,8 @@ export default function BreadcrumbNavigation({
             ) : (
               <span
                 className={`flex items-center space-x-1 ${item.isActive
-                    ? 'text-gray-900 dark:text-white font-medium'
-                    : 'text-gray-500 dark:text-gray-400'
+                  ? 'text-gray-900 dark:text-white font-medium'
+                  : 'text-gray-500 dark:text-gray-400'
                   }`}
                 aria-current={item.isActive ? 'page' : undefined}
               >

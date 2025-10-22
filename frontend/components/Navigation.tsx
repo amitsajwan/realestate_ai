@@ -90,8 +90,8 @@ export default function Navigation() {
                 <Link href="/dashboard?section=properties" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
                   Properties
                 </Link>
-                <Link href="/dashboard?section=posts" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                  Posts
+                <Link href="/dashboard?section=property-marketing-hub" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                  Property Marketing Hub
                 </Link>
                 <Link href="/dashboard?section=profile" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
                   Profile
@@ -182,11 +182,11 @@ export default function Navigation() {
                     Properties
                   </Link>
                   <Link
-                    href="/dashboard?section=posts"
+                    href="/dashboard?section=property-marketing-hub"
                     className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white block px-4 py-3 rounded-md text-base font-medium transition-colors touch-manipulation"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    Posts
+                    Property Marketing Hub
                   </Link>
                   <Link
                     href="/dashboard?section=profile"

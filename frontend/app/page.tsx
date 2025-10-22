@@ -26,7 +26,6 @@ import {
   BuildingOfficeIcon,
   ChartBarIcon,
   CogIcon,
-  DocumentTextIcon,
   GlobeAltIcon,
   HomeIcon,
   PlusIcon,
@@ -59,7 +58,6 @@ const navigation: NavigationItem[] = [
   { name: 'Dashboard', icon: HomeIcon, id: 'dashboard' },
   { name: 'Properties', icon: BuildingOfficeIcon, id: 'properties' },
   { name: 'Property Marketing Hub', icon: BuildingOfficeIcon, id: 'property-marketing-hub', highlight: true },
-  { name: 'Posts', icon: DocumentTextIcon, id: 'posts' },
   { name: 'Add Property', icon: PlusIcon, id: 'property-form' },
   { name: 'Analytics', icon: ChartBarIcon, id: 'analytics' },
   { name: 'CRM', icon: UsersIcon, id: 'crm' },
@@ -291,7 +289,7 @@ export default function Dashboard() {
           onGenerateContent={handleGenerateContent}
         />
       case 'posts':
-        // Use admin interface for posts management
+        // Legacy alias -> redirect to Marketing Hub
         return <AdminPostsManagement
           onCreatePost={() => {
             setUnifiedPostingProperty(null)
@@ -472,12 +470,7 @@ export default function Dashboard() {
           onShowAIContentModal={() => setIsAIContentModalOpen(true)}
         />
 
-        {/* Content Area */}
-        <div className="pb-20 md:pb-0 min-h-screen bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            {renderSection()}
-          </div>
-        </div>
+        {/* Content Area removed to prevent extra vertical whitespace */}
 
         {/* Desktop Header (hidden on mobile) */}
         <header className="hidden md:block sticky top-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-b border-gray-200 dark:border-white/20 shadow-sm">

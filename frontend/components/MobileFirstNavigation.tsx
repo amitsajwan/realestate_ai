@@ -32,7 +32,7 @@ interface NavigationItem {
 const navigation: NavigationItem[] = [
     { name: 'Dashboard', icon: HomeIcon, id: 'dashboard' },
     { name: 'Properties', icon: BuildingOfficeIcon, id: 'properties' },
-    { name: 'Posts', icon: DocumentTextIcon, id: 'posts', highlight: true },
+    { name: 'Property Marketing Hub', icon: DocumentTextIcon, id: 'property-marketing-hub', highlight: true },
     { name: 'Add Property', icon: PlusIcon, id: 'property-form' },
     { name: 'Analytics', icon: ChartBarIcon, id: 'analytics' },
     { name: 'CRM', icon: UsersIcon, id: 'crm' },
