@@ -7,8 +7,8 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Enable standalone output for Docker
-  output: 'standalone',
+  // Enable standalone output for Docker (only in production)
+  ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
   // Proxy API requests to backend
   async rewrites() {
     return [

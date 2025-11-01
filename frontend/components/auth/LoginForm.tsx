@@ -24,11 +24,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, isLoading = false }) =>
     const [showPassword, setShowPassword] = useState(false);
     const [validator] = useState(() => new FormValidator(loginSchema));
     const { submit } = useFormSubmission();
-    const [isClient, setIsClient] = useState(false);
-
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
+    // Removed hydration check - not needed for this form
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -77,9 +73,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSubmit, isLoading = false }) =>
         });
     };
 
-    if (!isClient) {
-        return <div>Loading...</div>;
-    }
+    // Removed hydration check - form now works immediately
 
     return (
         <form className="mt-6 sm:mt-8 space-y-5 sm:space-y-6 animate-fade-in" onSubmit={handleSubmit}>

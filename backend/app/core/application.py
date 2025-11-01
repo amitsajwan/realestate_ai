@@ -5,6 +5,7 @@ FastAPI application creation and configuration
 """
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.core.database import init_database, close_database
@@ -17,12 +18,44 @@ from app.core.security import SecurityMiddleware, get_security_headers
 from app.api.v1.endpoints.health import router as health_router
 from app.services.token_cleanup_service import start_token_cleanup, stop_token_cleanup
 import logging
+import json
+from bson import ObjectId
+from datetime import datetime
 
 # Import SSL configuration to initialize it
 try:
     import ssl_config
 except ImportError:
     pass
+
+
+class CustomJSONEncoder(json.JSONEncoder):
+    """Custom JSON encoder to handle MongoDB ObjectId and datetime serialization"""
+    def default(self, obj):
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+
+
+def custom_jsonable_encoder(obj, _recursion_depth=0, max_depth=10):
+    """Custom JSON encoder for FastAPI responses with recursion depth limit"""
+    if _recursion_depth > max_depth:
+        raise ValueError("Maximum recursion depth exceeded")
+
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, dict):
+        return {k: custom_jsonable_encoder(v, _recursion_depth + 1) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [custom_jsonable_encoder(item, _recursion_depth + 1) for item in obj]
+    if hasattr(obj, '__dict__'):
+        # Convert object to dict and then process
+        return custom_jsonable_encoder(obj.__dict__, _recursion_depth + 1)
+    return obj
 
 
 @asynccontextmanager
@@ -77,7 +110,7 @@ def create_application() -> FastAPI:
     for module in ['app.services.auth_service', 'app.repositories.user_repository', 'app.api.v1.endpoints.auth']:
         logging.getLogger(module).setLevel(logging.DEBUG)
 
-    # Create FastAPI app
+    # Create FastAPI app with custom JSON encoder
     app = FastAPI(
         title="PropertyAI API",
         description="AI-powered real estate platform API",
@@ -85,7 +118,17 @@ def create_application() -> FastAPI:
         docs_url="/docs" if settings.environment != "production" else None,
         redoc_url="/redoc" if settings.environment != "production" else None,
         lifespan=lifespan,
+        default_response_class=JSONResponse,
     )
+    
+    # Override the default JSON encoder to handle ObjectId serialization
+    from fastapi.encoders import jsonable_encoder
+    import fastapi.encoders
+    
+    def custom_jsonable_encoder_wrapper(obj, **kwargs):
+        return jsonable_encoder(custom_jsonable_encoder(obj), **kwargs)
+    
+    fastapi.encoders.jsonable_encoder = custom_jsonable_encoder_wrapper
 
     # Register error handlers first
     register_error_handlers(app)

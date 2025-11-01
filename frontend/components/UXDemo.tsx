@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Button, Card, CardBody, CardHeader } from '@/components/UI';
+import { Button, Card, CardContent, CardHeader } from '@/components/UI';
+import { useState } from 'react';
 
 export default function UXDemo() {
   const [isLoading, setIsLoading] = useState(false);
@@ -10,7 +10,7 @@ export default function UXDemo() {
   const handleDemoAction = () => {
     setIsLoading(true);
     setShowShimmer(true);
-    
+
     setTimeout(() => {
       setIsLoading(false);
       setShowShimmer(false);
@@ -34,19 +34,19 @@ export default function UXDemo() {
           <CardHeader>
             <h3 className="text-lg font-semibold">Hover Effects</h3>
           </CardHeader>
-          <CardBody>
+          <CardContent>
             <p className="text-gray-600 dark:text-gray-400">
               Hover over this card to see the smooth lift animation and enhanced shadow.
             </p>
-          </CardBody>
+          </CardContent>
         </Card>
 
         <Card className="card-hover">
           <CardHeader>
             <h3 className="text-lg font-semibold">Loading States</h3>
           </CardHeader>
-          <CardBody>
-            <Button 
+          <CardContent>
+            <Button
               onClick={handleDemoAction}
               disabled={isLoading}
               className="w-full"
@@ -56,19 +56,19 @@ export default function UXDemo() {
             {showShimmer && (
               <div className="mt-4 h-4 shimmer rounded"></div>
             )}
-          </CardBody>
+          </CardContent>
         </Card>
 
         <Card className="card-hover">
           <CardHeader>
             <h3 className="text-lg font-semibold">Animations</h3>
           </CardHeader>
-          <CardBody>
+          <CardContent>
             <div className="space-y-4">
               <div className="float">
                 <div className="w-8 h-8 bg-blue-500 rounded-full mx-auto"></div>
               </div>
-              <Button 
+              <Button
                 onClick={() => {
                   const element = document.querySelector('.bounce-demo');
                   element?.classList.add('bounce-in');
@@ -82,7 +82,7 @@ export default function UXDemo() {
               </Button>
               <div className="bounce-demo w-full h-8 bg-green-500 rounded"></div>
             </div>
-          </CardBody>
+          </CardContent>
         </Card>
       </div>
 
@@ -91,7 +91,7 @@ export default function UXDemo() {
         <CardHeader>
           <h3 className="text-lg font-semibold">Enhanced Inputs</h3>
         </CardHeader>
-        <CardBody>
+        <CardContent>
           <div className="space-y-4">
             <input
               type="text"
@@ -104,7 +104,7 @@ export default function UXDemo() {
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg input-enhanced dark:bg-gray-800 dark:text-white"
             />
           </div>
-        </CardBody>
+        </CardContent>
       </Card>
 
       {/* Notification Demo */}
@@ -112,7 +112,7 @@ export default function UXDemo() {
         <CardHeader>
           <h3 className="text-lg font-semibold">Notification System</h3>
         </CardHeader>
-        <CardBody>
+        <CardContent>
           <p className="text-gray-600 dark:text-gray-400 mb-4">
             Check the notification bell in the navigation for interactive notifications.
           </p>
@@ -122,7 +122,7 @@ export default function UXDemo() {
               Pulse notification indicator
             </span>
           </div>
-        </CardBody>
+        </CardContent>
       </Card>
     </div>
   );

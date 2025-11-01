@@ -1,34 +1,28 @@
 'use client'
 
-import { Button, Card, CardBody } from '@/components/UI'
+import { Button, Card, CardContent } from '@/components/UI';
 import {
-  ChartBarIcon,
-  CurrencyDollarIcon,
-  DocumentTextIcon,
-  EyeIcon,
-  HomeIcon,
-  SparklesIcon,
-  UserGroupIcon
-} from '@heroicons/react/24/outline'
+    ChartBarIcon,
+    CurrencyDollarIcon,
+    DocumentTextIcon,
+    EyeIcon,
+    HomeIcon,
+    SparklesIcon,
+    UserGroupIcon
+} from '@heroicons/react/24/outline';
+
+import { DashboardStats as IDashboardStats } from '@/types/dashboard';
 
 interface DashboardStatsProps {
-  stats: {
-    total_properties: number
-    active_listings: number
-    total_leads: number
-    total_users: number
-    total_views: number
-    monthly_leads: number
-    revenue: string
-  }
-  onAddProperty: () => void
-  onNavigateToAI: () => void
-  onNavigateToAnalytics: () => void
-  onNavigateToSmartForm: () => void
-  onNavigateToPosts: () => void
+  stats: IDashboardStats;
+  onNavigateToAI: () => void;
+  onNavigateToAnalytics: () => void;
+  onNavigateToSmartForm: () => void;
+  onNavigateToPosts: () => void;
+  onAddProperty: () => void;
 }
 
-export function DashboardStats({
+export function DashboardStatsDisplay({
   stats,
   onAddProperty,
   onNavigateToAI,
@@ -84,43 +78,43 @@ export function DashboardStats({
   return (
     <div className="space-y-8">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-4 sm:p-6 lg:p-8 text-white">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Good Morning! 👋</h1>
-            <p className="text-blue-100 text-lg">Ready to boost your real estate business today?</p>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2">Good Morning! 👋</h1>
+            <p className="text-blue-100 text-base sm:text-lg">Ready to boost your real estate business today?</p>
           </div>
-          <div className="text-right">
+          <div className="text-left sm:text-right">
             <p className="text-blue-100">Today</p>
             <p className="text-lg font-semibold">{currentDate}</p>
           </div>
         </div>
 
         {/* Primary KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
           <div className="text-center">
-            <div className="text-4xl font-bold">{stats.total_properties}</div>
-            <div className="text-blue-100">Properties</div>
+            <div className="text-2xl sm:text-3xl lg:text-4xl font-bold">{stats.total_properties}</div>
+            <div className="text-blue-100 text-sm sm:text-base">Properties</div>
           </div>
           <div className="text-center">
-            <div className="text-4xl font-bold">{stats.total_leads}</div>
-            <div className="text-blue-100">Active Leads</div>
+            <div className="text-2xl sm:text-3xl lg:text-4xl font-bold">{stats.total_leads}</div>
+            <div className="text-blue-100 text-sm sm:text-base">Active Leads</div>
           </div>
           <div className="text-center">
-            <div className="text-4xl font-bold">{stats.total_views}</div>
-            <div className="text-blue-100">Total Views</div>
+            <div className="text-2xl sm:text-3xl lg:text-4xl font-bold">{stats.total_views}</div>
+            <div className="text-blue-100 text-sm sm:text-base">Total Views</div>
           </div>
           <div className="text-center">
-            <div className="text-4xl font-bold">{stats.revenue}</div>
-            <div className="text-blue-100">Revenue</div>
+            <div className="text-2xl sm:text-3xl lg:text-4xl font-bold">{stats.revenue}</div>
+            <div className="text-blue-100 text-sm sm:text-base">Revenue</div>
           </div>
         </div>
       </div>
 
       {/* Secondary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <Card className="card-hover">
-          <CardBody className="text-center">
+          <CardContent className="text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <HomeIcon className="w-6 h-6 text-blue-600" />
@@ -129,11 +123,11 @@ export function DashboardStats({
             <div className="text-2xl font-bold text-gray-900 mb-1">{stats.total_properties}</div>
             <div className="text-sm text-gray-600 mb-2">Total Properties</div>
             <div className="text-xs text-green-600 font-medium">+12% this month</div>
-          </CardBody>
+          </CardContent>
         </Card>
 
         <Card className="card-hover">
-          <CardBody className="text-center">
+          <CardContent className="text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                 <CurrencyDollarIcon className="w-6 h-6 text-green-600" />
@@ -142,11 +136,11 @@ export function DashboardStats({
             <div className="text-2xl font-bold text-gray-900 mb-1">{stats.revenue}</div>
             <div className="text-sm text-gray-600 mb-2">Revenue</div>
             <div className="text-xs text-green-600 font-medium">+1% this quarter</div>
-          </CardBody>
+          </CardContent>
         </Card>
 
         <Card className="card-hover">
-          <CardBody className="text-center">
+          <CardContent className="text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                 <EyeIcon className="w-6 h-6 text-purple-600" />
@@ -155,11 +149,11 @@ export function DashboardStats({
             <div className="text-2xl font-bold text-gray-900 mb-1">{stats.total_views}</div>
             <div className="text-sm text-gray-600 mb-2">Property Views</div>
             <div className="text-xs text-green-600 font-medium">+24% vs last month</div>
-          </CardBody>
+          </CardContent>
         </Card>
 
         <Card className="card-hover">
-          <CardBody className="text-center">
+          <CardContent className="text-center">
             <div className="flex items-center justify-center mb-4">
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                 <UserGroupIcon className="w-6 h-6 text-orange-600" />
@@ -168,7 +162,7 @@ export function DashboardStats({
             <div className="text-2xl font-bold text-gray-900 mb-1">{stats.total_leads}</div>
             <div className="text-sm text-gray-600 mb-2">Active Leads</div>
             <div className="text-xs text-green-600 font-medium">+8% new this week</div>
-          </CardBody>
+          </CardContent>
         </Card>
       </div>
 
@@ -179,14 +173,14 @@ export function DashboardStats({
           <p className="text-gray-600">Get started with these essential tasks</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {quickActions.map((action) => (
             <Card
               key={action.id}
               className="hover:shadow-lg transition-all duration-200 cursor-pointer group"
               onClick={action.onClick}
             >
-              <CardBody className="p-6">
+              <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-blue-100 transition-colors">
                     <action.icon className="w-6 h-6 text-gray-600 group-hover:text-blue-600 transition-colors" />
@@ -212,7 +206,7 @@ export function DashboardStats({
                 >
                   Get Started
                 </Button>
-              </CardBody>
+              </CardContent>
             </Card>
           ))}
         </div>

@@ -5,27 +5,7 @@
  * between API responses and UI components.
  */
 
-export interface Property {
-  id: string
-  title: string
-  description?: string
-  price: number
-  address: string
-  location: string
-  bedrooms: number
-  bathrooms: number
-  area: number
-  area_sqft: number
-  type: string
-  property_type: string
-  status: 'for-sale' | 'for-rent' | 'sold' | 'draft' | 'archived' | 'active'
-  date_added: string
-  created_at: string
-  image?: string
-  images?: string[]
-  features?: string[]
-  amenities?: string
-}
+import type { Property } from './properties/types'
 
 export interface PropertyAnalytics {
   total_properties: number
@@ -87,22 +67,22 @@ export function transformPropertiesToAnalytics(properties: Property[]): Property
 
   // Calculate basic metrics
   const totalProperties = properties.length
-  const publishedProperties = properties.filter(p => p.status === 'for-sale' || p.status === 'for-rent' || p.status === 'active').length
-  const draftProperties = properties.filter(p => p.status === 'draft').length
-  const archivedProperties = properties.filter(p => p.status === 'archived').length
-  
+  const publishedProperties = properties.filter(p => p.status === 'active').length
+  const draftProperties = properties.filter(p => p.status === 'pending').length
+  const archivedProperties = properties.filter(p => p.status === 'inactive').length
+
   const totalValue = properties.reduce((sum, p) => sum + (p.price || 0), 0)
   const averagePrice = totalProperties > 0 ? Math.round(totalValue / totalProperties) : 0
 
   // Calculate distributions
   const propertyTypeDistribution = properties.reduce((acc, prop) => {
-    const type = prop.property_type || prop.type || 'unknown'
+    const type = prop.propertyType || 'unknown'
     acc[type] = (acc[type] || 0) + 1
     return acc
   }, {} as Record<string, number>)
 
   const locationDistribution = properties.reduce((acc, prop) => {
-    const location = prop.location || prop.address || 'unknown'
+    const location = prop.location || 'unknown'
     acc[location] = (acc[location] || 0) + 1
     return acc
   }, {} as Record<string, number>)
@@ -117,13 +97,13 @@ export function transformPropertiesToAnalytics(properties: Property[]): Property
   const priceRangeDistribution = properties.reduce((acc, prop) => {
     const price = prop.price || 0
     let range = 'unknown'
-    
+
     if (price < 1000000) range = 'Under 10L'
     else if (price < 2000000) range = '10L - 20L'
     else if (price < 5000000) range = '20L - 50L'
     else if (price < 10000000) range = '50L - 1Cr'
     else range = 'Above 1Cr'
-    
+
     acc[range] = (acc[range] || 0) + 1
     return acc
   }, {
@@ -137,9 +117,21 @@ export function transformPropertiesToAnalytics(properties: Property[]): Property
   // Calculate average days on market (simplified)
   const now = new Date()
   const averageDaysOnMarket = properties.reduce((sum, prop) => {
-    const createdDate = new Date(prop.created_at || prop.date_added || now)
-    const daysDiff = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
-    return sum + Math.max(0, daysDiff)
+    try {
+      let cleanDateString = prop.createdAt;
+      if (cleanDateString && cleanDateString.includes('.') && !cleanDateString.endsWith('Z') && !cleanDateString.includes('+') && !cleanDateString.includes('-', 10)) {
+        const parts = cleanDateString.split('.');
+        if (parts.length === 2) {
+          const microseconds = parts[1].substring(0, 6);
+          cleanDateString = parts[0] + '.' + microseconds + 'Z';
+        }
+      }
+      const createdDate = new Date(cleanDateString || now);
+      const daysDiff = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+      return sum + Math.max(0, daysDiff);
+    } catch {
+      return sum;
+    }
   }, 0) / totalProperties
 
   // Get top performing properties (by price, simplified)
@@ -170,7 +162,7 @@ export function transformPropertiesToAnalytics(properties: Property[]): Property
  */
 export function transformPropertiesToStats(properties: Property[]) {
   const analytics = transformPropertiesToAnalytics(properties)
-  
+
   return {
     total_properties: analytics.total_properties,
     active_listings: analytics.published_properties,
@@ -191,14 +183,14 @@ export function transformPropertiesForDisplay(properties: Property[]) {
     title: prop.title,
     description: prop.description,
     price: prop.price,
-    address: prop.address || prop.location,
+    address: prop.location,
     bedrooms: prop.bedrooms,
     bathrooms: prop.bathrooms,
-    area: prop.area || prop.area_sqft,
-    type: prop.property_type || prop.type,
-    status: prop.status === 'active' ? 'for-sale' : prop.status,
-    date_added: prop.created_at || prop.date_added,
-    image: prop.image,
+    area: prop.areaSqft || 0,
+    type: prop.propertyType,
+    status: prop.status,
+    date_added: prop.createdAt,
+    image: prop.images[0] || '',
     images: prop.images
   }))
 }

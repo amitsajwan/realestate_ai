@@ -6,6 +6,10 @@ import { ThemeProvider } from 'next-themes'
 import { Inter } from 'next/font/google'
 import React from 'react'
 import { Toaster } from 'react-hot-toast'
+import '../styles/agent-website.css'
+import '../styles/mobile-first.css'
+import '../styles/mobile-forms.css'
+import '../styles/mobile.css'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -13,6 +17,13 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'PropertyAI - AI-Powered Real Estate Platform',
   description: 'Modern real estate platform with AI-powered property management and lead generation',
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
 }
 
 export default function RootLayout({

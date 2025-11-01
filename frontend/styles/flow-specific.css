@@ -1,0 +1,231 @@
+/* === Mobile-First Flow Specific Styles === */
+
+/* Onboarding Flow */
+.onboarding-container {
+  min-height: 100vh;
+  background: var(--color-surface);
+  padding-bottom: var(--safe-area-inset-bottom);
+}
+
+.onboarding-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--color-surface);
+  padding: 1rem;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--mobile-header-height);
+}
+
+.onboarding-steps {
+  display: flex;
+  overflow-x: auto;
+  gap: 1rem;
+  padding: 1rem;
+  margin: 0 -1rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.onboarding-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 80px;
+  text-align: center;
+}
+
+.onboarding-step-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface-variant);
+  color: var(--color-text-secondary);
+}
+
+.onboarding-step.active .onboarding-step-icon {
+  background: var(--color-primary-500);
+  color: white;
+}
+
+.onboarding-content {
+  padding: 1rem;
+}
+
+/* Property Form */
+.property-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.property-section {
+  background: white;
+  border-radius: 1rem;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.property-image-upload {
+  min-height: 200px;
+  border: 2px dashed var(--color-border);
+  border-radius: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.property-image-upload.dragging {
+  border-color: var(--color-primary-500);
+  background: var(--color-primary-50);
+}
+
+.property-images-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.property-image-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.property-image-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.property-image-remove {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  border-radius: 50%;
+  padding: 0.25rem;
+  cursor: pointer;
+}
+
+/* Posts Management */
+.posts-container {
+  padding: 1rem;
+}
+
+.posts-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--color-surface);
+  padding: 1rem;
+  margin: -1rem -1rem 1rem -1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.posts-search {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.posts-filters {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  margin-bottom: -0.5rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.post-card {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.post-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.post-content {
+  padding: 1rem;
+}
+
+.post-footer {
+  padding: 1rem;
+  background: var(--color-surface-variant);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.post-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Shared Flow Elements */
+.flow-nav-buttons {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1rem;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  gap: 1rem;
+  z-index: 100;
+}
+
+.flow-nav-buttons button {
+  flex: 1;
+}
+
+/* Animation Classes */
+.slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

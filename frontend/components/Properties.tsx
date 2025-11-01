@@ -1,6 +1,6 @@
 'use client'
 
-import { apiService } from '@/lib/api'
+import { apiService } from '@/lib/api/centralized-client'
 import { formatPrice, formatStatusLabel } from '@/lib/formatters'
 import {
   ArrowPathIcon,
@@ -23,21 +23,7 @@ import Image from 'next/image'
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 
-interface Property {
-  id: string
-  title: string
-  description?: string
-  price: number
-  address: string
-  bedrooms: number
-  bathrooms: number
-  area: number
-  type: string
-  status: 'for-sale' | 'for-rent' | 'sold'
-  date_added: string
-  image?: string
-  images?: string[]
-}
+import { Property } from '@/lib/properties/types'
 
 interface PropertiesProps {
   onAddProperty?: () => void
@@ -45,6 +31,7 @@ interface PropertiesProps {
   setProperties?: (properties: Property[]) => void
   onRefresh?: () => void
   onGenerateContent?: (propertyId: string) => void
+  onPublishWorkflow?: (property: Property) => void
 }
 
 export default function Properties({
@@ -169,10 +156,10 @@ export default function Properties({
   const filteredProperties = propProperties
     .filter(property => {
       const matchesSearch = property.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        property.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        property.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (property.description && property.description.toLowerCase().includes(searchTerm.toLowerCase()))
       const matchesStatus = statusFilter === 'all' || property.status === statusFilter
-      const matchesType = typeFilter === 'all' || property.type === typeFilter
+      const matchesType = typeFilter === 'all' || property.propertyType === typeFilter
       const matchesBedrooms = bedroomFilter === 'all' || property.bedrooms.toString() === bedroomFilter
 
       return matchesSearch && matchesStatus && matchesType && matchesBedrooms
@@ -190,13 +177,13 @@ export default function Properties({
           bValue = b.title.toLowerCase()
           break
         case 'area':
-          aValue = a.area
-          bValue = b.area
+          aValue = a.areaSqft || 0
+          bValue = b.areaSqft || 0
           break
         case 'date_added':
         default:
-          aValue = new Date(a.date_added).getTime()
-          bValue = new Date(b.date_added).getTime()
+          aValue = new Date(a.createdAt).getTime()
+          bValue = new Date(b.createdAt).getTime()
           break
       }
 
@@ -219,10 +206,10 @@ export default function Properties({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
             Properties
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
             Manage your property listings • {propProperties.length} properties
           </p>
         </div>
@@ -239,16 +226,17 @@ export default function Properties({
           )}
           <button
             onClick={onAddProperty}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-semibold flex items-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 sm:px-6 py-3 rounded-xl font-semibold flex items-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] min-h-[48px]"
           >
             <PlusIcon className="w-5 h-5" />
-            <span>Add Property</span>
+            <span className="hidden sm:inline">Add Property</span>
+            <span className="sm:hidden">Add</span>
           </button>
         </div>
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 p-4 sm:p-6">
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Search */}
           <div className="flex-1">
@@ -256,10 +244,10 @@ export default function Properties({
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by title, location, or description..."
+                placeholder="Search properties..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 min-h-[48px] text-base"
               />
             </div>
           </div>
@@ -415,9 +403,9 @@ export default function Properties({
             <div className={`relative overflow-hidden ${viewMode === 'list' ? 'h-48 sm:h-32 sm:w-48 flex-shrink-0' : 'h-48'
               }`}>
               <div className="h-full bg-gradient-to-br from-blue-500 to-purple-600 relative">
-                {(property.images && property.images.length > 0) || property.image ? (
+                {property.images && property.images.length > 0 ? (
                   <Image
-                    src={property.images?.[0] || property.image || ''}
+                    src={property.images[0]}
                     alt={property.title}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-500"
@@ -474,7 +462,7 @@ export default function Properties({
                 </h3>
                 <div className="flex items-center text-gray-500 dark:text-gray-400 text-sm">
                   <MapPinIcon className="w-4 h-4 mr-1.5 flex-shrink-0" />
-                  <span className="truncate">{property.address}</span>
+                  <span className="truncate">{property.location}</span>
                 </div>
               </div>
 
@@ -491,7 +479,7 @@ export default function Properties({
                   </div>
                   <div className="flex items-center bg-gray-50 dark:bg-slate-700 px-2 py-1 rounded-md">
                     <span className="mr-1">📐</span>
-                    <span className="font-medium">{property.area}</span>
+                    <span className="font-medium">{property.areaSqft || 0}</span>
                   </div>
                 </div>
               </div>
@@ -499,7 +487,7 @@ export default function Properties({
               {/* Property Type Badge */}
               <div className="mb-4">
                 <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-sm">
-                  {property.type.charAt(0).toUpperCase() + property.type.slice(1)}
+                  {property.propertyType.charAt(0).toUpperCase() + property.propertyType.slice(1)}
                 </span>
               </div>
 
@@ -591,7 +579,7 @@ export default function Properties({
             <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-slate-700">
               <div>
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedProperty.title}</h3>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">{selectedProperty.address}</p>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">{selectedProperty.location}</p>
               </div>
               <button
                 onClick={() => setSelectedProperty(null)}
@@ -605,7 +593,7 @@ export default function Properties({
               {/* Property Image */}
               <div className="relative h-80 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                 <Image
-                  src={selectedProperty.images?.[0] || selectedProperty.image || '/placeholder-property.jpg'}
+                  src={selectedProperty.images?.[0] || '/placeholder-property.jpg'}
                   alt={selectedProperty.title}
                   fill
                   className="object-cover"
@@ -624,7 +612,7 @@ export default function Properties({
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Type:</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{selectedProperty.type}</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">{selectedProperty.propertyType}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Status:</span>
@@ -648,7 +636,7 @@ export default function Properties({
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Area:</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{selectedProperty.area} sq ft</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">{selectedProperty.areaSqft || 0} sq ft</span>
                       </div>
                     </div>
                   </div>

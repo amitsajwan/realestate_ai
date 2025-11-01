@@ -195,14 +195,40 @@ export default function AgentPropertiesPage({ params }: AgentPropertiesPageProps
     }
 
     const formatDate = (dateString: string) => {
-        const date = new Date(dateString)
-        const now = new Date()
-        const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+        try {
+            // Handle backend date format with microseconds
+            let cleanDateString = dateString
 
-        if (diffInDays === 0) return 'Today'
-        if (diffInDays === 1) return 'Yesterday'
-        if (diffInDays < 7) return `${diffInDays} days ago`
-        return date.toLocaleDateString()
+            // If the date string has microseconds but no timezone, add UTC timezone
+            if (dateString.includes('.') && !dateString.endsWith('Z') && !dateString.includes('+') && !dateString.includes('-', 10)) {
+                // Remove microseconds and add Z for proper ISO parsing
+                const parts = dateString.split('.')
+                if (parts.length === 2) {
+                    // Keep only the first 6 digits of microseconds (milliseconds)
+                    const microseconds = parts[1].substring(0, 6)
+                    cleanDateString = parts[0] + '.' + microseconds + 'Z'
+                }
+            }
+
+            const date = new Date(cleanDateString)
+
+            // Check if date is valid
+            if (isNaN(date.getTime())) {
+                console.error('Invalid date:', dateString, 'cleaned:', cleanDateString)
+                return 'Invalid Date'
+            }
+
+            const now = new Date()
+            const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+
+            if (diffInDays === 0) return 'Today'
+            if (diffInDays === 1) return 'Yesterday'
+            if (diffInDays < 7) return `${diffInDays} days ago`
+            return date.toLocaleDateString()
+        } catch (error) {
+            console.error('Date formatting error:', error, 'for date:', dateString)
+            return 'Invalid Date'
+        }
     }
 
     const filteredProperties = properties.filter(property => {

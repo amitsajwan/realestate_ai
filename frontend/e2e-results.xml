@@ -1,0 +1,50 @@
+<testsuites id="" name="" tests="1" failures="1" skipped="0" errors="0" time="7.310378">
+<testsuite name="working-e2e-test.spec.ts" timestamp="2025-09-26T04:15:47.485Z" hostname="chromium" tests="1" failures="1" skipped="0" time="6.335" errors="0">
+<testcase name="PropertyAI Working E2E Tests › UnifiedPostingHub integration works" classname="working-e2e-test.spec.ts" time="6.335">
+<failure message="working-e2e-test.spec.ts:82:7 UnifiedPostingHub integration works" type="FAILURE">
+<![CDATA[  [chromium] › working-e2e-test.spec.ts:82:7 › PropertyAI Working E2E Tests › UnifiedPostingHub integration works 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator:  locator('text=AI Generator')
+    Expected: visible
+    Received: <element(s) not found>
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('text=AI Generator')
+
+
+       98 |     
+       99 |     // Natural Language: "Check that AI Generator button is available"
+    > 100 |     await expect(page.locator('text=AI Generator')).toBeVisible();
+          |                                                     ^
+      101 |     
+      102 |     // Natural Language: "Click AI Generator to open UnifiedPostingHub"
+      103 |     await page.click('text=AI Generator');
+        at /workspace/frontend/e2e/mcp-tests/working-e2e-test.spec.ts:100:53
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../test-results/working-e2e-test-PropertyA-c1d4a-ostingHub-integration-works-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../test-results/working-e2e-test-PropertyA-c1d4a-ostingHub-integration-works-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../test-results/working-e2e-test-PropertyA-c1d4a-ostingHub-integration-works-chromium/error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|test-results/working-e2e-test-PropertyA-c1d4a-ostingHub-integration-works-chromium/test-failed-1.png]]
+
+[[ATTACHMENT|test-results/working-e2e-test-PropertyA-c1d4a-ostingHub-integration-works-chromium/video.webm]]
+
+[[ATTACHMENT|test-results/working-e2e-test-PropertyA-c1d4a-ostingHub-integration-works-chromium/error-context.md]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
+</testsuites>

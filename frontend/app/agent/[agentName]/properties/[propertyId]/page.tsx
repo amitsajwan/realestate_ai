@@ -175,12 +175,38 @@ export default function PropertyDetailPage({ params }: PropertyDetailPageProps) 
     }
 
     const formatDate = (dateString: string) => {
-        const date = new Date(dateString)
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        })
+        try {
+            // Handle backend date format with microseconds
+            let cleanDateString = dateString
+
+            // If the date string has microseconds but no timezone, add UTC timezone
+            if (dateString.includes('.') && !dateString.endsWith('Z') && !dateString.includes('+') && !dateString.includes('-', 10)) {
+                // Remove microseconds and add Z for proper ISO parsing
+                const parts = dateString.split('.')
+                if (parts.length === 2) {
+                    // Keep only the first 6 digits of microseconds (milliseconds)
+                    const microseconds = parts[1].substring(0, 6)
+                    cleanDateString = parts[0] + '.' + microseconds + 'Z'
+                }
+            }
+
+            const date = new Date(cleanDateString)
+
+            // Check if date is valid
+            if (isNaN(date.getTime())) {
+                console.error('Invalid date:', dateString, 'cleaned:', cleanDateString)
+                return 'Invalid Date'
+            }
+
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            })
+        } catch (error) {
+            console.error('Date formatting error:', error, 'for date:', dateString)
+            return 'Invalid Date'
+        }
     }
 
     const nextImage = () => {

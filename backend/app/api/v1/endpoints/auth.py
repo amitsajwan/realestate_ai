@@ -214,15 +214,29 @@ async def setup_development_user():
     
     try:
         user = await development_auth_service.ensure_development_user_exists()
+        # Handle both dict and User object formats
+        if isinstance(user, dict):
+            user_id = user.get('id', user.get('_id', ''))
+            user_email = user.get('email', '')
+            user_first_name = user.get('first_name', '')
+            user_last_name = user.get('last_name', '')
+            user_onboarding_completed = user.get('onboarding_completed', False)
+        else:
+            user_id = str(user.id)
+            user_email = user.email
+            user_first_name = user.first_name
+            user_last_name = user.last_name
+            user_onboarding_completed = user.onboarding_completed
+            
         return {
             "message": "Development user setup successful",
             "user": {
-                "id": str(user.id),
-                "email": user.email,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "onboarding_completed": user.onboarding_completed,
-                "onboarding_step": user.onboarding_step
+                "id": str(user_id),
+                "email": user_email,
+                "first_name": user_first_name,
+                "last_name": user_last_name,
+                "onboarding_completed": user_onboarding_completed,
+                "onboarding_step": user.get('onboarding_step', 1) if isinstance(user, dict) else user.onboarding_step
             }
         }
     except Exception as e:

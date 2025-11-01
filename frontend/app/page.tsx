@@ -1,27 +1,25 @@
 'use client'
 
+import AdminPostsManagement from '@/components/AdminPostsManagement'
 import BreadcrumbNavigation from '@/components/BreadcrumbNavigation'
 import CRM from '@/components/CRM'
 import DashboardCustomization from '@/components/DashboardCustomization'
-import { DashboardStats } from '@/components/DashboardStats'
-import EnhancedPropertyMarketingHub from '@/components/EnhancedPropertyMarketingHub'
+import { DashboardStatsDisplay } from '@/components/DashboardStats'
 import FacebookIntegration from '@/components/FacebookIntegration'
-import GlobalSearch from '@/components/GlobalSearch'
 import MobileBottomNavigation from '@/components/MobileBottomNavigation'
-import { MobileNavigation } from '@/components/MobileNavigation'
-import ProfileSettings from '@/components/ProfileSettings'
+import MobileFirstNavigation from '@/components/MobileFirstNavigation'
+import MobilePropertyForm from '@/components/MobilePropertyForm'
 import Properties from '@/components/Properties'
 import PublishingWorkflowManager from '@/components/PublishingWorkflowManager'
-import SmartPropertyForm from '@/components/SmartPropertyForm'
-import { Button, Card, CardBody, CardHeader } from '@/components/UI'
-import { apiService } from '@/lib/api'
+import { Card, CardContent, CardHeader } from '@/components/UI'
+import UnifiedPostingHub from '@/components/UnifiedPostingHub'
+import { apiService } from '@/lib/api/centralized-client'
 import { authManager } from '@/lib/auth'
-import { propertiesAPI } from '@/lib/properties'
+import { User } from '@/lib/auth/types'
+import { Property } from '@/lib/properties/types'
+import { DashboardStats, DashboardWidget } from '@/types/dashboard'
+import { UnifiedPostingMode } from '@/types/posting'
 import {
-  AdjustmentsHorizontalIcon,
-  ArrowRightOnRectangleIcon,
-  Bars3Icon,
-  BellIcon,
   BuildingOfficeIcon,
   ChartBarIcon,
   CogIcon,
@@ -29,16 +27,13 @@ import {
   HomeIcon,
   PlusIcon,
   SparklesIcon,
-  UserIcon,
-  UsersIcon,
-  XMarkIcon
+  UsersIcon
 } from '@heroicons/react/24/outline'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { lazy, Suspense, useEffect, useState } from 'react'
 
 // Lazy load heavy components
-const AIContentGenerator = lazy(() => import('@/components/AIContentGenerator'))
 const AIContentGeneratorModal = lazy(() => import('@/components/AIContentGeneratorModal'))
 const Analytics = lazy(() => import('@/components/Analytics'))
 const PublicWebsiteManagement = lazy(() => import('@/components/PublicWebsiteManagement'))
@@ -57,239 +52,173 @@ interface NavigationItem {
 const navigation: NavigationItem[] = [
   { name: 'Dashboard', icon: HomeIcon, id: 'dashboard' },
   { name: 'Properties', icon: BuildingOfficeIcon, id: 'properties' },
-  { name: 'Property Marketing Hub', icon: BuildingOfficeIcon, id: 'property-marketing-hub', highlight: true },
+  { name: 'Property Marketing Hub', icon: SparklesIcon, id: 'property-marketing-hub', highlight: true },
   { name: 'Add Property', icon: PlusIcon, id: 'property-form' },
   { name: 'Analytics', icon: ChartBarIcon, id: 'analytics' },
   { name: 'CRM', icon: UsersIcon, id: 'crm' },
-  { name: 'Team Management', icon: UsersIcon, id: 'team-management' },
-  { name: 'Public Website', icon: GlobeAltIcon, id: 'public-website' },
-  { name: 'Facebook', icon: CogIcon, id: 'facebook' },
-  { name: 'Profile', icon: UserIcon, id: 'profile' },
-  // Moved to bottom as utility
-  { name: 'UX Demo', icon: SparklesIcon, id: 'ux-demo', position: 'bottom' },
+  { name: 'Team', icon: UsersIcon, id: 'team-management' },
+  { name: 'Website', icon: GlobeAltIcon, id: 'public-website' },
+  { name: 'Facebook', icon: CogIcon, id: 'facebook' }
 ]
 
-export default function Dashboard() {
-  const [activeSection, setActiveSection] = useState('property-marketing-hub')
-  const [user, setUser] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [properties, setProperties] = useState<any[]>([])
+export default function DashboardPage() {
+  const router = useRouter()
+  const [activeSection, setActiveSection] = useState('dashboard')
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [selectedPropertyForContent, setSelectedPropertyForContent] = useState<string | undefined>(undefined)
-  const [showWorkflow, setShowWorkflow] = useState(false)
-  const [workflowPropertyData, setWorkflowPropertyData] = useState<any>(null)
-  const [isAIContentModalOpen, setIsAIContentModalOpen] = useState(false)
-  const [selectedPropertyForAI, setSelectedPropertyForAI] = useState<any>(null)
   const [showDashboardCustomization, setShowDashboardCustomization] = useState(false)
-  const [dashboardWidgets, setDashboardWidgets] = useState<any[]>([])
-  const [stats, setStats] = useState({
+  const [properties, setProperties] = useState<Property[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [dashboardWidgets, setDashboardWidgets] = useState<DashboardWidget[]>([])
+  const [showWorkflow, setShowWorkflow] = useState(false)
+  const [workflowPropertyData, setWorkflowPropertyData] = useState<Property | null>(null)
+  const [isAIContentModalOpen, setIsAIContentModalOpen] = useState(false)
+  const [selectedPropertyForAI, setSelectedPropertyForAI] = useState<Property | null>(null)
+  const [showUnifiedPosting, setShowUnifiedPosting] = useState(false)
+  const [unifiedPostingMode, setUnifiedPostingMode] = useState<UnifiedPostingMode>('marketing-hub')
+  const [unifiedPostingProperty, setUnifiedPostingProperty] = useState<Property | null>(null)
+  const [user, setUser] = useState<User | null>(null)
+
+  useEffect(() => {
+    const initializeDashboard = async () => {
+      try {
+        const currentUser = await authManager.getCurrentUser()
+        if (!currentUser) {
+          router.push('/login')
+          return
+        }
+        setUser(currentUser)
+        await loadProperties()
+        
+        // Load saved dashboard widgets
+        const savedWidgets = localStorage.getItem('dashboardWidgets')
+        if (savedWidgets) {
+          setDashboardWidgets(JSON.parse(savedWidgets))
+        }
+      } catch (error) {
+        console.error('Failed to initialize dashboard:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    initializeDashboard()
+  }, [router])
+
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
     total_properties: 0,
     active_listings: 0,
     total_leads: 0,
     total_users: 0,
     total_views: 0,
     monthly_leads: 0,
-    revenue: '₹0'
+    revenue: '$0'
   })
-  const router = useRouter()
-
-  useEffect(() => {
-    const initAuth = async () => {
-      console.debug('[DashboardPage] Checking authentication...')
-      if (typeof window !== 'undefined') {
-        console.debug('[DashboardPage] Current URL:', window.location.href)
-        console.debug('[DashboardPage] URL params:', Object.fromEntries(new URLSearchParams(window.location.search).entries()))
-
-        // Handle URL section parameter
-        const urlParams = new URLSearchParams(window.location.search)
-        const sectionParam = urlParams.get('section')
-        if (sectionParam) {
-          console.debug('[DashboardPage] Setting active section from URL:', sectionParam)
-          setActiveSection(sectionParam)
-        }
-      }
-
-      try {
-        await authManager.init()
-        const state = authManager.getState()
-
-        console.debug('[DashboardPage] Auth state after init:', {
-          isAuthenticated: state.isAuthenticated,
-          hasUser: !!state.user,
-          user: state.user,
-          isLoading: state.isLoading
-        })
-
-        if (!state.isAuthenticated) {
-          console.info('[DashboardPage] Not authenticated, redirecting to login')
-          router.push('/login')
-          return
-        }
-
-        if (!state.user?.onboarding_completed) {
-          console.info('[DashboardPage] Onboarding not completed, redirecting to onboarding')
-          router.push('/onboarding')
-          return
-        }
-
-        console.info('[DashboardPage] User authenticated and onboarded, loading dashboard data')
-        setUser(state.user)
-        setIsLoading(false)
-        fetchStats()
-        loadProperties()
-      } catch (error) {
-        console.error('[DashboardPage] Auth initialization failed:', error)
-        setIsLoading(false)
-        router.push('/login')
-      }
-    }
-
-    // Add timeout to prevent infinite loading
-    const timeout = setTimeout(() => {
-      if (isLoading) {
-        console.warn('[DashboardPage] Loading timeout, redirecting to login')
-        setIsLoading(false)
-        router.push('/login')
-      }
-    }, 10000) // 10 second timeout
-
-    initAuth()
-
-    // Subscribe to auth state changes to handle logout
-    const unsubscribe = authManager.subscribe((state) => {
-      console.debug('[DashboardPage] Auth state changed:', {
-        isAuthenticated: state.isAuthenticated,
-        hasUser: !!state.user
-      })
-
-      if (!state.isAuthenticated) {
-        console.info('[DashboardPage] User logged out, redirecting to login')
-        router.push('/login')
-      }
-    })
-
-    return () => {
-      clearTimeout(timeout)
-      unsubscribe()
-    }
-  }, [router, isLoading])
-
-  const fetchStats = async () => {
-    try {
-      const response = await apiService.getDashboardStats()
-      if (response.success && response.data) {
-        setStats(response.data)
-      }
-    } catch (error) {
-      console.error('[DashboardPage] Error fetching stats:', error)
-    }
-  }
 
   const loadProperties = async () => {
     try {
-      console.log('[DashboardPage] Fetching properties from API...')
-      const response = await propertiesAPI.getProperties()
-      console.log('[DashboardPage] API response:', response)
-
-      // Handle both direct array response and wrapped response
-      const propertiesData = Array.isArray(response) ? response : (response?.data || [])
-
-      if (propertiesData && propertiesData.length > 0) {
-        // Transform the API response to match the expected format
-        const transformedProperties = propertiesData.map((property: any) => ({
-          id: property.id,
-          title: property.title,
-          price: property.price,
-          status: property.status === 'active' ? 'for-sale' : property.status,
-          type: property.property_type,
-          bedrooms: property.bedrooms,
-          bathrooms: property.bathrooms,
-          area: property.area_sqft,
-          address: property.location,
-          date_added: property.created_at ? new Date(property.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-          description: property.description,
-          images: property.images || [],
-          image: property.images?.[0] || null
-        }))
-        setProperties(transformedProperties)
-        console.log('[DashboardPage] Properties loaded:', transformedProperties.length)
-        console.log('[DashboardPage] Properties state updated:', transformedProperties)
-      } else {
-        console.log('[DashboardPage] No properties found, using empty array')
-        setProperties([])
+      const [propertiesResponse, statsResponse] = await Promise.all([
+        apiService.request<Property[]>('/api/properties', { method: 'GET' }),
+        apiService.request<DashboardStats>('/api/stats/dashboard', { method: 'GET' })
+      ])
+      setProperties(propertiesResponse)
+      
+      // If the API call fails, we'll keep the default stats
+      if (statsResponse) {
+        setDashboardStats(statsResponse)
       }
     } catch (error) {
-      console.error('[DashboardPage] Error fetching properties:', error)
-      // Fallback to empty array on error
-      setProperties([])
-    }
-  }
-
-  // Removed testThemePersistence function to prevent theme initialization loops
-
-  const handleGenerateContent = (propertyId: string) => {
-    // Find the property data
-    const property = properties.find(p => p.id === propertyId)
-    if (property) {
-      setSelectedPropertyForAI(property)
-      setIsAIContentModalOpen(true)
+      console.error('Failed to load dashboard data:', error)
     }
   }
 
   const handleSectionChange = (section: string) => {
     setActiveSection(section)
-    // Clear selected property when navigating away from marketing hub
-    if (section !== 'property-marketing-hub') {
-      setSelectedPropertyForContent(undefined)
-    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white">Loading...</p>
+          <p className="text-gray-300 text-sm mt-2">Initializing authentication...</p>
+        </div>
+      </div>
+    )
   }
 
   const renderSection = () => {
     switch (activeSection) {
-      case 'property-marketing-hub':
-        return <EnhancedPropertyMarketingHub
-          onRefresh={loadProperties}
-          preselectedPropertyId={selectedPropertyForContent}
-          onClearPreselectedProperty={() => setSelectedPropertyForContent(undefined)}
-        />
-      case 'properties':
-        return <Properties
-          onAddProperty={() => setActiveSection('property-form')}
-          properties={properties}
-          setProperties={setProperties}
-          onRefresh={loadProperties}
-          onGenerateContent={handleGenerateContent}
-        />
-      case 'property-form':
+      case 'dashboard':
         return (
-          <SmartPropertyForm
-            onSuccess={(propertyData) => {
-              console.log('[DashboardPage] Property created successfully:', propertyData)
-              console.log('[DashboardPage] Current showWorkflow state:', showWorkflow)
-              console.log('[DashboardPage] Current workflowPropertyData state:', workflowPropertyData)
-              try {
-                // Set the property data for the workflow
-                setWorkflowPropertyData(propertyData)
-                setShowWorkflow(true)
-                console.log('[DashboardPage] Starting property-to-post workflow...')
-                console.log('[DashboardPage] Workflow state updated - showWorkflow: true, workflowPropertyData:', propertyData)
-              } catch (error) {
-                console.error('[DashboardPage] Error in onSuccess callback:', error)
-                // Fallback to old behavior
-                setActiveSection('properties')
-                loadProperties()
-              }
+          <div className="space-y-6">
+            <DashboardStatsDisplay 
+              stats={dashboardStats}
+              onAddProperty={() => handleSectionChange('property-form')}
+              onNavigateToAI={() => setIsAIContentModalOpen(true)}
+              onNavigateToAnalytics={() => handleSectionChange('analytics')}
+              onNavigateToSmartForm={() => handleSectionChange('property-form')}
+              onNavigateToPosts={() => handleSectionChange('property-marketing-hub')}
+            />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {dashboardWidgets.map((widget) => (
+                <Card key={widget.id}>
+                  <CardHeader>
+                    <h3 className="text-lg font-semibold">{widget.title}</h3>
+                  </CardHeader>
+                  <CardContent>
+                    {widget.content}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )
+      case 'properties':
+        return (
+          <Properties
+            onPublishWorkflow={(property: Property) => {
+              setWorkflowPropertyData(property)
+              setShowWorkflow(true)
             }}
           />
         )
-      case 'ai-content':
+      case 'property-marketing-hub':
+        return (
+          <AdminPostsManagement
+            onUnifiedPostClick={(property: Property) => {
+              setUnifiedPostingMode('property-creation')
+              setUnifiedPostingProperty(property)
+              setShowUnifiedPosting(true)
+            }}
+            onCreatePost={() => {
+              setUnifiedPostingMode('standalone')
+              setShowUnifiedPosting(true)
+            }}
+          />
+        )
+      case 'facebook':
+        return <FacebookIntegration />
+      case 'public-website':
+        return <PublicWebsiteManagement />
+      case 'property-form':
+        return (
+          <MobilePropertyForm
+            onSuccess={() => {
+              console.log('[DashboardPage] Property form completed successfully')
+              setActiveSection('properties')
+              loadProperties()
+            }}
+          />
+        )
+      case 'team-management':
         return (
           <Suspense fallback={
             <div className="flex items-center justify-center p-8">
               <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
             </div>
           }>
-            <AIContentGenerator />
+            <TeamManagement />
           </Suspense>
         )
       case 'analytics':
@@ -304,245 +233,51 @@ export default function Dashboard() {
         )
       case 'crm':
         return <CRM />
-      case 'team-management':
-        return (
-          <Suspense fallback={
-            <div className="flex items-center justify-center p-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
-          }>
-            <TeamManagement />
-          </Suspense>
-        )
-      case 'ux-demo':
-        return (
-          <Suspense fallback={
-            <div className="flex items-center justify-center p-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
-          }>
-            <UXDemo />
-          </Suspense>
-        )
-      case 'facebook':
-        return <FacebookIntegration />
-      case 'profile':
-        return <ProfileSettings />
-      case 'public-website':
-        return (
-          <Suspense fallback={
-            <div className="flex items-center justify-center p-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
-          }>
-            <PublicWebsiteManagement />
-          </Suspense>
-        )
       default:
         return (
-          <div className="space-y-8">
-            <DashboardStats
-              stats={stats}
-              onAddProperty={() => setActiveSection('property-form')}
-              onNavigateToAI={() => setActiveSection('ai-content')}
-              onNavigateToAnalytics={() => setActiveSection('analytics')}
-              onNavigateToSmartForm={() => setActiveSection('property-form')}
-              onNavigateToPosts={() => setActiveSection('property-marketing-hub')}
-            />
-
-
-            {/* Recent Properties Preview */}
-            <Card className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold text-gray-900">Recent Properties</h2>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setActiveSection('properties')}
-                    className="text-brand-primary hover:text-brand-primary-hover"
-                  >
-                    View All →
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardBody>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {properties.slice(0, 3).map((property, index) => (
-                    <motion.div
-                      key={property.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="bg-gray-50 rounded-xl p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:bg-gray-100"
-                      onClick={() => setActiveSection('properties')}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-semibold text-gray-900 truncate">{property.title}</h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${property.status === 'for-sale'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : property.status === 'for-rent'
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-gray-100 text-gray-700'
-                          }`}>
-                          {property.status === 'for-sale' ? 'For Sale' : property.status === 'for-rent' ? 'For Rent' : property.status}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm text-gray-600">
-                        <span className="font-semibold text-gray-900">₹{property.price.toLocaleString()}</span>
-                        <span>{property.bedrooms} bed • {property.bathrooms} bath</span>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </CardBody>
-            </Card>
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-semibold text-gray-900">Section under development</h2>
+            <p className="text-gray-600 mt-2">This feature will be available soon.</p>
           </div>
         )
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white">Loading...</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900">
+    <div className="min-h-screen bg-gray-50">
       <div className="page-transition">
-        {/* Mobile-First Header */}
-        <header className="sticky top-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg border-b border-gray-200 dark:border-white/20 shadow-sm">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              {/* Logo and Mobile Menu Button */}
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                  className="lg:hidden p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-                >
-                  {isMobileMenuOpen ? (
-                    <XMarkIcon className="w-6 h-6" />
-                  ) : (
-                    <Bars3Icon className="w-6 h-6" />
-                  )}
-                </button>
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <HomeIcon className="w-6 h-6 text-white" />
-                  </div>
-                  <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    PropertyAI
-                  </h1>
-                </div>
-              </div>
+        {/* Mobile-First Navigation */}
+        <MobileFirstNavigation
+          activeSection={activeSection}
+          onSectionChange={handleSectionChange}
+          user={user}
+          properties={properties}
+          onShowDashboardCustomization={() => setShowDashboardCustomization(true)}
+          onShowAIContentModal={() => setIsAIContentModalOpen(true)}
+        />
 
-              {/* Desktop Navigation */}
-              <nav id="navigation" className="hidden lg:flex items-center space-x-1">
-                {navigation.slice(0, 5).map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => handleSectionChange(item.id)}
-                    className={`relative flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeSection === item.id
-                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-sm'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white'
-                      }`}
-                  >
-                    <item.icon className="w-4 h-4" />
-                    <span className="hidden xl:block">{item.name}</span>
-                  </button>
-                ))}
-              </nav>
-
-              {/* Right Side Actions */}
-              <div className="flex items-center space-x-3">
-                {/* Global Search */}
-                <GlobalSearch className="hidden md:block" />
-
-                {/* Dashboard Customization Button */}
-                <button
-                  onClick={() => setShowDashboardCustomization(true)}
-                  className="hidden lg:flex items-center space-x-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                  title="Customize Dashboard"
-                >
-                  <AdjustmentsHorizontalIcon className="w-4 h-4" />
-                  <span className="text-sm font-medium hidden xl:block">Customize</span>
-                </button>
-
-                {/* Create Post Button - Desktop */}
-                {properties.length > 0 && (
-                  <button
-                    onClick={() => setIsAIContentModalOpen(true)}
-                    className="hidden sm:flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-                  >
-                    <SparklesIcon className="w-4 h-4" />
-                    <span className="text-sm font-medium">Create Post</span>
-                  </button>
-                )}
-                {/* Create Post Button - Mobile */}
-                {properties.length > 0 && (
-                  <button
-                    onClick={() => setIsAIContentModalOpen(true)}
-                    className="sm:hidden p-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg"
-                    title="Create Post"
-                  >
-                    <SparklesIcon className="w-5 h-5" />
-                  </button>
-                )}
-                <button className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors relative">
-                  <BellIcon className="w-5 h-5" />
-                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
-                </button>
-                <div className="flex items-center space-x-3">
-                  <div className="hidden sm:flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                      <span className="text-white text-sm font-medium">
-                        {(user?.first_name || 'A').charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {user?.first_name || 'Agent'}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      authManager.logout()
-                      router.push('/login')
-                    }}
-                    className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                  >
-                    <ArrowRightOnRectangleIcon className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
-
+        {/* Main Layout */}
         <div className="flex">
           {/* Desktop Sidebar */}
           <aside className="hidden lg:flex lg:flex-col lg:w-64 xl:w-72">
-            <nav id="navigation" className="flex-1 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-r border-gray-200 dark:border-white/20">
+            <nav className="flex-1 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-r border-gray-200 dark:border-white/20">
               <div className="p-6">
                 <div className="space-y-1">
-                  {navigation.map((item) => (
+                  {navigation.filter(item => item.id !== 'profile').map((item) => (
                     <button
                       key={item.id}
                       onClick={() => handleSectionChange(item.id)}
-                      className={`relative w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200 group hover-lift click-shrink ${activeSection === item.id
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-[1.02] animate-scale-in'
-                        : item.highlight
-                          ? 'bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-700 dark:text-purple-300'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white hover:transform hover:scale-[1.01]'
-                        }`}
+                      className={`relative w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200 group hover-lift click-shrink ${
+                        activeSection === item.id
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-[1.02] animate-scale-in'
+                          : item.highlight
+                            ? 'bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-700 dark:text-purple-300'
+                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white hover:transform hover:scale-[1.01]'
+                      }`}
                     >
-                      <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110 hover-rotate ${activeSection === item.id ? 'text-white' : ''
-                        }`} />
+                      <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110 hover-rotate ${
+                        activeSection === item.id ? 'text-white' : ''
+                      }`} />
                       <span className="font-medium">{item.name}</span>
                       {item.badge && (
                         <span className="ml-auto px-2 py-1 text-xs font-semibold bg-green-100 text-green-800 rounded-full">
@@ -558,56 +293,6 @@ export default function Dashboard() {
               </div>
             </nav>
           </aside>
-
-          {/* Mobile Navigation Overlay */}
-          <AnimatePresence>
-            {isMobileMenuOpen && (
-              <>
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="lg:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                />
-                <motion.nav
-                  initial={{ x: '-100%' }}
-                  animate={{ x: 0 }}
-                  exit={{ x: '-100%' }}
-                  transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                  className="lg:hidden fixed left-0 top-16 bottom-0 z-50 w-80 bg-white dark:bg-slate-900 shadow-2xl overflow-y-auto"
-                >
-                  <div className="p-6">
-                    <div className="space-y-2">
-                      {navigation.map((item) => (
-                        <button
-                          key={item.id}
-                          onClick={() => {
-                            handleSectionChange(item.id)
-                            setIsMobileMenuOpen(false)
-                          }}
-                          className={`relative w-full flex items-center space-x-4 px-4 py-4 rounded-xl text-left transition-all duration-200 ${activeSection === item.id
-                            ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
-                            : item.highlight
-                              ? 'bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-700 dark:text-purple-300'
-                              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10'
-                            }`}
-                        >
-                          <item.icon className="w-6 h-6" />
-                          <span className="font-medium text-lg">{item.name}</span>
-                          {item.badge && (
-                            <span className="ml-auto px-2 py-1 text-xs font-semibold bg-green-100 text-green-800 rounded-full">
-                              {item.badge}
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </motion.nav>
-              </>
-            )}
-          </AnimatePresence>
 
           {/* Main Content */}
           <main id="main-content" className="flex-1 min-h-screen bg-gray-50 pb-20 lg:pb-0">
@@ -626,14 +311,6 @@ export default function Dashboard() {
               </motion.div>
             </div>
           </main>
-
-          {/* Mobile Navigation */}
-          <MobileNavigation
-            activeSection={activeSection}
-            onSectionChange={handleSectionChange}
-            isOpen={isMobileMenuOpen}
-            onClose={() => setIsMobileMenuOpen(false)}
-          />
 
           {/* Mobile Bottom Navigation */}
           <MobileBottomNavigation
@@ -658,6 +335,29 @@ export default function Dashboard() {
           setActiveSection('properties')
           loadProperties()
         }}
+      />
+
+      {/* Unified Posting Hub */}
+      <UnifiedPostingHub
+        mode={unifiedPostingMode}
+        propertyData={unifiedPostingProperty || undefined}
+        isOpen={showUnifiedPosting}
+        onClose={() => {
+          setShowUnifiedPosting(false)
+          setUnifiedPostingProperty(null)
+        }}
+        onContentGenerated={(content) => {
+          console.log('Content generated:', content)
+        }}
+        onPublish={(content, language) => {
+          console.log('Content published:', content, language)
+          setShowUnifiedPosting(false)
+          setUnifiedPostingProperty(null)
+          // Refresh properties to show updated content
+          loadProperties()
+        }}
+        preselectedLanguage="en"
+        preselectedPlatforms={['website', 'facebook', 'instagram']}
       />
 
       {/* AI Content Generator Modal */}

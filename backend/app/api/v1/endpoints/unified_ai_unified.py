@@ -140,8 +140,11 @@ async def generate_unified_content(
                     
                 except Exception as e:
                     logger.error(f"Error generating content for {platform}/{language}: {e}")
-                    # Continue with other combinations
-                    continue
+                    # If AI generation fails, return error response instead of empty content
+                    raise HTTPException(
+                        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        detail=f"AI content generation failed: {str(e)}"
+                    )
         
         # Calculate generation time
         generation_time_ms = int((time.time() - start_time) * 1000)
@@ -306,7 +309,8 @@ async def get_properties_for_ai(
                 "bathrooms": prop.bathrooms,
                 "area": prop.area_sqft,  # Fixed: use area_sqft instead of area
                 "description": prop.description,
-                "amenities": prop.amenities
+                "amenities": prop.amenities,
+                "images": prop.images or []  # Add images field
             })
         
         return {

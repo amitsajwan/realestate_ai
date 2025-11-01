@@ -148,6 +148,13 @@ class Settings(BaseSettings):
     GROQ_API_KEY: Optional[str] = None  # Alternative naming for compatibility
     google_maps_api_key: Optional[str] = None
     
+    # AI Model Configuration
+    ai_model_development: str = "llama-3.1-8b-instant"  # Fast, cheap model for development
+    ai_model_production: str = "llama-3.3-70b-versatile"  # High-quality model for production
+    ai_max_tokens_development: int = 800  # Reduced token limit for development
+    ai_max_tokens_production: int = 1500  # Full token limit for production
+    ai_enable_fallback: bool = True  # Enable fallback to cheaper models
+    
     # =============================================================================
     # SOCIAL MEDIA INTEGRATIONS
     # =============================================================================

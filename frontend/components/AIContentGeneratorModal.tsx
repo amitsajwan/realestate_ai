@@ -1,7 +1,7 @@
 'use client'
 
 import { XMarkIcon } from '@heroicons/react/24/outline'
-import AIContentGenerator from './AIContentGenerator'
+import UnifiedPostingHub from './UnifiedPostingHub'
 
 interface AIContentGeneratorModalProps {
     isOpen: boolean
@@ -42,11 +42,18 @@ export default function AIContentGeneratorModal({
 
                     {/* Content */}
                     <div className="p-6">
-                        <AIContentGenerator
+                        <UnifiedPostingHub
+                            mode={propertyData ? "quick-post" : "standalone"}
                             propertyData={propertyData}
+                            isOpen={true}
+                            onClose={onClose}
                             onContentGenerated={(content) => {
                                 console.log('Content generated:', content)
                                 // You can add additional logic here if needed
+                            }}
+                            onPublish={(content, language) => {
+                                console.log('Content published:', content, language)
+                                onClose()
                             }}
                         />
                     </div>

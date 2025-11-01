@@ -2,7 +2,7 @@
 
 import { LoadingButton } from '@/components/LoadingStates'
 import { useAsyncOperation, useMultipleLoading } from '@/hooks/useLoading'
-import { apiService } from '@/lib/api'
+import { apiService } from '@/lib/api/centralized-client'
 import { authManager } from '@/lib/auth'
 import { handleError, showSuccess } from '@/lib/error-handler'
 import { FormValidator, profileSettingsSchema } from '@/lib/form-validation'

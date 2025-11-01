@@ -34,6 +34,7 @@ class PublishContentRequest(BaseModel):
     auto_translate: bool = Field(True, description="Enable auto-translation")
     target_languages: List[str] = Field(["en"], description="Target languages")
     facebook_page_mappings: Dict[str, str] = Field({}, description="Facebook page mappings")
+    content: Optional[List[Dict[str, Any]]] = Field(None, description="Content data with media_urls")
 
 
 class PublishContentResponse(BaseModel):
@@ -105,7 +106,8 @@ async def publish_content(
             schedule_at=request.schedule_at,
             auto_translate=request.auto_translate,
             target_languages=request.target_languages,
-            facebook_page_mappings=request.facebook_page_mappings
+            facebook_page_mappings=request.facebook_page_mappings,
+            content=request.content
         )
         
         # Publish content

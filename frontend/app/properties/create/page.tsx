@@ -1,14 +1,14 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import GenAIPropertyForm from '@/components/GenAIPropertyForm';
+import { useRouter } from 'next/navigation';
 
 export default function CreatePropertyPage() {
   const router = useRouter();
 
   const handleSuccess = () => {
-    // Redirect to properties list after successful creation
-    router.push('/properties');
+    // Redirect to dashboard after successful creation
+    router.push('/');
   };
 
   return (
