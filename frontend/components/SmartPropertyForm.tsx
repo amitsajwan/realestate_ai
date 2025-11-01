@@ -9,6 +9,7 @@ import { PropertyFormData, propertySchema, stepSchemas } from '@/lib/validation'
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
+  CameraIcon,
   CheckCircleIcon,
   CloudArrowUpIcon,
   CurrencyDollarIcon,
@@ -87,6 +88,54 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
   const [marketInsights, setMarketInsights] = useState<MarketInsight | null>(null)
   const [aiHint, setAiHint] = useState<string>('')
+  const [touchStart, setTouchStart] = useState<{ x: number, y: number } | null>(null)
+  const [touchEnd, setTouchEnd] = useState<{ x: number, y: number } | null>(null)
+
+  // Minimum distance for a swipe
+  const minSwipeDistance = 50
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null) // Reset touch end
+    setTouchStart({
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY
+    })
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd({
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY
+    })
+  }
+
+  const handleTouchEnd = async () => {
+    if (!touchStart || !touchEnd) return
+
+    // Get horizontal distance
+    const distanceX = touchStart.x - touchEnd.x
+    const absDistanceX = Math.abs(distanceX)
+
+    // Get vertical distance to check if the user is scrolling vertically
+    const distanceY = Math.abs(touchStart.y - touchEnd.y)
+
+    // Only register as a swipe if:
+    // 1. The horizontal distance is greater than minimum swipe distance
+    // 2. The horizontal distance is greater than the vertical distance (to avoid triggering on scrolling)
+    if (absDistanceX > minSwipeDistance && absDistanceX > distanceY) {
+      // Check direction and validate step change
+      if (distanceX > 0 && currentStep < FORM_STEPS.length - 1) {
+        // Swiped left - go to next step
+        const isValid = await validateCurrentStep(currentStep)
+        if (isValid) {
+          setCurrentStep(prev => prev + 1)
+        }
+      } else if (distanceX < 0 && currentStep > 0) {
+        // Swiped right - go to previous step
+        setCurrentStep(prev => prev - 1)
+      }
+    }
+  }
   const [userProfile, setUserProfile] = useState({
     experienceLevel: 'intermediate',
     specialization: 'residential',
@@ -405,10 +454,23 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
     }
   }
 
-  const removeImage = (index: number) => {
-    const updatedImages = uploadedImages.filter((_, i) => i !== index)
-    setUploadedImages(updatedImages)
-    setValue('images', updatedImages)
+  const removeImage = async (index: number) => {
+    try {
+      const imageToRemove = uploadedImages[index]
+      const updatedImages = uploadedImages.filter((_, i) => i !== index)
+      setUploadedImages(updatedImages)
+      setValue('images', updatedImages)
+
+      // Attempt to clean up the removed image
+      if (imageToRemove) {
+        await apiService.deleteImage(imageToRemove).catch(console.error)
+      }
+
+      toast.success('Image removed successfully')
+    } catch (error) {
+      console.error('Failed to remove image:', error)
+      toast.error('Failed to remove image. Please try again.')
+    }
   }
 
   const validateCurrentStep = async (step: number): Promise<boolean> => {
@@ -728,14 +790,14 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-4 sm:gap-6">
+              <div className="space-y-3">
+                <label className="block text-base sm:text-sm font-semibold text-gray-900 dark:text-white">
                   Property Type *
                 </label>
                 <select
                   {...register('propertyType')}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                  className="w-full px-4 py-4 sm:py-3 border-2 border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-base sm:text-sm min-h-[52px] sm:min-h-[44px]"
                 >
                   <option value="">Select property type</option>
                   <option value="Apartment">Apartment</option>
@@ -745,33 +807,34 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
                   <option value="Penthouse">Penthouse</option>
                 </select>
                 {errors.propertyType && (
-                  <p className="text-red-500 text-sm mt-1">{errors.propertyType.message}</p>
+                  <p className="text-red-500 text-base sm:text-sm font-medium mt-1 px-1">{errors.propertyType.message}</p>
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="space-y-3">
+                <label className="block text-base sm:text-sm font-semibold text-gray-900 dark:text-white">
                   Area (sq ft) *
                 </label>
                 <input
                   {...register('area', { valueAsNumber: true })}
                   type="number"
+                  inputMode="numeric"
                   min="1"
                   placeholder="e.g., 1200"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                  className="w-full px-4 py-4 sm:py-3 border-2 border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-base sm:text-sm min-h-[52px] sm:min-h-[44px]"
                 />
                 {errors.area && (
-                  <p className="text-red-500 text-sm mt-1">{errors.area.message}</p>
+                  <p className="text-red-500 text-base sm:text-sm font-medium mt-1 px-1">{errors.area.message}</p>
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="space-y-3">
+                <label className="block text-base sm:text-sm font-semibold text-gray-900 dark:text-white">
                   Bedrooms *
                 </label>
                 <select
                   {...register('bedrooms', { valueAsNumber: true })}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                  className="w-full px-4 py-4 sm:py-3 border-2 border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-base sm:text-sm min-h-[52px] sm:min-h-[44px]"
                 >
                   <option value="">Select bedrooms</option>
                   {[1, 2, 3, 4, 5].map(num => (
@@ -779,17 +842,17 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
                   ))}
                 </select>
                 {errors.bedrooms && (
-                  <p className="text-red-500 text-sm mt-1">{errors.bedrooms.message}</p>
+                  <p className="text-red-500 text-base sm:text-sm font-medium mt-1 px-1">{errors.bedrooms.message}</p>
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="space-y-3">
+                <label className="block text-base sm:text-sm font-semibold text-gray-900 dark:text-white">
                   Bathrooms *
                 </label>
                 <select
                   {...register('bathrooms', { valueAsNumber: true })}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                  className="w-full px-4 py-4 sm:py-3 border-2 border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white text-base sm:text-sm min-h-[52px] sm:min-h-[44px]"
                 >
                   <option value="">Select bathrooms</option>
                   {[1, 2, 3, 4, 5].map(num => (
@@ -797,7 +860,7 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
                   ))}
                 </select>
                 {errors.bathrooms && (
-                  <p className="text-red-500 text-sm mt-1">{errors.bathrooms.message}</p>
+                  <p className="text-red-500 text-base sm:text-sm font-medium mt-1 px-1">{errors.bathrooms.message}</p>
                 )}
               </div>
             </div>
@@ -912,7 +975,7 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
 
             <div className="space-y-6">
               {/* Image Upload Area */}
-              <div className="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-8 text-center hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors">
+              <div className="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-6 sm:p-8 text-center hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors">
                 <input
                   type="file"
                   multiple
@@ -921,42 +984,102 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
                   className="hidden"
                   id="image-upload"
                   disabled={uploadingImages}
+                  capture="environment"
                 />
                 <label
                   htmlFor="image-upload"
-                  className={`cursor-pointer flex flex-col items-center space-y-4 ${uploadingImages ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
+                  className={`cursor-pointer flex flex-col items-center space-y-4 min-h-[150px] justify-center ${
+                    uploadingImages ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
-                  <CloudArrowUpIcon className="w-12 h-12 text-gray-400" />
-                  <div>
-                    <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                      {uploadingImages ? 'Uploading...' : 'Click to upload images'}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      PNG, JPG, JPEG up to 10MB each
-                    </p>
-                  </div>
+                  {uploadingImages ? (
+                    <div className="flex flex-col items-center space-y-4">
+                      <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                      <div>
+                        <p className="text-lg font-semibold text-gray-900 dark:text-white">Uploading Images...</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Please wait</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="w-16 h-16 sm:w-12 sm:h-12 bg-indigo-50 dark:bg-indigo-900/20 rounded-full flex items-center justify-center">
+                        <CloudArrowUpIcon className="w-10 h-10 sm:w-8 sm:h-8 text-indigo-500" />
+                      </div>
+                      <div>
+                        <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                          {uploadedImages.length > 0 ? 'Add More Images' : 'Upload Property Images'}
+                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                          Use camera or choose from gallery
+                        </p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                          PNG, JPG, JPEG up to 10MB each
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </label>
+              </div>
+
+              {/* Upload Controls for Mobile */}
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const input = document.getElementById('image-upload') as HTMLInputElement;
+                    if (input) {
+                      input.removeAttribute('capture');
+                      input.click();
+                    }
+                  }}
+                  disabled={uploadingImages}
+                  className="flex-1 flex items-center justify-center space-x-2 py-3 px-4 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <PhotoIcon className="w-5 h-5" />
+                  <span>Choose from Gallery</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const input = document.getElementById('image-upload') as HTMLInputElement;
+                    if (input) {
+                      input.setAttribute('capture', 'environment');
+                      input.click();
+                    }
+                  }}
+                  disabled={uploadingImages}
+                  className="flex-1 flex items-center justify-center space-x-2 py-3 px-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <CameraIcon className="w-5 h-5" />
+                  <span>Take Photo</span>
+                </button>
               </div>
 
               {/* Uploaded Images Grid */}
               {uploadedImages.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {uploadedImages.map((imageUrl, index) => (
-                    <div key={index} className="relative group">
-                      <img
-                        src={imageUrl}
-                        alt={`Property image ${index + 1}`}
-                        className="w-full h-32 object-cover rounded-lg"
-                      />
-                      <button
-                        onClick={() => removeImage(index)}
-                        className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <XMarkIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
+                <div className="space-y-4">
+                  <h4 className="font-medium text-gray-900 dark:text-white">
+                    Uploaded Images ({uploadedImages.length})
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {uploadedImages.map((imageUrl, index) => (
+                      <div key={index} className="relative aspect-[4/3] group">
+                        <img
+                          src={imageUrl}
+                          alt={`Property image ${index + 1}`}
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full shadow-lg opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                          aria-label="Remove image"
+                        >
+                          <XMarkIcon className="w-5 h-5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -1051,22 +1174,22 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
               </div>
 
               <div className="space-y-3">
-                <div className="flex space-x-4">
+                <div className="flex flex-col sm:flex-row gap-4">
                   <button
                     type="button"
                     onClick={generateAISuggestions}
                     disabled={isGeneratingAI || !watchedAddress || !watchedPropertyType}
-                    className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white py-3 px-6 rounded-xl font-semibold flex items-center justify-center space-x-2 transition-all duration-200"
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white py-4 sm:py-3 px-6 rounded-xl font-semibold flex items-center justify-center space-x-3 sm:space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl min-h-[52px] sm:min-h-[44px]"
                   >
                     {isGeneratingAI ? (
                       <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>Generating...</span>
+                        <div className="w-6 h-6 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-base sm:text-sm">Generating...</span>
                       </>
                     ) : (
                       <>
-                        <SparklesIcon className="w-5 h-5" />
-                        <span>Generate AI Content</span>
+                        <SparklesIcon className="w-6 h-6 sm:w-5 sm:h-5" />
+                        <span className="text-base sm:text-sm">Generate AI Content</span>
                       </>
                     )}
                   </button>
@@ -1075,10 +1198,10 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
                     <button
                       type="button"
                       onClick={applyAISuggestions}
-                      className="bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-xl font-semibold flex items-center space-x-2 transition-all duration-200"
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white py-4 sm:py-3 px-6 rounded-xl font-semibold flex items-center justify-center space-x-3 sm:space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl min-h-[52px] sm:min-h-[44px]"
                     >
-                      <CheckCircleIcon className="w-5 h-5" />
-                      <span>Apply</span>
+                      <CheckCircleIcon className="w-6 h-6 sm:w-5 sm:h-5" />
+                      <span className="text-base sm:text-sm">Apply AI Content</span>
                     </button>
                   )}
                 </div>
@@ -1265,8 +1388,8 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-3 sm:p-6 lg:p-8">
+      <div className="max-w-4xl mx-auto w-full sm:w-auto">
         {/* Progress Header */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700 mb-6">
           <div className="p-6 sm:p-8">
@@ -1285,27 +1408,55 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
               </div>
             </div>
 
+            {/* Mobile Step indicator */}
+            <div className="sm:hidden text-center mb-4">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Swipe left/right to navigate steps
+              </p>
+            </div>
+
             {/* Progress Steps */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center justify-between sm:justify-start sm:space-x-4 px-2 sm:px-0 overflow-x-auto no-scrollbar">
               {FORM_STEPS.map((step, index) => {
                 const Icon = step.icon
                 const isActive = index === currentStep
                 const isCompleted = index < currentStep
+                const isClickable = isCompleted || index === currentStep
 
                 return (
-                  <div key={step.id} className="flex items-center">
-                    <div className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200 ${isActive
-                      ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                      : isCompleted
-                        ? 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400'
-                        : 'text-gray-400 dark:text-gray-600'
-                      }`}>
-                      <Icon className="w-4 h-4" />
-                      <span className="text-sm font-medium hidden sm:inline">{step.title}</span>
-                      {isCompleted && <CheckCircleIcon className="w-4 h-4" />}
-                    </div>
+                  <div key={step.id} className="flex-shrink-0 relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isClickable) {
+                          setCurrentStep(index)
+                        }
+                      }}
+                      disabled={!isClickable}
+                      className={`flex items-center space-x-2 px-4 py-3 sm:py-2 rounded-xl transition-all duration-200
+                        ${isActive
+                          ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-2 border-blue-500'
+                          : isCompleted
+                            ? 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/30'
+                            : 'text-gray-400 dark:text-gray-600 bg-gray-50 dark:bg-slate-800/50'
+                        }
+                        ${isClickable ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}
+                        touch-manipulation min-h-[44px]
+                      `}
+                      aria-label={`Go to ${step.title} step ${isActive ? '(current)' : isCompleted ? '(completed)' : ''}`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <Icon className="w-6 h-6 sm:w-5 sm:h-5" />
+                        <span className="text-base sm:text-sm font-medium whitespace-nowrap">{step.title}</span>
+                        {isCompleted && <CheckCircleIcon className="w-5 h-5 sm:w-4 sm:h-4" />}
+                      </div>
+                    </button>
+
+                    {/* Progress line */}
                     {index < FORM_STEPS.length - 1 && (
-                      <ArrowRightIcon className="w-4 h-4 text-gray-300 dark:text-gray-600 mx-2" />
+                      <div className={`hidden sm:block absolute top-1/2 -right-2 w-4 h-0.5 transition-colors duration-200 
+                        ${isCompleted ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`} 
+                      />
                     )}
                   </div>
                 )
@@ -1322,50 +1473,67 @@ export default function SmartPropertyForm({ onSuccess }: SmartPropertyFormProps)
         }}>
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700">
             <div className="p-6 sm:p-8">
+            <motion.div
+              className="touch-pan-x"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              key={currentStep}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
               {renderStepContent()}
-            </div>
+            </motion.div>
+          </div>
 
             {/* Navigation */}
             <div className="border-t border-gray-200 dark:border-slate-700 p-6 sm:p-8">
               <div className="flex justify-between">
-                <button
-                  type="button"
-                  onClick={prevStep}
-                  disabled={currentStep === 0}
-                  className="flex items-center space-x-2 px-6 py-3 border border-gray-300 dark:border-slate-600 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                >
-                  <ArrowLeftIcon className="w-5 h-5" />
-                  <span>Previous</span>
-                </button>
-
-                {currentStep === FORM_STEPS.length - 1 ? (
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-8 py-3 rounded-xl font-semibold transition-all duration-200"
-                  >
-                    {isLoading ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>Creating...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircleIcon className="w-5 h-5" />
-                        <span>Create Property</span>
-                      </>
-                    )}
-                  </button>
-                ) : (
+                <div className="flex w-full sm:w-auto justify-between sm:justify-start space-x-4">
                   <button
                     type="button"
-                    onClick={nextStep}
-                    className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200"
+                    onClick={prevStep}
+                    disabled={currentStep === 0}
+                    className="flex-1 sm:flex-none flex items-center justify-center space-x-2 px-6 py-4 sm:py-3 border-2 border-gray-300 dark:border-slate-600 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 min-w-[140px]"
+                    aria-label="Previous step"
                   >
-                    <span>Next</span>
-                    <ArrowRightIcon className="w-5 h-5" />
+                    <ArrowLeftIcon className="w-6 h-6 sm:w-5 sm:h-5" />
+                    <span className="font-medium">Previous</span>
                   </button>
-                )}
+
+                  {currentStep === FORM_STEPS.length - 1 ? (
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-8 py-4 sm:py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 min-w-[140px]"
+                      aria-label={isLoading ? "Creating property..." : "Create property"}
+                    >
+                      {isLoading ? (
+                        <>
+                          <div className="w-6 h-6 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Creating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircleIcon className="w-6 h-6 sm:w-5 sm:h-5" />
+                          <span>Create Property</span>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={nextStep}
+                      className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 sm:py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 min-w-[140px]"
+                      aria-label="Next step"
+                    >
+                      <span className="font-medium">Next</span>
+                      <ArrowRightIcon className="w-6 h-6 sm:w-5 sm:h-5" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

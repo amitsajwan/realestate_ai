@@ -99,6 +99,73 @@
     margin-right: 0;
   }
 
+  /* Improve form & login readability on small screens */
+  .login-card,
+  .glass-card,
+  .mobile-card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,255,255,0.95));
+    color: #111827; /* ensure dark text on light background */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Ensure headings are readable and don't get clipped or overly small */
+  .login-card h1,
+  .login-card h2,
+  .glass-card h1,
+  .glass-card h2,
+  .text-2xl,
+  h1,
+  h2 {
+    color: #111827 !important;
+    font-size: 1.5rem !important;
+    line-height: 1.25 !important;
+    text-shadow: 0 0 0 rgba(0,0,0,0); /* no visual change, helps some renderers */
+  }
+
+  /* Inputs: larger text, clear contrast and visible placeholders */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important; /* prevent iOS zoom & ensure legibility */
+    line-height: 1.4 !important;
+    color: #111827 !important;
+    background: #ffffff !important;
+    -webkit-text-fill-color: #111827 !important;
+  }
+
+  /* Placeholder color should be visible but subdued */
+  input::placeholder,
+  textarea::placeholder {
+    color: #6b7280 !important;
+    opacity: 1 !important;
+  }
+
+  /* Buttons: ensure sufficient contrast and touch size */
+  .btn-primary,
+  .btn-brand,
+  .btn-mobile,
+  button {
+    min-height: 48px !important;
+    font-size: 16px !important;
+    line-height: 1 !important;
+    color: #ffffff !important;
+    text-shadow: 0 1px 0 rgba(0,0,0,0.06);
+  }
+
+  /* Special case for light-on-light issues (rare) - force dark text */
+  .force-dark-text,
+  .glass-card .text-gray-900,
+  .glass-card .text-gray-800 {
+    color: #111827 !important;
+  }
+
+  /* Fix for SVG/icon color in inputs */
+  .relative svg,
+  .relative .lucide {
+    color: #6b7280 !important;
+  }
+
   .mobile-no-padding {
     padding: 0;
   }

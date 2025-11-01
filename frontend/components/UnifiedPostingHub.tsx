@@ -4,36 +4,24 @@ import { apiService } from '@/lib/api/centralized-client'
 import { STANDARD_LANGUAGES } from '@/lib/languageConfig'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  ArrowLeft,
-  CheckCircle,
-  Copy,
-  Facebook,
-  Globe,
-  Instagram,
-  Linkedin,
-  Share,
-  Sparkles,
-  Twitter,
-  X
+    ArrowLeft,
+    CheckCircle,
+    Copy,
+    Facebook,
+    Globe,
+    Instagram,
+    Linkedin,
+    Share,
+    Sparkles,
+    Twitter,
+    X
 } from 'lucide-react'
 import { Reducer, useCallback, useEffect, useMemo, useReducer } from 'react'
 import toast from 'react-hot-toast'
 import ImageSelectionPanel from './ImageSelectionPanel'
 
 // --- TYPE DEFINITIONS ---
-interface PropertyData {
-  id: string
-  title: string
-  location: string
-  price: number
-  bedrooms: number
-  bathrooms: number
-  propertyType: string
-  area?: number
-  description?: string
-  images?: string[]
-  status?: string
-}
+import { Property } from '@/lib/properties/types'
 
 interface GeneratedContent {
   id: string
@@ -48,9 +36,22 @@ interface GeneratedContent {
   ai_generated?: boolean
 }
 
+interface AIContentResponse {
+  content: {
+    [platform: string]: {
+      [language: string]: {
+        body?: string;
+        content?: string;
+        title?: string;
+        hashtags?: string[];
+      }
+    }
+  }
+}
+
 interface UnifiedPostingHubProps {
   mode: 'quick-post' | 'standalone' | 'marketing-hub' | 'property-creation'
-  propertyData?: PropertyData
+  propertyData: Property | undefined
   onContentGenerated?: (content: GeneratedContent[]) => void
   onPublish?: (content: GeneratedContent[], language?: string) => void
   onClose?: () => void
@@ -71,8 +72,8 @@ const PLATFORMS = {
 
 // --- STATE MANAGEMENT (useReducer) ---
 type State = {
-  availableProperties: PropertyData[]
-  selectedProperty: PropertyData | null
+  availableProperties: Property[]
+  selectedProperty: Property | null
   selectedLanguage: string
   selectedPlatforms: string[]
   customPrompt: string
@@ -93,8 +94,8 @@ type State = {
 }
 
 type Action =
-  | { type: 'SET_PROPERTIES'; payload: PropertyData[] }
-  | { type: 'SET_SELECTED_PROPERTY'; payload: PropertyData | null }
+  | { type: 'SET_PROPERTIES'; payload: Property[] }
+  | { type: 'SET_SELECTED_PROPERTY'; payload: Property | null }
   | { type: 'SET_LANGUAGE'; payload: string }
   | { type: 'TOGGLE_PLATFORM'; payload: string }
   | { type: 'SET_CUSTOM_PROMPT'; payload: string }
@@ -340,7 +341,10 @@ export default function UnifiedPostingHub({
         custom_prompts: customPrompt ? { website: customPrompt } : undefined
       }
 
-      const result = await apiService.generateAIContent(requestData)
+      const result = await apiService.request<AIContentResponse>('/api/ai/generate-content', {
+        method: 'POST',
+        body: JSON.stringify(requestData)
+      })
 
       const transformedContent: GeneratedContent[] = []
       if (result.content) {

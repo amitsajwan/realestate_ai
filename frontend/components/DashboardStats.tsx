@@ -1,34 +1,28 @@
 'use client'
 
-import { Button, Card, CardContent } from '@/components/UI'
+import { Button, Card, CardContent } from '@/components/UI';
 import {
-  ChartBarIcon,
-  CurrencyDollarIcon,
-  DocumentTextIcon,
-  EyeIcon,
-  HomeIcon,
-  SparklesIcon,
-  UserGroupIcon
-} from '@heroicons/react/24/outline'
+    ChartBarIcon,
+    CurrencyDollarIcon,
+    DocumentTextIcon,
+    EyeIcon,
+    HomeIcon,
+    SparklesIcon,
+    UserGroupIcon
+} from '@heroicons/react/24/outline';
+
+import { DashboardStats as IDashboardStats } from '@/types/dashboard';
 
 interface DashboardStatsProps {
-  stats: {
-    total_properties: number
-    active_listings: number
-    total_leads: number
-    total_users: number
-    total_views: number
-    monthly_leads: number
-    revenue: string
-  }
-  onAddProperty: () => void
-  onNavigateToAI: () => void
-  onNavigateToAnalytics: () => void
-  onNavigateToSmartForm: () => void
-  onNavigateToPosts: () => void
+  stats: IDashboardStats;
+  onNavigateToAI: () => void;
+  onNavigateToAnalytics: () => void;
+  onNavigateToSmartForm: () => void;
+  onNavigateToPosts: () => void;
+  onAddProperty: () => void;
 }
 
-export function DashboardStats({
+export function DashboardStatsDisplay({
   stats,
   onAddProperty,
   onNavigateToAI,

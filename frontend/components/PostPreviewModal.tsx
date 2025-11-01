@@ -1,6 +1,13 @@
 'use client'
 
-import { BookmarkIcon, ChatBubbleLeftIcon, HeartIcon, ShareIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import {
+    BookmarkIcon,
+    ChatBubbleLeftIcon,
+    EllipsisHorizontalIcon,
+    HeartIcon,
+    ShareIcon,
+    XMarkIcon
+} from '@heroicons/react/24/outline'
 import { BookmarkIcon as BookmarkSolidIcon, HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useState } from 'react'
@@ -32,12 +39,36 @@ interface PostPreviewModalProps {
 }
 
 const platforms = [
-    { id: 'facebook', name: 'Facebook', color: 'bg-blue-600', icon: '📘' },
-    { id: 'instagram', name: 'Instagram', color: 'bg-gradient-to-r from-purple-500 to-pink-500', icon: '📷' },
-    { id: 'twitter', name: 'Twitter', color: 'bg-blue-400', icon: '🐦' },
-    { id: 'linkedin', name: 'LinkedIn', color: 'bg-blue-700', icon: '💼' },
-    { id: 'website', name: 'Website', color: 'bg-gray-600', icon: '🌐' }
+    { id: 'facebook', name: 'Facebook', icon: '⬜', platformIcon: 'text-[#1877F2]', handle: 'PropertyAI' },
+    { id: 'instagram', name: 'Instagram', icon: '📷', platformIcon: 'text-[#E4405F]', handle: 'realestate_ai' },
+    { id: 'twitter', name: 'Twitter', icon: '🐦', platformIcon: 'text-[#1DA1F2]', handle: '@realestate_ai' },
+    { id: 'linkedin', name: 'LinkedIn', icon: '🟦', platformIcon: 'text-[#0A66C2]', handle: 'RealEstate AI' },
+    { id: 'website', name: 'Website', icon: '🌐', platformIcon: 'text-[#4F46E5]', handle: 'Blog' }
 ]
+
+const PostHeader = ({ platform, selectedPlatform }: { platform: string, selectedPlatform: string }) => {
+    const currentPlatform = platforms.find(p => p.id === platform) || platforms[0]
+    
+    return (
+        <div className="flex items-center p-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium
+                ${selectedPlatform === 'facebook' ? 'bg-blue-600' :
+                selectedPlatform === 'instagram' ? 'bg-gradient-to-r from-purple-500 to-pink-500' :
+                selectedPlatform === 'twitter' ? 'bg-blue-400' :
+                selectedPlatform === 'linkedin' ? 'bg-blue-700' : 'bg-gray-600'}`}
+            >
+                AI
+            </div>
+            <div className="ml-3 flex-1 min-w-0">
+                <h3 className="font-semibold text-gray-900 truncate">{currentPlatform.handle}</h3>
+                <p className="text-xs text-gray-500">2 hours ago</p>
+            </div>
+            <button className="text-gray-400 hover:text-gray-600 flex-shrink-0 p-1">
+                <EllipsisHorizontalIcon className="w-5 h-5" />
+            </button>
+        </div>
+    )
+}
 
 export default function PostPreviewModal({ post, isOpen, onClose }: PostPreviewModalProps) {
     const [selectedPlatform, setSelectedPlatform] = useState('facebook')
@@ -47,55 +78,50 @@ export default function PostPreviewModal({ post, isOpen, onClose }: PostPreviewM
     if (!post) return null
 
     const renderFacebookPost = () => (
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm w-full">
-            {/* Header */}
-            <div className="flex items-center p-4">
-                <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                    AI
-                </div>
-                <div className="ml-3 flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 truncate">RealEstate AI</h3>
-                    <p className="text-sm text-gray-500">2 hours ago</p>
-                </div>
-                <button className="text-gray-400 hover:text-gray-600 flex-shrink-0">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                    </svg>
-                </button>
-            </div>
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm w-full max-w-[500px] mx-auto">
+            <PostHeader platform="facebook" selectedPlatform={selectedPlatform} />
 
             {/* Content */}
-            <div className="px-4 pb-2">
-                <p className="text-gray-900 mb-3 break-words">{post.content}</p>
+            <div className="px-3 pb-2">
+                <p className="text-gray-900 text-sm leading-6 break-words">{post.content}</p>
             </div>
 
             {/* Media */}
             {post.media_urls && post.media_urls.length > 0 && (
-                <div className="px-4 pb-4">
+                <div className="px-3 pb-3">
                     <img
                         src={post.media_urls[0]}
                         alt="Post media"
-                        className="w-full h-64 object-cover rounded-lg"
+                        className="w-full aspect-[4/3] object-cover rounded-lg bg-gray-50"
                     />
                 </div>
             )}
 
             {/* Engagement */}
-            <div className="px-4 py-2 border-t border-gray-100">
-                <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
-                    <span>👍 12 likes</span>
-                    <span>💬 3 comments</span>
-                    <span>📤 1 share</span>
+            <div className="px-3 pt-1 pb-2 border-t border-gray-100">
+                <div className="flex items-center justify-between text-xs text-gray-500 mb-2.5 py-1">
+                    <div className="flex items-center">
+                        <span className="flex h-4 -space-x-1">
+                            <div className="w-4 h-4 rounded-full border-2 border-white bg-blue-500 z-30" />
+                            <div className="w-4 h-4 rounded-full border-2 border-white bg-red-500 z-20" />
+                            <div className="w-4 h-4 rounded-full border-2 border-white bg-yellow-500 z-10" />
+                        </span>
+                        <span className="ml-2">142 likes</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <span>24 comments</span>
+                        <span>3 shares</span>
+                    </div>
                 </div>
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center border-t border-gray-100">
                     <button
                         onClick={() => setIsLiked(!isLiked)}
-                        className="flex items-center space-x-1 text-gray-500 hover:text-blue-600"
+                        className="flex-1 flex items-center justify-center space-x-2 py-2 text-sm text-gray-600 hover:bg-gray-50 active:bg-gray-100 rounded-lg transition-colors"
                     >
                         {isLiked ? <HeartSolidIcon className="w-5 h-5 text-red-500" /> : <HeartIcon className="w-5 h-5" />}
                         <span>Like</span>
                     </button>
-                    <button className="flex items-center space-x-1 text-gray-500 hover:text-green-600">
+                    <button className="flex-1 flex items-center justify-center space-x-2 py-2 text-sm text-gray-600 hover:bg-gray-50 active:bg-gray-100 rounded-lg transition-colors">
                         <ChatBubbleLeftIcon className="w-5 h-5" />
                         <span>Comment</span>
                     </button>
@@ -110,22 +136,7 @@ export default function PostPreviewModal({ post, isOpen, onClose }: PostPreviewM
 
     const renderInstagramPost = () => (
         <div className="bg-white border border-gray-200 rounded-lg shadow-sm w-full max-w-sm mx-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between p-4">
-                <div className="flex items-center min-w-0 flex-1">
-                    <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                        AI
-                    </div>
-                    <div className="ml-3 min-w-0">
-                        <h3 className="font-semibold text-gray-900 text-sm truncate">realestate_ai</h3>
-                    </div>
-                </div>
-                <button className="text-gray-400 hover:text-gray-600 flex-shrink-0">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                    </svg>
-                </button>
-            </div>
+            <PostHeader platform="instagram" selectedPlatform={selectedPlatform} />
 
             {/* Media */}
             {post.media_urls && post.media_urls.length > 0 ? (
@@ -172,25 +183,7 @@ export default function PostPreviewModal({ post, isOpen, onClose }: PostPreviewM
 
     const renderTwitterPost = () => (
         <div className="bg-white border border-gray-200 rounded-lg shadow-sm w-full max-w-md mx-auto">
-            {/* Header */}
-            <div className="flex items-start p-4">
-                <div className="w-10 h-10 bg-blue-400 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
-                    AI
-                </div>
-                <div className="ml-3 flex-1 min-w-0">
-                    <div className="flex items-center flex-wrap">
-                        <h3 className="font-semibold text-gray-900 truncate">RealEstate AI</h3>
-                        <span className="ml-2 text-gray-500 truncate">@realestate_ai</span>
-                        <span className="ml-2 text-gray-500">·</span>
-                        <span className="ml-2 text-gray-500">2h</span>
-                    </div>
-                </div>
-                <button className="text-gray-400 hover:text-gray-600 flex-shrink-0">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                    </svg>
-                </button>
-            </div>
+            <PostHeader platform="twitter" selectedPlatform={selectedPlatform} />
 
             {/* Content */}
             <div className="px-4 pb-4">
@@ -236,21 +229,7 @@ export default function PostPreviewModal({ post, isOpen, onClose }: PostPreviewM
 
     const renderLinkedInPost = () => (
         <div className="bg-white border border-gray-200 rounded-lg shadow-sm w-full max-w-md mx-auto">
-            {/* Header */}
-            <div className="flex items-center p-4">
-                <div className="w-10 h-10 bg-blue-700 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
-                    AI
-                </div>
-                <div className="ml-3 flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 truncate">RealEstate AI</h3>
-                    <p className="text-sm text-gray-500 truncate">Real Estate Professional · 2h</p>
-                </div>
-                <button className="text-gray-400 hover:text-gray-600 flex-shrink-0">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                    </svg>
-                </button>
-            </div>
+            <PostHeader platform="linkedin" selectedPlatform={selectedPlatform} />
 
             {/* Content */}
             <div className="px-4 pb-4">
@@ -279,11 +258,7 @@ export default function PostPreviewModal({ post, isOpen, onClose }: PostPreviewM
 
     const renderWebsitePost = () => (
         <div className="bg-white border border-gray-200 rounded-lg shadow-sm w-full max-w-md mx-auto">
-            {/* Header */}
-            <div className="p-4 border-b border-gray-100">
-                <h3 className="font-semibold text-gray-900 truncate">{post.title}</h3>
-                <p className="text-sm text-gray-500 mt-1">Posted 2 hours ago</p>
-            </div>
+            <PostHeader platform="website" selectedPlatform={selectedPlatform} />
 
             {/* Content */}
             <div className="p-4">
@@ -328,49 +303,44 @@ export default function PostPreviewModal({ post, isOpen, onClose }: PostPreviewM
     }
 
     return (
-        <AnimatePresence>
+        <AnimatePresence mode="wait">
             {isOpen && (
                 <>
-                    <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={onClose} />
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+                    <div className="fixed inset-0 bg-black bg-opacity-50 z-[60]" onClick={onClose} />
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 overflow-y-auto">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] sm:max-h-[95vh] overflow-hidden flex flex-col mx-2 sm:mx-4"
-                            style={{
-                                maxWidth: 'calc(100vw - 1rem)',
-                                maxHeight: 'calc(100vh - 2rem)'
-                            }}
+                            className="bg-white rounded-xl shadow-xl w-full max-w-[600px] max-h-[calc(100vh-5rem)] overflow-hidden flex flex-col mx-auto"
                         >
-                            {/* Header */}
-                            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                                <div>
-                                    <h2 className="text-xl font-semibold text-gray-900">Post Preview</h2>
-                                    <p className="text-sm text-gray-500">See how your post will look on different platforms</p>
-                                </div>
+                            {/* Header with Close Button */}
+                            <div className="relative px-4 py-3 border-b border-gray-200">
                                 <button
                                     onClick={onClose}
-                                    className="text-gray-400 hover:text-gray-600"
+                                    className="absolute right-2 top-2 p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
                                 >
-                                    <XMarkIcon className="w-6 h-6" />
+                                    <XMarkIcon className="w-5 h-5" />
                                 </button>
+                                <h2 className="text-lg font-semibold text-gray-900">Post Preview</h2>
+                                <p className="text-sm text-gray-500 mt-0.5">See how your post will look on different platforms</p>
                             </div>
 
                             {/* Platform Selector */}
-                            <div className="p-6 border-b border-gray-200">
-                                <div className="flex flex-wrap gap-2">
+                            <div className="px-4 py-2 border-b border-gray-200">
+                                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
                                     {platforms.map((platform) => (
                                         <button
                                             key={platform.id}
                                             onClick={() => setSelectedPlatform(platform.id)}
-                                            className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${selectedPlatform === platform.id
-                                                ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                                }`}
+                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap min-w-fit ${
+                                                selectedPlatform === platform.id
+                                                ? 'bg-gray-100 text-gray-900'
+                                                : 'text-gray-600 hover:bg-gray-50'
+                                            }`}
                                         >
-                                            <span className="text-lg flex-shrink-0">{platform.icon}</span>
-                                            <span className="truncate">{platform.name}</span>
+                                            <span className={`text-base ${platform.platformIcon}`}>{platform.icon}</span>
+                                            <span>{platform.name}</span>
                                         </button>
                                     ))}
                                 </div>
@@ -386,19 +356,19 @@ export default function PostPreviewModal({ post, isOpen, onClose }: PostPreviewM
                             </div>
 
                             {/* Footer */}
-                            <div className="p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-                                <div className="flex items-center justify-between flex-wrap gap-4">
-                                    <div className="text-sm text-gray-500 min-w-0 flex-1">
-                                        <span className="font-medium">Post Status:</span> {post.status}
+                            <div className="px-4 py-3 border-t border-gray-200 bg-white flex-shrink-0">
+                                <div className="flex items-center justify-between">
+                                    <div className="text-sm text-gray-600">
+                                        Post Status: <span className="text-gray-900">{post.status}</span>
                                         {post.channels.length > 0 && (
                                             <span className="ml-2">
-                                                • <span className="font-medium">Channels:</span> <span className="truncate">{post.channels.join(', ')}</span>
+                                                • Channels: <span className="text-gray-900">{post.channels.join(', ')}</span>
                                             </span>
                                         )}
                                     </div>
                                     <button
                                         onClick={onClose}
-                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex-shrink-0"
+                                        className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
                                     >
                                         Close Preview
                                     </button>

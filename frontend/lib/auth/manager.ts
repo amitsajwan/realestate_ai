@@ -56,6 +56,31 @@ export class AuthManager {
     }
 
     /**
+     * Get current user with retry logic
+     */
+    async getCurrentUser(): Promise<User | null> {
+        try {
+            const token = this.getStoredToken();
+            if (!token) {
+                logger.debug('[AuthManager] No token available, user not logged in');
+                return null;
+            }
+
+            const userData = await this.retryApiCall(
+                () => authAPI.getCurrentUser(token)
+            );
+
+            if (userData && (userData.id || userData.user?.id)) {
+                return this.transformUserData(userData);
+            }
+            return null;
+        } catch (error) {
+            logger.error('[AuthManager] Failed to get current user', { errorDetails: error instanceof Error ? error.message : String(error) });
+            return null;
+        }
+    }
+
+    /**
      * Initialize authentication manager
      */
     async init(): Promise<void> {

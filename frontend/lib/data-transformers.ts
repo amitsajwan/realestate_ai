@@ -5,27 +5,7 @@
  * between API responses and UI components.
  */
 
-export interface Property {
-  id: string
-  title: string
-  description?: string
-  price: number
-  address: string
-  location: string
-  bedrooms: number
-  bathrooms: number
-  area: number
-  area_sqft: number
-  type: string
-  property_type: string
-  status: 'for-sale' | 'for-rent' | 'sold' | 'draft' | 'archived' | 'active'
-  date_added: string
-  created_at: string
-  image?: string
-  images?: string[]
-  features?: string[]
-  amenities?: string
-}
+import type { Property } from './properties/types'
 
 export interface PropertyAnalytics {
   total_properties: number
@@ -87,22 +67,22 @@ export function transformPropertiesToAnalytics(properties: Property[]): Property
 
   // Calculate basic metrics
   const totalProperties = properties.length
-  const publishedProperties = properties.filter(p => p.status === 'for-sale' || p.status === 'for-rent' || p.status === 'active').length
-  const draftProperties = properties.filter(p => p.status === 'draft').length
-  const archivedProperties = properties.filter(p => p.status === 'archived').length
+  const publishedProperties = properties.filter(p => p.status === 'active').length
+  const draftProperties = properties.filter(p => p.status === 'pending').length
+  const archivedProperties = properties.filter(p => p.status === 'inactive').length
 
   const totalValue = properties.reduce((sum, p) => sum + (p.price || 0), 0)
   const averagePrice = totalProperties > 0 ? Math.round(totalValue / totalProperties) : 0
 
   // Calculate distributions
   const propertyTypeDistribution = properties.reduce((acc, prop) => {
-    const type = prop.property_type || prop.type || 'unknown'
+    const type = prop.propertyType || 'unknown'
     acc[type] = (acc[type] || 0) + 1
     return acc
   }, {} as Record<string, number>)
 
   const locationDistribution = properties.reduce((acc, prop) => {
-    const location = prop.location || prop.address || 'unknown'
+    const location = prop.location || 'unknown'
     acc[location] = (acc[location] || 0) + 1
     return acc
   }, {} as Record<string, number>)
@@ -138,7 +118,7 @@ export function transformPropertiesToAnalytics(properties: Property[]): Property
   const now = new Date()
   const averageDaysOnMarket = properties.reduce((sum, prop) => {
     try {
-      let cleanDateString = prop.created_at || prop.date_added;
+      let cleanDateString = prop.createdAt;
       if (cleanDateString && cleanDateString.includes('.') && !cleanDateString.endsWith('Z') && !cleanDateString.includes('+') && !cleanDateString.includes('-', 10)) {
         const parts = cleanDateString.split('.');
         if (parts.length === 2) {
@@ -203,14 +183,14 @@ export function transformPropertiesForDisplay(properties: Property[]) {
     title: prop.title,
     description: prop.description,
     price: prop.price,
-    address: prop.address || prop.location,
+    address: prop.location,
     bedrooms: prop.bedrooms,
     bathrooms: prop.bathrooms,
-    area: prop.area || prop.area_sqft,
-    type: prop.property_type || prop.type,
-    status: prop.status === 'active' ? 'for-sale' : prop.status,
-    date_added: prop.created_at || prop.date_added,
-    image: prop.image,
+    area: prop.areaSqft || 0,
+    type: prop.propertyType,
+    status: prop.status,
+    date_added: prop.createdAt,
+    image: prop.images[0] || '',
     images: prop.images
   }))
 }

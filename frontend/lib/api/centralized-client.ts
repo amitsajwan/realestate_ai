@@ -21,7 +21,7 @@ export class CentralizedAPIClient {
    * - Response parsing
    * - Authentication state management
    */
-  private async request<T>(
+  public async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
@@ -57,9 +57,19 @@ export class CentralizedAPIClient {
 
       return response.json();
     } catch (error) {
-      console.error(`API request failed for ${endpoint}:`, error);
+      console.error(`API request failed:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Delete an image from storage
+   */
+  async deleteImage(imageUrl: string): Promise<void> {
+    const encodedUrl = encodeURIComponent(imageUrl);
+    await this.request<void>(`/api/v1/images/${encodedUrl}`, {
+      method: 'DELETE',
+    });
   }
 
   // Authentication methods
@@ -126,7 +136,7 @@ export class CentralizedAPIClient {
   }
 
   async getAgentPublicStats(): Promise<any> {
-    return this.request('/api/v1/agent/public-stats');
+    return this.request('/api/v1/agent/public/stats');
   }
 
   // Team Management
@@ -195,13 +205,6 @@ export class CentralizedAPIClient {
   }
 
   // AI Content Generation
-  async generateAIContent(data: any): Promise<any> {
-    return this.request('/api/v1/ai-unified/generate-unified', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
   async getAIPropertySuggestions(propertyId: string, data: any): Promise<any> {
     return this.request(`/api/v1/properties/${propertyId}/ai-suggestions`, {
       method: 'POST',
@@ -283,26 +286,6 @@ export class CentralizedAPIClient {
       method: 'POST',
       body: JSON.stringify(postData),
     });
-  }
-
-  // File Upload
-  async uploadImages(formData: FormData): Promise<any> {
-    const url = `${this.baseUrl}/api/v1/uploads/images`;
-
-    // For file uploads, we need to handle FormData differently
-    const config: RequestInit = {
-      method: 'POST',
-      body: formData,
-      // Don't set Content-Type for FormData - let browser set it with boundary
-    };
-
-    const response = await fetchWithAuthInterceptor(url, config);
-
-    if (!response.ok) {
-      throw new Error(`Upload failed: ${response.status}`);
-    }
-
-    return response.json();
   }
 
   // Onboarding

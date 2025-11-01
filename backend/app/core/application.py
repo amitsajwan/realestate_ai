@@ -39,18 +39,22 @@ class CustomJSONEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-def custom_jsonable_encoder(obj):
-    """Custom JSON encoder for FastAPI responses"""
+def custom_jsonable_encoder(obj, _recursion_depth=0, max_depth=10):
+    """Custom JSON encoder for FastAPI responses with recursion depth limit"""
+    if _recursion_depth > max_depth:
+        raise ValueError("Maximum recursion depth exceeded")
+
     if isinstance(obj, ObjectId):
         return str(obj)
     if isinstance(obj, datetime):
         return obj.isoformat()
-    if hasattr(obj, '__dict__'):
-        return {k: custom_jsonable_encoder(v) for k, v in obj.__dict__.items()}
     if isinstance(obj, dict):
-        return {k: custom_jsonable_encoder(v) for k, v in obj.items()}
+        return {k: custom_jsonable_encoder(v, _recursion_depth + 1) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):
-        return [custom_jsonable_encoder(item) for item in obj]
+        return [custom_jsonable_encoder(item, _recursion_depth + 1) for item in obj]
+    if hasattr(obj, '__dict__'):
+        # Convert object to dict and then process
+        return custom_jsonable_encoder(obj.__dict__, _recursion_depth + 1)
     return obj
 
 

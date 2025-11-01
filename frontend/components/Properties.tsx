@@ -23,21 +23,7 @@ import Image from 'next/image'
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 
-interface Property {
-  id: string
-  title: string
-  description?: string
-  price: number
-  address: string
-  bedrooms: number
-  bathrooms: number
-  area: number
-  type: string
-  status: 'for-sale' | 'for-rent' | 'sold'
-  date_added: string
-  image?: string
-  images?: string[]
-}
+import { Property } from '@/lib/properties/types'
 
 interface PropertiesProps {
   onAddProperty?: () => void
@@ -45,6 +31,7 @@ interface PropertiesProps {
   setProperties?: (properties: Property[]) => void
   onRefresh?: () => void
   onGenerateContent?: (propertyId: string) => void
+  onPublishWorkflow?: (property: Property) => void
 }
 
 export default function Properties({
@@ -169,10 +156,10 @@ export default function Properties({
   const filteredProperties = propProperties
     .filter(property => {
       const matchesSearch = property.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        property.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        property.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (property.description && property.description.toLowerCase().includes(searchTerm.toLowerCase()))
       const matchesStatus = statusFilter === 'all' || property.status === statusFilter
-      const matchesType = typeFilter === 'all' || property.type === typeFilter
+      const matchesType = typeFilter === 'all' || property.propertyType === typeFilter
       const matchesBedrooms = bedroomFilter === 'all' || property.bedrooms.toString() === bedroomFilter
 
       return matchesSearch && matchesStatus && matchesType && matchesBedrooms
@@ -190,13 +177,13 @@ export default function Properties({
           bValue = b.title.toLowerCase()
           break
         case 'area':
-          aValue = a.area
-          bValue = b.area
+          aValue = a.areaSqft || 0
+          bValue = b.areaSqft || 0
           break
         case 'date_added':
         default:
-          aValue = new Date(a.date_added).getTime()
-          bValue = new Date(b.date_added).getTime()
+          aValue = new Date(a.createdAt).getTime()
+          bValue = new Date(b.createdAt).getTime()
           break
       }
 
@@ -416,9 +403,9 @@ export default function Properties({
             <div className={`relative overflow-hidden ${viewMode === 'list' ? 'h-48 sm:h-32 sm:w-48 flex-shrink-0' : 'h-48'
               }`}>
               <div className="h-full bg-gradient-to-br from-blue-500 to-purple-600 relative">
-                {(property.images && property.images.length > 0) || property.image ? (
+                {property.images && property.images.length > 0 ? (
                   <Image
-                    src={property.images?.[0] || property.image || ''}
+                    src={property.images[0]}
                     alt={property.title}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-500"
@@ -475,7 +462,7 @@ export default function Properties({
                 </h3>
                 <div className="flex items-center text-gray-500 dark:text-gray-400 text-sm">
                   <MapPinIcon className="w-4 h-4 mr-1.5 flex-shrink-0" />
-                  <span className="truncate">{property.address}</span>
+                  <span className="truncate">{property.location}</span>
                 </div>
               </div>
 
@@ -492,7 +479,7 @@ export default function Properties({
                   </div>
                   <div className="flex items-center bg-gray-50 dark:bg-slate-700 px-2 py-1 rounded-md">
                     <span className="mr-1">📐</span>
-                    <span className="font-medium">{property.area}</span>
+                    <span className="font-medium">{property.areaSqft || 0}</span>
                   </div>
                 </div>
               </div>
@@ -500,7 +487,7 @@ export default function Properties({
               {/* Property Type Badge */}
               <div className="mb-4">
                 <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-sm">
-                  {property.type.charAt(0).toUpperCase() + property.type.slice(1)}
+                  {property.propertyType.charAt(0).toUpperCase() + property.propertyType.slice(1)}
                 </span>
               </div>
 
@@ -592,7 +579,7 @@ export default function Properties({
             <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-slate-700">
               <div>
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedProperty.title}</h3>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">{selectedProperty.address}</p>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">{selectedProperty.location}</p>
               </div>
               <button
                 onClick={() => setSelectedProperty(null)}
@@ -606,7 +593,7 @@ export default function Properties({
               {/* Property Image */}
               <div className="relative h-80 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                 <Image
-                  src={selectedProperty.images?.[0] || selectedProperty.image || '/placeholder-property.jpg'}
+                  src={selectedProperty.images?.[0] || '/placeholder-property.jpg'}
                   alt={selectedProperty.title}
                   fill
                   className="object-cover"
@@ -625,7 +612,7 @@ export default function Properties({
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Type:</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{selectedProperty.type}</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">{selectedProperty.propertyType}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Status:</span>
@@ -649,7 +636,7 @@ export default function Properties({
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Area:</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">{selectedProperty.area} sq ft</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">{selectedProperty.areaSqft || 0} sq ft</span>
                       </div>
                     </div>
                   </div>

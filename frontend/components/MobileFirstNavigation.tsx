@@ -68,15 +68,15 @@ export default function MobileFirstNavigation({
 
     return (
         <>
-            {/* Mobile Header */}
-            <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-lg border-b border-gray-200 shadow-sm">
+            {/* Unified Header - Works on both Mobile and Desktop */}
+            <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-lg border-b border-gray-200 shadow-sm">
                 <div className="px-4 py-3 max-w-7xl mx-auto">
                     <div className="flex items-center justify-between">
                         {/* Logo and Menu Button */}
                         <div className="flex items-center space-x-3">
                             <button
                                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+                                className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
                                 aria-label="Toggle mobile menu"
                             >
                                 {isMobileMenuOpen ? (
@@ -92,6 +92,24 @@ export default function MobileFirstNavigation({
                                 <h1 className="text-lg font-bold text-gray-900">PropertyAI</h1>
                             </div>
                         </div>
+
+                        {/* Desktop Navigation */}
+                        <nav className="hidden md:flex items-center space-x-6">
+                            {navigation.slice(0, 5).map((item) => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => onSectionChange(item.id)}
+                                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                                        activeSection === item.id
+                                            ? 'bg-blue-50 text-blue-600'
+                                            : 'text-gray-600 hover:bg-gray-100'
+                                    }`}
+                                >
+                                    <item.icon className="w-5 h-5" />
+                                    <span className="font-medium">{item.name}</span>
+                                </button>
+                            ))}
+                        </nav>
 
                         {/* Right Side Actions */}
                         <div className="flex items-center space-x-2">

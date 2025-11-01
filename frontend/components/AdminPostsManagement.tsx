@@ -1,6 +1,7 @@
 'use client'
 
 import { api } from '@/lib/api'
+import { Property } from '@/lib/properties/types'
 import {
     ArrowDownTrayIcon,
     Bars3Icon,
@@ -40,6 +41,7 @@ interface Post {
 
 interface AdminPostsManagementProps {
     onCreatePost: () => void
+    onUnifiedPostClick: (property: Property) => void
 }
 
 const statusColors = {
