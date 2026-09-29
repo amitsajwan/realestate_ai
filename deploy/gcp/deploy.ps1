@@ -37,14 +37,14 @@ Write-Host "Deploying commit $head"
 
 Step "Building the bundle from git HEAD (tracked files only)"
 $bundle = Join-Path $env:TEMP "pune-property-$head.tgz"
-git archive --format=tar.gz -o $bundle HEAD deploy backend frontend
+git archive --format=tar.gz -o $bundle HEAD deploy backend frontend -- ":!frontend/screenshots" ":!frontend/e2e"
 if ($LASTEXITCODE -ne 0) { throw "git archive failed" }
 $mb = [math]::Round((Get-Item $bundle).Length / 1MB, 1)
 Write-Host "Bundle: $bundle ($mb MB)"
 
-$iap = if ($Iap) { " --tunnel-through-iap" } else { "" }
+$iapFlag = if ($Iap) { " --tunnel-through-iap" } else { "" }
 $target = "$Instance"
-$common = "--project $Project --zone $Zone$iap"
+$common = "--project $Project --zone $Zone$iapFlag"
 
 Step "Copying the bundle to the VM"
 Run "gcloud compute scp $common `"$bundle`" ${target}:~/pune-property.tgz"
