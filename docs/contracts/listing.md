@@ -25,7 +25,7 @@ furnishing             unfurnished | semi | furnished  ?
 possession             ready | under_construction | string date  ?
 rera_no                string?
 amenities              string[]
-media                  [{ url: string, kind: image | video, order: int }]
+media                  [{ url: string, kind: image | video, order: int }]   optional, max 10
 created_at, updated_at, published_at?, freshness_confirmed_at?   ISO datetimes (UTC)
 ```
 Money is always integer rupees; the UI formats lakh/crore (85,00,000 -> "85 L", 1,25,00,000 -> "1.25 Cr").
@@ -33,7 +33,7 @@ Money is always integer rupees; the UI formats lakh/crore (85,00,000 -> "85 L", 
 ## Lifecycle
 `draft -> live -> under_offer -> sold|rented`; `paused` and `expired` reachable from live/under_offer.
 Only `live` (and `under_offer`, flagged) listings are shown publicly. `publish` requires: title, transaction,
-property_type, price_inr, city, locality, at least 1 image, description.en.
+property_type, price_inr, city, locality, description.en. Photos are OPTIONAL (agents upload their own; max 10 per listing, resized in the browser before upload to keep hosting cost low).
 Freshness: `freshness_confirmed_at` older than 30 days -> listing auto `expired` (job comes later; field exists now).
 
 ## API (all under /api/v1, JSON, bearer auth unless marked public)

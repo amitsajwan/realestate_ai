@@ -13,9 +13,8 @@ FACT_FIELDS = (
     "transaction", "property_type", "price_inr", "city", "locality", "project_name", "bhk", "carpet_sqft",
     "super_built_up_sqft", "floor", "total_floors", "furnishing", "possession", "rera_no", "amenities",
 )
-# publish-required per contract (media handled separately from image_count)
-REQUIRED_TO_PUBLISH = ("title", "transaction", "property_type", "price_inr", "city", "locality", "media",
-                       "description.en")
+# publish-required per contract (photos are optional)
+REQUIRED_TO_PUBLISH = ("title", "transaction", "property_type", "price_inr", "city", "locality", "description.en")
 
 
 @dataclass

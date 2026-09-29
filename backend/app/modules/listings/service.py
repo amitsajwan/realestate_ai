@@ -47,8 +47,6 @@ def compute_fingerprint(doc: dict) -> str:
 
 def missing_for_publish(doc: dict) -> List[str]:
     missing = [f for f in ("title", "transaction", "property_type", "price_inr", "city", "locality") if not doc.get(f)]
-    if not any(m.get("kind") == "image" for m in doc.get("media") or []):
-        missing.append("media")
     if not ((doc.get("description") or {}).get("en") or "").strip():
         missing.append("description.en")
     return missing

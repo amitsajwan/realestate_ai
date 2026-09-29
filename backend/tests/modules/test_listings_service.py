@@ -129,15 +129,20 @@ async def test_publish_lists_missing_fields():
         await svc.publish("A1", lst.id)
     assert e.value.status_code == 422
     assert set(e.value.detail["missing"]) == {"title", "transaction", "property_type", "price_inr",
-                                              "city", "locality", "media", "description.en"}
+                                              "city", "locality", "description.en"}
 
 
-async def test_publish_requires_an_image_not_just_video():
+async def test_photos_are_optional_to_publish():
     svc, _ = await make()
-    lst = await svc.create("A1", ListingCreate(**{**FULL, "media": [{"url": "v.mp4", "kind": "video"}]}))
-    with pytest.raises(ListingError) as e:
-        await svc.publish("A1", lst.id)
-    assert e.value.detail["missing"] == ["media"]
+    lst = await svc.create("A1", ListingCreate(**{**FULL, "media": []}))
+    assert (await svc.publish("A1", lst.id)).status == "live"
+
+
+def test_at_most_10_photos():
+    photos = [{"url": f"https://x/{i}.jpg", "kind": "image", "order": i} for i in range(11)]
+    with pytest.raises(ValueError):
+        ListingCreate(media=photos)
+    assert len(ListingCreate(media=photos[:10]).media) == 10
 
 
 async def test_publish_twice_is_409_and_failed_publish_stays_draft():

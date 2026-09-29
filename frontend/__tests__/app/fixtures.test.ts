@@ -26,7 +26,7 @@ describe('fixture api', () => {
     const l = await api.createListing({ title: 'Flat', city: 'Pune' })
     const err = await api.publishListing(l.id).catch((e) => e)
     expect(err.status).toBe(422)
-    expect(err.missing).toEqual(expect.arrayContaining(['price_inr', 'locality', 'media', 'description.en']))
+    expect(err.missing).toEqual(expect.arrayContaining(['price_inr', 'locality', 'description.en']))
     await api.updateListing(l.id, {
       price_inr: 5_000_000, locality: 'Baner', transaction: 'sale', property_type: 'apartment',
       description: { en: 'Nice' }, media: [{ url: 'x', kind: 'image', order: 0 }],
@@ -62,7 +62,7 @@ describe('fakeDraft', () => {
     const d = fakeDraft('2 BHK in Baner, 85 lakh, ready possession', 0, false)
     expect(d.draft).toMatchObject({ bhk: 2, price_inr: 8_500_000, locality: 'Baner', city: 'Pune', possession: 'ready', transaction: 'sale' })
     expect(d.confidence.possession).toBeLessThan(0.7)
-    expect(d.missing).toContain('media')
+    expect(d.missing).not.toContain('media') // photos are optional
   })
   it('uses a canned transcript for audio', () => {
     const d = fakeDraft('', 1, true)
@@ -74,7 +74,7 @@ describe('fakeDraft', () => {
 describe('missingFields', () => {
   it('is live-computed from the form', () => {
     const v = { title: 'a', transaction: 'sale' as const, property_type: 'plot' as const, price_inr: 1, city: 'c', locality: 'l', description: { en: 'd' } }
-    expect(missingFields(v)).toEqual(['media'])
+    expect(missingFields(v)).toEqual([]) // no photo needed to publish
     const media = [{ url: 'u', kind: 'image' as const, order: 0 }]
     expect(missingFields({ ...v, media })).toEqual([])
     expect(missingFields({ ...v, media, price_inr: 0 })).toEqual(['price_inr'])

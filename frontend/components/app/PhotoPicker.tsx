@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef } from 'react'
 import { t } from '@/lib/app/strings'
 import { Btn } from './ui'
 
-const MAX_PHOTOS = 20 // backend limit (MAX_IMAGES_PER_PROPERTY)
+const MAX_PHOTOS = 10 // photos are optional and cost us storage: keep it small (backend limit is 10 too)
 
 export function PhotoPicker({ files, onChange }: { files: File[]; onChange: (f: File[]) => void }) {
   const galleryRef = useRef<HTMLInputElement>(null)

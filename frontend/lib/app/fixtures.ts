@@ -34,7 +34,7 @@ const KEY = 'app_fixture_state_v1'
 const FIXTURE_OTP = '123456'
 export const FIXTURE_TOKEN = 'fixture-token'
 
-const REQUIRED = ['title', 'transaction', 'property_type', 'price_inr', 'city', 'locality', 'media', 'description.en']
+const REQUIRED = ['title', 'transaction', 'property_type', 'price_inr', 'city', 'locality', 'description.en']
 const LOCALITIES: Record<string, string> = {
   baner: 'Pune', wakad: 'Pune', hinjewadi: 'Pune', kothrud: 'Pune', aundh: 'Pune', kharadi: 'Pune',
   hadapsar: 'Pune', 'viman nagar': 'Pune', andheri: 'Mumbai', powai: 'Mumbai', bandra: 'Mumbai', thane: 'Mumbai',
@@ -174,7 +174,6 @@ export function fakeDraft(text: string, imageCount: number, hasAudio: boolean): 
   if (draft.price_inr && draft.price_inr < 1_000_000 && draft.transaction === 'sale') warnings.push('Price looks low for a sale. Please check it.')
 
   const missing = REQUIRED.filter((f) => {
-    if (f === 'media') return imageCount < 1
     if (f === 'description.en') return !draft.description?.en
     return !(draft as Record<string, unknown>)[f]
   })
@@ -249,7 +248,6 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
     async publishListing(id) {
       const l = find(id)
       const missing = REQUIRED.filter((f) => {
-        if (f === 'media') return l.media.length < 1
         if (f === 'description.en') return !l.description?.en
         return !(l as unknown as Record<string, unknown>)[f]
       })

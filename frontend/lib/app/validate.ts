@@ -1,7 +1,7 @@
 import type { ListingInput } from './types'
 
-/** Fields the contract requires to publish (docs/contracts/listing.md). 'media' means at least one image. */
-export const PUBLISH_REQUIRED = ['title', 'transaction', 'property_type', 'price_inr', 'city', 'locality', 'media', 'description.en'] as const
+/** Fields the contract requires to publish (docs/contracts/listing.md). Photos are optional. */
+export const PUBLISH_REQUIRED = ['title', 'transaction', 'property_type', 'price_inr', 'city', 'locality', 'description.en'] as const
 
 export const FIELD_LABELS: Record<string, string> = {
   title: 'Title',

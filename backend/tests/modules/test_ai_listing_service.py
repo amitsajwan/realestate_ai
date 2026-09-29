@@ -139,7 +139,7 @@ async def test_groq_llm_parses_json_mode_reply():
 
 async def test_missing_and_media():
     res = await AIListingService().from_text("2 BHK 85 lakh", image_count=0)
-    assert set(res.missing) == {"city", "locality", "media"}
+    assert set(res.missing) == {"city", "locality"}
     res = await AIListingService().from_text("2 BHK Baner 85 lakh sale", image_count=3)
     assert res.missing == []
 
@@ -147,7 +147,7 @@ async def test_missing_and_media():
 async def test_empty_text_lists_all_required():
     res = await AIListingService().from_text("")
     assert res.draft == {}
-    assert set(res.missing) == {"title", "transaction", "property_type", "price_inr", "city", "locality", "media",
+    assert set(res.missing) == {"title", "transaction", "property_type", "price_inr", "city", "locality",
                                 "description.en"}
 
 

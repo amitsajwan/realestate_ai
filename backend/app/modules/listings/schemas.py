@@ -21,6 +21,10 @@ class Description(BaseModel):
     mr: Optional[str] = Field(None, max_length=5000)
 
 
+# Photos are optional (agents upload their own; hosting is a cost we keep small): at most 10 per listing.
+MAX_PHOTOS = 10
+
+
 class Media(BaseModel):
     model_config = ConfigDict(extra="forbid")
     url: str = Field(..., min_length=1, max_length=2000)
@@ -57,7 +61,7 @@ class _Fields(BaseModel):
     possession: Optional[str] = Field(None, max_length=60)
     rera_no: Optional[str] = Field(None, max_length=60)
     amenities: List[str] = Field(default_factory=list, max_length=60)
-    media: List[Media] = Field(default_factory=list, max_length=60)
+    media: List[Media] = Field(default_factory=list, max_length=MAX_PHOTOS)
 
     @field_validator("amenities")
     @classmethod

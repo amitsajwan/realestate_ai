@@ -76,6 +76,6 @@ class AIListingService:
             draft["description"] = desc
 
         present = set(draft) - {"description"} | ({"description.en"} if en else set())
-        missing = [k for k in REQUIRED_TO_PUBLISH if k not in present and not (k == "media" and image_count > 0)]
+        missing = [k for k in REQUIRED_TO_PUBLISH if k not in present]
         return AIDraft(draft=draft, confidence={k: round(v, 2) for k, v in conf.items()}, missing=missing,
                        transcript=transcript, warnings=(warnings or []) + build_warnings(facts, conf))

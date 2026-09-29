@@ -1,4 +1,5 @@
 'use client'
+import { compressImage } from '@/lib/app/imageCompress'
 import Link from 'next/link'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError } from '@/lib/app/api'
@@ -84,7 +85,9 @@ export function NewListingFlow() {
     try {
       const key = photos.map((f) => `${f.name}:${f.size}`).join('|')
       if (!uploaded.current || uploaded.current.key !== key) {
-        const files = await api.uploadImages(photos)
+        // Photos are optional: nothing to upload means no call (the upload endpoint rejects an empty request).
+        // Compressing first keeps files small = cheap storage and fast on mobile data.
+        const files = photos.length ? await api.uploadImages(await Promise.all(photos.map((p) => compressImage(p)))) : []
         uploaded.current = { key, urls: files.map((f) => f.url) }
       }
       const body = cleanInput({

@@ -50,7 +50,7 @@ def test_text_draft_matches_contract():
 def test_no_input_returns_empty_draft_not_500():
     res = make_client().post(URL, data={})
     assert res.status_code == 200 and res.json()["draft"] == {} and "price_inr" in res.json()["missing"]
-    assert "media" in res.json()["missing"]
+    assert "media" not in res.json()["missing"]  # photos are optional
 
 
 def test_city_hint_and_garbage():
@@ -60,7 +60,7 @@ def test_city_hint_and_garbage():
 
 def test_negative_image_count_clamped():
     res = make_client().post(URL, data={"text": "2 bhk baner 85 lakh sale", "image_count": "-4"})
-    assert res.status_code == 200 and "media" in res.json()["missing"]
+    assert res.status_code == 200 and "media" not in res.json()["missing"]
 
 
 def test_text_too_long():
