@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import React, { Suspense, useState } from 'react'
+import { OutcomeBadge } from '@/components/app/OutcomeSheets'
 import { ErrorBox, PageTitle, STAGES, Spinner, TempChip } from '@/components/app/ui'
 import { api } from '@/lib/app/client'
 import { displayPhone, timeAgo } from '@/lib/app/format'
@@ -70,7 +71,10 @@ function LeadsList() {
         <Link key={l.id} href={`/studio/leads/${l.id}`} className="block min-h-[88px] rounded-2xl border border-gray-200 bg-white p-4 active:bg-gray-50">
           <div className="flex items-center justify-between gap-2">
             <p className="truncate font-semibold text-gray-900">{l.name}</p>
-            <TempChip temperature={l.temperature} score={l.score} />
+            <span className="flex flex-none items-center gap-1">
+              <OutcomeBadge outcome={l.outcome} />
+              <TempChip temperature={l.temperature} score={l.score} />
+            </span>
           </div>
           {l.requirement_line && <p className="truncate text-sm font-medium text-gray-800">{l.requirement_line}</p>}
           <p className="text-sm text-gray-500">{displayPhone(l.phone)}</p>

@@ -7,6 +7,8 @@ import { ApiError } from './api'
 import { formatInr, parseInr } from './format'
 import { budgetRange, buildWhatsappUrl } from './leads'
 import { actionsFor, buildFixturePack, matchingFor, performanceFor } from './fixtures-marketing'
+import { nextOutcome, resultsFor } from './fixtures-outcomes'
+import { outcomePatchError } from './outcomes'
 import type {
   AIDraft,
   AIDraftRequest,
@@ -42,7 +44,7 @@ interface State {
   packs: Record<string, MarketingPack>
 }
 
-const KEY = 'app_fixture_state_v3'
+const KEY = 'app_fixture_state_v4'
 const FIXTURE_OTP = '123456'
 export const FIXTURE_TOKEN = 'fixture-token'
 
@@ -181,7 +183,7 @@ function seed(): State {
   })
   const lead = (id: string, over: Partial<LeadDetail>): LeadDetail => ({
     id, name: '', phone: '+919800000000', stage: 'new', source: 'whatsapp', message: null, score: 10, temperature: 'cold',
-    first_listing_id: 'l1', created_at: ago(30), last_activity_at: ago(2), notes: [], timeline: [],
+    first_listing_id: 'l1', outcome: null, created_at: ago(30), last_activity_at: ago(2), notes: [], timeline: [],
     requirement: null, follow_up: { due_at: null, overdue: false }, ...over,
   })
   return {
@@ -448,7 +450,13 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
       const l = load().leads.find((x) => x.id === id)
       if (!l) throw fixtureError(404, 'Lead not found')
       const patch: LeadPatch = typeof stageOrPatch === 'string' ? { stage: stageOrPatch, note } : stageOrPatch
+      const bad = outcomePatchError(patch)
+      if (bad) throw fixtureError(422, bad)
+      const picked = patch.outcome?.listing_id
+      if (picked && !load().listings.some((x) => x.id === picked)) throw fixtureError(422, 'That property is not one of your listings.')
       const now = new Date().toISOString()
+      const outcome = nextOutcome(l, patch, load().listings, now)
+      if (outcome !== undefined) l.outcome = outcome
       if (patch.stage && patch.stage !== l.stage) {
         l.stage = patch.stage
         // Contract: moving to contacted schedules a follow-up in 2 days unless one is supplied.
@@ -458,7 +466,11 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
       l.last_activity_at = now
       if (patch.note) l.notes = [...l.notes, { text: patch.note, ts: now, stage: l.stage }]
       save()
-      return enrich(l, load().listings)
+      const out = enrich(l, load().listings)
+      // Contract: marking won with a listing suggests updating that listing (the app asks; nothing changes here).
+      const deal = patch.stage === 'won' && l.outcome?.listing_id ? load().listings.find((x) => x.id === l.outcome!.listing_id) : undefined
+      if (deal) out.suggest_listing_status = { listing_id: deal.id, status: deal.transaction === 'rent' ? 'rented' : 'sold' }
+      return out
     },
     async getToday(): Promise<BusinessToday> {
       const st = load()
@@ -481,6 +493,7 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
       return {
         counts,
         headline,
+        results: resultsFor(st.leads),
         actions: actionsFor(st.listings, leads, st.packs ?? {}, (l) => matchesFor(l).length),
         hot_buyers: open
           .filter((l) => l.temperature === 'hot')

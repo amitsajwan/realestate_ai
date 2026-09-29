@@ -4,14 +4,15 @@ import React from 'react'
 import { ShareBar } from '@/components/app/ShareBar'
 import { ErrorBox, LinkBtn, Spinner, TempChip } from '@/components/app/ui'
 import { api } from '@/lib/app/client'
-import { waDigits } from '@/lib/app/format'
-import { dueLabel } from '@/lib/app/leads'
+import { formatPrice, waDigits } from '@/lib/app/format'
+import { dueLabel, sourceLabel } from '@/lib/app/leads'
 import { actionHref } from '@/lib/app/marketing'
+import { lostHint, resultsEmpty } from '@/lib/app/outcomes'
 import { whatsappChatUrl } from '@/lib/app/share'
 import { useSession } from '@/lib/app/session'
 import { t } from '@/lib/app/strings'
 import { useAsync } from '@/lib/app/useAsync'
-import type { BusinessToday as Today, RecommendedAction, RecommendedActionType, TodayFollowUp, TodayHotBuyer } from '@/lib/app/types'
+import type { BusinessToday as Today, RecommendedAction, RecommendedActionType, TodayFollowUp, TodayHotBuyer, TodayResults } from '@/lib/app/types'
 
 export const TILE_LINKS = [
   { key: 'new_enquiries_24h', label: 'tileNew', href: '/studio/leads?filter=new' },
@@ -122,6 +123,33 @@ export function RecommendedActions({ actions }: { actions?: RecommendedAction[] 
   )
 }
 
+/** "This month": deals won and their value, best channel and why deals were lost. Hidden until there is something to show. */
+export function ResultsCard({ results }: { results?: TodayResults }) {
+  if (resultsEmpty(results) || !results) return null
+  const hint = lostHint(results)
+  return (
+    <section aria-label={t('thisMonth')} className="space-y-3 rounded-2xl border border-green-200 bg-green-50 p-4" data-testid="results-card">
+      <h2 className="font-bold text-gray-900">{t('thisMonth')}</h2>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-3xl font-bold text-gray-900" data-testid="deals-won">{results.deals_won}</p>
+          <p className="text-sm text-gray-700">{t('dealsWon')}</p>
+        </div>
+        <div>
+          <p className="text-3xl font-bold text-gray-900" data-testid="deal-value">{results.deal_value_inr > 0 ? formatPrice(results.deal_value_inr) : '-'}</p>
+          <p className="text-sm text-gray-700">{t('dealValue')}</p>
+        </div>
+      </div>
+      {results.top_source && (
+        <p className="text-sm font-semibold text-gray-800">
+          {t('bestChannel')}: {sourceLabel(results.top_source)}
+        </p>
+      )}
+      {hint && <p className="text-sm text-gray-700" data-testid="lost-hint">{hint}</p>}
+    </section>
+  )
+}
+
 function SiteCard({ siteUrl }: { siteUrl: string }) {
   return (
     <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4">
@@ -184,6 +212,7 @@ export function BusinessToday() {
             {data.today.headline}
           </p>
           <CountTiles counts={data.today.counts} />
+          <ResultsCard results={data.today.results} />
 
           <section className="space-y-3" aria-label={t('hotBuyers')}>
             <h2 className="font-bold text-gray-900">{t('hotBuyers')}</h2>
