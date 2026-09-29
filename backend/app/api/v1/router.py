@@ -43,6 +43,7 @@ from app.modules.listings.router import router as listings_router, public_router
 from app.modules.ai_listing.router import router as ai_listing_router
 from app.modules.marketing.router import router as marketing_router
 from app.modules.social.router import router as social_router
+from app.modules.waitlist.router import router as waitlist_router
 
 # Create main API router
 api_router = APIRouter()
@@ -81,6 +82,7 @@ api_router.include_router(agents_router, prefix="/agents", tags=["agents"])
 api_router.include_router(crm_router, prefix="/crm", tags=["crm"])
 api_router.include_router(stats_router, prefix="/stats", tags=["stats"])
 api_router.include_router(join_router, prefix="/join", tags=["join"])
+api_router.include_router(waitlist_router, prefix="/join", tags=["join"])
 api_router.include_router(track_public_router, prefix="/t", tags=["tracking"])
 api_router.include_router(inbox_router, prefix="/inbox", tags=["lead-inbox"])
 api_router.include_router(ai_listing_router, prefix="/listings", tags=["listings-ai"])

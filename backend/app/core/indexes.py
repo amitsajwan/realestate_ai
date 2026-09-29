@@ -29,6 +29,12 @@ INDEXES: Iterable[Tuple[str, list, dict]] = [
     ("inquiry_log", [("agent_id", ASC), ("phone", ASC), ("ts", DESC)], {}),
     ("inquiry_log", [("anon_id", ASC), ("ts", DESC)], {}),
     ("inquiry_log", [("ts", ASC)], {"expireAfterSeconds": 86400}),
+    # invite requests from the public page, and their rate-limit log (rows expire after a day)
+    ("invite_requests", [("phone", ASC), ("created_at", DESC)], {}),
+    ("invite_requests", [("status", ASC), ("created_at", ASC)], {}),
+    ("invite_request_attempts", [("phone", ASC), ("at", DESC)], {}),
+    ("invite_request_attempts", [("ip_hash", ASC), ("at", DESC)], {}),
+    ("invite_request_attempts", [("at", ASC)], {"expireAfterSeconds": 86400}),
     # marketing + social
     ("marketing_packs", [("agent_id", ASC)], {}),
     ("publications", [("listing_id", ASC), ("channel", ASC), ("pack_version", ASC)], {}),
