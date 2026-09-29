@@ -52,7 +52,7 @@ $target = "$Instance"
 $common = "--project $Project --zone $Zone$iapFlag"
 
 Step "Copying the bundle to the VM"
-Run "gcloud compute scp $common `"$bundle`" ${target}:~/pune-property.tgz"
+Run "gcloud compute scp $common `"$bundle`" ${target}:pune-property.tgz"
 
 Step "Unpacking and rebuilding on the VM (secrets in deploy/gcp/.env are kept)"
 $setEmail = ""
