@@ -13,11 +13,11 @@ import { agentJsonLd, agentMetadata, jsonLdString } from '@/lib/site/seo'
 import { normalizeSlug } from '@/lib/site/slug'
 
 interface Props {
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const slug = normalizeSlug(params.slug)
+  const slug = normalizeSlug((await params).slug)
   const agent = slug ? await getAgent(slug) : null
   if (!slug || !agent) return { title: 'Agent not found', robots: { index: false } }
   const { items } = await getListings(slug)
@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function AgentHomePage({ params }: Props) {
-  const slug = normalizeSlug(params.slug)
+  const slug = normalizeSlug((await params).slug)
   const agent = slug ? await getAgent(slug) : null
   if (!slug || !agent) notFound()
   const { items } = await getListings(slug)

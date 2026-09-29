@@ -18,10 +18,10 @@ const APP = 'http://localhost:3000'
   // A) no photo at all
   await p.goto(APP + '/studio/listings/new', { waitUntil: 'networkidle' })
   await p.locator('textarea').fill(text)
-  await p.getByRole('button', { name: 'Next' }).click()
+  await p.getByRole('button', { name: 'Next', exact: true }).click()
   await p.getByText('Check and confirm').waitFor({ timeout: 30000 })
   await p.getByRole('button', { name: /Confirm & post/ }).click()
-  await p.getByText('Your listing is live').waitFor({ timeout: 30000 })
+  await p.getByText('Your property is ready').waitFor({ timeout: 30000 })
   console.log('PASS listing with NO photo published')
 
   // B) large noisy photo -> measure what is actually uploaded
@@ -40,10 +40,10 @@ const APP = 'http://localhost:3000'
     input.dispatchEvent(new Event('change', { bubbles: true }))
     return blob.size
   })
-  await p.getByRole('button', { name: 'Next' }).click()
+  await p.getByRole('button', { name: 'Next', exact: true }).click()
   await p.getByText('Check and confirm').waitFor({ timeout: 60000 })
   await p.getByRole('button', { name: /Confirm & post/ }).click()
-  await p.getByText('Your listing is live').waitFor({ timeout: 60000 })
+  await p.getByText('Your property is ready').waitFor({ timeout: 60000 })
   const fresh = fs.readdirSync(dir).filter((f) => !before.has(f))
   const uploaded = fresh.length ? fs.statSync(path.join(dir, fresh[0])).size : 0
   const kb = (n) => Math.round(n / 1024) + ' KB'

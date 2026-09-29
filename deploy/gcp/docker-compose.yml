@@ -32,6 +32,12 @@ services:
   frontend:
     build:
       context: ../../frontend
+      args:
+        # set these in deploy/gcp/.env on the VM, then redeploy (they are baked in at build time)
+        NEXT_PUBLIC_BUSINESS_NAME: ${NEXT_PUBLIC_BUSINESS_NAME:-PUNE Property}
+        NEXT_PUBLIC_CONTACT_EMAIL: ${NEXT_PUBLIC_CONTACT_EMAIL:-}
+        NEXT_PUBLIC_CONTACT_WHATSAPP: ${NEXT_PUBLIC_CONTACT_WHATSAPP:-}
+        NEXT_PUBLIC_SITE_URL: https://${SITE_HOST}
     restart: unless-stopped
     environment:
       SITE_API_URL: http://backend:8000

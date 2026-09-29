@@ -18,22 +18,24 @@ import { jsonLdString, listingJsonLd, listingMetadata } from '@/lib/site/seo'
 import { agentPath, normalizeSlug, siteOrigin } from '@/lib/site/slug'
 
 interface Props {
-  params: { slug: string; id: string }
+  params: Promise<{ slug: string; id: string }>
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const slug = normalizeSlug(params.slug)
+  const { slug: rawSlug, id } = await params
+  const slug = normalizeSlug(rawSlug)
   const agent = slug ? await getAgent(slug) : null
-  const listing = slug && agent ? await getListing(slug, params.id) : null
+  const listing = slug && agent ? await getListing(slug, id) : null
   if (!agent || !listing) return { title: 'Property not found', robots: { index: false } }
   return listingMetadata(agent, listing)
 }
 
 export default async function ListingPage({ params }: Props) {
-  const slug = normalizeSlug(params.slug)
+  const { slug: rawSlug, id } = await params
+  const slug = normalizeSlug(rawSlug)
   const agent = slug ? await getAgent(slug) : null
   if (!slug || !agent) notFound()
-  const l = await getListing(slug, params.id)
+  const l = await getListing(slug, id)
   if (!l) notFound()
 
   const url = siteOrigin() + agentPath(slug, 'listings/' + l.id)
