@@ -1,0 +1,67 @@
+<#
+  Redeploy the pilot to the single GCP VM (Caddy + frontend + backend + MongoDB via docker compose).
+
+  What it does:
+    1. Bundles the TRACKED files of deploy/, backend/ and frontend/ from git HEAD (so no .env, node_modules or uploads ever leave your PC).
+    2. Copies the bundle to the VM and unpacks it into $RemoteDir (the VM's own deploy/gcp/.env with the secrets is untouched).
+    3. Rebuilds and restarts the containers, then checks the public health address.
+
+  Usage (from the repo root, with your changes COMMITTED):
+    .\deploy\gcp\deploy.ps1 -DryRun     # prints every step, contacts nothing, still builds the local bundle to prove it works
+    .\deploy\gcp\deploy.ps1             # does it for real
+    .\deploy\gcp\deploy.ps1 -Iap        # use IAP tunnelling for ssh/scp (once SSH is restricted to IAP)
+
+  Assumptions to confirm the first time (defaults come from the deployment notes): project, zone, instance name, and that the app lives in
+  ~/realestate_ai on the VM. Override with -RemoteDir if the VM uses a different folder.
+#>
+param(
+  [string]$Project   = "trader-502012",
+  [string]$Zone      = "asia-south1-a",
+  [string]$Instance  = "pune-property",
+  [string]$RemoteDir = "realestate_ai",
+  [string]$HealthUrl = "https://34-180-39-243.sslip.io/api/v1/health",
+  [switch]$Iap,
+  [switch]$DryRun
+)
+$ErrorActionPreference = "Stop"
+Set-Location (Split-Path (Split-Path $PSScriptRoot))   # repo root
+
+function Step($text) { Write-Host "==> $text" -ForegroundColor Cyan }
+function Run($cmd) { if ($DryRun) { Write-Host "[dry-run] $cmd" -ForegroundColor Yellow } else { Invoke-Expression $cmd; if ($LASTEXITCODE -ne 0) { throw "failed: $cmd" } } }
+
+Step "Checking the working tree"
+$dirty = git status --porcelain --untracked-files=no
+if ($dirty) { throw "You have uncommitted changes to tracked files. Commit them first (the bundle is built from git HEAD):`n$dirty" }
+$head = git rev-parse --short HEAD
+Write-Host "Deploying commit $head"
+
+Step "Building the bundle from git HEAD (tracked files only)"
+$bundle = Join-Path $env:TEMP "pune-property-$head.tgz"
+git archive --format=tar.gz -o $bundle HEAD deploy backend frontend
+if ($LASTEXITCODE -ne 0) { throw "git archive failed" }
+$mb = [math]::Round((Get-Item $bundle).Length / 1MB, 1)
+Write-Host "Bundle: $bundle ($mb MB)"
+
+$iap = if ($Iap) { " --tunnel-through-iap" } else { "" }
+$target = "$Instance"
+$common = "--project $Project --zone $Zone$iap"
+
+Step "Copying the bundle to the VM"
+Run "gcloud compute scp $common `"$bundle`" ${target}:~/pune-property.tgz"
+
+Step "Unpacking and rebuilding on the VM (secrets in deploy/gcp/.env are kept)"
+$remote = "set -e; mkdir -p $RemoteDir; tar xzf ~/pune-property.tgz -C $RemoteDir; cd $RemoteDir/deploy/gcp; test -f .env || { echo 'ERROR: deploy/gcp/.env missing on the VM'; exit 1; }; sudo docker compose up -d --build; sudo docker compose ps; rm -f ~/pune-property.tgz"
+Run "gcloud compute ssh $target $common --command `"$remote`""
+
+Step "Checking the public health address"
+if ($DryRun) { Write-Host "[dry-run] curl $HealthUrl" -ForegroundColor Yellow }
+else {
+  Start-Sleep -Seconds 20
+  $ok = $false
+  foreach ($i in 1..10) {
+    try { $r = Invoke-RestMethod -Uri $HealthUrl -TimeoutSec 15; if ($r.status -eq "healthy") { $ok = $true; break } } catch { Start-Sleep -Seconds 10 }
+  }
+  if ($ok) { Write-Host "Healthy: $HealthUrl" -ForegroundColor Green } else { throw "Health check did not pass; check: gcloud compute ssh $target $common --command 'cd $RemoteDir/deploy/gcp; sudo docker compose logs --tail 80 backend'" }
+}
+Remove-Item $bundle -ErrorAction SilentlyContinue
+Write-Host "Done." -ForegroundColor Green
