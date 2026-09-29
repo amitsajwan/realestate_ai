@@ -10,6 +10,8 @@
     .\deploy\gcp\deploy.ps1 -DryRun     # prints every step, contacts nothing, still builds the local bundle to prove it works
     .\deploy\gcp\deploy.ps1             # does it for real
     .\deploy\gcp\deploy.ps1 -Iap        # use IAP tunnelling for ssh/scp (once SSH is restricted to IAP)
+    .\deploy\gcp\deploy.ps1 -ContactEmail you@example.com
+        # also sets NEXT_PUBLIC_CONTACT_EMAIL in the VM's private .env (shown on /privacy, /terms, /data-deletion; never committed to git)
 
   Assumptions to confirm the first time (defaults come from the deployment notes): project, zone, instance name, and that the app lives in
   ~/realestate_ai on the VM. Override with -RemoteDir if the VM uses a different folder.
@@ -20,6 +22,7 @@ param(
   [string]$Instance  = "pune-property",
   [string]$RemoteDir = "realestate_ai",
   [string]$HealthUrl = "https://34-180-39-243.sslip.io/api/v1/health",
+  [string]$ContactEmail = "",
   [switch]$Iap,
   [switch]$DryRun
 )
@@ -28,6 +31,8 @@ Set-Location (Split-Path (Split-Path $PSScriptRoot))   # repo root
 
 function Step($text) { Write-Host "==> $text" -ForegroundColor Cyan }
 function Run($cmd) { if ($DryRun) { Write-Host "[dry-run] $cmd" -ForegroundColor Yellow } else { Invoke-Expression $cmd; if ($LASTEXITCODE -ne 0) { throw "failed: $cmd" } } }
+
+if ($ContactEmail -and $ContactEmail -notmatch '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$') { throw "ContactEmail does not look like an email address" }
 
 Step "Checking the working tree"
 $dirty = git status --porcelain --untracked-files=no
@@ -50,7 +55,9 @@ Step "Copying the bundle to the VM"
 Run "gcloud compute scp $common `"$bundle`" ${target}:~/pune-property.tgz"
 
 Step "Unpacking and rebuilding on the VM (secrets in deploy/gcp/.env are kept)"
-$remote = "set -e; mkdir -p $RemoteDir; tar xzf ~/pune-property.tgz -C $RemoteDir; cd $RemoteDir/deploy/gcp; test -f .env || { echo 'ERROR: deploy/gcp/.env missing on the VM'; exit 1; }; sudo docker compose up -d --build; sudo docker compose ps; rm -f ~/pune-property.tgz"
+$setEmail = ""
+if ($ContactEmail) { $setEmail = "sed -i '/^NEXT_PUBLIC_CONTACT_EMAIL=/d' .env; echo 'NEXT_PUBLIC_CONTACT_EMAIL=$ContactEmail' >> .env; " }
+$remote = "set -e; mkdir -p $RemoteDir; tar xzf ~/pune-property.tgz -C $RemoteDir; cd $RemoteDir/deploy/gcp; test -f .env || { echo 'ERROR: deploy/gcp/.env missing on the VM'; exit 1; }; ${setEmail}sudo docker compose up -d --build; sudo docker compose ps; rm -f ~/pune-property.tgz"
 Run "gcloud compute ssh $target $common --command `"$remote`""
 
 Step "Checking the public health address"
