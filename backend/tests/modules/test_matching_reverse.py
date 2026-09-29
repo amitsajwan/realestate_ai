@@ -17,14 +17,14 @@ async def _buyers(svc, listing_id="L1", agent="A1"):
 
 async def test_full_match_scores_and_shape():
     svc, db, clock = await make()
-    await add_lead(db, clock, "B1", bhk=2, lo=8_000_000, hi=9_000_000, localities=["Baner"], first_listing="L1", base=20)
+    await add_lead(db, clock, "B1", bhk=2, lo=8_000_000, hi=9_000_000, localities=["Baner"], base=20)
     out = await _buyers(svc)
     assert out["listing"] == {"id": "L1", "title": "2BHK in Baner", "price_inr": 8_500_000, "locality": "Baner",
                               "share_url": f"{settings.public_site_url}/agent/rahul/listings/L1?src=whatsapp"}
     b = out["buyers"][0]
     assert set(b) == {"lead_id", "name", "phone", "temperature", "score", "requirement_line", "match_pct",
                       "reasons", "draft"}
-    assert b["match_pct"] == 100 and b["lead_id"] == "B1" and b["temperature"] == "warm" and b["score"] == 20
+    assert b["match_pct"] == 95 and b["lead_id"] == "B1"  # 95: property type is neutral without a reference listing and b["temperature"] == "warm" and b["score"] == 20
     assert b["requirement_line"] == "2 BHK · 80L-90L · Baner"
     assert any("within budget" in r for r in b["reasons"]) and "In Baner" in b["reasons"]
     assert set(b["draft"]) == {"message", "whatsapp_url"}
@@ -34,21 +34,23 @@ async def test_threshold_60_and_below_excluded():
     svc, db, clock = await make()
     # bhk 2 + Baner but budget 1Cr+ (far above the 85L price): 5 + 25 + 0 + 25 = 55 -> excluded
     await add_lead(db, clock, "LOW", bhk=2, lo=10_000_000, hi=12_000_000, localities=["Baner"])
-    # right budget, 3 BHK (1 off = 10), Baner: 5 + 10 + 40 + 25 = 80 -> included
-    await add_lead(db, clock, "OK", bhk=3, lo=8_000_000, hi=9_000_000, localities=["Baner"])
+    # right BHK and budget, other locality: 5 + 25 + 40 + 0 = 70 -> included
+    await add_lead(db, clock, "OK", bhk=2, lo=8_000_000, hi=9_000_000, localities=["Wakad"])
+    # wants 3 BHK: everything else fits, but a wrong bedroom count is capped at 55 -> never recommended
+    await add_lead(db, clock, "BHK3", bhk=3, lo=8_000_000, hi=9_000_000, localities=["Baner"])
     out = await _buyers(svc)
     assert [b["lead_id"] for b in out["buyers"]] == ["OK"]
-    assert out["buyers"][0]["match_pct"] == 80
+    assert out["buyers"][0]["match_pct"] == 70
 
 
 async def test_sorted_by_match_then_score_and_capped_at_10():
     svc, db, clock = await make()
     await add_lead(db, clock, "A", bhk=2, lo=8_000_000, hi=9_000_000, localities=["Baner"], base=5)      # 95
     await add_lead(db, clock, "B", bhk=2, lo=8_000_000, hi=9_000_000, localities=["Baner"], base=30)     # 95, hotter
-    await add_lead(db, clock, "C", bhk=2, lo=8_000_000, hi=9_000_000, localities=["Baner"], first_listing="L1")  # 100
+    await add_lead(db, clock, "C", bhk=2, lo=8_000_000, hi=9_000_000, localities=["Baner"], base=0)      # 95, coldest
     await add_lead(db, clock, "D", bhk=2, lo=8_000_000, hi=9_000_000, localities=["Wakad"], base=99)     # 70
     out = await _buyers(svc)
-    assert [b["lead_id"] for b in out["buyers"]] == ["C", "B", "A", "D"]
+    assert [b["lead_id"] for b in out["buyers"]] == ["B", "A", "C", "D"]  # same 95%: hotter lead first
     for i in range(12):
         await add_lead(db, clock, f"X{i:02d}", bhk=2, lo=8_000_000, hi=9_000_000, localities=["Baner"])
     assert len((await _buyers(svc))["buyers"]) == 10
@@ -131,4 +133,20 @@ async def test_owner_isolation_and_unknown_listing_404():
 
 async def test_empty_state_no_leads():
     svc, _, _ = await make()
+    assert (await _buyers(svc))["buyers"] == []
+
+
+async def test_buyer_who_already_enquired_about_this_property_is_not_offered_it():
+    """Regression (real-Mongo run): 'send the Baner flat to 3 matching buyers' counted people who had enquired on it."""
+    svc, db, clock = await make()
+    await add_lead(db, clock, "SAME", bhk=2, lo=8_000_000, hi=9_000_000, localities=["Baner"], first_listing="L1")
+    await add_lead(db, clock, "OTHER", bhk=2, lo=8_000_000, hi=9_000_000, localities=["Baner"])
+    assert [b["lead_id"] for b in (await _buyers(svc))["buyers"]] == ["OTHER"]
+
+
+async def test_wrong_bhk_or_far_higher_budget_is_never_recommended():
+    """Regression (real-Mongo run): a 4 BHK villa / Rs 2 Cr buyer and a 3 BHK buyer were offered a 2 BHK Rs 85L flat."""
+    svc, db, clock = await make()
+    await add_lead(db, clock, "VILLA", bhk=4, lo=None, hi=20_000_000, localities=["Baner"])
+    await add_lead(db, clock, "THREE", bhk=3, lo=None, hi=13_000_000, localities=["Wakad"])
     assert (await _buyers(svc))["buyers"] == []

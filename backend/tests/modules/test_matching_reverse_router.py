@@ -18,6 +18,9 @@ def env():
     svc, db, clock = loop.run_until_complete(make())
     loop.run_until_complete(add_lead(db, clock, "B1", name="Priya Sharma", base=40, bhk=2, lo=8_000_000,
                                      hi=9_000_000, localities=["Baner"], first_listing="L1", source="whatsapp"))
+    # a second buyer who has NOT enquired about L1 (B1 already did, so reverse matching skips B1)
+    loop.run_until_complete(add_lead(db, clock, "B2", name="Sneha Rao", base=10, bhk=2, lo=8_000_000, hi=9_000_000,
+                                     localities=["Baner"], phone="98765 43211"))
     loop.run_until_complete(add_view(db, clock, "L1", "anon-visitor-1"))
     who = SimpleNamespace(id="A1")
     app = FastAPI()
@@ -33,8 +36,8 @@ def test_matching_leads_ok(env):
     r = c.get("/inbox/matching-leads", params={"listing_id": "L1"})
     assert r.status_code == 200
     body = r.json()
-    assert body["listing"]["id"] == "L1" and [b["lead_id"] for b in body["buyers"]] == ["B1"]
-    assert body["buyers"][0]["draft"]["whatsapp_url"].startswith("https://wa.me/9876543210?text=")
+    assert body["listing"]["id"] == "L1" and [b["lead_id"] for b in body["buyers"]] == ["B2"]
+    assert body["buyers"][0]["draft"]["whatsapp_url"].startswith("https://wa.me/9876543211?text=")
 
 
 def test_matching_leads_validation_and_404(env):

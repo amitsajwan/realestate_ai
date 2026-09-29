@@ -176,7 +176,7 @@ def test_match_partial_budget_and_bhk():
     below = matching.match_listing(REQ, listing("X", price=7_500_000), "sale", "apartment")
     assert below[0] == 80
     bhk1 = matching.match_listing(REQ, listing("X", bhk=3), "sale", "apartment")
-    assert bhk1[0] == 100 - 25 + 10
+    assert bhk1[0] == 55  # one bedroom off: partial credit, but capped below the 60% recommend threshold
     assert matching.match_listing(REQ, listing("X", locality="Wakad"), "sale", "apartment")[0] == 75
 
 

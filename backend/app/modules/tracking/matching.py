@@ -9,6 +9,10 @@ from .requirement import bhk_text, budget_text, fmt_inr
 
 W_TYPE, W_BHK, W_BUDGET, W_LOCALITY = 10, 25, 40, 25
 MIN_PCT = 40
+# A buyer who states a BHK count will not settle for another one just because price and area fit: cap the total
+# below the 60% "recommend this to the buyer" threshold (it can still show as a possible alternative at >= 40%).
+BHK_MISMATCH_CAP = 55
+FAR_UNDER = 0.5  # with only a maximum budget, a price under half of it is a different market segment
 MAX_MATCHES = 3
 LIVE = ["live", "under_offer"]
 
@@ -17,6 +21,8 @@ def _budget_credit(price: int, lo: Optional[int], hi: Optional[int]):
     """-> (fraction, reason|None)."""
     txt = budget_text(lo, hi)
     lo_v, hi_v = lo or 0, hi if hi is not None else float("inf")
+    if lo is None and hi is not None and price < hi * FAR_UNDER:
+        return 0.5, f"Price {fmt_inr(price)} is well under budget {txt}"
     if lo_v <= price <= hi_v:
         return 1.0, f"Price {fmt_inr(price)} is within budget {txt}"
     if price > hi_v and price <= hi_v * 1.1:
@@ -68,6 +74,8 @@ def match_listing(req: dict, listing: dict, transaction: str = "sale", ref_type:
     elif (listing.get("locality") or "").lower() in locs:
         pts += W_LOCALITY
         reasons.append(f"In {listing['locality']}")
+    if want and have is not None and float(have) != float(want):
+        pts = min(pts, BHK_MISMATCH_CAP)
     return int(round(pts)), reasons
 
 

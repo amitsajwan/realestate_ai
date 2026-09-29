@@ -30,6 +30,8 @@ def rank_buyers(svc, listing: dict, contacts: list, all_listings: list) -> list:
     for c in contacts:
         if c["stage"] in CLOSED:
             continue
+        if c.get("first_listing_id") == listing.get("_id"):
+            continue  # they already enquired about this very property: nothing new to send
         req = reqmod.public(c.get("requirement"))
         if not matching.has_signal(req):
             continue
