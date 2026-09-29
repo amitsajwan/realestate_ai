@@ -56,7 +56,7 @@ Run "gcloud compute scp $common `"$bundle`" ${target}:pune-property.tgz"
 
 Step "Unpacking and rebuilding on the VM (secrets in deploy/gcp/.env are kept)"
 $setEmail = ""
-if ($ContactEmail) { $setEmail = "sed -i '/^NEXT_PUBLIC_CONTACT_EMAIL=/d' .env; echo 'NEXT_PUBLIC_CONTACT_EMAIL=$ContactEmail' >> .env; " }
+if ($ContactEmail) { $setEmail = "sed -i '/^NEXT_PUBLIC_CONTACT_EMAIL=/d' .env; sed -i -e '`$a\' .env; echo 'NEXT_PUBLIC_CONTACT_EMAIL=$ContactEmail' >> .env; " }
 $remote = "set -e; mkdir -p $RemoteDir; tar xzf ~/pune-property.tgz -C $RemoteDir; cd $RemoteDir/deploy/gcp; test -f .env || { echo 'ERROR: deploy/gcp/.env missing on the VM'; exit 1; }; ${setEmail}sudo docker compose up -d --build; sudo docker compose ps; rm -f ~/pune-property.tgz"
 Run "gcloud compute ssh $target $common --command `"$remote`""
 
