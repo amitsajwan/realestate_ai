@@ -25,6 +25,10 @@ INDEXES: Iterable[Tuple[str, list, dict]] = [
     # one-time codes: lookups by phone, and they clean themselves up after a day
     ("otp_codes", [("phone", ASC), ("created_at", DESC)], {}),
     ("otp_codes", [("created_at", ASC)], {"expireAfterSeconds": 86400}),
+    # inquiry abuse limits: counted per (agent, phone) and per visitor over the last hour; rows expire after a day
+    ("inquiry_log", [("agent_id", ASC), ("phone", ASC), ("ts", DESC)], {}),
+    ("inquiry_log", [("anon_id", ASC), ("ts", DESC)], {}),
+    ("inquiry_log", [("ts", ASC)], {"expireAfterSeconds": 86400}),
     # marketing + social
     ("marketing_packs", [("agent_id", ASC)], {}),
     ("publications", [("listing_id", ASC), ("channel", ASC), ("pack_version", ASC)], {}),
