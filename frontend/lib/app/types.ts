@@ -45,11 +45,20 @@ export interface Listing {
   updated_at: string
   published_at?: string | null
   freshness_confirmed_at?: string | null
+  /** docs/contracts/activity.md section 2. Absent on older backends (treated as fresh). */
+  freshness?: Freshness
+  days_since_confirmed?: number | null
 }
+
+/** fresh: nothing to do. confirm: the app asks "Is this still available?". hidden: buyers cannot see it until confirmed. */
+export type Freshness = 'fresh' | 'confirm' | 'hidden'
 
 /** Body of POST /listings and PATCH /listings/{id}. */
 export type ListingInput = Partial<
-  Omit<Listing, 'id' | 'agent_id' | 'status' | 'created_at' | 'updated_at' | 'published_at'>
+  Omit<
+    Listing,
+    'id' | 'agent_id' | 'status' | 'created_at' | 'updated_at' | 'published_at' | 'freshness' | 'days_since_confirmed'
+  >
 >
 
 export interface AIDraft {
@@ -236,7 +245,7 @@ export interface TodayResults {
   lost_reasons: Partial<Record<LostReason, number>>
 }
 
-export type RecommendedActionType = 'call' | 'follow_up' | 'send_property' | 'create_marketing'
+export type RecommendedActionType = 'call' | 'follow_up' | 'send_property' | 'create_marketing' | 'confirm_listing'
 
 export interface RecommendedAction {
   type: RecommendedActionType
@@ -384,6 +393,49 @@ export interface SocialPublishRequest {
   force?: boolean
 }
 
+export type ActivityEventType = 'view' | 'whatsapp_click' | 'call_click' | 'share' | 'enquiry'
+
+/** GET /inbox/listings/{id}/activity (docs/contracts/activity.md section 1). */
+export interface ListingActivity {
+  listing: { id: string; title: string; status: ListingStatus; price_inr: number }
+  totals: {
+    views: number
+    unique_visitors: number
+    enquiries: number
+    qualified: number
+    site_visits: number
+    deals: number
+    whatsapp_clicks: number
+    call_clicks: number
+    shares: number
+  }
+  by_source: Record<string, { views: number; enquiries: number }>
+  /** Last 14 India (IST) days, oldest first, zero-filled. */
+  daily: Array<{ date: string; views: number; enquiries: number }>
+  /** Newest first. */
+  feed: ActivityFeedItem[]
+  /** Hottest first, max 10. */
+  people: ActivityPerson[]
+}
+
+export interface ActivityFeedItem {
+  ts: string
+  type: ActivityEventType
+  /** Visitors are anonymous ("Visitor 2"); a visitor who became a lead shows the lead's name. */
+  who: { kind: 'visitor' | 'lead'; label: string; lead_id?: string }
+  source: string | null
+  text: string
+}
+
+export interface ActivityPerson {
+  lead_id: string
+  name: string
+  temperature: Temperature
+  score: number
+  requirement_line: string | null
+  last_activity_at: string
+}
+
 /** The client interface implemented by both the real API and the fixture API. */
 export interface AppApi {
   requestOtp(phone: string): Promise<OtpRequested>
@@ -409,6 +461,10 @@ export interface AppApi {
   getMarketingPack(listingId: string): Promise<MarketingPack>
   getMatchingLeads(listingId: string): Promise<MatchingLeads>
   getPerformance(): Promise<PerformanceItem[]>
+  /** Per-listing activity (views, sources, people, feed). 404 for a listing that is not yours. */
+  getListingActivity(id: string, limit?: number): Promise<ListingActivity>
+  /** "Yes, still available": stamps the listing as confirmed. 409 unless it is live or under offer. */
+  confirmAvailable(id: string): Promise<Listing>
   /** Social publishing to the PUNE Property brand accounts (docs/contracts/social.md). */
   getSocialStatus(): Promise<SocialStatus>
   /** Posts only on this call; needs approve and consent both true. 409: no pack yet, listing not live, or already posted (without force). */

@@ -6,6 +6,8 @@
 import { ApiError } from './api'
 import { formatInr, parseInr } from './format'
 import { budgetRange, buildWhatsappUrl } from './leads'
+import { activityFor } from './fixtures-activity'
+import { computeFreshness } from './freshness'
 import { actionsFor, buildFixturePack, matchingFor, performanceFor } from './fixtures-marketing'
 import { nextOutcome, resultsFor } from './fixtures-outcomes'
 import { buildPublications, FIXTURE_SOCIAL_STATUS } from './fixtures-social'
@@ -22,6 +24,7 @@ import type {
   LeadMatch,
   LeadPatch,
   Listing,
+  ListingActivity,
   ListingInput,
   ListingStatus,
   MarketingPack,
@@ -47,7 +50,7 @@ interface State {
   publications?: Publication[]
 }
 
-export const FIXTURE_STATE_KEY = 'app_fixture_state_v5'
+export const FIXTURE_STATE_KEY = 'app_fixture_state_v6'
 const KEY = FIXTURE_STATE_KEY
 const FIXTURE_OTP = '123456'
 export const FIXTURE_TOKEN = 'fixture-token'
@@ -196,13 +199,15 @@ function seed(): State {
     packs: {},
     listings: [
       listing('l1', { title: '2 BHK in Baner', locality: 'Baner', bhk: 2, price_inr: 8_500_000, carpet_sqft: 850,
-        possession: 'ready', created_at: ago(20), published_at: ago(20),
+        possession: 'ready', created_at: ago(20), published_at: ago(20), freshness_confirmed_at: ago(24 * 4),
         description: { en: 'Bright 2 BHK, ready possession, near Balewadi High Street.' } }),
       listing('l2', { title: '3 BHK in Wakad', locality: 'Wakad', bhk: 3, price_inr: 12_500_000, status: 'draft', published_at: null,
         description: { en: 'Spacious 3 BHK.' } }),
       listing('l3', { title: '2 BHK near Baner Road', locality: 'Baner', bhk: 2, price_inr: 9_200_000, carpet_sqft: 910,
+        published_at: ago(24 * 30), freshness_confirmed_at: ago(24 * 30), // 30 days: the app asks "still available?"
         description: { en: '2 BHK with a large balcony.' } }),
       listing('l4', { title: '3 BHK in Kharadi', locality: 'Kharadi', bhk: 3, price_inr: 14_000_000, carpet_sqft: 1150,
+        published_at: ago(24 * 52), freshness_confirmed_at: ago(24 * 52), // 52 days: hidden from buyers until confirmed
         description: { en: 'Premium 3 BHK near the IT park.' } }),
       listing('l5', { title: '1 BHK in Hinjewadi', locality: 'Hinjewadi', bhk: 1, price_inr: 4_200_000, carpet_sqft: 520,
         description: { en: 'Compact 1 BHK for first-time buyers.' } }),
@@ -357,6 +362,8 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
     if (!l) throw fixtureError(404, 'Listing not found')
     return l
   }
+  /** What the API returns: the stored listing plus the computed freshness / days_since_confirmed. */
+  const view = (l: Listing): Listing => ({ ...l, ...computeFreshness(l) })
   const stamp = <T extends Listing>(l: T): T => ({ ...l, updated_at: new Date().toISOString() })
   const shareUrlFor = (id: string) => `https://example.test/agent/${load().site?.slug ?? 'demo'}/listings/${id}?src=whatsapp`
   const matchesFor = (l: Listing) => {
@@ -384,9 +391,9 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
 
     async listListings(status) {
       const items = load().listings.filter((l) => !status || l.status === status)
-      return [...items].sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+      return [...items].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).map(view)
     },
-    async getListing(id) { return { ...find(id) } },
+    async getListing(id) { return view(find(id)) },
     async createListing(input) {
       const now = new Date().toISOString()
       const l: Listing = {
@@ -396,14 +403,16 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
       } as Listing
       load().listings.unshift(l)
       save()
-      return { ...l }
+      return view(l)
     },
     async updateListing(id, patch) {
       const l = find(id)
-      Object.assign(l, patch)
+      // Computed fields are never stored (the real API ignores them too).
+      const { freshness: _f, days_since_confirmed: _d, ...clean } = patch as ListingInput & { freshness?: unknown; days_since_confirmed?: unknown }
+      Object.assign(l, clean)
       Object.assign(l, stamp(l))
       save()
-      return { ...l }
+      return view(l)
     },
     async publishListing(id) {
       const l = find(id)
@@ -417,14 +426,24 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
       l.freshness_confirmed_at = l.published_at
       Object.assign(l, stamp(l))
       save()
-      return { ...l }
+      return view(l)
     },
     async setListingStatus(id, status: ListingStatus) {
       const l = find(id)
+      const reactivated = status === 'live' && (l.status === 'paused' || l.status === 'expired')
       l.status = status
+      if (reactivated) l.freshness_confirmed_at = new Date().toISOString() // contract: reactivation re-stamps freshness
       Object.assign(l, stamp(l))
       save()
-      return { ...l }
+      return view(l)
+    },
+    async confirmAvailable(id) {
+      const l = find(id)
+      if (l.status !== 'live' && l.status !== 'under_offer') throw fixtureError(409, 'Only live listings can be confirmed')
+      l.freshness_confirmed_at = new Date().toISOString()
+      Object.assign(l, stamp(l))
+      save()
+      return view(l)
     },
     async aiDraft(req: AIDraftRequest) {
       await new Promise((r) => setTimeout(r, 600))
@@ -553,6 +572,12 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
     async getPerformance() {
       const st = load()
       return performanceFor(st.listings, st.leads)
+    },
+    async getListingActivity(id, limit = 50): Promise<ListingActivity> {
+      const st = load()
+      const l = find(id)
+      const perf = performanceFor(st.listings, st.leads).find((p) => p.listing_id === id)
+      return activityFor(l, st.leads, perf, new Date(), limit)
     },
 
     async getSocialStatus() {

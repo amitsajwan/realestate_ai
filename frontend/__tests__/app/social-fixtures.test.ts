@@ -16,7 +16,7 @@ const both = { channels: ['facebook_page', 'instagram'] as Array<'facebook_page'
 
 describe('fixture social publishing', () => {
   it('uses a bumped storage key', () => {
-    expect(FIXTURE_STATE_KEY).toBe('app_fixture_state_v5')
+    expect(FIXTURE_STATE_KEY).toBe('app_fixture_state_v6')
   })
 
   it('reports dry run with both channels configured', async () => {

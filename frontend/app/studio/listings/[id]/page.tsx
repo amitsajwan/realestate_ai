@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
+import { FreshnessSection } from '@/components/app/FreshnessPrompt'
 import { cleanInput } from '@/components/app/NewListingFlow'
 import { ReviewForm } from '@/components/app/ReviewForm'
 import { ShareBar } from '@/components/app/ShareBar'
@@ -48,7 +49,7 @@ export default function ListingDetailPage() {
 
   useEffect(() => {
     if (data) {
-      const { id: _i, agent_id, status, created_at, updated_at, published_at, freshness_confirmed_at, ...rest } = data
+      const { id: _i, agent_id, status, created_at, updated_at, published_at, freshness_confirmed_at, freshness, days_since_confirmed, ...rest } = data
       setForm(rest)
     }
   }, [data])
@@ -86,6 +87,12 @@ export default function ListingDetailPage() {
         <h1 className="flex-1 truncate text-xl font-bold">{listing.title || 'Listing'}</h1>
         <StatusChip status={listing.status} />
       </div>
+
+      <FreshnessSection listings={[listing]} onUpdated={(l) => setData(l)} />
+
+      {listing.status !== 'draft' && (
+        <LinkBtn variant="secondary" href={`/studio/listings/${listing.id}/activity`}>{t('activity')}</LinkBtn>
+      )}
 
       {shareable && (
         <section className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4">
