@@ -45,16 +45,31 @@ def test_amenities_card_only_when_listing_has_amenities_and_stale_removed(up):
     assert "amenities" not in out and not (up / "marketing/L1/amenities.jpg").exists()
 
 
-def test_local_upload_used_as_background_with_overlay(up):
+def test_local_upload_is_shown_brightly_with_a_scrim_only_behind_the_text(up):
     url = put_photo(up)
     render_all(facts(), media(url), up, "L1")
     render_all(facts(_id="L2"), [], up, "L2")
     with Image.open(up / "marketing/L1/cover.jpg") as a, Image.open(up / "marketing/L2/cover.jpg") as b:
-        r, g, bl = a.getpixel((900, 300))
-        assert r > 2.5 * g and r > 30          # the red photo shows through...
-        assert r < 120                          # ...under a dark overlay
-        r2, g2, _ = b.getpixel((900, 300))
+        r, g, bl = a.getpixel((900, 200))
+        assert r > 2.5 * g and r > 150          # the photo is clearly visible in the upper part (not buried)...
+        r_low, g_low, _ = a.getpixel((900, 1040))
+        assert r_low < 110                       # ...and darkened near the bottom where the text sits, so it stays legible
+        r2, g2, _ = b.getpixel((900, 200))
         assert r2 < 2.5 * g2                    # fallback is a calm gradient, not the photo
+
+
+def test_info_cards_show_the_photo_as_a_header_strip_and_story_uses_top_half(up):
+    url = put_photo(up)
+    render_all(facts(), media(url), up, "L1")
+    for kind in ("facts", "amenities", "cta"):
+        with Image.open(up / f"marketing/L1/{kind}.jpg") as im:
+            r, g, _ = im.getpixel((900, 100))
+            assert r > 2.5 * g and r > 150, kind      # header strip
+            r2, g2, _ = im.getpixel((900, 900))
+            assert r2 < 2.5 * g2, kind                # the panel below is the calm brand gradient
+    with Image.open(up / "marketing/L1/status.jpg") as im:
+        r, g, _ = im.getpixel((900, 400))
+        assert r > 2.5 * g and r > 150
 
 
 def test_first_photo_is_the_one_used(up):
@@ -166,3 +181,28 @@ def test_palette_is_deterministic():
 
 def test_non_latin_agent_name_is_not_drawn_as_boxes():
     assert im.latin("राहुल Sharma") == "Sharma"
+
+
+@pytest.mark.parametrize("over", [{}, LONG, VARIANTS["luxury_villa"], VARIANTS["rent_cheap"]])
+@pytest.mark.parametrize("kind", KINDS)
+def test_text_stays_inside_safe_margins_with_a_photo_header(kind, over):
+    """Regression (visual review): with a photo the facts card cut off its last row (RERA) at the bottom edge.
+    The photo layouts differ from the no-photo ones, so they need their own bounds check."""
+    if kind == "amenities" and not facts(**over).amenities:
+        pytest.skip("no amenities card")
+    photo = Image.new("RGB", (1600, 1200), (150, 190, 225))
+    card = render(kind, facts(**over), photo)
+    w, h = card.size
+    assert card.boxes
+    for x0, y0, x1, y1 in card.boxes:
+        assert x0 >= MARGIN - 4 and x1 <= w - MARGIN + 4, (kind, (x0, x1))
+        assert y0 >= card.top - 6 and y1 <= card.bottom + 6, (kind, (y0, y1), card.top, card.bottom)
+
+
+def test_every_fact_row_is_drawn_on_the_facts_card_with_a_photo():
+    full = facts(rera_no="P52100012345", furnishing="semi", possession="ready", floor=3, total_floors=12, carpet_sqft=1100)
+    card = render("facts", full, Image.new("RGB", (1600, 1200), (150, 190, 225)))
+    rows = len([1 for _ in im._facts_rows(full)])
+    assert rows >= 6
+    # one label box + one value box per row + the title
+    assert len(card.boxes) >= 2 * rows + 1

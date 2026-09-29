@@ -53,6 +53,21 @@ def first_photo_url(media: List[dict]) -> Optional[str]:
     return min(imgs, key=lambda t: (t[0], t[1]))[2].get("url") if imgs else None
 
 
+def _load_source(path: Optional[Path]) -> Optional[Image.Image]:
+    """The listing photo as an RGB image (EXIF-rotated, capped in size), or None if missing/unreadable/oversized."""
+    if path is None:
+        return None
+    try:
+        if path.stat().st_size > MAX_SOURCE_BYTES:
+            return None
+        with Image.open(path) as im:
+            im = ImageOps.exif_transpose(im).convert("RGB")
+            im.thumbnail((2400, 2400), Image.LANCZOS)
+            return im
+    except Exception:
+        return None
+
+
 def _open_background(path: Optional[Path], size: Tuple[int, int]) -> Optional[Image.Image]:
     if path is None:
         return None
@@ -167,21 +182,73 @@ class Card:
         font, ls = fit_text(self.draw, text, self.right - x, lines, size, min_size)
         return len(ls) * (int(font.size * 1.3) if hasattr(font, "size") else int(size * 1.3))
 
-    def stack(self, items: List[dict], anchor: str = "bottom", gap: int = 22) -> int:
-        """Lay items (dicts: text,size,fill,lines,min_size) top-down inside the safe area; anchor bottom or top."""
+    def stack(self, items: List[dict], anchor: str = "bottom", gap: int = 22, y0: Optional[int] = None) -> int:
+        """Lay items (dicts: text,size,fill,lines,min_size) top-down inside the safe area.
+        anchor: bottom | top | center (centred between y0 (default: top) and the bottom margin)."""
         items = [i for i in items if i.get("text")]
         total = sum(self.height_of(i["text"], i["size"], i.get("lines", 1), i.get("min_size", 24)) + gap for i in items) - gap
-        y = self.bottom - total if anchor == "bottom" else self.top
-        y = max(self.top, y)
+        start = self.top if y0 is None else max(self.top, y0)
+        if anchor == "bottom":
+            y = self.bottom - total
+        elif anchor == "center":
+            y = start + max(0, (self.bottom - start - total) // 2)
+        else:
+            y = start
+        y = max(start, y)
         for i in items:
             y = self.block(i["text"], y, i["size"], i.get("fill", WHITE), i.get("lines", 1), i.get("min_size", 24)) + gap
         return y
 
 
 # ---- card layouts ----------------------------------------------------------------------------------
-def _base(size, bg: Optional[Image.Image], seed: str, top=MARGIN, bottom=MARGIN) -> Card:
-    img = dark_overlay(bg) if bg is not None else gradient_card(size, seed)
-    return Card(size, img, top, bottom)
+# Design: photo cards show the photo brightly with a scrim only behind the text; info cards are a calm brand panel
+# with the photo as a header strip (so the property is always visible and text never fights a busy image).
+HEADER_H = 330
+FADE = 120
+SCRIM_COLOR = (8, 10, 16)
+
+
+def _fit(src: Image.Image, size: Tuple[int, int]) -> Image.Image:
+    return ImageOps.fit(src, size, Image.LANCZOS, centering=(0.5, 0.45))
+
+
+def _scrim_bottom(img: Image.Image, start: float = 0.4, strength: float = 0.9) -> Image.Image:
+    """Dark gradient over the lower part only (0 above `start` of the height, `strength` at the bottom)."""
+    s0 = int(255 * start)
+    lut = [0 if v < s0 else int((v - s0) / max(1, 255 - s0) * 255 * strength) for v in range(256)]
+    mask = Image.linear_gradient("L").resize(img.size).point(lut)
+    return Image.composite(Image.new("RGB", img.size, SCRIM_COLOR), img, mask)
+
+
+def _panel_with_header(size: Tuple[int, int], src: Optional[Image.Image], seed: str, header_h: int) -> Image.Image:
+    """Brand gradient panel; the photo (if any) sits at the top and fades smoothly into the panel."""
+    panel = gradient_card(size, seed)
+    if src is None:
+        return panel
+    w = size[0]
+    strip = _fit(src, (w, header_h))
+    lut = []
+    for v in range(256):
+        y = v / 255 * header_h
+        lut.append(255 if y < header_h - FADE else int(255 * max(0.0, (header_h - y) / FADE)))
+    mask = Image.linear_gradient("L").resize((w, header_h)).point(lut)
+    panel.paste(strip, (0, 0), mask)
+    return panel
+
+
+def _pill(c: "Card", text: str, y: int) -> int:
+    """'Listed by ...' label on a translucent dark pill so it stays readable on any photo. Returns y below it."""
+    font = load_font(34)
+    w = int(c.draw.textlength(text, font=font)) + 56
+    h = 68
+    if c.left + w > c.right:
+        w = c.right - c.left
+    ov = Image.new("RGB", (w, h), SCRIM_COLOR)
+    mask = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, w - 1, h - 1], radius=h // 2, fill=185)
+    c.img.paste(ov, (c.left, y), mask)
+    c.block(text, y + 15, 34, WHITE, 1, 22, x=c.left + 28)
+    return y + h
 
 
 def _facts_rows(f: Facts) -> List[Tuple[str, str]]:
@@ -196,58 +263,127 @@ def _agent_line(f: Facts) -> str:
     return latin(f.agent_name)
 
 
-def render(kind: str, f: Facts, bg: Optional[Image.Image]) -> Card:
+def render(kind: str, f: Facts, src: Optional[Image.Image]) -> Card:
+    """`src` is the (already safely loaded) listing photo or None; layouts fit it themselves."""
     seed = f"{f.agent_name}|{f.locality}"
     story = kind == "status"
     size = STORY if story else SQUARE
-    c = _base(size, bg, seed, STORY_TOP if story else MARGIN, STORY_BOTTOM if story else MARGIN)
+    top, bottom = (STORY_TOP, STORY_BOTTOM) if story else (MARGIN, MARGIN)
     title = latin(f.title_line("en"))
     agent = _agent_line(f)
-    if kind in ("cover", "status"):
+
+    if kind == "cover":
+        img = _scrim_bottom(_fit(src, size), 0.36, 0.92) if src is not None else gradient_card(size, seed)
+        c = Card(size, img, top, bottom)
         if agent:
-            c.block(f"Listed by {agent}", c.top, 34, SOFT, 1)
-        base = 150 if story else 118
-        c.stack([{"text": f.price_text, "size": base, "fill": ACCENT, "min_size": 60},
-                 {"text": title, "size": 60 if story else 54, "lines": 3, "min_size": 34},
+            _pill(c, f"Listed by {agent}", c.top)
+        c.stack([{"text": f.price_text, "size": 124, "fill": ACCENT, "min_size": 60},
+                 {"text": title, "size": 56, "lines": 3, "min_size": 34},
                  {"text": latin(f.project), "size": 40, "fill": SOFT, "min_size": 26},
-                 {"text": " | ".join(x for x in (f.area_text, f.possession_text("en")) if x), "size": 40, "fill": SOFT, "lines": 2},
-                 {"text": "Message for details" if story else "", "size": 44, "fill": ACCENT}])
-    elif kind == "facts":
-        y = c.block("Key details", c.top, 66, ACCENT)
-        rows = _facts_rows(f)
-        vs = max(32, min(52, int((c.bottom - y - 30) / max(1, len(rows)) / 2.2)))
-        y += 24
-        for label, value in rows:
-            y = c.block(label, y, max(22, vs // 2 + 4), SOFT, 1, 20)
-            y = c.block(latin(value), y, vs, WHITE, 1, 26) + 10
+                 {"text": " | ".join(x for x in (f.area_text, f.possession_text("en")) if x), "size": 40, "fill": SOFT, "lines": 2}])
+        return c
+
+    if story:
+        items = [{"text": f.price_text, "size": 140, "fill": ACCENT, "min_size": 70},
+                 {"text": title, "size": 60, "lines": 3, "min_size": 34},
+                 {"text": latin(f.project), "size": 42, "fill": SOFT, "min_size": 26},
+                 {"text": " | ".join(x for x in (f.area_text, f.possession_text("en")) if x), "size": 42, "fill": SOFT, "lines": 2},
+                 {"text": "Message for details", "size": 48, "fill": ACCENT}]
+        gap = 26
+        # measure the text first: it always ends at the bottom safe margin and the photo takes all the room above it
+        probe = Card(size, Image.new("RGB", size), top, bottom)
+        total = sum(probe.height_of(i["text"], i["size"], i.get("lines", 1), i.get("min_size", 24)) + gap
+                    for i in items if i.get("text")) - gap
+        start = max(top + 160, probe.bottom - total)
+        head = min(1300, start + 60)
+        img = _panel_with_header(size, src, seed, head)
+        c = Card(size, img, top, bottom)
+        if agent:
+            _pill(c, f"Listed by {agent}", c.top)
+        c.stack(items, anchor="top", gap=gap, y0=start)
+        return c
+
+    # header height adapts to how much content the card has: short cards get a bigger photo, dense ones a slimmer strip
+    if kind == "facts":
+        header_h = 250 if len(_facts_rows(f)) >= 6 else HEADER_H
     elif kind == "amenities":
-        y = c.block("Amenities", c.top, 66, ACCENT) + 28
+        header_h = 470 if len(f.amenities[:8]) <= 4 else HEADER_H
+    else:
+        header_h = 420
+    cta_items = [{"text": "Interested?", "size": 104, "fill": ACCENT},
+                 {"text": f"Message {agent} for a site visit" if agent else "Message us for a site visit", "size": 58, "lines": 3},
+                 {"text": f"Call {latin(f.agent_phone)}" if f.agent_phone else "", "size": 64, "fill": ACCENT},
+                 {"text": title, "size": 40, "fill": SOFT, "lines": 2},
+                 {"text": f"RERA: {f.rera}" if f.rera else "", "size": 30, "fill": SOFT}]
+    if kind == "cta":  # size the photo to the text: it must never push the text past the bottom margin
+        probe = Card(size, Image.new("RGB", size), top, bottom)
+        total = sum(probe.height_of(i["text"], i["size"], i.get("lines", 1), i.get("min_size", 24)) + 32
+                    for i in cta_items if i.get("text")) - 32
+        header_h = max(200, min(420, probe.bottom - total - 50))
+    header = header_h if src is not None else 0
+    img = _panel_with_header(size, src, seed, header_h) if src is not None else gradient_card(size, seed)
+    c = Card(size, img, top, bottom)
+    y0 = header + 10 if header else c.top
+
+    if kind == "facts":
+        y = c.block("Key details", y0, 64, ACCENT) + 20
+        rows = _facts_rows(f)
+        pitch = max(66, min(150, (c.bottom - y) // max(1, len(rows))))  # rows always fit above the bottom margin
+        ls = 22 if pitch < 100 else 26
+        vs = max(30, min(54, pitch - 52))
+        for label, value in rows:
+            c.draw.line([(c.left, y), (c.right, y)], fill=(96, 118, 158), width=2)
+            c.block(label, y + 10, ls, SOFT, 1, 18)
+            c.block(latin(value), y + 10 + ls + 10, vs, WHITE, 1, 24)
+            y += pitch
+    elif kind == "amenities":
+        y = c.block("Amenities", y0, 68, ACCENT) + 40
         items = [latin(a) for a in f.amenities[:8]]
-        sz = max(30, min(46, int((c.bottom - y) / max(1, len(items)) / 1.5)))
-        for a in items:
-            c.draw.ellipse((c.left, y + sz // 2 - 6, c.left + 14, y + sz // 2 + 8), fill=ACCENT)
-            y = c.block(a, y, sz, WHITE, 1, 24, x=c.left + 44) + 8
+        col_w = (c.right - c.left - 40) // 2
+        rows_n = (len(items) + 1) // 2
+        pitch = max(84, min(128, (c.bottom - y) // max(1, rows_n)))
+        sz = 44 if pitch >= 100 else 38
+        y += max(0, (c.bottom - y - rows_n * pitch) // 2)  # few items: centre the grid in the free space
+        saved_right = c.right
+        for idx, a in enumerate(items):
+            col, row = idx % 2, idx // 2
+            x = c.left + col * (col_w + 40)
+            yy = y + row * pitch
+            c.draw.ellipse((x, yy + sz // 2 - 5, x + 14, yy + sz // 2 + 9), fill=ACCENT)
+            c.right = x + col_w
+            c.block(a, yy, sz, WHITE, 2, 26, x=x + 40)
+        c.right = saved_right
     elif kind == "cta":
-        c.stack([{"text": "Interested?", "size": 96, "fill": ACCENT},
-                 {"text": f"Message {agent} for a site visit" if agent else "Message us for a site visit", "size": 54, "lines": 3},
-                 {"text": f"Call {latin(f.agent_phone)}" if f.agent_phone else "", "size": 60, "fill": ACCENT},
-                 {"text": title, "size": 38, "fill": SOFT, "lines": 2},
-                 {"text": f"RERA: {f.rera}" if f.rera else "", "size": 30, "fill": SOFT}], gap=28)
+        c.stack(cta_items, anchor="center", gap=32, y0=y0)
     else:
         raise ValueError(f"unknown card kind {kind}")
     return c
 
 
-def save_jpeg(img: Image.Image, path: Path) -> int:
-    """Save with quality 85, stepping down until the file is under MAX_BYTES. Returns bytes written."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    for q in (85, 80, 74, 68, 60, 50, 40):
+def _encode(img: Image.Image, qualities) -> Tuple[bytes, bool]:
+    data = b""
+    for q in qualities:
         buf = io.BytesIO()
         img.save(buf, "JPEG", quality=q, optimize=True)
-        if buf.tell() <= MAX_BYTES:
-            break
-    path.write_bytes(buf.getvalue())
-    return buf.tell()
+        data = buf.getvalue()
+        if len(data) <= MAX_BYTES:
+            return data, True
+    return data, False
+
+
+def save_jpeg(img: Image.Image, path: Path) -> int:
+    """Save with quality 85, stepping down until the file is under MAX_BYTES. Pathological, very noisy photos that
+    still do not fit are softened slightly (a hard size guarantee beats sharpness there). Returns bytes written."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data, ok = _encode(img, (85, 80, 74, 68, 60, 50, 40, 32))
+    if not ok:
+        from PIL import ImageFilter
+        for radius in (1.0, 1.6, 2.4):
+            data, ok = _encode(img.filter(ImageFilter.GaussianBlur(radius)), (60, 50, 40, 32, 25))
+            if ok:
+                break
+    path.write_bytes(data)
+    return len(data)
 
 
 def render_all(f: Facts, media: List[dict], uploads_dir: Path, listing_id: str) -> Dict[str, dict]:
@@ -256,12 +392,12 @@ def render_all(f: Facts, media: List[dict], uploads_dir: Path, listing_id: str) 
         raise ValueError("unsafe listing id")
     uploads_dir = Path(uploads_dir)
     out_dir = uploads_dir / "marketing" / listing_id
-    src = local_upload_path(first_photo_url(media), uploads_dir)
+    src = _load_source(local_upload_path(first_photo_url(media), uploads_dir))
     kinds = ["cover", "facts"] + (["amenities"] if f.amenities else []) + ["cta", "status"]
     result: Dict[str, dict] = {}
     for kind in kinds:
         size = STORY if kind == "status" else SQUARE
-        card = render(kind, f, _open_background(src, size))
+        card = render(kind, f, src)
         save_jpeg(card.img, out_dir / f"{kind}.jpg")
         result[kind] = {"path": f"/uploads/marketing/{listing_id}/{kind}.jpg", "width": size[0], "height": size[1]}
     if not f.amenities:

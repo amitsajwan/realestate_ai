@@ -8,7 +8,7 @@ Publishing to your own brand Page and its linked Instagram works **without Meta 
 you (the token owner) are an admin of both the Page and the app. Agents' own Pages need App Review and Business Verification later.
 
 ## A. Clean up the Page (5 min)
-1. Replace the cover with `docs/brand/pune-property-cover.png` and the profile picture with `docs/brand/pune-property-profile.png`.
+1. Replace the cover with `docs/brand/pune-property-cover.png` (1640x624; the text sits in the centre so it survives the phone crop) and the profile picture with `docs/brand/pune-property-profile.png` (shown as a circle).
    The current cover shows post thumbnails with view counts (8.3K, 6.1K...) and a fake Follow button on a Page with 0 followers. That looks
    fabricated and can hurt trust and reach. Use a plain banner instead.
 2. Page > Edit: set the category (Real Estate), add a real contact number and email, and a website link (your future domain, or the agent
