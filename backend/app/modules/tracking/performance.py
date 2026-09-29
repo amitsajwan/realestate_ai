@@ -15,6 +15,33 @@ def is_qualified(contact: dict, temperature: str) -> bool:
     return temperature in ("warm", "hot") or has_budget or bool(req.get("timeline"))
 
 
+def blank_counts() -> dict:
+    return {"views": 0, "unique_visitors": 0, "enquiries": 0, "qualified": 0, "site_visits": 0, "by_source": {},
+            "deals": 0, "deal_value_inr": 0, "deals_by_source": {}}
+
+
+def tally_enquiry(s: dict, c: dict, now) -> None:
+    """Count one lead against the listing it first enquired about (shared with the per-listing activity view)."""
+    s["enquiries"] += 1
+    value = scoring.score(c.get("score_base", 0), c["last_activity_at"], now)
+    if is_qualified(c, scoring.temperature(value)):
+        s["qualified"] += 1
+    if c["stage"] in VISIT_STAGES:
+        s["site_visits"] += 1
+    src = c.get("source") or "direct"
+    s["by_source"][src] = s["by_source"].get(src, 0) + 1
+
+
+def tally_deal(s: dict, c: dict) -> None:
+    """Count a won deal (caller already decided it belongs to this listing)."""
+    o = c.get("outcome")
+    if o and o.get("result") == "won":
+        s["deals"] += 1
+        s["deal_value_inr"] += o.get("deal_price_inr") or 0
+        src = c.get("source") or "direct"
+        s["deals_by_source"][src] = s["deals_by_source"].get(src, 0) + 1
+
+
 async def build_performance(svc, agent_id: str) -> dict:
     now = svc.now()
     listings = await svc.listings.find({"agent_id": agent_id}).to_list(MAX_LISTINGS)
@@ -23,8 +50,7 @@ async def build_performance(svc, agent_id: str) -> dict:
     contacts = await svc.contacts.find({"agent_id": agent_id}).to_list(MAX_CONTACTS)
     stats: Dict[str, dict] = {
         l["_id"]: {"listing_id": l["_id"], "title": l.get("title"), "price_inr": l.get("price_inr"),
-                   "status": l.get("status"), "views": 0, "unique_visitors": 0, "enquiries": 0, "qualified": 0,
-                   "site_visits": 0, "by_source": {}, "deals": 0, "deal_value_inr": 0, "deals_by_source": {}}
+                   "status": l.get("status"), **blank_counts()}
         for l in listings}
     visitors: Dict[str, set] = {lid: set() for lid in stats}
     for e in events:
@@ -39,21 +65,10 @@ async def build_performance(svc, agent_id: str) -> dict:
         s = stats.get(c.get("first_listing_id"))
         if s is None:
             continue
-        s["enquiries"] += 1
-        value = scoring.score(c.get("score_base", 0), c["last_activity_at"], now)
-        if is_qualified(c, scoring.temperature(value)):
-            s["qualified"] += 1
-        if c["stage"] in VISIT_STAGES:
-            s["site_visits"] += 1
-        src = c.get("source") or "direct"
-        s["by_source"][src] = s["by_source"].get(src, 0) + 1
+        tally_enquiry(s, c, now)
     for c in contacts:  # deals are attributed to the listing the deal was on (else the one first enquired about)
-        o = c.get("outcome")
         s = stats.get(outcomes.attributed_listing(c))
-        if s is not None and o and o.get("result") == "won":
-            s["deals"] += 1
-            s["deal_value_inr"] += o.get("deal_price_inr") or 0
-            src = c.get("source") or "direct"
-            s["deals_by_source"][src] = s["deals_by_source"].get(src, 0) + 1
+        if s is not None:
+            tally_deal(s, c)
     items = sorted(stats.values(), key=lambda s: (-s["enquiries"], -s["views"], s["listing_id"]))
     return {"items": items}

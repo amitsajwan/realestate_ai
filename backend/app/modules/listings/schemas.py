@@ -9,6 +9,7 @@ Visibility = Literal["private", "network", "public"]
 Transaction = Literal["sale", "rent"]
 PropertyType = Literal["apartment", "villa", "house", "plot", "commercial", "office", "shop"]
 Furnishing = Literal["unfurnished", "semi", "furnished"]
+Freshness = Literal["fresh", "confirm", "hidden"]
 
 PUBLIC_STATUSES = ("live", "under_offer")
 PUBLIC_VISIBILITIES = ("public", "network")
@@ -110,6 +111,9 @@ class Listing(_Fields):
     updated_at: datetime
     published_at: Optional[datetime] = None
     freshness_confirmed_at: Optional[datetime] = None
+    # computed on read (never stored): see freshness.py. Agent side only, not on PublicListing.
+    freshness: Freshness = "fresh"
+    days_since_confirmed: Optional[int] = None
 
 
 class StatusChange(BaseModel):

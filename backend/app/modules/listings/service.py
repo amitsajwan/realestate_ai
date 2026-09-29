@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime
 from typing import Callable, List, Optional
 
+from .freshness import LIVE_STATUSES, freshness_of, is_hidden
 from .schemas import (PUBLIC_STATUSES, PUBLIC_VISIBILITIES, Listing, ListingCreate, ListingUpdate,
                       PublicAgent, PublicListing)
 
@@ -20,6 +21,7 @@ TRANSITIONS = {
 }
 FINGERPRINT_FIELDS = ("city", "locality", "project_name", "bhk", "carpet_sqft", "transaction")
 CARPET_BUCKET = 50
+MAX_PUBLIC = 500  # public listings considered per agent site
 
 
 class ListingError(Exception):
@@ -64,9 +66,9 @@ class ListingService:
             raise ListingError("Listing not found", 404)
         return doc
 
-    @staticmethod
-    def _out(doc: dict) -> Listing:
-        return Listing.model_validate({**doc, "id": doc["_id"]})
+    def _out(self, doc: dict) -> Listing:
+        freshness, days = freshness_of(doc, self.now())
+        return Listing.model_validate({**doc, "id": doc["_id"], "freshness": freshness, "days_since_confirmed": days})
 
     # ---- agent side -------------------------------------------------------------------------
     async def create(self, agent_id: str, body: ListingCreate) -> Listing:
@@ -125,6 +127,16 @@ class ListingService:
         await self.listings.update_one({"_id": listing_id, "agent_id": agent_id}, {"$set": changes})
         return self._out({**doc, **changes})
 
+    async def confirm_available(self, agent_id: str, listing_id: str) -> Listing:
+        """'Yes, still available': restarts the freshness clock. Only live / under_offer listings can be confirmed."""
+        doc = await self._mine(agent_id, listing_id)
+        if doc["status"] not in LIVE_STATUSES:
+            raise ListingError(f"Only live or under offer listings can be confirmed (status is {doc['status']})", 409)
+        now = self.now()
+        changes = {"freshness_confirmed_at": now, "updated_at": now}
+        await self.listings.update_one({"_id": listing_id, "agent_id": agent_id}, {"$set": changes})
+        return self._out({**doc, **changes})
+
     # ---- public side ------------------------------------------------------------------------
     @staticmethod
     def _agent(profile: dict) -> PublicAgent:
@@ -140,15 +152,18 @@ class ListingService:
         if not profile:
             raise ListingError("Agent site not found", 404)
         flt = self._public_flt(agent_id=profile["agent_id"])
-        total = await self.listings.count_documents(flt)
-        docs = await self.listings.find(flt).sort("published_at", -1).skip(offset).limit(limit).to_list(limit)
+        # hidden (stale) listings are dropped here, so page in Python over the agent's newest MAX_PUBLIC listings
+        docs = await self.listings.find(flt).sort("published_at", -1).to_list(MAX_PUBLIC)
+        now = self.now()
+        docs = [d for d in docs if not is_hidden(d, now)]
         agent = self._agent(profile)
-        items = [PublicListing.model_validate({**d, "id": d["_id"], "agent": agent}) for d in docs]
-        return items, total
+        items = [PublicListing.model_validate({**d, "id": d["_id"], "agent": agent})
+                 for d in docs[offset:offset + limit]]
+        return items, len(docs)
 
     async def public_get(self, listing_id: str) -> PublicListing:
         doc = await self.listings.find_one(self._public_flt(_id=listing_id))
         profile = await self.profiles.find_one({"agent_id": doc["agent_id"], "is_public": True}) if doc else None
-        if not doc or not profile:
+        if not doc or not profile or is_hidden(doc, self.now()):
             raise ListingError("Listing not found", 404)
         return PublicListing.model_validate({**doc, "id": doc["_id"], "agent": self._agent(profile)})

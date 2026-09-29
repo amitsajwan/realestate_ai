@@ -1,6 +1,6 @@
 """Listing routes. `router` is mounted at /listings (bearer auth), `public_router` at /public (no auth).
 
-Route shapes: POST "" , GET "", GET/PATCH "/{listing_id}", POST "/{listing_id}/publish|status".
+Route shapes: POST "" , GET "", GET/PATCH "/{listing_id}", POST "/{listing_id}/publish|status|confirm-available".
 None can shadow the ai_listing module's POST /listings/ai/draft (two segments, last is "draft"),
 so mount order does not matter.
 """
@@ -63,6 +63,15 @@ async def publish_listing(listing_id: str, user: User = Depends(current_active_u
                           svc: ListingService = Depends(get_service)):
     try:
         return await svc.publish(str(user.id), listing_id)
+    except ListingError as e:
+        raise _http(e)
+
+
+@router.post("/{listing_id}/confirm-available", response_model=Listing)
+async def confirm_listing_available(listing_id: str, user: User = Depends(current_active_user),
+                                    svc: ListingService = Depends(get_service)):
+    try:
+        return await svc.confirm_available(str(user.id), listing_id)
     except ListingError as e:
         raise _http(e)
 

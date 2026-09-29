@@ -73,6 +73,15 @@ async def performance(user: User = Depends(current_active_user), svc: TrackingSe
     return await svc.performance(str(user.id))
 
 
+@inbox_router.get("/listings/{listing_id}/activity")
+async def listing_activity(listing_id: str, limit: int = Query(50, ge=1, le=100),
+                           user: User = Depends(current_active_user), svc: TrackingService = Depends(get_service)):
+    try:
+        return await svc.listing_activity(str(user.id), listing_id, limit)
+    except TrackingError as e:
+        raise _http(e)
+
+
 @inbox_router.post("/leads/{lead_id}/followup-draft")
 async def followup_draft(lead_id: str, body: Optional[DraftIn] = None, user: User = Depends(current_active_user),
                          svc: TrackingService = Depends(get_service)):

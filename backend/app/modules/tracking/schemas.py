@@ -26,6 +26,7 @@ class InquiryIn(TrackedTouch):
     name: str = Field(..., min_length=2, max_length=100)
     phone: str
     message: Optional[str] = Field(None, max_length=1000)
+    website: Optional[str] = None  # honeypot: hidden input, real visitors leave it empty
     consent: bool = False  # DPDP: explicit consent to be contacted about this enquiry
     # optional buyer requirement (all-or-nothing is NOT required; parsed from `message` when left out)
     bhk: Optional[float] = Field(None, ge=0.5, le=10)

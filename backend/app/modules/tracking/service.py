@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Callable, Optional
 
-from . import matching, outcomes, requirement as reqmod, scoring, summary
+from . import limits, matching, outcomes, requirement as reqmod, scoring, summary
 from .followup import Polish, build_draft, listing_label, polish_safely, whatsapp_url
 from .schemas import DraftIn, EventIn, InquiryIn, StageUpdate
 
@@ -35,6 +35,7 @@ class TrackingService:
         self.profiles = db.get_collection("agent_public_profiles")
         self.events = db.get_collection("events")
         self.contacts = db.get_collection("contacts")
+        self.inquiry_log = db.get_collection("inquiry_log")
         self.now = now
 
     async def _agent_id(self, slug: str) -> str:
@@ -73,10 +74,15 @@ class TrackingService:
         return True
 
     async def capture_inquiry(self, i: InquiryIn) -> dict:
+        if limits.is_honeypot(i.website):  # a bot filled the hidden field: look successful, store nothing
+            return {"received": True, "new_lead": False}
         if not i.consent:
             raise TrackingError("Consent is required to contact you about this enquiry")
         agent_id = await self._agent_id(i.agent_slug)
         now = self.now()
+        if await limits.over_limit(self.inquiry_log, agent_id, i.phone, i.anon_id, now):
+            raise TrackingError(limits.TOO_MANY, 429)
+        await limits.record_attempt(self.inquiry_log, agent_id, i.phone, i.anon_id, now)
         contact = await self.contacts.find_one({"agent_id": agent_id, "phone": i.phone})
         created = contact is None
         fields, sources = await self._observe_requirement(agent_id, i)
@@ -261,3 +267,7 @@ class TrackingService:
     async def performance(self, agent_id: str) -> dict:
         from .performance import build_performance
         return await build_performance(self, agent_id)
+
+    async def listing_activity(self, agent_id: str, listing_id: str, limit: int = 50) -> dict:
+        from .activity import build_activity
+        return await build_activity(self, agent_id, listing_id, limit)
