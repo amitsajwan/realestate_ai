@@ -1,4 +1,5 @@
 """Injectable LLM + speech-to-text clients (Groq). Tests inject fakes; no network is touched by default paths."""
+import base64
 import json
 import logging
 import os
@@ -120,11 +121,57 @@ class GroqTranscriber:
             raise TranscriptionError(f"transcription failed ({type(e).__name__})") from e
 
 
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+_GEMINI_STT_PROMPT = (
+    "Transcribe this voice note exactly as spoken. The speaker is an Indian property agent and may use Hindi, Marathi, "
+    "English or a mix. Write Hindi and Marathi in Devanagari and English in Latin letters, and write every number as digits. "
+    "Output ONLY the transcript, with no commentary, labels or translation. If there is no speech, output nothing."
+)
+
+
+class GeminiTranscriber:
+    """Speech-to-text through Gemini's audio understanding (generateContent with inline audio). Free tier via Google AI Studio."""
+
+    def __init__(self, api_key: str, model: Optional[str] = None, timeout: float = STT_TIMEOUT,
+                 client: Optional[httpx.AsyncClient] = None):
+        self.api_key = api_key
+        self.model = model or os.environ.get("AI_GEMINI_STT_MODEL") or "gemini-2.5-flash"
+        self.timeout, self._client = timeout, client
+
+    async def transcribe(self, data: bytes, filename: str, content_type: str, language: Optional[str] = None) -> str:
+        mime = (content_type or "").split(";")[0].strip().lower()
+        if mime in ("", "application/octet-stream"):
+            mime = {".mp3": "audio/mp3", ".wav": "audio/wav", ".ogg": "audio/ogg", ".m4a": "audio/mp4"}.get(
+                os.path.splitext(filename or "")[1].lower(), "audio/webm")
+        if mime == "audio/x-m4a":
+            mime = "audio/mp4"
+        prompt = _GEMINI_STT_PROMPT + (f" The spoken language is probably '{language}'." if language else "")
+        body = {"contents": [{"parts": [{"text": prompt}, {"inline_data": {"mime_type": mime, "data": base64.b64encode(data).decode()}}]}],
+                "generationConfig": {"temperature": 0}}
+        url = f"{GEMINI_BASE_URL}/models/{self.model}:generateContent"
+        headers = {"x-goog-api-key": self.api_key}  # header, not ?key=, so the key never lands in a URL or log line
+        try:
+            if self._client:
+                r = await self._client.post(url, json=body, headers=headers, timeout=self.timeout)
+            else:
+                async with httpx.AsyncClient(timeout=self.timeout) as c:
+                    r = await c.post(url, json=body, headers=headers)
+            r.raise_for_status()
+            parts = (r.json().get("candidates") or [{}])[0].get("content", {}).get("parts") or []
+            return "".join(p.get("text", "") for p in parts).strip()
+        except Exception as e:
+            raise TranscriptionError(f"transcription failed ({type(e).__name__})") from e
+
+
 def default_llm() -> Optional[LLMClient]:
     key = groq_api_key()
     return GroqLLM(key) if key else None
 
 
 def default_transcriber() -> Optional[Transcriber]:
+    """AI_STT_PROVIDER=gemini uses Gemini audio (key: AI_STT_API_KEY or GEMINI_API_KEY); anything else uses Groq Whisper."""
+    if (os.environ.get("AI_STT_PROVIDER") or "").strip().lower() == "gemini":
+        gkey = os.environ.get("AI_STT_API_KEY") or os.environ.get("GEMINI_API_KEY")
+        return GeminiTranscriber(gkey) if gkey else None
     key = groq_api_key()
     return GroqTranscriber(key) if key else None

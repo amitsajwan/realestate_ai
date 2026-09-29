@@ -137,6 +137,48 @@ async def test_groq_llm_parses_json_mode_reply():
     assert await GroqLLM("k", client=client).extract("2 bhk") == {"bhk": 2}
 
 
+async def test_gemini_transcriber_sends_inline_audio_and_key_header_not_url():
+    import base64
+    import httpx
+    import json
+    from app.modules.ai_listing.llm import GeminiTranscriber
+
+    seen = {}
+
+    def handler(request):
+        seen["url"], seen["key"], seen["body"] = str(request.url), request.headers.get("x-goog-api-key"), json.loads(request.content)
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": " 2 bhk upper kharadi 85 lakh "}]}}]})
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    out = await GeminiTranscriber("SECRETKEY", model="gemini-x", client=client).transcribe(b"abc", "n.webm", "audio/webm;codecs=opus", "hi")
+    assert out == "2 bhk upper kharadi 85 lakh"
+    assert seen["url"].endswith("/models/gemini-x:generateContent") and "SECRETKEY" not in seen["url"] and seen["key"] == "SECRETKEY"
+    inline = seen["body"]["contents"][0]["parts"][1]["inline_data"]
+    assert inline["mime_type"] == "audio/webm" and base64.b64decode(inline["data"]) == b"abc"
+
+
+async def test_gemini_transcriber_error_is_a_clean_transcription_error():
+    import httpx
+    from app.modules.ai_listing.llm import GeminiTranscriber, TranscriptionError
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(429, json={"error": "quota"})))
+    with pytest.raises(TranscriptionError) as e:
+        await GeminiTranscriber("SECRETKEY", client=client).transcribe(b"abc", "n.webm", "audio/webm")
+    assert "SECRETKEY" not in str(e.value)
+
+
+def test_provider_switch(monkeypatch):
+    from app.modules.ai_listing.llm import GeminiTranscriber, GroqTranscriber, default_transcriber
+
+    for k in ("AI_STT_PROVIDER", "AI_STT_API_KEY", "GEMINI_API_KEY", "AI_LLM_API_KEY", "GROQ_API_KEY"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("AI_LLM_API_KEY", "g")
+    assert isinstance(default_transcriber(), GroqTranscriber)
+    monkeypatch.setenv("AI_STT_PROVIDER", "gemini")
+    assert default_transcriber() is None  # provider chosen but no key: voice is reported as unavailable, text still works
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    assert isinstance(default_transcriber(), GeminiTranscriber)
+
+
 async def test_missing_and_media():
     res = await AIListingService().from_text("2 BHK 85 lakh", image_count=0)
     assert set(res.missing) == {"city", "locality"}
