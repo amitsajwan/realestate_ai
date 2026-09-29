@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Callable, Optional
 
-from . import matching, requirement as reqmod, scoring, summary
+from . import matching, outcomes, requirement as reqmod, scoring, summary
 from .followup import Polish, build_draft, listing_label, polish_safely, whatsapp_url
 from .schemas import DraftIn, EventIn, InquiryIn, StageUpdate
 
@@ -154,6 +154,7 @@ class TrackingService:
             "score": value, "temperature": scoring.temperature(value),
             "first_listing_id": c.get("first_listing_id"),
             "requirement_line": reqmod.requirement_line(reqmod.public(c.get("requirement"))),
+            "outcome": outcomes.public(c.get("outcome")),
             "created_at": c["created_at"], "last_activity_at": c["last_activity_at"],
         }
 
@@ -204,8 +205,22 @@ class TrackingService:
             raise TrackingError("Lead not found", 404)
         now = self.now()
         changes = {"last_activity_at": now}
+        won_listing = None
         if u.stage:
             changes["stage"] = u.stage
+            if u.stage in ("won", "lost"):
+                lid = None
+                if u.stage == "won":
+                    lid = (u.outcome.listing_id if u.outcome and u.outcome.listing_id else None) or contact.get("first_listing_id")
+                    if lid:
+                        won_listing = await self._own_listing(agent_id, lid)
+                        if won_listing is None:
+                            if u.outcome and u.outcome.listing_id:
+                                raise TrackingError("Listing not found", 422)
+                            lid = None  # the enquired listing no longer exists: record the deal without it
+                changes["outcome"] = outcomes.build_outcome(u.stage, u.outcome, lid, now)
+            else:
+                changes["outcome"] = None  # moving out of won/lost clears the result
             if u.stage == "contacted" and (contact["stage"] != "contacted" or not contact.get("follow_up_due_at")):
                 changes["contacted_at"] = now
                 changes["follow_up_due_at"] = now + timedelta(days=FOLLOW_UP_DAYS)
@@ -215,7 +230,11 @@ class TrackingService:
         if u.note:
             upd["$push"] = {"notes": {"text": u.note, "ts": now, "stage": u.stage or contact["stage"]}}
         await self.contacts.update_one({"_id": contact_id, "agent_id": agent_id}, upd)
-        return await self.lead_detail(agent_id, contact_id)
+        detail = await self.lead_detail(agent_id, contact_id)
+        if won_listing is not None:
+            detail["suggest_listing_status"] = {
+                "listing_id": won_listing["_id"], "status": "rented" if won_listing.get("transaction") == "rent" else "sold"}
+        return detail
 
     async def followup_draft(self, agent_id: str, contact_id: str, body: Optional[DraftIn] = None) -> dict:
         contact = await self.contacts.find_one({"_id": contact_id, "agent_id": agent_id})

@@ -47,8 +47,18 @@ class InquiryIn(TrackedTouch):
         return self
 
 
+LostReason = Literal["price", "bought_elsewhere", "not_responding", "changed_mind", "other"]
+
+
+class OutcomeIn(BaseModel):
+    deal_price_inr: Optional[int] = Field(None, gt=0)   # won only
+    listing_id: Optional[str] = Field(None, max_length=64)  # won only
+    lost_reason: Optional[LostReason] = None             # lost only
+
+
 class StageUpdate(BaseModel):
     stage: Optional[Stage] = None
+    outcome: Optional[OutcomeIn] = None
     note: Optional[str] = Field(None, max_length=500)
     follow_up_at: Optional[datetime] = None
 
@@ -56,6 +66,19 @@ class StageUpdate(BaseModel):
     @classmethod
     def _naive_utc(cls, v):
         return v.astimezone(timezone.utc).replace(tzinfo=None) if v and v.tzinfo else v
+
+    @model_validator(mode="after")
+    def _outcome_matches_stage(self):
+        o = self.outcome
+        if o is None:
+            return self
+        if self.stage not in ("won", "lost"):
+            raise ValueError("outcome is only accepted with stage won or lost")
+        if self.stage == "won" and o.lost_reason is not None:
+            raise ValueError("lost_reason is only for stage lost")
+        if self.stage == "lost" and (o.deal_price_inr is not None or o.listing_id is not None):
+            raise ValueError("deal_price_inr and listing_id are only for stage won")
+        return self
 
     @model_validator(mode="after")
     def _something(self):

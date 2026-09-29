@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta
 
 from .actions import build_actions
-from . import requirement as reqmod, scoring
+from . import outcomes, requirement as reqmod, scoring
 from .summary import CLOSED
 
 MAX_HOT, MAX_FOLLOW_UPS = 5, 10
@@ -69,4 +69,5 @@ async def build_today(svc, agent_id: str) -> dict:
     }
     actions = await build_actions(svc, agent_id, rows, listings, now)
     return {"counts": counts, "hot_buyers": hot_buyers, "follow_ups": follow_ups, "actions": actions,
+            "results": outcomes.results(contacts, now),
             "headline": _headline(counts["uncontacted"], counts["follow_ups_due"], counts["hot"])}

@@ -3,7 +3,7 @@
 Bounds per agent: MAX_LISTINGS listings, MAX_CONTACTS leads and the MAX_EVENTS most recent listing_view events."""
 from typing import Dict
 
-from . import scoring
+from . import outcomes, scoring
 
 MAX_LISTINGS, MAX_CONTACTS, MAX_EVENTS = 500, 5000, 50000
 VISIT_STAGES = ("site_visit", "negotiating", "won")
@@ -24,7 +24,8 @@ async def build_performance(svc, agent_id: str) -> dict:
     stats: Dict[str, dict] = {
         l["_id"]: {"listing_id": l["_id"], "title": l.get("title"), "price_inr": l.get("price_inr"),
                    "status": l.get("status"), "views": 0, "unique_visitors": 0, "enquiries": 0, "qualified": 0,
-                   "site_visits": 0, "by_source": {}} for l in listings}
+                   "site_visits": 0, "by_source": {}, "deals": 0, "deal_value_inr": 0, "deals_by_source": {}}
+        for l in listings}
     visitors: Dict[str, set] = {lid: set() for lid in stats}
     for e in events:
         lid = e.get("listing_id")
@@ -46,5 +47,13 @@ async def build_performance(svc, agent_id: str) -> dict:
             s["site_visits"] += 1
         src = c.get("source") or "direct"
         s["by_source"][src] = s["by_source"].get(src, 0) + 1
+    for c in contacts:  # deals are attributed to the listing the deal was on (else the one first enquired about)
+        o = c.get("outcome")
+        s = stats.get(outcomes.attributed_listing(c))
+        if s is not None and o and o.get("result") == "won":
+            s["deals"] += 1
+            s["deal_value_inr"] += o.get("deal_price_inr") or 0
+            src = c.get("source") or "direct"
+            s["deals_by_source"][src] = s["deals_by_source"].get(src, 0) + 1
     items = sorted(stats.values(), key=lambda s: (-s["enquiries"], -s["views"], s["listing_id"]))
     return {"items": items}

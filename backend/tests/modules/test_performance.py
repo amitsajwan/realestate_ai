@@ -21,7 +21,7 @@ async def test_listings_without_activity_show_zeros():
     assert set(items) == {"L1", "L2", "L3", "L4", "L5", "L6"}  # A2's L7 never appears
     assert items["L1"] == {"listing_id": "L1", "title": "2BHK in Baner", "price_inr": 8_500_000, "status": "live",
                            "views": 0, "unique_visitors": 0, "enquiries": 0, "qualified": 0, "site_visits": 0,
-                           "by_source": {}}
+                           "by_source": {}, "deals": 0, "deal_value_inr": 0, "deals_by_source": {}}
     assert items["L5"]["status"] == "draft"
 
 

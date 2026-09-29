@@ -64,7 +64,7 @@ def test_performance_endpoint(env):
 def test_today_includes_actions_and_keeps_old_fields(env):
     c, _ = env
     t = c.get("/inbox/today").json()
-    assert set(t) == {"counts", "hot_buyers", "follow_ups", "actions", "headline"}
+    assert set(t) == {"counts", "hot_buyers", "follow_ups", "actions", "results", "headline"}
     assert t["actions"][0] == {"type": "call", "title": "Call Priya Sharma", "detail": "2 BHK, 80L-90L, hot buyer",
                                "priority": 1, "lead_id": "B1"}
     assert {a["type"] for a in t["actions"]} == {"call", "create_marketing"}

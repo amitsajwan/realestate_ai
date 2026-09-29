@@ -15,7 +15,7 @@ async def _actions(svc, agent="A1"):
 async def test_existing_today_fields_unchanged_and_actions_empty_when_nothing_to_do():
     svc, _, _ = await make(with_listings=False)
     t = await svc.today("A1")
-    assert set(t) == {"counts", "hot_buyers", "follow_ups", "actions", "headline"}
+    assert set(t) == {"counts", "hot_buyers", "follow_ups", "actions", "results", "headline"}
     assert t["actions"] == [] and t["headline"] == "You're all caught up."
 
 
