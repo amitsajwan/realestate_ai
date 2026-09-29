@@ -121,13 +121,15 @@ class UnifiedPropertyService:
         user_id: str,
         skip: int = 0,
         limit: int = 100,
+        status: Optional[str] = None,
         publishing_status: Optional[str] = None
     ) -> List[PropertyResponse]:
         """
-        Get all properties for a user with pagination.
-        Optionally filter by publishing status.
+        Get a user's properties with optional listing and publishing filters.
         """
         query = {"agent_id": str(user_id)}
+        if status:
+            query["status"] = status
         if publishing_status:
             query["publishing_status"] = publishing_status
             
@@ -143,29 +145,9 @@ class UnifiedPropertyService:
     ) -> List[PropertyResponse]:
         """
         Get all public properties without authentication.
-        Returns properties with publishing_status = 'published'.
+        Only active properties that have been published are public.
         """
-        query = {"publishing_status": "published"}
-        
-        cursor = self.collection.find(query).skip(skip).limit(limit)
-        docs = await cursor.to_list(length=None)
-        
-        return [self._convert_doc_to_response(doc) for doc in docs]
-    
-    async def get_published_properties_by_agent(
-        self,
-        agent_id: str,
-        skip: int = 0,
-        limit: int = 100
-    ) -> List[PropertyResponse]:
-        """
-        Get published properties for an agent (for public website display).
-        Only returns properties with publishing_status = 'published'.
-        """
-        query = {
-            "agent_id": agent_id,
-            "publishing_status": "published"
-        }
+        query = {"status": "active", "publishing_status": "published"}
         
         cursor = self.collection.find(query).skip(skip).limit(limit)
         docs = await cursor.to_list(length=None)

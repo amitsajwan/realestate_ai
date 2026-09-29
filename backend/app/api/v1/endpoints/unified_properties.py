@@ -6,7 +6,7 @@ This endpoint consolidates all property creation functionality into a single,
 maintainable API that handles both standard and smart properties.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import logging
@@ -97,18 +97,46 @@ async def create_unified_property(
 async def get_unified_properties(
     skip: int = 0,
     limit: int = 100,
-    current_user: User = Depends(current_active_user)
+    property_status: Optional[str] = Query(default=None, alias="status"),
+    agent_id: Optional[str] = None,
+    current_user: Optional[User] = Depends(current_active_user)
 ):
     """
-    Get all properties for the current user with unified functionality.
+    Get properties based on filters and permissions.
+    If user is authenticated:
+        - Agents see their own created properties
+        - Admin users see all properties
+    If not authenticated:
+        - Only see published/active properties
     """
     try:
-        user_id = getattr(current_user, "id", "anonymous")
-        
         service = get_unified_property_service()
-        properties = await service.get_properties_by_user(user_id, skip=skip, limit=limit)
         
-        logger.info(f"Retrieved {len(properties)} properties for user {user_id}")
+        # Handle authenticated users
+        if current_user:
+            user_id = str(getattr(current_user, "id", None))
+            # If requesting specific agent's properties
+            if agent_id:
+                # Only allow if user is admin or it's their own properties
+                if getattr(current_user, "is_admin", False) or user_id == agent_id:
+                    properties = await service.get_properties_by_user(agent_id, skip=skip, limit=limit, status=property_status)
+                else:
+                    # For other users, only show active, published properties
+                    properties = await service.get_properties_by_user(
+                        agent_id,
+                        skip=skip,
+                        limit=limit,
+                        status="active",
+                        publishing_status="published",
+                    )
+            else:
+                # Show all user's properties if they're the agent
+                properties = await service.get_properties_by_user(user_id, skip=skip, limit=limit, status=property_status)
+        else:
+            # Public access - only show active properties
+            properties = await service.get_public_properties(skip=skip, limit=limit)
+
+        logger.info(f"Retrieved {len(properties)} properties")
         return properties
         
     except Exception as e:
