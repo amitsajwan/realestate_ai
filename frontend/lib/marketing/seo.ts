@@ -1,0 +1,45 @@
+import type { Metadata } from 'next'
+import type { MarketingConfig } from './config'
+
+export interface PageMeta {
+  title: string
+  description: string
+  path: string
+  /** Path under /public, e.g. /landing/30-home-actions.jpg */
+  image?: { path: string; width: number; height: number; alt: string }
+}
+
+export function pageMetadata(cfg: MarketingConfig, m: PageMeta): Metadata {
+  const url = cfg.siteUrl + (m.path === '/' ? '' : m.path)
+  const image = m.image ? { url: cfg.siteUrl + m.image.path, width: m.image.width, height: m.image.height, alt: m.image.alt } : undefined
+  return {
+    title: m.title,
+    description: m.description,
+    alternates: { canonical: url },
+    openGraph: {
+      title: m.title, description: m.description, url, siteName: cfg.businessName, type: 'website', locale: 'en_IN',
+      images: image ? [image] : undefined,
+    },
+    twitter: { card: image ? 'summary_large_image' : 'summary', title: m.title, description: m.description, images: image ? [image.url] : undefined },
+  }
+}
+
+/** Organization structured data. Only facts we actually have: name, url, description, and contact when configured. */
+export function organizationJsonLd(cfg: MarketingConfig, description: string): Record<string, unknown> {
+  const contact: Record<string, unknown>[] = []
+  if (cfg.email) contact.push({ '@type': 'ContactPoint', contactType: 'customer support', email: cfg.email })
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: cfg.businessName,
+    url: cfg.siteUrl,
+    description,
+    areaServed: { '@type': 'City', name: 'Pune' },
+    contactPoint: contact.length ? contact : undefined,
+  }
+}
+
+/** JSON for a <script type="application/ld+json">; escapes "<" so content can't close the tag. */
+export function jsonLdString(obj: Record<string, unknown>): string {
+  return JSON.stringify(obj).replace(/</g, '\\u003c')
+}

@@ -4,7 +4,7 @@ import { authManager } from '@/lib/auth'
 import { logger } from '@/lib/logger'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import Dashboard from '../page'
+import Dashboard from './DashboardHome'
 
 export default function DashboardPage() {
   const router = useRouter()
