@@ -33,3 +33,39 @@ PYTHONPATH=. .venv/Scripts/python.exe scripts/invite.py revoke 9876543210
 ## Later
 When there is a business entity: register with an SMS provider (DLT) or WhatsApp authentication templates and switch
 `JOIN_MODE=otp`. The app flow is identical for the agent.
+
+---
+
+# Running the pilot on the GCP server
+
+Live address: https://34-180-39-243.sslip.io (a real domain replaces this later: point an A record at 34.180.39.243 and change `SITE_HOST` in `deploy/gcp/.env`).
+VM `pune-property` in project `trader-502012`, zone `asia-south1-a`. Only ports 80/443 are open to the world; MongoDB is private; secrets live only in `deploy/gcp/.env` on the VM.
+
+## Ship a new version
+Commit your changes, then from the repo root:
+```
+.\deploy\gcp\deploy.ps1 -DryRun     # shows every step, contacts nothing
+.\deploy\gcp\deploy.ps1             # bundle git HEAD -> copy to the VM -> docker compose up -d --build -> health check
+```
+Only TRACKED files are shipped (no .env, no node_modules, no uploads). The VM's `.env` is never overwritten.
+
+## Invite an agent (on the VM)
+```
+gcloud compute ssh pune-property --zone asia-south1-a --project trader-502012
+cd realestate_ai/deploy/gcp
+sudo docker compose exec -T -e PYTHONPATH=. backend python scripts/invite.py issue 98765 43210 --label "Rahul, Baner"
+sudo docker compose exec -T -e PYTHONPATH=. backend python scripts/invite.py revoke 9876543210
+sudo docker compose exec -T -e PYTHONPATH=. backend python scripts/invite_requests.py list          # people who asked for an invite on /request-invite
+sudo docker compose exec -T -e PYTHONPATH=. backend python scripts/invite_requests.py mark-invited 9876543210
+```
+Send the printed code to the agent on WhatsApp. They open the site, tap "Sign in", enter their number and code.
+
+## Look after it
+- Logs: `sudo docker compose logs --tail 100 backend` (also `frontend`, `caddy`).
+- Backups: a daily disk snapshot is kept for 7 days (policy `pune-daily`). Uploads and MongoDB live on that one disk.
+- Public settings (privacy contact etc.) are `NEXT_PUBLIC_*` values, set at BUILD time in the frontend service; change them and redeploy.
+- Meta/Instagram/Facebook posting: keep `SOCIAL_DRY_RUN=true` until the first real test post works (see docs/META_SETUP.md).
+
+## Known limits
+One VM and one disk: fine for a 10-agent pilot, no high availability. SSH is currently open to the world; restrict it to Google's identity-aware proxy
+(`deploy.ps1 -Iap` once done). The VM shares a Google Cloud project with the trading system: consider a separate project.
