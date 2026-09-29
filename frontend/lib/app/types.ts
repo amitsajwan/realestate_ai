@@ -70,6 +70,7 @@ export interface AIDraftRequest {
 export interface OtpRequested {
   sent: boolean
   dev_code?: string | null
+  mode?: 'otp' | 'invite' // invite: the agent already has a personal code (pilot)
 }
 
 export interface LoginResult {

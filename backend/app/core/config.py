@@ -29,6 +29,10 @@ class Settings(BaseSettings):
 
     # Base URL where agent websites are served (used to build the link returned at onboarding)
     public_site_url: str = "http://localhost:3000"
+
+    # Agent signup: "otp" = SMS/console OTP (development), "invite" = personal invite codes (pilot).
+    join_mode: str = "otp"
+    join_token_days: int = 30  # agents stay signed in on their phone
     
     # =============================================================================
     # SECURITY SETTINGS

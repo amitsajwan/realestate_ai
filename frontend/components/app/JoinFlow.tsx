@@ -28,6 +28,7 @@ export function JoinFlow() {
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
   const [devCode, setDevCode] = useState<string | null>(null)
+  const [invite, setInvite] = useState(false)
   const [left, setLeft] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -57,8 +58,9 @@ export function JoinFlow() {
       const r = await api.requestOtp(normalized)
       setPhone(normalized)
       setDevCode(r.dev_code ?? null)
+      setInvite(r.mode === 'invite')
       setCode('')
-      setLeft(RESEND_SECONDS)
+      setLeft(r.mode === 'invite' ? 0 : RESEND_SECONDS)
       setStep('otp')
     } catch (err) {
       setError(errorMessage(err))
@@ -131,9 +133,9 @@ export function JoinFlow() {
 
         {step === 'otp' && (
           <div className="space-y-5">
-            <h1 className="text-2xl font-bold">{t('otpLabel')}</h1>
+            <h1 className="text-2xl font-bold">{invite ? t('inviteLabel') : t('otpLabel')}</h1>
             <p className="text-gray-600">
-              {t('otpSentTo')} {displayPhone(phone)}{' '}
+              {invite ? t('inviteFor') : t('otpSentTo')} {displayPhone(phone)}{' '}
               <button type="button" className="min-h-[44px] font-semibold text-blue-700 underline" onClick={() => { setStep('phone'); setError(null) }}>
                 {t('changeNumber')}
               </button>
@@ -163,9 +165,13 @@ export function JoinFlow() {
             )}
             {error && <ErrorBox message={error} />}
             <Btn disabled={busy || code.length < 6} onClick={() => verify(code)}>{busy ? t('loading') : t('verify')}</Btn>
-            <Btn variant="ghost" disabled={left > 0 || busy} onClick={() => sendOtp()}>
-              {left > 0 ? `${t('resendIn')} ${left}s` : t('resend')}
-            </Btn>
+            {invite ? (
+              <p className="text-sm text-gray-600">{t('inviteHelp')}</p>
+            ) : (
+              <Btn variant="ghost" disabled={left > 0 || busy} onClick={() => sendOtp()}>
+                {left > 0 ? `${t('resendIn')} ${left}s` : t('resend')}
+              </Btn>
+            )}
           </div>
         )}
 

@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
 from .phone import normalize_indian_mobile
@@ -20,6 +20,7 @@ class OTPVerify(OTPRequest):
 class OTPRequested(BaseModel):
     sent: bool = True
     dev_code: Optional[str] = None  # only populated in development
+    mode: Literal["otp", "invite"] = "otp"  # invite: the agent already has a personal code
 
 
 class LoginResult(BaseModel):
