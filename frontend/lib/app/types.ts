@@ -102,6 +102,24 @@ export interface SiteResult {
 export type Stage = 'new' | 'contacted' | 'site_visit' | 'negotiating' | 'won' | 'lost'
 export type Temperature = 'hot' | 'warm' | 'cold'
 
+export type LostReason = 'price' | 'bought_elsewhere' | 'not_responding' | 'changed_mind' | 'other'
+
+/** Stored result of a won/lost lead (docs/contracts/outcomes.md). */
+export interface LeadOutcome {
+  result: 'won' | 'lost'
+  deal_price_inr: number | null
+  listing_id: string | null
+  lost_reason: LostReason | null
+  closed_at: string
+}
+
+/** Body `outcome` of PATCH /inbox/leads/{id}: won fields only with stage won, lost_reason only with stage lost. */
+export interface OutcomeInput {
+  deal_price_inr?: number
+  listing_id?: string
+  lost_reason?: LostReason
+}
+
 export interface Lead {
   id: string
   name: string
@@ -114,6 +132,8 @@ export interface Lead {
   first_listing_id?: string | null
   /** e.g. "2 BHK · 80L-90L · Baner · 1-3 months" (docs/contracts/qualification.md section 3). */
   requirement_line?: string | null
+  /** Set when the lead is won or lost; null otherwise. Absent on older backends. */
+  outcome?: LeadOutcome | null
   created_at: string
   last_activity_at: string
 }
@@ -157,6 +177,8 @@ export interface LeadPatch {
   stage?: Stage
   note?: string
   follow_up_at?: string
+  /** Only together with stage won or lost. */
+  outcome?: OutcomeInput
 }
 
 export interface FollowupDraft {
@@ -201,6 +223,17 @@ export interface BusinessToday {
   headline: string
   /** "AI recommends" list (docs/contracts/marketing.md section 4). Absent on older backends. */
   actions?: RecommendedAction[]
+  /** Deals closed in the last 30 days (docs/contracts/outcomes.md). Absent on older backends. */
+  results?: TodayResults
+}
+
+export interface TodayResults {
+  period_days: number
+  deals_won: number
+  deal_value_inr: number
+  deals_lost: number
+  top_source: string | null
+  lost_reasons: Partial<Record<LostReason, number>>
 }
 
 export type RecommendedActionType = 'call' | 'follow_up' | 'send_property' | 'create_marketing'
@@ -237,6 +270,8 @@ export interface LeadDetail extends Lead {
   notes: LeadNote[]
   consent?: unknown
   timeline: LeadEvent[]
+  /** Only in the PATCH response, when the lead was marked won with a listing. The app offers to call setListingStatus. */
+  suggest_listing_status?: { listing_id: string; status: 'sold' | 'rented' } | null
 }
 
 /** One entry of the legacy POST /api/v1/uploads/images response `files[]`. */
@@ -306,6 +341,10 @@ export interface PerformanceItem {
   qualified: number
   site_visits: number
   by_source: Record<string, number>
+  /** Won leads attributed to this listing. Absent on older backends. */
+  deals?: number
+  deal_value_inr?: number
+  deals_by_source?: Record<string, number>
 }
 
 /** The client interface implemented by both the real API and the fixture API. */
@@ -323,7 +362,7 @@ export interface AppApi {
   uploadImages(files: File[]): Promise<UploadedFile[]>
   listLeads(stage?: Stage): Promise<Lead[]>
   getLead(id: string): Promise<LeadDetail>
-  /** Legacy form `updateLead(id, stage, note?)` still works; the patch form also carries follow_up_at. */
+  /** Legacy form `updateLead(id, stage, note?)` still works; the patch form also carries follow_up_at and, with won/lost, `outcome`. */
   updateLead(id: string, stageOrPatch: Stage | LeadPatch, note?: string): Promise<LeadDetail>
   getToday(): Promise<BusinessToday>
   createFollowupDraft(id: string, language?: DraftLanguage): Promise<FollowupDraft>

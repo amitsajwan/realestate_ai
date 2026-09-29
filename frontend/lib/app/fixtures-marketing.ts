@@ -3,6 +3,7 @@
  * Deterministic and fact-only, like the backend contract (docs/contracts/marketing.md): nothing is invented.
  */
 import { formatInr, formatPrice } from './format'
+import { dealsForListing } from './fixtures-outcomes'
 import { budgetRange } from './leads'
 import type {
   DraftLanguage,
@@ -187,6 +188,7 @@ export function performanceFor(listings: Listing[], leads: LeadDetail[]): Perfor
         listing_id: l.id, title: l.title, price_inr: l.price_inr, status: l.status, views,
         unique_visitors: Math.max(0, Math.round(views * 0.7)), enquiries: enq.length, qualified,
         site_visits: enq.filter((x) => LATE_STAGES.includes(x.stage)).length, by_source,
+        ...dealsForListing(l.id, leads),
       }
     })
     .sort((a, b) => b.enquiries - a.enquiries || b.views - a.views)

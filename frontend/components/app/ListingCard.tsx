@@ -25,6 +25,18 @@ export function PerformanceRow({ perf }: { perf: PerformanceItem }) {
   )
 }
 
+/** "2 deals · ₹1.7 Cr", only when at least one deal closed on this listing. */
+export function DealsLine({ perf }: { perf: PerformanceItem }) {
+  const n = perf.deals ?? 0
+  if (n <= 0) return null
+  const value = perf.deal_value_inr ? formatPrice(perf.deal_value_inr) : ''
+  return (
+    <p className="mt-1 text-xs font-semibold text-green-800" data-testid="performance-deals">
+      {[`${n} ${n === 1 ? t('perfDeal') : t('perfDeals')}`, value].filter(Boolean).join(' · ')}
+    </p>
+  )
+}
+
 export function ListingCard({ listing, performance }: { listing: Listing; performance?: PerformanceItem | null }) {
   const thumb = listing.media?.[0]?.url
   return (
@@ -49,6 +61,7 @@ export function ListingCard({ listing, performance }: { listing: Listing; perfor
         </div>
       </div>
       {performance && <PerformanceRow perf={performance} />}
+      {performance && <DealsLine perf={performance} />}
     </Link>
   )
 }

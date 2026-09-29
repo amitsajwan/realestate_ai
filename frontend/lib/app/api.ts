@@ -1,5 +1,6 @@
 /** Small typed client for the agent-app API (docs/contracts/listing.md). No legacy AuthManager. */
 import { API_BASE_URL } from '@/lib/config/api'
+import { outcomePatchError } from './outcomes'
 import type {
   AIDraft,
   AIDraftRequest,
@@ -171,6 +172,9 @@ export function createApiClient(opts: ClientOptions): AppApi {
     getLead: (id) => request<LeadDetail>(`/inbox/leads/${id}`),
     updateLead: (id, stageOrPatch, note) => {
       const patch: LeadPatch = typeof stageOrPatch === 'string' ? (note ? { stage: stageOrPatch, note } : { stage: stageOrPatch }) : stageOrPatch
+      // Same rules as the API's 422s (docs/contracts/outcomes.md): fail fast instead of sending a request that is refused.
+      const bad = outcomePatchError(patch)
+      if (bad) return Promise.reject(new ApiError(422, bad, { outcome: bad }))
       return request<LeadDetail>(`/inbox/leads/${id}`, { method: 'PATCH', json: patch })
     },
     getToday: () => request<BusinessToday>('/inbox/today'),
