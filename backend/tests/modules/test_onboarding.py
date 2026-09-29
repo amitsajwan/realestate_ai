@@ -6,7 +6,7 @@ import pytest
 from app.modules.onboarding.otp import OTPError, OTPService
 from app.modules.onboarding.phone import normalize_indian_mobile
 from app.modules.onboarding.schemas import SiteCreate
-from app.modules.onboarding.service import OnboardingService, default_branding
+from app.modules.onboarding.service import OnboardingService, default_branding, placeholder_email
 from app.modules.onboarding.slug import slugify, unique_slug
 
 from .fakes import FakeDb
@@ -167,3 +167,9 @@ async def test_two_agents_same_name_get_distinct_slugs():
     ra = await svc.create_site(a, SiteCreate(name="Rahul Sharma", city="Pune"))
     rb = await svc.create_site(b, SiteCreate(name="Rahul Sharma", city="Pune"))
     assert ra["slug"] != rb["slug"]
+
+
+def test_placeholder_email_is_valid_for_legacy_user_model():
+    """Regression: '.local' addresses are rejected by email validation (found in real-Mongo e2e run)."""
+    from pydantic import TypeAdapter, EmailStr
+    assert TypeAdapter(EmailStr).validate_python(placeholder_email("+919876543210"))

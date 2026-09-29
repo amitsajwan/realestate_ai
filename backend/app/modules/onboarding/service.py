@@ -11,6 +11,10 @@ from .slug import unique_slug
 
 logger = logging.getLogger(__name__)
 
+# Legacy User.email is mandatory and validated (reserved TLDs like .local/.invalid are rejected).
+# Never used for delivery: phone is the real identity.
+PLACEHOLDER_EMAIL_DOMAIN = "phone-login.propertyai.app"
+
 DEFAULT_COLORS = {"primary": "#2563eb", "secondary": "#64748b", "accent": "#059669"}
 
 
@@ -18,6 +22,10 @@ class UserStore(Protocol):
     async def get_by_phone(self, phone: str): ...
     async def create(self, phone: str): ...
     async def mark_onboarded(self, user, name: str) -> None: ...
+
+
+def placeholder_email(phone: str) -> str:
+    return f"{phone.lstrip('+')}@{PLACEHOLDER_EMAIL_DOMAIN}"
 
 
 def default_branding(name: str, city: str) -> dict:
@@ -124,10 +132,9 @@ class BeanieUserStore:
     async def create(self, phone: str):
         from app.core.auth_backend import password_helper
         from app.models.user import User
-        digits = phone.lstrip("+")
         # email is still mandatory on the legacy User model; phone is the real identity.
         user = User(
-            email=f"{digits}@phone.propertyai.local",
+            email=placeholder_email(phone),
             hashed_password=password_helper.hash(secrets.token_urlsafe(32)),
             phone=phone, is_verified=True,
         )
