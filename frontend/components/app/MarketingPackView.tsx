@@ -12,6 +12,7 @@ import {
 import { copyText } from '@/lib/app/share'
 import { t } from '@/lib/app/strings'
 import type { MarketingPack } from '@/lib/app/types'
+import { SocialPublishSection } from './SocialPublishSection'
 import { Btn, LinkBtn } from './ui'
 
 export function CopyBtn({ text, label, variant = 'secondary' }: { text: string; label: string; variant?: 'primary' | 'secondary' }) {
@@ -152,6 +153,8 @@ export function MarketingPackView({ pack }: { pack: MarketingPack }) {
         </p>
         <CopyBtn text={reelScriptText(pack.reel)} label={t('copyScript')} variant="primary" />
       </Card>
+
+      <SocialPublishSection pack={pack} />
 
       <PublishEverywhere />
     </div>

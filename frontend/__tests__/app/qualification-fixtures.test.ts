@@ -75,7 +75,7 @@ describe('fixture api: qualification', () => {
 
   it('a brand-new agent state has no leads (today is empty)', async () => {
     const empty = mem()
-    empty.setItem('app_fixture_state_v4', JSON.stringify({ listings: [], leads: [], site: null, seq: 1 }))
+    empty.setItem('app_fixture_state_v5', JSON.stringify({ listings: [], leads: [], site: null, seq: 1 }))
     const t = await createFixtureApi(empty).getToday()
     expect(t.counts).toEqual({ new_enquiries_24h: 0, hot: 0, site_visits: 0, follow_ups_due: 0, uncontacted: 0 })
     expect(t.headline).toBe("You're all caught up.")

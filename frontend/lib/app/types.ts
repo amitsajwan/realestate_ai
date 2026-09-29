@@ -347,6 +347,43 @@ export interface PerformanceItem {
   deals_by_source?: Record<string, number>
 }
 
+export type SocialChannel = 'facebook_page' | 'instagram'
+export type PublicationStatus = 'queued' | 'published' | 'failed' | 'dry_run'
+
+/** docs/contracts/social.md: one attempt to post a listing's marketing pack to one brand channel. */
+export interface Publication {
+  id: string
+  listing_id: string
+  agent_id: string
+  channel: SocialChannel
+  pack_version: number
+  status: PublicationStatus
+  external_id: string | null
+  permalink: string | null
+  error: string | null
+  consent: { given_at: string; text: string }
+  approved_at: string
+  created_at: string
+  updated_at: string
+  attempts: number
+  payload: { text: string; image_urls: string[] }
+}
+
+/** GET /social/status (no secrets). */
+export interface SocialStatus {
+  dry_run: boolean
+  channels: Record<SocialChannel, boolean>
+  brand: string
+  media_url_ok: boolean
+}
+
+export interface SocialPublishRequest {
+  channels: SocialChannel[]
+  approve: boolean
+  consent: boolean
+  force?: boolean
+}
+
 /** The client interface implemented by both the real API and the fixture API. */
 export interface AppApi {
   requestOtp(phone: string): Promise<OtpRequested>
@@ -372,4 +409,12 @@ export interface AppApi {
   getMarketingPack(listingId: string): Promise<MarketingPack>
   getMatchingLeads(listingId: string): Promise<MatchingLeads>
   getPerformance(): Promise<PerformanceItem[]>
+  /** Social publishing to the PUNE Property brand accounts (docs/contracts/social.md). */
+  getSocialStatus(): Promise<SocialStatus>
+  /** Posts only on this call; needs approve and consent both true. 409: no pack yet, listing not live, or already posted (without force). */
+  publishToSocial(listingId: string, req: SocialPublishRequest): Promise<Publication[]>
+  /** Newest first. */
+  listPublications(listingId: string): Promise<Publication[]>
+  /** Only for a failed publication. */
+  retryPublication(id: string): Promise<Publication>
 }
