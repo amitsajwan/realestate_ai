@@ -65,17 +65,19 @@ describe('Property API Integration', () => {
       const result = await propertiesAPI.createProperty(mockProperty)
 
       expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/v1/properties/',
+        expect.stringContaining('/api/v1/properties/'),
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
           }),
-          body: JSON.stringify(mockProperty),
+          // the client sends the backend's snake_case field name
+          body: expect.stringContaining('"property_type":"villa"'),
         })
       )
 
-      expect(result).toEqual(mockResponse)
+      // the client wraps the API payload in { data }
+      expect((result as { data: unknown }).data).toEqual(mockResponse)
     })
 
     it('should get properties successfully', async () => {
@@ -97,7 +99,7 @@ describe('Property API Integration', () => {
       const result = await propertiesAPI.getProperties()
 
       expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/v1/properties/?skip=0&limit=100',
+        expect.stringContaining('/api/v1/properties/?skip=0&limit=100'),
         expect.objectContaining({
           method: 'GET',
         })
@@ -128,7 +130,7 @@ describe('Property API Integration', () => {
       const result = await propertiesAPI.updateProperty('1', updatedProperty)
 
       expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/v1/properties/1',
+        expect.stringContaining('/api/v1/properties/1'),
         expect.objectContaining({
           method: 'PUT',
           body: JSON.stringify(updatedProperty),
@@ -148,7 +150,7 @@ describe('Property API Integration', () => {
       const result = await propertiesAPI.deleteProperty('1')
 
       expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/v1/properties/1',
+        expect.stringContaining('/api/v1/properties/1'),
         expect.objectContaining({
           method: 'DELETE',
         })

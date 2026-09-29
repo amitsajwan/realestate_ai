@@ -16,7 +16,7 @@ interface ProtectedRouteProps {
  */
 export default function ProtectedRoute({ 
   children, 
-  redirectTo = '/simple-login' 
+  redirectTo = '/login' 
 }: ProtectedRouteProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);

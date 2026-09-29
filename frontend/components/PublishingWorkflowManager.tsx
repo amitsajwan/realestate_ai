@@ -2,7 +2,7 @@
 
 import { apiService } from '@/lib/api/centralized-client'
 import { generatePropertyUrl, getAgentSlug } from '@/lib/utils/slug'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ComponentProps } from 'react'
 import PropertySuccessModal from './PropertySuccessModal'
 import PublishingConfirmationModal from './PublishingConfirmationModal'
 import UnifiedPostingHub from './UnifiedPostingHub'
@@ -191,7 +191,8 @@ export default function PublishingWorkflowManager({
                 mode="quick-post"
                 isOpen={currentStep === 'generator'}
                 onClose={handleWorkflowClose}
-                propertyData={propertyData}
+                // legacy local PropertyData is a subset of the hub's Property type
+                propertyData={propertyData as unknown as ComponentProps<typeof UnifiedPostingHub>['propertyData']}
                 onPublish={(content, language) => {
                     handlePublish(content)
                 }}

@@ -6,6 +6,7 @@
  */
 
 import type { Property } from './properties/types'
+export type { Property } // tests and callers import the type from here
 
 export interface PropertyAnalytics {
   total_properties: number

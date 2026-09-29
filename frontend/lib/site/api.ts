@@ -33,6 +33,15 @@ async function getJson<T>(path: string): Promise<Result<T>> {
   }
 }
 
+/**
+ * An outage (timeout, 5xx, network) must NOT look like "page not found": that would show buyers a wrong 404 and can
+ * get the page dropped from Google. Only a genuine 404 from the API means not-found; anything else throws so the
+ * error boundary renders a temporary-error page that is not cached as a 404.
+ */
+function unavailable(): never {
+  throw new Error('Agent site data is temporarily unavailable')
+}
+
 /** True when an unreachable API in development should fall back to fixtures. */
 const devFallback = (r: Result<unknown>): boolean => !r.ok && !r.notFound && isDev()
 
@@ -40,14 +49,16 @@ export async function getAgent(slug: string): Promise<AgentProfile | null> {
   if (fixturesForced()) return fixtureAgent(slug)
   const r = await getJson<AgentProfile>('/api/v1/agent/public/' + encodeURIComponent(slug))
   if (r.ok) return r.data
-  return devFallback(r) ? fixtureAgent(slug) : null
+  if (devFallback(r)) return fixtureAgent(slug)
+  return r.notFound ? null : unavailable()
 }
 
 export async function getListings(slug: string): Promise<ListingsPage> {
   if (fixturesForced()) return fixtureListings(slug) || { items: [], total: 0 }
   const r = await getJson<ListingsPage>('/api/v1/public/agents/' + encodeURIComponent(slug) + '/listings?limit=60')
   if (r.ok) return { items: r.data.items || [], total: r.data.total || 0 }
-  return (devFallback(r) && fixtureListings(slug)) || { items: [], total: 0 }
+  if (devFallback(r)) return fixtureListings(slug) || { items: [], total: 0 }
+  return r.notFound ? { items: [], total: 0 } : unavailable()
 }
 
 export async function getListing(slug: string, id: string): Promise<PublicListing | null> {
@@ -58,7 +69,8 @@ export async function getListing(slug: string, id: string): Promise<PublicListin
     const owner = r.data.agent && r.data.agent.slug
     return owner && owner !== slug ? null : r.data
   }
-  return devFallback(r) ? fixtureListing(slug, id) : null
+  if (devFallback(r)) return fixtureListing(slug, id)
+  return r.notFound ? null : unavailable()
 }
 
 /** Best guess at the agent's city for the hero. */

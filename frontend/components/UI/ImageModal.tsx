@@ -27,7 +27,7 @@ export default function ImageModal({ images, initialIndex, isOpen, onClose }: Im
     }
   }
 
-  const swipeHandlers = useSwipe(handleSwipeRight, handleSwipeLeft)
+  const swipeHandlers = useSwipe({ onSwipeRight: handleSwipeRight, onSwipeLeft: handleSwipeLeft })
 
   return (
     <AnimatePresence>

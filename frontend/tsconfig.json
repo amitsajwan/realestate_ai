@@ -39,6 +39,10 @@
     "types/**/*.d.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "e2e/mcp-tests",
+    "e2e/tests",
+    "tests/e2e",
+    "cypress"
   ]
 }

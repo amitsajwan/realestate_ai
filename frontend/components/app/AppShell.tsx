@@ -28,7 +28,8 @@ export function AppShell({ children, hideTabs = false }: { children: React.React
   return (
     <div data-surface="v2" className="fixed inset-0 z-50 flex flex-col bg-gray-50 text-gray-900">
       <FixtureBanner />
-      <main className="mx-auto w-full max-w-md flex-1 overflow-y-auto px-4 pb-28 pt-4">{children}</main>
+      {/* pb-28 leaves room for the tab bar; without tabs a sticky action bar must sit at the very bottom */}
+      <main className={`mx-auto w-full max-w-md flex-1 overflow-y-auto px-4 pt-4 ${hideTabs ? 'pb-0' : 'pb-28'}`}>{children}</main>
       {!hideTabs && (
         <nav
           aria-label="Main"

@@ -135,6 +135,26 @@ export class CentralizedAPIClient {
     });
   }
 
+  // Restored: removed by accident in an earlier commit while legacy forms still call them.
+  async generateAIContent(data: any): Promise<any> {
+    return this.request('/api/v1/ai-unified/generate-unified', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // File upload: FormData must not get a manual Content-Type (the browser adds the multipart boundary).
+  async uploadImages(formData: FormData): Promise<any> {
+    const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/uploads/images`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) {
+      throw new Error(`Upload failed: ${response.status}`);
+    }
+    return response.json();
+  }
+
   async getAgentPublicStats(): Promise<any> {
     return this.request('/api/v1/agent/public/stats');
   }
