@@ -58,6 +58,9 @@ export function actionHref(a: RecommendedAction): string {
     case 'send_property':
     case 'create_marketing':
       return a.listing_id ? `/studio/listings/${a.listing_id}/marketing` : '/studio/listings'
+    case 'confirm_listing':
+      // The listing screen opens with the "Is this still available?" card on top; several listings share the Listings screen.
+      return a.listing_id ? `/studio/listings/${a.listing_id}` : '/studio/listings#confirm'
   }
 }
 

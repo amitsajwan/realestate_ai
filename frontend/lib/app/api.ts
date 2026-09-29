@@ -8,6 +8,7 @@ import type {
   BusinessToday,
   FollowupDraft,
   LeadPatch,
+  ListingActivity,
   MarketingPack,
   MatchingLeads,
   PerformanceItem,
@@ -188,6 +189,9 @@ export function createApiClient(opts: ClientOptions): AppApi {
     getMarketingPack: (listingId) => request<MarketingPack>(`/listings/${listingId}/marketing`),
     getMatchingLeads: (listingId) => request<MatchingLeads>(`/inbox/matching-leads${qs({ listing_id: listingId })}`),
     getPerformance: async () => (await request<{ items: PerformanceItem[] }>('/inbox/performance')).items ?? [],
+
+    getListingActivity: (id, limit) => request<ListingActivity>(`/inbox/listings/${id}/activity${qs({ limit })}`),
+    confirmAvailable: (id) => request<Listing>(`/listings/${id}/confirm-available`, { method: 'POST' }),
 
     getSocialStatus: () => request<SocialStatus>('/social/status'),
     publishToSocial: async (listingId, req) =>

@@ -5,6 +5,7 @@ import { ShareBar } from '@/components/app/ShareBar'
 import { ErrorBox, LinkBtn, Spinner, TempChip } from '@/components/app/ui'
 import { api } from '@/lib/app/client'
 import { formatPrice, waDigits } from '@/lib/app/format'
+import { withConfirmAction } from '@/lib/app/freshness'
 import { dueLabel, sourceLabel } from '@/lib/app/leads'
 import { actionHref } from '@/lib/app/marketing'
 import { lostHint, resultsEmpty } from '@/lib/app/outcomes'
@@ -91,6 +92,7 @@ const ACTION_LABEL: Record<RecommendedActionType, Parameters<typeof t>[0]> = {
   follow_up: 'actFollowUp',
   send_property: 'actSendProperty',
   create_marketing: 'actCreateMarketing',
+  confirm_listing: 'actConfirmListing',
 }
 
 export function ActionCard({ action }: { action: RecommendedAction }) {
@@ -166,7 +168,16 @@ function SiteCard({ siteUrl }: { siteUrl: string }) {
 export function BusinessToday() {
   const { siteUrl, logout } = useSession(false)
   const state = useAsync(async () => {
-    const [today, leads] = await Promise.all([api.getToday(), api.listLeads().catch(() => [])])
+    // Listings are only needed for "Listings that need your confirmation"; the home screen works without them.
+    const listings = async () => {
+      try {
+        return await api.listListings()
+      } catch {
+        return []
+      }
+    }
+    const [loaded, leads, mine] = await Promise.all([api.getToday(), api.listLeads().catch(() => []), listings()])
+    const today = { ...loaded, actions: withConfirmAction(loaded.actions, mine) }
     const c = today.counts
     const hasLeads =
       leads.length > 0 || today.hot_buyers.length > 0 || today.follow_ups.length > 0 ||

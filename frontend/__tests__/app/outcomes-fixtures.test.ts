@@ -10,7 +10,7 @@ describe('fixture deal outcomes', () => {
     const s = mem()
     const api = createFixtureApi(s)
     await api.updateLead('c1', { stage: 'contacted' })
-    expect(Object.keys(s.m)).toEqual(['app_fixture_state_v5'])
+    expect(Object.keys(s.m)).toEqual(['app_fixture_state_v6'])
   })
 
   it('leads start with no outcome, in the list and in the detail', async () => {
@@ -111,7 +111,7 @@ describe('fixture deal outcomes', () => {
     await api.updateLead('c1', { stage: 'won' }) // instagram
     await api.updateLead('c2', { stage: 'won' }) // whatsapp
     expect((await api.getToday()).results!.top_source).toBe('instagram')
-    const state = JSON.parse(s.m.app_fixture_state_v5)
+    const state = JSON.parse(s.m.app_fixture_state_v6)
     state.leads.find((l: { id: string }) => l.id === 'c1').outcome.closed_at = new Date(Date.now() - 40 * 86_400_000).toISOString()
     const later = createFixtureApi({ getItem: () => JSON.stringify(state), setItem: () => undefined })
     expect((await later.getToday()).results).toMatchObject({ deals_won: 1, top_source: 'whatsapp' })
