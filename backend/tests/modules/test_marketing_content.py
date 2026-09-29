@@ -1,0 +1,188 @@
+import re
+
+import pytest
+
+from app.modules.marketing.content import (CAPTION_MAX, FB_MAX, HASHTAGS_MAX, HEADLINE_MAX, STATUS_MAX, WA_MAX,
+                                           build_content, hashtags, sanitize_hashtag)
+from app.modules.marketing.facts import budget_phrase, money
+from app.modules.marketing.polish import accept, polish_content, polish_text
+
+from .marketing_helpers import VARIANTS, facts
+
+BANNED = re.compile(r"\b(best|guarantee\w*|lowest|cheapest|perfect|dream|unbeatable|no\.? ?1)\b", re.I)
+
+
+def _texts(c):
+    return [c["angle"], c["headline"], c["instagram"]["caption"], c["facebook"]["post"], c["whatsapp"]["message"],
+            c["whatsapp"]["status_text"], c["reel"]["hook"], c["reel"]["cta"], *[b["text"] for b in c["reel"]["beats"]]]
+
+
+def test_money_formats():
+    assert money(8500000) == "Rs 85 L"
+    assert money(12500000) == "Rs 1.25 Cr"
+    assert money(10000000) == "Rs 1 Cr"
+    assert money(1250000) == "Rs 12.5 L"
+    assert money(45000, rent=True) == "Rs 45,000/month"
+    assert money(250000000) == "Rs 25 Cr"
+
+
+def test_budget_buckets():
+    assert budget_phrase(8500000) == "under Rs 1 Cr"
+    assert budget_phrase(10000000) == "under Rs 1.5 Cr"  # strictly above the price
+    assert budget_phrase(4500000) == "under Rs 50 L"
+    assert budget_phrase(45000, rent=True) == "under Rs 50,000/month"
+    assert budget_phrase(250000000) == "under Rs 30 Cr"
+
+
+@pytest.mark.parametrize("name,angle", [
+    ("sale_ready_full", "Ready-to-move 2 BHK apartment in Baner under Rs 1 Cr"),
+    ("sale_uc_no_amen", "Under-construction 2 BHK apartment in Baner under Rs 1.5 Cr"),
+    ("rent_cheap", "1 BHK apartment for rent in Baner under Rs 50,000/month"),
+    ("luxury_villa", "Ready-to-move 5 BHK villa in Koregaon Park under Rs 30 Cr"),
+    ("plot_min", "Plot in Baner under Rs 50 L"),
+])
+def test_angle_golden(name, angle):
+    assert build_content(facts(**VARIANTS[name]), "en")["angle"] == angle
+
+
+def test_golden_full_listing():
+    c = build_content(facts(), "en")
+    assert c["headline"] == "2 BHK apartment for sale in Baner, Pune | Rs 85 L"
+    assert c["whatsapp"]["message"] == (
+        "Hi! 2 BHK apartment for sale in Baner, Pune - Rs 85 L (1,100 sq ft, Ready to move). RERA: P52100012345\n"
+        "Details and photos: https://site.test/agent/rahul/listings/L1?src=whatsapp\nReply here to plan a visit.")
+    assert c["whatsapp"]["status_text"] == "2 BHK | Baner | Rs 85 L\nMessage for details"
+    cap = c["instagram"]["caption"]
+    assert cap.startswith("\U0001F3E1 2 BHK apartment for sale in Baner, Pune\nRs 85 L · 1,100 sq ft · Ready to move\nRERA: P52100012345")
+    assert "Amenities: Gym, Swimming pool, Clubhouse" in cap
+    assert cap.splitlines()[-1].startswith("Message Rahul Sharma for details and a site visit.")
+    assert c["instagram"]["hashtags"][:4] == ["#Baner", "#Pune", "#2BHK", "#Apartment"]
+
+
+def test_optional_facts_absent_not_invented():
+    c = build_content(facts(**VARIANTS["plot_min"]), "en")
+    txt = "\n".join(_texts(c))
+    for word in ("RERA", "Amenities", "BHK", "Floor", "furnished", "Ready", "Possession"):
+        assert word not in txt, word
+    assert "2,400 sq ft" in c["facebook"]["post"]
+    assert "Rs 45 L" in c["headline"]
+
+
+def test_rent_price_has_month():
+    c = build_content(facts(**VARIANTS["rent_cheap"]), "en")
+    assert "Rs 45,000/month" in c["headline"] and "for rent" in c["headline"]
+
+
+def test_never_invent_numbers_and_claims():
+    for name, over in VARIANTS.items():
+        f = facts(**over)
+        c = build_content(f, "en")
+        allowed = set(re.findall(r"\d[\d,]*(?:\.\d+)?", " ".join(str(x) for x in (
+            f.price_text, f.bhk_text, f.area_text, f.rera, f.floor, f.total_floors, f.agent_phone, f.listing_id))))
+        allowed |= set(re.findall(r"\d[\d,]*(?:\.\d+)?", f.rera or "")) | {"15"}
+        allowed |= {"0", "3", "6", "9", "12"}  # reel second markers
+        for t in _texts(c)[1:]:  # everything except the angle (its budget ceiling is derived, tested separately)
+            t = re.sub(r"https?://\S+", "", t)
+            for tok in re.findall(r"\d[\d,]*(?:\.\d+)?", t):
+                assert tok.rstrip(",") in allowed, (name, tok, t)
+            assert not BANNED.search(t), (name, t)
+        # amenities named are only real ones
+        if not f.amenities:
+            assert "Amenities" not in c["instagram"]["caption"] + c["facebook"]["post"]
+        for tag in c["instagram"]["hashtags"]:
+            assert tag.lower().lstrip("#") not in {"luxury", "premium", "bestdeal"}
+
+
+def test_limits_and_hashtag_rules():
+    long = facts(title="t", locality="L" * 100, city="C" * 70, project_name="P" * 110,
+                 amenities=["Amenity number %d" % i for i in range(60)], _id="LX")
+    c = build_content(long, "en")
+    assert len(c["headline"]) <= HEADLINE_MAX
+    assert len(c["instagram"]["caption"]) <= CAPTION_MAX
+    assert c["instagram"]["caption"].splitlines()[-1].startswith("Message")
+    assert len(c["facebook"]["post"]) <= FB_MAX and len(c["whatsapp"]["message"]) <= WA_MAX
+    assert len(c["whatsapp"]["status_text"]) <= STATUS_MAX
+    tags = c["instagram"]["hashtags"]
+    assert len(tags) <= HASHTAGS_MAX and len({t.lower() for t in tags}) == len(tags)
+    assert all(re.fullmatch(r"#[^\W_]+", t) for t in tags)
+
+
+def test_hashtag_sanitising():
+    assert sanitize_hashtag("Pimple Saurabh") == "PimpleSaurabh"
+    assert sanitize_hashtag("Koregaon-Park!!") == "KoregaonPark"
+    tags = hashtags(facts(locality="Pune", city="pune"))  # duplicates collapse case-insensitively
+    assert [t.lower() for t in tags].count("#pune") == 1
+
+
+def test_reel_shape():
+    r = build_content(facts(), "en")["reel"]
+    assert r["duration_s"] == 15 and [b["seconds"] for b in r["beats"]] == ["0-3s", "3-6s", "6-9s", "9-12s", "12-15s"]
+    assert "Rs 85 L" in r["beats"][3]["text"] and "Baner" in r["beats"][2]["text"]
+    assert r["beats"][0]["text"] == r["hook"] and r["beats"][-1]["text"] == r["cta"]
+
+
+@pytest.mark.parametrize("lang", ["hi", "mr"])
+def test_devanagari_templates_keep_facts(lang):
+    c = build_content(facts(), lang)
+    assert c["language"] == lang
+    assert re.search(r"[ऀ-ॿ]", c["instagram"]["caption"])
+    for t in (c["headline"], c["instagram"]["caption"], c["whatsapp"]["message"], c["facebook"]["post"]):
+        assert "Rs 85 L" in t and "2 BHK" in t and "Baner" in t
+    assert "P52100012345" in c["whatsapp"]["message"] and "src=whatsapp" in c["whatsapp"]["message"]
+    assert re.search(r"[ऀ-ॿ]", c["reel"]["cta"])
+
+
+def test_unsupported_language_falls_back_to_english():
+    c = build_content(facts(), "ta")
+    assert c["language"] == "en" and c["headline"].startswith("2 BHK apartment")
+
+
+# ---- polish ---------------------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_polish_accepts_when_facts_kept():
+    f = facts()
+    c = build_content(f, "en")
+
+    async def ok(draft, lang):
+        return draft.replace("Hi!", "Hello!").replace("Details and photos", "See details")
+
+    out = await polish_content(build_content(f, "en"), f, ok)
+    assert out["whatsapp"]["message"].startswith("Hello!") and "See details" in out["whatsapp"]["message"]
+    assert out["whatsapp"]["message"] != c["whatsapp"]["message"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("dropped", ["Rs 85 L", "2 BHK", "Baner", "1,100 sq ft", "P52100012345"])
+async def test_polish_rejected_when_protected_fact_missing(dropped):
+    f = facts()
+    base = build_content(f, "en")
+
+    async def bad(draft, lang):
+        return draft.replace(dropped, "something")
+
+    out = await polish_content(build_content(f, "en"), f, bad)
+    assert out["instagram"]["caption"] == base["instagram"]["caption"]
+    assert out["whatsapp"]["message"] == base["whatsapp"]["message"]
+
+
+@pytest.mark.asyncio
+async def test_polish_rejects_lost_link_overlong_empty_and_errors():
+    f = facts()
+    draft = build_content(f, "en")["whatsapp"]["message"]
+
+    async def nolink(d, lang):
+        return d.replace("https://site.test/agent/rahul/listings/L1?src=whatsapp", "the link")
+
+    async def huge(d, lang):
+        return d + " x" * 500
+
+    async def empty(d, lang):
+        return "  "
+
+    async def boom(d, lang):
+        raise RuntimeError("llm down")
+
+    for p in (nolink, huge, empty, boom):
+        assert await polish_text(p, draft, "en", f, WA_MAX) == draft
+    assert accept("Rs 85 L", "Only Rs 85 L", f)
+    assert not accept("Rs 85 L", "cheap", f)
