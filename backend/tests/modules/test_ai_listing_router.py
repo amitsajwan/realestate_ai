@@ -110,3 +110,14 @@ def test_allowed_audio_types(name, ctype):
 def test_transcription_failure_is_502():
     res = make_client(FakeTranscriber(fail=True)).post(URL, files={"audio": ("n.webm", b"abc", "audio/webm")})
     assert res.status_code == 502
+    assert "type the details" in res.json()["detail"] and "HTTPStatusError" not in res.json()["detail"]
+
+
+def test_voice_failure_with_typed_text_still_gives_a_draft():
+    tr = FakeTranscriber(fail=True)
+    res = make_client(tr).post(URL, data={"text": "2 bhk, upper kharadi 85 lk, pune"},
+                               files={"audio": ("n.webm", b"abc", "audio/webm")})
+    assert res.status_code == 200 and tr.calls == 1
+    body = res.json()
+    assert body["draft"]["price_inr"] == 8_500_000 and body["draft"]["bhk"] == 2 and body["transcript"] is None
+    assert any("voice note could not be turned into text" in w for w in body["warnings"])

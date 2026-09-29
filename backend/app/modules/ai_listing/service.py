@@ -6,7 +6,7 @@ from typing import Optional
 
 from . import copywriter as copy
 from .extractor import extract
-from .llm import LLMClient, LLM_TIMEOUT, Transcriber
+from .llm import LLMClient, LLM_TIMEOUT, Transcriber, TranscriptionError
 from .merge import merge, sanitise_llm
 from .schemas import REQUIRED_TO_PUBLISH, AIDraft, Extraction
 from .plausibility import build_warnings
@@ -46,8 +46,14 @@ class AIListingService:
         if audio is not None:
             if self.transcriber is None:
                 raise TranscriberUnavailable("Voice input is not configured (no speech-to-text key).")
-            transcript = await self.transcriber.transcribe(audio.data, audio.filename, audio.content_type, audio.language)
-            if not transcript:
+            try:
+                transcript = await self.transcriber.transcribe(audio.data, audio.filename, audio.content_type, audio.language)
+            except TranscriptionError:
+                if not (text or "").strip():
+                    raise  # voice was the only input: the caller tells the agent to type instead
+                warnings.append("Your voice note could not be turned into text right now, so only the typed details were used.")
+                transcript = None
+            if audio is not None and transcript is not None and not transcript:
                 warnings.append("No speech could be recognised in the audio.")
         combined = "\n".join(p for p in ((text or "").strip(), transcript or "") if p)
         return await self.from_text(combined, image_count, city_hint, transcript, warnings)

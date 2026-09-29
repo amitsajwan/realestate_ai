@@ -67,5 +67,5 @@ async def ai_draft(
                                       city_hint=city_hint)
     except TranscriberUnavailable as e:
         raise HTTPException(status_code=503, detail=str(e) + " You can still send the details as text.")
-    except TranscriptionError as e:
-        raise HTTPException(status_code=502, detail=str(e))
+    except TranscriptionError:
+        raise HTTPException(status_code=502, detail="Voice could not be turned into text right now. Please type the details instead.")
