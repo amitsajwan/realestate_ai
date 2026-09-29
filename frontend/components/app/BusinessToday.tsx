@@ -6,11 +6,12 @@ import { ErrorBox, LinkBtn, Spinner, TempChip } from '@/components/app/ui'
 import { api } from '@/lib/app/client'
 import { waDigits } from '@/lib/app/format'
 import { dueLabel } from '@/lib/app/leads'
+import { actionHref } from '@/lib/app/marketing'
 import { whatsappChatUrl } from '@/lib/app/share'
 import { useSession } from '@/lib/app/session'
 import { t } from '@/lib/app/strings'
 import { useAsync } from '@/lib/app/useAsync'
-import type { BusinessToday as Today, TodayFollowUp, TodayHotBuyer } from '@/lib/app/types'
+import type { BusinessToday as Today, RecommendedAction, RecommendedActionType, TodayFollowUp, TodayHotBuyer } from '@/lib/app/types'
 
 export const TILE_LINKS = [
   { key: 'new_enquiries_24h', label: 'tileNew', href: '/studio/leads?filter=new' },
@@ -84,6 +85,43 @@ export function FollowUpRow({ item }: { item: TodayFollowUp }) {
   )
 }
 
+const ACTION_LABEL: Record<RecommendedActionType, Parameters<typeof t>[0]> = {
+  call: 'actCall',
+  follow_up: 'actFollowUp',
+  send_property: 'actSendProperty',
+  create_marketing: 'actCreateMarketing',
+}
+
+export function ActionCard({ action }: { action: RecommendedAction }) {
+  const href = actionHref(action)
+  return (
+    <li className="space-y-3 rounded-2xl border border-blue-200 bg-blue-50 p-4" data-testid={`action-${action.type}`}>
+      <Link href={href} className="block">
+        <p className="font-semibold text-gray-900">{action.title}</p>
+        {action.detail && <p className="mt-0.5 text-sm text-gray-700">{action.detail}</p>}
+      </Link>
+      <LinkBtn href={href} aria-label={`${t(ACTION_LABEL[action.type])}: ${action.title}`}>
+        {t(ACTION_LABEL[action.type])}
+      </LinkBtn>
+    </li>
+  )
+}
+
+/** "AI recommends": what to do next, from the daily actions list. */
+export function RecommendedActions({ actions }: { actions?: RecommendedAction[] }) {
+  if (!actions || actions.length === 0) return null
+  return (
+    <section className="space-y-3" aria-label={t('aiRecommends')}>
+      <h2 className="font-bold text-gray-900">{t('aiRecommends')}</h2>
+      <ul className="space-y-3">
+        {actions.map((a, i) => (
+          <ActionCard key={`${a.type}-${a.lead_id ?? a.listing_id ?? i}`} action={a} />
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 function SiteCard({ siteUrl }: { siteUrl: string }) {
   return (
     <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4">
@@ -126,6 +164,8 @@ export function BusinessToday() {
 
       {state.loading && !data && <Spinner />}
       {state.error && <ErrorBox message={state.error} onRetry={state.reload} />}
+
+      {data && <RecommendedActions actions={data.today.actions} />}
 
       {data && !data.hasLeads && (
         <>

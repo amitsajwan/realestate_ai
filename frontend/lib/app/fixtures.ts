@@ -6,6 +6,7 @@
 import { ApiError } from './api'
 import { formatInr, parseInr } from './format'
 import { budgetRange, buildWhatsappUrl } from './leads'
+import { actionsFor, buildFixturePack, matchingFor, performanceFor } from './fixtures-marketing'
 import type {
   AIDraft,
   AIDraftRequest,
@@ -20,6 +21,8 @@ import type {
   Listing,
   ListingInput,
   ListingStatus,
+  MarketingPack,
+  MatchingLeads,
   NextAction,
   Requirement,
   SiteCreateInput,
@@ -36,9 +39,10 @@ interface State {
   leads: LeadDetail[]
   site: { slug: string; name: string } | null
   seq: number
+  packs: Record<string, MarketingPack>
 }
 
-const KEY = 'app_fixture_state_v2'
+const KEY = 'app_fixture_state_v3'
 const FIXTURE_OTP = '123456'
 export const FIXTURE_TOKEN = 'fixture-token'
 
@@ -183,8 +187,10 @@ function seed(): State {
   return {
     site: null,
     seq: 100,
+    packs: {},
     listings: [
       listing('l1', { title: '2 BHK in Baner', locality: 'Baner', bhk: 2, price_inr: 8_500_000, carpet_sqft: 850,
+        possession: 'ready', created_at: ago(20), published_at: ago(20),
         description: { en: 'Bright 2 BHK, ready possession, near Balewadi High Street.' } }),
       listing('l2', { title: '3 BHK in Wakad', locality: 'Wakad', bhk: 3, price_inr: 12_500_000, status: 'draft', published_at: null,
         description: { en: 'Spacious 3 BHK.' } }),
@@ -346,6 +352,11 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
     return l
   }
   const stamp = <T extends Listing>(l: T): T => ({ ...l, updated_at: new Date().toISOString() })
+  const shareUrlFor = (id: string) => `https://example.test/agent/${load().site?.slug ?? 'demo'}/listings/${id}?src=whatsapp`
+  const matchesFor = (l: Listing) => {
+    const st = load()
+    return matchingFor(l, st.leads.map((x) => enrich(x, st.listings)), scoreMatch, shareUrlFor(l.id), buildWhatsappUrl)
+  }
 
   return {
     async requestOtp() { return { sent: true, dev_code: FIXTURE_OTP } },
@@ -470,6 +481,7 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
       return {
         counts,
         headline,
+        actions: actionsFor(st.listings, leads, st.packs ?? {}, (l) => matchesFor(l).length),
         hot_buyers: open
           .filter((l) => l.temperature === 'hot')
           .sort((a, b) => b.score - a.score)
@@ -495,6 +507,35 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
       const e = enrich(l, st.listings)
       const listingTitle = st.listings.find((x) => x.id === l.first_listing_id)?.title
       return draftFor(e, e.matches ?? [], language, listingTitle)
+    },
+
+    async createMarketingPack(listingId, language = 'en') {
+      const st = load()
+      const l = find(listingId)
+      if (l.status !== 'live' && l.status !== 'under_offer') throw fixtureError(409, 'Only live listings can be marketed')
+      st.packs = st.packs ?? {}
+      const version = (st.packs[listingId]?.version ?? 0) + 1
+      const pack = buildFixturePack(l, language, version, shareUrlFor(listingId), st.site?.name)
+      st.packs[listingId] = pack
+      save()
+      return JSON.parse(JSON.stringify(pack)) as MarketingPack
+    },
+    async getMarketingPack(listingId) {
+      find(listingId)
+      const pack = load().packs?.[listingId]
+      if (!pack) throw fixtureError(404, 'No marketing pack yet')
+      return JSON.parse(JSON.stringify(pack)) as MarketingPack
+    },
+    async getMatchingLeads(listingId): Promise<MatchingLeads> {
+      const l = find(listingId)
+      return {
+        listing: { id: l.id, title: l.title, price_inr: l.price_inr, locality: l.locality, share_url: shareUrlFor(l.id) },
+        buyers: matchesFor(l),
+      }
+    },
+    async getPerformance() {
+      const st = load()
+      return performanceFor(st.listings, st.leads)
     },
   }
 }
