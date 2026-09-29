@@ -2,15 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Import Centralized Design System */
-@import '../styles/design-tokens.css';
-@import '../styles/typography.css';
-@import '../styles/colors.css';
-@import '../styles/spacing.css';
-@import '../styles/components.css';
-@import '../styles/mobile.css';
+/* The design-system stylesheets are imported from app/layout.tsx AFTER this file (Turbopack requires @import to precede
+   all rules, and the Tailwind directives above expand into rules). Order is preserved. */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 /* Legacy variables for backward compatibility - will be removed in future versions */
 :root {
