@@ -42,6 +42,7 @@ from app.modules.tracking.router import public_router as track_public_router, in
 from app.modules.listings.router import router as listings_router, public_router as listings_public_router
 from app.modules.ai_listing.router import router as ai_listing_router
 from app.modules.marketing.router import router as marketing_router
+from app.modules.social.router import router as social_router
 
 # Create main API router
 api_router = APIRouter()
@@ -85,6 +86,7 @@ api_router.include_router(inbox_router, prefix="/inbox", tags=["lead-inbox"])
 api_router.include_router(ai_listing_router, prefix="/listings", tags=["listings-ai"])
 api_router.include_router(listings_router, prefix="/listings", tags=["listings"])
 api_router.include_router(marketing_router, prefix="/listings", tags=["marketing"])
+api_router.include_router(social_router, prefix="/social", tags=["social"])
 api_router.include_router(listings_public_router, prefix="/public", tags=["public"])
 
 # Health check for API v1
