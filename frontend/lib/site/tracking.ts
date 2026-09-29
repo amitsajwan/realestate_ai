@@ -97,6 +97,11 @@ export interface InquiryInput {
   phone: string
   message?: string
   consent: boolean
+  bhk?: number
+  budget_min_inr?: number
+  budget_max_inr?: number | null
+  timeline?: string
+  financing?: string
 }
 
 export async function submitInquiry(agentSlug: string, listingId: string | undefined, input: InquiryInput): Promise<boolean> {
