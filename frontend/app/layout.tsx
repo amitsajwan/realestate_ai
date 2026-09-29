@@ -9,8 +9,14 @@ import { Toaster } from 'react-hot-toast'
 import '../styles/agent-website.css'
 import '../styles/mobile-first.css'
 import '../styles/mobile-forms.css'
-import '../styles/mobile.css'
 import './globals.css'
+// design system (was @import-ed inside globals.css; must come after Tailwind's rules, in this order)
+import '../styles/design-tokens.css'
+import '../styles/typography.css'
+import '../styles/colors.css'
+import '../styles/spacing.css'
+import '../styles/components.css'
+import '../styles/mobile.css'
 
 const inter = Inter({ subsets: ['latin'] })
 

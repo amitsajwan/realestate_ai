@@ -43,8 +43,8 @@ export function useComputedValue<T, D extends readonly unknown[]>(
   computeFn: () => T,
   deps: D
 ): T {
-  const valueRef = useRef<T>()
-  const depsRef = useRef<D>()
+  const valueRef = useRef<T | undefined>(undefined)
+  const depsRef = useRef<D | undefined>(undefined)
 
   if (!depsRef.current || !areDepsEqual(deps, depsRef.current)) {
     valueRef.current = computeFn()
@@ -140,7 +140,7 @@ export function useBatchUpdate<T>(
   delay: number = 100
 ) {
   const batchRef = useRef<T[]>([])
-  const timerRef = useRef<NodeJS.Timeout>()
+  const timerRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
   const processBatch = useCallback(() => {
     if (batchRef.current.length > 0) {

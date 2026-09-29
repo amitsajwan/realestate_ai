@@ -39,7 +39,7 @@ export function useAsyncState<T>(
   })
 
   const isMounted = useRef(true)
-  const retryTimeoutRef = useRef<NodeJS.Timeout>()
+  const retryTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const currentRetryCount = useRef(0)
 
   useEffect(() => {
