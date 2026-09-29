@@ -117,8 +117,8 @@ export default function DashboardPage() {
   const loadProperties = async () => {
     try {
       const [propertiesResponse, statsResponse] = await Promise.all([
-        apiService.request<Property[]>('/api/properties', { method: 'GET' }),
-        apiService.request<DashboardStats>('/api/stats/dashboard', { method: 'GET' })
+        apiService.request<Property[]>('/api/v1/properties/public', { method: 'GET' }),
+        apiService.request<DashboardStats>('/api/v1/stats/dashboard', { method: 'GET' })
       ])
       setProperties(propertiesResponse)
       
@@ -177,6 +177,9 @@ export default function DashboardPage() {
       case 'properties':
         return (
           <Properties
+            properties={properties}
+            setProperties={setProperties}
+            onRefresh={loadProperties}
             onPublishWorkflow={(property: Property) => {
               setWorkflowPropertyData(property)
               setShowWorkflow(true)
