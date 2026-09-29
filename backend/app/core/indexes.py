@@ -1,0 +1,47 @@
+"""MongoDB indexes for the v2 collections. Created at startup (idempotent); a failure to create one index is logged and
+never stops the app (e.g. legacy duplicate data blocking a unique index)."""
+import logging
+from typing import Iterable, Tuple
+
+logger = logging.getLogger(__name__)
+
+ASC, DESC = 1, -1
+# (collection, keys, options)
+INDEXES: Iterable[Tuple[str, list, dict]] = [
+    # listings: my listings, public reads, duplicate detection
+    ("listings", [("agent_id", ASC), ("created_at", DESC)], {}),
+    ("listings", [("agent_id", ASC), ("status", ASC), ("visibility", ASC), ("published_at", DESC)], {}),
+    ("listings", [("fingerprint", ASC)], {"sparse": True}),
+    # public agent sites: looked up by slug on every visit
+    ("agent_public_profiles", [("slug", ASC)], {"unique": True, "sparse": True}),
+    ("agent_public_profiles", [("agent_id", ASC)], {}),
+    # tracking: events per visitor / per lead / per listing, leads per agent
+    ("events", [("agent_id", ASC), ("anon_id", ASC), ("ts", DESC)], {}),
+    ("events", [("agent_id", ASC), ("contact_id", ASC), ("ts", ASC)], {}),
+    ("events", [("agent_id", ASC), ("type", ASC), ("listing_id", ASC)], {}),
+    ("contacts", [("agent_id", ASC), ("phone", ASC)], {}),
+    ("contacts", [("agent_id", ASC), ("last_activity_at", DESC)], {}),
+    ("contacts", [("agent_id", ASC), ("anon_ids", ASC)], {}),
+    # one-time codes: lookups by phone, and they clean themselves up after a day
+    ("otp_codes", [("phone", ASC), ("created_at", DESC)], {}),
+    ("otp_codes", [("created_at", ASC)], {"expireAfterSeconds": 86400}),
+    # marketing + social
+    ("marketing_packs", [("agent_id", ASC)], {}),
+    ("publications", [("listing_id", ASC), ("channel", ASC), ("pack_version", ASC)], {}),
+    ("publications", [("agent_id", ASC), ("created_at", DESC)], {}),
+]
+
+
+async def ensure_indexes(db) -> dict:
+    """Create every index; returns {"created": n, "failed": [descriptions]}."""
+    created, failed = 0, []
+    for collection, keys, options in INDEXES:
+        try:
+            await db[collection].create_index(keys, **options)
+            created += 1
+        except Exception as exc:  # keep starting up; the app works without an index, just slower
+            desc = f"{collection}{[k for k, _ in keys]}: {type(exc).__name__}"
+            failed.append(desc)
+            logger.warning("index not created (%s): %s", desc, str(exc)[:200])
+    logger.info("indexes ensured: %d created/present, %d failed", created, len(failed))
+    return {"created": created, "failed": failed}

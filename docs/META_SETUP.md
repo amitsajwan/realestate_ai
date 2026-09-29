@@ -42,12 +42,13 @@ PUBLIC_MEDIA_BASE_URL=https://<your tunnel or domain>
 The token gives full control of the Page. If it leaks: Facebook Settings > Business integrations > remove the app, or reset the app secret.
 
 ## F. Public HTTPS address for images (Instagram fetches the pictures itself)
-No domain yet? A free Cloudflare quick tunnel works for testing (cloudflared is already installed on this PC):
+The pilot server is already live at **https://34-180-39-243.sslip.io** and serves our pictures under `/uploads`. On the SERVER set:
 ```
-cloudflared tunnel --url http://localhost:8000
+PUBLIC_MEDIA_BASE_URL=https://34-180-39-243.sslip.io
 ```
-It prints a `https://<random>.trycloudflare.com` address: put it in `PUBLIC_MEDIA_BASE_URL`. It changes each time you start it and is only for
-testing. A real domain replaces it later.
+(then restart the backend container). For the Meta app settings, the same address is your site URL and where the privacy-policy page will live
+(`/privacy`). Once you own a domain, point it at the server and use it instead: Meta settings are easier to set once.
+For testing on this PC only, a free tunnel also works: `cloudflared tunnel --url http://localhost:8000`.
 
 ## G. First real post (after the app shows the "Post to PUNE Property" section)
 1. Keep `SOCIAL_DRY_RUN=true` and post once to see the "Test post" result. Nothing goes to Facebook.

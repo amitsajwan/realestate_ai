@@ -39,6 +39,9 @@ async def init_database():
             SocialPost
         ])
         
+        from app.core.indexes import ensure_indexes
+        await ensure_indexes(database)
+
         logger.info("✅ Database initialized successfully")
         
     except Exception as e:
