@@ -7,6 +7,7 @@ from fastapi import APIRouter
 
 # Import endpoint routers
 from app.api.v1.endpoints.auth import router as auth_router
+from app.api.v1.endpoints.stats import router as stats_router
 from app.api.v1.endpoints.dashboard import router as dashboard_router
 from app.api.v1.endpoints.facebook import router as facebook_router
 from app.api.v1.endpoints.facebook_mock import router as facebook_mock_router
@@ -72,6 +73,7 @@ api_router.include_router(unified_ai_unified_router, prefix="/ai-unified", tags=
 api_router.include_router(unified_agent_profile_router, prefix="/agent", tags=["unified-agent-profile"])
 api_router.include_router(agents_router, prefix="/agents", tags=["agents"])
 api_router.include_router(crm_router, prefix="/crm", tags=["crm"])
+api_router.include_router(stats_router, prefix="/stats", tags=["stats"])
 
 # Health check for API v1
 @api_router.get("/health")
