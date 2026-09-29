@@ -3,6 +3,7 @@ import asyncio
 import pytest
 
 from app.modules.ai_listing.extract_numbers import parse_areas, parse_price
+from app.modules.ai_listing import llm as llm_mod
 from app.modules.ai_listing.llm import GroqLLM
 from app.modules.ai_listing.service import AIListingService, AudioInput, TranscriberUnavailable
 from app.modules.ai_listing.text_norm import normalise
@@ -130,7 +131,7 @@ async def test_groq_llm_parses_json_mode_reply():
 
     def handler(request):
         body = json.loads(request.content)
-        assert body["response_format"] == {"type": "json_object"} and body["model"] == "llama-3.1-8b-instant"
+        assert body["response_format"] == {"type": "json_object"} and body["model"] == llm_mod.LLM_MODEL
         return httpx.Response(200, json={"choices": [{"message": {"content": '{"bhk": 2}'}}]})
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     assert await GroqLLM("k", client=client).extract("2 bhk") == {"bhk": 2}

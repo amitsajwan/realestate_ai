@@ -19,7 +19,7 @@ Route is POST-only at `/ai/draft`, so it does not clash with S1's `GET /listings
 
 ## Env vars
 - `GROQ_API_KEY` (env or existing `settings.GROQ_API_KEY` / `groq_api_key`). Without it: deterministic-only drafts, and audio uploads return 503 "Voice input is not configured" (text still accepted).
-- Optional: `AI_LISTING_LLM_MODEL` (default `llama-3.1-8b-instant`), `AI_LISTING_STT_MODEL` (default `whisper-large-v3`).
+- Optional: `AI_LISTING_LLM_MODEL` (default `openai/gpt-oss-120b`; the old llama-3.1-8b-instant was retired by Groq on 2026-08-16). Any OpenAI-compatible provider: `AI_LLM_BASE_URL`, `AI_LLM_API_KEY`, `AI_LISTING_STT_MODEL` (default `whisper-large-v3`).
 
 ## Limits and errors
 Audio <= 10 MB (413), types webm/ogg/mp3/m4a/wav/mp4 (415; octet-stream accepted by extension), empty audio 400, transcription failure 502, no key 503, text > 6000 chars 413. `image_count` clamped 0..50; `media` is listed in `missing` when it is 0. Empty/garbage input returns an empty draft with `missing` populated (never 500).

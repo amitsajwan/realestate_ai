@@ -1,0 +1,49 @@
+    async def get_properties_by_user(
+        self,
+        user_id: str,
+        skip: int = 0,
+        limit: int = 100,
+        status: Optional[str] = None
+    ) -> List[PropertyResponse]:
+        """
+        Get properties created by a specific user with optional status filter
+        """
+        try:
+            # Build query
+            query = {"agent_id": user_id}
+            if status:
+                query["status"] = status
+                
+            # Execute query
+            cursor = self.collection.find(query).skip(skip).limit(limit)
+            properties = await cursor.to_list(length=limit)
+            
+            # Convert to response models
+            return [self._convert_doc_to_response(doc) for doc in properties]
+            
+        except Exception as e:
+            self.logger.error(f"Error getting properties for user {user_id}: {e}")
+            raise
+
+    async def get_public_properties(
+        self,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[PropertyResponse]:
+        """
+        Get all public/active properties
+        """
+        try:
+            # Only return active properties
+            query = {"status": "active"}
+            
+            # Execute query
+            cursor = self.collection.find(query).skip(skip).limit(limit)
+            properties = await cursor.to_list(length=limit)
+            
+            # Convert to response models
+            return [self._convert_doc_to_response(doc) for doc in properties]
+            
+        except Exception as e:
+            self.logger.error(f"Error getting public properties: {e}")
+            raise

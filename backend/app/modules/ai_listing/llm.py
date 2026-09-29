@@ -8,16 +8,22 @@ import httpx
 
 log = logging.getLogger(__name__)
 
-GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_STT_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
-LLM_MODEL = os.environ.get("AI_LISTING_LLM_MODEL", "llama-3.1-8b-instant")
+# Any OpenAI-compatible provider works: set AI_LLM_BASE_URL + AI_LLM_API_KEY + AI_LISTING_LLM_MODEL.
+# Defaults target Groq (its llama-3.1-8b-instant was retired 2026-08-16; free tier serves gpt-oss-120b).
+# Examples: Google Gemini  https://generativelanguage.googleapis.com/v1beta/openai  (model gemini-2.5-flash)
+#           OpenRouter     https://openrouter.ai/api/v1  (a ":free" model id, e.g. a Qwen or DeepSeek variant)
+LLM_BASE_URL = os.environ.get("AI_LLM_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/")
+STT_BASE_URL = os.environ.get("AI_STT_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/")
+GROQ_CHAT_URL = f"{LLM_BASE_URL}/chat/completions"
+GROQ_STT_URL = f"{STT_BASE_URL}/audio/transcriptions"
+LLM_MODEL = os.environ.get("AI_LISTING_LLM_MODEL", "openai/gpt-oss-120b")
 STT_MODEL = os.environ.get("AI_LISTING_STT_MODEL", "whisper-large-v3")
-LLM_TIMEOUT = 8.0
+LLM_TIMEOUT = 12.0
 STT_TIMEOUT = 30.0
 
 
 def groq_api_key() -> Optional[str]:
-    key = os.environ.get("GROQ_API_KEY")
+    key = os.environ.get("AI_LLM_API_KEY") or os.environ.get("GROQ_API_KEY")
     if not key:
         try:
             from app.core.config import settings
