@@ -199,6 +199,20 @@ export interface BusinessToday {
   hot_buyers: TodayHotBuyer[]
   follow_ups: TodayFollowUp[]
   headline: string
+  /** "AI recommends" list (docs/contracts/marketing.md section 4). Absent on older backends. */
+  actions?: RecommendedAction[]
+}
+
+export type RecommendedActionType = 'call' | 'follow_up' | 'send_property' | 'create_marketing'
+
+export interface RecommendedAction {
+  type: RecommendedActionType
+  title: string
+  detail: string
+  priority: 1 | 2 | 3
+  lead_id?: string
+  listing_id?: string
+  buyer_count?: number
 }
 
 export interface LeadEvent {
@@ -233,6 +247,67 @@ export interface UploadedFile {
   original_name?: string
 }
 
+export type ImageKind = 'cover' | 'facts' | 'amenities' | 'cta' | 'status'
+
+export interface ImageAsset {
+  kind: ImageKind
+  url: string
+  width: number
+  height: number
+}
+
+export interface ReelBeat {
+  seconds: string
+  text: string
+  visual: string
+}
+
+/** docs/contracts/marketing.md section 1. */
+export interface MarketingPack {
+  listing_id: string
+  language: DraftLanguage
+  version: number
+  generated_at: string
+  angle: string
+  headline: string
+  instagram: { caption: string; hashtags: string[]; images: ImageAsset[] }
+  facebook: { post: string }
+  whatsapp: { message: string; status_text: string; status_image: ImageAsset | null }
+  reel: { hook: string; beats: ReelBeat[]; cta: string; duration_s: number }
+  share_url: string
+}
+
+export interface MatchingBuyer {
+  lead_id: string
+  name: string
+  phone: string
+  temperature: Temperature
+  score: number
+  requirement_line: string | null
+  match_pct: number
+  reasons: string[]
+  draft: { message: string; whatsapp_url: string }
+}
+
+/** GET /inbox/matching-leads?listing_id= (contract section 2). */
+export interface MatchingLeads {
+  listing: { id: string; title: string; price_inr: number; locality: string; share_url: string }
+  buyers: MatchingBuyer[]
+}
+
+export interface PerformanceItem {
+  listing_id: string
+  title: string
+  price_inr: number
+  status: ListingStatus
+  views: number
+  unique_visitors: number
+  enquiries: number
+  qualified: number
+  site_visits: number
+  by_source: Record<string, number>
+}
+
 /** The client interface implemented by both the real API and the fixture API. */
 export interface AppApi {
   requestOtp(phone: string): Promise<OtpRequested>
@@ -252,4 +327,10 @@ export interface AppApi {
   updateLead(id: string, stageOrPatch: Stage | LeadPatch, note?: string): Promise<LeadDetail>
   getToday(): Promise<BusinessToday>
   createFollowupDraft(id: string, language?: DraftLanguage): Promise<FollowupDraft>
+  /** Generate or regenerate the marketing pack (version += 1). 409 when the listing is not live. */
+  createMarketingPack(listingId: string, language?: DraftLanguage): Promise<MarketingPack>
+  /** The existing pack, or a 404 ApiError when none was generated yet. */
+  getMarketingPack(listingId: string): Promise<MarketingPack>
+  getMatchingLeads(listingId: string): Promise<MatchingLeads>
+  getPerformance(): Promise<PerformanceItem[]>
 }

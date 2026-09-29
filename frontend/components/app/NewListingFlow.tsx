@@ -9,6 +9,7 @@ import { listingLink } from '@/lib/app/share'
 import { t } from '@/lib/app/strings'
 import type { AIDraft, Listing, ListingInput } from '@/lib/app/types'
 import { FIELD_LABELS, lowConfidenceFields, missingFields } from '@/lib/app/validate'
+import { MarketingScreen } from './MarketingScreen'
 import { PhotoPicker } from './PhotoPicker'
 import { ReviewForm } from './ReviewForm'
 import { ShareBar } from './ShareBar'
@@ -113,12 +114,18 @@ export function NewListingFlow() {
   else if (step === 'done' && posted) {
     const link = listingLink(getSiteUrl(), posted.id)
     overlay = (
-      <div className="space-y-5 text-center">
-        <div className="text-5xl" aria-hidden>✅</div>
-        <h1 className="text-2xl font-bold">{t('posted')}</h1>
-        <p className="font-semibold">{posted.title}</p>
-        <p className="break-all rounded-xl bg-white p-3 text-sm text-blue-700">{link}</p>
-        <ShareBar url={link} message={`New property: ${posted.title}.`} />
+      <div className="space-y-5">
+        <div className="space-y-2 text-center">
+          <div className="text-5xl" aria-hidden>✅</div>
+          <h1 className="text-2xl font-bold">{t('propertyReady')}</h1>
+          <p className="font-semibold">{posted.title}</p>
+          <p className="text-sm text-gray-600">{t('propertyReadySub')}</p>
+        </div>
+        <MarketingScreen listingId={posted.id} autoCreate />
+        <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4">
+          <p className="break-all text-sm text-blue-700">{link}</p>
+          <ShareBar url={link} message={`New property: ${posted.title}.`} />
+        </section>
         <Btn variant="secondary" onClick={() => window.location.assign('/studio/listings/new')}>{t('postAnother')}</Btn>
         <LinkBtn variant="ghost" href="/studio/listings">{t('listings')}</LinkBtn>
       </div>

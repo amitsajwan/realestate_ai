@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react'
 import { cleanInput } from '@/components/app/NewListingFlow'
 import { ReviewForm } from '@/components/app/ReviewForm'
 import { ShareBar } from '@/components/app/ShareBar'
-import { Btn, ErrorBox, Spinner, StatusChip } from '@/components/app/ui'
+import { Btn, ErrorBox, LinkBtn, Spinner, StatusChip } from '@/components/app/ui'
 import { ApiError } from '@/lib/app/api'
 import { api, errorMessage } from '@/lib/app/client'
 import { getSiteUrl } from '@/lib/app/session'
@@ -92,6 +92,13 @@ export default function ListingDetailPage() {
           <p className="break-all text-sm text-blue-700">{link}</p>
           <ShareBar url={link} message={`${listing.title}.`} />
         </section>
+      )}
+
+      {shareable && (
+        <div className="grid grid-cols-2 gap-3">
+          <LinkBtn variant="secondary" href={`/studio/listings/${listing.id}/marketing`}>{t('marketing')}</LinkBtn>
+          <LinkBtn variant="secondary" href={`/studio/listings/${listing.id}/marketing#buyers`}>{t('buyersWhoMatch')}</LinkBtn>
+        </div>
       )}
 
       <div className="space-y-2">
