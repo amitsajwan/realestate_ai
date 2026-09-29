@@ -14,13 +14,13 @@
         # also sets NEXT_PUBLIC_CONTACT_EMAIL in the VM's private .env (shown on /privacy, /terms, /data-deletion; never committed to git)
 
   Assumptions to confirm the first time (defaults come from the deployment notes): project, zone, instance name, and that the app lives in
-  ~/realestate_ai on the VM. Override with -RemoteDir if the VM uses a different folder.
+  ~/app on the VM. Override with -RemoteDir if the VM uses a different folder.
 #>
 param(
   [string]$Project   = "trader-502012",
   [string]$Zone      = "asia-south1-a",
   [string]$Instance  = "pune-property",
-  [string]$RemoteDir = "realestate_ai",
+  [string]$RemoteDir = "app",
   [string]$HealthUrl = "https://34-180-39-243.sslip.io/api/v1/health",
   [string]$ContactEmail = "",
   [switch]$Iap,
