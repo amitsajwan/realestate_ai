@@ -142,7 +142,7 @@ export function MarketingPackView({ pack }: { pack: MarketingPack }) {
         <ol className="list-decimal space-y-2 pl-5 text-sm" data-testid="reel-beats">
           {pack.reel.beats.map((b, i) => (
             <li key={i}>
-              <span className="text-xs font-semibold text-gray-500">{b.seconds}s</span> {b.text}
+              <span className="text-xs font-semibold text-gray-500">{/s$/.test(b.seconds) ? b.seconds : b.seconds + 's'}</span> {b.text}
               <span className="block text-xs text-gray-500">Show: {b.visual}</span>
             </li>
           ))}

@@ -65,7 +65,7 @@ CASES = [
     ("1.5 cr max", exp(None, None, 15_000_000)),
     ("no rush, exploring options, 2 bhk 60L", exp(2, None, 60 * L, "exploring")),
     ("Rs 85,00,000 budget", exp(None, None, 85 * L)),
-    ("three bhk in Baner, 90 lakhs, abhi jaldi", exp(3, None, 90 * L, "now")),
+    ("three bhk in Baner, 90 lakhs, abhi jaldi", {**exp(3, None, 90 * L, "now"), "localities": ["Baner"]}),
     ("ready for 2 BHK 75 to 85 lakh, this month, self funded", exp(2, 75 * L, 85 * L, "now", "own_funds")),
     ("", {}),
     (None, {}),
@@ -198,3 +198,11 @@ def test_top_matches_filters_sorts_and_limits():
     assert matching.top_matches({}, ls) == [] and matching.top_matches(None, ls) == []
     under = matching.top_matches(REQ, [listing("U", status="under_offer")], "sale", "apartment")
     assert under and under[0]["listing_id"] == "U"
+
+
+def test_locality_named_in_the_message_is_read_and_beats_the_listing_default():
+    """Regression (browser run): 'Looking for 2bhk in Baner' from someone who enquired on a Wakad flat showed 'Wakad'."""
+    from app.modules.tracking.requirement import infer_from_message
+    out = infer_from_message("Looking for 2bhk in Baner around 85 lakh, planning in 2 months")
+    assert out["localities"] == ["Baner"] and out["bhk"] == 2
+    assert "localities" not in infer_from_message("Budget 2 crore, 4 bhk villa please")  # nothing named: no guess

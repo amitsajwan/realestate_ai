@@ -169,6 +169,8 @@ class Settings(BaseSettings):
     facebook_app_id: Optional[str] = None
     facebook_app_secret: Optional[str] = None
     facebook_access_token: Optional[str] = None
+    facebook_oauth_redirect_uri: Optional[str] = None
+    facebook_graph_api_version: str = "v25.0"
     
     # Instagram
     instagram_app_id: Optional[str] = None

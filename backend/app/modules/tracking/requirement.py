@@ -162,11 +162,25 @@ def parse_financing(text: str) -> Optional[str]:
     return None
 
 
+def parse_locality(text: str) -> Optional[str]:
+    """A locality the buyer names in their message ('2bhk in Baner'), using the listing extractor's gazetteer."""
+    try:  # thin adapter: the gazetteer lives in ai_listing; without it we simply infer no locality
+        from app.modules.ai_listing.geo import find_geo
+        from app.modules.ai_listing.text_norm import normalise
+        geo = find_geo(normalise(text))
+    except Exception:
+        return None
+    return geo.locality if geo and geo.locality and geo.locality_conf >= 0.7 else None
+
+
 def infer_from_message(text: Optional[str]) -> dict:
     """Only fields actually found are returned."""
     if not text:
         return {}
     out: dict = {}
+    loc = parse_locality(text)
+    if loc:
+        out["localities"] = [loc]
     b = parse_budget(text)
     if b:
         out["budget_min_inr"], out["budget_max_inr"] = b

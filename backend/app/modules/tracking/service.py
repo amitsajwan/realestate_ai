@@ -135,7 +135,8 @@ class TrackingService:
                 sources[name] = "inferred"
         listing = await self._own_listing(agent_id, i.listing_id)
         if listing:
-            if listing.get("locality"):
+            # the listing's area is only a fallback: a place the buyer names in their message wins
+            if listing.get("locality") and "localities" not in sources:
                 fields["localities"], sources["localities"] = [listing["locality"]], "default"
             if "bhk" not in sources and listing.get("bhk"):
                 fields["bhk"], sources["bhk"] = listing["bhk"], "default"

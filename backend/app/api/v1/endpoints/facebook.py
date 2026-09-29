@@ -121,14 +121,31 @@ class PromotionHistoryResponse(BaseModel):
     items: list[PromotionHistoryItem]
  
 @router.get("/status")
-async def get_facebook_status():
-    """Get Facebook service status"""
+async def get_facebook_status(
+    current_user: User = Depends(current_active_user),
+    db=Depends(get_database),
+):
+    """Return the current user's linked Facebook Page/Instagram account status."""
+    from app.services.meta_instagram_oauth import get_connection_status
+
     return {
-        "status": "active",
-        "service": "facebook",
-        "connected": False,
-        "message": "Facebook service is running"
+        "success": True,
+        "status": await get_connection_status(str(current_user.id), db),
     }
+
+
+@router.get("/auth-url")
+async def get_instagram_business_login_url(
+    current_user: User = Depends(current_active_user),
+    db=Depends(get_database),
+):
+    """Start the Instagram API with Facebook Login flow for the current user."""
+    from app.services.meta_instagram_oauth import MetaInstagramOAuthError, create_login_url
+
+    try:
+        return {"auth_url": await create_login_url(str(current_user.id), db)}
+    except MetaInstagramOAuthError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from None
 
 @router.get("/config")
 async def get_facebook_config(
@@ -240,12 +257,14 @@ async def post_property_to_facebook(
 @router.post("/disconnect")
 async def disconnect_facebook(
     current_user = Depends(current_active_user),
-    facebook_service: FacebookService = Depends(get_facebook_service)
+    db=Depends(get_database),
 ):
-    """Disconnect Facebook account"""
+    """Disconnect the current user's linked Instagram/Page account."""
     try:
-        await facebook_service.disconnect(current_user.id)
-        return {"message": "Facebook disconnected successfully"}
+        from app.services.meta_instagram_oauth import disconnect
+
+        await disconnect(str(current_user.id), db)
+        return {"success": True, "message": "Meta account disconnected successfully"}
     except Exception as e:
         logger.error(f"Facebook disconnect error: {e}")
         raise HTTPException(

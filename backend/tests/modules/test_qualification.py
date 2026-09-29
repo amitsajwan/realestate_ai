@@ -394,3 +394,12 @@ async def test_draft_never_suggests_or_claims_a_listing_over_budget():
     out = await svc.followup_draft("A1", lid)
     assert "Big 2BHK Wakad" not in out["message"] and "1.25Cr" not in out["message"]
     assert not any("Wakad" in r for r in out["based_on"])  # the over-budget flat is not offered as a fit
+
+
+async def test_message_locality_beats_listing_default_in_the_stored_requirement():
+    svc, db, clock = await make()
+    # enquired on the Baner test listing but says they want Wakad
+    await svc.capture_inquiry(inquiry(message="looking for 2bhk in Wakad under 85 lakh"))
+    lid = await lead_id(svc)
+    d = await svc.lead_detail("A1", lid)
+    assert d["requirement"]["localities"] == ["Wakad"]
