@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # =============================================================================
     mongodb_url: str = "mongodb://localhost:27017"
     database_name: str = "propertyai"
+
+    # Base URL where agent websites are served (used to build the link returned at onboarding)
+    public_site_url: str = "http://localhost:3000"
     
     # =============================================================================
     # SECURITY SETTINGS

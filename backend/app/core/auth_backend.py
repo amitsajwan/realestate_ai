@@ -25,7 +25,7 @@ ALGORITHM = settings.jwt_algorithm
 LIFETIME_SECONDS = settings.jwt_access_token_expire_minutes * 60
 
 # Debug: Log the secret key being used
-logger.info(f"JWT Secret Key: {SECRET_KEY}")
+logger.info("JWT secret configured: %s", bool(SECRET_KEY))
 logger.info(f"JWT Algorithm: {ALGORITHM}")
 logger.info(f"JWT Lifetime: {LIFETIME_SECONDS}")
 

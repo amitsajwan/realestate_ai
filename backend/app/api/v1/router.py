@@ -37,6 +37,7 @@ from app.api.v1.endpoints.unified_ai_unified import router as unified_ai_unified
 from app.api.v1.endpoints.unified_agent_profile import router as unified_agent_profile_router
 from app.routers.agents import router as agents_router
 from app.routers.crm import router as crm_router
+from app.modules.onboarding.router import router as join_router
 
 # Create main API router
 api_router = APIRouter()
@@ -74,6 +75,7 @@ api_router.include_router(unified_agent_profile_router, prefix="/agent", tags=["
 api_router.include_router(agents_router, prefix="/agents", tags=["agents"])
 api_router.include_router(crm_router, prefix="/crm", tags=["crm"])
 api_router.include_router(stats_router, prefix="/stats", tags=["stats"])
+api_router.include_router(join_router, prefix="/join", tags=["join"])
 
 # Health check for API v1
 @api_router.get("/health")
