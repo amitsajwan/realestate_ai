@@ -52,27 +52,51 @@ $models = (Call GET "$base/models?pageSize=200" $key $null).models
 $flash = $models | Where-Object { $_.name -match '^models/gemini-(\d+(\.\d+)?)-flash$' -and ($_.supportedGenerationMethods -contains "generateContent") } |
   ForEach-Object { [pscustomobject]@{ Id = $_.name -replace '^models/', ''; Ver = [version]([regex]::Match($_.name, 'gemini-(\d+(\.\d+)?)-flash').Groups[1].Value) } } |
   Sort-Object Ver -Descending
-if ($Model) { $pick = $Model } elseif ($flash) { $pick = $flash[0].Id } else { throw "No gemini-N.M-flash model is available to this key; pass -Model <id>" }
-Write-Host "Flash models available: $((($flash | Select-Object -First 5).Id) -join ', ')"
-Write-Host "Using: $pick"
+if ($Model) { $candidates = @($Model) } elseif ($flash) { $candidates = @($flash | Select-Object -First 5 | ForEach-Object { $_.Id }) } else { throw "No gemini-N.M-flash model is available to this key; pass -Model <id>" }
+Write-Host "Flash models available: $($candidates -join ', ')"
 
-Write-Host "==> Test 1: text (JSON reply, the way listing extraction uses it)" -ForegroundColor Cyan
-$chat = @{ model = $pick; temperature = 0; response_format = @{ type = "json_object" }
-           messages = @(@{ role = "system"; content = 'Reply with one JSON object with key bhk (number).' }, @{ role = "user"; content = "2 bhk upper kharadi 85 lakh" }) }
-try {
-  $r = Invoke-RestMethod -Method POST -Uri "$base/openai/chat/completions" -Headers @{ Authorization = "Bearer $key" } -ContentType "application/json" -Body ($chat | ConvertTo-Json -Depth 8 -Compress) -TimeoutSec 60
-  Write-Host "text OK: $($r.choices[0].message.content)" -ForegroundColor Green
-} catch { throw "Text test failed: $(ErrText $_)" }
-
-Write-Host "==> Test 2: audio (1 second of silence; proves audio is allowed on your free tier)" -ForegroundColor Cyan
+# A brand-new model is often "503 unavailable" on the free tier; try each candidate (twice) and keep the first that passes both tests.
+function TryText($m) {
+  $chat = @{ model = $m; temperature = 0; response_format = @{ type = "json_object" }
+             messages = @(@{ role = "system"; content = 'Reply with one JSON object with key bhk (number).' }, @{ role = "user"; content = "2 bhk upper kharadi 85 lakh" }) }
+  for ($i = 1; $i -le 2; $i++) {
+    try {
+      $r = Invoke-RestMethod -Method POST -Uri "$base/openai/chat/completions" -Headers @{ Authorization = "Bearer $key" } -ContentType "application/json" -Body ($chat | ConvertTo-Json -Depth 8 -Compress) -TimeoutSec 60
+      return @{ ok = $true; note = "$($r.choices[0].message.content)" }
+    } catch { $last = ErrText $_; Start-Sleep -Seconds 3 }
+  }
+  return @{ ok = $false; note = $last }
+}
 $rate = 16000; $n = $rate; $ms = New-Object IO.MemoryStream; $bw = New-Object IO.BinaryWriter($ms)
 $bw.Write([Text.Encoding]::ASCII.GetBytes("RIFF")); $bw.Write([int](36 + 2 * $n)); $bw.Write([Text.Encoding]::ASCII.GetBytes("WAVEfmt "))
 $bw.Write([int]16); $bw.Write([int16]1); $bw.Write([int16]1); $bw.Write([int]$rate); $bw.Write([int]($rate * 2)); $bw.Write([int16]2); $bw.Write([int16]16)
 $bw.Write([Text.Encoding]::ASCII.GetBytes("data")); $bw.Write([int](2 * $n)); $bw.Write((New-Object byte[] (2 * $n))); $bw.Flush()
 $wav = [Convert]::ToBase64String($ms.ToArray())
 $aud = @{ contents = @(@{ parts = @(@{ text = "Transcribe this audio. If there is no speech, output nothing." }, @{ inline_data = @{ mime_type = "audio/wav"; data = $wav } }) }) }
-$null = Call POST "$base/models/${pick}:generateContent" $key $aud
-Write-Host "audio OK: Gemini accepted an audio request on your key" -ForegroundColor Green
+function TryAudio($m) {
+  for ($i = 1; $i -le 2; $i++) {
+    try {
+      Invoke-RestMethod -Method POST -Uri "$base/models/${m}:generateContent" -Headers @{ "x-goog-api-key" = $key } -ContentType "application/json" -Body ($aud | ConvertTo-Json -Depth 12 -Compress) -TimeoutSec 60 | Out-Null
+      return @{ ok = $true; note = "accepted" }
+    } catch { $last = ErrText $_; Start-Sleep -Seconds 3 }
+  }
+  return @{ ok = $false; note = $last }
+}
+
+$pick = ""
+$audioNote = ""
+foreach ($m in $candidates) {
+  Write-Host "==> Testing $m (text, then audio with 1 second of silence)" -ForegroundColor Cyan
+  $t = TryText $m
+  if (-not $t.ok) { Write-Host "  text failed: $($t.note)" -ForegroundColor Yellow; continue }
+  Write-Host "  text OK: $($t.note)" -ForegroundColor Green
+  $a = TryAudio $m
+  if (-not $a.ok) { Write-Host "  audio failed: $($a.note)" -ForegroundColor Yellow; $audioNote = $a.note; continue }
+  Write-Host "  audio OK: Gemini accepted an audio request on your key" -ForegroundColor Green
+  $pick = $m; break
+}
+if (-not $pick) { throw "No candidate model passed both the text and audio tests (last audio message: '$audioNote'). Nothing was changed on the server. Try again in a few minutes, or tell Claude the messages above." }
+Write-Host "Using: $pick"
 
 Write-Host "==> Writing the settings into the VM's private .env" -ForegroundColor Cyan
 $lines = @("GEMINI_API_KEY=$key", "AI_STT_PROVIDER=gemini", "AI_GEMINI_STT_MODEL=$pick", "AI_LLM_BASE_URL=$base/openai", "AI_LLM_API_KEY=$key", "AI_LISTING_LLM_MODEL=$pick")

@@ -1,4 +1,5 @@
 """Injectable LLM + speech-to-text clients (Groq). Tests inject fakes; no network is touched by default paths."""
+import asyncio
 import base64
 import json
 import logging
@@ -151,11 +152,16 @@ class GeminiTranscriber:
         url = f"{GEMINI_BASE_URL}/models/{self.model}:generateContent"
         headers = {"x-goog-api-key": self.api_key}  # header, not ?key=, so the key never lands in a URL or log line
         try:
-            if self._client:
-                r = await self._client.post(url, json=body, headers=headers, timeout=self.timeout)
-            else:
-                async with httpx.AsyncClient(timeout=self.timeout) as c:
-                    r = await c.post(url, json=body, headers=headers)
+            for attempt in (1, 2):  # a busy model answers 429/500/503: one more try before giving up
+                if self._client:
+                    r = await self._client.post(url, json=body, headers=headers, timeout=self.timeout)
+                else:
+                    async with httpx.AsyncClient(timeout=self.timeout) as c:
+                        r = await c.post(url, json=body, headers=headers)
+                if r.status_code in (429, 500, 503) and attempt == 1:
+                    await asyncio.sleep(1.0)
+                    continue
+                break
             r.raise_for_status()
             parts = (r.json().get("candidates") or [{}])[0].get("content", {}).get("parts") or []
             return "".join(p.get("text", "") for p in parts).strip()

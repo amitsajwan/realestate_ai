@@ -166,6 +166,21 @@ async def test_gemini_transcriber_error_is_a_clean_transcription_error():
     assert "SECRETKEY" not in str(e.value)
 
 
+async def test_gemini_transcriber_retries_once_when_the_model_is_busy():
+    import httpx
+    from app.modules.ai_listing.llm import GeminiTranscriber
+
+    calls = []
+
+    def handler(request):
+        calls.append(1)
+        if len(calls) == 1:
+            return httpx.Response(503, json={"error": "unavailable"})
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "ok"}]}}]})
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    assert await GeminiTranscriber("k", client=client).transcribe(b"a", "n.webm", "audio/webm") == "ok" and len(calls) == 2
+
+
 def test_provider_switch(monkeypatch):
     from app.modules.ai_listing.llm import GeminiTranscriber, GroqTranscriber, default_transcriber
 
