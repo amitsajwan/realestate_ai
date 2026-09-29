@@ -19,9 +19,31 @@ you (the token owner) are an admin of both the Page and the app. Agents' own Pag
 2. On Facebook: Page > Settings > Linked accounts > Instagram > connect. (Publishing through the API needs this link.)
 
 ## C. Meta developer app (10 min)
-1. https://developers.facebook.com > My Apps > Create App > type **Business**. Name it e.g. "PropertyAI".
-2. Add products: **Facebook Login for Business** and **Instagram** (Instagram API with Facebook Login). Keep the app in **Development** mode.
-3. App roles: make sure your own Facebook profile is an Admin of the app (it is, if you created it).
+1. https://developers.facebook.com > My Apps > Create App > use case **Other** > type **Business**. Name: "PropertyAI".
+2. Add the product **Instagram** (choose "Instagram API with Facebook Login") and **Facebook Login for Business**. Meta's menus change, so if a name differs
+   pick the option that says it publishes to a Page or an Instagram professional account. Keep the app in **Development** mode: you do NOT need to go Live
+   to post to your own Page and Instagram.
+3. App roles: your own Facebook profile must be an **Admin** of the app (it is if you created it).
+4. Settings > Basic, enter (live pilot address; replace with your domain when you have one):
+
+| Meta field | Value |
+|---|---|
+| App domains | `34-180-39-243.sslip.io` |
+| Privacy Policy URL | `https://34-180-39-243.sslip.io/privacy` (page is being added) |
+| Terms of Service URL | `https://34-180-39-243.sslip.io/terms` (page is being added) |
+| User data deletion | Instructions URL `https://34-180-39-243.sslip.io/data-deletion` (page is being added; only required to go Live) |
+| Site URL (Add platform > Website) | `https://34-180-39-243.sslip.io` |
+| Category | Business and pages, or Real estate |
+| App icon (1024x1024) | `docs/brand/pune-property-profile.png` |
+| Contact email | a real address you read (Meta emails policy notices here) |
+
+A future custom domain means changing these once. Meta is stricter with free hostnames like sslip.io for App Review later, so buy the domain before applying for review.
+
+Permissions you will request in Graph API Explorer (Development mode, no review needed for your own accounts):
+`pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `instagram_basic`, `instagram_content_publish`, plus `business_management` only if asked.
+
+Instagram picture rules our cards already follow: JPEG only, plain-ASCII web addresses, carousel pictures are cropped to the first picture's shape
+(all our cards are square), at most 100 API posts per 24 hours.
 
 ## D. Get the IDs and a long-lived Page token (10 min)
 Use Graph API Explorer (developers.facebook.com/tools/explorer) with YOUR app selected:
@@ -31,13 +53,17 @@ Use Graph API Explorer (developers.facebook.com/tools/explorer) with YOUR app se
 3. `GET /{page-id}?fields=instagram_business_account` gives the **Instagram Business ID**.
 4. Check the token at developers.facebook.com/tools/debug/accesstoken (type Page, scopes present, expiry "never" or far future).
 
-## E. Put the values in backend/.env (never in chat, never committed)
+## E. Put the values on the SERVER (never in chat, never committed)
+The pilot runs on the VM, so the token goes in the deploy folder's `.env` there (not in your local backend/.env, which is only for local testing):
 ```
+gcloud compute ssh pune-property --zone asia-south1-a --project trader-502012
+# then edit the .env next to docker-compose.yml (deploy/gcp/.env) and add:
 META_PAGE_ID=...
 META_PAGE_ACCESS_TOKEN=...
 META_IG_BUSINESS_ID=...
 SOCIAL_DRY_RUN=true            # keep true until the test post below works, then set false
-PUBLIC_MEDIA_BASE_URL=https://<your tunnel or domain>
+PUBLIC_MEDIA_BASE_URL=https://34-180-39-243.sslip.io
+# then: sudo docker compose up -d backend
 ```
 The token gives full control of the Page. If it leaks: Facebook Settings > Business integrations > remove the app, or reset the app secret.
 
