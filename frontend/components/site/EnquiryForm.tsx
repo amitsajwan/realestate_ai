@@ -4,6 +4,33 @@ import React, { useState } from 'react'
 import { normalizeIndianMobile } from '@/lib/site/phone'
 import { whatsappLink } from '@/lib/site/links'
 import { submitInquiry, trackEvent } from '@/lib/site/tracking'
+import {
+  BHK_CHOICES, BUDGET_CHOICES, EMPTY_QUALIFICATION, FINANCING_CHOICES, TIMELINE_CHOICES,
+  buildQualificationFields, hasQualification, toggleChoice, type Choice, type QualificationFields, type QualificationState,
+} from '@/lib/site/qualification'
+import { QUALIFY_STRINGS as S, firstName } from '@/lib/site/strings'
+
+function ChipGroup<T extends string | number>({ label, options, value, onPick }: {
+  label: string; options: Choice<T>[]; value: T | null; onPick: (v: T) => void
+}) {
+  return (
+    <div role="group" aria-label={label}>
+      <p className="text-sm font-medium">{label}</p>
+      <div className="mt-1 flex flex-wrap gap-2">
+        {options.map((o) => {
+          const on = value === o.value
+          return (
+            <button key={String(o.value)} type="button" aria-pressed={on} onClick={() => onPick(o.value)}
+              className={'min-h-[44px] min-w-[44px] rounded-full border px-4 text-base ' +
+                (on ? 'border-transparent bg-[var(--site-primary)] font-semibold text-[var(--site-on-primary)]' : 'border-slate-300 bg-white text-slate-800')}>
+              {o.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 interface Props {
   agentSlug: string
@@ -25,6 +52,12 @@ export default function EnquiryForm({ agentSlug, agentName, agentPhone, listingI
   const [errors, setErrors] = useState<Errors>({})
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
+  const [q, setQ] = useState<QualificationState>(EMPTY_QUALIFICATION)
+  const [saved, setSaved] = useState<QualificationFields>({})
+  // On a listing page the backend fills BHK from the listing, so we do not ask.
+  const askBhk = !listingId
+  const pick = <K extends keyof QualificationState>(k: K) => (v: NonNullable<QualificationState[K]>) =>
+    setQ((p) => ({ ...p, [k]: toggleChoice(p[k], v) }))
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,9 +69,13 @@ export default function EnquiryForm({ agentSlug, agentName, agentPhone, listingI
     setErrors(errs)
     if (Object.keys(errs).length || !n) return
     setBusy(true)
-    const ok = await submitInquiry(agentSlug, listingId, { name: name.trim(), phone: n, message: message.trim() || undefined, consent })
+    const extra = buildQualificationFields(q, { askBhk })
+    const ok = await submitInquiry(agentSlug, listingId, { name: name.trim(), phone: n, message: message.trim() || undefined, consent, ...extra })
     setBusy(false)
-    if (ok) setDone(true)
+    if (ok) {
+      setSaved(extra)
+      setDone(true)
+    }
     else setErrors({ form: 'Could not send your enquiry. Please try again or use WhatsApp.' })
   }
 
@@ -48,6 +85,11 @@ export default function EnquiryForm({ agentSlug, agentName, agentPhone, listingI
       <section id={id} aria-live="polite" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-center">
         <h2 className="text-xl font-bold text-emerald-900">Thank you, {name.split(' ')[0]}!</h2>
         <p className="mt-1 text-emerald-900">{agentName} will contact you soon. For a faster reply, message on WhatsApp.</p>
+        {hasQualification(saved) && (
+          <p className="mt-2 text-sm text-emerald-900">
+            {saved.budget_min_inr != null && saved.timeline ? S.savedNoteBudgetTimeline : S.savedNote}
+          </p>
+        )}
         {wa && (
           <a href={wa} target="_blank" rel="noopener noreferrer" onClick={() => trackEvent('whatsapp_click', agentSlug, listingId)}
             className="mt-4 inline-flex min-h-[48px] items-center justify-center rounded-xl bg-[#25D366] px-6 font-bold text-[#053b1a] no-underline">
@@ -89,7 +131,15 @@ export default function EnquiryForm({ agentSlug, agentName, agentPhone, listingI
           </label>
           {errors.consent && <p role="alert" className="mt-1 text-sm text-red-700">{errors.consent}</p>}
         </div>
-        {errors.form && <p role="alert" className="text-sm text-red-700">{errors.form}</p>}
+        <fieldset className="space-y-3 rounded-xl bg-slate-50 p-3">
+          <legend className="px-1 text-base font-semibold">{S.title(firstName(agentName))}</legend>
+          <p className="text-sm text-slate-600">{S.hint}</p>
+          {askBhk && <ChipGroup label={S.bhk} options={BHK_CHOICES} value={q.bhk} onPick={pick('bhk')} />}
+          <ChipGroup label={S.budget} options={BUDGET_CHOICES} value={q.budget} onPick={pick('budget')} />
+          <ChipGroup label={S.timeline} options={TIMELINE_CHOICES} value={q.timeline} onPick={pick('timeline')} />
+          <ChipGroup label={S.financing} options={FINANCING_CHOICES} value={q.financing} onPick={pick('financing')} />
+        </fieldset>
+        {errors.form && <p role="alert"className="text-sm text-red-700">{errors.form}</p>}
         <button type="submit" disabled={busy}
           className="min-h-[52px] w-full rounded-xl bg-[var(--site-primary)] px-6 text-lg font-bold text-[var(--site-on-primary)] disabled:opacity-60">
           {busy ? 'Sending...' : 'Send enquiry'}
