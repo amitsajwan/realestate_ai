@@ -7,7 +7,7 @@ from app.core.auth_backend import current_active_user
 from app.core.database import get_database
 from app.models.user import User
 
-from .schemas import EventIn, InquiryIn, StageUpdate
+from .schemas import DraftIn, EventIn, InquiryIn, StageUpdate
 from .service import TrackingError, TrackingService
 
 public_router = APIRouter()  # mounted at /t   (no auth: visitors are anonymous)
@@ -50,6 +50,20 @@ async def lead_detail(lead_id: str, user: User = Depends(current_active_user),
                       svc: TrackingService = Depends(get_service)):
     try:
         return await svc.lead_detail(str(user.id), lead_id)
+    except TrackingError as e:
+        raise _http(e)
+
+
+@inbox_router.get("/today")
+async def business_today(user: User = Depends(current_active_user), svc: TrackingService = Depends(get_service)):
+    return await svc.today(str(user.id))
+
+
+@inbox_router.post("/leads/{lead_id}/followup-draft")
+async def followup_draft(lead_id: str, body: Optional[DraftIn] = None, user: User = Depends(current_active_user),
+                         svc: TrackingService = Depends(get_service)):
+    try:
+        return await svc.followup_draft(str(user.id), lead_id, body)
     except TrackingError as e:
         raise _http(e)
 

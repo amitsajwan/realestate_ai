@@ -1,7 +1,10 @@
+from datetime import datetime, timezone
 from typing import Dict, Literal, Optional
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.modules.onboarding.phone import normalize_indian_mobile
+
+from .requirement import Financing, Timeline
 
 EventType = Literal["page_view", "listing_view", "share", "call_click", "whatsapp_click"]
 Stage = Literal["new", "contacted", "site_visit", "negotiating", "won", "lost"]
@@ -24,13 +27,42 @@ class InquiryIn(TrackedTouch):
     phone: str
     message: Optional[str] = Field(None, max_length=1000)
     consent: bool = False  # DPDP: explicit consent to be contacted about this enquiry
+    # optional buyer requirement (all-or-nothing is NOT required; parsed from `message` when left out)
+    bhk: Optional[float] = Field(None, ge=0.5, le=10)
+    budget_min_inr: Optional[int] = Field(None, ge=0)
+    budget_max_inr: Optional[int] = Field(None, ge=0)
+    timeline: Optional[Timeline] = None
+    financing: Optional[Financing] = None
 
     @field_validator("phone")
     @classmethod
     def _phone(cls, v: str) -> str:
         return normalize_indian_mobile(v)
 
+    @model_validator(mode="after")
+    def _budget_order(self):
+        lo, hi = self.budget_min_inr, self.budget_max_inr
+        if lo is not None and hi is not None and lo > hi:
+            raise ValueError("budget_min_inr must be <= budget_max_inr")
+        return self
+
 
 class StageUpdate(BaseModel):
-    stage: Stage
+    stage: Optional[Stage] = None
     note: Optional[str] = Field(None, max_length=500)
+    follow_up_at: Optional[datetime] = None
+
+    @field_validator("follow_up_at")
+    @classmethod
+    def _naive_utc(cls, v):
+        return v.astimezone(timezone.utc).replace(tzinfo=None) if v and v.tzinfo else v
+
+    @model_validator(mode="after")
+    def _something(self):
+        if self.stage is None and not self.note and self.follow_up_at is None:
+            raise ValueError("Provide stage, note or follow_up_at")
+        return self
+
+
+class DraftIn(BaseModel):
+    language: Literal["en", "hi", "mr"] = "en"
