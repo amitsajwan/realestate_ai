@@ -7,7 +7,7 @@ import type { AgentProfile } from '@/lib/site/types'
 /** Server-rendered wrapper: theme CSS variables come from branding_data, never localStorage. */
 export default function SiteShell({ agent, children, bottomPad = false }: { agent: AgentProfile; children: React.ReactNode; bottomPad?: boolean }) {
   return (
-    <div style={themeVars(agent.branding_data) as React.CSSProperties} className="min-h-screen bg-white text-slate-900" lang="en">
+    <div data-surface="v2" style={themeVars(agent.branding_data) as React.CSSProperties} className="min-h-screen bg-white text-slate-900" lang="en">
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-2">
           <Link href={agentPath(agent.slug)} className="flex min-h-[44px] items-center gap-2 font-bold text-[var(--site-primary)] no-underline">

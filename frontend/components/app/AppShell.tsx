@@ -26,7 +26,7 @@ export function AppShell({ children, hideTabs = false }: { children: React.React
   const path = usePathname() || ''
   const active = (href: string) => (href === '/studio' ? path === '/studio' : path.startsWith(href))
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 text-gray-900">
+    <div data-surface="v2" className="fixed inset-0 z-50 flex flex-col bg-gray-50 text-gray-900">
       <FixtureBanner />
       <main className="mx-auto w-full max-w-md flex-1 overflow-y-auto px-4 pb-28 pt-4">{children}</main>
       {!hideTabs && (

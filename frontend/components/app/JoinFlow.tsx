@@ -80,7 +80,8 @@ export function JoinFlow() {
       else setStep('profile')
     } catch (err) {
       setError(errorMessage(err))
-      setBusy(false)
+    } finally {
+      setBusy(false) // the next step (site form) must not inherit the busy state
     }
   }
 
@@ -104,7 +105,7 @@ export function JoinFlow() {
   const isDev = process.env.NODE_ENV !== 'production'
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-50 text-gray-900">
+    <div data-surface="v2" className="fixed inset-0 z-50 overflow-y-auto bg-gray-50 text-gray-900">
       <FixtureBanner />
       <div className="mx-auto max-w-md space-y-5 px-4 py-8">
         {step === 'phone' && (
