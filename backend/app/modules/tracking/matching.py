@@ -2,6 +2,7 @@
 
 Weights (sum 100): property type 10, BHK 25, budget 40, locality 25. A dimension the buyer said nothing about
 earns half credit (neutral, no reason listed). A different transaction (sale vs rent) excludes the listing."""
+import re
 from typing import List, Optional
 
 from .requirement import bhk_text, budget_text, fmt_inr
@@ -92,3 +93,13 @@ def top_matches(req: Optional[dict], listings: List[dict], transaction: str = "s
     return [{"listing_id": l.get("id") or l.get("_id"), "title": l.get("title"), "price_inr": l.get("price_inr"),
              "locality": l.get("locality"), "match_pct": pct, "reasons": reasons}
             for pct, reasons, l in scored[:limit]]
+
+
+def match_context(contact: dict, by_id: dict):
+    """-> (transaction, ref_type) for scoring a lead against listings: taken from the listing they enquired
+    about, else guessed from the message (rent words) and defaulting to sale."""
+    ref = by_id.get(contact.get("first_listing_id"))
+    if ref:
+        return ref.get("transaction") or "sale", ref.get("property_type")
+    text = (contact.get("last_message") or contact.get("message") or "").lower()
+    return ("rent" if re.search(r"\b(rent|rental|kiraya|kiraye)\b", text) else "sale"), None

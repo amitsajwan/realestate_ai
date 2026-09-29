@@ -59,6 +59,20 @@ async def business_today(user: User = Depends(current_active_user), svc: Trackin
     return await svc.today(str(user.id))
 
 
+@inbox_router.get("/matching-leads")
+async def matching_leads(listing_id: str = Query(..., min_length=1), user: User = Depends(current_active_user),
+                         svc: TrackingService = Depends(get_service)):
+    try:
+        return await svc.matching_leads(str(user.id), listing_id)
+    except TrackingError as e:
+        raise _http(e)
+
+
+@inbox_router.get("/performance")
+async def performance(user: User = Depends(current_active_user), svc: TrackingService = Depends(get_service)):
+    return await svc.performance(str(user.id))
+
+
 @inbox_router.post("/leads/{lead_id}/followup-draft")
 async def followup_draft(lead_id: str, body: Optional[DraftIn] = None, user: User = Depends(current_active_user),
                          svc: TrackingService = Depends(get_service)):

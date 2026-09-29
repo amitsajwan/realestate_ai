@@ -29,6 +29,7 @@ def is_bot(user_agent: Optional[str]) -> bool:
 
 class TrackingService:
     def __init__(self, db, now: Callable[[], datetime] = datetime.utcnow, polish: Optional[Polish] = None):
+        self.db = db
         self.listings = db.get_collection("listings")  # READ-ONLY here (matching); owned by the listings module
         self.polish = polish
         self.profiles = db.get_collection("agent_public_profiles")
@@ -167,14 +168,8 @@ class TrackingService:
         return await self.listings.find({"agent_id": agent_id}).to_list(500)
 
     def _matches(self, contact: dict, req: Optional[dict], listings: list) -> list:
-        by_id = {l["_id"]: l for l in listings}
-        ref = by_id.get(contact.get("first_listing_id"))
-        if ref:
-            transaction = ref.get("transaction") or "sale"
-        else:
-            text = (contact.get("last_message") or contact.get("message") or "").lower()
-            transaction = "rent" if re.search(r"\b(rent|rental|kiraya|kiraye)\b", text) else "sale"
-        return matching.top_matches(req, listings, transaction, ref.get("property_type") if ref else None)
+        transaction, ref_type = matching.match_context(contact, {l["_id"]: l for l in listings})
+        return matching.top_matches(req, listings, transaction, ref_type)
 
     def _follow_up(self, c: dict) -> dict:
         due = c.get("follow_up_due_at")
@@ -238,3 +233,11 @@ class TrackingService:
     async def today(self, agent_id: str) -> dict:
         from .today import build_today
         return await build_today(self, agent_id)
+
+    async def matching_leads(self, agent_id: str, listing_id: str) -> dict:
+        from .reverse import matching_leads
+        return await matching_leads(self, agent_id, listing_id)
+
+    async def performance(self, agent_id: str) -> dict:
+        from .performance import build_performance
+        return await build_performance(self, agent_id)

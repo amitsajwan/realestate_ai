@@ -1,6 +1,7 @@
 """GET /inbox/today: the agent's daily snapshot. Owner scoped (only this agent's contacts and listings)."""
 from datetime import datetime, timedelta
 
+from .actions import build_actions
 from . import requirement as reqmod, scoring
 from .summary import CLOSED
 
@@ -66,5 +67,6 @@ async def build_today(svc, agent_id: str) -> dict:
         "follow_ups_due": len(due_rows),
         "uncontacted": sum(1 for c, _, _ in rows if c["stage"] == "new"),
     }
-    return {"counts": counts, "hot_buyers": hot_buyers, "follow_ups": follow_ups,
+    actions = await build_actions(svc, agent_id, rows, listings, now)
+    return {"counts": counts, "hot_buyers": hot_buyers, "follow_ups": follow_ups, "actions": actions,
             "headline": _headline(counts["uncontacted"], counts["follow_ups_due"], counts["hot"])}

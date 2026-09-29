@@ -88,7 +88,7 @@ def test_today_endpoint(env):
     c, _, _ = env
     _lead(c)
     t = c.get("/inbox/today").json()
-    assert set(t) == {"counts", "hot_buyers", "follow_ups", "headline"}
+    assert set(t) == {"counts", "hot_buyers", "follow_ups", "actions", "headline"}
     assert set(t["counts"]) == {"new_enquiries_24h", "hot", "site_visits", "follow_ups_due", "uncontacted"}
     assert t["counts"]["uncontacted"] == 1 and t["headline"] == "1 buyer hasn't been contacted today."
 
