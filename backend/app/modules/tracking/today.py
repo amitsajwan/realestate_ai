@@ -1,5 +1,5 @@
 """GET /inbox/today: the agent's daily snapshot. Owner scoped (only this agent's contacts and listings)."""
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from . import requirement as reqmod, scoring
 from .summary import CLOSED
@@ -17,9 +17,18 @@ def _headline(uncontacted: int, due: int, hot: int) -> str:
     return "You're all caught up."
 
 
+IST = timedelta(hours=5, minutes=30)
+
+
+def end_of_ist_day(now_utc: datetime) -> datetime:
+    """End of the agent's current day (India time) as a naive UTC datetime; stored times are naive UTC."""
+    ist = now_utc + IST
+    return ist.replace(hour=23, minute=59, second=59, microsecond=999999) - IST
+
+
 async def build_today(svc, agent_id: str) -> dict:
     now = svc.now()
-    end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+    end_of_day = end_of_ist_day(now)
     contacts = await svc.contacts.find({"agent_id": agent_id}).to_list(2000)
     listings = await svc._agent_listings(agent_id)
     rows = []

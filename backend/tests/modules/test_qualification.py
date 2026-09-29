@@ -373,3 +373,12 @@ async def test_owner_isolation_for_all_new_reads_and_writes():
     t = await svc.today("A2")
     assert t["counts"] == {"new_enquiries_24h": 0, "hot": 0, "site_visits": 0, "follow_ups_due": 0, "uncontacted": 0}
     assert (await svc.lead_detail("A1", lid))["follow_up"]["due_at"] is None
+
+
+def test_end_of_day_is_the_indian_day_not_the_utc_day():
+    """Regression: 20:00 UTC on 1 Jan is 01:30 IST on 2 Jan, so 'today' runs until 18:29:59 UTC on 2 Jan."""
+    from datetime import datetime
+    from app.modules.tracking.today import end_of_ist_day
+
+    assert end_of_ist_day(datetime(2026, 1, 1, 20, 0)) == datetime(2026, 1, 2, 18, 29, 59, 999999)
+    assert end_of_ist_day(datetime(2026, 1, 1, 3, 0)) == datetime(2026, 1, 1, 18, 29, 59, 999999)  # 08:30 IST
