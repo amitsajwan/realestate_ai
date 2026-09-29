@@ -39,6 +39,8 @@ from app.routers.agents import router as agents_router
 from app.routers.crm import router as crm_router
 from app.modules.onboarding.router import router as join_router
 from app.modules.tracking.router import public_router as track_public_router, inbox_router
+from app.modules.listings.router import router as listings_router, public_router as listings_public_router
+from app.modules.ai_listing.router import router as ai_listing_router
 
 # Create main API router
 api_router = APIRouter()
@@ -79,6 +81,9 @@ api_router.include_router(stats_router, prefix="/stats", tags=["stats"])
 api_router.include_router(join_router, prefix="/join", tags=["join"])
 api_router.include_router(track_public_router, prefix="/t", tags=["tracking"])
 api_router.include_router(inbox_router, prefix="/inbox", tags=["lead-inbox"])
+api_router.include_router(ai_listing_router, prefix="/listings", tags=["listings-ai"])
+api_router.include_router(listings_router, prefix="/listings", tags=["listings"])
+api_router.include_router(listings_public_router, prefix="/public", tags=["public"])
 
 # Health check for API v1
 @api_router.get("/health")
