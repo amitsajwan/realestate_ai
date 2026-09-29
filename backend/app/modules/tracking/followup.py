@@ -41,6 +41,26 @@ T = {
 SOON = ("now", "1_3_months")
 
 
+def listing_label(listing: Optional[dict]) -> Optional[str]:
+    """Short, natural way to refer to a listing in a message: 'the 2 BHK in Baner' (never the full title)."""
+    if not listing:
+        return None
+    bhk, loc = listing.get("bhk"), listing.get("locality")
+    if bhk and loc:
+        return f"the {bhk_text(bhk)} in {loc}"
+    return listing.get("title")
+
+
+def fits_budget(price: Optional[int], req: Optional[dict]) -> bool:
+    """True only when the price is inside the buyer's stated budget (unknown budget counts as unknown, not a fit)."""
+    if not isinstance(price, int) or not req:
+        return False
+    lo, hi = req.get("budget_min_inr"), req.get("budget_max_inr")
+    if lo is None and hi is None:
+        return False
+    return (lo is None or price >= lo) and (hi is None or price <= hi)
+
+
 def whatsapp_url(phone: str, message: str) -> str:
     digits = re.sub(r"\D", "", phone or "")
     return f"https://wa.me/{digits}?text={quote(message, safe='')}"
@@ -77,12 +97,13 @@ def build_draft(contact: dict, req: Optional[dict], listing_title: Optional[str]
         parts.append(t["budget"].format(budget=b, what=what if lang == "en" else ""))
         protected.append(b)
         based.append(f"Budget {b}")
-    if match:
+    # Only suggest another property when it genuinely fits the stated budget: never claim more than the facts show.
+    if match and fits_budget(match.get("price_inr"), req):
         price = fmt_inr(match["price_inr"]) if isinstance(match.get("price_inr"), int) else ""
         parts.append(t["match"].format(match=match["title"], price=price, loc=match.get("locality") or ""))
         protected += [match["title"], price]
-        why = f"New listing in {match['locality']}" if match.get("locality") else "Matching listing"
-        based.append(why + (" within budget" if b else ""))
+        why = f"Another listing in {match['locality']}" if match.get("locality") else "Another matching listing"
+        based.append(why + " within budget")
     parts.append(t["visit"] if req.get("timeline") in SOON or contact["stage"] == "site_visit" else t["more"])
     if req.get("timeline") in SOON:
         based.append("Wants to buy soon")

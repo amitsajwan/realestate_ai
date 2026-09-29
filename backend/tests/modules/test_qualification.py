@@ -227,12 +227,12 @@ async def test_draft_uses_real_facts_and_wa_url():
     out = await svc.followup_draft("A1", lid)
     msg = out["message"]
     assert out["language"] == "en"
-    assert msg.startswith("Hi Amit,") and "2BHK in Baner" in msg
+    assert msg.startswith("Hi Amit,") and "the 2 BHK in Baner" in msg  # short label, not the full listing title
     assert "80L-90L" in msg and "2 BHK" in msg
     assert "Sunny 2BHK Baner Road" in msg and "82L" in msg  # a different matching listing, real price
     assert "site visit" in msg  # timeline now
     assert "No reply for 2 days" in out["based_on"] and "Budget 80L-90L" in out["based_on"]
-    assert "New listing in Baner within budget" in out["based_on"]
+    assert "Another listing in Baner within budget" in out["based_on"]
     u = urlparse(out["whatsapp_url"])
     assert u.netloc == "wa.me" and u.path == "/919876543210"
     assert unquote(parse_qs(u.query)["text"][0]) == msg
@@ -382,3 +382,15 @@ def test_end_of_day_is_the_indian_day_not_the_utc_day():
 
     assert end_of_ist_day(datetime(2026, 1, 1, 20, 0)) == datetime(2026, 1, 2, 18, 29, 59, 999999)
     assert end_of_ist_day(datetime(2026, 1, 1, 3, 0)) == datetime(2026, 1, 1, 18, 29, 59, 999999)  # 08:30 IST
+
+
+async def test_draft_never_suggests_or_claims_a_listing_over_budget():
+    """Regression (found in the browser tour): a 1.25 Cr flat was described as 'within budget' for an 80L-1.2Cr buyer."""
+    svc, db, clock = await make()
+    await db.get_collection("listings").insert_one(
+        {"_id": "L9", "id": "L9", "agent_id": "A1", "status": "live", "transaction": "sale", "property_type": "apartment",
+         "title": "Big 2BHK Wakad", "price_inr": 12_500_000, "city": "Pune", "locality": "Wakad", "bhk": 2})
+    lid = await _hot_lead(svc, clock)  # budget 80L-90L
+    out = await svc.followup_draft("A1", lid)
+    assert "Big 2BHK Wakad" not in out["message"] and "1.25Cr" not in out["message"]
+    assert not any("Wakad" in r for r in out["based_on"])  # the over-budget flat is not offered as a fit

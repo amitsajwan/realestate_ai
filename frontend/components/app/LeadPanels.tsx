@@ -226,7 +226,7 @@ export function DraftPanel({ leadId, phone }: { leadId: string; phone: string })
           <label className="block text-sm font-medium text-gray-700" htmlFor="draft-text">
             {t('yourMessage')}
           </label>
-          <textarea id="draft-text" className={`${inputCls} min-h-[140px] py-3`} value={text} onChange={(e) => setText(e.target.value)} />
+          <textarea id="draft-text" rows={7} className={`${inputCls} !min-h-[160px] py-3`} value={text} onChange={(e) => setText(e.target.value)} />
           {draft.language !== lang && <p className="text-xs text-amber-800">{t('langFallback')}</p>}
           {draft.based_on.length > 0 && (
             <div>

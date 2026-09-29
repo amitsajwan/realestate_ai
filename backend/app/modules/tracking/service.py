@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import Callable, Optional
 
 from . import matching, requirement as reqmod, scoring, summary
-from .followup import Polish, build_draft, polish_safely, whatsapp_url
+from .followup import Polish, build_draft, listing_label, polish_safely, whatsapp_url
 from .schemas import DraftIn, EventIn, InquiryIn, StageUpdate
 
 logger = logging.getLogger(__name__)
@@ -229,7 +229,7 @@ class TrackingService:
         req = reqmod.public(contact.get("requirement"))
         first = next((l for l in listings if l["_id"] == contact.get("first_listing_id")), None)
         others = [m for m in self._matches(contact, req, listings) if m["listing_id"] != contact.get("first_listing_id")]
-        draft = build_draft(contact, req, first.get("title") if first else None, others[0] if others else None,
+        draft = build_draft(contact, req, listing_label(first), others[0] if others else None,
                             (body.language if body else "en"), self.now())
         message = await polish_safely(draft, self.polish)
         return {"message": message, "whatsapp_url": whatsapp_url(contact["phone"], message),
