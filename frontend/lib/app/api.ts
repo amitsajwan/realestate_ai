@@ -11,6 +11,8 @@ import type {
   MarketingPack,
   MatchingLeads,
   PerformanceItem,
+  Publication,
+  SocialStatus,
   Lead,
   LeadDetail,
   Listing,
@@ -186,5 +188,17 @@ export function createApiClient(opts: ClientOptions): AppApi {
     getMarketingPack: (listingId) => request<MarketingPack>(`/listings/${listingId}/marketing`),
     getMatchingLeads: (listingId) => request<MatchingLeads>(`/inbox/matching-leads${qs({ listing_id: listingId })}`),
     getPerformance: async () => (await request<{ items: PerformanceItem[] }>('/inbox/performance')).items ?? [],
+
+    getSocialStatus: () => request<SocialStatus>('/social/status'),
+    publishToSocial: async (listingId, req) =>
+      (
+        await request<{ publications: Publication[] }>(`/social/listings/${listingId}/publish`, {
+          method: 'POST',
+          json: { channels: req.channels, approve: req.approve, consent: req.consent, force: req.force ?? false },
+        })
+      ).publications ?? [],
+    listPublications: async (listingId) =>
+      (await request<{ items: Publication[] }>(`/social/listings/${listingId}/publications`)).items ?? [],
+    retryPublication: (id) => request<Publication>(`/social/publications/${id}/retry`, { method: 'POST' }),
   }
 }

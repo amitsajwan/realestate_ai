@@ -8,6 +8,7 @@ import { formatInr, parseInr } from './format'
 import { budgetRange, buildWhatsappUrl } from './leads'
 import { actionsFor, buildFixturePack, matchingFor, performanceFor } from './fixtures-marketing'
 import { nextOutcome, resultsFor } from './fixtures-outcomes'
+import { buildPublications, FIXTURE_SOCIAL_STATUS } from './fixtures-social'
 import { outcomePatchError } from './outcomes'
 import type {
   AIDraft,
@@ -26,6 +27,7 @@ import type {
   MarketingPack,
   MatchingLeads,
   NextAction,
+  Publication,
   Requirement,
   SiteCreateInput,
   Stage,
@@ -42,9 +44,11 @@ interface State {
   site: { slug: string; name: string } | null
   seq: number
   packs: Record<string, MarketingPack>
+  publications?: Publication[]
 }
 
-const KEY = 'app_fixture_state_v4'
+export const FIXTURE_STATE_KEY = 'app_fixture_state_v5'
+const KEY = FIXTURE_STATE_KEY
 const FIXTURE_OTP = '123456'
 export const FIXTURE_TOKEN = 'fixture-token'
 
@@ -549,6 +553,46 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
     async getPerformance() {
       const st = load()
       return performanceFor(st.listings, st.leads)
+    },
+
+    async getSocialStatus() {
+      return JSON.parse(JSON.stringify(FIXTURE_SOCIAL_STATUS))
+    },
+    async publishToSocial(listingId, req) {
+      const st = load()
+      const l = find(listingId)
+      if (!req.approve || !req.consent) throw fixtureError(422, 'Approval and consent are required')
+      if (l.status !== 'live' && l.status !== 'under_offer') throw fixtureError(409, 'Only live listings can be posted')
+      const pack = st.packs?.[listingId]
+      if (!pack) throw fixtureError(409, 'Create the marketing pack first')
+      st.publications = st.publications ?? []
+      const done = st.publications.filter(
+        (p) => p.listing_id === listingId && p.pack_version === pack.version && (p.status === 'published' || p.status === 'dry_run'),
+      )
+      if (!req.force && req.channels.some((c) => done.some((p) => p.channel === c))) {
+        throw fixtureError(409, 'Already posted for this version. Send force to post again')
+      }
+      const created = buildPublications(pack, 'fixture-agent', req, () => nextId('pub'), new Date().toISOString())
+      st.publications = [...[...created].reverse(), ...st.publications] // newest first
+      save()
+      return JSON.parse(JSON.stringify(created))
+    },
+    async listPublications(listingId) {
+      find(listingId)
+      const items = (load().publications ?? []).filter((p) => p.listing_id === listingId)
+      return JSON.parse(JSON.stringify(items))
+    },
+    async retryPublication(id) {
+      const st = load()
+      const p = (st.publications ?? []).find((x) => x.id === id)
+      if (!p) throw fixtureError(404, 'Publication not found')
+      if (p.status !== 'failed') throw fixtureError(409, 'Only failed posts can be retried')
+      p.status = 'dry_run'
+      p.error = null
+      p.attempts += 1
+      p.updated_at = new Date().toISOString()
+      save()
+      return JSON.parse(JSON.stringify(p))
     },
   }
 }

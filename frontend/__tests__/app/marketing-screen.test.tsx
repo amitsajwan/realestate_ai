@@ -14,6 +14,8 @@ const getMarketingPack = jest.fn()
 const getMatchingLeads = jest.fn()
 const getToday = jest.fn()
 const listLeads = jest.fn()
+const getSocialStatus = jest.fn()
+const listPublications = jest.fn()
 jest.mock('@/lib/app/client', () => ({
   api: {
     createMarketingPack: (...a: unknown[]) => createMarketingPack(...a),
@@ -21,6 +23,8 @@ jest.mock('@/lib/app/client', () => ({
     getMatchingLeads: (...a: unknown[]) => getMatchingLeads(...a),
     getToday: (...a: unknown[]) => getToday(...a),
     listLeads: (...a: unknown[]) => listLeads(...a),
+    getSocialStatus: (...a: unknown[]) => getSocialStatus(...a),
+    listPublications: (...a: unknown[]) => listPublications(...a),
   },
   errorMessage: (e: Error) => e.message,
   isFixtureMode: () => false,
@@ -34,7 +38,9 @@ let clipboard: jest.Mock
 const nav = navigator as unknown as Record<string, unknown>
 
 beforeEach(() => {
-  ;[createMarketingPack, getMarketingPack, getMatchingLeads, getToday, listLeads].forEach((m) => m.mockReset())
+  ;[createMarketingPack, getMarketingPack, getMatchingLeads, getToday, listLeads, getSocialStatus, listPublications].forEach((m) => m.mockReset())
+  getSocialStatus.mockResolvedValue({ dry_run: true, channels: { facebook_page: true, instagram: true }, brand: 'PUNE Property', media_url_ok: false })
+  listPublications.mockResolvedValue([])
   clipboard = jest.fn().mockResolvedValue(undefined)
   Object.defineProperty(navigator, 'clipboard', { value: { writeText: clipboard }, configurable: true })
   delete nav.share
