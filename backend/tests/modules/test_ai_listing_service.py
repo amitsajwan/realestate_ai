@@ -181,6 +181,41 @@ async def test_gemini_transcriber_retries_once_when_the_model_is_busy():
     assert await GeminiTranscriber("k", client=client).transcribe(b"a", "n.webm", "audio/webm") == "ok" and len(calls) == 2
 
 
+@pytest.mark.parametrize("reply", ["NO_SPEECH", " no_speech. ", "[NO_SPEECH]"])
+async def test_gemini_silence_marker_becomes_empty_transcript(reply):
+    import httpx
+    from app.modules.ai_listing.llm import GeminiTranscriber
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(
+        lambda r: httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": reply}]}}]})))
+    assert await GeminiTranscriber("k", client=client).transcribe(b"a", "n.webm", "audio/webm") == ""
+
+
+async def test_silent_recording_never_invents_a_listing():
+    import httpx
+    from app.modules.ai_listing.llm import GeminiTranscriber
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(
+        lambda r: httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "NO_SPEECH"}]}}]})))
+    res = await AIListingService(transcriber=GeminiTranscriber("k", client=client)).create_draft(
+        audio=AudioInput(b"a", "n.webm", "audio/webm"))
+    assert res.draft == {} and res.transcript == "" and any("No speech" in w for w in res.warnings)
+
+
+async def test_text_llm_retries_once_when_busy():
+    import httpx
+
+    calls = []
+
+    def handler(request):
+        calls.append(1)
+        if len(calls) == 1:
+            return httpx.Response(503, json={"error": "busy"})
+        return httpx.Response(200, json={"choices": [{"message": {"content": '{"bhk": 3}'}}]})
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    assert await GroqLLM("k", client=client).extract("3 bhk") == {"bhk": 3} and len(calls) == 2
+
+
 def test_provider_switch(monkeypatch):
     from app.modules.ai_listing.llm import GeminiTranscriber, GroqTranscriber, default_transcriber
 

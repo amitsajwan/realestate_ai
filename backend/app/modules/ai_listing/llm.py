@@ -76,16 +76,22 @@ class GroqLLM:
                 "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
         headers = {"Authorization": f"Bearer {self.api_key}"}
         try:
-            if self._client:
-                r = await self._client.post(GROQ_CHAT_URL, json=body, headers=headers, timeout=self.timeout)
-            else:
-                async with httpx.AsyncClient(timeout=self.timeout) as c:
-                    r = await c.post(GROQ_CHAT_URL, json=body, headers=headers)
+            for attempt in (1, 2):  # a busy provider answers 429/500/503: one more try before the caller falls back
+                if self._client:
+                    r = await self._client.post(GROQ_CHAT_URL, json=body, headers=headers, timeout=self.timeout)
+                else:
+                    async with httpx.AsyncClient(timeout=self.timeout) as c:
+                        r = await c.post(GROQ_CHAT_URL, json=body, headers=headers)
+                if r.status_code in (429, 500, 503) and attempt == 1:
+                    await asyncio.sleep(1.0)
+                    continue
+                break
             r.raise_for_status()
             data = json.loads(r.json()["choices"][0]["message"]["content"])
             return data if isinstance(data, dict) else None
         except Exception as e:  # timeout, HTTP, bad JSON: caller falls back silently
-            log.info("ai_listing LLM call failed: %s", type(e).__name__)
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            log.info("ai_listing LLM call failed: %s%s", type(e).__name__, f" (HTTP {status})" if status else "")
             return None
 
     async def extract(self, text: str, city_hint: Optional[str] = None) -> Optional[dict[str, Any]]:
@@ -123,10 +129,13 @@ class GroqTranscriber:
 
 
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+NO_SPEECH = "NO_SPEECH"
 _GEMINI_STT_PROMPT = (
-    "Transcribe this voice note exactly as spoken. The speaker is an Indian property agent and may use Hindi, Marathi, "
-    "English or a mix. Write Hindi and Marathi in Devanagari and English in Latin letters, and write every number as digits. "
-    "Output ONLY the transcript, with no commentary, labels or translation. If there is no speech, output nothing."
+    "Transcribe this voice note exactly as spoken. The speaker is Indian and may use Hindi, Marathi, English or a mix. "
+    "Write Hindi and Marathi in Devanagari and English in Latin letters, and write every number as digits. "
+    "Output ONLY the words actually spoken, with no commentary, labels or translation. "
+    f"If there is no clearly audible speech (silence, background noise, music, unintelligible sound), output exactly {NO_SPEECH} "
+    "and nothing else. Never guess, invent or complete words that are not clearly spoken."
 )
 
 
@@ -164,7 +173,8 @@ class GeminiTranscriber:
                 break
             r.raise_for_status()
             parts = (r.json().get("candidates") or [{}])[0].get("content", {}).get("parts") or []
-            return "".join(p.get("text", "") for p in parts).strip()
+            text = "".join(p.get("text", "") for p in parts).strip()
+            return "" if text.strip(" .[]*_`\n").upper() == NO_SPEECH else text
         except Exception as e:
             raise TranscriptionError(f"transcription failed ({type(e).__name__})") from e
 
