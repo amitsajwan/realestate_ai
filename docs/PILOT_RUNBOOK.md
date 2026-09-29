@@ -52,7 +52,7 @@ Only TRACKED files are shipped (no .env, no node_modules, no uploads). The VM's 
 ## Invite an agent (on the VM)
 ```
 gcloud compute ssh pune-property --zone asia-south1-a --project trader-502012
-cd realestate_ai/deploy/gcp
+cd app/deploy/gcp
 sudo docker compose exec -T -e PYTHONPATH=. backend python scripts/invite.py issue 98765 43210 --label "Rahul, Baner"
 sudo docker compose exec -T -e PYTHONPATH=. backend python scripts/invite.py revoke 9876543210
 sudo docker compose exec -T -e PYTHONPATH=. backend python scripts/invite_requests.py list          # people who asked for an invite on /request-invite
