@@ -14,9 +14,28 @@ def _match(doc, flt):
                     return False
                 if op == "$gt" and not (val is not None and val > arg):
                     return False
+        elif isinstance(val, list) and not isinstance(cond, list):
+            if cond not in val:  # Mongo array-membership semantics
+                return False
         elif val != cond:
             return False
     return True
+
+
+class _Cursor:
+    def __init__(self, docs):
+        self.docs = docs
+
+    def sort(self, field, direction=1):
+        self.docs.sort(key=lambda d: d[field], reverse=direction < 0)
+        return self
+
+    def limit(self, n):
+        self.docs = self.docs[:n]
+        return self
+
+    async def to_list(self, length=None):
+        return [copy.deepcopy(d) for d in self.docs]
 
 
 class FakeCollection:
@@ -39,14 +58,31 @@ class FakeCollection:
     async def count_documents(self, flt=None):
         return sum(1 for d in self.docs if _match(d, flt or {}))
 
+    def find(self, flt=None):
+        return _Cursor([d for d in self.docs if _match(d, flt or {})])
+
+    @staticmethod
+    def _apply(d, update):
+        for k, v in update.get("$set", {}).items():
+            d[k] = v
+        for k, v in update.get("$inc", {}).items():
+            d[k] = d.get(k, 0) + v
+        for k, v in update.get("$addToSet", {}).items():
+            if v not in d.setdefault(k, []):
+                d[k].append(v)
+        for k, v in update.get("$push", {}).items():
+            d.setdefault(k, []).append(v)
+
     async def update_one(self, flt, update):
         for d in self.docs:
             if _match(d, flt):
-                for k, v in update.get("$set", {}).items():
-                    d[k] = v
-                for k, v in update.get("$inc", {}).items():
-                    d[k] = d.get(k, 0) + v
+                self._apply(d, update)
                 return
+
+    async def update_many(self, flt, update):
+        for d in self.docs:
+            if _match(d, flt):
+                self._apply(d, update)
 
 
 class FakeDb:
