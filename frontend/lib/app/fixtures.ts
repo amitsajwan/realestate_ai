@@ -4,16 +4,24 @@
  * when the API is unreachable (see client.ts).
  */
 import { ApiError } from './api'
-import { parseInr } from './format'
+import { formatInr, parseInr } from './format'
+import { budgetRange, buildWhatsappUrl } from './leads'
 import type {
   AIDraft,
   AIDraftRequest,
   AppApi,
+  BusinessToday,
+  DraftLanguage,
+  FollowupDraft,
   Lead,
   LeadDetail,
+  LeadMatch,
+  LeadPatch,
   Listing,
   ListingInput,
   ListingStatus,
+  NextAction,
+  Requirement,
   SiteCreateInput,
   Stage,
 } from './types'
@@ -30,7 +38,7 @@ interface State {
   seq: number
 }
 
-const KEY = 'app_fixture_state_v1'
+const KEY = 'app_fixture_state_v2'
 const FIXTURE_OTP = '123456'
 export const FIXTURE_TOKEN = 'fixture-token'
 
@@ -50,6 +58,115 @@ const svgPlaceholder = (label: string) =>
 function ago(hours: number): string {
   return new Date(Date.now() - hours * 3_600_000).toISOString()
 }
+const ahead = (hours: number) => ago(-hours)
+
+const TIMELINE_TEXT: Record<string, string> = { now: 'right away', '1_3_months': 'within 1-3 months', '3_6_months': 'within 3-6 months', exploring: 'just exploring' }
+const FIN_TEXT: Record<string, string> = { home_loan: 'on a home loan', own_funds: 'with own funds', undecided: '' }
+const TIMELINE_SHORT: Record<string, string> = { now: 'Now', '1_3_months': '1-3 months', '3_6_months': '3-6 months', exploring: 'Just looking' }
+
+const req = (over: Partial<Requirement>): Requirement => ({
+  bhk: null, budget_min_inr: null, budget_max_inr: null, timeline: null, financing: null, localities: [], source: 'stated', ...over,
+})
+
+export function requirementLine(r?: Requirement | null): string | null {
+  if (!r) return null
+  const parts = [
+    r.bhk ? `${r.bhk} BHK` : '',
+    budgetRange(r.budget_min_inr, r.budget_max_inr).replace(/₹| /g, ''),
+    r.localities.join(', '),
+    r.timeline ? TIMELINE_SHORT[r.timeline] : '',
+  ].filter(Boolean)
+  return parts.length ? parts.join(' · ') : null
+}
+
+/** Transparent rule score (same idea as the backend): type 10, BHK 25, budget 40 (+10% = half), locality 25. */
+export function scoreMatch(r: Requirement, l: Listing): LeadMatch {
+  let pct = 10
+  const reasons: string[] = ['Property type fits']
+  if (r.bhk && l.bhk === r.bhk) { pct += 25; reasons.push(`${l.bhk} BHK as wanted`) }
+  else if (!r.bhk) pct += 12
+  const lo = r.budget_min_inr ?? 0
+  const hi = r.budget_max_inr
+  if (hi == null && !lo) pct += 20
+  else if (l.price_inr >= lo && (hi == null || l.price_inr <= hi)) { pct += 40; reasons.push('Inside budget') }
+  else if (hi != null && l.price_inr <= hi * 1.1) { pct += 20; reasons.push('Slightly above budget') }
+  if (r.localities.length === 0) pct += 10
+  else if (r.localities.some((x) => x.toLowerCase() === l.locality.toLowerCase())) { pct += 25; reasons.push(`In ${l.locality}`) }
+  return { listing_id: l.id, title: l.title, price_inr: l.price_inr, locality: l.locality, match_pct: Math.min(100, pct), reasons }
+}
+
+function isOpen(l: LeadDetail) { return l.stage !== 'won' && l.stage !== 'lost' }
+function endOfToday() { const d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime() }
+
+function computeMatches(l: LeadDetail, listings: Listing[]): LeadMatch[] {
+  if (!l.requirement) return []
+  return listings
+    .filter((x) => x.status === 'live')
+    .map((x) => scoreMatch(l.requirement!, x))
+    .filter((m) => m.match_pct >= 50)
+    .sort((a, b) => b.match_pct - a.match_pct)
+    .slice(0, 3)
+}
+
+function computeNextAction(l: LeadDetail): NextAction {
+  const ageH = (Date.now() - new Date(l.created_at).getTime()) / 3_600_000
+  if (l.stage === 'site_visit') return { type: 'follow_up', reason: 'Confirm the visit' }
+  if (l.temperature === 'hot') return { type: 'schedule_visit', reason: 'Very interested, book a site visit' }
+  if (l.stage === 'new' && l.phone && ageH > 24) return { type: 'call', reason: 'Respond within a day' }
+  if (l.requirement?.timeline === 'now' || l.requirement?.timeline === '1_3_months') return { type: 'whatsapp', reason: 'Wants to buy soon' }
+  return { type: 'follow_up', reason: 'Keep in touch' }
+}
+
+function computeSummary(l: LeadDetail, m: LeadMatch[]): string {
+  const r = l.requirement
+  const parts: string[] = []
+  if (r) {
+    const budget = budgetRange(r.budget_min_inr, r.budget_max_inr)
+    const want = [r.bhk ? `a ${r.bhk} BHK` : 'a property', budget && `around ${budget}`, r.localities.length ? `in ${r.localities.join(', ')}` : '', r.timeline ? TIMELINE_TEXT[r.timeline] : '', r.financing ? FIN_TEXT[r.financing] : ''].filter(Boolean)
+    parts.push(`Wants ${want.join(' ')}.`)
+  } else {
+    parts.push('Has not said what they want yet.')
+  }
+  const views = l.timeline.filter((e) => e.type === 'listing_view').length
+  if (views) parts.push(`Viewed your listings ${views} time${views > 1 ? 's' : ''}.`)
+  if (l.timeline.some((e) => e.type === 'whatsapp_click')) parts.push('Tapped WhatsApp.')
+  if (m[0]) parts.push(`${m[0].title} is a ${m[0].match_pct}% match.`)
+  return parts.join(' ')
+}
+
+function enrich(l: LeadDetail, listings: Listing[]): LeadDetail {
+  const matches = computeMatches(l, listings)
+  const due = l.follow_up?.due_at ?? null
+  return {
+    ...l,
+    requirement_line: requirementLine(l.requirement),
+    ai_summary: computeSummary(l, matches),
+    next_action: computeNextAction(l),
+    matches,
+    follow_up: { due_at: due, overdue: !!due && new Date(due).getTime() < Date.now() && isOpen(l) },
+  }
+}
+
+const firstName = (n: string) => n.split(' ')[0]
+
+/** Deterministic follow-up text. Hindi has a small template; Marathi falls back to English (as the contract allows). */
+export function draftFor(l: LeadDetail, matches: LeadMatch[], language: DraftLanguage, listingTitle?: string): FollowupDraft {
+  const based: string[] = []
+  const days = Math.floor((Date.now() - new Date(l.last_activity_at).getTime()) / 86_400_000)
+  if (days >= 1) based.push(`No reply for ${days} day${days > 1 ? 's' : ''}`)
+  const budget = budgetRange(l.requirement?.budget_min_inr, l.requirement?.budget_max_inr)
+  if (budget) based.push(`Budget ${budget.replace(/₹| /g, '')}`)
+  const top = matches[0]
+  if (top) based.push(`${top.title} matches ${top.match_pct}%`)
+  if (listingTitle) based.push(`They enquired about ${listingTitle}`)
+  if (based.length === 0) based.push('They enquired recently')
+  const name = firstName(l.name)
+  const useHi = language === 'hi'
+  const message = useHi
+    ? `नमस्ते ${name} जी, आपने ${listingTitle ?? 'हमारी प्रॉपर्टी'} के बारे में पूछा था.${top ? ` ${top.title} (₹${formatInr(top.price_inr)}) भी आपके बजट में है.` : ''} क्या आप इस हफ्ते साइट विज़िट के लिए आ सकते हैं?`
+    : `Hi ${name}, thank you for your interest${listingTitle ? ` in ${listingTitle}` : ''}.${budget ? ` I have kept your budget of ${budget} in mind.` : ''}${top ? ` ${top.title} at ₹${formatInr(top.price_inr)} in ${top.locality} could suit you well.` : ''} Would you like to visit this week?`
+  return { message, whatsapp_url: buildWhatsappUrl(l.phone, message), language: useHi ? 'hi' : 'en', based_on: based }
+}
 
 function seed(): State {
   const base = { agent_id: 'fixture-agent', visibility: 'network' as const, amenities: ['Parking', 'Lift'] }
@@ -60,7 +177,8 @@ function seed(): State {
   })
   const lead = (id: string, over: Partial<LeadDetail>): LeadDetail => ({
     id, name: '', phone: '+919800000000', stage: 'new', source: 'whatsapp', message: null, score: 10, temperature: 'cold',
-    first_listing_id: 'l1', created_at: ago(30), last_activity_at: ago(2), notes: [], timeline: [], ...over,
+    first_listing_id: 'l1', created_at: ago(30), last_activity_at: ago(2), notes: [], timeline: [],
+    requirement: null, follow_up: { due_at: null, overdue: false }, ...over,
   })
   return {
     site: null,
@@ -70,20 +188,45 @@ function seed(): State {
         description: { en: 'Bright 2 BHK, ready possession, near Balewadi High Street.' } }),
       listing('l2', { title: '3 BHK in Wakad', locality: 'Wakad', bhk: 3, price_inr: 12_500_000, status: 'draft', published_at: null,
         description: { en: 'Spacious 3 BHK.' } }),
+      listing('l3', { title: '2 BHK near Baner Road', locality: 'Baner', bhk: 2, price_inr: 9_200_000, carpet_sqft: 910,
+        description: { en: '2 BHK with a large balcony.' } }),
+      listing('l4', { title: '3 BHK in Kharadi', locality: 'Kharadi', bhk: 3, price_inr: 14_000_000, carpet_sqft: 1150,
+        description: { en: 'Premium 3 BHK near the IT park.' } }),
+      listing('l5', { title: '1 BHK in Hinjewadi', locality: 'Hinjewadi', bhk: 1, price_inr: 4_200_000, carpet_sqft: 520,
+        description: { en: 'Compact 1 BHK for first-time buyers.' } }),
     ],
     leads: [
       lead('c1', { name: 'Rohit Deshmukh', phone: '+919822012345', score: 78, temperature: 'hot', message: 'Can I visit this Sunday?',
-        source: 'instagram', last_activity_at: ago(2), timeline: [
+        source: 'instagram', last_activity_at: ago(2), created_at: ago(2),
+        requirement: req({ bhk: 2, budget_min_inr: 8_000_000, budget_max_inr: 9_000_000, localities: ['Baner'], timeline: '1_3_months', financing: 'home_loan' }),
+        timeline: [
           { type: 'page_view', source: 'instagram', ts: ago(30) },
           { type: 'listing_view', listing_id: 'l1', source: 'instagram', ts: ago(29) },
           { type: 'whatsapp_click', listing_id: 'l1', source: 'instagram', ts: ago(3) },
           { type: 'inquiry', listing_id: 'l1', source: 'instagram', ts: ago(2) }] }),
       lead('c2', { name: 'Sneha Kulkarni', phone: '+919890123456', score: 40, temperature: 'warm', stage: 'contacted',
-        message: 'Is the price negotiable?', last_activity_at: ago(26), timeline: [
-          { type: 'listing_view', listing_id: 'l1', source: 'whatsapp', ts: ago(27) },
-          { type: 'inquiry', listing_id: 'l1', source: 'whatsapp', ts: ago(26) }] }),
+        message: 'Is the price negotiable?', last_activity_at: ago(50), first_listing_id: 'l4',
+        requirement: req({ bhk: 3, budget_min_inr: 12_000_000, budget_max_inr: 20_000_000, localities: ['Kharadi'], timeline: '3_6_months', financing: 'undecided', source: 'mixed' }),
+        follow_up: { due_at: ago(20), overdue: true },
+        timeline: [
+          { type: 'listing_view', listing_id: 'l4', source: 'whatsapp', ts: ago(52) },
+          { type: 'inquiry', listing_id: 'l4', source: 'whatsapp', ts: ago(50) }] }),
       lead('c3', { name: 'Imran Shaikh', phone: '+919767654321', score: 12, temperature: 'cold', source: 'facebook',
-        last_activity_at: ago(200), timeline: [{ type: 'page_view', source: 'facebook', ts: ago(200) }] }),
+        created_at: ago(200), last_activity_at: ago(200), timeline: [{ type: 'page_view', source: 'facebook', ts: ago(200) }] }),
+      lead('c4', { name: 'Priya Nair', phone: '+919811223344', score: 85, temperature: 'hot', stage: 'site_visit', source: 'whatsapp',
+        message: '2bhk in baner under 95 lakh, need it soon, own funds', last_activity_at: ago(6), created_at: ago(100),
+        requirement: req({ bhk: 2, budget_min_inr: 7_000_000, budget_max_inr: 9_500_000, localities: ['Baner'], timeline: 'now', financing: 'own_funds', source: 'inferred' }),
+        follow_up: { due_at: ahead(3), overdue: false },
+        timeline: [
+          { type: 'listing_view', listing_id: 'l1', source: 'whatsapp', ts: ago(90) },
+          { type: 'listing_view', listing_id: 'l3', source: 'whatsapp', ts: ago(80) },
+          { type: 'whatsapp_click', listing_id: 'l3', source: 'whatsapp', ts: ago(70) },
+          { type: 'inquiry', listing_id: 'l3', source: 'whatsapp', ts: ago(6) }] }),
+      lead('c5', { name: 'Vikram Joshi', phone: '+919922334455', score: 33, temperature: 'warm', stage: 'contacted', source: 'direct',
+        first_listing_id: 'l5', last_activity_at: ago(30), created_at: ago(120),
+        requirement: req({ bhk: 1, budget_max_inr: 5_000_000, localities: ['Hinjewadi'], timeline: 'exploring', financing: 'home_loan' }),
+        follow_up: { due_at: ahead(72), overdue: false },
+        timeline: [{ type: 'listing_view', listing_id: 'l5', source: 'direct', ts: ago(30) }] }),
     ],
   }
 }
@@ -276,22 +419,82 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
     },
 
     async listLeads(stage?: Stage) {
-      const leads: Lead[] = load().leads.filter((l) => !stage || l.stage === stage).map(({ notes, timeline, ...lead }) => lead)
+      const st = load()
+      const leads: Lead[] = st.leads
+        .filter((l) => !stage || l.stage === stage)
+        .map((l) => {
+          const { notes, timeline, requirement, follow_up, ...lead } = l
+          return { ...lead, requirement_line: requirementLine(requirement) }
+        })
       return leads.sort((a, b) => b.score - a.score)
     },
     async getLead(id) {
       const l = load().leads.find((x) => x.id === id)
       if (!l) throw fixtureError(404, 'Lead not found')
-      return { ...l }
+      return enrich(l, load().listings)
     },
-    async updateLead(id, stage, note) {
+    async updateLead(id, stageOrPatch, note) {
       const l = load().leads.find((x) => x.id === id)
       if (!l) throw fixtureError(404, 'Lead not found')
-      l.stage = stage
-      l.last_activity_at = new Date().toISOString()
-      if (note) l.notes = [...l.notes, { text: note, ts: l.last_activity_at, stage }]
+      const patch: LeadPatch = typeof stageOrPatch === 'string' ? { stage: stageOrPatch, note } : stageOrPatch
+      const now = new Date().toISOString()
+      if (patch.stage && patch.stage !== l.stage) {
+        l.stage = patch.stage
+        // Contract: moving to contacted schedules a follow-up in 2 days unless one is supplied.
+        if (patch.stage === 'contacted' && !patch.follow_up_at) l.follow_up = { due_at: ahead(48), overdue: false }
+      }
+      if (patch.follow_up_at) l.follow_up = { due_at: patch.follow_up_at, overdue: false }
+      l.last_activity_at = now
+      if (patch.note) l.notes = [...l.notes, { text: patch.note, ts: now, stage: l.stage }]
       save()
-      return { ...l }
+      return enrich(l, load().listings)
+    },
+    async getToday(): Promise<BusinessToday> {
+      const st = load()
+      const leads = st.leads.map((l) => enrich(l, st.listings))
+      const open = leads.filter(isOpen)
+      const dueBy = endOfToday()
+      const due = open.filter((l) => l.follow_up?.due_at && new Date(l.follow_up.due_at).getTime() <= dueBy)
+      const counts = {
+        new_enquiries_24h: leads.filter((l) => Date.now() - new Date(l.created_at).getTime() < 86_400_000).length,
+        hot: open.filter((l) => l.temperature === 'hot').length,
+        site_visits: leads.filter((l) => l.stage === 'site_visit').length,
+        follow_ups_due: due.length,
+        uncontacted: leads.filter((l) => l.stage === 'new').length,
+      }
+      const headline = counts.uncontacted > 0
+        ? `${counts.uncontacted} buyer${counts.uncontacted > 1 ? 's' : ''} ${counts.uncontacted > 1 ? "haven't" : "hasn't"} been contacted today.`
+        : counts.follow_ups_due > 0
+          ? `${counts.follow_ups_due} follow-up${counts.follow_ups_due > 1 ? 's are' : ' is'} due today.`
+          : "You're all caught up."
+      return {
+        counts,
+        headline,
+        hot_buyers: open
+          .filter((l) => l.temperature === 'hot')
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 5)
+          .map((l) => ({
+            id: l.id, name: l.name, phone: l.phone, score: l.score, temperature: l.temperature,
+            requirement_line: l.requirement_line ?? null,
+            top_match: l.matches?.[0] ? { title: l.matches[0].title, match_pct: l.matches[0].match_pct } : null,
+          })),
+        follow_ups: due
+          .sort((a, b) => a.follow_up!.due_at!.localeCompare(b.follow_up!.due_at!))
+          .slice(0, 10)
+          .map((l) => ({
+            id: l.id, name: l.name, phone: l.phone, due_at: l.follow_up!.due_at!, overdue: l.follow_up!.overdue,
+            reason: l.next_action?.reason ?? 'Follow up',
+          })),
+      }
+    },
+    async createFollowupDraft(id, language = 'en') {
+      const st = load()
+      const l = st.leads.find((x) => x.id === id)
+      if (!l) throw fixtureError(404, 'Lead not found')
+      const e = enrich(l, st.listings)
+      const listingTitle = st.listings.find((x) => x.id === l.first_listing_id)?.title
+      return draftFor(e, e.matches ?? [], language, listingTitle)
     },
   }
 }

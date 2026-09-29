@@ -4,6 +4,9 @@ import type {
   AIDraft,
   AIDraftRequest,
   AppApi,
+  BusinessToday,
+  FollowupDraft,
+  LeadPatch,
   Lead,
   LeadDetail,
   Listing,
@@ -163,7 +166,12 @@ export function createApiClient(opts: ClientOptions): AppApi {
 
     listLeads: async (stage?: Stage) => (await request<{ leads: Lead[] }>(`/inbox/leads${qs({ stage, limit: 200 })}`)).leads,
     getLead: (id) => request<LeadDetail>(`/inbox/leads/${id}`),
-    updateLead: (id, stage, note) =>
-      request<LeadDetail>(`/inbox/leads/${id}`, { method: 'PATCH', json: note ? { stage, note } : { stage } }),
+    updateLead: (id, stageOrPatch, note) => {
+      const patch: LeadPatch = typeof stageOrPatch === 'string' ? (note ? { stage: stageOrPatch, note } : { stage: stageOrPatch }) : stageOrPatch
+      return request<LeadDetail>(`/inbox/leads/${id}`, { method: 'PATCH', json: patch })
+    },
+    getToday: () => request<BusinessToday>('/inbox/today'),
+    createFollowupDraft: (id, language) =>
+      request<FollowupDraft>(`/inbox/leads/${id}/followup-draft`, { method: 'POST', json: language ? { language } : {} }),
   }
 }

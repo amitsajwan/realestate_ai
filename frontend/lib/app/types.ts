@@ -112,8 +112,93 @@ export interface Lead {
   score: number
   temperature: Temperature
   first_listing_id?: string | null
+  /** e.g. "2 BHK · 80L-90L · Baner · 1-3 months" (docs/contracts/qualification.md section 3). */
+  requirement_line?: string | null
   created_at: string
   last_activity_at: string
+}
+
+export type Timeline = 'now' | '1_3_months' | '3_6_months' | 'exploring'
+export type Financing = 'home_loan' | 'own_funds' | 'undecided'
+
+export interface Requirement {
+  bhk: number | null
+  budget_min_inr: number | null
+  budget_max_inr: number | null
+  timeline: Timeline | null
+  financing: Financing | null
+  localities: string[]
+  /** stated = buyer filled the fields; inferred = parsed from the message; mixed = both */
+  source: 'stated' | 'inferred' | 'mixed'
+}
+
+export type NextActionType = 'call' | 'whatsapp' | 'schedule_visit' | 'follow_up'
+export interface NextAction {
+  type: NextActionType
+  reason: string
+}
+
+export interface LeadMatch {
+  listing_id: string
+  title: string
+  price_inr: number
+  locality: string
+  match_pct: number
+  reasons: string[]
+}
+
+export interface FollowUpState {
+  due_at: string | null
+  overdue: boolean
+}
+
+/** Body of PATCH /inbox/leads/{id}. */
+export interface LeadPatch {
+  stage?: Stage
+  note?: string
+  follow_up_at?: string
+}
+
+export interface FollowupDraft {
+  message: string
+  whatsapp_url: string
+  language: string
+  based_on: string[]
+}
+
+export type DraftLanguage = 'en' | 'hi' | 'mr'
+
+export interface TodayHotBuyer {
+  id: string
+  name: string
+  phone: string
+  score: number
+  temperature: Temperature
+  requirement_line: string | null
+  top_match: { title: string; match_pct: number } | null
+}
+
+export interface TodayFollowUp {
+  id: string
+  name: string
+  phone: string
+  due_at: string
+  overdue: boolean
+  reason: string
+}
+
+/** GET /inbox/today ("Your business today"). */
+export interface BusinessToday {
+  counts: {
+    new_enquiries_24h: number
+    hot: number
+    site_visits: number
+    follow_ups_due: number
+    uncontacted: number
+  }
+  hot_buyers: TodayHotBuyer[]
+  follow_ups: TodayFollowUp[]
+  headline: string
 }
 
 export interface LeadEvent {
@@ -130,6 +215,11 @@ export interface LeadNote {
 }
 
 export interface LeadDetail extends Lead {
+  requirement?: Requirement | null
+  ai_summary?: string
+  next_action?: NextAction
+  matches?: LeadMatch[]
+  follow_up?: FollowUpState
   notes: LeadNote[]
   consent?: unknown
   timeline: LeadEvent[]
@@ -158,5 +248,8 @@ export interface AppApi {
   uploadImages(files: File[]): Promise<UploadedFile[]>
   listLeads(stage?: Stage): Promise<Lead[]>
   getLead(id: string): Promise<LeadDetail>
-  updateLead(id: string, stage: Stage, note?: string): Promise<LeadDetail>
+  /** Legacy form `updateLead(id, stage, note?)` still works; the patch form also carries follow_up_at. */
+  updateLead(id: string, stageOrPatch: Stage | LeadPatch, note?: string): Promise<LeadDetail>
+  getToday(): Promise<BusinessToday>
+  createFollowupDraft(id: string, language?: DraftLanguage): Promise<FollowupDraft>
 }
