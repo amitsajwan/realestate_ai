@@ -66,24 +66,36 @@ _TRANSLATE_SYSTEM = (
 )
 
 
+FAILOVER_STATUS = (404, 429, 500, 503)  # model retired, daily quota used up, provider error, busy: try the next model
+
+
+def model_order(spec: str) -> list[str]:
+    """'a,b,c' -> tried in that order (free tiers give every model its own daily quota); a single model gets one retry."""
+    models = [m.strip() for m in (spec or "").split(",") if m.strip()]
+    return models * 2 if len(models) == 1 else models
+
+
 class GroqLLM:
+    """OpenAI-compatible chat client (Groq, Gemini's OpenAI endpoint, OpenRouter...). `model` may be a comma-separated failover list."""
+
     def __init__(self, api_key: str, model: str = LLM_MODEL, timeout: float = LLM_TIMEOUT,
                  client: Optional[httpx.AsyncClient] = None):
         self.api_key, self.model, self.timeout, self._client = api_key, model, timeout, client
 
     async def _chat(self, system: str, user: str) -> Optional[dict[str, Any]]:
-        body = {"model": self.model, "temperature": 0, "response_format": {"type": "json_object"},
-                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+        order = model_order(self.model)
         headers = {"Authorization": f"Bearer {self.api_key}"}
         try:
-            for attempt in (1, 2):  # a busy provider answers 429/500/503: one more try before the caller falls back
+            for i, model in enumerate(order):
+                body = {"model": model, "temperature": 0, "response_format": {"type": "json_object"},
+                        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
                 if self._client:
                     r = await self._client.post(GROQ_CHAT_URL, json=body, headers=headers, timeout=self.timeout)
                 else:
                     async with httpx.AsyncClient(timeout=self.timeout) as c:
                         r = await c.post(GROQ_CHAT_URL, json=body, headers=headers)
-                if r.status_code in (429, 500, 503) and attempt == 1:
-                    await asyncio.sleep(1.0)
+                if r.status_code in FAILOVER_STATUS and i < len(order) - 1:
+                    await asyncio.sleep(1.0 if order[i + 1] == model else 0)
                     continue
                 break
             r.raise_for_status()
@@ -129,23 +141,25 @@ class GroqTranscriber:
 
 
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
-NO_SPEECH = "NO_SPEECH"
 _GEMINI_STT_PROMPT = (
-    "Transcribe this voice note exactly as spoken. The speaker is Indian and may use Hindi, Marathi, English or a mix. "
-    "Write Hindi and Marathi in Devanagari and English in Latin letters, and write every number as digits. "
-    "Output ONLY the words actually spoken, with no commentary, labels or translation. "
-    f"If there is no clearly audible speech (silence, background noise, music, unintelligible sound), output exactly {NO_SPEECH} "
-    "and nothing else. Never guess, invent or complete words that are not clearly spoken."
+    "Analyse this voice note. First decide whether a human is clearly speaking intelligible words (not silence, noise, hum or music). "
+    "If not, set speech_detected to false and transcript to an empty string. If yes, set speech_detected to true and give the exact "
+    "transcript of the words spoken. The speaker is Indian and may use Hindi, Marathi, English or a mix: write Hindi and Marathi in "
+    "Devanagari, English in Latin letters, and every number as digits. No commentary or translation. Never guess or invent words."
 )
+# Asking for a flag first is what stops the model from inventing sentences for silence (a plain "transcribe" prompt does that).
+_GEMINI_STT_SCHEMA = {"type": "OBJECT", "properties": {"speech_detected": {"type": "BOOLEAN"}, "transcript": {"type": "STRING"}},
+                      "required": ["speech_detected", "transcript"]}
 
 
 class GeminiTranscriber:
-    """Speech-to-text through Gemini's audio understanding (generateContent with inline audio). Free tier via Google AI Studio."""
+    """Speech-to-text through Gemini's audio understanding (generateContent with inline audio). Free tier via Google AI Studio.
+    `model` (or AI_GEMINI_STT_MODEL) may be a comma-separated failover list: each model has its own free daily quota."""
 
     def __init__(self, api_key: str, model: Optional[str] = None, timeout: float = STT_TIMEOUT,
                  client: Optional[httpx.AsyncClient] = None):
         self.api_key = api_key
-        self.model = model or os.environ.get("AI_GEMINI_STT_MODEL") or "gemini-2.5-flash"
+        self.model = model or os.environ.get("AI_GEMINI_STT_MODEL") or "gemini-3.5-flash"
         self.timeout, self._client = timeout, client
 
     async def transcribe(self, data: bytes, filename: str, content_type: str, language: Optional[str] = None) -> str:
@@ -157,24 +171,27 @@ class GeminiTranscriber:
             mime = "audio/mp4"
         prompt = _GEMINI_STT_PROMPT + (f" The spoken language is probably '{language}'." if language else "")
         body = {"contents": [{"parts": [{"text": prompt}, {"inline_data": {"mime_type": mime, "data": base64.b64encode(data).decode()}}]}],
-                "generationConfig": {"temperature": 0}}
-        url = f"{GEMINI_BASE_URL}/models/{self.model}:generateContent"
+                "generationConfig": {"temperature": 0, "responseMimeType": "application/json", "responseSchema": _GEMINI_STT_SCHEMA}}
         headers = {"x-goog-api-key": self.api_key}  # header, not ?key=, so the key never lands in a URL or log line
+        order = model_order(self.model)
         try:
-            for attempt in (1, 2):  # a busy model answers 429/500/503: one more try before giving up
+            for i, model in enumerate(order):
+                url = f"{GEMINI_BASE_URL}/models/{model}:generateContent"
                 if self._client:
                     r = await self._client.post(url, json=body, headers=headers, timeout=self.timeout)
                 else:
                     async with httpx.AsyncClient(timeout=self.timeout) as c:
                         r = await c.post(url, json=body, headers=headers)
-                if r.status_code in (429, 500, 503) and attempt == 1:
-                    await asyncio.sleep(1.0)
+                if r.status_code in FAILOVER_STATUS and i < len(order) - 1:
+                    await asyncio.sleep(1.0 if order[i + 1] == model else 0)
                     continue
                 break
             r.raise_for_status()
             parts = (r.json().get("candidates") or [{}])[0].get("content", {}).get("parts") or []
-            text = "".join(p.get("text", "") for p in parts).strip()
-            return "" if text.strip(" .[]*_`\n").upper() == NO_SPEECH else text
+            out = json.loads("".join(p.get("text", "") for p in parts))
+            if not (isinstance(out, dict) and out.get("speech_detected") is True):
+                return ""
+            return str(out.get("transcript") or "").strip()
         except Exception as e:
             raise TranscriptionError(f"transcription failed ({type(e).__name__})") from e
 

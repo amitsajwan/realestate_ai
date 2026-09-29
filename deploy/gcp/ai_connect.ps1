@@ -83,7 +83,7 @@ function TryAudio($m) {
   return @{ ok = $false; note = $last }
 }
 
-$pick = ""
+$passed = @()
 $audioNote = ""
 foreach ($m in $candidates) {
   Write-Host "==> Testing $m (text, then audio with 1 second of silence)" -ForegroundColor Cyan
@@ -93,10 +93,15 @@ foreach ($m in $candidates) {
   $a = TryAudio $m
   if (-not $a.ok) { Write-Host "  audio failed: $($a.note)" -ForegroundColor Yellow; $audioNote = $a.note; continue }
   Write-Host "  audio OK: Gemini accepted an audio request on your key" -ForegroundColor Green
-  $pick = $m; break
+  $passed += $m
+  if ($passed.Count -ge 3) { break }
 }
-if (-not $pick) { throw "No candidate model passed both the text and audio tests (last audio message: '$audioNote'). Nothing was changed on the server. Try again in a few minutes, or tell Claude the messages above." }
-Write-Host "Using: $pick"
+if (-not $passed) { throw "No candidate model passed both the text and audio tests (last audio message: '$audioNote'). Nothing was changed on the server. Try again in a few minutes, or tell Claude the messages above." }
+# The free tier gives every model its own small DAILY quota, so the server tries them in this order and moves on when one is used up or busy.
+# Models that did not pass today (for example quota already used) stay at the end of the list; they recover tomorrow and a retired one just fails over.
+$chain = @($passed) + @($candidates | Where-Object { $passed -notcontains $_ })
+$pick = $chain -join ","
+Write-Host "Model order on the server: $pick"
 
 Write-Host "==> Writing the settings into the VM's private .env" -ForegroundColor Cyan
 $lines = @("GEMINI_API_KEY=$key", "AI_STT_PROVIDER=gemini", "AI_GEMINI_STT_MODEL=$pick", "AI_LLM_BASE_URL=$base/openai", "AI_LLM_API_KEY=$key", "AI_LISTING_LLM_MODEL=$pick")

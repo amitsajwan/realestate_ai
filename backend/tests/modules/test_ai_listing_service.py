@@ -137,6 +137,14 @@ async def test_groq_llm_parses_json_mode_reply():
     assert await GroqLLM("k", client=client).extract("2 bhk") == {"bhk": 2}
 
 
+def _gemini_reply(speech, transcript=""):
+    import httpx
+    import json
+
+    return httpx.Response(200, json={"candidates": [{"content": {"parts": [
+        {"text": json.dumps({"speech_detected": speech, "transcript": transcript})}]}}]})
+
+
 async def test_gemini_transcriber_sends_inline_audio_and_key_header_not_url():
     import base64
     import httpx
@@ -147,13 +155,14 @@ async def test_gemini_transcriber_sends_inline_audio_and_key_header_not_url():
 
     def handler(request):
         seen["url"], seen["key"], seen["body"] = str(request.url), request.headers.get("x-goog-api-key"), json.loads(request.content)
-        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": " 2 bhk upper kharadi 85 lakh "}]}}]})
+        return _gemini_reply(True, " 2 bhk upper kharadi 85 lakh ")
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     out = await GeminiTranscriber("SECRETKEY", model="gemini-x", client=client).transcribe(b"abc", "n.webm", "audio/webm;codecs=opus", "hi")
     assert out == "2 bhk upper kharadi 85 lakh"
     assert seen["url"].endswith("/models/gemini-x:generateContent") and "SECRETKEY" not in seen["url"] and seen["key"] == "SECRETKEY"
     inline = seen["body"]["contents"][0]["parts"][1]["inline_data"]
     assert inline["mime_type"] == "audio/webm" and base64.b64decode(inline["data"]) == b"abc"
+    assert seen["body"]["generationConfig"]["responseMimeType"] == "application/json"  # flag-first reply: no invented text for silence
 
 
 async def test_gemini_transcriber_error_is_a_clean_transcription_error():
@@ -176,18 +185,41 @@ async def test_gemini_transcriber_retries_once_when_the_model_is_busy():
         calls.append(1)
         if len(calls) == 1:
             return httpx.Response(503, json={"error": "unavailable"})
-        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "ok"}]}}]})
+        return _gemini_reply(True, "ok")
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    assert await GeminiTranscriber("k", client=client).transcribe(b"a", "n.webm", "audio/webm") == "ok" and len(calls) == 2
+    assert await GeminiTranscriber("k", model="only-model", client=client).transcribe(b"a", "n.webm", "audio/webm") == "ok" and len(calls) == 2
 
 
-@pytest.mark.parametrize("reply", ["NO_SPEECH", " no_speech. ", "[NO_SPEECH]"])
-async def test_gemini_silence_marker_becomes_empty_transcript(reply):
+async def test_gemini_fails_over_to_the_next_model_when_quota_or_capacity_is_gone():
     import httpx
     from app.modules.ai_listing.llm import GeminiTranscriber
 
-    client = httpx.AsyncClient(transport=httpx.MockTransport(
-        lambda r: httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": reply}]}}]})))
+    urls = []
+
+    def handler(request):
+        urls.append(request.url.path.split("/models/")[1].split(":")[0])
+        return {"m1": httpx.Response(429, json={"error": "daily quota"}), "m2": httpx.Response(503, json={"error": "busy"}),
+                "m3": _gemini_reply(True, "3 bhk wakad")}[urls[-1]]
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    assert await GeminiTranscriber("k", model="m1, m2 ,m3", client=client).transcribe(b"a", "n.webm", "audio/webm") == "3 bhk wakad"
+    assert urls == ["m1", "m2", "m3"]
+
+
+async def test_gemini_all_models_failing_is_a_transcription_error():
+    import httpx
+    from app.modules.ai_listing.llm import GeminiTranscriber, TranscriptionError
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(429, json={"error": "quota"})))
+    with pytest.raises(TranscriptionError):
+        await GeminiTranscriber("k", model="m1,m2", client=client).transcribe(b"a", "n.webm", "audio/webm")
+
+
+@pytest.mark.parametrize("reply", [(False, ""), (False, "How are you I hope you are doing well"), (True, "")])
+async def test_gemini_no_speech_gives_empty_transcript_even_if_the_model_invented_words(reply):
+    import httpx
+    from app.modules.ai_listing.llm import GeminiTranscriber
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: _gemini_reply(*reply)))
     assert await GeminiTranscriber("k", client=client).transcribe(b"a", "n.webm", "audio/webm") == ""
 
 
@@ -195,8 +227,7 @@ async def test_silent_recording_never_invents_a_listing():
     import httpx
     from app.modules.ai_listing.llm import GeminiTranscriber
 
-    client = httpx.AsyncClient(transport=httpx.MockTransport(
-        lambda r: httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "NO_SPEECH"}]}}]})))
+    client = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: _gemini_reply(False, "1 BHK 2 BHK rent")))
     res = await AIListingService(transcriber=GeminiTranscriber("k", client=client)).create_draft(
         audio=AudioInput(b"a", "n.webm", "audio/webm"))
     assert res.draft == {} and res.transcript == "" and any("No speech" in w for w in res.warnings)
@@ -214,6 +245,22 @@ async def test_text_llm_retries_once_when_busy():
         return httpx.Response(200, json={"choices": [{"message": {"content": '{"bhk": 3}'}}]})
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     assert await GroqLLM("k", client=client).extract("3 bhk") == {"bhk": 3} and len(calls) == 2
+
+
+async def test_text_llm_fails_over_across_models():
+    import httpx
+    import json
+
+    seen = []
+
+    def handler(request):
+        seen.append(json.loads(request.content)["model"])
+        if seen[-1] != "good":
+            return httpx.Response(429, json={"error": "daily quota"})
+        return httpx.Response(200, json={"choices": [{"message": {"content": '{"bhk": 4}'}}]})
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    assert await GroqLLM("k", model="bad1,bad2,good", client=client).extract("4 bhk") == {"bhk": 4}
+    assert seen == ["bad1", "bad2", "good"]
 
 
 def test_provider_switch(monkeypatch):
