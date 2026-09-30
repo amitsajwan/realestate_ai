@@ -21,7 +21,7 @@ def admin():
 
 def test_dry_check_passes_on_the_library(admin, capsys):
     assert admin.main(["--dry-check"]) == 0
-    assert "40 posts checked, 0 problem(s)" in capsys.readouterr().out
+    assert "39 posts checked, 0 problem(s)" in capsys.readouterr().out
 
 
 def test_dry_check_fails_on_a_bad_caption(admin, monkeypatch, capsys):
@@ -54,5 +54,5 @@ async def test_seed_is_idempotent_and_skips_used_slugs(admin, monkeypatch):
 def test_preview_renders_cards_and_prints_the_schedule(admin, tmp_path, capsys):
     assert admin.main(["preview", "--out", str(tmp_path), "--start", "2026-10-06", "--weeks", "1"]) == 0
     out = capsys.readouterr().out
-    assert "rendered 80 cards" in out and "IST" in out
+    assert "rendered 78 cards" in out and "IST" in out
     assert (tmp_path / "ig" / "red-flags-in-ads.jpg").is_file() and (tmp_path / "red-flags-in-ads.jpg").is_file()

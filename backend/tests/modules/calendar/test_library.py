@@ -10,9 +10,9 @@ BANNED_WORDS = re.compile(r"\b(builders?|developers?)\b.*\b(pvt|ltd|group|realty
 PERSON_OR_PHONE = re.compile(r"\b(mr|mrs|ms|shri|smt)\.?\s+[A-Z]", re.I)
 
 
-def test_forty_posts_with_unique_slugs():
+def test_thirty_nine_posts_with_unique_slugs():
     slugs = [e.slug for e in ENTRIES]
-    assert len(slugs) == 40 and len(set(slugs)) == 40
+    assert len(slugs) == 39 and len(set(slugs)) == 39
     assert all(re.fullmatch(r"[a-z0-9-]+", s) for s in slugs)
     assert {e.pillar for e in ENTRIES} == set(PILLARS)
 

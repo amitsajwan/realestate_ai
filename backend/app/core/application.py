@@ -90,6 +90,10 @@ async def lifespan(app: FastAPI):
         # Newsroom content agent (idle unless NEWSROOM_ENABLED=true)
         from app.modules.newsroom.runner import loop as newsroom_loop
         app.state.newsroom_task = asyncio.create_task(newsroom_loop())
+
+        # Content calendar: evergreen posts for Facebook and Instagram (idle unless CALENDAR_ENABLED=true)
+        from app.modules.calendar.runner import loop as calendar_loop
+        app.state.calendar_task = asyncio.create_task(calendar_loop())
         
     except Exception as e:
         logger.error(f"❌ Failed to connect to MongoDB: {e}")
@@ -99,7 +103,7 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    for name in ("engage_task", "newsroom_task"):
+    for name in ("engage_task", "newsroom_task", "calendar_task"):
         task = getattr(app.state, name, None)
         if task:
             task.cancel()

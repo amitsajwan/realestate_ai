@@ -187,14 +187,6 @@ ENTRIES: List[Entry] = [
        "\U0001F4AC What would you like explained next: EMI, eligibility or documents?",
        (B, "#HomeLoan", "#FirstHomeBuyer", "#HomeBuyingTips", "#PuneHomes"),
        f"General lending practice, no rates, limits or ratios quoted. {GENERAL}."),
-    _e("loan-prepay-rule", "explainer", "HOME LOAN", "Part-paying a floating-rate home loan: ask about charges",
-       ["RBI: no prepayment charge on floating-rate loans to individuals", "For loans sanctioned or renewed from 1 January 2026", "Older loans follow the sanction letter",
-        "Ask your lender in writing"],
-       "\U0001F3E6 Prepaying a home loan\n\nThe RBI has directed that lenders cannot charge a prepayment or foreclosure charge on floating-rate loans given to individuals for non-business use, for loans sanctioned or renewed on or after 1 January 2026.\n\n"
-       "Older loans follow the terms in the sanction letter. Whatever your loan, ask your lender to confirm the prepayment terms in writing.\n\n"
-       "\U0001F4BE Save this before you sign a loan agreement.",
-       (B, "#HomeLoan", "#RBI", "#HomeBuyingTips", "#PuneHomes"),
-       f"Claim: no prepayment charge on floating-rate loans to individuals, sanctioned or renewed on/after 1 Jan 2026. Verified only through secondary coverage. {S_RBI}. DROP this post if it cannot be re-checked on rbi.org.in."),
     _e("registration-steps", "explainer", "REGISTRATION DAY", "Registering your agreement: the steps in order",
        ["Agreement for sale is drafted and read", "Stamp duty is paid through the official system", "Book an appointment at the sub-registrar's office",
         "Present the document within four months of signing", "Collect your registered copy and keep it safe"],
