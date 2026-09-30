@@ -24,13 +24,13 @@ class NewsroomConfig:
     enabled: bool = False
     interval_s: int = 10800
     daily_cap: int = policy.DAILY_CAP
-    sources: Tuple[str, ...] = ("google_news", "maharera")
+    sources: Tuple[str, ...] = ("publishers", "google_news", "maharera")
     owner_ids: Tuple[str, ...] = ()  # user ids allowed to review and approve; empty = superusers only
     read_articles: bool = False  # fetch the article page when a source gives only a headline and a line
 
 
 def load() -> NewsroomConfig:
-    names = tuple(s.strip() for s in _env("NEWSROOM_SOURCES", "google_news,maharera").split(",") if s.strip())
+    names = tuple(s.strip() for s in _env("NEWSROOM_SOURCES", "publishers,google_news,maharera").split(",") if s.strip())
     return NewsroomConfig(
         enabled=_env("NEWSROOM_ENABLED").lower() in TRUE,
         interval_s=max(60, _int("NEWSROOM_INTERVAL_SECONDS", 10800)),
