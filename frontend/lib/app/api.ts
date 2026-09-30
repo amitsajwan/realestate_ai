@@ -23,6 +23,7 @@ import type {
   OtpRequested,
   SiteCreateInput,
   SiteResult,
+  SiteUpdateInput,
   Stage,
   UploadedFile,
 } from './types'
@@ -142,6 +143,7 @@ export function createApiClient(opts: ClientOptions): AppApi {
     requestOtp: (phone) => request<OtpRequested>('/join/otp/request', { method: 'POST', json: { phone } }),
     verifyOtp: (phone, code) => request<LoginResult>('/join/otp/verify', { method: 'POST', json: { phone, code } }),
     createSite: (input: SiteCreateInput) => request<SiteResult>('/join/site', { method: 'POST', json: input }),
+    updateSite: (input: SiteUpdateInput) => request<unknown>('/join/site', { method: 'PATCH', json: input }),
 
     listListings: async (status?: ListingStatus) =>
       (await request<{ items: Listing[] }>(`/listings${qs({ status, limit: 100 })}`)).items,

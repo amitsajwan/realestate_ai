@@ -9,8 +9,8 @@ from app.models.user import User
 
 from .invites import InviteService
 from .otp import ConsoleOTPProvider, OTPError, OTPService
-from .schemas import LoginResult, OTPRequest, OTPRequested, OTPVerify, SiteCreate, SiteResult
-from .service import BeanieUserStore, OnboardingService
+from .schemas import LoginResult, OTPRequest, OTPRequested, OTPVerify, SiteCreate, SiteResult, SiteUpdate
+from .service import BeanieUserStore, OnboardingError, OnboardingService
 
 router = APIRouter()
 
@@ -53,3 +53,12 @@ async def verify_otp(body: OTPVerify, svc: OnboardingService = Depends(get_servi
 async def create_site(body: SiteCreate, user: User = Depends(current_active_user),
                       svc: OnboardingService = Depends(get_service)):
     return await svc.create_site(user, body)
+
+
+@router.patch("/site")
+async def update_site(body: SiteUpdate, user: User = Depends(current_active_user),
+                      svc: OnboardingService = Depends(get_service)):
+    try:
+        return await svc.update_site(user, body)
+    except OnboardingError as e:
+        raise HTTPException(status_code=e.status_code, detail=str(e))

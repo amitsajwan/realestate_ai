@@ -1,4 +1,6 @@
 'use client'
+import { compressImage } from '@/lib/app/imageCompress'
+import { EMPTY_EXTRAS, ProfileExtras, type ProfileExtrasValue } from './ProfileExtras'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
@@ -36,6 +38,7 @@ export function JoinFlow() {
   const [city, setCity] = useState('')
   const [languages, setLanguages] = useState<string[]>(['English', 'Hindi'])
   const [specialties, setSpecialties] = useState<string[]>([])
+  const [extras, setExtras] = useState<ProfileExtrasValue>(EMPTY_EXTRAS)
   const [site, setSite] = useState<SiteResult | null>(null)
 
   useEffect(() => {
@@ -91,7 +94,14 @@ export function JoinFlow() {
     setBusy(true)
     setError(null)
     try {
-      const r = await api.createSite({ name: name.trim(), city: city.trim(), languages, specialties })
+      // optional extras: upload the photo / logo first, then create the site with their URLs
+      const [photo, logo] = await Promise.all([extras.photo, extras.logo].map(async (f) => (f ? (await api.uploadImages([await compressImage(f)]))[0]?.url : undefined)))
+      const r = await api.createSite({
+        name: name.trim(), city: city.trim(), languages, specialties,
+        ...(photo ? { photo } : {}), ...(logo ? { logo } : {}),
+        ...(extras.instagram.trim() ? { instagram: extras.instagram.trim() } : {}),
+        ...(extras.facebook.trim() ? { facebook_url: extras.facebook.trim() } : {}),
+      })
       saveSiteUrl(r.site_url)
       setSite(r)
       setStep('done')
@@ -187,6 +197,7 @@ export function JoinFlow() {
             </Field>
             <ChipPicker label={t('languages')} options={LANGS} value={languages} onChange={setLanguages} />
             <ChipPicker label={t('specialties')} options={SPECIALTIES} value={specialties} onChange={setSpecialties} />
+            <ProfileExtras value={extras} onChange={setExtras} />
             {error && <ErrorBox message={error} />}
             <Btn type="submit" disabled={busy}>{busy ? t('loading') : t('createSite')}</Btn>
           </form>

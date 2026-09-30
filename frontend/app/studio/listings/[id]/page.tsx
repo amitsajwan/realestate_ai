@@ -4,11 +4,13 @@ import { useParams } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { FreshnessSection } from '@/components/app/FreshnessPrompt'
 import { cleanInput } from '@/components/app/NewListingFlow'
+import { PhotoPicker } from '@/components/app/PhotoPicker'
 import { ReviewForm } from '@/components/app/ReviewForm'
 import { ShareBar } from '@/components/app/ShareBar'
 import { Btn, ErrorBox, LinkBtn, Spinner, StatusChip } from '@/components/app/ui'
 import { ApiError } from '@/lib/app/api'
 import { api, errorMessage } from '@/lib/app/client'
+import { compressImage } from '@/lib/app/imageCompress'
 import { getSiteUrl } from '@/lib/app/session'
 import { listingLink } from '@/lib/app/share'
 import { t } from '@/lib/app/strings'
@@ -46,6 +48,7 @@ export default function ListingDetailPage() {
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [newPhotos, setNewPhotos] = useState<File[]>([])
 
   useEffect(() => {
     if (data) {
@@ -75,6 +78,13 @@ export default function ListingDetailPage() {
   }
 
   const listing = data
+
+  async function addPhotos() {
+    const uploaded = await api.uploadImages(await Promise.all(newPhotos.map((f) => compressImage(f))))
+    const media = [...listing.media, ...uploaded.map((u, i) => ({ url: u.url, kind: 'image' as const, order: listing.media.length + i }))]
+    await run(() => api.updateListing(listing.id, { media }), 'Photos added. Open "Marketing" and refresh your post to use them.')
+    setNewPhotos([])
+  }
   const link = listingLink(getSiteUrl(), listing.id)
   const shareable = listing.status === 'live' || listing.status === 'under_offer'
   const { media: _media, ...editable } = form
@@ -138,6 +148,12 @@ export default function ListingDetailPage() {
           ))}
         </div>
       )}
+
+      <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4" aria-label="Photos">
+        <p className="font-semibold">Photos {listing.media.length === 0 && <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">None yet</span>}</p>
+        <PhotoPicker files={newPhotos} onChange={setNewPhotos} />
+        {newPhotos.length > 0 && <Btn disabled={busy} onClick={addPhotos}>Add {newPhotos.length} photo{newPhotos.length > 1 ? 's' : ''}</Btn>}
+      </section>
 
       <ReviewForm value={{ ...editable, media: listing.media }} onChange={({ media, ...rest }) => setForm(rest)} missing={missing} errors={errors} />
       <Btn disabled={busy} onClick={() => run(() => api.updateListing(listing.id, cleanInput(editable)), t('save'))}>{t('save')}</Btn>

@@ -51,6 +51,12 @@ async def ai_branding(name: str, city: str) -> dict:
     return fallback
 
 
+class OnboardingError(Exception):
+    def __init__(self, message: str, status_code: int = 400):
+        super().__init__(message)
+        self.status_code = status_code
+
+
 class OnboardingService:
     def __init__(self, db, otp: OTPService, users: UserStore,
                  write_token: Callable[[object], Awaitable[str]], site_base_url: str,
@@ -99,7 +105,7 @@ class OnboardingService:
             "office_address": data.city, "specialties": data.specialties,
             "experience": "", "languages": data.languages,
             "is_active": True, "is_public": True, "view_count": 0, "contact_count": 0,
-            "branding_data": {"tagline": brand["tagline"], "colors": brand["colors"]},
+            "branding_data": {"tagline": brand["tagline"], "colors": brand["colors"], **self._social(data)},
             "site_config": {
                 "theme": brand["colors"],
                 "hero": {"headline": data.name, "subheadline": brand["tagline"]},
@@ -112,6 +118,49 @@ class OnboardingService:
         await self.profiles.insert_one(doc)
         await self.users.mark_onboarded(user, data.name)
         return self._result(doc, created=True)
+
+    @staticmethod
+    def _social(data) -> dict:
+        """Optional logo + social links kept in branding_data (which the public profile already passes through)."""
+        out = {}
+        if getattr(data, "logo", None):
+            out["logo"] = data.logo
+        social = {k: v for k, v in (("instagram", getattr(data, "instagram", None)), ("facebook", getattr(data, "facebook_url", None))) if v}
+        if social:
+            out["social"] = social
+        return out
+
+    async def update_site(self, user, data) -> dict:
+        """Change photo / logo / Instagram / Facebook on the agent's own site. Empty string clears a value; omitted fields stay."""
+        user_id = str(user.id)
+        doc = await self.profiles.find_one({"user_id": user_id})
+        if not doc:
+            raise OnboardingError("Create your site first", 404)
+        given = data.model_fields_set
+        branding = dict(doc.get("branding_data") or {})
+        social = dict(branding.get("social") or {})
+        sets: dict = {}
+        if "photo" in given:
+            sets["photo"] = data.photo or ""
+        if "logo" in given:
+            if data.logo:
+                branding["logo"] = data.logo
+            else:
+                branding.pop("logo", None)
+        for field, key in (("instagram", "instagram"), ("facebook_url", "facebook")):
+            if field in given:
+                if getattr(data, field):
+                    social[key] = getattr(data, field)
+                else:
+                    social.pop(key, None)
+        if social:
+            branding["social"] = social
+        else:
+            branding.pop("social", None)
+        sets["branding_data"] = branding
+        sets["updated_at"] = datetime.utcnow()
+        await self.profiles.update_one({"user_id": user_id}, {"$set": sets})
+        return {"slug": doc["slug"], "photo": sets.get("photo", doc.get("photo", "")), "logo": branding.get("logo"), "social": branding.get("social") or {}}
 
     def _result(self, doc: dict, created: bool) -> dict:
         return {

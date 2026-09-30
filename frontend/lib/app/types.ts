@@ -98,6 +98,16 @@ export interface SiteCreateInput {
   photo?: string
   whatsapp?: string
   preferred_slug?: string
+  instagram?: string
+  facebook_url?: string
+  logo?: string
+}
+
+export interface SiteUpdateInput {
+  photo?: string
+  logo?: string
+  instagram?: string
+  facebook_url?: string
 }
 
 export interface SiteResult {
@@ -441,6 +451,7 @@ export interface AppApi {
   requestOtp(phone: string): Promise<OtpRequested>
   verifyOtp(phone: string, code: string): Promise<LoginResult>
   createSite(input: SiteCreateInput): Promise<SiteResult>
+  updateSite(input: SiteUpdateInput): Promise<unknown>
   listListings(status?: ListingStatus): Promise<Listing[]>
   getListing(id: string): Promise<Listing>
   createListing(input: ListingInput): Promise<Listing>

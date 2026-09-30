@@ -126,6 +126,13 @@ export function NewListingFlow() {
           <p className="font-semibold">{posted.title}</p>
           <p className="text-sm text-gray-600">{t('propertyReadySub')}</p>
         </div>
+        {photos.length === 0 && (
+          <div role="note" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+            <p className="font-semibold">Add 3 photos to make this post much better</p>
+            <p className="mt-1">Listings with real photos look far better on Facebook and Instagram. It takes a minute.</p>
+            <LinkBtn variant="secondary" href={`/studio/listings/${posted.id}`}>Add photos</LinkBtn>
+          </div>
+        )}
         <MarketingScreen listingId={posted.id} autoCreate />
         <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4">
           <p className="break-all text-sm text-blue-700">{link}</p>

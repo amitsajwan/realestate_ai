@@ -173,3 +173,46 @@ def test_placeholder_email_is_valid_for_legacy_user_model():
     """Regression: '.local' addresses are rejected by email validation (found in real-Mongo e2e run)."""
     from pydantic import TypeAdapter, EmailStr
     assert TypeAdapter(EmailStr).validate_python(placeholder_email("+919876543210"))
+
+
+# ---- optional logo + social links (onboarding and later update) -------------------------------------------
+@pytest.mark.parametrize("raw,clean", [("@rahul.homes", "rahul.homes"), ("https://www.instagram.com/rahul.homes/?hl=en", "rahul.homes"),
+                                       ("rahul_homes", "rahul_homes"), ("", None), ("  ", None)])
+async def test_instagram_is_normalised(raw, clean):
+    assert SiteCreate(name="Rahul", city="Pune", instagram=raw).instagram == clean
+
+
+@pytest.mark.parametrize("raw,clean", [("facebook.com/rahulhomes", "https://www.facebook.com/rahulhomes"),
+                                       ("https://m.facebook.com/rahul.homes/", "https://www.facebook.com/rahul.homes"),
+                                       ("rahulhomes", "https://www.facebook.com/rahulhomes")])
+async def test_facebook_is_normalised_to_a_facebook_link(raw, clean):
+    assert SiteCreate(name="Rahul", city="Pune", facebook_url=raw).facebook_url == clean
+
+
+@pytest.mark.parametrize("field,bad", [("instagram", "not a handle!!"), ("instagram", "javascript:alert(1)"), ("facebook_url", "https://evil.example/x"),
+                                       ("facebook_url", "facebook.com/../x"), ("logo", "https://evil.example/logo.png"), ("logo", "/etc/passwd"),
+                                       ("photo", "http://x/uploads/images/../../secret.jpg")])
+async def test_hostile_social_or_image_values_are_rejected(field, bad):
+    with pytest.raises(ValueError):
+        SiteCreate(name="Rahul", city="Pune", **{field: bad})
+
+
+async def test_site_can_be_created_with_and_updated_to_social_links_and_logo():
+    from app.modules.onboarding.schemas import SiteUpdate
+    from app.modules.onboarding.service import OnboardingError
+
+    svc, db, _, users, _ = make()
+    user = await users.create("+919876543210")
+    await svc.create_site(user, SiteCreate(name="Rahul Sharma", city="Pune", instagram="@rahul.homes", logo="/uploads/images/logo1.png",
+                                           photo="http://x/uploads/images/me.jpg"))
+    doc = await db.get_collection("agent_public_profiles").find_one({"slug": "rahul-sharma"})
+    assert doc["branding_data"]["social"] == {"instagram": "rahul.homes"} and doc["branding_data"]["logo"] == "/uploads/images/logo1.png"
+    assert doc["photo"] == "http://x/uploads/images/me.jpg" and doc["branding_data"]["colors"]  # colours untouched
+
+    out = await svc.update_site(user, SiteUpdate(facebook_url="facebook.com/rahulhomes"))
+    assert out["social"] == {"instagram": "rahul.homes", "facebook": "https://www.facebook.com/rahulhomes"}  # omitted fields stay
+    out = await svc.update_site(user, SiteUpdate(instagram="", logo=""))  # empty string clears
+    assert out["social"] == {"facebook": "https://www.facebook.com/rahulhomes"} and out["logo"] is None
+
+    with pytest.raises(OnboardingError):
+        await svc.update_site(SimpleNamespace(id="nobody"), SiteUpdate(instagram="x"))

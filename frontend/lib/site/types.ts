@@ -40,6 +40,8 @@ export interface PublicListing {
 export interface AgentBranding {
   tagline?: string
   colors?: { primary?: string; secondary?: string; accent?: string }
+  logo?: string | null
+  social?: { instagram?: string; facebook?: string }
 }
 
 export interface AgentProfile {
