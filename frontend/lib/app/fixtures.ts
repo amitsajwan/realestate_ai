@@ -375,6 +375,7 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
     async requestOtp() { return { sent: true, dev_code: FIXTURE_OTP } },
     async updateSite() { return {} },
     async getFacebookInterest() { return [] },
+    async getChatConversations() { return [] },
     async verifyOtp(phone, code) {
       if (code !== FIXTURE_OTP) throw fixtureError(400, 'Incorrect OTP')
       const site = load().site

@@ -119,6 +119,17 @@ export interface FacebookInterest {
   permalink: string | null
 }
 
+export interface ChatConversation {
+  id: string
+  updated_at: string | null
+  needs_human: boolean
+  lead_created: boolean
+  summary: string
+  questions: string[]
+  name: string | null
+  messages: number
+}
+
 export interface SiteUpdateInput {
   photo?: string
   logo?: string
@@ -469,6 +480,7 @@ export interface AppApi {
   createSite(input: SiteCreateInput): Promise<SiteResult>
   updateSite(input: SiteUpdateInput): Promise<unknown>
   getFacebookInterest(): Promise<FacebookInterest[]>
+  getChatConversations(): Promise<ChatConversation[]>
   listListings(status?: ListingStatus): Promise<Listing[]>
   getListing(id: string): Promise<Listing>
   createListing(input: ListingInput): Promise<Listing>

@@ -2,6 +2,7 @@ import React from 'react'
 import SiteHeader from './SiteHeader'
 import SiteFooter from './SiteFooter'
 import { getMarketingConfig } from '@/lib/marketing/config'
+import ChatWidget from '@/components/site/ChatWidget'
 
 /**
  * Standalone public surface. `data-surface="v2"` keeps the legacy phone CSS (forced white button text,
@@ -13,6 +14,7 @@ export default function MarketingShell({ children, showInviteCta = true }: { chi
     <div data-surface="v2" lang="en" className="min-h-screen bg-white text-slate-900">
       <SiteHeader businessName={cfg.businessName} showInviteCta={showInviteCta} />
       {children}
+      <ChatWidget agentSlug={process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'amit-sajwan'} />
       <SiteFooter cfg={cfg} />
     </div>
   )

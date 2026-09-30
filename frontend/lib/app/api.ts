@@ -25,6 +25,7 @@ import type {
   SiteResult,
   SiteUpdateInput,
   FacebookInterest,
+  ChatConversation,
   Stage,
   UploadedFile,
 } from './types'
@@ -185,6 +186,7 @@ export function createApiClient(opts: ClientOptions): AppApi {
     },
     getToday: () => request<BusinessToday>('/inbox/today'),
     getFacebookInterest: () => request<FacebookInterest[]>('/engage/comments'),
+    getChatConversations: () => request<ChatConversation[]>('/chat/conversations'),
     createFollowupDraft: (id, language) =>
       request<FollowupDraft>(`/inbox/leads/${id}/followup-draft`, { method: 'POST', json: language ? { language } : {} }),
 

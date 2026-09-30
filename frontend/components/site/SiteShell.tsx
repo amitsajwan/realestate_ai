@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { agentPath } from '@/lib/site/slug'
 import { themeVars } from '@/lib/site/theme'
 import type { AgentProfile } from '@/lib/site/types'
+import ChatWidget from './ChatWidget'
 
 /** Server-rendered wrapper in the PUNE Property brand (navy + gold, PP logo). Theme variables come from lib/site/theme. */
 export default function SiteShell({ agent, children, bottomPad = false }: { agent: AgentProfile; children: React.ReactNode; bottomPad?: boolean }) {
@@ -23,6 +24,7 @@ export default function SiteShell({ agent, children, bottomPad = false }: { agen
         </div>
       </header>
       <div id="site-main" className={bottomPad ? 'pb-24 md:pb-0' : ''}>{children}</div>
+      <ChatWidget agentSlug={agent.slug} />
       <footer className="bg-[var(--site-secondary)] px-4 py-8 text-center text-sm text-slate-300">
         <p className="font-semibold text-white">PUNE Property</p>
         <p className="mt-1 text-[var(--site-accent)]">Find. Compare. Decide.</p>

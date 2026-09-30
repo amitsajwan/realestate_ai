@@ -44,6 +44,7 @@ from app.modules.ai_listing.router import router as ai_listing_router
 from app.modules.marketing.router import router as marketing_router
 from app.modules.social.router import router as social_router
 from app.modules.engage.router import router as engage_router
+from app.modules.chat.router import router as chat_router
 from app.modules.waitlist.router import router as waitlist_router
 
 # Create main API router
@@ -91,6 +92,7 @@ api_router.include_router(listings_router, prefix="/listings", tags=["listings"]
 api_router.include_router(marketing_router, prefix="/listings", tags=["marketing"])
 api_router.include_router(social_router, prefix="/social", tags=["social"])
 api_router.include_router(engage_router, prefix="/engage", tags=["engage"])
+api_router.include_router(chat_router, prefix="/chat", tags=["chat"])
 api_router.include_router(listings_public_router, prefix="/public", tags=["public"])
 
 # Health check for API v1

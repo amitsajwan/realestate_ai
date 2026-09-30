@@ -5,7 +5,7 @@ import { api } from '@/lib/app/client'
 import { timeAgo } from '@/lib/app/format'
 import { t } from '@/lib/app/strings'
 import { useAsync } from '@/lib/app/useAsync'
-import type { FacebookInterest } from '@/lib/app/types'
+import type { ChatConversation, FacebookInterest } from '@/lib/app/types'
 
 const CHIP: Record<string, string> = {
   interested: 'bg-green-100 text-green-800',
@@ -38,15 +38,40 @@ function Row({ c }: { c: FacebookInterest }) {
 }
 
 export default function InterestPage() {
-  const { data, error, loading } = useAsync(() => api.getFacebookInterest(), [])
+  const { data, error, loading } = useAsync(async () => ({
+    comments: await api.getFacebookInterest(),
+    chats: await api.getChatConversations().catch(() => [] as ChatConversation[]),
+  }), [])
   if (loading && !data) return <Spinner />
   if (error) return <ErrorBox message={error} />
-  const items = data ?? []
+  const items = data?.comments ?? []
+  const chats = data?.chats ?? []
   const needs = items.filter((c) => c.needs_human)
+  const chatsNeedingYou = chats.filter((c) => c.needs_human)
   return (
     <div className="space-y-4">
       <PageTitle>{t('interest')}</PageTitle>
       <p className="text-sm text-gray-600">People who commented on your posts on the PUNE Property Page. Interested people are answered automatically; questions we cannot answer wait here for you.</p>
+      {chats.length > 0 && (
+        <section aria-label="Website chats" className="space-y-2">
+          <h2 className="text-lg font-bold">Website chats{chatsNeedingYou.length > 0 && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-sm text-amber-900">{chatsNeedingYou.length} need you</span>}</h2>
+          <ul className="space-y-3">
+            {chats.map((c) => (
+              <li key={c.id} className={'space-y-1 rounded-2xl border bg-white p-4 ' + (c.needs_human ? 'border-amber-400' : 'border-gray-200')}>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold">{c.name || 'Website visitor'}</p>
+                  <span className={'rounded-full px-2.5 py-0.5 text-xs font-semibold ' + (c.lead_created ? 'bg-green-100 text-green-800' : c.needs_human ? 'bg-amber-100 text-amber-900' : 'bg-gray-100 text-gray-700')}>
+                    {c.lead_created ? 'lead saved' : c.needs_human ? 'needs you' : 'chatting'}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-700">{c.summary}</p>
+                {c.questions.length > 0 && <p className="text-sm text-gray-600">Asked: {c.questions.map((q) => `"${q}"`).join(' · ')}</p>}
+                {c.needs_human && <p className="text-sm font-semibold text-amber-900">They asked something we could not answer and have not left a number. If they come back and share it, it will appear in Leads.</p>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {items.length === 0 ? (
         <p className="rounded-2xl bg-white p-6 text-center text-gray-600">No comments yet. When someone comments INTERESTED on a post, they show up here.</p>
       ) : (
