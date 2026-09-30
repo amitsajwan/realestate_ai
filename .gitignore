@@ -130,3 +130,4 @@ Thumbs.db
 
 .nyc_output/
 backend/uploads/
+docs/brand/reel-samples/*.mp4
