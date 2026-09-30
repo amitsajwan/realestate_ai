@@ -13,10 +13,13 @@ from app.modules.newsroom.stages.check import check
 from app.modules.newsroom.stages.draft import draft
 from app.modules.newsroom.stages.extract import extract
 from app.modules.newsroom.stages.filter import assess, same_story
+from app.modules.newsroom.stages.read import RobotsCache, polite_get, read
 
 
 async def main(a) -> None:
-    now, get, llm = datetime.now(timezone.utc), adapters.make_fetcher(), adapters.default_llm()
+    now, llm = datetime.now(timezone.utc), adapters.default_llm()
+    get = adapters.make_fetcher()
+    rget, robots = polite_get(get, 2.0), RobotsCache()
     items = []
     for src in build_sources(list(load().sources)):
         got = await src.fetch(get)
@@ -37,6 +40,7 @@ async def main(a) -> None:
     for it, rel in kept:
         if shown >= a.max:
             break
+        it = await read(it, rget, robots)  # fetch the article text when the source only gave a headline
         facts = await extract(it, llm)
         if not facts:
             print(f"- {it.title[:80]}: no verifiable facts (headline only)\n")
