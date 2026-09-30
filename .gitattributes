@@ -1,0 +1,2 @@
+# Shell scripts run on Linux: keep LF even when archived from Windows
+*.sh text eol=lf
