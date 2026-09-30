@@ -16,10 +16,11 @@ const CHIP: Record<string, string> = {
 }
 
 function Row({ c }: { c: FacebookInterest }) {
+  const ig = c.channel === 'instagram'
   return (
     <li className={'space-y-2 rounded-2xl border bg-white p-4 ' + (c.needs_human ? 'border-amber-400' : 'border-gray-200')}>
       <div className="flex items-center justify-between gap-2">
-        <p className="font-semibold">{c.from_name || 'Someone'}</p>
+        <p className="font-semibold">{c.from_name || 'Someone'}{ig && <span className="ml-2 rounded-full bg-purple-100 px-2 py-0.5 text-xs font-semibold text-purple-800">Instagram</span>}</p>
         <span className={'rounded-full px-2.5 py-0.5 text-xs font-semibold ' + (CHIP[c.intent] ?? CHIP.other)}>{c.intent}</span>
       </div>
       <p className="text-gray-800">&ldquo;{c.text}&rdquo;</p>
@@ -31,7 +32,7 @@ function Row({ c }: { c: FacebookInterest }) {
       )}
       <div className="flex items-center justify-between text-sm text-gray-500">
         <span>{c.created_time ? timeAgo(c.created_time) : ''}</span>
-        {c.permalink && <a href={c.permalink} target="_blank" rel="noopener noreferrer" className="flex min-h-[44px] items-center font-semibold text-blue-700 underline">Open on Facebook</a>}
+        {c.permalink && <a href={c.permalink} target="_blank" rel="noopener noreferrer" className="flex min-h-[44px] items-center font-semibold text-blue-700 underline">{ig ? 'Open on Instagram' : 'Open on Facebook'}</a>}
       </div>
     </li>
   )
@@ -52,10 +53,10 @@ export default function InterestPage() {
   return (
     <div className="space-y-4">
       <PageTitle>{t('interest')}</PageTitle>
-      {data?.fb?.reconnect && (
+      {(data?.fb?.reconnect || data?.fb?.instagram?.reconnect) && (
         <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800">The Facebook connection has stopped working, so comments are not being answered right now. Ask your PUNE Property admin to reconnect it.</p>
       )}
-      <p className="text-sm text-gray-600">People who commented on your posts on the PUNE Property Page. Interested people are answered automatically; questions we cannot answer wait here for you.</p>
+      <p className="text-sm text-gray-600">People who commented on your posts on the PUNE Property Page and Instagram. Interested people are answered automatically; questions we cannot answer wait here for you.</p>
       {chats.length > 0 && (
         <section aria-label="Website chats" className="space-y-2">
           <h2 className="text-lg font-bold">Website chats{chatsNeedingYou.length > 0 && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-sm text-amber-900">{chatsNeedingYou.length} need you</span>}</h2>
