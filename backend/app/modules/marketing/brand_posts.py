@@ -9,7 +9,10 @@ from PIL import Image
 
 from .images import GOLD, MARGIN, PITCH, SOFT, SQUARE, WHITE, DARK_INK, Card, _chip, _stamp_logo, brand_background, load_font
 
+from pathlib import Path
+
 SITE = "https://34-180-39-243.sslip.io"
+STATIC_DIR = Path(__file__).parent / "static_cards"  # pre-rendered cards (Hindi/Marathi), used instead of the Pillow render
 TAGS = "#PunePropertyHub #PuneRealEstate #PuneProperty #HomeBuyingTips"
 
 POSTS: List[Dict] = [
@@ -112,6 +115,46 @@ POSTS: List[Dict] = [
             "6\uFE0F\u20E3 Visit a finished project by the same builder\n\n"
             f"\U0001F4D6 The full checklist: {SITE}/insights/site-visit-checklist-upper-kharadi-wagholi\n\n"
             "#UpperKharadi #Wagholi #SiteVisit " + TAGS),
+    },
+    {
+        "slug": "agents-problem", "kicker": "FOR PUNE AGENTS", "title": "Enquiries lost in comments? Not sure who is serious?",
+        "points": ["Post a property from your phone: your website is ready", "Ready-made posts for Facebook, Instagram and WhatsApp",
+                   "Comments like INTERESTED are answered for you", "Each buyer summarised: budget, BHK, timing, how warm"],
+        "caption": (
+            "\U0001F91D Property agent in Pune?\n\n"
+            "Enquiries lost in comments? Not sure which buyer is serious?\n\n"
+            "\u2705 Post a property from your phone: your own website is ready\n"
+            "\u2705 Ready-made posts for Facebook, Instagram and WhatsApp\n"
+            "\u2705 Comments like INTERESTED are answered for you\n"
+            "\u2705 Every buyer summarised: budget, BHK, timing and how warm they are\n\n"
+            "Free, invite-only pilot. Request your invite:\n"
+            f"\U0001F517 {SITE}/request-invite\n\n" + TAGS + " #RealEstateAgent #PuneAgents"),
+    },
+    {
+        "slug": "agents-hindi", "kicker": "पुणे के एजेंट्स के लिए", "title": "एक प्रॉपर्टी दीजिए, पूरा मार्केटिंग कैंपेन पाइए",
+        "points": ["मोबाइल से प्रॉपर्टी डालें, वेबसाइट अपने-आप तैयार", "फेसबुक, इंस्टाग्राम और व्हाट्सऐप के लिए तैयार पोस्ट",
+                   "कमेंट में INTERESTED लिखने वालों को जवाब", "हर खरीदार का सार: बजट, BHK, समय, कितना गंभीर"],
+        "caption": (
+            "\U0001F91D पुणे के प्रॉपर्टी एजेंट? हमारे पायलट से जुड़ें\n\n"
+            "\u2705 मोबाइल से प्रॉपर्टी डालें, आपकी अपनी वेबसाइट अपने-आप तैयार\n"
+            "\u2705 फेसबुक, इंस्टाग्राम और व्हाट्सऐप के लिए तैयार पोस्ट\n"
+            "\u2705 कमेंट में INTERESTED लिखने वालों को जवाब हम देते हैं\n"
+            "\u2705 हर खरीदार का सार: बजट, BHK, समय और कितना गंभीर\n\n"
+            "पायलट मुफ़्त है और सिर्फ़ इन्विटेशन से। अपना इन्विटेशन माँगें:\n"
+            f"\U0001F517 {SITE}/request-invite\n\n" + TAGS + " #PuneAgents"),
+    },
+    {
+        "slug": "agents-marathi", "kicker": "पुण्यातील एजंट्ससाठी", "title": "एक प्रॉपर्टी द्या, पूर्ण मार्केटिंग कॅम्पेन मिळवा",
+        "points": ["मोबाईलवरून प्रॉपर्टी टाका, वेबसाइट आपोआप तयार", "फेसबुक, इंस्टाग्राम आणि व्हॉट्सअ‍ॅपसाठी तयार पोस्ट",
+                   "कमेंटमध्ये INTERESTED लिहिणाऱ्यांना उत्तर", "प्रत्येक खरेदीदाराचा सारांश: बजेट, BHK, वेळ, किती गंभीर"],
+        "caption": (
+            "\U0001F91D पुण्यातील प्रॉपर्टी एजंट? आमच्या पायलटमध्ये सामील व्हा\n\n"
+            "\u2705 मोबाईलवरून प्रॉपर्टी टाका, तुमची स्वतःची वेबसाइट आपोआप तयार\n"
+            "\u2705 फेसबुक, इंस्टाग्राम आणि व्हॉट्सअ‍ॅपसाठी तयार पोस्ट\n"
+            "\u2705 कमेंटमध्ये INTERESTED लिहिणाऱ्यांना आम्ही उत्तर देतो\n"
+            "\u2705 प्रत्येक खरेदीदाराचा सारांश: बजेट, BHK, वेळ आणि किती गंभीर\n\n"
+            "पायलट मोफत आहे आणि फक्त आमंत्रणाने. तुमचे आमंत्रण मागवा:\n"
+            f"\U0001F517 {SITE}/request-invite\n\n" + TAGS + " #PuneAgents"),
     },
 ]
 

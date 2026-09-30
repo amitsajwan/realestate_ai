@@ -93,7 +93,7 @@ export const LANDING = {
       },
       {
         key: 'attract', label: 'Attract', title: 'Give buyers one place to look',
-        body: 'Your website shows your properties with WhatsApp and Call buttons and an enquiry form. Buyers tick a box to agree to be contacted before they send it.',
+        body: 'Your website shows your properties with an I\'m interested button and an enquiry form, and comments on your posts are answered for you. Buyers tick a box to agree to be contacted, and your phone number is never shown publicly.',
       },
       {
         key: 'close', label: 'Qualify and close', title: 'See who is serious',

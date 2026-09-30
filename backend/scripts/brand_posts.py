@@ -14,14 +14,20 @@ import sys
 from dataclasses import replace
 from pathlib import Path
 
-from app.modules.marketing.brand_posts import POSTS, render_brand_post
+import shutil
+
+from app.modules.marketing.brand_posts import POSTS, STATIC_DIR, render_brand_post
 from app.modules.marketing.images import save_jpeg
 
 
 def render_all(out: Path):
     out.mkdir(parents=True, exist_ok=True)
     for p in POSTS:
-        save_jpeg(render_brand_post(p["kicker"], p["title"], p["points"]).img, out / f"{p['slug']}.jpg")
+        static = STATIC_DIR / f"{p['slug']}.jpg"  # cards needing Devanagari shaping are pre-rendered in Chrome (see frontend/e2e/render-static-cards.js)
+        if static.is_file():
+            shutil.copyfile(static, out / f"{p['slug']}.jpg")
+        else:
+            save_jpeg(render_brand_post(p["kicker"], p["title"], p["points"]).img, out / f"{p['slug']}.jpg")
         print(f"rendered {p['slug']}.jpg")
 
 
