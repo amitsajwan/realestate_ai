@@ -105,6 +105,8 @@ export interface SiteCreateInput {
 
 export interface FacebookInterest {
   id: string
+  /** Where the comment was made. Older rows have no channel and mean Facebook. */
+  channel?: 'facebook' | 'instagram' | null
   post_id: string
   listing_id: string | null
   from_name: string | null
@@ -145,6 +147,8 @@ export interface FacebookStatus {
   ok: boolean
   reconnect: boolean
   checked_at: string | null
+  /** Present once Instagram comments have been checked. */
+  instagram?: { ok: boolean; reconnect: boolean; checked_at: string | null }
 }
 
 export interface SiteUpdateInput {

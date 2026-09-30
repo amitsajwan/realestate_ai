@@ -37,6 +37,27 @@ TEMPLATES = {
     },
 }
 
+# Instagram: links in comments are not clickable, so replies point at the bio. Only the wording with a link differs from Facebook.
+BIO = {"en": "the link in our bio", "hi": "हमारे बायो का लिंक", "mr": "आमच्या बायोमधील लिंक"}
+IG_TEMPLATES = {
+    "en": {
+        "interested": "Thanks{name}! Full details are at the link in our bio. Share your budget and preferred area there and our team will get back to you.",
+        "question": "Good question{name}! Our team will reply here soon. Meanwhile, the details are at the link in our bio.",
+        "praise": "Thank you{name}! Follow this account for more Pune property guides and listings.",
+    },
+    "hi": {
+        "interested": "धन्यवाद{name}! पूरी जानकारी हमारे बायो के लिंक पर है। वहाँ अपना बजट और पसंदीदा इलाका बताएं, हमारी टीम आपसे संपर्क करेगी।",
+        "question": "अच्छा सवाल{name}! हमारी टीम जल्द यहीं जवाब देगी। पूरी जानकारी हमारे बायो के लिंक पर है।",
+        "praise": "धन्यवाद{name}! पुणे की प्रॉपर्टी गाइड और लिस्टिंग के लिए इस अकाउंट को फॉलो करें।",
+    },
+    "mr": {
+        "interested": "धन्यवाद{name}! संपूर्ण माहिती आमच्या बायोमधील लिंकवर आहे. तिथे तुमचे बजेट आणि आवडते क्षेत्र सांगा, आमची टीम तुमच्याशी संपर्क करेल.",
+        "question": "छान प्रश्न{name}! आमची टीम लवकरच इथेच उत्तर देईल. संपूर्ण माहिती आमच्या बायोमधील लिंकवर आहे.",
+        "praise": "धन्यवाद{name}! पुण्यातील प्रॉपर्टी गाइड आणि लिस्टिंगसाठी हे अकाउंट फॉलो करा.",
+    },
+}
+DM_ME = re.compile(r"\bdm\s*(me|us)\b|\b(pls|please)\s+dm\b|\bmessage me\b|\bmsg me\b", re.I)
+
 SYSTEM = (
     "You handle comments on a Pune real-estate Facebook Page run by the 'PUNE Property team'. Classify the comment and, if it asks a question "
     "that the POST FACTS answer, draft a reply. Reply ONLY with one JSON object: "
@@ -69,7 +90,11 @@ def first_name(name: Optional[str]) -> str:
     return f" {n}" if n and re.fullmatch(r"[A-Za-zऀ-ॿ.'-]{1,30}", n) else ""
 
 
-def render(kind: str, lang: str, name: Optional[str], link: str) -> str:
+def render(kind: str, lang: str, name: Optional[str], link: str, channel: str = "facebook") -> str:
+    if channel == "instagram":
+        t = IG_TEMPLATES.get(lang, IG_TEMPLATES["en"]).get(kind)
+        if t:
+            return t.format(name=first_name(name))
     return TEMPLATES.get(lang, TEMPLATES["en"])[kind].format(name=first_name(name), link=link)
 
 
@@ -108,13 +133,26 @@ def by_rules(text: str) -> Optional[str]:
     return None
 
 
-async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm) -> Decision:
+def wants_a_person(text: str, handle: str) -> bool:
+    """Instagram: '@ourhandle ...' mentions and 'DM me' asks are for a person, unless the rest is plain spam."""
+    t = text or ""
+    if not (DM_ME.search(t) or (handle and ("@" + handle.lower()) in t.lower())):
+        return False
+    return not SPAM.search(re.sub(r"dm\s*(me|us)", "", t, flags=re.I))
+
+
+async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm, channel: str = "facebook", handle: str = "") -> Decision:
+    ig = channel == "instagram"
+    if ig and wants_a_person(text, handle):
+        return Decision("question", detect_language(text), None, needs_human=True, reason="mention or DM request")
+    if ig:
+        link = BIO["en"]  # never put a URL in an Instagram reply
     lang = detect_language(text)
     intent = by_rules(text)
     if intent == "interested":
-        return Decision("interested", lang, render("interested", lang, from_name, link))
+        return Decision("interested", lang, render("interested", lang, from_name, link, channel))
     if intent == "greeting":
-        return Decision("greeting", lang, render("greeting", lang, from_name, link))
+        return Decision("greeting", lang, render("greeting", lang, from_name, link, channel))
     if intent in ("spam", "other"):
         return Decision(intent, lang, None, reason="not answered")
     if intent == "complaint":
@@ -126,9 +164,9 @@ async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm
     if not isinstance(raw, dict) or raw.get("intent") not in INTENTS:
         # LLM unavailable or unusable: keyword fallback, and a person looks at anything else
         if INTERESTED.search(text):
-            return Decision("interested", lang, render("interested", lang, from_name, link), reason="keyword fallback")
+            return Decision("interested", lang, render("interested", lang, from_name, link, channel), reason="keyword fallback")
         if looks_like_question(text):
-            return Decision("question", lang, render("question", lang, from_name, link), needs_human=True, reason="LLM unavailable")
+            return Decision("question", lang, render("question", lang, from_name, link, channel), needs_human=True, reason="LLM unavailable")
         return Decision("other", lang, None, needs_human=True, reason="LLM unavailable, unclear comment")
 
     intent = raw["intent"]
@@ -138,16 +176,16 @@ async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm
     if intent == "complaint":
         return Decision("complaint", lang, None, needs_human=True, reason="complaint")
     if intent == "interested":
-        return Decision("interested", lang, render("interested", lang, from_name, link))
+        return Decision("interested", lang, render("interested", lang, from_name, link, channel))
     if intent == "praise":
-        return Decision("praise", lang, render("praise", lang, from_name, link))
+        return Decision("praise", lang, render("praise", lang, from_name, link, channel))
     if intent == "greeting":
-        return Decision("greeting", lang, render("greeting", lang, from_name, link))
+        return Decision("greeting", lang, render("greeting", lang, from_name, link, channel))
     if intent == "question":
         draft = (raw.get("reply") or "").strip()
         if raw.get("answerable") is True and valid_reply(draft, facts, link):
-            return Decision("question", lang, f"{draft} More details: {link}")
-        return Decision("question", lang, render("question", lang, from_name, link), needs_human=True, reason="not answerable from post facts")
+            return Decision("question", lang, f"{draft} More details: {link}" if not ig else f"{draft} More details: the link in our bio.")
+        return Decision("question", lang, render("question", lang, from_name, link, channel), needs_human=True, reason="not answerable from post facts")
     if looks_like_question(text):
-        return Decision("question", lang, render("question", lang, from_name, link), needs_human=True, reason="question the post cannot answer")
+        return Decision("question", lang, render("question", lang, from_name, link, channel), needs_human=True, reason="question the post cannot answer")
     return Decision("other", lang, None, reason="other")
