@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.core.database import get_database
 from app.models.user import User
 
+from .polish import default_polish
 from .schemas import GenerateIn, MarketingPack
 from .service import MarketingError, MarketingService
 
@@ -20,7 +21,7 @@ router = APIRouter()
 
 
 def get_service() -> MarketingService:
-    return MarketingService(get_database(), Path(settings.upload_directory), settings.public_site_url)
+    return MarketingService(get_database(), Path(settings.upload_directory), settings.public_site_url, polish=default_polish())
 
 
 def _http(e: MarketingError) -> HTTPException:

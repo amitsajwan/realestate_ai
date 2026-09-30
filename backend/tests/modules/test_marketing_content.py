@@ -209,3 +209,53 @@ def test_facebook_post_reads_well_and_stays_within_limits():
     assert post.startswith("\U0001F3E1 2 BHK apartment for sale in Baner, Pune\n₹85 Lakh")
     assert "\U0001F4D0 Area: 1,100 sq ft (carpet)" in post and "✅ Possession: Ready to move" in post
     assert post.rstrip().endswith("plan a site visit.") and len(post) <= FB_MAX
+
+
+# ---- LLM polish guard rails --------------------------------------------------------------------------
+@pytest.mark.asyncio
+@pytest.mark.parametrize("bad", [
+    lambda d: d.replace("Comment INTERESTED", "Contact us"),                 # lost the call to action
+    lambda d: d.replace("PUNE Property team", "Rahul"),                        # lost the team signature
+    lambda d: d + "\nCall 9876543210 now",                                     # invented a phone number
+    lambda d: d.replace("Interested?", "Your dream home!"),                    # hype
+])
+async def test_polish_rejects_lost_cta_signature_phone_or_hype(bad):
+    f = facts()
+    base = build_content(f, "en")
+
+    async def evil(draft, lang):
+        return bad(draft)
+
+    out = await polish_content(build_content(f, "en"), f, evil)
+    assert out["instagram"]["caption"] == base["instagram"]["caption"] and out["facebook"]["post"] == base["facebook"]["post"]
+
+
+@pytest.mark.asyncio
+async def test_llm_backed_polish_uses_text_and_falls_back_when_the_llm_is_down():
+    from app.modules.marketing.polish import make_llm_polish
+
+    class LLM:
+        def __init__(self, reply):
+            self.reply, self.seen = reply, []
+
+        async def text(self, system, user):
+            self.seen.append((system, user))
+            return self.reply
+
+    f = facts()
+    base = build_content(f, "en")
+    good = LLM(base["facebook"]["post"].replace("Interested?", "Like what you see?"))
+    out = await polish_content(build_content(f, "en"), f, make_llm_polish(good))
+    assert "Like what you see?" in out["facebook"]["post"] and "NEVER add facts" in good.seen[0][0]
+    down = await polish_content(build_content(f, "en"), f, make_llm_polish(LLM(None)))
+    assert down["facebook"]["post"] == base["facebook"]["post"]
+
+
+def test_polish_is_off_unless_switched_on(monkeypatch):
+    from app.modules.marketing.polish import default_polish
+
+    monkeypatch.delenv("MARKETING_POLISH", raising=False)
+    assert default_polish() is None
+    monkeypatch.setenv("MARKETING_POLISH", "true")
+    monkeypatch.setenv("AI_LLM_API_KEY", "k")
+    assert default_polish() is not None

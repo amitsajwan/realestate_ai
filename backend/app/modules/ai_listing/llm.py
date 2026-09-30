@@ -132,6 +132,29 @@ class GroqLLM:
             log.info("ai_listing LLM call failed: %s%s", type(e).__name__, f" (HTTP {status})" if status else "")
             return None
 
+    async def text(self, system: str, user: str, timeout: Optional[float] = None) -> Optional[str]:
+        """Plain-text completion (used to polish post copy). None on any failure: the caller keeps its own text."""
+        budget = timeout or max(self.timeout, 30.0)
+        order = model_order(self.model)
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+
+        async def send(model: str, t: float) -> httpx.Response:
+            body = {"model": model, "temperature": 0.4,
+                    "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+            if self._client:
+                return await self._client.post(GROQ_CHAT_URL, json=body, headers=headers, timeout=t)
+            async with httpx.AsyncClient(timeout=t) as c:
+                return await c.post(GROQ_CHAT_URL, json=body, headers=headers)
+
+        try:
+            r = await post_with_failover(order, send, per_attempt=budget / 2 if len(set(order)) > 1 else budget, budget=budget)
+            r.raise_for_status()
+            return (r.json()["choices"][0]["message"]["content"] or "").strip() or None
+        except Exception as e:
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            log.info("LLM text call failed: %s%s", type(e).__name__, f" (HTTP {status})" if status else "")
+            return None
+
     async def extract(self, text: str, city_hint: Optional[str] = None) -> Optional[dict[str, Any]]:
         user = text[:4000] + (f"\n\n(City hint: {city_hint})" if city_hint else "")
         return await self._chat(_EXTRACT_SYSTEM, user)
