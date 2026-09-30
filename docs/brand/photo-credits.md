@@ -46,3 +46,9 @@ They are generic stock images, NOT photos of the named localities or of any real
 | umfFyocD9ttI.jpg | interior | Anisha Deb | https://unsplash.com/photos/mfFyocD9ttI | upper-kharadi-3bhk-ready |
 | uxtDpXi_a_YQ.jpg | interior | Med Badr Chemmaoui | https://unsplash.com/photos/xtDpXi_a-YQ | upper-kharadi-2bhk-ready |
 | uzc5B3H1W1E8.jpg | exterior | Parth Savani | https://unsplash.com/photos/zc5B3H1W1E8 | upper-kharadi-2bhk-under-construction |
+
+## Creative studio photos (bundled for the photo-led card and the phone mock)
+
+The same five Unsplash photos listed above are bundled, resized to 1800 px on the long edge, in `backend/app/modules/creative/assets/photos/`
+(`tower-low`, `glass-dusk`, `yellow-balconies`, `living-room`, `living-sofa`). Unsplash License (commercial use allowed, attribution optional).
+Cards that use them are labelled "Illustrative photo"; they are stock images, never a real listing.
