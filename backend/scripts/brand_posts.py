@@ -20,7 +20,17 @@ from pathlib import Path
 import shutil
 
 from app.modules.marketing.brand_posts import POSTS, STATIC_DIR, render_brand_post
-from app.modules.marketing.images import save_jpeg
+from app.modules.marketing.images import PORTRAIT, save_jpeg
+
+
+def render_instagram(out: Path, slugs):
+    """4:5 portrait versions for Instagram (a square is cropped to 3:4 in the profile grid and cuts the text)."""
+    out.mkdir(parents=True, exist_ok=True)
+    by = {p["slug"]: p for p in POSTS}
+    for slug in slugs:
+        p = by[slug]
+        save_jpeg(render_brand_post(p["kicker"], p["title"], p["points"], PORTRAIT).img, out / f"{slug}.jpg")
+        print(f"rendered instagram/{slug}.jpg")
 
 
 def render_all(out: Path):
@@ -69,11 +79,12 @@ async def publish_instagram(only):
     if not (cfg.ig_id and cfg.page_token and cfg.media_url_ok):
         sys.exit("META_IG_BUSINESS_ID, META_PAGE_ACCESS_TOKEN and an https PUBLIC_MEDIA_BASE_URL are required")
     uploads = Path(os.environ.get("UPLOAD_DIRECTORY", "uploads"))
-    render_all(uploads / "brand")
+    slugs = only or IG_LAUNCH
+    render_instagram(uploads / "brand" / "ig", slugs)
     pub = GraphPublisher(cfg)
     by = {p["slug"]: p for p in POSTS}
-    for slug in (only or IG_LAUNCH):
-        res = await pub.publish(Post("instagram", ig_caption(by[slug]["caption"]), [f"{cfg.media_base_url}/uploads/brand/{slug}.jpg"]))
+    for slug in slugs:
+        res = await pub.publish(Post("instagram", ig_caption(by[slug]["caption"]), [f"{cfg.media_base_url}/uploads/brand/ig/{slug}.jpg"]))
         print(f"INSTAGRAM {slug}: {res.permalink or res.external_id}")
         await asyncio.sleep(5)
 
@@ -105,6 +116,7 @@ if __name__ == "__main__":
     a = ap.parse_args()
     if a.mode == "preview":
         render_all(Path(a.out))
+        render_instagram(Path(a.out) / "ig", IG_LAUNCH)
         for p in POSTS:
             print(f"\n----- {p['slug']} -----\n{p['caption']}")
     elif a.mode == "instagram":

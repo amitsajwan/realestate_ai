@@ -159,9 +159,8 @@ POSTS: List[Dict] = [
 ]
 
 
-def render_brand_post(kicker: str, title: str, points: List[str]) -> Card:
-    """A 1080x1080 card: kicker chip, bold title, numbered/ticked points, brand footer. All text stays in the safe margins."""
-    size = SQUARE
+def render_brand_post(kicker: str, title: str, points: List[str], size=SQUARE) -> Card:
+    """A 1080x1080 card (or `size`, e.g. PORTRAIT for Instagram): kicker chip, bold title, numbered/ticked points, brand footer. All text stays in the safe margins."""
     c = Card(size, brand_background(size, "pune-property", floor=1.0, tall=0.2))
     _, y = _chip(c, kicker, c.left, c.top)
     y += 34

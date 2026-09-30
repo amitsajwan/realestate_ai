@@ -19,6 +19,7 @@ from .facts import T, Facts
 
 SQUARE = (1080, 1080)
 STORY = (1080, 1920)
+PORTRAIT = (1080, 1350)  # 4:5, what Instagram shows best; its profile grid crops to 3:4, which trims only about 34 px per side of this
 MARGIN = 84
 STORY_TOP, STORY_BOTTOM = 240, 300  # keep clear of the story app chrome
 MAX_BYTES = 380 * 1024
