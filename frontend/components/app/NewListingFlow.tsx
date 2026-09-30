@@ -8,7 +8,7 @@ import { getSiteUrl } from '@/lib/app/session'
 import { listingLink } from '@/lib/app/share'
 import { t } from '@/lib/app/strings'
 import type { AIDraft, Listing, ListingInput } from '@/lib/app/types'
-import { FIELD_LABELS, lowConfidenceFields, missingFields } from '@/lib/app/validate'
+import { FIELD_LABELS, lowConfidenceFields, missingFields, priceSanity } from '@/lib/app/validate'
 import { MarketingScreen } from './MarketingScreen'
 import { PhotoPicker } from './PhotoPicker'
 import { ReviewForm } from './ReviewForm'
@@ -54,6 +54,10 @@ export function NewListingFlow() {
     media: previews.map((url, order) => ({ url, kind: 'image' as const, order })),
   }
   const missing = missingFields(view, draft?.missing ?? [])
+  // An unusual price must be confirmed on purpose; the tick is tied to the exact warning text, so changing the price clears it.
+  const priceWarning = priceSanity(view)
+  const [priceAck, setPriceAck] = useState<string | null>(null)
+  const priceBlocked = !!priceWarning && priceAck !== priceWarning
   const low = draft ? lowConfidenceFields(draft.confidence) : []
   const hasInput = text.trim().length > 0 || !!audio || photos.length > 0
 
@@ -80,6 +84,7 @@ export function NewListingFlow() {
 
   async function confirmAndPost() {
     if (missing.length) return setError(`${t('required')}: ${missing.map((m) => FIELD_LABELS[m] ?? m).join(', ')}`)
+    if (priceBlocked) return setError('Please check the price, then tick "Yes, this price is correct".')
     setError(null)
     setErrors({})
     setStep('posting')
@@ -152,9 +157,15 @@ export function NewListingFlow() {
         {low.length > 0 && <p className="text-sm text-amber-700">{t('pleaseCheck')}: {low.map((k) => FIELD_LABELS[k] ?? k.replace('_', ' ')).join(', ')}</p>}
         <PhotoPicker files={photos} onChange={setPhotos} />
         <ReviewForm value={view} onChange={({ media, ...rest }) => setForm(rest)} confidence={draft.confidence} missing={missing} errors={errors} />
+        {priceWarning && (
+          <label className="flex min-h-[44px] items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
+            <input type="checkbox" className="h-5 w-5" checked={priceAck === priceWarning} onChange={(e) => setPriceAck(e.target.checked ? priceWarning : null)} />
+            Yes, this price is correct
+          </label>
+        )}
         {error && <ErrorBox message={error} />}
         <div className="sticky bottom-0 -mx-4 border-t border-gray-200 bg-white p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
-          <Btn variant="whatsapp" onClick={confirmAndPost} disabled={missing.length > 0} className="!bg-blue-600 disabled:!bg-blue-300">
+          <Btn variant="whatsapp" onClick={confirmAndPost} disabled={missing.length > 0 || priceBlocked} className="!bg-blue-600 disabled:!bg-blue-300">
             {t('confirmPost')}
           </Btn>
           {missing.length > 0 && <p className="mt-2 text-center text-xs text-red-600">{t('required')}: {missing.map((m) => FIELD_LABELS[m] ?? m).join(', ')}</p>}

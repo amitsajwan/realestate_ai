@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react'
 import { formatInr, groupIndian, parseInr } from '@/lib/app/format'
 import { t } from '@/lib/app/strings'
 import type { Furnishing, ListingInput, PropertyType, Transaction } from '@/lib/app/types'
-import { LOW_CONFIDENCE } from '@/lib/app/validate'
+import { LOW_CONFIDENCE, priceSanity } from '@/lib/app/validate'
 import { ChipPicker } from './JoinFlow'
 import { Field, inputCls } from './ui'
 
@@ -20,7 +20,7 @@ export interface ReviewFormProps {
   errors?: Record<string, string>
 }
 
-function PriceField({ value, onChange, flag }: { value?: number; onChange: (n: number) => void; flag: { error?: string; check?: boolean; required?: boolean } }) {
+function PriceField({ value, onChange, flag, warning }: { value?: number; onChange: (n: number) => void; flag: { error?: string; check?: boolean; required?: boolean }; warning?: string | null }) {
   const [text, setText] = useState(value ? groupIndian(value) : '')
   // Keep the text in sync when the value is replaced from outside (e.g. draft arrives), but not while typing.
   const parsed = parseInr(text)
@@ -45,6 +45,7 @@ function PriceField({ value, onChange, flag }: { value?: number; onChange: (n: n
       <p className="mt-1 text-sm font-semibold text-blue-700">
         {parsed ? `₹${formatInr(parsed)}  (₹${groupIndian(parsed)})` : text ? "Can't read this. Try 85 lakh" : ''}
       </p>
+      {warning && <p role="alert" className="mt-1 rounded-lg bg-amber-50 p-2 text-sm font-semibold text-amber-900">⚠ {warning}</p>}
     </Field>
   )
 }
@@ -83,7 +84,7 @@ export function ReviewForm({ value, onChange, confidence = {}, missing = [], err
         </div>
       </Field>
 
-      <PriceField value={value.price_inr} onChange={(n) => set({ price_inr: n })} flag={flag('price_inr')} />
+      <PriceField value={value.price_inr} onChange={(n) => set({ price_inr: n })} flag={flag('price_inr')} warning={priceSanity(value)} />
 
       <Field label="Property type" htmlFor="ptype" {...flag('property_type')}>
         <select id="ptype" className={inputCls} value={value.property_type ?? ''} onChange={(e) => set({ property_type: (e.target.value || undefined) as PropertyType })}>
