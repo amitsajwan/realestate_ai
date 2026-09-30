@@ -86,6 +86,10 @@ async def lifespan(app: FastAPI):
         import asyncio
         from app.modules.engage.runner import loop as engage_loop
         app.state.engage_task = asyncio.create_task(engage_loop())
+
+        # Newsroom content agent (idle unless NEWSROOM_ENABLED=true)
+        from app.modules.newsroom.runner import loop as newsroom_loop
+        app.state.newsroom_task = asyncio.create_task(newsroom_loop())
         
     except Exception as e:
         logger.error(f"❌ Failed to connect to MongoDB: {e}")
@@ -95,9 +99,10 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    task = getattr(app.state, "engage_task", None)
-    if task:
-        task.cancel()
+    for name in ("engage_task", "newsroom_task"):
+        task = getattr(app.state, name, None)
+        if task:
+            task.cancel()
     await stop_token_cleanup()
     logger.info("🧹 Token cleanup service stopped")
     

@@ -59,6 +59,11 @@ class Store:
         """Items scheduled or published at or after `since` (for the daily cap)."""
         return await self.items.count_documents({"status": {"$in": list(DONE)}, "published_at": {"$gte": since}})
 
+    async def live_titles(self, exclude_id: str, limit: int = 300) -> list:
+        """Titles of items still in play (not dropped, rejected or failed), for spotting the same story from another publisher."""
+        docs = await self.items.find({"status": {"$nin": ["dropped", "rejected", "failed"]}}).to_list(limit)
+        return [(d.get("raw") or {}).get("title", "") for d in docs if d["_id"] != exclude_id]
+
     async def set_run(self, **fields) -> None:
         """Runner bookkeeping (last_run_at, last_error, ...); a single document."""
         key = {"_id": "runner"}

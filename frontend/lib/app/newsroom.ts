@@ -74,7 +74,7 @@ const PILLARS: Record<string, string> = {
   infrastructure: 'Infrastructure',
   new_supply: 'New supply',
   rules_money: 'Rules and money',
-  locality: 'Locality life',
+  locality_life: 'Locality life',
   education: 'Buyer education',
   digest: 'Weekly digest',
 }

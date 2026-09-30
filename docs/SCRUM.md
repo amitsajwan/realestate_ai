@@ -40,13 +40,13 @@ Drafts built from real Kharadi/Wagholi news and MahaRERA registrations appear in
 | ID | Stream | Story | Owns (only these paths) | Depends on | Status |
 |---|---|---|---|---|---|
 | N0 | Integrator | Contract, shared types, policy, board | `docs/contracts/newsroom.md`, `newsroom/types.py`, `newsroom/policy.py`, shared routers | - | Done |
-| N1a | Sources | Google News RSS, MahaRERA, generic RSS source plugins with recorded fixtures | `newsroom/sources/`, `tests/modules/newsroom/test_sources*.py`, `tests/modules/newsroom/fixtures/sources/` | N0 | To do |
-| N1b | Understand | `filter.assess` and `extract.extract` with golden and adversarial tests | `newsroom/stages/filter.py`, `stages/extract.py`, their tests and fixtures | N0 | To do |
-| N1c | Write and verify | `draft.draft` and `check.check` (the safety net) with adversarial tests | `newsroom/stages/draft.py`, `stages/check.py`, their tests | N0 | To do |
-| N1d | Plumbing | `Store`, runner loop, router (queue/status/approve/reject), adapters to the social Publisher and LLM, settings, scheduler port | `newsroom/store.py`, `runner.py`, `router.py`, `adapters.py`, their tests | N0 | To do |
-| N1e | Review UI | Studio "Newsroom" tab: queue cards, edit, approve, reject, status, against the HTTP contract with fixtures | `frontend/app/studio/newsroom/`, `frontend/components/app/newsroom/`, `frontend/lib/app/newsroom.ts` | N0 | To do |
-| P1 | Ops (parallel, unrelated) | Nightly Mongo backup with restore test, uptime and token health alert script, runbook update | `deploy/gcp/backup*`, `deploy/gcp/health*`, `docs/PILOT_RUNBOOK.md` (ops section only) | - | To do |
-| N1f | Integrate | Wire router and runner, end-to-end run on fixtures, deploy with `NEWSROOM_ENABLED=false`, dry-run on the VM, first real drafts | shared files | N1a to N1e | Blocked on the above |
+| N1a | Sources | Google News RSS, MahaRERA, generic RSS source plugins with recorded fixtures | `newsroom/sources/`, `tests/modules/newsroom/test_sources*.py`, `tests/modules/newsroom/fixtures/sources/` | N0 | Done |
+| N1b | Understand | `filter.assess` and `extract.extract` with golden and adversarial tests | `newsroom/stages/filter.py`, `stages/extract.py`, their tests and fixtures | N0 | Done |
+| N1c | Write and verify | `draft.draft` and `check.check` (the safety net) with adversarial tests | `newsroom/stages/draft.py`, `stages/check.py`, their tests | N0 | Done |
+| N1d | Plumbing | `Store`, runner loop, router (queue/status/approve/reject), adapters to the social Publisher and LLM, settings, scheduler port | `newsroom/store.py`, `runner.py`, `router.py`, `adapters.py`, their tests | N0 | Done |
+| N1e | Review UI | Studio "Newsroom" tab: queue cards, edit, approve, reject, status, against the HTTP contract with fixtures | `frontend/app/studio/newsroom/`, `frontend/components/app/newsroom/`, `frontend/lib/app/newsroom.ts` | N0 | Done |
+| P1 | Ops (parallel, unrelated) | Nightly Mongo backup with restore test, uptime and token health alert script, runbook update | `deploy/gcp/backup*`, `deploy/gcp/health*`, `docs/PILOT_RUNBOOK.md` (ops section only) | - | Done |
+| N1f | Integrate | Wire router and runner, end-to-end run on fixtures, deploy with `NEWSROOM_ENABLED=false`, dry-run on the VM, first real drafts | shared files | N1a to N1e | In progress: wired, integration test passing; deploy (off) and dry-run next |
 
 ## Next sprint candidates (not started)
 N2 database-backed articles on `/insights` · N3 weekly digest and reaction learning · N4 more sources and auto-publish for low-risk types · Instagram once the account is Professional · Reels · Hindi/Marathi variants · domain purchase and first 3 pilot agents (owner actions in `docs/AGENT_INVITE_KIT.md`).
