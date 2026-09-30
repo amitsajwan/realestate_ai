@@ -84,3 +84,44 @@ For testing on this PC only, a free tunnel also works: `cloudflared tunnel --url
 - Every post needs a human tap (Approve). Nothing is auto-posted.
 - Only listings whose agent agreed ("post with my name and phone on the PUNE Property Page") are posted.
 - No invented numbers: no fake views, likes or followers anywhere.
+
+---
+
+## H. Rebuild the app from scratch: use cases and permissions (now and later)
+
+Use this if the app's use cases disappear, the app is deleted, or you create a new one. Values you will need: App display name **PUNE Property** (or PuneProperties), contact email, the URLs from section C.
+
+### H1. Use cases to add (Meta developer dashboard, app > Use cases > Add use case)
+| # | Use case (name in the picker) | Permissions to add under Customize | Needed for | When |
+|---|---|---|---|---|
+| 1 | **Manage everything on your Page** | `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `pages_manage_metadata`, `pages_read_user_content`, `pages_manage_engagement` | Posting to the Page, reading and answering comments, the comment assistant, scheduling | **Now** |
+| 2 | **Manage messaging & content on Instagram** (Instagram API with Facebook Login) | `instagram_basic`, `instagram_content_publish`, `instagram_manage_comments` | Posting to Instagram, later answering Instagram comments | Now (once the Instagram account is Professional and linked to the Page) |
+| 3 | **Engage with customers on Messenger from Meta** | `pages_messaging` | Answering Messenger chats with the same engine as the website chat | Later (needs App Review for the public) |
+| 4 | **Connect with customers through WhatsApp** | WhatsApp Business permissions | WhatsApp OTP, alerts, chat | Later (needs a business portfolio and business verification) |
+| 5 | Facebook Login for Business (added automatically with #1) | none of ours | not used | Leave as is |
+
+Do NOT add: Marketing API, app ads, Threads, Instant Games (not needed).
+
+### H2. App settings to restore (App settings > Basic)
+- Display name, category **Business and pages**, contact email `sajwansavita35@gmail.com`.
+- App domains `34-180-39-243.sslip.io` (change when we have a real domain).
+- Privacy Policy `https://34-180-39-243.sslip.io/privacy`, Terms `/terms`, Data deletion instructions URL `/data-deletion`.
+- App icon `docs/brand/pune-property-profile.png`.
+
+### H3. Roles (App roles > Roles)
+While the app is in Development mode, only people with a role can use it. Add your own account as **Administrator** and any test account (a friend, an agent) as **Tester**. The Page owner's Facebook account must be an admin of the Page.
+
+### H4. Generate the token and connect the server
+1. Graph API Explorer: Meta App = the app, User or Page = "Get Token".
+2. Add every permission from H1 rows 1 and 2, then **Generate Access Token** and approve everything for the PUNE Property Page (keep it selected).
+3. `.\deploy\gcp\meta_connect.ps1` (token + App Secret). It prints the permissions it received and whether Instagram is linked.
+4. Check: `python scripts/verify_engage_live.py` (on the server) must say ALL PASSED.
+
+### H5. Keep it connected (what breaks the token)
+Removing the app under Facebook Settings > Business integrations, changing the Facebook password, "log out of all sessions", removing the Page admin. The Interest tab shows a red banner when Facebook rejects the token; fix with H4.
+
+### H6. Going Live later (public, not just testers)
+1. Business verification of the business (needs the legal entity, documents).
+2. App Review for advanced access: `pages_manage_engagement`/`pages_read_user_content` for comments by the public, `pages_messaging` (Messenger), `instagram_content_publish`/`instagram_manage_comments` for other people's accounts. Prepare a screencast per permission, the privacy policy and a test login.
+3. Switch the app to Live. Until then it works for the Page and for people with a role.
+4. Agents connecting their OWN Pages/Instagram needs the same App Review plus Business verification: plan it after the pilot.
