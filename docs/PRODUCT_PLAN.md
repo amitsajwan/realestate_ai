@@ -24,12 +24,15 @@ Everything in Phases 0 and 1 exists to answer that. Discovery, SEO and the advis
 | Distribution | Facebook Page posting live with consent + approval; Instagram blocked only on linking the account |
 | Agent site | Branded, sample listings (labelled), guides, enquiry form with qualification, no phone exposed |
 | CRM | Tracking, lead scoring, matching, follow-up drafts, deal outcomes, freshness rules |
-| Content | 3 sourced Kharadi/Upper Kharadi/Wagholi guides + 8 Page posts |
+| Content | 3 sourced guides, 3 locality pages, sitemap/robots, 15+ Page posts (tips, guides, labelled samples, agent recruitment in EN/HI/MR) |
+| Buyer engagement | Comment assistant on the Page (live, verified end to end), website chat with consent-first lead capture, Interest tab |
+| Agent proof | Weekly summary card with WhatsApp share; per-listing activity; performance |
+| Pilot kit | `docs/AGENT_INVITE_KIT.md` (invite messages EN/HI/MR, quick start, check-in script, tracking sheet) |
 | Ops | One GCP VM (shared project), Caddy HTTPS on sslip.io, daily disk snapshot, redeploy script |
 
 ## 3. Gaps against the vision
 
-1. **Comments and messages go nowhere.** Every post says "Comment INTERESTED"; nothing answers or records it (Sprint 1).
+1. ~~Comments and messages go nowhere~~ Done: comment assistant and website chat are live. Messenger (needs Meta App Review for the public) and WhatsApp remain.
 2. **No proof loop.** We cannot yet show an agent "this post brought N views and M enquiries" (Sprint 2).
 3. **No supply yet.** Only sample listings exist. First real agents are the real milestone.
 4. **Content is hand-made.** No research, approval queue or scheduling (Sprint 3).
