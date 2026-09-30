@@ -11,7 +11,7 @@ Run (venv lives in the main checkout; set PYTHONPATH when running from a worktre
 
 ## Google News
 - ~25 queries per run (every AREA_KEYWORDS and CORRIDOR_KEYWORDS phrase, plus four combinations such as `Pune metro Kharadi`), each suffixed `when:14d` (policy.MAX_AGE_DAYS). The runner should keep the 3-hour cadence; one sequential request per query, no concurrency.
-- Item url is the `news.google.com/rss/articles/...` redirect link as given; nothing is resolved. id = sha1 of the canonical url. Source is `Google News / <Publisher>`.
+- Item url is the `news.google.com/rss/articles/...` redirect link as given; nothing is resolved. id = sha1 of the canonical url. Source is the publisher name (changed in N2a; was `Google News / <Publisher>`).
 - The feed description is only headline + publisher, so `text` is usually just the title. The extract stage therefore has little to quote from; for real facts the pipeline would need the publisher page (not done, out of scope: no network resolving).
 - Fixture: the headline/link/pubDate/source of three items were captured from the live feed on 2026-09-30 via WebFetch (which summarises, so description markup and the two broken entries were added by hand to match the known live format).
 

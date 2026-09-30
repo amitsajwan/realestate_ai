@@ -33,9 +33,11 @@ def parse_feed(xml_text: str, source_name: str, fetched_at=None) -> List[RawItem
                 continue
             body = (_text(entry.find("description")) or _text(entry.find(ATOM + "summary"))
                     or _text(entry.find(ATOM + "content")))
-            published = parse_rfc822(_text(entry.find("pubDate")))
-            if published is None:
-                published = _iso(_text(entry.find(ATOM + "published")) or _text(entry.find(ATOM + "updated")))
+            pub = _text(entry.find("pubDate"))
+            published = parse_rfc822(pub)
+            if published is None:  # some publishers (Times of India) use ISO 8601 in pubDate
+                published = _iso(pub) or _iso(_text(entry.find(ATOM + "published")) or _text(entry.find(ATOM + "updated"))
+                                              or _text(entry.find("{http://purl.org/dc/elements/1.1/}date")))
             out.append(RawItem(id=item_id(link), source=source_name, url=canonical_url(link), title=title,
                                text=strip_html(body), published_at=published, fetched_at=fetched_at))
         except Exception:  # one bad entry never breaks the feed
