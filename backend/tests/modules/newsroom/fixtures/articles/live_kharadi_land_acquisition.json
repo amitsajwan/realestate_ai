@@ -1,0 +1,15 @@
+{
+  "id": "live_kharadi_land_acquisition",
+  "source": "fixture",
+  "url": "https://example.test/live_kharadi_land_acquisition",
+  "title": "Pune: PMC Initiates Land Acquisition For Kharadi Road, ₹27.14 Crore Deposited",
+  "text": "Pune: PMC Initiates Land Acquisition For Kharadi Road, ₹27.14 Crore Deposited",
+  "published_at": "2026-09-28T06:00:00+00:00",
+  "expect": {
+    "keep": true,
+    "pillar": "infrastructure",
+    "areas": [
+      "kharadi"
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "live_maternal_health_kharadi",
+  "source": "fixture",
+  "url": "https://example.test/live_maternal_health_kharadi",
+  "title": "Maternal and Child Health, Nutrition Top Government Priorities: Kharadi",
+  "text": "Maternal and Child Health, Nutrition Top Government Priorities: Kharadi",
+  "published_at": "2026-09-28T06:00:00+00:00",
+  "expect": {
+    "keep": false,
+    "reason": "non-buyer topic: unrelated government"
+  }
+}

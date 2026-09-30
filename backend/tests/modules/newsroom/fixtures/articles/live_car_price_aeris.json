@@ -1,0 +1,12 @@
+{
+  "id": "live_car_price_aeris",
+  "source": "fixture",
+  "url": "https://example.test/live_car_price_aeris",
+  "title": "Tata Aeris On Road Price Wagholi Sep 2026 - ₹5.87L",
+  "text": "Tata Aeris On Road Price Wagholi Sep 2026 - ₹5.87L",
+  "published_at": "2026-09-28T06:00:00+00:00",
+  "expect": {
+    "keep": false,
+    "reason": "non-buyer topic: vehicle prices"
+  }
+}

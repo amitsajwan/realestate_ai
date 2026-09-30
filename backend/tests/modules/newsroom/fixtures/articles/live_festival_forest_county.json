@@ -1,0 +1,12 @@
+{
+  "id": "live_festival_forest_county",
+  "source": "fixture",
+  "url": "https://example.test/live_festival_forest_county",
+  "title": "Pune: Forest County In Kharadi Celebrates Ganesh Utsav 2026 With Devotion And Fervour",
+  "text": "Pune: Forest County In Kharadi Celebrates Ganesh Utsav 2026 With Devotion And Fervour",
+  "published_at": "2026-09-28T06:00:00+00:00",
+  "expect": {
+    "keep": false,
+    "reason": "non-buyer topic: festival"
+  }
+}

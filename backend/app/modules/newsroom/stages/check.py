@@ -19,8 +19,8 @@ MON = "|".join(m[:3] + r"[a-z]*\.?" for m in MONTHS)
 UNITS = {"%": "%", "percent": "%", "per cent": "%", "crore": "cr", "crores": "cr", "cr": "cr", "lakh": "lakh", "lakhs": "lakh",
          "km": "km", "kms": "km", "kilometre": "km", "kilometres": "km", "kilometer": "km", "kilometers": "km",
          "acre": "acre", "acres": "acre", "hectare": "ha", "hectares": "ha", "months": "month", "month": "month",
-         "years": "year", "year": "year", "days": "day", "day": "day", "bhk": "bhk", "metres": "m", "meters": "m"}
-NUM = re.compile(r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)(?:st|nd|rd|th)?(?:\s*(%|per cent|percent|crores?|cr|lakhs?|kms?|kilomet(?:re|er)s?|acres?|hectares?|months?|years?|days?|bhk|metres|meters))?(?![\w])", re.I)
+         "years": "year", "year": "year", "days": "day", "day": "day", "bhk": "bhk", "metres": "m", "meters": "m", "l": "lakh"}  # 'L' glued to a number is lakh (12.37L = 12.37 lakh)
+NUM = re.compile(r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)(?:st|nd|rd|th)?(?:\s*(%|per cent|percent|crores?|cr|lakhs?|kms?|kilomet(?:re|er)s?|acres?|hectares?|months?|years?|days?|bhk|metres|meters)|(?<=\d)(l))?(?![\w])", re.I)
 DATE_DM = re.compile(r"\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(" + MON + r")\b", re.I)
 DATE_MD = re.compile(r"\b(" + MON + r")\s+(\d{1,2})(?:st|nd|rd|th)?\b", re.I)
 
@@ -34,6 +34,28 @@ latest please read save see share should so still tell thanks thank today update
 house houses people families city area areas road roads metro line station project projects notice notices rules rule rate rates
 loan loans important key quick short good note notes status checking heads ask compare confirm visit talk read look find try make keep use take get wait watch review verify approvals plans approval timeline timelines dates date notices official officials""".split())
 COMMON |= {"heads-up", "kharadi's", "pune's"}
+# ordinary adjectives, determiners and verbs that start sentences in plain-English posts
+COMMON |= set("""local nearby recent upcoming major minor big small many several such other another every each any both few various current
+future official regular typical early late daily public private general open clear simple useful helpful proposed planned approved
+ongoing existing final first second third last next previous additional further better best common main overall possible likely
+early together meanwhile however also but and yet instead overall besides moreover therefore thus too while since once until""".split())
+GERUND = re.compile(r"^[A-Z][a-z]{2,}ing$")  # sentence-initial 'Having', 'Knowing', 'Checking': ordinary words, not names
+
+# generic hedges that say nothing specific; a 'why it matters' made of these is padding, not information
+FILLER = [re.compile(x, re.I) for x in (
+    r"\bmay (affect|impact|influence) the (surrounding|local|nearby) (area|neighbou?rhood|community|locality)",
+    r"\b(surrounding|local) area'?s? (amenities|infrastructure|landscape)",
+    r"\b(real estate|property) (market|landscape|scene) (in|around|of) the (area|region|locality)",
+    r"\bcould have (implications|an impact|a ripple effect)\b",
+    r"\bmay have (implications|an impact|a ripple effect)\b",
+    r"\b(worth|good to) (keeping an eye on|watching|following)\b",
+    r"\bkeep (a |an )?(close )?eye on (this|the)\b",
+    r"\bstay (informed|updated|tuned)\b",
+    r"\bsomething to (keep in mind|consider|watch)\b",
+    r"\b(shape|shaping|reshape|reshaping) the (future|character|face) of\b",
+    r"\bquality of life (for|of) (residents|locals)\b",
+    r"\bimportant (development|news) for (residents|buyers|anyone)\b",
+)]
 
 TRANSPORT = re.compile(r"\b(metro|railway|rail|station|line|flyover|bridge|road|highway|ring road|airport|corridor|bus|brts|tunnel)\b", re.I)
 # claims that something is running or has opened; the source must use the same word near a transport word
@@ -77,8 +99,9 @@ def _figures(text: str):
     for m in NUM.finditer(t):
         n = _num(m.group(1))
         nums.add(n)
-        if m.group(2):
-            units.add((n, UNITS.get(m.group(2).lower(), m.group(2).lower())))
+        u = m.group(2) or m.group(3)
+        if u:
+            units.add((n, UNITS.get(u.lower(), u.lower())))
     dates = {(int(a), b[:3].lower()) for a, b in DATE_DM.findall(t)} | {(int(b), a[:3].lower()) for a, b in DATE_MD.findall(t)}
     return nums, units, dates
 
@@ -106,7 +129,7 @@ def _unknown_names(text: str, known: Set[str], allowed: Set[str]) -> List[str]:
         n = _norm(w)
         if n in known or n in allowed or w.lower() in ALLOW or w.lower() in allowed:
             continue
-        if _sentence_start(t, m.start()) and (w.lower() in COMMON or n in COMMON) and not w.isupper():
+        if _sentence_start(t, m.start()) and (w.lower() in COMMON or n in COMMON or GERUND.match(w)) and not w.isupper():
             continue
         if w not in bad:
             bad.append(w)
@@ -142,6 +165,13 @@ def check(draft: Draft, facts: Facts, item: RawItem, now: Optional[datetime] = N
     names = _unknown_names(full.replace(policy.DISCLAIMER, " "), known, set())
     if names:
         problems.append("Names not in the source: " + ", ".join(names[:8]))
+
+    # 2b. Generic filler: a vague line that could be pasted under any news item
+    for rx in FILLER:
+        m = rx.search(full)
+        if m:
+            problems.append(f"Generic filler, not a specific reason: '{m.group(0).strip()}'. Say something concrete or leave it out")
+            break
 
     # 3. Banned, hype, phone
     for label, rx in (("Banned phrase", policy.BANNED), ("Hype word", HYPE), ("Phone number", PHONE)):

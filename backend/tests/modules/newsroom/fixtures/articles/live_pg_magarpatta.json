@@ -1,0 +1,12 @@
+{
+  "id": "live_pg_magarpatta",
+  "source": "fixture",
+  "url": "https://example.test/live_pg_magarpatta",
+  "title": "PG in Magarpatta City, Pune | Paying Guest Accommodation & Co-Living Space",
+  "text": "PG in Magarpatta City, Pune | Paying Guest Accommodation & Co-Living Space",
+  "published_at": "2026-09-28T06:00:00+00:00",
+  "expect": {
+    "keep": false,
+    "reason": "non-buyer topic: PG and rental ads"
+  }
+}

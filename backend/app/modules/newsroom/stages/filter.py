@@ -6,6 +6,7 @@ from typing import Dict, List
 
 from ..policy import AREA_KEYWORDS, BANNED, CORRIDOR_KEYWORDS, MAX_AGE_DAYS, PILLAR_KEYWORDS, PUNE_HINT
 from ..types import RawItem, Relevance
+from . import topics
 
 
 def _phrase(p: str, plural: bool = False) -> "re.Pattern[str]":
@@ -14,9 +15,14 @@ def _phrase(p: str, plural: bool = False) -> "re.Pattern[str]":
 
 
 _AREA_RE: Dict[str, List["re.Pattern[str]"]] = {a: [_phrase(k) for k in ks] for a, ks in AREA_KEYWORDS.items()}
+_AREA_NAME_RE: Dict[str, List["re.Pattern[str]"]] = {
+    a: [_phrase(k) for k in ks if k not in topics.LANDMARKS] for a, ks in AREA_KEYWORDS.items()}
+_OTHER_RE = [_phrase(k) for k in topics.OTHER_LOCALITIES]
 _CORRIDOR_RE = [_phrase(k) for k in CORRIDOR_KEYWORDS]
 _HINT_RE = [_phrase(k) for k in PUNE_HINT]
-_PILLAR_RE: Dict[str, List["re.Pattern[str]"]] = {p: [_phrase(k, True) for k in ks] for p, ks in PILLAR_KEYWORDS.items()}
+_PILLAR_RE: Dict[str, List["re.Pattern[str]"]] = {
+    p: [_phrase(k, True) for k in list(ks) + topics.EXTRA_PILLAR_KEYWORDS.get(p, [])] for p, ks in PILLAR_KEYWORDS.items()}
+_EDU_RE = [_phrase(k, True) for k in topics.EDUCATION_KEYWORDS]
 
 _HOROSCOPE = re.compile(r"\b(horoscope|zodiac|rashifal|astrology|lucky number)\b", re.I)
 _CRIME = re.compile(
@@ -49,10 +55,17 @@ def assess(item: RawItem, now: datetime) -> Relevance:
     title, body = item.title or "", item.text or ""
     full = f"{title}\n{body}".lower()
 
-    areas = [a for a, pats in _AREA_RE.items() if any(p.search(full) for p in pats)]
+    first = re.split(r"(?<=[.!?])\s+|\n+", body.strip(), maxsplit=1)[0].lower() if body.strip() else ""
+    head = f"{title}\n{first}".lower()
+
+    # the area must be the subject (title or first sentence), not a passing mention further down
+    areas = [a for a, pats in _AREA_RE.items() if any(p.search(head) for p in pats)]
+    if areas and _hits(_OTHER_RE, head):  # a landmark alone does not make another locality's story ours
+        areas = [a for a in areas if any(p.search(head) for p in _AREA_NAME_RE[a])]
     corridor = any(p.search(full) for p in _CORRIDOR_RE) and any(p.search(full) for p in _HINT_RE)
     if not areas and not corridor:
-        return _no("off-topic: no target area or corridor")
+        mentioned = any(p.search(full) for pats in _AREA_RE.values() for p in pats)
+        return _no("off-topic: area only mentioned in passing" if mentioned else "off-topic: no target area or corridor")
 
     if _HOROSCOPE.search(full):
         return _no("non-news: horoscope")
@@ -65,13 +78,26 @@ def assess(item: RawItem, now: datetime) -> Relevance:
     if banned and (_PROMO.search(full) or len(banned) >= 2):
         return _no("non-news: promotional hype")
 
+    label = topics.denied_topic(title, first)
+    if label:
+        return _no(f"non-buyer topic: {label}")
+    if topics.short_lived(title, first):
+        return _no("stale by nature: short-lived event or one-day traffic notice")
+
     scores = {}
     for pillar, pats in _PILLAR_RE.items():
         s = 2 * _hits(pats, title.lower()) + _hits(pats, body.lower())
         if s:
             scores[pillar] = s
-    pillar = max(scores, key=scores.get) if scores else "locality_life"
-    why = ("areas: " + ", ".join(areas)) if areas else "corridor topic with Pune hint"
+    if not scores:
+        return _no("no buyer relevance: no pillar keyword evidence")
+    pillar = max(scores, key=scores.get)
+    # buyer-relevance score: pillar evidence, plus the area being in the headline
+    in_title = any(p.search(title.lower()) for pats in _AREA_RE.values() for p in pats) or any(p.search(title.lower()) for p in _CORRIDOR_RE)
+    score = scores[pillar] + (2 if in_title else 1 if areas else 0)  # area in the first sentence counts for less than in the headline
+    if score < topics.MIN_SCORE:
+        return _no(f"no buyer relevance: score {score} below {topics.MIN_SCORE}")
+    why = (("areas: " + ", ".join(areas)) if areas else "corridor topic with Pune hint") + f"; score {score}"
     return Relevance(keep=True, pillar=pillar, areas=areas, reason=why)
 
 
