@@ -63,8 +63,11 @@ class AIListingService:
         city_hint = (city_hint or "").strip()[:60] or None
         det, _ = extract(text, city_hint)
         llm_ex = Extraction()
+        llm_up = self.llm is not None
         if self.llm is not None and text.strip():
-            llm_ex = sanitise_llm(await _guard(self.llm.extract(text, city_hint)))
+            raw = await _guard(self.llm.extract(text, city_hint))
+            llm_up = raw is not None  # if the text AI just failed or timed out, do not make the agent wait for a second call
+            llm_ex = sanitise_llm(raw)
         merged = merge(det, llm_ex)
         facts, conf = dict(merged.values), dict(merged.confidence)
 
@@ -75,7 +78,7 @@ class AIListingService:
             draft["title"] = title
         if en:
             desc = {"en": en}
-            if self.llm is not None:
+            if self.llm is not None and llm_up:
                 tr = await _guard(self.llm.translate(facts, en))
                 if isinstance(tr, dict):
                     desc.update({k: v for k, v in tr.items() if k in ("hi", "mr") and isinstance(v, str) and v.strip()})

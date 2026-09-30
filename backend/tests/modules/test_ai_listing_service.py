@@ -247,6 +247,39 @@ async def test_text_llm_retries_once_when_busy():
     assert await GroqLLM("k", client=client).extract("3 bhk") == {"bhk": 3} and len(calls) == 2
 
 
+async def test_a_model_that_hangs_or_drops_the_connection_fails_over_too():
+    import httpx
+    import json
+
+    seen = []
+
+    def handler(request):
+        seen.append(json.loads(request.content)["model"])
+        if seen[-1] == "slow":
+            raise httpx.ReadTimeout("busy model never answered", request=request)
+        if seen[-1] == "down":
+            raise httpx.ConnectError("no route", request=request)
+        return httpx.Response(200, json={"choices": [{"message": {"content": '{"bhk": 1}'}}]})
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    assert await GroqLLM("k", model="slow,down,ok", client=client).extract("1 bhk") == {"bhk": 1}
+    assert seen == ["slow", "down", "ok"]
+
+
+async def test_translation_is_skipped_when_the_text_ai_just_failed():
+    class DeadLLM:
+        translate_calls = 0
+
+        async def extract(self, text, city_hint=None):
+            return None
+
+        async def translate(self, facts, description_en):
+            DeadLLM.translate_calls += 1
+            return {"hi": "x"}
+    res = await AIListingService(llm=DeadLLM()).from_text("2 BHK Baner 85 lakh sale")
+    assert res.draft["price_inr"] == 8_500_000 and DeadLLM.translate_calls == 0
+    assert list(res.draft["description"]) == ["en"]
+
+
 async def test_text_llm_fails_over_across_models():
     import httpx
     import json

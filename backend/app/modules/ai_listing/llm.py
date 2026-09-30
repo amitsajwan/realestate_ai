@@ -4,6 +4,7 @@ import base64
 import json
 import logging
 import os
+import time
 from typing import Any, Optional, Protocol
 
 import httpx
@@ -20,8 +21,9 @@ GROQ_CHAT_URL = f"{LLM_BASE_URL}/chat/completions"
 GROQ_STT_URL = f"{STT_BASE_URL}/audio/transcriptions"
 LLM_MODEL = os.environ.get("AI_LISTING_LLM_MODEL", "openai/gpt-oss-120b")
 STT_MODEL = os.environ.get("AI_LISTING_STT_MODEL", "whisper-large-v3")
-LLM_TIMEOUT = 12.0
+LLM_TIMEOUT = 20.0  # total budget for one text-AI call, all failover attempts included
 STT_TIMEOUT = 30.0
+STT_BUDGET = 45.0   # total budget for one transcription, all failover attempts included
 
 
 def groq_api_key() -> Optional[str]:
@@ -75,6 +77,31 @@ def model_order(spec: str) -> list[str]:
     return models * 2 if len(models) == 1 else models
 
 
+async def post_with_failover(order: list[str], send, per_attempt: float, budget: float) -> httpx.Response:
+    """send(model, timeout) -> Response. Moves to the next model on FAILOVER_STATUS or a timeout/connection error
+    (a busy provider can take 20 s just to say 503) and stops when the overall budget is spent."""
+    start = time.monotonic()
+    r: Optional[httpx.Response] = None
+    last_exc: Optional[Exception] = None
+    for i, model in enumerate(order):
+        remaining = budget - (time.monotonic() - start)
+        if i > 0 and remaining < 1.0:
+            break
+        try:
+            r = await send(model, min(per_attempt, max(remaining, 1.0)))
+            last_exc = None
+        except httpx.TransportError as e:
+            r, last_exc = None, e
+            continue
+        if r.status_code in FAILOVER_STATUS and i < len(order) - 1:
+            await asyncio.sleep(1.0 if order[i + 1] == model else 0)
+            continue
+        return r
+    if r is not None:
+        return r
+    raise last_exc if last_exc else httpx.ConnectError("no model configured")
+
+
 class GroqLLM:
     """OpenAI-compatible chat client (Groq, Gemini's OpenAI endpoint, OpenRouter...). `model` may be a comma-separated failover list."""
 
@@ -85,19 +112,18 @@ class GroqLLM:
     async def _chat(self, system: str, user: str) -> Optional[dict[str, Any]]:
         order = model_order(self.model)
         headers = {"Authorization": f"Bearer {self.api_key}"}
+
+        async def send(model: str, timeout: float) -> httpx.Response:
+            body = {"model": model, "temperature": 0, "response_format": {"type": "json_object"},
+                    "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+            if self._client:
+                return await self._client.post(GROQ_CHAT_URL, json=body, headers=headers, timeout=timeout)
+            async with httpx.AsyncClient(timeout=timeout) as c:
+                return await c.post(GROQ_CHAT_URL, json=body, headers=headers)
+
         try:
-            for i, model in enumerate(order):
-                body = {"model": model, "temperature": 0, "response_format": {"type": "json_object"},
-                        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
-                if self._client:
-                    r = await self._client.post(GROQ_CHAT_URL, json=body, headers=headers, timeout=self.timeout)
-                else:
-                    async with httpx.AsyncClient(timeout=self.timeout) as c:
-                        r = await c.post(GROQ_CHAT_URL, json=body, headers=headers)
-                if r.status_code in FAILOVER_STATUS and i < len(order) - 1:
-                    await asyncio.sleep(1.0 if order[i + 1] == model else 0)
-                    continue
-                break
+            r = await post_with_failover(order, send, per_attempt=self.timeout / 2 if len(set(order)) > 1 else self.timeout,
+                                         budget=self.timeout)
             r.raise_for_status()
             data = json.loads(r.json()["choices"][0]["message"]["content"])
             return data if isinstance(data, dict) else None
@@ -174,18 +200,16 @@ class GeminiTranscriber:
                 "generationConfig": {"temperature": 0, "responseMimeType": "application/json", "responseSchema": _GEMINI_STT_SCHEMA}}
         headers = {"x-goog-api-key": self.api_key}  # header, not ?key=, so the key never lands in a URL or log line
         order = model_order(self.model)
+
+        async def send(model: str, timeout: float) -> httpx.Response:
+            url = f"{GEMINI_BASE_URL}/models/{model}:generateContent"
+            if self._client:
+                return await self._client.post(url, json=body, headers=headers, timeout=timeout)
+            async with httpx.AsyncClient(timeout=timeout) as c:
+                return await c.post(url, json=body, headers=headers)
+
         try:
-            for i, model in enumerate(order):
-                url = f"{GEMINI_BASE_URL}/models/{model}:generateContent"
-                if self._client:
-                    r = await self._client.post(url, json=body, headers=headers, timeout=self.timeout)
-                else:
-                    async with httpx.AsyncClient(timeout=self.timeout) as c:
-                        r = await c.post(url, json=body, headers=headers)
-                if r.status_code in FAILOVER_STATUS and i < len(order) - 1:
-                    await asyncio.sleep(1.0 if order[i + 1] == model else 0)
-                    continue
-                break
+            r = await post_with_failover(order, send, per_attempt=min(self.timeout, 20.0), budget=max(self.timeout, STT_BUDGET))
             r.raise_for_status()
             parts = (r.json().get("candidates") or [{}])[0].get("content", {}).get("parts") or []
             out = json.loads("".join(p.get("text", "") for p in parts))
