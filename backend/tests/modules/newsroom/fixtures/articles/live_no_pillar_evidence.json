@@ -1,0 +1,12 @@
+{
+  "id": "live_no_pillar_evidence",
+  "source": "fixture",
+  "url": "https://example.test/live_no_pillar_evidence",
+  "title": "Kharadi residents hold a quiz night at the community hall",
+  "text": "Kharadi residents hold a quiz night at the community hall",
+  "published_at": "2026-09-28T06:00:00+00:00",
+  "expect": {
+    "keep": false,
+    "reason": "no buyer relevance"
+  }
+}

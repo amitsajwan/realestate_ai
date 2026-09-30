@@ -1,0 +1,12 @@
+{
+  "id": "live_hotel_manager",
+  "source": "fixture",
+  "url": "https://example.test/live_hotel_manager",
+  "title": "Pune: Hotel Fortune Kharadi appoints Rahul Mehta as general manager",
+  "text": "Pune: Hotel Fortune Kharadi appoints Rahul Mehta as general manager",
+  "published_at": "2026-09-28T06:00:00+00:00",
+  "expect": {
+    "keep": false,
+    "reason": "non-buyer topic: hotels"
+  }
+}

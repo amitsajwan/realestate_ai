@@ -26,9 +26,34 @@ SYSTEM = (
     '"question" (one friendly question that invites comments, ending with ?).'
 )
 
+# used when the source gives only a headline: no room for 'why it matters', so the model is not asked for one
+SYSTEM_HEADLINE = (
+    f"You are the {BRAND}, writing for people in Pune who want to buy or rent a home. Write in friendly, plain English. "
+    "The source gave only a headline, so you know just one fact. Use ONLY the facts you are given. Do not add any number, "
+    "date, name, place or claim that is not in them, and do not explain what it means or what it may lead to. No hype, no "
+    "phone numbers, no predictions about prices, no praise or criticism of any builder. If something is only approved or "
+    "planned, say so. Reply with JSON only, with these keys: "
+    '"title" (a short plain headline), "what" (ONE sentence in your own words: what happened), "check" (ONE practical '
+    'sentence: what a buyer could verify, such as the official notice or the project page), "question" (one friendly '
+    'question ending with ?).'
+)
+HEADLINE_CHECK = "Read the source and any official notice for the latest status before you decide."
+HEADLINE_MAX_WORDS = 25  # a source text shorter than this is treated as headline-only
+
 
 def _clean(s) -> str:
     return re.sub(r"\s+", " ", URL.sub("", str(s or ""))).strip()
+
+
+def headline_only(item: RawItem) -> bool:
+    """True when the source gives no more than its headline (empty, same as the title, or a few words more)."""
+    text = re.sub(r"\s+", " ", URL.sub("", item.text or "")).strip().lower()
+    title = re.sub(r"\s+", " ", item.title or "").strip().lower()
+    if not text or text == title or title.startswith(text):
+        return True
+    if text.startswith(title) and len(text.split()) - len(title.split()) <= 4:  # e.g. headline plus a publisher name
+        return True
+    return len(text.split()) < HEADLINE_MAX_WORDS
 
 
 def _source_name(item: RawItem) -> str:
@@ -62,13 +87,13 @@ def _assemble(item: RawItem, facts: Facts, rel: Relevance, fmt: str, parts: dict
     if not q.endswith("?"):
         q = _question(rel)
     if fmt == "article":
-        body = [what, f"Why it may matter: {why} This is our view, not a fact from the source.", f"What to check: {chk}",
+        body = [what, f"Why it may matter: {why} This is our view, not a fact from the source." if why else "", f"What to check: {chk}",
                 f"{src}. Read it here: {item.url}", policy.DISCLAIMER]
         text = "\n\n".join(p for p in body if p)
         return Draft("article", text, _clean(parts.get("title")) or None, item.url, [name])
 
     def post(with_check: bool) -> str:
-        lines = [what, f"Our view: {why}"] + ([f"What to check: {chk}"] if with_check and chk else [])
+        lines = [what] + ([f"Our view: {why}"] if why else []) + ([f"What to check: {chk}"] if with_check and chk else [])
         lines += [f"{src}. {item.url}", q, _tags(rel)]
         return "\n\n".join(x for x in lines if x)
 
@@ -83,12 +108,10 @@ def template_draft(item: RawItem, facts: Facts, rel: Relevance, fmt: str = "post
     texts = [_clean(f.text) for f in facts.facts if _clean(f.text)]
     if not texts:
         return None
-    names = [AREA_NAMES[a] for a in _areas(rel)]
-    where = " and ".join(names) if names else "Pune"
     parts = {
         "title": texts[0].rstrip(".")[:90],
         "what": " ".join(t if t.endswith(".") else t + "." for t in texts[:2]),
-        "why": f"If you are buying or renting in {where}, this may be worth knowing about.",
+        "why": "",  # nothing specific to say, so say nothing: generic filler is worse than silence
         "check": "Read the source and any official notice for the latest status before you decide.",
         "question": _question(rel),
     }
@@ -101,12 +124,19 @@ async def draft(item: RawItem, facts: Facts, relevance: Relevance, fmt: str, llm
     if llm is None:
         return template_draft(item, facts, relevance, fmt)
     where = ", ".join(AREA_NAMES[a] for a in _areas(relevance)) or "Pune"
+    thin = headline_only(item)
+    if thin:
+        fmt = "post"  # a headline alone never supports an article
     user = (f"Format: {fmt}\nArea: {where}\nPillar: {relevance.pillar or 'general'}\nAs of: {_as_of(facts, item) or 'unknown'}\n"
             "Facts:\n" + "\n".join(f"- {_clean(f.text)}" for f in facts.facts))
     try:
-        parts = await llm.json(SYSTEM, user)
+        parts = await llm.json(SYSTEM_HEADLINE if thin else SYSTEM, user)
     except Exception:  # an LLM outage must never crash the pipeline
         return None
-    if not isinstance(parts, dict) or not _clean(parts.get("what")) or not _clean(parts.get("why")):
+    if not isinstance(parts, dict) or not _clean(parts.get("what")):
+        return None
+    if thin:
+        parts = {**parts, "why": "", "check": parts.get("check") or HEADLINE_CHECK}
+    elif not _clean(parts.get("why")):
         return None
     return _assemble(item, facts, relevance, "article" if fmt == "article" else "post", parts)
