@@ -164,18 +164,19 @@ def render_brand_post(kicker: str, title: str, points: List[str], size=SQUARE) -
     c = Card(size, brand_background(size, "pune-property", floor=1.0, tall=0.2))
     _, y = _chip(c, kicker, c.left, c.top)
     y += 34
-    y = c.block(title, y, 68, WHITE, 3, 42, weight="bold") + 26
+    tall = size[1] > size[0]  # portrait (Instagram): more room, so larger type fills the card
+    y = c.block(title, y, 78 if tall else 68, WHITE, 3, 42, weight="bold") + (44 if tall else 26)
     footer_h = 110
     avail = c.bottom - footer_h - y
-    for sz in (40, 36, 32, 28):
-        need = sum(c.height_of(p, sz, 2, 24, x=c.left + 64, weight="medium") + 20 for p in points)
+    for sz in ((48, 44, 40, 36, 32, 28) if tall else (40, 36, 32, 28)):
+        need = sum(c.height_of(p, sz, 2, 24, x=c.left + 64, weight="medium") + (34 if tall else 20) for p in points)
         if need <= avail:
             break
     for i, p in enumerate(points):
         cy = y + int(sz * PITCH) // 2 + 4
         c.draw.ellipse((c.left, cy - 21, c.left + 42, cy + 21), fill=GOLD)
         c.draw.text((c.left + 21, cy), str(i + 1), font=load_font(26, "bold"), fill=DARK_INK, anchor="mm")
-        y = c.block(p, y, sz, WHITE, 2, 24, x=c.left + 64, weight="medium") + 20
+        y = c.block(p, y, sz, WHITE, 2, 24, x=c.left + 64, weight="medium") + (34 if tall else 20)
     _stamp_logo(c, c.left, c.bottom - 88, 88)
     c.block("PUNE Property", c.bottom - 88, 34, GOLD, 1, 20, x=c.left + 108, weight="semibold")
     c.block("Find. Compare. Decide.", c.bottom - 88 + int(34 * PITCH), 26, SOFT, 1, 18, x=c.left + 108, weight="medium")
