@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import pytest
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -14,13 +16,18 @@ from app.modules.newsroom.config import NewsroomConfig
 from app.modules.newsroom.pipeline import run_once
 
 
+@pytest.fixture(autouse=True)
+def owner_env(monkeypatch):
+    monkeypatch.setenv("NEWSROOM_OWNER_IDS", "OWNER")
+
+
 def setup(checker=None):
     store = Store(FakeDb())
     app = FastAPI()
     app.include_router(nr.router, prefix="/newsroom")
     app.dependency_overrides[nr.get_store] = lambda: store
     app.dependency_overrides[nr.get_checker] = lambda: checker
-    app.dependency_overrides[current_active_user] = lambda: SimpleNamespace(id="OWNER")
+    app.dependency_overrides[current_active_user] = lambda: SimpleNamespace(id="OWNER", is_superuser=False)
     return TestClient(app), store
 
 
@@ -28,10 +35,10 @@ async def seed(store, n=1):
     await run_once(store, [FakeSource([item(i) for i in range(1, n + 1)])], good_stages(), FakePublisher(), object(), NOW, NewsroomConfig(daily_cap=2))
 
 
-def test_every_route_requires_the_authenticated_user():
+def test_every_route_is_owner_only():
     assert len(nr.router.routes) == 4
     for route in nr.router.routes:
-        assert any(d.call is current_active_user for d in route.dependant.dependencies), route.path
+        assert any(d.call is nr.owner_only for d in route.dependant.dependencies), route.path
 
 
 async def test_queue_and_status():
@@ -85,3 +92,12 @@ async def test_reject():
     d = await store.get("i1")
     assert d["status"] == "rejected" and d["history"][-1]["note"] == "off topic"
     assert c.post("/newsroom/items/i1/reject").status_code == 409
+
+
+def test_a_signed_in_user_who_is_not_the_owner_is_refused(monkeypatch):
+    c, _ = setup()
+    monkeypatch.delenv("NEWSROOM_OWNER_IDS", raising=False)
+    assert c.get("/newsroom/queue").status_code == 403
+    assert c.post("/newsroom/items/x/approve", json={}).status_code == 403
+    monkeypatch.setenv("NEWSROOM_OWNER_IDS", "OWNER")
+    assert c.get("/newsroom/queue").status_code == 200

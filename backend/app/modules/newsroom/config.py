@@ -25,6 +25,7 @@ class NewsroomConfig:
     interval_s: int = 10800
     daily_cap: int = policy.DAILY_CAP
     sources: Tuple[str, ...] = ("google_news", "maharera")
+    owner_ids: Tuple[str, ...] = ()  # user ids allowed to review and approve; empty = superusers only
 
 
 def load() -> NewsroomConfig:
@@ -34,4 +35,5 @@ def load() -> NewsroomConfig:
         interval_s=max(60, _int("NEWSROOM_INTERVAL_SECONDS", 10800)),
         daily_cap=max(0, _int("NEWSROOM_DAILY_CAP", policy.DAILY_CAP)),
         sources=names,
+        owner_ids=tuple(s.strip() for s in _env("NEWSROOM_OWNER_IDS").split(",") if s.strip()),
     )

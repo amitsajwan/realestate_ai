@@ -27,6 +27,13 @@ class RejectBody(BaseModel):
     reason: Optional[str] = None
 
 
+async def owner_only(user: User = Depends(current_active_user)) -> User:
+    """Approving posts the Page's name: only superusers or ids in NEWSROOM_OWNER_IDS may review."""
+    if getattr(user, "is_superuser", False) or str(user.id) in load().owner_ids:
+        return user
+    raise HTTPException(403, "Only the PUNE Property owner can use the newsroom")
+
+
 def get_store() -> Store:
     return Store(get_database())
 
@@ -54,13 +61,13 @@ def _view(doc: dict, now: datetime) -> dict:
 
 
 @router.get("/queue")
-async def queue(limit: int = 50, user: User = Depends(current_active_user), store: Store = Depends(get_store)) -> List[dict]:
+async def queue(limit: int = 50, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> List[dict]:
     now = datetime.now(timezone.utc)
     return [_view(d, now) for d in await store.queue(max(1, min(limit, 100)))]
 
 
 @router.get("/status")
-async def status(user: User = Depends(current_active_user), store: Store = Depends(get_store)) -> dict:
+async def status(user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
     run = await store.get_run()
     return {"enabled": load().enabled, "counts": await store.counts(), "last_run_at": run.get("last_run_at"), "last_error": run.get("last_error")}
 
@@ -75,7 +82,7 @@ async def _pending(store: Store, id: str) -> dict:
 
 
 @router.post("/items/{id}/approve")
-async def approve(id: str, body: ApproveBody, user: User = Depends(current_active_user), store: Store = Depends(get_store),
+async def approve(id: str, body: ApproveBody, user: User = Depends(owner_only), store: Store = Depends(get_store),
                   checker: Optional[Callable] = Depends(get_checker)) -> dict:
     doc = await _pending(store, id)
     now = datetime.now(timezone.utc)
@@ -100,7 +107,7 @@ async def approve(id: str, body: ApproveBody, user: User = Depends(current_activ
 
 
 @router.post("/items/{id}/reject")
-async def reject(id: str, body: Optional[RejectBody] = None, user: User = Depends(current_active_user), store: Store = Depends(get_store)) -> dict:
+async def reject(id: str, body: Optional[RejectBody] = None, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
     await _pending(store, id)
     reason = ((body.reason if body else None) or "").strip()[:300]
     await store.move(id, "rejected", reason or "rejected by owner",
