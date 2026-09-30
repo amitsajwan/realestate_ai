@@ -20,6 +20,7 @@ export default function SiteFooter({ cfg }: { cfg: MarketingConfig }) {
             <li><Link href={PATHS.invite} className={link}>{NAV.requestInvite}</Link></li>
             <li><Link href={PATHS.signIn} className={link}>{NAV.signIn}</Link></li>
             <li><Link href="/insights" className={link}>Insights</Link></li>
+            <li><Link href="/localities" className={link}>Localities</Link></li>
             {NAV.legal.map((l) => (
               <li key={l.href}><Link href={l.href} className={link}>{l.label}</Link></li>
             ))}

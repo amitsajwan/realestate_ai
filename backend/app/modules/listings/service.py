@@ -161,6 +161,24 @@ class ListingService:
                  for d in docs[offset:offset + limit]]
         return items, len(docs)
 
+    async def public_by_locality(self, locality: str, limit: int = 12):
+        """Real, currently visible listings in a locality across all public agents. Sample (illustrative) listings are never included."""
+        want = (locality or "").strip().lower()
+        if not want:
+            return [], 0
+        docs = await self.listings.find(self._public_flt()).sort("published_at", -1).to_list(MAX_PUBLIC)
+        now = self.now()
+        docs = [d for d in docs if (d.get("locality") or "").strip().lower() == want and not is_hidden(d, now)
+                and not (d.get("title") or "").strip().lower().startswith("sample")]
+        profiles: dict = {}
+        items = []
+        for d in docs:
+            if d["agent_id"] not in profiles:
+                profiles[d["agent_id"]] = await self.profiles.find_one({"agent_id": d["agent_id"], "is_public": True})
+            if profiles[d["agent_id"]]:
+                items.append(PublicListing.model_validate({**d, "id": d["_id"], "agent": self._agent(profiles[d["agent_id"]])}))
+        return items[:limit], len(items)
+
     async def public_get(self, listing_id: str) -> PublicListing:
         doc = await self.listings.find_one(self._public_flt(_id=listing_id))
         profile = await self.profiles.find_one({"agent_id": doc["agent_id"], "is_public": True}) if doc else None

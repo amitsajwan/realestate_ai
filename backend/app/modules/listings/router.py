@@ -95,6 +95,12 @@ async def public_agent_listings(slug: str, limit: int = Query(20, ge=1, le=100),
     return {"items": items, "total": total}
 
 
+@public_router.get("/localities/{locality}/listings", response_model=PublicListingPage)
+async def public_locality_listings(locality: str, limit: int = Query(12, ge=1, le=50), svc: ListingService = Depends(get_service)):
+    items, total = await svc.public_by_locality(locality, limit)
+    return {"items": items, "total": total}
+
+
 @public_router.get("/listings/{listing_id}", response_model=PublicListing)
 async def public_listing(listing_id: str, svc: ListingService = Depends(get_service)):
     try:

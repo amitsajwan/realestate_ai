@@ -272,3 +272,14 @@ async def test_public_get_hidden_agent_404():
     lst = await live(svc, agent="A3")
     with pytest.raises(ListingError):
         await svc.public_get(lst.id)
+
+
+async def test_public_by_locality_lists_real_visible_listings_across_agents_and_never_samples():
+    svc, db = await make()
+    for agent, title, loc in (("A1", "2BHK in Baner", "Baner"), ("A1", "Sample: 2 BHK in Baner", "Baner"), ("A1", "3BHK in Wakad", "Wakad")):
+        l = await svc.create(agent, ListingCreate(**{**FULL, "title": title, "locality": loc}))
+        await svc.publish(agent, l.id)
+    items, total = await svc.public_by_locality("baner")  # case-insensitive
+    assert [i.title for i in items] == ["2BHK in Baner"] and total == 1
+    assert items[0].agent.slug == "rahul"
+    assert await svc.public_by_locality("  ") == ([], 0) and (await svc.public_by_locality("Nowhere"))[1] == 0

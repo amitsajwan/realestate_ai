@@ -73,6 +73,13 @@ export async function getListing(slug: string, id: string): Promise<PublicListin
   return r.notFound ? null : unavailable()
 }
 
+/** Real (never sample) listings in a locality across all public agents; empty on any outage so the page still renders. */
+export async function getLocalityListings(locality: string): Promise<PublicListing[]> {
+  if (fixturesForced()) return []
+  const r = await getJson<ListingsPage>('/api/v1/public/localities/' + encodeURIComponent(locality) + '/listings?limit=12')
+  return r.ok ? r.data.items || [] : []
+}
+
 /** Best guess at the agent's city for the hero. */
 export function agentCity(agent: AgentProfile, listings: PublicListing[]): string {
   if (agent.city) return agent.city
