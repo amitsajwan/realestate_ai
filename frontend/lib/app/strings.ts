@@ -53,6 +53,7 @@ const en = {
   makeLive: 'Make live',
   describe: 'Describe the property - e.g. 2 BHK in Baner, 85 lakh, ready possession',
   speak: 'Tap to speak',
+  interest: 'Interest',
   voicePremium: 'Voice listing',
   voicePremiumBadge: 'Premium',
   voicePremiumSub: 'Speak in Hindi, Marathi or English and we write the listing. Coming with Premium. For now, type the details.',

@@ -24,6 +24,7 @@ import type {
   SiteCreateInput,
   SiteResult,
   SiteUpdateInput,
+  FacebookInterest,
   Stage,
   UploadedFile,
 } from './types'
@@ -183,6 +184,7 @@ export function createApiClient(opts: ClientOptions): AppApi {
       return request<LeadDetail>(`/inbox/leads/${id}`, { method: 'PATCH', json: patch })
     },
     getToday: () => request<BusinessToday>('/inbox/today'),
+    getFacebookInterest: () => request<FacebookInterest[]>('/engage/comments'),
     createFollowupDraft: (id, language) =>
       request<FollowupDraft>(`/inbox/leads/${id}/followup-draft`, { method: 'POST', json: language ? { language } : {} }),
 

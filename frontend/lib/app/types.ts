@@ -103,6 +103,22 @@ export interface SiteCreateInput {
   logo?: string
 }
 
+export interface FacebookInterest {
+  id: string
+  post_id: string
+  listing_id: string | null
+  from_name: string | null
+  text: string
+  intent: 'interested' | 'question' | 'praise' | 'complaint' | 'spam' | 'other'
+  language: string
+  status: 'replied' | 'dry_run' | 'needs_human' | 'ignored' | 'capped' | 'failed'
+  reply: string | null
+  needs_human: boolean
+  reason: string
+  created_time: string | null
+  permalink: string | null
+}
+
 export interface SiteUpdateInput {
   photo?: string
   logo?: string
@@ -452,6 +468,7 @@ export interface AppApi {
   verifyOtp(phone: string, code: string): Promise<LoginResult>
   createSite(input: SiteCreateInput): Promise<SiteResult>
   updateSite(input: SiteUpdateInput): Promise<unknown>
+  getFacebookInterest(): Promise<FacebookInterest[]>
   listListings(status?: ListingStatus): Promise<Listing[]>
   getListing(id: string): Promise<Listing>
   createListing(input: ListingInput): Promise<Listing>

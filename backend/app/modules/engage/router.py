@@ -9,7 +9,7 @@ from app.models.user import User
 
 router = APIRouter()
 
-SAFE = ("post_id", "listing_id", "from_name", "text", "intent", "language", "status", "reply", "needs_human", "reason", "created_time")
+SAFE = ("post_id", "listing_id", "from_name", "text", "intent", "language", "status", "reply", "needs_human", "reason", "created_time", "permalink")
 
 
 @router.get("/comments")

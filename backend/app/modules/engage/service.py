@@ -66,7 +66,7 @@ class EngageService:
             facts = "\n".join(x for x in (f.title_line("en"), f.price_text, f.area_text, f.possession_text("en"), f.floor_text("en"),
                                           f"RERA {f.rera}" if f.rera else None, "Amenities: " + ", ".join(f.amenities) if f.amenities else None, message) if x)
             return {"facts": facts, "link": with_source(base), "listing_id": listing["_id"], "agent_id": listing.get("agent_id")}
-        return {"facts": message, "link": with_source(self.cfg.landing_url), "listing_id": None, "agent_id": None}
+        return {"facts": message, "link": with_source(self.cfg.landing_url), "listing_id": None, "agent_id": self.cfg.owner_agent_id or None}
 
     # ---- limits ------------------------------------------------------------------------------------------------
     async def _hourly_full(self) -> bool:
@@ -83,7 +83,7 @@ class EngageService:
     async def _handle(self, post: dict, c: dict, ctx: Dict) -> Optional[dict]:
         cid, sender = c["id"], c.get("from") or {}
         base = {"_id": cid, "post_id": post["id"], "listing_id": ctx["listing_id"], "agent_id": ctx["agent_id"], "from_id": sender.get("id"),
-                "from_name": sender.get("name"), "text": (c.get("message") or "")[:1000], "created_time": c.get("created_time"),
+                "from_name": sender.get("name"), "permalink": c.get("permalink_url"), "text": (c.get("message") or "")[:1000], "created_time": c.get("created_time"),
                 "processed_at": self.now(), "reply": None, "reply_id": None, "error": None}
         t = parse_time(c.get("created_time"))
         if sender.get("id") == self.cfg.page_id or c.get("parent") or (t and self.now() - t > MAX_COMMENT_AGE):

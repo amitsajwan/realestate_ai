@@ -16,6 +16,7 @@ class EngageConfig:
     interval_s: int = 60
     page_id: str = ""
     graph_version: str = "v23.0"
+    owner_agent_id: str = ""       # who sees comments on Page-level posts (guides, tips) that belong to no listing
     landing_url: str = ""           # where general "interested" comments are sent (an agent site's enquiry section)
     site_url: str = ""
     max_replies_per_hour: int = 20
@@ -35,5 +36,5 @@ def load() -> EngageConfig:
         dry_run=_env("ENGAGE_DRY_RUN", "true").lower() not in ("false", "0", "no", "off"),  # only an explicit false turns replies on
         interval_s=max(20, int(_env("ENGAGE_INTERVAL_SECONDS", "60") or 60)),
         page_id=_env("META_PAGE_ID"), graph_version=_env("META_GRAPH_VERSION", "v23.0"), page_token=_env("META_PAGE_ACCESS_TOKEN"),
-        landing_url=_env("ENGAGE_LANDING_URL") or site, site_url=site,
+        owner_agent_id=_env("ENGAGE_OWNER_AGENT_ID"), landing_url=_env("ENGAGE_LANDING_URL") or site, site_url=site,
     )

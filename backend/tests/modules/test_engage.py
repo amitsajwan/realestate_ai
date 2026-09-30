@@ -184,3 +184,9 @@ async def test_listing_posts_link_to_the_listing_page_and_record_the_agent():
     assert doc["listing_id"] == "L1" and doc["agent_id"] == "A1"
     assert "https://site.test/agent/rahul/listings/L1?src=facebook_comment#enquire" in g.replies[0][1]
     assert [d["_id"] for d in await svc.recent("A1")] == ["C1"] and await svc.recent("A2") == []
+
+
+async def test_page_level_posts_belong_to_the_configured_owner():
+    svc, g, db = make([post([comment("C1", "INTERESTED")])], owner_agent_id="OWNER")
+    await svc.run_once()
+    assert db.get_collection("engage_comments").docs[0]["agent_id"] == "OWNER" and [d["_id"] for d in await svc.recent("OWNER")] == ["C1"]

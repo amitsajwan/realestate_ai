@@ -33,7 +33,7 @@ class EngageGraph:
         return body
 
     async def recent_posts_with_comments(self) -> List[dict]:
-        fields = "id,message,created_time,comments.limit(50){id,message,from,created_time,parent}"
+        fields = "id,message,created_time,comments.limit(50){id,message,from,created_time,parent,permalink_url}"
         body = await self._call("GET", f"{self.cfg.page_id}/posts", {"fields": fields, "limit": self.cfg.lookback_posts})
         return body.get("data", [])
 

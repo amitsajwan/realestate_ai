@@ -8,6 +8,7 @@ import { t } from '@/lib/app/strings'
 const TABS = [
   { href: '/studio', label: 'home', icon: 'M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z' },
   { href: '/studio/listings', label: 'listings', icon: 'M4 6h16M4 12h16M4 18h16' },
+  { href: '/studio/interest', label: 'interest', icon: 'M21 11.5a8.4 8.4 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.4 8.4 0 013.8-.9h.5a8.5 8.5 0 018 8v.5z' },
   { href: '/studio/leads', label: 'leads', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 014-4h2a4 4 0 014 4v2zM12 7a3 3 0 11-6 0 3 3 0 016 0z' },
 ] as const
 
