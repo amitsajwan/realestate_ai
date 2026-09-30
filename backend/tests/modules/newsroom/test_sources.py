@@ -32,7 +32,7 @@ def test_strip_html_handles_escaped_markup():
 
 def test_queries_come_from_policy_and_are_unique():
     qs = build_queries()
-    assert "Kharadi" in qs and "Wagholi" in qs and "PMRDA" in qs or "pmrda" in [q.lower() for q in qs]
+    assert "kharadi" in [q.lower() for q in qs] and "wagholi" in [q.lower() for q in qs]
     assert len({q.lower() for q in qs}) == len(qs)
     assert "Pune metro Kharadi" in qs
     for words in policy.AREA_KEYWORDS.values():

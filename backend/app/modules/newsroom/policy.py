@@ -14,7 +14,7 @@ AREA_KEYWORDS = {
 }
 # corridor topics that affect our areas even when no area is named (matched together with a Pune hint)
 CORRIDOR_KEYWORDS = [
-    "pune ring road", "pmrda", "pune metro line 3", "nagar road", "pune-ahmednagar", "shirur road",
+    "pune ring road", "nagar road", "ramwadi", "wagholi metro", "kharadi metro", "pune-ahmednagar", "shirur road",
     "pune airport", "purandar airport", "ring road pune", "kharadi bypass", "hadapsar-kharadi",
 ]
 PUNE_HINT = ("pune", "pimpri", "pmc", "pmrda", "maharera")
