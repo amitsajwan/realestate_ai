@@ -105,11 +105,8 @@ async def polish_content(content: Dict, f: Facts, polish: Optional[Polish]) -> D
     if polish is None:
         return content
     lang = content["language"]
-    slots = [(content, "headline", "headline"), (content["instagram"], "caption", "caption"),
-             (content["facebook"], "post", "post"), (content["whatsapp"], "message", "message"),
-             (content["whatsapp"], "status_text", "status_text"), (content["reel"], "hook", None)]
+    # Only the two public social texts are worth an LLM call (free tiers allow ~50 a day); the rest stay deterministic.
+    slots = [(content["instagram"], "caption", "caption"), (content["facebook"], "post", "post")]
     for holder, key, limit in slots:
         holder[key] = await polish_text(polish, holder[key], lang, f, LIMITS.get(limit) if limit else None)
-    if content["reel"]["beats"]:
-        content["reel"]["beats"][0]["text"] = content["reel"]["hook"]  # beat 1 is the hook
     return content

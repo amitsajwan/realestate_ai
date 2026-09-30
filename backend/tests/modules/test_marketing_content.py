@@ -144,11 +144,12 @@ async def test_polish_accepts_when_facts_kept():
     c = build_content(f, "en")
 
     async def ok(draft, lang):
-        return draft.replace("Hi!", "Hello!").replace("Details and photos", "See details")
+        return draft.replace("Interested?", "Like what you see?")
 
     out = await polish_content(build_content(f, "en"), f, ok)
-    assert out["whatsapp"]["message"].startswith("Hello!") and "See details" in out["whatsapp"]["message"]
-    assert out["whatsapp"]["message"] != c["whatsapp"]["message"]
+    assert "Like what you see?" in out["instagram"]["caption"] and "Like what you see?" in out["facebook"]["post"]
+    assert out["instagram"]["caption"] != c["instagram"]["caption"]
+    assert out["whatsapp"] == c["whatsapp"] and out["headline"] == c["headline"]  # only the two social texts cost an LLM call
 
 
 @pytest.mark.asyncio
