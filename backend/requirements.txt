@@ -27,3 +27,6 @@ requests==2.31.0
 # Testing dependencies
 pytest==7.4.3
 pytest-asyncio==0.21.1
+
+# Reels (short vertical video): bundles a static ffmpeg binary, no apt package needed
+imageio-ffmpeg==0.6.0

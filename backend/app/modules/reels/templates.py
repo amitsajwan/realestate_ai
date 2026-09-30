@@ -1,0 +1,109 @@
+"""Three reel templates. Each returns (scenes, options) to pass to compose.make_reel(scenes, out, **options).
+
+Rules (docs/NEWSROOM_PLAN.md, brand): no phone numbers, no invented facts, no price unless given, samples are labelled.
+"""
+from typing import Dict, List, Optional, Sequence, Tuple
+
+from .compose import Scene, TextLine
+
+CTA_WORD = "INTERESTED"
+
+
+def tip_reel(lines: Sequence[str], images: Optional[Sequence] = None, seed: str = "tip") -> Tuple[List[Scene], Dict]:
+    """'Tip in 15 seconds': lines[0] = hook, lines[1:4] = three beats, lines[4] (optional) = call to action.
+    Fewer beats are fine (minimum: a hook and one beat). Use *asterisks* to colour a word gold."""
+    lines = [l.strip() for l in lines if l and l.strip()]
+    if len(lines) < 2:
+        raise ValueError("a tip reel needs a hook and at least one beat")
+    hook, beats = lines[0], lines[1:4]
+    cta = lines[4] if len(lines) > 4 else "Save this for when you need it."
+    imgs = list(images or [])
+
+    def img(i):
+        return imgs[i % len(imgs)] if imgs else None
+
+    scenes = [Scene(image=img(0), lines=[TextLine(hook, size=132)], kicker="Quick tip", seconds=3.4, seed=f"{seed}-0")]
+    for i, b in enumerate(beats):
+        scenes.append(Scene(image=img(i + 1), lines=[TextLine(b, size=110, max_lines=5)], kicker=f"Tip {i + 1} of {len(beats)}",
+                            seconds=3.3, seed=f"{seed}-{i + 1}"))
+    scenes.append(Scene(image=img(len(beats) + 1), lines=[TextLine(cta, size=96, max_lines=4)], seconds=2.8, seed=f"{seed}-cta"))
+    return scenes, {"transition": "fade"}
+
+
+def listing_tour(photos: Sequence, facts: Dict, sample: bool = False) -> Tuple[List[Scene], Dict]:
+    """'Listing tour': photos plus key facts. facts keys: bhk (number), property_type (default 'apartment'), locality, city (default 'Pune'),
+    area_sqft, possession ('ready' | 'under_construction' or free text), price_text (shown only when provided), furnishing.
+    `sample=True` adds a 'SAMPLE LISTING' label on every scene."""
+    if not photos:
+        raise ValueError("a listing tour needs at least one photo")
+    bhk = facts.get("bhk")
+    ptype = facts.get("property_type") or "apartment"
+    locality, city = facts.get("locality") or "", facts.get("city") or "Pune"
+    head = (f"{int(bhk) if float(bhk).is_integer() else bhk} BHK " if bhk else "") + ptype
+    badge = "Sample listing" if sample else None
+    where = f"{locality}, {city}" if locality else city
+
+    def ph(i):
+        return photos[i % len(photos)]
+
+    scenes = [Scene(image=ph(0), lines=[TextLine(head.capitalize() if not bhk else head, size=108), TextLine(f"*{where}*", size=64, weight="semibold")],
+                    layout="lower", badge=badge, seconds=3.4, seed="tour-0")]
+    n = 1
+    if facts.get("area_sqft"):
+        scenes.append(Scene(image=ph(n), lines=[TextLine(f"{int(facts['area_sqft']):,}", size=176), TextLine("sq ft of *usable* space" if False else "square feet", size=60)],
+                            layout="lower", badge=badge, seconds=2.8, seed=f"tour-{n}"))
+        n += 1
+    poss = {"ready": "Ready to move", "under_construction": "Under construction"}.get(facts.get("possession") or "", facts.get("possession"))
+    if poss:
+        scenes.append(Scene(image=ph(n), lines=[TextLine(poss, size=104), TextLine("Possession", size=56)], layout="lower", badge=badge,
+                            seconds=2.8, seed=f"tour-{n}"))
+        n += 1
+    if facts.get("furnishing"):
+        scenes.append(Scene(image=ph(n), lines=[TextLine(str(facts["furnishing"]), size=104), TextLine("Furnishing", size=56)], layout="lower",
+                            badge=badge, seconds=2.6, seed=f"tour-{n}"))
+        n += 1
+    if facts.get("price_text"):
+        scenes.append(Scene(image=ph(n), lines=[TextLine(str(facts["price_text"]), size=150), TextLine("Price", size=56)], layout="lower",
+                            badge=badge, seconds=2.8, seed=f"tour-{n}"))
+        n += 1
+    scenes.append(Scene(image=ph(n), lines=[TextLine(f"Want the details?", size=100), TextLine(f"Comment *{CTA_WORD}*", size=72, weight="semibold")],
+                        layout="lower", badge=badge, seconds=2.8, seed=f"tour-{n}"))
+    return scenes, {"transition": "slide", "xfade": 0.5}
+
+
+def agent_pitch(problem: str = "Buyers message you all day. *Same* questions. Every time.",
+                solution: str = "Your own link that answers them, *qualifies* the buyer and hands you only the serious ones.",
+                proof: Sequence[str] = ("Listings in 2 minutes", "Posts made for you"),
+                cta: str = "Free for agents in Pune.",
+                images: Optional[Sequence] = None) -> Tuple[List[Scene], Dict]:
+    """'Agent pitch': problem, solution, two proof points, call to action. The defaults state only what the product does."""
+    imgs = list(images or [])
+
+    def img(i):
+        return imgs[i % len(imgs)] if imgs else None
+
+    scenes = [
+        Scene(image=img(0), lines=[TextLine(problem, size=108, max_lines=5)], kicker="Agents, sound familiar?", seconds=3.6, seed="pitch-problem"),
+        Scene(image=img(1), lines=[TextLine(solution, size=88, max_lines=6)], kicker="There is a better way", seconds=4.0, seed="pitch-solution"),
+    ]
+    for i, p in enumerate(list(proof)[:2]):
+        scenes.append(Scene(image=img(i + 2), lines=[TextLine(p, size=108)], kicker="What you get", seconds=2.4, seed=f"pitch-proof-{i}"))
+    scenes.append(Scene(image=img(4), lines=[TextLine(cta, size=104)], seconds=2.6, seed="pitch-cta"))
+    return scenes, {"transition": "fade"}
+
+
+# Sample listing facts (labelled samples only; same localities as scripts/seed_samples.py)
+SAMPLE_FACTS = {
+    "kharadi": {"bhk": 2, "locality": "Kharadi", "area_sqft": 1050, "possession": "ready", "property_type": "apartment"},
+    "wagholi": {"bhk": 3, "locality": "Wagholi", "area_sqft": 1420, "possession": "under_construction", "property_type": "apartment"},
+}
+
+TIP_LINES = [
+    "Buying in Pune? *Check this first.*",
+    "Ask for the *RERA number*. Then look it up on the MahaRERA site.",
+    "Compare *carpet area*, not super built-up area.",
+    "Visit on a *weekday evening* to see traffic and parking.",
+    "Follow for more Pune property tips.",
+]
+
+TEMPLATES = ("tip", "tour", "pitch")
