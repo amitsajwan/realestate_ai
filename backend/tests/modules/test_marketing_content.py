@@ -287,3 +287,20 @@ def test_sample_listing_is_labelled_in_every_text_and_card():
     assert "SAMPLE LISTING" in c["instagram"]["caption"].splitlines()[0]
     assert "SAMPLE LISTING" in render("cover", f, None).texts and "FOR SALE" not in render("cover", f, None).texts
     assert "SAMPLE LISTING" not in build_content(facts(), "en")["facebook"]["post"]
+
+
+# ---- group post -----------------------------------------------------------------------------------------------
+@pytest.mark.parametrize("lang", ["en", "hi", "mr"])
+def test_group_post_is_short_dated_tracked_and_has_no_contact_details(lang):
+    f = facts()
+    f.as_of = "30 Sep 2026"
+    post = build_content(f, lang)["group"]["post"]
+    assert "30 Sep 2026" in post and "src=fbgroup" in post and "src=whatsapp" not in post
+    assert "₹85 Lakh" in post and "Baner" in post and "P52100012345" in post
+    assert len(post.splitlines()) <= 8 and len(post) <= 600
+    assert re.sub(r"\D", "", f.agent_phone) not in re.sub(r"\D", "", post)
+
+
+def test_group_post_without_a_date_omits_the_line_and_samples_are_labelled():
+    assert "Available as of" not in build_content(facts(), "en")["group"]["post"]
+    assert build_content(facts(title="Sample: 2 BHK"), "en")["group"]["post"].startswith("SAMPLE LISTING")

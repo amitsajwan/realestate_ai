@@ -31,6 +31,32 @@ export function CopyBtn({ text, label, variant = 'secondary' }: { text: string; 
   )
 }
 
+const CONTACT_KEY = 'pp_group_contact'
+
+/** Text for WhatsApp / Facebook groups. Groups expect a way to reach the poster, so the agent adds their OWN contact line here; it is kept only on
+ *  this phone and is never sent to us or put on our Page. */
+function GroupCard({ post }: { post: string }) {
+  const [contact, setContact] = useState('')
+  React.useEffect(() => {
+    try { setContact(window.localStorage.getItem(CONTACT_KEY) || '') } catch { /* ignore */ }
+  }, [])
+  const save = (v: string) => {
+    setContact(v)
+    try { window.localStorage.setItem(CONTACT_KEY, v) } catch { /* ignore */ }
+  }
+  const full = contact.trim() ? `${post}\n\u260e ${contact.trim()}` : post
+  return (
+    <Card title="For groups" testId="card-group">
+      <p className="text-sm text-gray-600">Short, photo-first text for the WhatsApp and Facebook groups where you already post. Follow each group&apos;s rules: only genuine, current properties, and do not repost the same one again and again.</p>
+      <label className="block text-sm font-semibold text-gray-700" htmlFor="group-contact">Your contact line (kept on this phone only)</label>
+      <input id="group-contact" value={contact} onChange={(e) => save(e.target.value)} maxLength={80} placeholder="e.g. Rahul, call/WhatsApp 98xxxxxxxx"
+        className="min-h-[48px] w-full rounded-xl border border-gray-300 px-3 text-base" />
+      <p className={textBox} data-testid="group-post">{full}</p>
+      <CopyBtn text={full} label="Copy for groups" variant="primary" />
+    </Card>
+  )
+}
+
 function Card({ title, children, testId }: { title: string; children: React.ReactNode; testId: string }) {
   return (
     <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4" aria-label={title} data-testid={testId}>
@@ -118,6 +144,8 @@ export function MarketingPackView({ pack }: { pack: MarketingPack }) {
         <p className={textBox} data-testid="fb-post">{pack.facebook.post}</p>
         <CopyBtn text={pack.facebook.post} label={t('copyPost')} variant="primary" />
       </Card>
+
+      {pack.group?.post && <GroupCard post={pack.group.post} />}
 
       <Card title="WhatsApp" testId="card-whatsapp">
         <p className={textBox} data-testid="wa-message">{waText}</p>

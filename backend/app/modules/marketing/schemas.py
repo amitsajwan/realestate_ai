@@ -35,6 +35,10 @@ class WhatsApp(BaseModel):
     status_image: Optional[ImageAsset] = None
 
 
+class Group(BaseModel):
+    post: str
+
+
 class ReelBeat(BaseModel):
     seconds: str
     text: str
@@ -58,5 +62,6 @@ class MarketingPack(BaseModel):
     instagram: Instagram
     facebook: Facebook
     whatsapp: WhatsApp
+    group: Optional[Group] = None  # packs made before this existed have none
     reel: Reel
     share_url: str

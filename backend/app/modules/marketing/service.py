@@ -52,7 +52,7 @@ class MarketingService:
         wa = {**doc["whatsapp"], "status_image": self._asset("status", imgs["status"], base_url) if "status" in imgs else None}
         return MarketingPack.model_validate({**{k: doc[k] for k in (
             "language", "version", "generated_at", "angle", "headline", "facebook", "reel", "share_url")},
-            "listing_id": doc["_id"], "instagram": ig, "whatsapp": wa})
+            "listing_id": doc["_id"], "instagram": ig, "whatsapp": wa, "group": doc.get("group")})
 
     async def generate(self, agent_id: str, listing_id: str, language: str, base_url: str) -> MarketingPack:
         listing = await self._listing(agent_id, listing_id)
@@ -60,6 +60,7 @@ class MarketingService:
             raise MarketingError("Only live or under-offer listings can be marketed. Publish this listing first.", 409)
         profile = await self.profiles.find_one({"agent_id": agent_id})
         facts = Facts.from_docs(listing, profile, self._share_url((profile or {}).get("slug"), listing_id))
+        facts.as_of = self.now().strftime("%d %b %Y")  # groups punish stale posts, so every group text says 'available as of'
         content = await polish_content(build_content(facts, language), facts, self.polish)
         try:
             images = await asyncio.to_thread(render_all, facts, listing.get("media") or [], self.uploads_dir, listing_id)

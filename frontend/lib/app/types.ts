@@ -365,6 +365,7 @@ export interface MarketingPack {
   instagram: { caption: string; hashtags: string[]; images: ImageAsset[] }
   facebook: { post: string }
   whatsapp: { message: string; status_text: string; status_image: ImageAsset | null }
+  group?: { post: string } | null
   reel: { hook: string; beats: ReelBeat[]; cta: string; duration_s: number }
   share_url: string
 }

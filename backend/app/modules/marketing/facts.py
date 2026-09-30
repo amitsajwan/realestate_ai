@@ -103,6 +103,7 @@ class Facts:
     agent_name: str = ""
     agent_phone: Optional[str] = None
     share_url: str = ""
+    as_of: str = ""  # 'available as of' date shown on group posts (set when the pack is generated)
     sample: bool = False  # an illustrative listing (title starts with 'Sample'): labelled everywhere, never presented as available
 
     @classmethod

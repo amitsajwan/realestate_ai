@@ -23,6 +23,7 @@ P = {
         "v_hook": "Cover photo with the headline text", "v_prop": "Photo of the main room, text overlay",
         "v_loc": "Photo or map pin of the locality", "v_price": "Price on a plain card", "v_cta": "Agent name card",
         "am": "Amenities: {items}", "link": "🔗 Details and photos: {url}",
+        "avail": "✅ Available as of {d}",
     },
     "hi": {
         "cta": "💬 रुचि है? कमेंट में INTERESTED लिखें, {agent} विवरण भेजेंगे और साइट विज़िट तय करेंगे।",
@@ -33,6 +34,7 @@ P = {
         "v_hook": "कवर फोटो और हेडलाइन टेक्स्ट", "v_prop": "मुख्य कमरे की फोटो, ऊपर टेक्स्ट",
         "v_loc": "इलाके की फोटो या मैप पिन", "v_price": "सादे कार्ड पर कीमत", "v_cta": "एजेंट के नाम का कार्ड",
         "am": "सुविधाएं: {items}", "link": "🔗 विवरण और फोटो: {url}",
+        "avail": "✅ {d} तक उपलब्ध",
     },
     "mr": {
         "cta": "💬 आवड आहे? कमेंटमध्ये INTERESTED लिहा, {agent} तपशील पाठवतील आणि साइट व्हिजिट ठरवतील.",
@@ -43,6 +45,7 @@ P = {
         "v_hook": "कव्हर फोटो आणि हेडलाइन मजकूर", "v_prop": "मुख्य खोलीचा फोटो, वर मजकूर",
         "v_loc": "परिसराचा फोटो किंवा मॅप पिन", "v_price": "साध्या कार्डवर किंमत", "v_cta": "एजंटच्या नावाचे कार्ड",
         "am": "सुविधा: {items}", "link": "🔗 तपशील आणि फोटो: {url}",
+        "avail": "✅ {d} रोजी उपलब्ध",
     },
 }
 
@@ -156,6 +159,28 @@ def facebook_post(f: Facts, lang: str) -> str:
     return clip("\n\n".join(paras[:-1]), FB_MAX - len(cta) - 2) + "\n\n" + cta
 
 
+def group_post(f: Facts, lang: str) -> str:
+    """Short, photo-first text for WhatsApp / Facebook groups. The agent adds their own contact line in the app; nothing personal is generated here.
+    Groups punish stale posts, so the 'available as of' date is part of it. Enquiries from it are tracked as source 'fbgroup'."""
+    p = P[lang]
+    lines = [SAMPLE_LINE] if f.sample else []
+    lines.append(f"\U0001F3E1 {f.title_line(lang)}")
+    facts_line = _summary_line(f, lang)
+    if facts_line:
+        lines.append(facts_line)
+    if f.loc:
+        lines.append(f"\U0001F4CD {f.loc}")
+    if f.rera:
+        lines.append(f"RERA: {f.rera}")
+    if f.amenities:
+        lines.append(_amen(f, lang, 5))
+    if f.as_of:
+        lines.append(p["avail"].format(d=f.as_of))
+    if f.share_url:
+        lines.append(p["link"].format(url=f.share_url.replace("src=whatsapp", "src=fbgroup")))
+    return "\n".join(x for x in lines if x)
+
+
 def whatsapp_message(f: Facts, lang: str) -> str:
     """2-3 short conversational lines including the listing link."""
     p = P[lang]
@@ -199,5 +224,6 @@ def build_content(f: Facts, language: str) -> Dict:
         "instagram": {"caption": instagram_caption(f, lang), "hashtags": hashtags(f)},
         "facebook": {"post": facebook_post(f, lang)},
         "whatsapp": {"message": whatsapp_message(f, lang), "status_text": status_text(f, lang)},
+        "group": {"post": group_post(f, lang)},
         "reel": reel(f, lang),
     }
