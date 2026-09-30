@@ -36,7 +36,7 @@ async def main() -> None:
     if not (cfg.page_id and cfg.page_token):
         sys.exit("Meta page settings are missing")
     test_cfg = replace(cfg, page_id="__someone_else__", dry_run=False)  # the Page's own comments now count as an outsider's
-    graph = EngageGraph(test_cfg)
+    graph = EngageGraph(cfg)  # real Page id and token for every Graph call
     coll = db.get_collection("engage_comments")
     created, reply_ids = [], []
     async with httpx.AsyncClient(timeout=30) as c:
@@ -49,7 +49,7 @@ async def main() -> None:
             created.append(r.json().get("id"))
         for cid in created:  # the background loop may have seen them first and marked them 'ignored' (own comment): reset so this run decides
             await coll.delete_many({"_id": cid}) if hasattr(coll, "delete_many") else None
-        svc = EngageService(db, graph, default_llm(), test_cfg)
+        svc = EngageService(db, graph, default_llm(), test_cfg)  # only the 'who is an outsider' rule uses the fake id
         counts = await svc.run_once()
         print("cycle result:", counts)
         docs = {d["_id"]: d for d in await coll.find({"_id": {"$in": created}}).to_list(10)}
