@@ -203,3 +203,23 @@ async def test_a_plain_greeting_gets_a_friendly_reply_without_an_llm_call(text):
 async def test_greetings_from_the_page_itself_are_still_ignored():
     svc, g, db = make([post([comment("C1", "hi", who="PAGE")])])
     assert await svc.run_once() == {"ignored": 1} and g.replies == []
+
+
+async def test_a_question_the_llm_labels_other_still_gets_a_holding_reply_and_a_place_in_the_queue():
+    llm = FakeLLM({"intent": "other", "language": "en", "answerable": False, "reply": ""})
+    d = await decide("what is location", None, FACTS, LINK, llm)
+    assert d.intent == "question" and d.needs_human and "Our team will reply" in d.reply and LINK in d.reply
+    d2 = await decide("where is it located", None, FACTS, LINK, None)  # no LLM at all
+    assert d2.intent == "question" and d2.needs_human and d2.reply
+
+
+async def test_chatter_that_is_not_a_question_is_left_alone():
+    d = await decide("ok nice", None, FACTS, LINK, FakeLLM({"intent": "other", "language": "en"}))
+    assert d.intent == "other" and d.reply is None and not d.needs_human
+
+
+async def test_unknown_commenters_share_a_per_post_limit_instead_of_being_unlimited():
+    posts = [post([{"id": f"C{i}", "message": "INTERESTED", "created_time": (NOW - timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M:%S+0000")} for i in range(8)])]
+    svc, g, db = make(posts)
+    res = await svc.run_once()
+    assert res == {"replied": 6, "capped": 2} and len(g.replies) == 6

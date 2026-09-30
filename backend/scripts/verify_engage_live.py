@@ -39,6 +39,7 @@ async def main() -> None:
     graph = EngageGraph(cfg)  # real Page id and token for every Graph call
     coll = db.get_collection("engage_comments")
     created, reply_ids = [], []
+    await coll.delete_many({"from_id": cfg.page_id})  # earlier verification runs must not eat today's per-person cap
     async with httpx.AsyncClient(timeout=30) as c:
         posts = await graph.recent_posts_with_comments()
         post = posts[-1]
@@ -62,7 +63,7 @@ async def main() -> None:
                     reply_ids.append(d["reply_id"])
                     rr = await c.get(f"{G}/{d['reply_id']}", params={"fields": "message,parent{id}", "access_token": cfg.page_token})
                     check("  the reply exists on Facebook under that comment", rr.status_code == 200 and (rr.json().get("parent") or {}).get("id") == cid)
-                    check("  the reply has our link and no phone number", "sslip.io" in d["reply"] and not any(ch.isdigit() for ch in d["reply"].replace("https://34-180-39-243.sslip.io", "")[:0]))
+                    check("  the reply has our link (if it should) and no phone number", (intent == "greeting" or "sslip.io" in d["reply"]) and not __import__("re").search(r"\d{10}", d["reply"]))
             else:
                 check(f"  spam was NOT answered", bool(d) and d["status"] == "ignored" and not d.get("reply_id"))
             if intent == "question" and d:

@@ -41,6 +41,7 @@ SYSTEM = (
     "You handle comments on a Pune real-estate Facebook Page run by the 'PUNE Property team'. Classify the comment and, if it asks a question "
     "that the POST FACTS answer, draft a reply. Reply ONLY with one JSON object: "
     '{"intent": "interested|question|praise|complaint|spam|other", "language": "en|hi|mr", "answerable": true or false, "reply": "..."}. '
+    "A question about the property, price, location, area, availability, metro or process is intent 'question' (never 'other'). "
     "Rules for reply: same language as the comment (Marathi or Hindi in Devanagari is fine), at most 2 short sentences, friendly, plain. "
     "Use ONLY facts from POST FACTS. If the answer is not in POST FACTS, set answerable=false and reply=''. "
     "Never invent prices, distances, dates, amenities, approvals or RERA details. Never include phone numbers, links, or promises. "
@@ -84,6 +85,13 @@ def valid_reply(reply: str, facts: str, link: str) -> bool:
     return all(n in allowed for n in NUM.findall(reply))
 
 
+QUESTION_WORDS = re.compile(r"\?|^\s*(what|where|how|which|when|is|are|can|do|does|kya|kaise|kitna|kitni|kahan|kab|kuthe|kiti|kay)\b|\b(location|price|rate|address|available|availability|metro|possession|rera|loan|size|floor)\b", re.I)
+
+
+def looks_like_question(text: str) -> bool:
+    return bool(QUESTION_WORDS.search(text or ""))
+
+
 def by_rules(text: str) -> Optional[str]:
     """Cheap, certain cases first: spam and abuse are not answered, plain 'INTERESTED'-style comments are."""
     t = (text or "").strip()
@@ -119,6 +127,8 @@ async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm
         # LLM unavailable or unusable: keyword fallback, and a person looks at anything else
         if INTERESTED.search(text):
             return Decision("interested", lang, render("interested", lang, from_name, link), reason="keyword fallback")
+        if looks_like_question(text):
+            return Decision("question", lang, render("question", lang, from_name, link), needs_human=True, reason="LLM unavailable")
         return Decision("other", lang, None, needs_human=True, reason="LLM unavailable, unclear comment")
 
     intent = raw["intent"]
@@ -138,4 +148,6 @@ async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm
         if raw.get("answerable") is True and valid_reply(draft, facts, link):
             return Decision("question", lang, f"{draft} More details: {link}")
         return Decision("question", lang, render("question", lang, from_name, link), needs_human=True, reason="not answerable from post facts")
-    return Decision("other", lang, None, needs_human=text.strip().endswith("?"), reason="other")
+    if looks_like_question(text):
+        return Decision("question", lang, render("question", lang, from_name, link), needs_human=True, reason="question the post cannot answer")
+    return Decision("other", lang, None, reason="other")

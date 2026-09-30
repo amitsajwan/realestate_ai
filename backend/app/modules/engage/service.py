@@ -16,6 +16,7 @@ from .graph import EngageGraphError
 
 log = logging.getLogger(__name__)
 MAX_COMMENT_AGE = timedelta(days=7)
+UNKNOWN_PER_POST_PER_DAY = 6  # commenters whose identity Meta does not show us
 
 
 def with_source(url: str, source: str = "facebook_comment") -> str:
@@ -73,16 +74,15 @@ class EngageService:
         since = self.now() - timedelta(hours=1)
         return await self.comments.count_documents({"status": "replied", "replied_at": {"$gte": since}}) >= self.cfg.max_replies_per_hour
 
-    async def _person_capped(self, from_id: str) -> bool:
-        if not from_id:
-            return False
+    async def _person_capped(self, key: str, limit: int) -> bool:
+        """Replies to one person in the last day. Meta hides some commenters' identity, so those share a per-post key with a higher limit."""
         since = self.now() - timedelta(days=1)
-        return await self.comments.count_documents({"from_id": from_id, "status": {"$in": ["replied", "dry_run"]}, "processed_at": {"$gte": since}}) >= self.cfg.max_replies_per_person_per_day
+        return await self.comments.count_documents({"cap_key": key, "status": {"$in": ["replied", "dry_run"]}, "processed_at": {"$gte": since}}) >= limit
 
     # ---- one comment -------------------------------------------------------------------------------------------
     async def _handle(self, post: dict, c: dict, ctx: Dict) -> Optional[dict]:
         cid, sender = c["id"], c.get("from") or {}
-        base = {"_id": cid, "post_id": post["id"], "listing_id": ctx["listing_id"], "agent_id": ctx["agent_id"], "from_id": sender.get("id"),
+        base = {"_id": cid, "post_id": post["id"], "listing_id": ctx["listing_id"], "agent_id": ctx["agent_id"], "from_id": sender.get("id"), "cap_key": sender.get("id") or f"unknown:{post['id']}",
                 "from_name": sender.get("name"), "permalink": c.get("permalink_url"), "text": (c.get("message") or "")[:1000], "created_time": c.get("created_time"),
                 "processed_at": self.now(), "reply": None, "reply_id": None, "error": None}
         t = parse_time(c.get("created_time"))
@@ -94,7 +94,8 @@ class EngageService:
             doc["status"] = "needs_human"
         if not d.reply:
             return doc
-        if await self._person_capped(sender.get("id")):
+        limit = self.cfg.max_replies_per_person_per_day if sender.get("id") else UNKNOWN_PER_POST_PER_DAY
+        if await self._person_capped(base["cap_key"], limit):
             return {**doc, "status": "capped", "reason": "per-person daily limit"}
         if self.cfg.dry_run:
             return {**doc, "status": "dry_run"}
