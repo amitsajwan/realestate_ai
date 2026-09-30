@@ -11,6 +11,8 @@ import { agentCity, getAgent, getListings } from '@/lib/site/api'
 import { whatsappMessage } from '@/lib/site/links'
 import { agentJsonLd, agentMetadata, jsonLdString } from '@/lib/site/seo'
 import { normalizeSlug } from '@/lib/site/slug'
+import Link from 'next/link'
+import { INSIGHTS } from '@/lib/marketing/insights'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -44,8 +46,24 @@ export default async function AgentHomePage({ params }: Props) {
           <ListingBrowser slug={slug} items={items} />
         </section>
 
+        <section id="guides" aria-labelledby="guides-title" className="scroll-mt-16">
+          <h2 id="guides-title" className="mb-1 text-2xl font-bold">Guides for Pune home buyers</h2>
+          <p className="mb-4 text-slate-600">Plain-language, sourced, and no guesses on prices.</p>
+          <ul className="grid gap-4 sm:grid-cols-3">
+            {INSIGHTS.map((a) => (
+              <li key={a.slug}>
+                <Link href={`/insights/${a.slug}`} className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-4 no-underline hover:border-[var(--site-accent)]">
+                  <span className="text-xs font-bold uppercase tracking-wide text-[var(--site-accent)]">Guide</span>
+                  <span className="mt-1 font-semibold text-slate-900">{a.title}</span>
+                  <span className="mt-2 text-sm text-slate-600">{a.summary}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+
         <section id="about" aria-labelledby="about-title" className="scroll-mt-16">
-          <h2 id="about-title" className="mb-3 text-2xl font-bold">About {agent.agent_name}</h2>
+          <h2 id="about-title" className="mb-3 text-2xl font-bold">About PUNE Property</h2>
           {agent.bio && <p className="leading-relaxed text-slate-800">{agent.bio}</p>}
           <ul className="mt-3 flex list-none flex-wrap gap-2 p-0">
             {(agent.specialties || []).map((s) => (
@@ -59,7 +77,7 @@ export default async function AgentHomePage({ params }: Props) {
         </section>
 
         <section id="contact" aria-labelledby="contact-title" className="scroll-mt-16 space-y-4">
-          <h2 id="contact-title" className="text-2xl font-bold">Get in touch</h2>
+          <h2 id="contact-title" className="text-2xl font-bold">Tell us what you are looking for</h2>
           <ContactButtons agentSlug={slug} phone={agent.phone} waMessage={msg} size="md" className="max-w-md" />
           {agent.office_address && <p className="text-slate-700">{agent.office_address}</p>}
           <EnquiryForm agentSlug={slug} agentName={agent.agent_name} agentPhone={agent.phone} waMessage={msg} id="enquire" />

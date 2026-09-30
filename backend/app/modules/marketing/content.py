@@ -110,10 +110,13 @@ def _cta(f: Facts, lang: str, key: str = "cta") -> str:
     return p[key].format(agent=f.agent_name) if f.agent_name else p[key + "_anon"]
 
 
+SAMPLE_LINE = "SAMPLE LISTING (an illustration of how a listing looks on PUNE Property, not available for sale)"
+
+
 def instagram_caption(f: Facts, lang: str) -> str:
     """Short and visual, one emoji, ends with the call to action."""
     head = f"\U0001F3E1 {f.title_line(lang)}"
-    must = [head, _summary_line(f, lang)]
+    must = ([SAMPLE_LINE] if f.sample else []) + [head, _summary_line(f, lang)]
     if f.rera:
         must.append(f"RERA: {f.rera}")
     optional = [_amen(f, lang, 4), f.project]
@@ -129,7 +132,7 @@ def instagram_caption(f: Facts, lang: str) -> str:
 def facebook_post(f: Facts, lang: str) -> str:
     """More detail, short paragraphs."""
     t = T[lang]
-    p1 = f"\U0001F3E1 {f.title_line(lang)}" + (f"\n{f.price_text}" if f.price_text else "")
+    p1 = (SAMPLE_LINE + "\n\n" if f.sample else "") + f"\U0001F3E1 {f.title_line(lang)}" + (f"\n{f.price_text}" if f.price_text else "")
     if f.project:
         p1 += f"\n{f.project}"
     details = []
@@ -156,7 +159,7 @@ def facebook_post(f: Facts, lang: str) -> str:
 def whatsapp_message(f: Facts, lang: str) -> str:
     """2-3 short conversational lines including the listing link."""
     p = P[lang]
-    line1 = p["wa_hi"] + f.title_line(lang) + (f" - {f.price_text}" if f.price_text else "")
+    line1 = ("SAMPLE LISTING (not available). " if f.sample else "") + p["wa_hi"] + f.title_line(lang) + (f" - {f.price_text}" if f.price_text else "")
     extra = ", ".join(x for x in (f.area_text, f.possession_text(lang)) if x)
     if extra:
         line1 += f" ({extra})"

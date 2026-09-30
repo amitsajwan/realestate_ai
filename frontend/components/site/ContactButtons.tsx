@@ -1,5 +1,5 @@
 import React from 'react'
-import { telLink, whatsappLink } from '@/lib/site/links'
+import { showDirectContact, telLink, whatsappLink } from '@/lib/site/links'
 import TrackedLink from './TrackedLink'
 
 interface Props {
@@ -15,6 +15,7 @@ const base = 'inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 
 
 /** Big WhatsApp + Call buttons. Renders nothing for a number that is not a valid Indian mobile. */
 export default function ContactButtons({ agentSlug, phone, waMessage, listingId, size = 'lg', className = '' }: Props) {
+  if (!showDirectContact()) return null
   const wa = whatsappLink(phone, waMessage)
   const tel = telLink(phone)
   if (!wa && !tel) return null

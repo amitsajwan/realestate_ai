@@ -1,5 +1,5 @@
 import React from 'react'
-import { telLink, whatsappLink } from '@/lib/site/links'
+import { showDirectContact, telLink, whatsappLink } from '@/lib/site/links'
 import TrackedLink from './TrackedLink'
 
 interface Props {
@@ -11,8 +11,9 @@ interface Props {
 
 /** Mobile-only fixed bottom bar: WhatsApp / Call / Enquire. Page wrapper adds bottom padding (SiteShell bottomPad). */
 export default function StickyBar({ agentSlug, phone, waMessage, listingId }: Props) {
-  const wa = whatsappLink(phone, waMessage)
-  const tel = telLink(phone)
+  const direct = showDirectContact()
+  const wa = direct ? whatsappLink(phone, waMessage) : null
+  const tel = direct ? telLink(phone) : null
   const item = 'flex min-h-[48px] flex-1 items-center justify-center rounded-lg text-sm font-bold no-underline'
   return (
     <nav aria-label="Contact the agent"

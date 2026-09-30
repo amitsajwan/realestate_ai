@@ -1,8 +1,9 @@
 import React from 'react'
 import Link from 'next/link'
-import { bhkLabel, formatArea, formatPrice } from '@/lib/site/format'
+import { bhkLabel, formatArea, formatPrice, isSampleListing } from '@/lib/site/format'
 import { agentPath } from '@/lib/site/slug'
 import { firstImage } from '@/lib/site/seo'
+import Skyline from './Skyline'
 import type { PublicListing } from '@/lib/site/types'
 
 export default function ListingCard({ slug, listing: l }: { slug: string; listing: PublicListing }) {
@@ -12,12 +13,16 @@ export default function ListingCard({ slug, listing: l }: { slug: string; listin
     <li className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <Link href={agentPath(slug, 'listings/' + l.id)} className="block no-underline">
         <div className="relative aspect-[4/3] bg-slate-100">
-          {image && (
+          {image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={image} alt={l.title} width={600} height={450} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full flex-col justify-end bg-gradient-to-b from-[#102340] to-[#183a5d]" aria-hidden="true">
+              <Skyline className="block h-1/2 w-full" />
+            </div>
           )}
           <span className="absolute left-2 top-2 rounded-full bg-[var(--site-secondary)] px-3 py-1 text-xs font-semibold text-[var(--site-on-secondary)]">
-            {l.transaction === 'rent' ? 'For rent' : 'For sale'}
+            {isSampleListing(l.title) ? 'Sample listing' : l.transaction === 'rent' ? 'For rent' : 'For sale'}
           </span>
           {l.status === 'under_offer' && (
             <span className="absolute right-2 top-2 rounded-full bg-amber-400 px-3 py-1 text-xs font-semibold text-slate-900">Under offer</span>

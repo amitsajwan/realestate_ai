@@ -53,10 +53,12 @@ describe('links and theme', () => {
     expect(withParam('https://a.in/x', 'src', 'share')).toBe('https://a.in/x?src=share')
     expect(withParam('https://a.in/x?a=1#h', 'src', 'share')).toBe('https://a.in/x?a=1&src=share#h')
   })
-  it('themeVars validates hex and falls back', () => {
+  it('themeVars always uses the PUNE Property brand (stored agent colours, even hostile ones, are ignored)', () => {
     const v = themeVars({ colors: { primary: '#0f766e', secondary: 'red;}', accent: '#fff' } })
-    expect(v['--site-primary']).toBe('#0f766e')
-    expect(v['--site-secondary']).toBe('#0f172a')
+    expect(v['--site-primary']).toBe('#102340')
+    expect(v['--site-secondary']).toBe('#0b1a33')
+    expect(v['--site-accent']).toBe('#f0b440')
     expect(v['--site-on-primary']).toBe('#ffffff')
+    expect(themeVars(null)['--site-primary']).toBe('#102340')
   })
 })

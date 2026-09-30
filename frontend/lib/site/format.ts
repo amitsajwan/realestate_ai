@@ -75,3 +75,8 @@ export function truncate(s: string, max: number): string {
   const t = (s || '').replace(/\s+/g, ' ').trim()
   return t.length <= max ? t : t.slice(0, max - 1).trimEnd() + '…'
 }
+
+/** An illustrative listing (title starts with "Sample"): labelled on the site and never presented as available. */
+export function isSampleListing(title?: string | null): boolean {
+  return (title || '').trim().toLowerCase().startsWith('sample')
+}

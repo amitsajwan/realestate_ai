@@ -7,6 +7,7 @@ import DescriptionSwitch from '@/components/site/DescriptionSwitch'
 import EnquiryForm from '@/components/site/EnquiryForm'
 import Gallery from '@/components/site/Gallery'
 import ListingFacts from '@/components/site/ListingFacts'
+import { isSampleListing } from '@/lib/site/format'
 import ShareButton from '@/components/site/ShareButton'
 import SiteShell from '@/components/site/SiteShell'
 import StickyBar from '@/components/site/StickyBar'
@@ -54,6 +55,11 @@ export default async function ListingPage({ params }: Props) {
         </p>
         <header>
           <p className="text-3xl font-extrabold text-[var(--site-primary)]">{formatPrice(l.price_inr, l.transaction)}</p>
+          {isSampleListing(l.title) && (
+            <p role="note" className="mt-2 rounded-lg bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-900">
+              Sample listing: an illustration of how a listing looks on PUNE Property. This home is not available. Tell us what you are looking for and we will find real options.
+            </p>
+          )}
           <h1 className="mt-1 text-2xl font-bold leading-snug">{l.title}</h1>
           <p className="mt-1 text-slate-600">
             {[l.project_name, l.locality, l.city].filter(Boolean).join(', ')}

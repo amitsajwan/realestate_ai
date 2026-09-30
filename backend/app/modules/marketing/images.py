@@ -385,6 +385,8 @@ def _fact_bits(f: Facts) -> str:
 
 def _tag_chips(c: "Card", f: Facts, y: int) -> int:
     """'FOR SALE' (gold) and 'READY TO MOVE' (outline) chips. Returns the y below them."""
+    if f.sample:
+        return _chip(c, "SAMPLE LISTING", c.left, y)[1]
     x, bottom = _chip(c, "FOR RENT" if f.rent else "FOR SALE", c.left, y)
     if f.possession == "ready" and x + 14 < c.right - 200:
         _, b2 = _chip(c, "READY TO MOVE", x + 14, y, fill=None, ink=WHITE, outline=WHITE)

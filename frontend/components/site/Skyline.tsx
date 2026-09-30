@@ -1,0 +1,17 @@
+import React from 'react'
+
+const TOWERS: number[][] = [[0, 46, 70], [78, 74, 60], [146, 58, 80], [234, 92, 64], [306, 64, 72], [386, 84, 60], [454, 52, 84], [546, 78, 66], [620, 96, 62], [690, 60, 76], [774, 80, 64], [846, 66, 70]]
+
+/** The PUNE Property skyline: dark towers with lit gold windows (same look as the Page cover and the post cards). */
+export default function Skyline({ className = 'block h-16 w-full sm:h-20' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 920 100" preserveAspectRatio="none" aria-hidden="true" className={className}>
+      {TOWERS.map(([x, h, w], i) => (
+        <g key={i}>
+          <rect x={x} y={100 - h} width={w} height={h} fill="#09152c" />
+          {[0, 1, 2].map((r) => [0, 1].map((c) => ((i + r * 2 + c) % 3 !== 0 ? <rect key={r + '-' + c} x={x + 10 + c * 24} y={100 - h + 10 + r * 18} width="8" height="10" fill="#f0b440" opacity="0.85" /> : null)))}
+        </g>
+      ))}
+    </svg>
+  )
+}

@@ -273,3 +273,17 @@ def test_chatty_model_wrappers_are_stripped(raw, clean):
     from app.modules.marketing.polish import clean_llm_text
 
     assert clean_llm_text(raw) == clean
+
+
+# ---- sample (illustrative) listings are labelled everywhere ---------------------------------------------
+def test_sample_listing_is_labelled_in_every_text_and_card():
+    from app.modules.marketing.images import render
+
+    f = facts(title="Sample: 2 BHK in Baner")
+    assert f.sample and not facts().sample
+    c = build_content(f, "en")
+    for text in (c["instagram"]["caption"], c["facebook"]["post"], c["whatsapp"]["message"]):
+        assert "SAMPLE LISTING" in text
+    assert "SAMPLE LISTING" in c["instagram"]["caption"].splitlines()[0]
+    assert "SAMPLE LISTING" in render("cover", f, None).texts and "FOR SALE" not in render("cover", f, None).texts
+    assert "SAMPLE LISTING" not in build_content(facts(), "en")["facebook"]["post"]

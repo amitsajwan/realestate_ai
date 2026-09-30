@@ -2,6 +2,11 @@ import { formatPrice } from './format'
 import { waNumber } from './phone'
 import type { PublicListing } from './types'
 
+/** Call/WhatsApp buttons show only when NEXT_PUBLIC_SHOW_AGENT_PHONE=true (read at call time; baked in at build). */
+export function showDirectContact(): boolean {
+  return process.env.NEXT_PUBLIC_SHOW_AGENT_PHONE === 'true'
+}
+
 export function whatsappLink(phone: string | null | undefined, message: string): string | null {
   const n = waNumber(phone)
   return n ? 'https://wa.me/' + n + '?text=' + encodeURIComponent(message) : null

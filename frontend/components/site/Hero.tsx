@@ -1,27 +1,23 @@
 import React from 'react'
-import { whatsappMessage } from '@/lib/site/links'
 import type { AgentProfile } from '@/lib/site/types'
 import ContactButtons from './ContactButtons'
+import Skyline from './Skyline'
+import { whatsappMessage } from '@/lib/site/links'
 
 export default function Hero({ agent, city }: { agent: AgentProfile; city: string }) {
-  const tagline = agent.branding_data && agent.branding_data.tagline
   return (
-    <section aria-labelledby="hero-title" className="bg-[var(--site-primary)] text-[var(--site-on-primary)]">
-      <div className="mx-auto flex max-w-5xl flex-col items-center gap-5 px-4 py-10 text-center md:flex-row md:text-left">
-        {agent.photo && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={agent.photo} alt={'Photo of ' + agent.agent_name} width={144} height={144} loading="eager"
-            className="h-32 w-32 rounded-full border-4 border-white/70 object-cover md:h-36 md:w-36" />
-        )}
-        <div className="flex-1">
-          <h1 id="hero-title" className="text-3xl font-extrabold leading-tight">{agent.agent_name}</h1>
-          {tagline && <p className="mt-2 text-lg opacity-95">{tagline}</p>}
-          {city && <p className="mt-1 text-sm opacity-90">Real estate advisor in {city}</p>}
-          <div className="mt-5 max-w-md">
-            <ContactButtons agentSlug={agent.slug} phone={agent.phone} waMessage={whatsappMessage(agent.agent_name)} />
-          </div>
+    <section aria-labelledby="hero-title" className="bg-gradient-to-b from-[#102340] to-[#183a5d] text-white">
+      <div className="mx-auto max-w-5xl px-4 pb-6 pt-12 text-center sm:pt-16 sm:text-left">
+        <p className="inline-block rounded-full bg-[var(--site-accent)] px-4 py-1 text-xs font-bold uppercase tracking-wide text-[#18202c]">{city ? city + ' property' : 'Property'}</p>
+        <h1 id="hero-title" className="mt-4 text-4xl font-extrabold leading-tight sm:text-5xl">Homes in Pune, shared clearly</h1>
+        <p className="mt-3 max-w-xl text-lg text-slate-200">Price, area, possession and RERA in one place. Tell us what you are looking for and we will send you the details.</p>
+        <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+          <a href="#enquire" className="inline-flex min-h-[52px] items-center justify-center rounded-full bg-[var(--site-accent)] px-8 text-lg font-bold text-[#18202c] no-underline">I&apos;m interested</a>
+          <a href="#guides" className="inline-flex min-h-[52px] items-center justify-center rounded-full border-2 border-white/70 px-8 text-lg font-semibold text-white no-underline">Read our guides</a>
         </div>
+        <div className="mt-5 max-w-md"><ContactButtons agentSlug={agent.slug} phone={agent.phone} waMessage={whatsappMessage(agent.agent_name)} /></div>
       </div>
+      <Skyline />
     </section>
   )
 }

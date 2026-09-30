@@ -103,6 +103,7 @@ class Facts:
     agent_name: str = ""
     agent_phone: Optional[str] = None
     share_url: str = ""
+    sample: bool = False  # an illustrative listing (title starts with 'Sample'): labelled everywhere, never presented as available
 
     @classmethod
     def from_docs(cls, listing: dict, profile: Optional[dict], share_url: str) -> "Facts":
@@ -118,7 +119,7 @@ class Facts:
             furnishing=listing.get("furnishing"), possession=listing.get("possession"), rera=listing.get("rera_no"),
             amenities=[a for a in (listing.get("amenities") or []) if a],
             agent_name=PUBLIC_NAME, agent_phone=profile.get("phone"),  # posts are signed by the team, never by an agent's own name
-            share_url=share_url)
+            share_url=share_url, sample=(listing.get("title") or "").strip().lower().startswith("sample"))
 
     # -- derived text ------------------------------------------------------------------------
     @property
