@@ -62,7 +62,7 @@ def test_regenerate_bumps_version_and_overwrites(env):
     listings[0]["price_inr"] = 12500000
     second = c.post("/listings/L1/marketing", json={"language": "hi"}).json()
     assert (first["version"], second["version"]) == (1, 2)
-    assert second["language"] == "hi" and "Rs 1.25 Cr" in second["headline"]
+    assert second["language"] == "hi" and "₹1.25 Cr" in second["headline"]
     assert len(db.get_collection("marketing_packs").docs) == 1
     assert c.get("/listings/L1/marketing").json()["version"] == 2
     assert len(list((up / "marketing/L1").glob("*.jpg"))) == 5
@@ -130,4 +130,4 @@ def test_agent_without_public_profile_still_works(env):
     db.get_collection("agent_public_profiles").docs.clear()
     p = c.post("/listings/L1/marketing").json()
     assert p["share_url"] == "https://site.test/listings/L1?src=whatsapp"
-    assert "Message us" in p["instagram"]["caption"]
+    assert "PUNE Property team will share the details" in p["instagram"]["caption"]

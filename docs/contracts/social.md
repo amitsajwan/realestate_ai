@@ -7,7 +7,7 @@ Review and Business Verification; later).
 
 Safety rules (non-negotiable):
 1. HUMAN APPROVAL for every post. Nothing is ever posted without an explicit `approve: true` request from the agent who owns the listing.
-2. CONSENT. The agent must also send `consent: true` ("I agree to post this listing, with my name and phone number, on the PUNE Property
+2. CONSENT. The agent must also send `consent: true` ("I agree to post this listing, on the PUNE Property
    Page"); it is stored with the publication. Only the owning agent's own live listings can be posted.
 3. DRY RUN by default. `SOCIAL_DRY_RUN` defaults to true: nothing leaves the server, publications are recorded with status `dry_run`.
 4. SECRETS. Tokens live only in environment variables. Never log them, never return them, never store them in Mongo, and strip

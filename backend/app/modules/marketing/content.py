@@ -12,37 +12,37 @@ FB_MAX = 2000
 WA_MAX = 600
 STATUS_MAX = 200
 
-# language -> phrases that are not facts (calls to action, reel directions)
+# language -> phrases that are not facts (calls to action, reel directions).
+# No phone numbers anywhere: buyers comment INTERESTED, message, or use the listing link; the agent's tools answer them.
 P = {
     "en": {
-        "cta_ig": "Message {agent} for details and a site visit.", "cta_ig_anon": "Message us for details and a site visit.",
-        "cta_fb": "To know more or plan a site visit, contact {agent}.", "cta_fb_anon": "To know more or plan a site visit, send a message.",
+        "cta": "💬 Interested? Comment INTERESTED and {agent} will share the details and plan a site visit.",
+        "cta_anon": "💬 Interested? Comment INTERESTED and we will share the details and plan a site visit.",
         "wa_hi": "Hi! ", "wa_link": "Details and photos: {url}", "wa_ask": "Reply here to plan a visit.",
-        "status_cta": "Message for details", "hook": "Take a look: {title}", "reel_cta": "Message {agent} to visit",
-        "reel_cta_anon": "Message us to visit", "call": "Call {phone}",
+        "status_cta": "Reply INTERESTED for details", "hook": "Take a look: {title}", "reel_cta": "Comment INTERESTED for a site visit",
         "v_hook": "Cover photo with the headline text", "v_prop": "Photo of the main room, text overlay",
-        "v_loc": "Photo or map pin of the locality", "v_price": "Price on a plain card", "v_cta": "Agent name and contact card",
-        "am": "Amenities: {items}",
+        "v_loc": "Photo or map pin of the locality", "v_price": "Price on a plain card", "v_cta": "Agent name card",
+        "am": "Amenities: {items}", "link": "🔗 Details and photos: {url}",
     },
     "hi": {
-        "cta_ig": "विवरण और साइट विज़िट के लिए {agent} को मैसेज करें।", "cta_ig_anon": "विवरण और साइट विज़िट के लिए मैसेज करें।",
-        "cta_fb": "अधिक जानकारी या साइट विज़िट के लिए {agent} से संपर्क करें।", "cta_fb_anon": "अधिक जानकारी या साइट विज़िट के लिए मैसेज करें।",
+        "cta": "💬 रुचि है? कमेंट में INTERESTED लिखें, {agent} विवरण भेजेंगे और साइट विज़िट तय करेंगे।",
+        "cta_anon": "💬 रुचि है? कमेंट में INTERESTED लिखें, हम विवरण भेजेंगे और साइट विज़िट तय करेंगे।",
         "wa_hi": "नमस्ते! ", "wa_link": "विवरण और फोटो: {url}", "wa_ask": "साइट विज़िट के लिए यहीं जवाब दें।",
-        "status_cta": "विवरण के लिए मैसेज करें", "hook": "देखिए: {title}", "reel_cta": "विज़िट के लिए {agent} को मैसेज करें",
-        "reel_cta_anon": "विज़िट के लिए मैसेज करें", "call": "कॉल: {phone}",
+        "status_cta": "विवरण के लिए INTERESTED लिखकर जवाब दें", "hook": "देखिए: {title}",
+        "reel_cta": "साइट विज़िट के लिए INTERESTED लिखें",
         "v_hook": "कवर फोटो और हेडलाइन टेक्स्ट", "v_prop": "मुख्य कमरे की फोटो, ऊपर टेक्स्ट",
-        "v_loc": "इलाके की फोटो या मैप पिन", "v_price": "सादे कार्ड पर कीमत", "v_cta": "एजेंट का नाम और संपर्क कार्ड",
-        "am": "सुविधाएं: {items}",
+        "v_loc": "इलाके की फोटो या मैप पिन", "v_price": "सादे कार्ड पर कीमत", "v_cta": "एजेंट के नाम का कार्ड",
+        "am": "सुविधाएं: {items}", "link": "🔗 विवरण और फोटो: {url}",
     },
     "mr": {
-        "cta_ig": "तपशील आणि साइट व्हिजिटसाठी {agent} यांना मेसेज करा.", "cta_ig_anon": "तपशील आणि साइट व्हिजिटसाठी मेसेज करा.",
-        "cta_fb": "अधिक माहिती किंवा साइट व्हिजिटसाठी {agent} यांच्याशी संपर्क करा.", "cta_fb_anon": "अधिक माहिती किंवा साइट व्हिजिटसाठी मेसेज करा.",
+        "cta": "💬 आवड आहे? कमेंटमध्ये INTERESTED लिहा, {agent} तपशील पाठवतील आणि साइट व्हिजिट ठरवतील.",
+        "cta_anon": "💬 आवड आहे? कमेंटमध्ये INTERESTED लिहा, आम्ही तपशील पाठवू आणि साइट व्हिजिट ठरवू.",
         "wa_hi": "नमस्कार! ", "wa_link": "तपशील आणि फोटो: {url}", "wa_ask": "साइट व्हिजिटसाठी इथेच उत्तर द्या.",
-        "status_cta": "तपशिलासाठी मेसेज करा", "hook": "पहा: {title}", "reel_cta": "व्हिजिटसाठी {agent} यांना मेसेज करा",
-        "reel_cta_anon": "व्हिजिटसाठी मेसेज करा", "call": "कॉल: {phone}",
+        "status_cta": "तपशिलासाठी INTERESTED लिहून उत्तर द्या", "hook": "पहा: {title}",
+        "reel_cta": "साइट व्हिजिटसाठी INTERESTED लिहा",
         "v_hook": "कव्हर फोटो आणि हेडलाइन मजकूर", "v_prop": "मुख्य खोलीचा फोटो, वर मजकूर",
-        "v_loc": "परिसराचा फोटो किंवा मॅप पिन", "v_price": "साध्या कार्डवर किंमत", "v_cta": "एजंटचे नाव आणि संपर्क कार्ड",
-        "am": "सुविधा: {items}",
+        "v_loc": "परिसराचा फोटो किंवा मॅप पिन", "v_price": "साध्या कार्डवर किंमत", "v_cta": "एजंटच्या नावाचे कार्ड",
+        "am": "सुविधा: {items}", "link": "🔗 तपशील आणि फोटो: {url}",
     },
 }
 
@@ -105,7 +105,7 @@ def _amen(f: Facts, lang: str, n: int) -> Optional[str]:
     return P[lang]["am"].format(items=", ".join(f.amenities[:n])) if f.amenities else None
 
 
-def _cta(f: Facts, lang: str, key: str) -> str:
+def _cta(f: Facts, lang: str, key: str = "cta") -> str:
     p = P[lang]
     return p[key].format(agent=f.agent_name) if f.agent_name else p[key + "_anon"]
 
@@ -117,42 +117,38 @@ def instagram_caption(f: Facts, lang: str) -> str:
     if f.rera:
         must.append(f"RERA: {f.rera}")
     optional = [_amen(f, lang, 4), f.project]
-    cta = _cta(f, lang, "cta_ig")
-    if f.agent_phone:
-        cta += " " + P[lang]["call"].format(phone=f.agent_phone)
+    cta = _cta(f, lang)
     lines = [x for x in must if x]
     for extra in optional:
-        if extra and len("\n".join(lines + [extra, cta])) <= CAPTION_MAX:
+        if extra and len("\n".join(lines + [extra]) + "\n\n" + cta) <= CAPTION_MAX:
             lines.append(extra)
-    text = "\n".join(lines + [cta])
-    return text if len(text) <= CAPTION_MAX else "\n".join([head, cta])
+    text = "\n".join(lines) + "\n\n" + cta
+    return text if len(text) <= CAPTION_MAX else head + "\n\n" + cta
 
 
 def facebook_post(f: Facts, lang: str) -> str:
     """More detail, short paragraphs."""
     t = T[lang]
-    p1 = f"{f.title_line(lang)}" + (f" - {f.price_text}" if f.price_text else "")
+    p1 = f"\U0001F3E1 {f.title_line(lang)}" + (f"\n{f.price_text}" if f.price_text else "")
     if f.project:
         p1 += f"\n{f.project}"
     details = []
     if f.area_text:
         kind = f" ({f.area_kind})" if lang == "en" and f.area_kind else ""
-        details.append(f"{t['area']}: {f.area_text}{kind}")
+        details.append(f"\U0001F4D0 {t['area']}: {f.area_text}{kind}")
     for extra in (f.floor_text(lang), t["furn"].get(f.furnishing or "")):
         if extra:
-            details.append(extra)
+            details.append(f"▪ {extra}")
     if f.possession_text(lang):
-        details.append(f"{t['possession']}: {f.possession_text(lang)}")
+        details.append(f"✅ {t['possession']}: {f.possession_text(lang)}")
     if f.rera:
-        details.append(f"RERA: {f.rera}")
+        details.append(f"▪ RERA: {f.rera}")
     paras = [p1]
     if details:
         paras.append("\n".join(details))
     if f.amenities:
         paras.append(_amen(f, lang, 10))
-    cta = _cta(f, lang, "cta_fb")
-    if f.agent_phone:
-        cta += " " + P[lang]["call"].format(phone=f.agent_phone)
+    cta = _cta(f, lang)
     paras.append(cta)
     return clip("\n\n".join(paras[:-1]), FB_MAX - len(cta) - 2) + "\n\n" + cta
 
@@ -181,7 +177,7 @@ def reel(f: Facts, lang: str) -> Dict:
     prop = " · ".join(x for x in (f"{f.bhk_text} {f.type_text(lang)}" if f.bhk_text else f.type_text(lang),
                                   f.area_text, f.possession_text(lang)) if x)
     hook = p["hook"].format(title=f.title_line(lang))
-    cta = _cta(f, lang, "reel_cta")
+    cta = P[lang]["reel_cta"]
     beats = [
         {"seconds": "0-3s", "text": hook, "visual": p["v_hook"]},
         {"seconds": "3-6s", "text": prop, "visual": p["v_prop"]},

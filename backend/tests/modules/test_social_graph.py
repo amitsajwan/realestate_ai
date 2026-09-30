@@ -29,7 +29,7 @@ async def test_facebook_photo_flow():
     assert g.order() == [f"POST {V}/PAGE1/photos"]
     form = g.calls[0]["form"]
     assert form == {"url": "https://media.test/uploads/marketing/L1/cover.jpg", "published": "true", "access_token": TOKEN,
-                    "caption": "Ready 2 BHK in Baner\nhttps://site.test/agent/rahul/listings/L1?src=whatsapp"}
+                    "caption": "Ready 2 BHK in Baner\n\n\U0001F517 Details and photos: https://site.test/agent/rahul/listings/L1?src=whatsapp"}
     assert (p.status, p.external_id, p.permalink, p.error) == ("published", "PAGE1_555", "https://www.facebook.com/PAGE1_555", None)
     assert TOKEN not in p.model_dump_json()
 
@@ -48,7 +48,7 @@ async def test_facebook_feed_flow_when_no_image():
     g = FakeGraph({("POST", f"{V}/PAGE1/feed"): (200, {"id": "PAGE1_9"})})
     (p,) = await run(g, "facebook_page", images=())
     assert g.order() == [f"POST {V}/PAGE1/feed"]
-    assert g.calls[0]["form"] == {"message": "Ready 2 BHK in Baner\nhttps://site.test/agent/rahul/listings/L1?src=whatsapp",
+    assert g.calls[0]["form"] == {"message": "Ready 2 BHK in Baner\n\n\U0001F517 Details and photos: https://site.test/agent/rahul/listings/L1?src=whatsapp",
                                   "link": "https://site.test/agent/rahul/listings/L1?src=whatsapp", "access_token": TOKEN}
     assert p.status == "published" and p.external_id == "PAGE1_9"
 

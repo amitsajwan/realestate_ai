@@ -8,7 +8,7 @@ export const FIXTURE_SOCIAL_STATUS: SocialStatus = {
   media_url_ok: false,
 }
 
-const CONSENT_TEXT = 'I agree to post this listing, with my name and phone number, on the PUNE Property Page.'
+const CONSENT_TEXT = 'I agree to post this listing, on the PUNE Property Page.'
 
 function payloadFor(pack: MarketingPack, channel: SocialChannel): Publication['payload'] {
   if (channel === 'facebook_page') {

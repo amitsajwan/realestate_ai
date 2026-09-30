@@ -5,7 +5,7 @@ import type { Publication, PublicationStatus, SocialChannel } from './types'
 
 export const SOCIAL_CHANNELS: SocialChannel[] = ['facebook_page', 'instagram']
 
-export const SOCIAL_CONSENT_TEXT = 'I agree to post this listing, with my name and phone number, on the PUNE Property Page.'
+export const SOCIAL_CONSENT_TEXT = 'I agree to post this listing, on the PUNE Property Page.'
 
 export function channelLabel(c: SocialChannel): string {
   return c === 'facebook_page' ? t('socialFacebookPage') : t('socialInstagram')

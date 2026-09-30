@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import pytest
@@ -164,7 +165,7 @@ def test_text_stays_inside_safe_margins(kind, over):
 
 def test_fit_text_wraps_shrinks_and_ellipsizes():
     d = ImageDraw.Draw(Image.new("RGB", (10, 10)))
-    font, lines = fit_text(d, "Rs 1.25 Cr", 900, 1, 120)
+    font, lines = fit_text(d, "₹1.25 Cr", 900, 1, 120)
     assert len(lines) == 1 and d.textlength(lines[0], font=font) <= 900
     font, lines = fit_text(d, "word " * 60, 500, 2, 40, 24)
     assert len(lines) == 2 and lines[-1].endswith("…") and all(d.textlength(x, font=font) <= 500 for x in lines)
@@ -206,3 +207,33 @@ def test_every_fact_row_is_drawn_on_the_facts_card_with_a_photo():
     assert rows >= 6
     # one label box + one value box per row + the title
     assert len(card.boxes) >= 2 * rows + 1
+
+
+# ---- cards: buttons, not phone numbers ---------------------------------------------------------------
+@pytest.mark.parametrize("photo", [None, Image.new("RGB", (1600, 1200), (150, 190, 225))])
+@pytest.mark.parametrize("kind", KINDS)
+def test_no_card_ever_shows_a_phone_number(kind, photo):
+    f = facts()
+    assert f.agent_phone
+    card = render(kind, f, photo)
+    text = " ".join(card.texts)
+    assert re.sub(r"\D", "", f.agent_phone) not in re.sub(r"\D", "", text)
+    assert not re.search(r"\bcall\b", text, re.I)
+
+
+@pytest.mark.parametrize("kind,button", [("cover", "Comment INTERESTED"), ("cta", "Comment INTERESTED"), ("status", "Reply INTERESTED")])
+def test_cards_carry_an_interested_button(kind, button):
+    assert button in render(kind, facts(), None).texts
+
+
+def test_price_is_written_with_the_rupee_sign_and_the_bundled_font_is_used():
+    card = render("cover", facts(), None)
+    assert any(t.startswith("₹85 Lakh") for t in card.texts)
+    assert im.load_font(40, "bold").getname()[0].startswith("Poppins")
+    assert (im.FONT_DIR / "OFL.txt").is_file()  # the font's licence ships with it
+
+
+def test_no_photo_cover_is_a_designed_panel_not_an_empty_gradient():
+    with_towers = render("cover", facts(), None).img
+    plain = im.gradient_card(with_towers.size, "Rahul Sharma|Baner")
+    assert with_towers.getpixel((300, 700)) != plain.getpixel((300, 700)) or with_towers.getpixel((600, 800)) != plain.getpixel((600, 800))

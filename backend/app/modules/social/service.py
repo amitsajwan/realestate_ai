@@ -7,6 +7,8 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Callable, List, Optional
 
+from app.modules.marketing.content import P as content_phrases, resolve_language
+
 from .config import BRAND, SocialConfig, load as load_config
 from .graph import GraphPublisher
 from .publisher import DryRunPublisher, Post, PublishError, Publisher, sanitize
@@ -14,7 +16,7 @@ from .schemas import Publication, PublishIn
 
 log = logging.getLogger(__name__)
 
-CONSENT_TEXT = "I agree to post this listing, with my name and phone number, on the PUNE Property Page"
+CONSENT_TEXT = "I agree to post this listing on the PUNE Property Page"
 MARKETABLE = ("live", "under_offer")
 DONE = ("published", "dry_run")
 IN_FLIGHT = timedelta(minutes=2)  # a `queued` record younger than this is treated as an attempt in progress
@@ -48,7 +50,9 @@ def build_payload(pack: dict, channel: str, base: str) -> dict:
 
     share = pack.get("share_url") or ""
     if channel == "facebook_page":
-        text = f"{(pack.get('facebook') or {}).get('post', '')}\n{share}".strip()
+        post = (pack.get("facebook") or {}).get("post", "")
+        link_line = content_phrases[resolve_language(pack.get("language") or "en")]["link"].format(url=share) if share else ""
+        text = f"{post}\n\n{link_line}".strip()
         return {"text": text, "image_urls": urls(("cover",)), "link": share or None}
     ig = pack.get("instagram") or {}
     tags = " ".join(ig.get("hashtags") or [])

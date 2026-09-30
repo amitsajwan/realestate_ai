@@ -18,28 +18,28 @@ def _texts(c):
 
 
 def test_money_formats():
-    assert money(8500000) == "Rs 85 L"
-    assert money(12500000) == "Rs 1.25 Cr"
-    assert money(10000000) == "Rs 1 Cr"
-    assert money(1250000) == "Rs 12.5 L"
-    assert money(45000, rent=True) == "Rs 45,000/month"
-    assert money(250000000) == "Rs 25 Cr"
+    assert money(8500000) == "₹85 Lakh"
+    assert money(12500000) == "₹1.25 Cr"
+    assert money(10000000) == "₹1 Cr"
+    assert money(1250000) == "₹12.5 Lakh"
+    assert money(45000, rent=True) == "₹45,000/month"
+    assert money(250000000) == "₹25 Cr"
 
 
 def test_budget_buckets():
-    assert budget_phrase(8500000) == "under Rs 1 Cr"
-    assert budget_phrase(10000000) == "under Rs 1.5 Cr"  # strictly above the price
-    assert budget_phrase(4500000) == "under Rs 50 L"
-    assert budget_phrase(45000, rent=True) == "under Rs 50,000/month"
-    assert budget_phrase(250000000) == "under Rs 30 Cr"
+    assert budget_phrase(8500000) == "under ₹1 Cr"
+    assert budget_phrase(10000000) == "under ₹1.5 Cr"  # strictly above the price
+    assert budget_phrase(4500000) == "under ₹50 Lakh"
+    assert budget_phrase(45000, rent=True) == "under ₹50,000/month"
+    assert budget_phrase(250000000) == "under ₹30 Cr"
 
 
 @pytest.mark.parametrize("name,angle", [
-    ("sale_ready_full", "Ready-to-move 2 BHK apartment in Baner under Rs 1 Cr"),
-    ("sale_uc_no_amen", "Under-construction 2 BHK apartment in Baner under Rs 1.5 Cr"),
-    ("rent_cheap", "1 BHK apartment for rent in Baner under Rs 50,000/month"),
-    ("luxury_villa", "Ready-to-move 5 BHK villa in Koregaon Park under Rs 30 Cr"),
-    ("plot_min", "Plot in Baner under Rs 50 L"),
+    ("sale_ready_full", "Ready-to-move 2 BHK apartment in Baner under ₹1 Cr"),
+    ("sale_uc_no_amen", "Under-construction 2 BHK apartment in Baner under ₹1.5 Cr"),
+    ("rent_cheap", "1 BHK apartment for rent in Baner under ₹50,000/month"),
+    ("luxury_villa", "Ready-to-move 5 BHK villa in Koregaon Park under ₹30 Cr"),
+    ("plot_min", "Plot in Baner under ₹50 Lakh"),
 ])
 def test_angle_golden(name, angle):
     assert build_content(facts(**VARIANTS[name]), "en")["angle"] == angle
@@ -47,15 +47,15 @@ def test_angle_golden(name, angle):
 
 def test_golden_full_listing():
     c = build_content(facts(), "en")
-    assert c["headline"] == "2 BHK apartment for sale in Baner, Pune | Rs 85 L"
+    assert c["headline"] == "2 BHK apartment for sale in Baner, Pune | ₹85 Lakh"
     assert c["whatsapp"]["message"] == (
-        "Hi! 2 BHK apartment for sale in Baner, Pune - Rs 85 L (1,100 sq ft, Ready to move). RERA: P52100012345\n"
+        "Hi! 2 BHK apartment for sale in Baner, Pune - ₹85 Lakh (1,100 sq ft, Ready to move). RERA: P52100012345\n"
         "Details and photos: https://site.test/agent/rahul/listings/L1?src=whatsapp\nReply here to plan a visit.")
-    assert c["whatsapp"]["status_text"] == "2 BHK | Baner | Rs 85 L\nMessage for details"
+    assert c["whatsapp"]["status_text"] == "2 BHK | Baner | ₹85 Lakh\nReply INTERESTED for details"
     cap = c["instagram"]["caption"]
-    assert cap.startswith("\U0001F3E1 2 BHK apartment for sale in Baner, Pune\nRs 85 L · 1,100 sq ft · Ready to move\nRERA: P52100012345")
+    assert cap.startswith("\U0001F3E1 2 BHK apartment for sale in Baner, Pune\n₹85 Lakh · 1,100 sq ft · Ready to move\nRERA: P52100012345")
     assert "Amenities: Gym, Swimming pool, Clubhouse" in cap
-    assert cap.splitlines()[-1].startswith("Message Rahul Sharma for details and a site visit.")
+    assert cap.splitlines()[-1] == "\U0001F4AC Interested? Comment INTERESTED and PUNE Property team will share the details and plan a site visit."
     assert c["instagram"]["hashtags"][:4] == ["#Baner", "#Pune", "#2BHK", "#Apartment"]
 
 
@@ -65,12 +65,12 @@ def test_optional_facts_absent_not_invented():
     for word in ("RERA", "Amenities", "BHK", "Floor", "furnished", "Ready", "Possession"):
         assert word not in txt, word
     assert "2,400 sq ft" in c["facebook"]["post"]
-    assert "Rs 45 L" in c["headline"]
+    assert "₹45 Lakh" in c["headline"]
 
 
 def test_rent_price_has_month():
     c = build_content(facts(**VARIANTS["rent_cheap"]), "en")
-    assert "Rs 45,000/month" in c["headline"] and "for rent" in c["headline"]
+    assert "₹45,000/month" in c["headline"] and "for rent" in c["headline"]
 
 
 def test_never_invent_numbers_and_claims():
@@ -99,7 +99,7 @@ def test_limits_and_hashtag_rules():
     c = build_content(long, "en")
     assert len(c["headline"]) <= HEADLINE_MAX
     assert len(c["instagram"]["caption"]) <= CAPTION_MAX
-    assert c["instagram"]["caption"].splitlines()[-1].startswith("Message")
+    assert "Comment INTERESTED" in c["instagram"]["caption"].splitlines()[-1]
     assert len(c["facebook"]["post"]) <= FB_MAX and len(c["whatsapp"]["message"]) <= WA_MAX
     assert len(c["whatsapp"]["status_text"]) <= STATUS_MAX
     tags = c["instagram"]["hashtags"]
@@ -117,7 +117,7 @@ def test_hashtag_sanitising():
 def test_reel_shape():
     r = build_content(facts(), "en")["reel"]
     assert r["duration_s"] == 15 and [b["seconds"] for b in r["beats"]] == ["0-3s", "3-6s", "6-9s", "9-12s", "12-15s"]
-    assert "Rs 85 L" in r["beats"][3]["text"] and "Baner" in r["beats"][2]["text"]
+    assert "₹85 Lakh" in r["beats"][3]["text"] and "Baner" in r["beats"][2]["text"]
     assert r["beats"][0]["text"] == r["hook"] and r["beats"][-1]["text"] == r["cta"]
 
 
@@ -127,7 +127,7 @@ def test_devanagari_templates_keep_facts(lang):
     assert c["language"] == lang
     assert re.search(r"[ऀ-ॿ]", c["instagram"]["caption"])
     for t in (c["headline"], c["instagram"]["caption"], c["whatsapp"]["message"], c["facebook"]["post"]):
-        assert "Rs 85 L" in t and "2 BHK" in t and "Baner" in t
+        assert "₹85 Lakh" in t and "2 BHK" in t and "Baner" in t
     assert "P52100012345" in c["whatsapp"]["message"] and "src=whatsapp" in c["whatsapp"]["message"]
     assert re.search(r"[ऀ-ॿ]", c["reel"]["cta"])
 
@@ -152,7 +152,7 @@ async def test_polish_accepts_when_facts_kept():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("dropped", ["Rs 85 L", "2 BHK", "Baner", "1,100 sq ft", "P52100012345"])
+@pytest.mark.parametrize("dropped", ["₹85 Lakh", "2 BHK", "Baner", "1,100 sq ft", "P52100012345"])
 async def test_polish_rejected_when_protected_fact_missing(dropped):
     f = facts()
     base = build_content(f, "en")
@@ -184,5 +184,28 @@ async def test_polish_rejects_lost_link_overlong_empty_and_errors():
 
     for p in (nolink, huge, empty, boom):
         assert await polish_text(p, draft, "en", f, WA_MAX) == draft
-    assert accept("Rs 85 L", "Only Rs 85 L", f)
-    assert not accept("Rs 85 L", "cheap", f)
+    assert accept("₹85 Lakh", "Only ₹85 Lakh", f)
+    assert not accept("₹85 Lakh", "cheap", f)
+
+
+# ---- no phone numbers in any post ------------------------------------------------------------------
+@pytest.mark.parametrize("lang", ["en", "hi", "mr"])
+@pytest.mark.parametrize("name", list(VARIANTS))
+def test_no_phone_number_or_call_prompt_in_any_post(name, lang):
+    """Buyers reach the agent through 'Comment INTERESTED', a message or the listing link: the agent's number is never posted."""
+    f = facts(**VARIANTS[name])
+    assert f.agent_phone  # the profile has a phone, so this proves it is deliberately left out
+    c = build_content(f, lang)
+    everything = "\n".join(_texts(c) + [c["instagram"]["caption"], c["facebook"]["post"], " ".join(c["instagram"]["hashtags"])])
+    digits = re.sub(r"\D", "", f.agent_phone)
+    assert digits not in re.sub(r"\D", "", everything)
+    assert digits[-6:] not in everything
+    assert not re.search(r"\b(call|कॉल)\b", everything, re.I)
+    assert "INTERESTED" in c["instagram"]["caption"] and "INTERESTED" in c["facebook"]["post"]
+
+
+def test_facebook_post_reads_well_and_stays_within_limits():
+    post = build_content(facts(), "en")["facebook"]["post"]
+    assert post.startswith("\U0001F3E1 2 BHK apartment for sale in Baner, Pune\n₹85 Lakh")
+    assert "\U0001F4D0 Area: 1,100 sq ft (carpet)" in post and "✅ Possession: Ready to move" in post
+    assert post.rstrip().endswith("plan a site visit.") and len(post) <= FB_MAX

@@ -2,6 +2,7 @@
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+PUBLIC_NAME = "PUNE Property team"
 LAKH = 100_000
 CRORE = 10_000_000
 
@@ -17,13 +18,13 @@ def _trim(v: float) -> str:
 
 
 def money(n: int, rent: bool = False) -> str:
-    """8500000 -> 'Rs 85 L', 12500000 -> 'Rs 1.25 Cr', 45000 -> 'Rs 45,000' (+ '/month' for rent)."""
+    """8500000 -> '₹85 Lakh', 12500000 -> '₹1.25 Cr', 45000 -> '₹45,000' (+ '/month' for rent)."""
     if n >= CRORE:
-        s = f"Rs {_trim(n / CRORE)} Cr"
+        s = f"₹{_trim(n / CRORE)} Cr"
     elif n >= LAKH:
-        s = f"Rs {_trim(n / LAKH)} L"
+        s = f"₹{_trim(n / LAKH)} Lakh"
     else:
-        s = f"Rs {n:,}"
+        s = f"₹{n:,}"
     return s + "/month" if rent else s
 
 
@@ -116,7 +117,7 @@ class Facts:
             floor=listing.get("floor"), total_floors=listing.get("total_floors"),
             furnishing=listing.get("furnishing"), possession=listing.get("possession"), rera=listing.get("rera_no"),
             amenities=[a for a in (listing.get("amenities") or []) if a],
-            agent_name=(profile.get("agent_name") or "").strip(), agent_phone=profile.get("phone"),
+            agent_name=PUBLIC_NAME, agent_phone=profile.get("phone"),  # posts are signed by the team, never by an agent's own name
             share_url=share_url)
 
     # -- derived text ------------------------------------------------------------------------

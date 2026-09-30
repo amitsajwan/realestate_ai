@@ -23,7 +23,7 @@ frontend/public/landing/*.jpg); never invent testimonials, numbers, customer log
 - /privacy: who we are; what we collect (agent: name, phone, city, listings, photos; buyers: name, phone, message, enquiry preferences, pages viewed on an agent's
   site via a random id in the browser, source link); why (to connect buyers and agents, show agents their enquiries, improve the service); the buyer's consent is asked
   on the enquiry form; who sees it (the agent the buyer contacted, and us as service provider; not sold); when a listing is posted to our Facebook/Instagram page the
-  agent's name and phone appear in it with the agent's consent; retention (kept while the account is active, deleted on request within 30 days); rights (access,
+  agent's name (never their phone number) appears in it with the agent's consent; retention (kept while the account is active, deleted on request within 30 days); rights (access,
   correction, erasure, withdraw consent) under India's Digital Personal Data Protection Act 2023; children; security in general terms; changes; contact + grievance contact
   from the env values (or a note that contact details are on the request-invite page).
 - /terms: pilot service terms in plain language: who may use it (real estate agents invited by us), agent responsibilities (accurate listings, real photos, RERA

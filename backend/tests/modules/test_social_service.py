@@ -61,7 +61,7 @@ async def test_rebase_and_payloads():
     assert rebase("/uploads/a.jpg", "") == "/uploads/a.jpg"
     assert rebase("https://cdn.other/x.jpg", "https://m.test") == "https://cdn.other/x.jpg"
     fb = build_payload(pack(), "facebook_page", "https://m.test")
-    assert fb["text"] == "Ready 2 BHK in Baner\nhttps://site.test/agent/rahul/listings/L1?src=whatsapp"
+    assert fb["text"] == "Ready 2 BHK in Baner\n\n\U0001F517 Details and photos: https://site.test/agent/rahul/listings/L1?src=whatsapp"
     assert fb["image_urls"] == ["https://m.test/uploads/marketing/L1/cover.jpg"]
     ig = build_payload(pack(), "instagram", "https://m.test")
     assert ig["text"] == "2 BHK in Baner\n\n#Pune #Baner" and len(ig["image_urls"]) == 4 and ig["image_urls"][0].endswith("cover.jpg")

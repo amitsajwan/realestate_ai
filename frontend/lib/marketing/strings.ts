@@ -288,7 +288,7 @@ export function privacyDoc(cfg: MarketingConfig): LegalDoc {
       {
         id: 'social-posts', heading: 'Posts on our Facebook and Instagram pages',
         paragraphs: [
-          'When an agent\'s property is posted to our Facebook or Instagram page, the agent\'s name and phone number appear in the post, with that agent\'s consent. Those posts are public.',
+          'When an agent\'s property is posted to our Facebook or Instagram page, our team name appears in the post (never an agent\'s name or phone number), with that agent\'s consent. Those posts are public.',
         ],
       },
       {
@@ -364,7 +364,7 @@ export function termsDoc(cfg: MarketingConfig): LegalDoc {
           'Post accurate listings: real price, size, location and availability.',
           'Use real photos of the property, and only photos you have the right to use.',
           'Follow the law, including RERA registration and display rules where they apply to you.',
-          'Get the owner\'s and your own consent before a property or your name and phone number is posted on our Facebook or Instagram page.',
+          'Get the owner\'s and your own consent before a property is posted on our Facebook or Instagram page.',
           'Check anything written or suggested by AI before you post or send it. You are responsible for what you publish.',
         ],
       },
