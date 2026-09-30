@@ -7,7 +7,8 @@ from typing import Optional
 
 from app.modules.marketing.polish import HYPE, PHONE
 
-INTENTS = ("interested", "question", "praise", "complaint", "spam", "other")
+INTENTS = ("interested", "question", "praise", "greeting", "complaint", "spam", "other")
+GREETING = re.compile(r"^\W*(hi+|hello+|hey+|hii+|namaste|namaskar|good (morning|afternoon|evening)|hello you there)\W*$", re.I)
 MAX_REPLY = 320
 URL = re.compile(r"https?://\S+", re.I)
 NUM = re.compile(r"\d[\d,]*(?:\.\d+)?")
@@ -20,16 +21,19 @@ TEMPLATES = {
         "interested": "Thanks{name}! Here are the details: {link} . Share your budget and preferred area there and our team will get back to you.",
         "question": "Good question{name}! Our team will reply here soon. Meanwhile, the full details are here: {link}",
         "praise": "Thank you{name}! Follow the page for more Pune property guides and listings.",
+        "greeting": "Hello{name}! Comment INTERESTED on a listing for the details, or ask your question here and our team will help.",
     },
     "hi": {
         "interested": "धन्यवाद{name}! पूरी जानकारी यहाँ है: {link} . वहाँ अपना बजट और पसंदीदा इलाका बताएं, हमारी टीम आपसे संपर्क करेगी।",
         "question": "अच्छा सवाल{name}! हमारी टीम जल्द यहीं जवाब देगी। पूरी जानकारी यहाँ है: {link}",
         "praise": "धन्यवाद{name}! पुणे की प्रॉपर्टी गाइड और लिस्टिंग के लिए पेज को फॉलो करें।",
+        "greeting": "नमस्ते{name}! विवरण के लिए कमेंट में INTERESTED लिखें, या अपना सवाल यहीं पूछें, हमारी टीम मदद करेगी।",
     },
     "mr": {
         "interested": "धन्यवाद{name}! संपूर्ण माहिती इथे आहे: {link} . तिथे तुमचे बजेट आणि आवडते क्षेत्र सांगा, आमची टीम तुमच्याशी संपर्क करेल.",
         "question": "छान प्रश्न{name}! आमची टीम लवकरच इथेच उत्तर देईल. संपूर्ण माहिती इथे आहे: {link}",
         "praise": "धन्यवाद{name}! पुण्यातील प्रॉपर्टी गाइड आणि लिस्टिंगसाठी पेज फॉलो करा.",
+        "greeting": "नमस्कार{name}! तपशीलासाठी कमेंटमध्ये INTERESTED लिहा, किंवा तुमचा प्रश्न इथेच विचारा, आमची टीम मदत करेल.",
     },
 }
 
@@ -89,6 +93,8 @@ def by_rules(text: str) -> Optional[str]:
         return "spam"
     if ABUSE.search(t):
         return "complaint"
+    if GREETING.match(t):
+        return "greeting"
     if re.fullmatch(r"(?i)\W*(i'?m |i am |very |so )?(interested|intrested)\W*(pls|please|sir|mam|madam|details)?\W*", t):
         return "interested"
     return None
@@ -99,6 +105,8 @@ async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm
     intent = by_rules(text)
     if intent == "interested":
         return Decision("interested", lang, render("interested", lang, from_name, link))
+    if intent == "greeting":
+        return Decision("greeting", lang, render("greeting", lang, from_name, link))
     if intent in ("spam", "other"):
         return Decision(intent, lang, None, reason="not answered")
     if intent == "complaint":
@@ -123,6 +131,8 @@ async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm
         return Decision("interested", lang, render("interested", lang, from_name, link))
     if intent == "praise":
         return Decision("praise", lang, render("praise", lang, from_name, link))
+    if intent == "greeting":
+        return Decision("greeting", lang, render("greeting", lang, from_name, link))
     if intent == "question":
         draft = (raw.get("reply") or "").strip()
         if raw.get("answerable") is True and valid_reply(draft, facts, link):

@@ -19,7 +19,7 @@ from app.modules.engage.graph import EngageGraph
 from app.modules.engage.service import EngageService
 
 G = "https://graph.facebook.com/v23.0"
-CASES = [("INTERESTED", "interested", True), ("Which school is nearby?", "question", True), ("Earn money from home click here www.spam.example", "spam", False)]
+CASES = [("hello you there", "greeting", True), ("INTERESTED", "interested", True), ("Which school is nearby?", "question", True), ("Earn money from home click here www.spam.example", "spam", False)]
 ok_all = True
 
 

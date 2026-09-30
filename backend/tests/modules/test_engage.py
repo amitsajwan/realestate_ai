@@ -190,3 +190,16 @@ async def test_page_level_posts_belong_to_the_configured_owner():
     svc, g, db = make([post([comment("C1", "INTERESTED")])], owner_agent_id="OWNER")
     await svc.run_once()
     assert db.get_collection("engage_comments").docs[0]["agent_id"] == "OWNER" and [d["_id"] for d in await svc.recent("OWNER")] == ["C1"]
+
+
+@pytest.mark.parametrize("text", ["hi", "Hello", "hey!!", "hello you there", "Namaste"])
+async def test_a_plain_greeting_gets_a_friendly_reply_without_an_llm_call(text):
+    llm = FakeLLM()
+    d = await decide(text, "Amit Sharma", FACTS, LINK, llm)
+    assert d.intent == "greeting" and "INTERESTED" in d.reply and not d.needs_human and llm.calls == 0
+    assert d.reply.startswith(("Hello Amit!", "नमस्ते"))
+
+
+async def test_greetings_from_the_page_itself_are_still_ignored():
+    svc, g, db = make([post([comment("C1", "hi", who="PAGE")])])
+    assert await svc.run_once() == {"ignored": 1} and g.replies == []
