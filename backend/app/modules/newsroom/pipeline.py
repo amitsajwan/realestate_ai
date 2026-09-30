@@ -9,7 +9,7 @@ from typing import Callable, Dict, Optional
 from app.modules.social.publisher import sanitize
 
 from . import codec, policy
-from .config import NewsroomConfig
+from .config import NewsroomConfig, load
 from .store import Store
 from .types import Publisher
 
@@ -27,7 +27,17 @@ def default_stages() -> Dict[str, Callable]:
     from .stages.extract import extract
     from .stages.filter import assess
     from .stages.filter import same_story
-    return {"filter": assess, "extract": extract, "draft": draft, "check": check, "same_story": same_story}
+    stages = {"filter": assess, "extract": extract, "draft": draft, "check": check, "same_story": same_story}
+    if load().read_articles:
+        from .stages.read import RobotsCache, polite_get, read
+        robots, polite = RobotsCache(), {}
+
+        async def read_stage(item, get):
+            if polite.get("src") is not get:  # one rate limiter per fetcher, shared across items
+                polite.update(src=get, get=polite_get(get))
+            return await read(item, polite["get"], robots)
+        stages["read"] = read_stage
+    return stages
 
 
 async def _call(fn, *args):
@@ -79,7 +89,16 @@ async def _filter(store, stages, now, doc):
 
 
 async def _extract(store, stages, llm, doc):
-    facts = await _call(stages["extract"], codec.raw_item(doc), llm)
+    raw = codec.raw_item(doc)
+    if stages.get("read") and stages.get("get"):  # optional: enrich short items with the article body first
+        try:
+            richer = await _call(stages["read"], raw, stages["get"])
+            if richer.text != raw.text:
+                await store.update_raw(doc["_id"], richer.text)
+                raw = richer
+        except Exception as e:
+            log.warning("newsroom: read failed for %s: %s", doc.get("_id"), sanitize(e))
+    facts = await _call(stages["extract"], raw, llm)
     if facts is None or not facts.facts:
         await store.move(doc["_id"], "dropped", "no verifiable facts")
     else:

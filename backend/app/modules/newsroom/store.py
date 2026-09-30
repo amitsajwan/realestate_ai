@@ -49,6 +49,13 @@ class Store:
         await self.items.update_one({"_id": id}, {"$set": {**fields, "status": status, "updated_at": now},
                                                   "$push": {"history": {"at": now, "status": status, "note": note}}})
 
+    async def update_raw(self, id: str, text: str) -> None:
+        """Replace the stored raw text (the article reader enriches it); status and history are untouched."""
+        doc = await self.items.find_one({"_id": id})
+        if doc is None:
+            return
+        await self.items.update_one({"_id": id}, {"$set": {"raw": {**doc["raw"], "text": text}, "updated_at": self.clock()}})
+
     async def queue(self, limit: int = 50) -> List[dict]:
         return await self.items.find({"status": "pending_review"}).sort("updated_at", -1).limit(limit).to_list(limit)
 
