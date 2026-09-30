@@ -24,14 +24,15 @@ STORY_TOP, STORY_BOTTOM = 240, 300  # keep clear of the story app chrome
 MAX_BYTES = 380 * 1024
 MAX_SOURCE_BYTES = 20 * 1024 * 1024
 WHITE, SOFT, ACCENT = (255, 255, 255), (214, 218, 228), (255, 214, 140)
-GOLD = (247, 195, 76)
+GOLD = (240, 180, 64)  # the gold of the PUNE Property logo ring and tagline
 FONT_DIR = Path(__file__).parent / "fonts"
 FONT_FILES = {"regular": "Poppins-Regular.ttf", "medium": "Poppins-Medium.ttf",
               "semibold": "Poppins-SemiBold.ttf", "bold": "Poppins-Bold.ttf"}
 ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 UPLOAD_PATH_RE = re.compile(r"^/uploads/images/([A-Za-z0-9][A-Za-z0-9._-]{0,200})$")
-PALETTES = [((22, 50, 92), (60, 110, 160)), ((30, 64, 58), (70, 128, 112)), ((70, 36, 66), (140, 80, 120)),
-            ((52, 48, 90), (100, 96, 170)), ((84, 48, 30), (170, 110, 70)), ((34, 44, 60), (84, 100, 120))]
+PALETTES = [((16, 35, 64), (24, 55, 93)), ((14, 32, 60), (26, 60, 100)), ((18, 38, 70), (30, 62, 104))]  # brand navy
+SILHOUETTE = (9, 21, 44)
+LOGO_PATH = Path(__file__).parent / "assets" / "logo.png"
 ImageFile.LOAD_TRUNCATED_IMAGES = False
 
 
@@ -243,8 +244,8 @@ def _scrim_bottom(img: Image.Image, start: float = 0.4, strength: float = 0.9) -
     return Image.composite(Image.new("RGB", img.size, SCRIM_COLOR), img, mask)
 
 
-def _skyline(size: Tuple[int, int], seed: str, floor_y: int, tallest: int) -> Image.Image:
-    """Faint apartment-tower silhouettes with lit windows, deterministic per agent/locality (RGBA overlay)."""
+def _skyline(size: Tuple[int, int], seed: str, floor_y: int, tallest: int, windows_above: Optional[int] = None) -> Image.Image:
+    """Dark apartment-tower silhouettes with lit gold windows (the Page cover's skyline), deterministic per seed (RGBA overlay)."""
     rnd = random.Random(int(hashlib.md5(seed.encode("utf8")).hexdigest()[:8], 16))
     overlay = Image.new("RGBA", size, (0, 0, 0, 0))
     d = ImageDraw.Draw(overlay)
@@ -252,24 +253,50 @@ def _skyline(size: Tuple[int, int], seed: str, floor_y: int, tallest: int) -> Im
     while x < size[0]:
         bw, bh = rnd.randint(80, 170), rnd.randint(int(tallest * 0.4), tallest)
         top = floor_y - bh
-        d.rectangle([x, top, x + bw, size[1]], fill=(255, 255, 255, 22))
+        d.rectangle([x, top, x + bw, size[1]], fill=SILHOUETTE + (235,))
         for wy in range(top + 26, floor_y - 20, 48):
             for wx in range(x + 16, x + bw - 26, 34):
-                if rnd.random() > 0.5:
-                    d.rectangle([wx, wy, wx + 15, wy + 22], fill=(255, 214, 140, 52))
+                if rnd.random() > 0.62 and (windows_above is None or wy + 22 < windows_above):
+                    d.rectangle([wx, wy, wx + 15, wy + 22], fill=GOLD + (150,))
         x += bw + rnd.randint(8, 26)
     return overlay
 
 
-def brand_background(size: Tuple[int, int], seed: str, skyline: bool = True, floor: float = 0.80, tall: float = 0.42) -> Image.Image:
+def brand_background(size: Tuple[int, int], seed: str, skyline: bool = True, floor: float = 0.80, tall: float = 0.42,
+                     windows_above: Optional[int] = None) -> Image.Image:
     """Brand gradient; with `skyline`, faint towers rise from the lower part. `floor`/`tall` (fractions of the height) place them,
     so a card with content in the middle can keep the towers below it."""
     img = gradient_card(size, seed)
     if not skyline:
         return img
     base = img.convert("RGBA")
-    base = Image.alpha_composite(base, _skyline(size, seed, floor_y=int(size[1] * floor), tallest=int(size[1] * tall)))
+    base = Image.alpha_composite(base, _skyline(size, seed, floor_y=int(size[1] * floor), tallest=int(size[1] * tall), windows_above=windows_above))
     return base.convert("RGB")
+
+
+@lru_cache(maxsize=8)
+def _logo(diameter: int) -> Optional[Image.Image]:
+    """The PUNE Property 'PP' badge (bundled asset), round, or None if the file is missing."""
+    try:
+        with Image.open(LOGO_PATH) as im:
+            im = im.convert("RGB").resize((diameter, diameter), Image.LANCZOS)
+    except Exception:
+        return None
+    mask = Image.new("L", (diameter * 4, diameter * 4), 0)
+    ImageDraw.Draw(mask).ellipse([0, 0, diameter * 4 - 1, diameter * 4 - 1], fill=255)
+    out = Image.new("RGBA", (diameter, diameter))
+    out.paste(im, (0, 0))
+    out.putalpha(mask.resize((diameter, diameter), Image.LANCZOS))
+    return out
+
+
+def _stamp_logo(c: "Card", x: int, y: int, diameter: int = 96) -> None:
+    """Paste the badge with its top-left at (x, y) and log its box for the margin checks."""
+    badge = _logo(diameter)
+    if badge is None:
+        return
+    c.img.paste(badge, (x, y), badge)
+    c.boxes.append((x, y, x + diameter, y + diameter))
 
 
 def _panel_with_header(size: Tuple[int, int], src: Optional[Image.Image], seed: str, header_h: int) -> Image.Image:
@@ -399,9 +426,10 @@ def render(kind: str, f: Facts, src: Optional[Image.Image]) -> Card:
     what, where = _headline_parts(f)
 
     if kind == "cover":
-        img = _scrim_bottom(_fit(src, size), 0.34, 0.94) if src is not None else brand_background(size, seed)
+        img = _scrim_bottom(_fit(src, size), 0.34, 0.94) if src is not None else brand_background(size, seed, windows_above=int(size[1] * 0.5))
         c = Card(size, img, top, bottom)
         _tag_chips(c, f, c.top)
+        _stamp_logo(c, c.right - 96, c.top)
         footer_y = _cover_footer(c, f)
         c.bottom = footer_y - 34
         c.stack([{"text": f.price_text, "size": 124, "fill": GOLD, "min_size": 60, "weight": "bold"},
@@ -425,8 +453,9 @@ def render(kind: str, f: Facts, src: Optional[Image.Image]) -> Card:
                     for i in items if i.get("text")) + 30 + _button_height(btn) + 20 + int(34 * PITCH)
         start = max(top + 160, probe.bottom - total)
         head = min(1300, start + 60)
-        img = _panel_with_header(size, src, seed, head) if src is not None else brand_background(size, seed)
+        img = _panel_with_header(size, src, seed, head) if src is not None else brand_background(size, seed, windows_above=int(size[1] * 0.45))
         c = Card(size, img, top, bottom)
+        _stamp_logo(c, c.right - 96, c.top)
         if agent:
             _pill(c, f"Listed by {agent}", c.top)
         y = c.stack(items, anchor="top", gap=gap, y0=start) + 30 - gap
@@ -496,6 +525,7 @@ def render(kind: str, f: Facts, src: Optional[Image.Image]) -> Card:
             c.block(a, yy, sz, WHITE, 2, 26, x=x + 46, weight="medium")
         c.right = saved_right
     elif kind == "cta":
+        _stamp_logo(c, c.right - 96, c.top)
         total = cta_layout(Card(size, Image.new("RGB", size), top, bottom), 0)
         cta_layout(c, y0 + max(0, (c.bottom - y0 - total) // 2))
     else:

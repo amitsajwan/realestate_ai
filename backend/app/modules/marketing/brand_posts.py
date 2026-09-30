@@ -7,7 +7,7 @@ from typing import Dict, List, Tuple
 
 from PIL import Image
 
-from .images import GOLD, MARGIN, PITCH, SOFT, SQUARE, WHITE, DARK_INK, Card, _chip, brand_background, load_font
+from .images import GOLD, MARGIN, PITCH, SOFT, SQUARE, WHITE, DARK_INK, Card, _chip, _stamp_logo, brand_background, load_font
 
 SITE = "https://34-180-39-243.sslip.io"
 TAGS = "#PunePropertyHub #PuneRealEstate #PuneProperty #HomeBuyingTips"
@@ -81,7 +81,7 @@ def render_brand_post(kicker: str, title: str, points: List[str]) -> Card:
     _, y = _chip(c, kicker, c.left, c.top)
     y += 34
     y = c.block(title, y, 68, WHITE, 3, 42, weight="bold") + 26
-    footer_h = 60
+    footer_h = 110
     avail = c.bottom - footer_h - y
     for sz in (40, 36, 32, 28):
         need = sum(c.height_of(p, sz, 2, 24, x=c.left + 64, weight="medium") + 20 for p in points)
@@ -92,5 +92,7 @@ def render_brand_post(kicker: str, title: str, points: List[str]) -> Card:
         c.draw.ellipse((c.left, cy - 21, c.left + 42, cy + 21), fill=GOLD)
         c.draw.text((c.left + 21, cy), str(i + 1), font=load_font(26, "bold"), fill=DARK_INK, anchor="mm")
         y = c.block(p, y, sz, WHITE, 2, 24, x=c.left + 64, weight="medium") + 20
-    c.block("PUNE Property", c.bottom - int(30 * PITCH), 30, GOLD, 1, 20, weight="semibold")
+    _stamp_logo(c, c.left, c.bottom - 88, 88)
+    c.block("PUNE Property", c.bottom - 88, 34, GOLD, 1, 20, x=c.left + 108, weight="semibold")
+    c.block("Find. Compare. Decide.", c.bottom - 88 + int(34 * PITCH), 26, SOFT, 1, 18, x=c.left + 108, weight="medium")
     return c

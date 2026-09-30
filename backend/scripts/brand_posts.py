@@ -1,6 +1,7 @@
 """Starter posts for the PUNE Property Facebook Page.
 
   python scripts/brand_posts.py preview [--out DIR]     render the cards (no network) and print the captions
+  python scripts/brand_posts.py replace                 delete the earlier copies of these posts, then publish the current ones
   python scripts/brand_posts.py post [--only slug ...]  publish to the Facebook Page for real (needs META_PAGE_ID / META_PAGE_ACCESS_TOKEN,
                                                         PUBLIC_MEDIA_BASE_URL and the cards under <uploads>/brand/)
 Posting ignores SOCIAL_DRY_RUN on purpose (agents' listing posts stay in test mode) and records nothing in the database.
@@ -24,6 +25,24 @@ def render_all(out: Path):
         print(f"rendered {p['slug']}.jpg")
 
 
+async def delete_old():
+    """Delete earlier copies of the starter posts (matched by their exact first caption line; nothing else is touched)."""
+    import httpx
+
+    from app.modules.social.config import load
+
+    cfg = load()
+    firsts = {p["caption"].split(chr(10))[0] for p in POSTS}
+    async with httpx.AsyncClient(timeout=30) as c:
+        r = await c.get(f"https://graph.facebook.com/{cfg.graph_version}/{cfg.page_id}/posts",
+                        params={"fields": "id,message", "limit": 50, "access_token": cfg.page_token})
+        r.raise_for_status()
+        for post in r.json().get("data", []):
+            if (post.get("message") or "").split(chr(10))[0] in firsts:
+                d = await c.delete(f"https://graph.facebook.com/{cfg.graph_version}/{post['id']}", params={"access_token": cfg.page_token})
+                print("deleted", post["id"], d.status_code, d.json().get("success"))
+
+
 async def publish(only):
     from app.modules.social.config import load
     from app.modules.social.graph import GraphPublisher
@@ -45,7 +64,7 @@ async def publish(only):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("mode", choices=["preview", "post"])
+    ap.add_argument("mode", choices=["preview", "post", "replace"])
     ap.add_argument("--out", default="docs/brand/starter-posts")
     ap.add_argument("--only", nargs="*")
     a = ap.parse_args()
@@ -53,5 +72,8 @@ if __name__ == "__main__":
         render_all(Path(a.out))
         for p in POSTS:
             print(f"\n----- {p['slug']} -----\n{p['caption']}")
+    elif a.mode == "replace":
+        asyncio.run(delete_old())
+        asyncio.run(publish(a.only))
     else:
         asyncio.run(publish(a.only))
