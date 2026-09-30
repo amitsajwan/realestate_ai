@@ -1,0 +1,12 @@
+{
+  "id": "lookalike_kharadi",
+  "source": "fixture",
+  "url": "https://example.test/lookalike_kharadi",
+  "title": "Kharadian Sweets opens third outlet in Mumbai",
+  "text": "Kharadian Sweets, known for its Maharashtrian snacks, opened its third outlet in Andheri on Friday. The Kharadiwala family began the business in 1962.",
+  "published_at": "2026-09-29T06:00:00+00:00",
+  "expect": {
+    "keep": false,
+    "reason": "off-topic"
+  }
+}

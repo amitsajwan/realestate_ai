@@ -1,0 +1,15 @@
+{
+  "id": "ring_road",
+  "source": "fixture",
+  "url": "https://example.test/ring_road",
+  "title": "PMRDA invites bids for Pune ring road package near Wagholi",
+  "text": "The PMRDA has invited bids for a 9.2 km package of the Pune ring road that passes close to Wagholi and Lohegaon. The estimated cost of the package is Rs 1,450 crore. Bids will be opened on October 15. The ring road is planned as a 136 km loop around the city.",
+  "published_at": "2026-09-25T06:00:00+00:00",
+  "expect": {
+    "keep": true,
+    "pillar": "infrastructure",
+    "areas": [
+      "wagholi"
+    ]
+  }
+}

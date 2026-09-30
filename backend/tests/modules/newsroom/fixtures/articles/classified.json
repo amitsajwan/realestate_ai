@@ -1,0 +1,12 @@
+{
+  "id": "classified",
+  "source": "fixture",
+  "url": "https://example.test/classified",
+  "title": "2 BHK flat for sale in Wagholi, call 9876543210",
+  "text": "2 BHK flat for sale in Wagholi near school. 950 sq ft, ready possession. Owner direct. Call 9876543210 now.",
+  "published_at": "2026-09-29T06:00:00+00:00",
+  "expect": {
+    "keep": false,
+    "reason": "classified"
+  }
+}

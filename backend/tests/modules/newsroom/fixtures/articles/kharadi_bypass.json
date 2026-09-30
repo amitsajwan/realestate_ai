@@ -1,0 +1,15 @@
+{
+  "id": "kharadi_bypass",
+  "source": "fixture",
+  "url": "https://example.test/kharadi_bypass",
+  "title": "Traffic diversion on Kharadi bypass for flyover girder work",
+  "text": "Pune traffic police have diverted vehicles on the Kharadi bypass from October 1 to October 20 for girder launching work on the new flyover. Motorists are advised to use Nagar Road.",
+  "published_at": "2026-09-28T06:00:00+00:00",
+  "expect": {
+    "keep": true,
+    "pillar": "infrastructure",
+    "areas": [
+      "kharadi"
+    ]
+  }
+}
