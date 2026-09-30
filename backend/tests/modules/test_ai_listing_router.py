@@ -32,6 +32,12 @@ def make_client(transcriber=None, llm=None):
 URL = "/api/v1/listings/ai/draft"
 
 
+@pytest.fixture(autouse=True)
+def _voice_on(monkeypatch):
+    monkeypatch.setenv("VOICE_LISTINGS_ENABLED", "true")  # the Premium gate has its own tests below
+
+
+
 def test_requires_auth():
     route = next(x for x in r.router.routes if x.path == "/ai/draft")
     assert current_active_user in [d.call for d in route.dependant.dependencies]
@@ -121,3 +127,19 @@ def test_voice_failure_with_typed_text_still_gives_a_draft():
     body = res.json()
     assert body["draft"]["price_inr"] == 8_500_000 and body["draft"]["bhk"] == 2 and body["transcript"] is None
     assert any("voice note could not be turned into text" in w for w in body["warnings"])
+
+
+def test_voice_is_a_premium_feature_and_off_by_default(monkeypatch):
+    monkeypatch.delenv("VOICE_LISTINGS_ENABLED", raising=False)
+    tr = FakeTranscriber()
+    c = make_client(tr)
+    res = c.post(URL, files={"audio": ("n.webm", b"abc", "audio/webm")})
+    assert res.status_code == 403 and "Premium" in res.json()["detail"] and tr.calls == 0  # no transcription (no cost) when off
+    assert c.post(URL, data={"text": "2 bhk baner 85 lakh"}).status_code == 200  # typing is unaffected
+    assert c.post(URL, data={"text": "2 bhk baner 85 lakh"}, files={"audio": ("n.webm", b"abc", "audio/webm")}).status_code == 403
+
+
+@pytest.mark.parametrize("value", ["true", "TRUE", "1", "yes", "on"])
+def test_voice_can_be_switched_on(monkeypatch, value):
+    monkeypatch.setenv("VOICE_LISTINGS_ENABLED", value)
+    assert make_client(FakeTranscriber()).post(URL, files={"audio": ("n.webm", b"abc", "audio/webm")}).status_code == 200

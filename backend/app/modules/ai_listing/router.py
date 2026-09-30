@@ -23,6 +23,11 @@ ALLOWED_AUDIO = {
 ALLOWED_EXT = {".webm", ".ogg", ".oga", ".opus", ".mp3", ".m4a", ".mp4", ".wav"}
 
 
+def voice_enabled() -> bool:
+    """Voice listings are a Premium feature: off unless VOICE_LISTINGS_ENABLED=true (read per request)."""
+    return (os.environ.get("VOICE_LISTINGS_ENABLED") or "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def get_llm() -> Optional[LLMClient]:
     return default_llm()
 
@@ -60,7 +65,10 @@ async def ai_draft(
 ):
     if text and len(text) > MAX_TEXT_CHARS:
         raise HTTPException(status_code=413, detail=f"Text too long (max {MAX_TEXT_CHARS} characters).")
-    audio_in = await _read_audio(audio, language) if audio is not None and audio.filename != "" else None
+    has_audio = audio is not None and audio.filename != ""
+    if has_audio and not voice_enabled():
+        raise HTTPException(status_code=403, detail="Voice listings are a Premium feature. You can still type the details.")
+    audio_in = await _read_audio(audio, language) if has_audio else None
     svc = AIListingService(llm=llm, transcriber=transcriber)
     try:
         return await svc.create_draft(text=text, audio=audio_in, image_count=max(0, min(image_count, MAX_IMAGES)),

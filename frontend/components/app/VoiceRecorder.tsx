@@ -4,8 +4,31 @@ import { t } from '@/lib/app/strings'
 import { mmss, useRecorder } from '@/lib/app/useRecorder'
 import { Btn } from './ui'
 
-/** Big mic button: record / stop / timer / playback. Reports the recorded Blob (or null) upward. */
+/** Voice is a Premium feature: unless NEXT_PUBLIC_VOICE_ENABLED=true it is shown, greyed out and labelled Premium. */
+export const VOICE_ENABLED = process.env.NEXT_PUBLIC_VOICE_ENABLED === 'true'
+
 export function VoiceRecorder({ onChange }: { onChange: (b: Blob | null) => void }) {
+  return VOICE_ENABLED ? <LiveVoiceRecorder onChange={onChange} /> : <PremiumVoiceTeaser />
+}
+
+function PremiumVoiceTeaser() {
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-4" data-testid="voice-premium">
+      <div className="relative">
+        <button type="button" disabled aria-disabled="true" aria-label={`${t('voicePremium')} (${t('voicePremiumBadge')})`}
+          className="flex h-24 w-24 cursor-not-allowed items-center justify-center rounded-full bg-gray-300 text-4xl text-white opacity-70">
+          <span aria-hidden>🎤</span>
+        </button>
+        <span className="absolute -right-3 -top-2 rounded-full bg-amber-400 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-gray-900 shadow">{t('voicePremiumBadge')}</span>
+      </div>
+      <p className="text-sm font-semibold text-gray-700">{t('voicePremium')}</p>
+      <p className="text-center text-xs text-gray-500">{t('voicePremiumSub')}</p>
+    </div>
+  )
+}
+
+/** Big mic button: record / stop / timer / playback. Reports the recorded Blob (or null) upward. */
+function LiveVoiceRecorder({ onChange }: { onChange: (b: Blob | null) => void }) {
   const rec = useRecorder()
 
   useEffect(() => {
