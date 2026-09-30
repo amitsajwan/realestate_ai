@@ -11,7 +11,9 @@ export interface PageMeta {
 
 export function pageMetadata(cfg: MarketingConfig, m: PageMeta): Metadata {
   const url = cfg.siteUrl + (m.path === '/' ? '' : m.path)
-  const image = m.image ? { url: cfg.siteUrl + m.image.path, width: m.image.width, height: m.image.height, alt: m.image.alt } : undefined
+  // every page gets a brand preview so a shared link (Facebook, WhatsApp) shows a card, not a bare title
+  const img = m.image ?? { path: '/brand/og.jpg', width: 1200, height: 630, alt: cfg.businessName + ': Find. Compare. Decide.' }
+  const image = { url: cfg.siteUrl + img.path, width: img.width, height: img.height, alt: img.alt }
   return {
     title: m.title,
     description: m.description,
