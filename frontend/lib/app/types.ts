@@ -130,6 +130,17 @@ export interface ChatConversation {
   messages: number
 }
 
+export interface WeeklyReport {
+  period_days: number
+  numbers: {
+    visitors: number; listing_views: number; new_enquiries: number; qualified_enquiries: number; site_visits: number
+    facebook_interest: number; chats: number; chat_leads: number; live_listings: number
+  }
+  top_listing: { listing_id: string; title: string | null; views: number; enquiries: number } | null
+  todo: Array<{ kind: string; text: string; count: number }>
+  share_text: string
+}
+
 export interface SiteUpdateInput {
   photo?: string
   logo?: string
@@ -481,6 +492,7 @@ export interface AppApi {
   updateSite(input: SiteUpdateInput): Promise<unknown>
   getFacebookInterest(): Promise<FacebookInterest[]>
   getChatConversations(): Promise<ChatConversation[]>
+  getWeeklyReport(): Promise<WeeklyReport>
   listListings(status?: ListingStatus): Promise<Listing[]>
   getListing(id: string): Promise<Listing>
   createListing(input: ListingInput): Promise<Listing>
