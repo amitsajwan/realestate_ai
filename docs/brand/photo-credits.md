@@ -11,3 +11,9 @@ must use the agent's own photos.
 | White building with yellow balconies | https://unsplash.com/photos/PuB5jXhFz5c | Jakub Pabis |
 | Living room with grey sofa and wooden table | https://unsplash.com/photos/SrioT6tdWII | see source page |
 | Apartment living room with grey sofa | https://unsplash.com/photos/-TiONiwniJs | see source page |
+
+## Creative studio photos (bundled for the photo-led card and the phone mock)
+
+The same five Unsplash photos listed above are bundled, resized to 1800 px on the long edge, in `backend/app/modules/creative/assets/photos/`
+(`tower-low`, `glass-dusk`, `yellow-balconies`, `living-room`, `living-sofa`). Unsplash License (commercial use allowed, attribution optional).
+Cards that use them are labelled "Illustrative photo"; they are stock images, never a real listing.
