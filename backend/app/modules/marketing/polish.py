@@ -53,13 +53,30 @@ POLISH_SYSTEM = (
 )
 
 
+CHATTER = re.compile(r"^(of course|sure|certainly|absolutely|okay|ok|here(?:'s| is| are)|rewritten|below is)\b[^\n]*$", re.I)
+
+
+def clean_llm_text(out: str) -> str:
+    """Drop what chatty models wrap around the answer: code fences, surrounding quotes and 'Here is the rewritten post:' lines."""
+    text = (out or "").strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```[a-z]*\n?|```$", "", text).strip()
+    lines = text.split("\n")
+    while len(lines) > 1 and (CHATTER.match(lines[0].strip()) or not lines[0].strip()):
+        lines.pop(0)
+    text = "\n".join(lines).strip()
+    if len(text) > 1 and text[0] in "\"'\u201c" and text[-1] in "\"'\u201d":
+        text = text[1:-1].strip()
+    return text
+
+
 def make_llm_polish(llm) -> Polish:
     """A Polish backed by an LLM client that has `text(system, user)`. Its output still goes through accept()."""
     async def polish(draft: str, language: str) -> str:
         out = await llm.text(POLISH_SYSTEM, f"Language: {language}\n\nPOST:\n{draft}")
         if out is None:
             raise RuntimeError("polish unavailable")
-        return out
+        return clean_llm_text(out)
     return polish
 
 

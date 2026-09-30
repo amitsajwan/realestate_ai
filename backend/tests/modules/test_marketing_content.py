@@ -259,3 +259,16 @@ def test_polish_is_off_unless_switched_on(monkeypatch):
     monkeypatch.setenv("MARKETING_POLISH", "true")
     monkeypatch.setenv("AI_LLM_API_KEY", "k")
     assert default_polish() is not None
+
+
+@pytest.mark.parametrize("raw,clean", [
+    ("Of course! Here is the rewritten post:\n\nLovely 2 BHK. Comment INTERESTED.", "Lovely 2 BHK. Comment INTERESTED."),
+    ("Sure, here's a warmer version:\nLovely 2 BHK.", "Lovely 2 BHK."),
+    ("```\nLovely 2 BHK.\n```", "Lovely 2 BHK."),
+    ('"Lovely 2 BHK."', "Lovely 2 BHK."),
+    ("Lovely 2 BHK.\nHere is the floor plan link.", "Lovely 2 BHK.\nHere is the floor plan link."),  # only the FIRST lines are chatter
+])
+def test_chatty_model_wrappers_are_stripped(raw, clean):
+    from app.modules.marketing.polish import clean_llm_text
+
+    assert clean_llm_text(raw) == clean
