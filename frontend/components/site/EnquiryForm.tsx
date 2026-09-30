@@ -8,7 +8,7 @@ import {
   BHK_CHOICES, BUDGET_CHOICES, EMPTY_QUALIFICATION, FINANCING_CHOICES, TIMELINE_CHOICES,
   buildQualificationFields, hasQualification, toggleChoice, type Choice, type QualificationFields, type QualificationState,
 } from '@/lib/site/qualification'
-import { QUALIFY_STRINGS as S, firstName } from '@/lib/site/strings'
+import { QUALIFY_STRINGS as S } from '@/lib/site/strings'
 
 function ChipGroup<T extends string | number>({ label, options, value, onPick }: {
   label: string; options: Choice<T>[]; value: T | null; onPick: (v: T) => void
@@ -84,7 +84,7 @@ export default function EnquiryForm({ agentSlug, agentName, agentPhone, listingI
     return (
       <section id={id} aria-live="polite" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-center">
         <h2 className="text-xl font-bold text-emerald-900">Thank you, {name.split(' ')[0]}!</h2>
-        <p className="mt-1 text-emerald-900">{agentName} will contact you soon. For a faster reply, message on WhatsApp.</p>
+        <p className="mt-1 text-emerald-900">{agentName} will contact you soon.</p>
         {hasQualification(saved) && (
           <p className="mt-2 text-sm text-emerald-900">
             {saved.budget_min_inr != null && saved.timeline ? S.savedNoteBudgetTimeline : S.savedNote}
@@ -132,7 +132,7 @@ export default function EnquiryForm({ agentSlug, agentName, agentPhone, listingI
           {errors.consent && <p role="alert" className="mt-1 text-sm text-red-700">{errors.consent}</p>}
         </div>
         <fieldset className="space-y-3 rounded-xl bg-slate-50 p-3">
-          <legend className="px-1 text-base font-semibold">{S.title(firstName(agentName))}</legend>
+          <legend className="px-1 text-base font-semibold">{S.title(agentName)}</legend>
           <p className="text-sm text-slate-600">{S.hint}</p>
           {askBhk && <ChipGroup label={S.bhk} options={BHK_CHOICES} value={q.bhk} onPick={pick('bhk')} />}
           <ChipGroup label={S.budget} options={BUDGET_CHOICES} value={q.budget} onPick={pick('budget')} />

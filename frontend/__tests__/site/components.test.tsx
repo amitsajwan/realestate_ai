@@ -47,7 +47,7 @@ describe('EnquiryForm', () => {
 
   it('renders the optional block; BHK asked only off listing pages', () => {
     const { unmount } = render(<EnquiryForm {...props} agentName="Priya Sharma" />)
-    expect(screen.getByText('Help Priya find the right property (optional)')).toBeInTheDocument()
+    expect(screen.getByText('Help Priya Sharma find the right property (optional)')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'BHK' })).toBeNull()
     unmount()
     render(<EnquiryForm {...props} listingId={undefined} />)

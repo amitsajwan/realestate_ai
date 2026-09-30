@@ -85,7 +85,7 @@ export default async function ListingPage({ params }: Props) {
           </section>
         )}
 
-        <EnquiryForm agentSlug={slug} agentName={agent.agent_name} agentPhone={phone} listingId={l.id} waMessage={msg} id="enquire" />
+        <EnquiryForm agentSlug={slug} agentName="PUNE Property" agentPhone={phone} listingId={l.id} waMessage={msg} id="enquire" />
       </div>
       <StickyBar agentSlug={slug} phone={phone} waMessage={msg} listingId={l.id} />
     </SiteShell>

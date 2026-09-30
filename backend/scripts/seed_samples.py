@@ -8,7 +8,9 @@ Every title starts with "Sample:" - the site, the cards and the captions then la
 Prices are round, believable figures for illustration only; no RERA numbers are invented (left empty on purpose).
 """
 import argparse
+import io
 import sys
+from pathlib import Path
 
 import httpx
 
@@ -26,6 +28,26 @@ SAMPLES = [
     dict(locality="Wagholi", bhk=3, carpet_sqft=1150, price_inr=8_200_000, floor=6, total_floors=15, furnishing="semi", possession="ready",
          amenities=["Parking", "Lift", "Gym", "Clubhouse", "Security"]),
 ]
+
+
+# (locality, bhk) -> (exterior, interior) photo file stems; free-to-use Unsplash photos, credited in docs/brand/photo-credits.md
+PHOTO_PAIRS = {
+    ("Kharadi", 2): ("PuB5jXhFz5c", "SrioT6tdWII"), ("Kharadi", 3): ("4453DIQWtsQ", "-TiONiwniJs"),
+    ("Upper Kharadi", 2): ("5q1KnUjtjaM", "SrioT6tdWII"), ("Upper Kharadi", 3): ("PuB5jXhFz5c", "-TiONiwniJs"),
+    ("Wagholi", 2): ("5q1KnUjtjaM", "-TiONiwniJs"), ("Wagholi", 3): ("4453DIQWtsQ", "SrioT6tdWII"),
+}
+
+
+def jpeg_bytes(path: Path, max_side: int = 1600) -> bytes:
+    """Resize + re-encode: small files are cheap to store and quick on mobile data."""
+    from PIL import Image, ImageOps
+
+    with Image.open(path) as im:
+        im = ImageOps.exif_transpose(im).convert("RGB")
+        im.thumbnail((max_side, max_side))
+        out = io.BytesIO()
+        im.save(out, "JPEG", quality=82, optimize=True)
+        return out.getvalue()
 
 
 def money(n: int) -> str:
@@ -47,6 +69,7 @@ def main():
     ap.add_argument("--phone", required=True)
     ap.add_argument("--code")
     ap.add_argument("--fix-price", help="LISTING_ID=RUPEES")
+    ap.add_argument("--attach-photos", help="directory with the downloaded photos")
     a = ap.parse_args()
     api = a.api.rstrip("/") + "/api/v1"
     with httpx.Client(timeout=60) as c:
@@ -62,6 +85,26 @@ def main():
             lid, price = a.fix_price.split("=")
             r = c.patch(f"{api}/listings/{lid}", json={"price_inr": int(price)}, headers=h)
             print("fixed price", lid, r.status_code, r.json().get("price_inr"))
+            return
+        if a.attach_photos:
+            folder = Path(a.attach_photos)
+            listings = c.get(f"{api}/listings", headers=h).json()
+            listings = listings.get("items", listings) if isinstance(listings, dict) else listings
+            for l in listings:
+                title = l.get("title") or ""
+                if not title.startswith("Sample:") or l.get("media"):
+                    continue
+                stems = PHOTO_PAIRS.get((l.get("locality"), int(l.get("bhk") or 0)))
+                if not stems:
+                    continue
+                files = [("files", (f"{stem}.jpg", jpeg_bytes(folder / f"{stem}.jpg"), "image/jpeg")) for stem in stems]
+                up = c.post(f"{api}/uploads/images", files=files, headers=h)
+                urls = [f["url"] for f in up.json().get("files", [])]
+                if len(urls) != len(stems):
+                    print("upload failed for", title, up.status_code)
+                    continue
+                r = c.patch(f"{api}/listings/{l['id']}", json={"media": [{"url": u, "kind": "image", "order": i} for i, u in enumerate(urls)]}, headers=h)
+                print(f"photos -> {title}: {r.status_code}")
             return
         existing = c.get(f"{api}/listings", headers=h).json()
         items = existing.get("items", existing) if isinstance(existing, dict) else existing

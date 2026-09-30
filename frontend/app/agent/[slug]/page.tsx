@@ -90,7 +90,7 @@ export default async function AgentHomePage({ params }: Props) {
           <h2 id="contact-title" className="text-2xl font-bold">Tell us what you are looking for</h2>
           <ContactButtons agentSlug={slug} phone={agent.phone} waMessage={msg} size="md" className="max-w-md" />
           {agent.office_address && <p className="text-slate-700">{agent.office_address}</p>}
-          <EnquiryForm agentSlug={slug} agentName={agent.agent_name} agentPhone={agent.phone} waMessage={msg} id="enquire" />
+          <EnquiryForm agentSlug={slug} agentName="PUNE Property" agentPhone={agent.phone} waMessage={msg} id="enquire" />
         </section>
       </div>
     </SiteShell>
