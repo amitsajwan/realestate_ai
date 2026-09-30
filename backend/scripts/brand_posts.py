@@ -2,6 +2,8 @@
 
   python scripts/brand_posts.py preview [--out DIR]     render the cards (no network) and print the captions
   python scripts/brand_posts.py replace                 delete the earlier copies of these posts, then publish the current ones
+  python scripts/brand_posts.py instagram [--only slug ...]  publish the same cards to the Instagram account (links become "link in bio"; needs META_IG_BUSINESS_ID;
+                                                        Instagram cannot delete posts through the API, so preview first)
   python scripts/brand_posts.py post [--only slug ...]  publish to the Facebook Page for real (needs META_PAGE_ID / META_PAGE_ACCESS_TOKEN,
                                                         PUBLIC_MEDIA_BASE_URL and the cards under <uploads>/brand/)
 Posting ignores SOCIAL_DRY_RUN on purpose (agents' listing posts stay in test mode) and records nothing in the database.
@@ -10,6 +12,7 @@ Run on the server:  docker compose exec -T -e PYTHONPATH=. backend python script
 import argparse
 import asyncio
 import os
+import re
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -49,6 +52,32 @@ async def delete_old():
                 print("deleted", post["id"], d.status_code, d.json().get("success"))
 
 
+IG_LAUNCH = ["welcome", "kharadi-choose", "five-checks", "carpet-area", "kharadi-site-visit", "rera", "kharadi-metro", "agents-problem"]
+
+
+def ig_caption(caption: str) -> str:
+    """Instagram does not make links clickable in captions: point to the bio link instead."""
+    return re.sub(r"https?://\S+", "link in our bio", caption)
+
+
+async def publish_instagram(only):
+    from app.modules.social.config import load
+    from app.modules.social.graph import GraphPublisher
+    from app.modules.social.publisher import Post
+
+    cfg = replace(load(), dry_run=False)
+    if not (cfg.ig_id and cfg.page_token and cfg.media_url_ok):
+        sys.exit("META_IG_BUSINESS_ID, META_PAGE_ACCESS_TOKEN and an https PUBLIC_MEDIA_BASE_URL are required")
+    uploads = Path(os.environ.get("UPLOAD_DIRECTORY", "uploads"))
+    render_all(uploads / "brand")
+    pub = GraphPublisher(cfg)
+    by = {p["slug"]: p for p in POSTS}
+    for slug in (only or IG_LAUNCH):
+        res = await pub.publish(Post("instagram", ig_caption(by[slug]["caption"]), [f"{cfg.media_base_url}/uploads/brand/{slug}.jpg"]))
+        print(f"INSTAGRAM {slug}: {res.permalink or res.external_id}")
+        await asyncio.sleep(5)
+
+
 async def publish(only):
     from app.modules.social.config import load
     from app.modules.social.graph import GraphPublisher
@@ -70,7 +99,7 @@ async def publish(only):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("mode", choices=["preview", "post", "replace"])
+    ap.add_argument("mode", choices=["preview", "post", "replace", "instagram"])
     ap.add_argument("--out", default="docs/brand/starter-posts")
     ap.add_argument("--only", nargs="*")
     a = ap.parse_args()
@@ -78,6 +107,8 @@ if __name__ == "__main__":
         render_all(Path(a.out))
         for p in POSTS:
             print(f"\n----- {p['slug']} -----\n{p['caption']}")
+    elif a.mode == "instagram":
+        asyncio.run(publish_instagram(a.only))
     elif a.mode == "replace":
         asyncio.run(delete_old())
         asyncio.run(publish(a.only))
