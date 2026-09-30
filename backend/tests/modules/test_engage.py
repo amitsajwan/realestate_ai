@@ -229,3 +229,28 @@ async def test_only_ids_restricts_a_cycle_to_exactly_those_comments():
     svc, g, db = make([post([comment("C1", "INTERESTED", who="u1"), comment("C2", "INTERESTED", who="u2")])])
     assert await svc.run_once(only_ids={"C2"}) == {"replied": 1}
     assert [r[0] for r in g.replies] == ["C2"] and [d["_id"] for d in db.get_collection("engage_comments").docs] == ["C2"]
+
+
+async def test_a_rejected_facebook_token_is_recorded_so_the_app_can_ask_for_a_reconnect():
+    svc, g, db = make([post([comment("C1", "INTERESTED")])])
+
+    async def boom():
+        raise EngageGraphError("token invalid", 190)
+    g.recent_posts_with_comments = boom
+    assert await svc.run_once() == {"error": 1}
+    st = db.get_collection("engage_status").docs[0]
+    assert st["ok"] is False and st["reconnect"] is True and st["code"] == 190
+    g2 = FakeGraph([post([])])
+    svc.graph = g2
+    await svc.run_once()
+    assert db.get_collection("engage_status").docs[0]["ok"] is True and db.get_collection("engage_status").docs[0]["reconnect"] is False
+
+
+async def test_other_facebook_errors_do_not_ask_for_a_reconnect():
+    svc, g, db = make([post([])])
+
+    async def boom():
+        raise EngageGraphError("temporary", 2)
+    g.recent_posts_with_comments = boom
+    await svc.run_once()
+    assert db.get_collection("engage_status").docs[0]["reconnect"] is False

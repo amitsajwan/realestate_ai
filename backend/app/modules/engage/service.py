@@ -44,6 +44,7 @@ class EngageService:
         self.pubs = db.get_collection("publications")
         self.listings = db.get_collection("listings")
         self.profiles = db.get_collection("agent_public_profiles")
+        self.status = db.get_collection("engage_status")
 
     # ---- context for a post ---------------------------------------------------------------------------------
     async def _publication(self, post_id: str) -> Optional[dict]:
@@ -113,7 +114,9 @@ class EngageService:
             posts = await self.graph.recent_posts_with_comments()
         except EngageGraphError as e:
             log.warning("engage: could not read comments: %s", e)
+            await self._set_status(False, e)
             return {"error": 1}
+        await self._set_status(True)
         for post in posts:
             items = (post.get("comments") or {}).get("data") or []
             new = [c for c in items if (only_ids is None or c["id"] in only_ids) and not await self.comments.find_one({"_id": c["id"]})]
@@ -130,6 +133,16 @@ class EngageService:
                     counts[doc["status"]] = counts.get(doc["status"], 0) + 1
                     log.info("engage: comment %s intent=%s status=%s%s", c["id"], doc["intent"], doc["status"], f" error={doc['error']}" if doc["error"] else "")
         return counts
+
+    async def _set_status(self, ok: bool, err: Optional[EngageGraphError] = None) -> None:
+        """Remember whether Facebook accepts our token, so the app can tell the owner when it stops (error 190 = reconnect needed)."""
+        doc = {"ok": ok, "checked_at": self.now(), "code": getattr(err, "code", 0), "reconnect": bool(err and err.code == 190)}
+        if not ok:
+            doc["message"] = str(err)[:200]
+        if await self.status.find_one({"_id": "facebook"}):
+            await self.status.update_one({"_id": "facebook"}, {"$set": doc})
+        else:
+            await self.status.insert_one({"_id": "facebook", **doc})
 
     async def recent(self, agent_id: Optional[str] = None, limit: int = 50) -> List[dict]:
         flt = {"agent_id": agent_id} if agent_id else {}

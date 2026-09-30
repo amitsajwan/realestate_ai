@@ -9,7 +9,9 @@ from .config import EngageConfig
 
 
 class EngageGraphError(Exception):
-    pass
+    def __init__(self, message: str, code: int = 0):
+        super().__init__(message)
+        self.code = code  # Meta's error code: 190 = the access token is no longer valid
 
 
 class EngageGraph:
@@ -28,8 +30,8 @@ class EngageGraph:
         except Exception as e:
             raise EngageGraphError(sanitize(f"network error ({type(e).__name__})", self.cfg.secrets))
         if r.status_code >= 400 or "error" in body:
-            msg = (body.get("error") or {}).get("message", f"HTTP {r.status_code}")
-            raise EngageGraphError(sanitize(msg, self.cfg.secrets))
+            err = body.get("error") or {}
+            raise EngageGraphError(sanitize(err.get("message", f"HTTP {r.status_code}"), self.cfg.secrets), int(err.get("code") or 0))
         return body
 
     async def recent_posts_with_comments(self) -> List[dict]:

@@ -26,6 +26,7 @@ import type {
   SiteUpdateInput,
   FacebookInterest,
   ChatConversation,
+  FacebookStatus,
   WeeklyReport,
   Stage,
   UploadedFile,
@@ -188,6 +189,7 @@ export function createApiClient(opts: ClientOptions): AppApi {
     getToday: () => request<BusinessToday>('/inbox/today'),
     getFacebookInterest: () => request<FacebookInterest[]>('/engage/comments'),
     getChatConversations: () => request<ChatConversation[]>('/chat/conversations'),
+    getFacebookStatus: () => request<FacebookStatus>('/engage/status'),
     getWeeklyReport: () => request<WeeklyReport>('/report/weekly'),
     createFollowupDraft: (id, language) =>
       request<FollowupDraft>(`/inbox/leads/${id}/followup-draft`, { method: 'POST', json: language ? { language } : {} }),

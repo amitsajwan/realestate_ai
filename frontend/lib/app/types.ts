@@ -141,6 +141,12 @@ export interface WeeklyReport {
   share_text: string
 }
 
+export interface FacebookStatus {
+  ok: boolean
+  reconnect: boolean
+  checked_at: string | null
+}
+
 export interface SiteUpdateInput {
   photo?: string
   logo?: string
@@ -493,6 +499,7 @@ export interface AppApi {
   updateSite(input: SiteUpdateInput): Promise<unknown>
   getFacebookInterest(): Promise<FacebookInterest[]>
   getChatConversations(): Promise<ChatConversation[]>
+  getFacebookStatus(): Promise<FacebookStatus>
   getWeeklyReport(): Promise<WeeklyReport>
   listListings(status?: ListingStatus): Promise<Listing[]>
   getListing(id: string): Promise<Listing>

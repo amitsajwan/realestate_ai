@@ -12,6 +12,15 @@ router = APIRouter()
 SAFE = ("post_id", "listing_id", "from_name", "text", "intent", "language", "status", "reply", "needs_human", "reason", "created_time", "permalink")
 
 
+@router.get("/status")
+async def status(user: User = Depends(current_active_user)) -> dict:
+    """Is the Facebook connection working? `reconnect` means the token was rejected and the owner must reconnect (scripts/meta_connect.ps1)."""
+    d = await get_database().get_collection("engage_status").find_one({"_id": "facebook"})
+    if not d:
+        return {"ok": True, "reconnect": False, "checked_at": None}
+    return {"ok": bool(d.get("ok")), "reconnect": bool(d.get("reconnect")), "checked_at": d.get("checked_at")}
+
+
 @router.get("/comments")
 async def my_comments(limit: int = 50, user: User = Depends(current_active_user)) -> List[dict]:
     limit = max(1, min(limit, 100))
