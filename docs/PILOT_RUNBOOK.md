@@ -63,8 +63,44 @@ Send the printed code to the agent on WhatsApp. They open the site, tap "Sign in
 ## Look after it
 - Logs: `sudo docker compose logs --tail 100 backend` (also `frontend`, `caddy`).
 - Backups: a daily disk snapshot is kept for 7 days (policy `pune-daily`). Uploads and MongoDB live on that one disk.
+- Database dumps, restore test, health alerts: see "Ops: backups, restore and health checks" below.
 - Public settings (privacy contact etc.) are `NEXT_PUBLIC_*` values, set at BUILD time in the frontend service; change them and redeploy.
 - Meta/Instagram/Facebook posting: keep `SOCIAL_DRY_RUN=true` until the first real test post works (see docs/META_SETUP.md).
+
+## Ops: backups, restore and health checks
+Both jobs run on the VM from cron. Install once, after a `deploy.ps1` that includes these scripts (each supports `-DryRun`, `-Remove`, `-Iap`):
+```
+.\deploy\gcp\install_backup_cron.ps1     # nightly 03:00 IST (21:30 UTC, the VM clock is UTC); runs one backup straight away
+.\deploy\gcp\install_health_cron.ps1     # every 15 minutes; runs one verbose check straight away
+```
+
+**Backups.** `backup.sh` dumps the app database (`propertyai`, or `DATABASE_NAME` from `.env`) with `mongodump --archive --gzip` into `~/backups/YYYY-MM-DD.archive.gz`, keeps the newest 14, and logs to `~/backup.log`. It exits non-zero on any failure. The daily disk snapshot stays as a second layer; uploaded photos are NOT in the dump (they are on the disk/snapshot, volume `uploads`).
+- Run one by hand: `cd ~/app/deploy/gcp && bash backup.sh` (`--dry-run` shows the plan).
+- Prove a backup is usable (do this after installing, then monthly): `bash restore_test.sh`. It restores the newest archive into a throwaway database `restore_test_<time>`, prints collection counts next to the live ones, and drops the throwaway database. Live data is only read. "OK ... restores cleanly" is a pass; "MISSING from backup" or any FAILED line is a fail.
+- Copy a backup off the VM (keep at least one copy somewhere that is not this disk):
+  ```
+  gcloud compute scp --project trader-502012 --zone asia-south1-a pune-property:backups/2026-09-30.archive.gz .
+  ```
+  (latest: `gcloud compute ssh pune-property --zone asia-south1-a --project trader-502012 --command "ls -1 backups | tail -n 1"` first.) The file holds personal data of leads: store it privately.
+- Restore for real (disaster): copy the archive to the VM, then `cd ~/app/deploy/gcp && sudo docker compose exec -T mongo sh -c 'mongorestore --username "$MONGO_INITDB_ROOT_USERNAME" --password "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --archive --gzip --drop' < ~/backups/FILE.archive.gz`. `--drop` replaces the collections in the dump, so only do this on purpose, ideally after copying the current state off first.
+
+**Health.** `health_check.sh` writes to `~/health.log` only when something is wrong (one `FAIL name: detail` line per failing check) and one `OK recovered` line when it clears. Read it: `gcloud compute ssh pune-property --zone asia-south1-a --project trader-502012 --command "tail -n 30 health.log"`. Run it live: `bash health_check.sh --verbose` (prints every check; `--dry-run` also prints the alert instead of sending it). An empty or missing log means everything has been fine.
+
+| Log line starts with | Meaning | What to do |
+|---|---|---|
+| `FAIL site` | the public address does not answer | `sudo docker compose ps`; check `caddy` logs; is the VM up? |
+| `FAIL api` | `/api/v1/health` is not "healthy" | `sudo docker compose logs --tail 100 backend`; mongo down? |
+| `FAIL disk` | root disk at or above 90% | clear old images `sudo docker image prune -a`, check `uploads`, resize the disk |
+| `FAIL container X` | service X is stopped, missing or unhealthy | `sudo docker compose up -d X` and read its logs |
+| `FAIL facebook-token` | Meta rejected the Page token (same cause as the red banner in the Interest tab) | re-run `meta_connect.ps1` (docs/META_SETUP.md H4, causes in H5) |
+| `FAIL backup` | no backup, or the newest is older than 36 hours | `tail ~/backup.log`; run `bash backup.sh`; is the backup cron installed (`crontab -l`)? |
+
+Not counted as failures: Meta being unreachable for a moment (skipped silently) and no Page token being configured.
+
+Alerts are optional. Add either line to the VM's `~/app/deploy/gcp/.env` (nothing else to install; the health check reads them each run and never prints them):
+- `ALERT_WEBHOOK_URL=https://...` a JSON POST `{"text": "...", "content": "..."}`: works with a Slack or Discord incoming webhook or an ntfy/relay URL.
+- `ALERT_EMAIL=you@example.com` uses `mail`, `mailx` or `sendmail` if the VM has one (it has none by default; prefer the webhook).
+An alert goes out when the set of failing checks changes, again every 6 hours while it lasts, and once more when it recovers. Test the hook: `bash health_check.sh --test-alert`. Without either setting, `health.log` is the only record, so look at it (or set a webhook).
 
 ## Known limits
 One VM and one disk: fine for a 10-agent pilot, no high availability. SSH is currently open to the world; restrict it to Google's identity-aware proxy
