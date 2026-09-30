@@ -71,6 +71,48 @@ POSTS: List[Dict] = [
             "The pilot is invite-only and free to start. Request an invite:\n"
             f"\U0001F517 {SITE}/request-invite\n\n" + TAGS),
     },
+    {
+        "slug": "kharadi-choose", "kicker": "KHARADI - UPPER KHARADI - WAGHOLI", "title": "Which one suits you? Start with your commute",
+        "points": ["Kharadi: closest to the big office campuses", "Upper Kharadi: newer projects, a short hop from Kharadi",
+                   "Wagholi: often more space for the budget, longer commute", "Test it: travel to your office at 9 am on a weekday"],
+        "caption": (
+            "\U0001F4CD Kharadi, Upper Kharadi or Wagholi?\n\n"
+            "\u25AA Kharadi: closest to the big office campuses\n"
+            "\u25AA Upper Kharadi: newer projects, a short hop from Kharadi\n"
+            "\u25AA Wagholi: often more space for the budget, but a longer commute\n\n"
+            "\U0001F697 The real test: travel from the flat to your office at 9 am and 6:30 pm on a weekday.\n\n"
+            f"\U0001F4D6 Read the full guide: {SITE}/insights/kharadi-upper-kharadi-wagholi\n\n"
+            "#Kharadi #UpperKharadi #Wagholi " + TAGS),
+    },
+    {
+        "slug": "kharadi-metro", "kicker": "METRO", "title": "Metro near Kharadi and Wagholi: approved is not running",
+        "points": ["Ramwadi to Wagholi (Corridor 2B) is approved", "Kharadi to Khadakwasla (Line 4) is approved",
+                   "Approved lines take years to build", "Do not pay extra for a metro that is not running yet"],
+        "caption": (
+            "\U0001F687 Metro near Kharadi and Wagholi: approved is not the same as running\n\n"
+            "\u2705 Ramwadi to Wagholi/Vitthalwadi (Corridor 2B): approved by the Union Cabinet\n"
+            "\u2705 Kharadi to Khadakwasla (Line 4): approved by the Union Cabinet\n\n"
+            "\u26A0\uFE0F Approved lines take years to build. Do not pay extra today for a metro that is not yet running, and check the latest "
+            "status on the official Maha-Metro website.\n\n"
+            f"\U0001F4D6 Sources and details: {SITE}/insights/metro-kharadi-wagholi-approved-not-running\n\n"
+            "#PuneMetro #Kharadi #Wagholi " + TAGS),
+    },
+    {
+        "slug": "kharadi-site-visit", "kicker": "SITE VISIT CHECKLIST", "title": "Visiting a flat in Upper Kharadi or Wagholi? Check these 6",
+        "points": ["Go at 9 am and again at 6:30 pm on a weekday", "Ask where the water comes from", "Ask what the power backup covers",
+                   "Look at the road outside, ideally after rain", "Ask about parking and maintenance charges",
+                   "Visit a finished project by the same builder"],
+        "caption": (
+            "\U0001F4CB Site visit checklist for Upper Kharadi and Wagholi\n\n"
+            "1\uFE0F\u20E3 Go at 9 am and again at 6:30 pm on a weekday\n"
+            "2\uFE0F\u20E3 Ask where the water comes from\n"
+            "3\uFE0F\u20E3 Ask what the power backup covers\n"
+            "4\uFE0F\u20E3 Look at the road outside, ideally after rain\n"
+            "5\uFE0F\u20E3 Ask about parking and maintenance charges\n"
+            "6\uFE0F\u20E3 Visit a finished project by the same builder\n\n"
+            f"\U0001F4D6 The full checklist: {SITE}/insights/site-visit-checklist-upper-kharadi-wagholi\n\n"
+            "#UpperKharadi #Wagholi #SiteVisit " + TAGS),
+    },
 ]
 
 

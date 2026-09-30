@@ -19,6 +19,7 @@ export default function SiteFooter({ cfg }: { cfg: MarketingConfig }) {
           <ul className="grid grid-cols-2 gap-x-4">
             <li><Link href={PATHS.invite} className={link}>{NAV.requestInvite}</Link></li>
             <li><Link href={PATHS.signIn} className={link}>{NAV.signIn}</Link></li>
+            <li><Link href="/insights" className={link}>Insights</Link></li>
             {NAV.legal.map((l) => (
               <li key={l.href}><Link href={l.href} className={link}>{l.label}</Link></li>
             ))}
