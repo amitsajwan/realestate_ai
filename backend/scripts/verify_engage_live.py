@@ -35,11 +35,10 @@ async def main() -> None:
     cfg = load()
     if not (cfg.page_id and cfg.page_token):
         sys.exit("Meta page settings are missing")
-    test_cfg = replace(cfg, page_id="__someone_else__", dry_run=False)  # the Page's own comments now count as an outsider's
+    test_cfg = replace(cfg, page_id="__someone_else__", dry_run=False, max_replies_per_person_per_day=50, max_replies_per_hour=50)  # the Page's own comments now count as an outsider's
     graph = EngageGraph(cfg)  # real Page id and token for every Graph call
     coll = db.get_collection("engage_comments")
     created, reply_ids = [], []
-    await coll.delete_many({"from_id": cfg.page_id})  # earlier verification runs must not eat today's per-person cap
     async with httpx.AsyncClient(timeout=30) as c:
         posts = await graph.recent_posts_with_comments()
         post = posts[-1]
@@ -51,7 +50,7 @@ async def main() -> None:
         for cid in created:  # the background loop may have seen them first and marked them 'ignored' (own comment): reset so this run decides
             await coll.delete_many({"_id": cid}) if hasattr(coll, "delete_many") else None
         svc = EngageService(db, graph, default_llm(), test_cfg)  # only the 'who is an outsider' rule uses the fake id
-        counts = await svc.run_once()
+        counts = await svc.run_once(only_ids=set(created))  # touches ONLY the comments this script created
         print("cycle result:", counts)
         docs = {d["_id"]: d for d in await coll.find({"_id": {"$in": created}}).to_list(10)}
         for (text, intent, replied), cid in zip(CASES, created):
@@ -68,7 +67,7 @@ async def main() -> None:
                 check(f"  spam was NOT answered", bool(d) and d["status"] == "ignored" and not d.get("reply_id"))
             if intent == "question" and d:
                 check("  the question is queued for a person", d["needs_human"] is True, d["reason"])
-        again = await svc.run_once()
+        again = await svc.run_once(only_ids=set(created))
         check("running again does not reply twice", again in ({}, {"ignored": 0}) or not again.get("replied"), str(again))
         owner = cfg.owner_agent_id
         recent = await svc.recent(owner) if owner else []

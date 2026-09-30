@@ -106,7 +106,8 @@ class EngageService:
             doc.update(status="failed", error=str(e))
         return doc
 
-    async def run_once(self) -> Dict[str, int]:
+    async def run_once(self, only_ids: Optional[set] = None) -> Dict[str, int]:
+        """One cycle. `only_ids` (used by verification scripts) restricts it to exactly those comment ids; nothing else is read or answered."""
         counts: Dict[str, int] = {}
         try:
             posts = await self.graph.recent_posts_with_comments()
@@ -115,7 +116,7 @@ class EngageService:
             return {"error": 1}
         for post in posts:
             items = (post.get("comments") or {}).get("data") or []
-            new = [c for c in items if not await self.comments.find_one({"_id": c["id"]})]
+            new = [c for c in items if (only_ids is None or c["id"] in only_ids) and not await self.comments.find_one({"_id": c["id"]})]
             if not new:
                 continue
             ctx = await self._context(post)

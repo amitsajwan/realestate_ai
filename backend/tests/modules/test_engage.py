@@ -223,3 +223,9 @@ async def test_unknown_commenters_share_a_per_post_limit_instead_of_being_unlimi
     svc, g, db = make(posts)
     res = await svc.run_once()
     assert res == {"replied": 6, "capped": 2} and len(g.replies) == 6
+
+
+async def test_only_ids_restricts_a_cycle_to_exactly_those_comments():
+    svc, g, db = make([post([comment("C1", "INTERESTED", who="u1"), comment("C2", "INTERESTED", who="u2")])])
+    assert await svc.run_once(only_ids={"C2"}) == {"replied": 1}
+    assert [r[0] for r in g.replies] == ["C2"] and [d["_id"] for d in db.get_collection("engage_comments").docs] == ["C2"]
