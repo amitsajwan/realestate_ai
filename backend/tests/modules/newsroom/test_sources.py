@@ -48,7 +48,7 @@ def test_google_parse_real_structure():
     assert len(items) == 3  # empty-title and link-less entries skipped
     first = items[0]
     assert first.title == "Pune advances INR 90.5 crore land acquisition for two Kharadi DP roads"
-    assert first.source == "Google News / Prop News Time"
+    assert first.source == "Prop News Time"
     assert first.url.startswith("https://news.google.com/rss/articles/") and "<" not in first.text
     assert first.published_at.isoformat() == "2026-09-28T03:01:29+00:00"
     assert first.id == item_id(first.url) and len(first.id) == 40

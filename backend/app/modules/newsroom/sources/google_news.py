@@ -57,7 +57,7 @@ def parse_google_feed(xml_text: str, fetched_at=None) -> List[RawItem]:
                 desc = desc[: -len(publisher)].rstrip()
             text = desc if desc and desc != title and desc != raw_title else title
             out.append(RawItem(
-                id=item_id(link), source=f"Google News / {publisher}" if publisher else "Google News",
+                id=item_id(link), source=publisher or "Google News",
                 url=canonical_url(link), title=title, text=text,
                 published_at=parse_rfc822(_text(entry.find("pubDate"))), fetched_at=fetched_at))
         except Exception:
