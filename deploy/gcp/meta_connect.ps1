@@ -106,4 +106,4 @@ try {
 } finally {
   Remove-Item $tmpEnv, $tmpSh -ErrorAction SilentlyContinue
 }
-Write-Host "Done. Facebook publishing is configured in DRY-RUN mode (nothing is posted until SOCIAL_DRY_RUN=false)." -ForegroundColor Green
+Write-Host "Done. Meta is connected. Posting mode is the SOCIAL_DRY_RUN value printed above: true = test only, false = posts go public." -ForegroundColor Green
