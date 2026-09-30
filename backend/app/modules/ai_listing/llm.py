@@ -155,6 +155,10 @@ class GroqLLM:
             log.info("LLM text call failed: %s%s", type(e).__name__, f" (HTTP {status})" if status else "")
             return None
 
+    async def json(self, system: str, user: str) -> Optional[dict[str, Any]]:
+        """Public JSON-mode call (used by the comment assistant). None on any failure."""
+        return await self._chat(system, user)
+
     async def extract(self, text: str, city_hint: Optional[str] = None) -> Optional[dict[str, Any]]:
         user = text[:4000] + (f"\n\n(City hint: {city_hint})" if city_hint else "")
         return await self._chat(_EXTRACT_SYSTEM, user)
