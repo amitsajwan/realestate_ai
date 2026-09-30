@@ -141,6 +141,8 @@ class SocialService:
         listing = await self._listing(agent_id, listing_id)
         if listing.get("status") not in MARKETABLE:
             raise SocialError("Only live or under-offer listings can be posted", 409)
+        if (listing.get("title") or "").strip().lower().startswith("sample"):  # illustrations are never posted, in any mode
+            raise SocialError("Sample listings are illustrations and cannot be posted to social media", 409)
         pack = await self.packs.find_one({"_id": listing_id, "agent_id": agent_id})
         if not pack:
             raise SocialError("Create the marketing pack for this listing first", 409)

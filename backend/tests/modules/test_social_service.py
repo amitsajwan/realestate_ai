@@ -250,3 +250,11 @@ async def test_retry_refused_when_listing_no_longer_live_or_already_posted():
     with pytest.raises(SocialError) as e:
         await svc.retry("A1", failed.id)
     assert e.value.status_code == 409
+
+
+async def test_sample_listings_can_never_be_posted():
+    db = make_db()
+    db.get_collection("listings").docs[0]["title"] = "Sample: 2 BHK apartment for sale in Kharadi, Pune"
+    with pytest.raises(SocialError) as e:
+        await dry_service(db).publish("A1", "L1", body())
+    assert e.value.status_code == 409 and "Sample" in str(e.value) and not db.get_collection("publications").docs
