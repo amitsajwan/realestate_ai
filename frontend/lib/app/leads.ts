@@ -12,7 +12,7 @@ const VERBS: Record<string, string> = {
   inquiry: 'Sent an enquiry about',
 }
 
-const SOURCES: Record<string, string> = { whatsapp: 'WhatsApp', instagram: 'Instagram', facebook: 'Facebook', direct: 'Direct' }
+const SOURCES: Record<string, string> = { whatsapp: 'WhatsApp', instagram: 'Instagram', facebook: 'Facebook', direct: 'Direct', fbgroup: 'Facebook group', facebook_comment: 'Facebook comment', chat: 'Website chat' }
 
 export function sourceLabel(source?: string | null): string {
   if (!source) return ''

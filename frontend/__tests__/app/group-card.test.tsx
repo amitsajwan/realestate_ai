@@ -36,3 +36,13 @@ describe('group post card', () => {
     expect(screen.queryByTestId('card-group')).toBeNull()
   })
 })
+
+import { sourceLabel } from '@/lib/app/leads'
+
+describe('lead sources from the new channels read naturally', () => {
+  it('labels groups, comments and chat', () => {
+    expect(sourceLabel('fbgroup')).toBe('Facebook group')
+    expect(sourceLabel('facebook_comment')).toBe('Facebook comment')
+    expect(sourceLabel('chat')).toBe('Website chat')
+  })
+})
