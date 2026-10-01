@@ -1,5 +1,5 @@
 /*
- * Renders the PUNE Property brand cards whose text needs proper Devanagari shaping (Hindi / Marathi) with Chrome, which shapes conjuncts
+ * Renders the Avasetu brand cards whose text needs proper Devanagari shaping (Hindi / Marathi) with Chrome, which shapes conjuncts
  * correctly (the Pillow renderer on the server does not). Output: backend/app/modules/marketing/static_cards/<slug>.jpg, which brand_posts.py uses
  * in preference to its own renderer.
  * Usage: node e2e/render-static-cards.js <cards.json>     (cards.json: [{slug,kicker,title,points[]}])
@@ -10,7 +10,7 @@ const { chromium } = require('playwright-core')
 
 const ROOT = path.join(__dirname, '..', '..')
 const FONT_DIR = path.join(ROOT, 'backend', 'app', 'modules', 'marketing', 'fonts')
-const LOGO = path.join(ROOT, 'backend', 'app', 'modules', 'marketing', 'assets', 'logo.png')
+const LOGO = path.join(ROOT, 'backend', 'app', 'modules', 'marketing', 'assets', 'avasetu-mark.png')
 const OUT = path.join(ROOT, 'backend', 'app', 'modules', 'marketing', 'static_cards')
 const LOGO_URI = 'data:image/png;base64,' + fs.readFileSync(LOGO).toString('base64')
 const url = (p) => 'file:///' + p.replace(/\\/g, '/')
@@ -44,7 +44,7 @@ li{display:flex;gap:22px;align-items:flex-start;font-size:37px;line-height:1.42;
 </style><body>${skyline()}
 <div class="wrap"><span class="chip">${esc(c.kicker)}</span><h1>${esc(c.title)}</h1>
 <ol>${c.points.map((p, i) => `<li><span class="n">${i + 1}</span><span>${esc(p)}</span></li>`).join('')}</ol></div>
-<div class="foot"><img src="${LOGO_URI}"><div><div class="b">PUNE Property</div><div class="t">Find. Compare. Decide.</div></div></div></body>`
+<div class="foot"><img src="${LOGO_URI}"><div><div class="b">Avasetu</div><div class="t">Your bridge to the right home</div></div></div></body>`
 
 ;(async () => {
   const cards = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
