@@ -6,6 +6,7 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 import os
 
+from app.core import brand
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ class EmailService:
         self.smtp_user = os.getenv("SMTP_USER", "")
         self.smtp_password = os.getenv("SMTP_PASSWORD", "")
         self.from_email = os.getenv("FROM_EMAIL", "noreply@propertyai.com")
-        self.from_name = os.getenv("FROM_NAME", "PropertyAI")
+        self.from_name = os.getenv("FROM_NAME", brand.NAME)
         self.enabled = os.getenv("EMAIL_ENABLED", "false").lower() == "true"
     
     async def send_email(
@@ -68,7 +69,7 @@ class EmailService:
         agent_data: Optional[Dict[str, Any]] = None
     ) -> bool:
         """Send welcome email to new agent"""
-        subject = f"Welcome to PropertyAI, {agent_name}!"
+        subject = f"Welcome to {brand.NAME}, {agent_name}!"
         
         html_content = f"""
         <!DOCTYPE html>
@@ -87,14 +88,14 @@ class EmailService:
         <body>
             <div class="container">
                 <div class="header">
-                    <h1>Welcome to PropertyAI!</h1>
+                    <h1>Welcome to {brand.NAME}!</h1>
                     <p>Your AI-Powered Real Estate Assistant</p>
                 </div>
                 
                 <div class="content">
                     <h2>Hi {agent_name},</h2>
                     
-                    <p>Welcome to PropertyAI! We're thrilled to have you join our community of innovative real estate professionals.</p>
+                    <p>Welcome to {brand.NAME}! We're thrilled to have you join our community of innovative real estate professionals.</p>
                     
                     <p>Your account has been successfully created, and you're now ready to:</p>
                     
@@ -133,11 +134,11 @@ class EmailService:
                     
                     <p style="margin-top: 30px;">If you have any questions or need assistance, our support team is here to help!</p>
                     
-                    <p>Best regards,<br>The PropertyAI Team</p>
+                    <p>Best regards,<br>The {brand.TEAM}</p>
                 </div>
                 
                 <div class="footer">
-                    <p>© {datetime.now().year} PropertyAI. All rights reserved.</p>
+                    <p>© {datetime.now().year} {brand.NAME}. All rights reserved.</p>
                     <p>This email was sent to {agent_email}</p>
                 </div>
             </div>
@@ -146,7 +147,7 @@ class EmailService:
         """
         
         text_content = f"""
-        Welcome to PropertyAI, {agent_name}!
+        Welcome to {brand.NAME}, {agent_name}!
         
         Your account has been successfully created, and you're now ready to:
         
@@ -163,7 +164,7 @@ class EmailService:
         Visit your dashboard: {os.getenv('FRONTEND_URL', 'http://localhost:3000')}/dashboard
         
         Best regards,
-        The PropertyAI Team
+        The {brand.TEAM}
         """
         
         return await self.send_email(agent_email, subject, html_content, text_content)
@@ -226,7 +227,7 @@ class EmailService:
                     
                     <p style="margin-top: 30px;">Good luck with your listing!</p>
                     
-                    <p>Best regards,<br>The PropertyAI Team</p>
+                    <p>Best regards,<br>The {brand.TEAM}</p>
                 </div>
             </div>
         </body>

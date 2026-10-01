@@ -4,6 +4,7 @@ Every home here is an ILLUSTRATION: labelled 'Sample listing' on every image and
 with stock photos (free licence, credited in docs/brand/photo-credits.md). Numbers are labelled sample figures only.
 Real agent listings (future) use the agent's own photos; nothing here ever stands in for one.
 """
+from app.core import brand
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -18,7 +19,7 @@ SAMPLE_NOTE = "Illustrative home, not available for sale; real agent listings co
 RERA_LINE = "RERA number: shown on real listings"
 IG_CTA = "Comment INTERESTED for details on this sample"
 AGENTS_CTA = "Agents: list your homes free, link in bio"
-BRAND = "PUNE Property"
+BRAND = brand.NAME
 
 
 @dataclass(frozen=True)

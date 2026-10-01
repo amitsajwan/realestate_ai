@@ -2,6 +2,7 @@
 
 Reads `listings` and `marketing_packs` READ-ONLY; writes only `publications`. Tokens never reach Mongo, logs or responses.
 """
+from app.core import brand
 import logging
 import uuid
 from datetime import datetime, timedelta
@@ -16,7 +17,7 @@ from .schemas import Publication, PublishIn
 
 log = logging.getLogger(__name__)
 
-CONSENT_TEXT = "I agree to post this listing on the PUNE Property Page"
+CONSENT_TEXT = f"I agree to post this listing on the {brand.NAME} Page"
 MARKETABLE = ("live", "under_offer")
 DONE = ("published", "dry_run")
 IN_FLIGHT = timedelta(minutes=2)  # a `queued` record younger than this is treated as an attempt in progress
@@ -138,7 +139,7 @@ class SocialService:
         return self._out(await self._attempt(cfg, {**doc, "status": "queued"}))
 
     async def _attribution(self, agent_id: str, listing: dict, channel: str) -> str:
-        """Concierge attribution lines for an agent's listing on the PUNE Property pages ('' for the owner's own)."""
+        """Concierge attribution lines for an agent's listing on the Avasetu pages ('' for the owner's own)."""
         from app.modules.concierge.attribution import attribution_text
         return await attribution_text(self.db, agent_id, listing, channel)
 

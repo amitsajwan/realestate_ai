@@ -3,6 +3,7 @@
 Facts come ONLY from the sample dataset. Every caption says 'Sample listing' and 'Illustrative home, not available for sale;
 real agent listings coming'. Instagram: no URLs, 'link in our bio', 3 to 8 hashtags. Facebook: may link to the /localities page.
 """
+from app.core import brand
 import hashlib
 import os
 import re
@@ -20,13 +21,13 @@ IG_AGENTS = "Agents: list your homes free, link in our bio."
 
 
 def site_url() -> str:
-    return (os.environ.get("PUBLIC_SITE_URL") or "https://34-180-39-243.sslip.io").rstrip("/")
+    return brand.site()
 
 
 def hook(h: Home) -> str:
     """One of a few hook lines, chosen deterministically per home so a run of posts does not repeat the same opening."""
     opts = [
-        f"{h.bhk} BHK in {h.locality}, {h.carpet_text} carpet: here is how a home looks on PUNE Property.",
+        f"{h.bhk} BHK in {h.locality}, {h.carpet_text} carpet: here is how a home looks on {brand.NAME}.",
         f"What does a {h.bhk} BHK in {h.locality} look like? Swipe to see this sample home.",
         f"A {h.bhk} BHK in {h.locality}, {h.possession.split(',')[0].lower()}: take a look inside this sample.",
     ]
@@ -64,7 +65,7 @@ def instagram_caption(h: Home, body: Optional[str] = None) -> str:
 
 def facebook_caption(h: Home, body: Optional[str] = None) -> str:
     base = body or "\n\n".join([hook(h), LABEL_LINE, facts_block(h), area_lines(h)[0],
-                                "Comment INTERESTED for details on this sample. Agents: list your homes free on PUNE Property."])
+                                "Comment INTERESTED for details on this sample. Agents: list your homes free on " + brand.NAME + "."])
     return base + f"\n\nArea guides: {site_url()}/localities"
 
 

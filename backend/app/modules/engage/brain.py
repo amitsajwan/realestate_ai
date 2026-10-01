@@ -1,6 +1,7 @@
 """Understanding and answering a comment. Rules handle the common case; the LLM classifies the rest and drafts answers to questions.
 Every LLM draft is checked before it can be posted: length, no phone numbers, no hype, only our own link, and no number that is not in the
 post it answers. Anything that fails the checks becomes a safe template or goes to a human."""
+from app.core import brand
 import re
 from dataclasses import dataclass, field
 from typing import List, Optional
@@ -60,7 +61,7 @@ IG_TEMPLATES = {
 DM_ME = re.compile(r"\bdm\s*(me|us)\b|\b(pls|please)\s+dm\b|\bmessage me\b|\bmsg me\b", re.I)
 
 SYSTEM = (
-    "You handle comments on a Pune real-estate Facebook Page run by the 'PUNE Property team'. Classify the comment and, if it asks a question "
+    f"You handle comments on a Pune real-estate Facebook Page run by the '{brand.TEAM}'. Classify the comment and, if it asks a question "
     "that the POST FACTS answer, draft a reply. Reply ONLY with one JSON object: "
     '{"intent": "interested|question|praise|complaint|spam|other", "language": "en|hi|mr", "answerable": true or false, "reply": "..."}. '
     "A question about the property, price, location, area, availability, metro or process is intent 'question' (never 'other'). "

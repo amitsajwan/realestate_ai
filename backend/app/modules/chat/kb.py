@@ -1,4 +1,5 @@
 """Vetted answers. Only stable, checkable statements: no prices per sq ft, no predictions, no invented distances, and transport is 'approved is not running'."""
+from app.core import brand
 import re
 from dataclasses import dataclass
 from typing import List, Tuple
@@ -46,8 +47,8 @@ ENTRIES: List[Entry] = [
           "Whether a price can move depends on the seller. Our team can find out for the homes you like. Tell us your area, BHK and budget to start."),
     Entry("agent", ("i am an agent", "list my property", "join the pilot", "become an agent", "sell my"),
           "If you are an agent or owner in Pune, our pilot is free and invite-only. Request an invite at /request-invite."),
-    Entry("who", ("who are you", "what is pune property", "what do you do"),
-          "PUNE Property helps people understand and find homes in Pune: clear guides, honest listings and a team that answers your questions. Tell me what you are looking for and I will help."),
+    Entry("who", ("who are you", "what is avasetu", "what is pune property", "what do you do"),
+          brand.NAME + " helps people understand and find homes in Pune: clear guides, honest listings and a team that answers your questions. Tell me what you are looking for and I will help."),
 ]
 
 

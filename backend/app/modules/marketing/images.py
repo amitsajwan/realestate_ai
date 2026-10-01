@@ -15,6 +15,8 @@ from urllib.parse import urlparse
 
 from PIL import Image, ImageDraw, ImageFile, ImageFont, ImageOps
 
+from app.core import brand
+
 from .facts import T, Facts
 
 SQUARE = (1080, 1080)
@@ -25,7 +27,7 @@ STORY_TOP, STORY_BOTTOM = 240, 300  # keep clear of the story app chrome
 MAX_BYTES = 380 * 1024
 MAX_SOURCE_BYTES = 20 * 1024 * 1024
 WHITE, SOFT, ACCENT = (255, 255, 255), (214, 218, 228), (255, 214, 140)
-GOLD = (240, 180, 64)  # the gold of the PUNE Property logo ring and tagline
+GOLD = (240, 180, 64)  # the gold of the brand tagline (the Avasetu mark itself is #F0B13B)
 FONT_DIR = Path(__file__).parent / "fonts"
 FONT_FILES = {"regular": "Poppins-Regular.ttf", "medium": "Poppins-Medium.ttf",
               "semibold": "Poppins-SemiBold.ttf", "bold": "Poppins-Bold.ttf"}
@@ -33,7 +35,7 @@ ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 UPLOAD_PATH_RE = re.compile(r"^/uploads/images/([A-Za-z0-9][A-Za-z0-9._-]{0,200})$")
 PALETTES = [((16, 35, 64), (24, 55, 93)), ((14, 32, 60), (26, 60, 100)), ((18, 38, 70), (30, 62, 104))]  # brand navy
 SILHOUETTE = (9, 21, 44)
-LOGO_PATH = Path(__file__).parent / "assets" / "logo.png"
+LOGO_PATH = brand.MARK_PNG  # the Avasetu mark: gold disc, navy roof over a bridge arch (docs/brand/avasetu/mark.svg)
 ImageFile.LOAD_TRUNCATED_IMAGES = False
 
 
@@ -277,18 +279,12 @@ def brand_background(size: Tuple[int, int], seed: str, skyline: bool = True, flo
 
 @lru_cache(maxsize=8)
 def _logo(diameter: int) -> Optional[Image.Image]:
-    """The PUNE Property 'PP' badge (bundled asset), round, or None if the file is missing."""
+    """The Avasetu mark (bundled PNG of the round gold disc), RGBA at diameter x diameter, or None if the file is missing."""
     try:
         with Image.open(LOGO_PATH) as im:
-            im = im.convert("RGB").resize((diameter, diameter), Image.LANCZOS)
+            return im.convert("RGBA").resize((diameter, diameter), Image.LANCZOS)
     except Exception:
         return None
-    mask = Image.new("L", (diameter * 4, diameter * 4), 0)
-    ImageDraw.Draw(mask).ellipse([0, 0, diameter * 4 - 1, diameter * 4 - 1], fill=255)
-    out = Image.new("RGBA", (diameter, diameter))
-    out.paste(im, (0, 0))
-    out.putalpha(mask.resize((diameter, diameter), Image.LANCZOS))
-    return out
 
 
 def _stamp_logo(c: "Card", x: int, y: int, diameter: int = 96) -> None:

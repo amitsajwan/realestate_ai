@@ -1,8 +1,9 @@
-"""'Listed by' attribution for agents' listings posted on the PUNE Property Page and Instagram.
+"""'Listed by' attribution for agents' listings posted on the Avasetu Page and Instagram.
 
 Never includes a phone number: buyers reach the agent through his interest link (Facebook: URL; Instagram: link in bio
 via the /go hub).
 """
+from app.core import brand
 import re
 from typing import Optional
 
@@ -20,12 +21,12 @@ def _clean(value) -> str:
 
 
 def attribution_line(profile: dict) -> str:
-    """'Listed by <business name or agent name>' plus ' | RERA agent reg: <no>' when known. Empty if no name is known."""
+    """'Listed by <business name or agent name> on Avasetu' plus ' | RERA agent reg: <no>' when known. Empty if no name is known."""
     branding = (profile or {}).get("branding_data") or {}
     name = _clean(branding.get("business_name")) or _clean((profile or {}).get("agent_name"))
     if not name:
         return ""
-    line = f"Listed by {name}"
+    line = f"Listed by {name} on {brand.NAME}"
     rera = re.sub(r"[^A-Za-z0-9/ -]", "", str(branding.get("rera_agent_no") or "")).strip()
     if re.fullmatch(r"(?:\+?91)?[6-9]\d{9}", rera.replace(" ", "").replace("-", "")):
         rera = ""  # a mobile number is not a registration number

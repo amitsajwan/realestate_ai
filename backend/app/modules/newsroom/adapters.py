@@ -31,7 +31,7 @@ def make_fetcher(transport: Optional[httpx.AsyncBaseTransport] = None):
     """A `Fetcher` (url -> body text) for sources."""
     async def get(url: str) -> str:
         async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_S, transport=transport, follow_redirects=True,
-                                     headers={"User-Agent": "PunePropertyNewsroom/1.0"}) as c:
+                                     headers={"User-Agent": "AvasetuNewsroom/1.0"}) as c:
             r = await c.get(url)
             r.raise_for_status()
             return r.text

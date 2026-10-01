@@ -4,15 +4,17 @@ Answers from the vetted knowledge are translated by the knowledge module's check
 import re
 from typing import Dict, List, Optional, Tuple
 
+from app.core import brand
+
 LANGS = ("en", "hi", "mr", "hinglish", "mr_latn")
 
 # English sentence from chat.engine -> {lang: translation}
 FIXED: List[Tuple[str, Dict[str, str]]] = [
-    ("Hi! I am the PUNE Property assistant. I can answer basic questions about buying or renting in Pune and pass your requirement to our team.", {
-        "hi": "नमस्ते! मैं PUNE Property का सहायक हूँ। मैं पुणे में घर खरीदने या किराए पर लेने के बारे में आम सवालों के जवाब दे सकता हूँ और आपकी ज़रूरत हमारी टीम तक पहुँचा सकता हूँ।",
-        "hinglish": "Namaste! Main PUNE Property ka assistant hoon. Pune mein ghar kharidne ya rent par lene ke basic sawaalon ke jawab de sakta hoon aur aapki requirement hamari team tak pahuncha sakta hoon.",
-        "mr": "नमस्कार! मी PUNE Property चा सहाय्यक आहे. पुण्यात घर घेणे किंवा भाड्याने घेणे याबद्दलच्या साध्या प्रश्नांची उत्तरे देऊ शकतो आणि तुमची गरज आमच्या टीमपर्यंत पोहोचवू शकतो.",
-        "mr_latn": "Namaskar! Mi PUNE Property cha sahayyak aahe. Punyat ghar ghene kiwa bhadyane ghene yabaddal sadhya prashnanchi uttare deu shakto ani tumchi garaj aamchya team paryant pohochvu shakto."}),
+    (f"Hi! I am the {brand.NAME} assistant. I can answer basic questions about buying or renting in Pune and pass your requirement to our team.", {
+        "hi": f"नमस्ते! मैं {brand.NAME_DEVANAGARI} का सहायक हूँ। मैं पुणे में घर खरीदने या किराए पर लेने के बारे में आम सवालों के जवाब दे सकता हूँ और आपकी ज़रूरत हमारी टीम तक पहुँचा सकता हूँ।",
+        "hinglish": f"Namaste! Main {brand.NAME} ka assistant hoon. Pune mein ghar kharidne ya rent par lene ke basic sawaalon ke jawab de sakta hoon aur aapki requirement hamari team tak pahuncha sakta hoon.",
+        "mr": f"नमस्कार! मी {brand.NAME_DEVANAGARI} चा सहाय्यक आहे. पुण्यात घर घेणे किंवा भाड्याने घेणे याबद्दलच्या साध्या प्रश्नांची उत्तरे देऊ शकतो आणि तुमची गरज आमच्या टीमपर्यंत पोहोचवू शकतो.",
+        "mr_latn": f"Namaskar! Mi {brand.NAME} cha sahayyak aahe. Punyat ghar ghene kiwa bhadyane ghene yabaddal sadhya prashnanchi uttare deu shakto ani tumchi garaj aamchya team paryant pohochvu shakto."}),
     ("Are you looking to buy or to rent?", {
         "hi": "क्या आप घर खरीदना चाहते हैं या किराए पर लेना?", "hinglish": "Aap ghar kharidna chahte hain ya rent par lena?",
         "mr": "तुम्हाला घर विकत घ्यायचे आहे की भाड्याने?", "mr_latn": "Tumhala ghar vikat ghyayche aahe ki bhadyane?"}),
@@ -54,8 +56,8 @@ NOTICE = {
     "mr": "सूचना: {agent} तुमच्या चौकशीबद्दल याच WhatsApp नंबरवर तुमच्याशी संपर्क साधतील. मेसेज बंद करण्यासाठी कधीही STOP लिहा.",
     "mr_latn": "Note: {agent} tumchya chaukashibaddal yach WhatsApp number var tumchyashi samparka sadhtil. Message band karnyasathi kadhihi STOP liha.",
 }
-TEAM = {"en": "The PUNE Property team", "hi": "PUNE Property की टीम", "hinglish": "PUNE Property ki team", "mr": "PUNE Property ची टीम",
-        "mr_latn": "PUNE Property chi team"}
+TEAM = {"en": f"The {brand.NAME} team", "hi": f"{brand.NAME_DEVANAGARI} की टीम", "hinglish": f"{brand.NAME} ki team", "mr": f"{brand.NAME_DEVANAGARI} ची टीम",
+        "mr_latn": f"{brand.NAME} chi team"}
 STOPPED = {
     "en": "Done. You will not get any more messages from us here. If you change your mind, reply START.",
     "hi": "ठीक है। अब आपको यहाँ हमारी ओर से कोई संदेश नहीं मिलेगा। फिर से बात करनी हो तो START लिखें।",

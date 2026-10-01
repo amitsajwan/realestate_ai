@@ -1,9 +1,10 @@
 """Social publishing configuration. Read from the environment at call time (tests monkeypatch env); never logged."""
+from app.core import brand
 import os
 import re
 from dataclasses import dataclass, field
 
-BRAND = "PUNE Property"
+BRAND = brand.NAME
 DEFAULT_GRAPH_VERSION = "v23.0"
 _VERSION_RE = re.compile(r"^v\d{1,3}\.\d{1,2}$")
 

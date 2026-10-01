@@ -1,1 +1,1 @@
-"""Social publishing of a listing's marketing pack to the PUNE Property brand Page + Instagram (contract: docs/contracts/social.md)."""
+"""Social publishing of a listing's marketing pack to the Avasetu brand Page + Instagram (contract: docs/contracts/social.md)."""

@@ -1,8 +1,9 @@
-"""Starter posts for the PUNE Property Page: useful, honest content (no fake listings) rendered in the same card style.
+"""Starter posts for the Avasetu Page: useful, honest content (no fake listings) rendered in the same card style.
 
 Facts stated here are general and stable (RERA registration, carpet area definitions). Nothing claims verification, reviews,
 prices or properties that do not exist.
 """
+from app.core import brand
 from typing import Dict, List, Tuple
 
 from PIL import Image
@@ -11,16 +12,16 @@ from .images import GOLD, MARGIN, PITCH, SOFT, SQUARE, WHITE, DARK_INK, Card, _c
 
 from pathlib import Path
 
-SITE = "https://34-180-39-243.sslip.io"
+SITE = brand.SITE
 STATIC_DIR = Path(__file__).parent / "static_cards"  # pre-rendered cards (Hindi/Marathi), used instead of the Pillow render
-TAGS = "#PunePropertyHub #PuneRealEstate #PuneProperty #HomeBuyingTips"
+TAGS = brand.HASHTAG + " #PuneRealEstate #PuneProperty #HomeBuyingTips"
 
 POSTS: List[Dict] = [
     {
         "slug": "welcome", "kicker": "WELCOME", "title": "Homes in Pune, shared clearly",
         "points": ["Price, area, possession and RERA in one place", "Simple, honest listings from local agents", "Follow this page: listings are coming"],
         "caption": (
-            "\U0001F3E1 Welcome to PUNE Property\n\n"
+            "\U0001F3E1 Welcome to " + brand.NAME + "\n\n"
             "We are building a simple way to find and share homes in Pune: clear price, area, possession and RERA details, "
             "posted by local agents.\n\n"
             "\U0001F4CD Follow this page for new listings and buying tips.\n"
@@ -49,7 +50,7 @@ POSTS: List[Dict] = [
             "▪ Look up the project number on the MahaRERA website\n"
             "▪ Compare the possession date there with what you are told\n"
             "▪ No RERA number in the ad? Ask for it\n\n"
-            "Every listing on PUNE Property shows the RERA number when the agent provides it.\n\n" + TAGS),
+            "Every listing on " + brand.NAME + " shows the RERA number when the agent provides it.\n\n" + TAGS),
     },
     {
         "slug": "carpet-area", "kicker": "EXPLAINED", "title": "Carpet vs built-up vs super built-up",
@@ -178,6 +179,6 @@ def render_brand_post(kicker: str, title: str, points: List[str], size=SQUARE) -
         c.draw.text((c.left + 21, cy), str(i + 1), font=load_font(26, "bold"), fill=DARK_INK, anchor="mm")
         y = c.block(p, y, sz, WHITE, 2, 24, x=c.left + 64, weight="medium") + (34 if tall else 20)
     _stamp_logo(c, c.left, c.bottom - 88, 88)
-    c.block("PUNE Property", c.bottom - 88, 34, GOLD, 1, 20, x=c.left + 108, weight="semibold")
-    c.block("Find. Compare. Decide.", c.bottom - 88 + int(34 * PITCH), 26, SOFT, 1, 18, x=c.left + 108, weight="medium")
+    c.block(brand.NAME, c.bottom - 88, 34, GOLD, 1, 20, x=c.left + 108, weight="semibold")
+    c.block(brand.TAGLINE, c.bottom - 88 + int(34 * PITCH), 26, SOFT, 1, 18, x=c.left + 108, weight="medium")
     return c

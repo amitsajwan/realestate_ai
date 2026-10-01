@@ -9,6 +9,7 @@ Facts: a Brief carries only what the library entry itself says (its points, its 
 creative's guards reject any number that is not in the Brief, any price, prediction, phone, URL, hype or filler, and replace the
 offending field with its deterministic draft, so the LLM cannot add a fact.
 """
+from app.core import brand
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -278,8 +279,8 @@ def reel_caption(spec: ReelSpec, channel: str, entry: Optional[Entry] = None) ->
         return _show_captions.instagram_caption(h) if channel == "instagram" else _show_captions.facebook_caption(h)
     tags = "#PuneAgents #RealEstateAgent #PuneRealEstate"
     if channel == "instagram":
-        return PITCH_CAPTION_BODY + "\n\nRequest your invite: link in our bio.\n\n" + tags + " #PunePropertyHub"
-    return PITCH_CAPTION_BODY + f"\n\n\U0001F517 {SITE}/request-invite\n\n#PunePropertyHub {tags}"
+        return PITCH_CAPTION_BODY + "\n\nRequest your invite: link in our bio.\n\n" + tags + " " + brand.HASHTAG
+    return PITCH_CAPTION_BODY + f"\n\n\U0001F517 {SITE}/request-invite\n\n{brand.HASHTAG} {tags}"
 
 
 def reel_scenes(spec: ReelSpec, entry: Optional[Entry] = None):

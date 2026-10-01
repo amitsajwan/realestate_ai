@@ -1,5 +1,5 @@
 """
-Datetime utilities for consistent formatting across the PropertyAI platform
+Datetime utilities for consistent formatting across the Avasetu platform
 """
 from datetime import datetime, timezone
 from typing import Optional

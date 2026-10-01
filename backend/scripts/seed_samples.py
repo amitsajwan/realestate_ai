@@ -56,7 +56,7 @@ def money(n: int) -> str:
 
 def body(s: dict) -> dict:
     title = f"Sample: {s['bhk']} BHK apartment for sale in {s['locality']}, Pune"
-    desc = (f"SAMPLE LISTING: an illustration of how a listing looks on PUNE Property. This home is not available for sale.\n\n"
+    desc = (f"SAMPLE LISTING: an illustration of how a listing looks on Avasetu. This home is not available for sale.\n\n"
             f"{s['bhk']} BHK apartment in {s['locality']}, Pune, {s['carpet_sqft']:,} sq ft carpet area, priced at {money(s['price_inr'])} in this example. "
             f"Real listings show the RERA number, exact possession date and photos provided by the agent.")
     return {"title": title, "transaction": "sale", "property_type": "apartment", "city": "Pune", "visibility": "network",

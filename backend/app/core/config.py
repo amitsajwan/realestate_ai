@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     # =============================================================================
     # APPLICATION SETTINGS
     # =============================================================================
-    app_name: str = "PropertyAI"
+    app_name: str = "Avasetu"  # same as the brand name (app/core/brand.py)
     app_version: str = "1.0.0"
     debug: bool = False
     environment: str = "development"

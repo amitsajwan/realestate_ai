@@ -1,4 +1,5 @@
 """Owner endpoints of the content calendar. `router` is mounted by the integrator at /calendar (bearer auth, like newsroom)."""
+from app.core import brand
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -18,7 +19,7 @@ async def owner_only(user: User = Depends(current_active_user)) -> User:
     """The calendar posts in the Page's name: only superusers or ids in CALENDAR_OWNER_IDS may use it."""
     if getattr(user, "is_superuser", False) or str(user.id) in load().owner_ids:
         return user
-    raise HTTPException(403, "Only the PUNE Property owner can use the calendar")
+    raise HTTPException(403, f"Only the {brand.NAME} owner can use the calendar")
 
 
 def get_store() -> Store:

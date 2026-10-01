@@ -1,4 +1,5 @@
 """Owner endpoints of the newsroom. `router` is mounted by the integrator at /newsroom (bearer auth, like engage)."""
+from app.core import brand
 import inspect
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -31,7 +32,7 @@ async def owner_only(user: User = Depends(current_active_user)) -> User:
     """Approving posts the Page's name: only superusers or ids in NEWSROOM_OWNER_IDS may review."""
     if getattr(user, "is_superuser", False) or str(user.id) in load().owner_ids:
         return user
-    raise HTTPException(403, "Only the PUNE Property owner can use the newsroom")
+    raise HTTPException(403, f"Only the {brand.NAME} owner can use the newsroom")
 
 
 def get_store() -> Store:

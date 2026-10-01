@@ -3,6 +3,7 @@
 Every image carries the 'Sample listing' label in text. Margins: text stays >= MARGIN from the left/right edges, so nothing is
 lost by Instagram's 3:4 profile-grid crop (centre 1012x1350 of 1080x1350 trims 34 px per side).
 """
+from app.core import brand
 import io
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -351,7 +352,7 @@ def slide_cta(h: Home, size=PORTRAIT) -> Canvas:
     y = fr.top + 160 + e
     c.text(cx, y, "Like this home?", 88, "bold", WHITE, "ma")
     y += 112
-    c.para(c.left, y, "This is a sample home, shown to give you a feel for how listings look on PUNE Property.", 32, "regular",
+    c.para(c.left, y, "This is a sample home, shown to give you a feel for how listings look on " + brand.NAME + ".", 32, "regular",
            SOFT, max_lines=3, center=True)
     y += 140 + e
     bh = 112

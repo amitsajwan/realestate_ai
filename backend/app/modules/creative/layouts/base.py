@@ -7,6 +7,7 @@ from typing import Callable, List, Optional, Sequence, Tuple
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps, ImageStat
 
+from app.core import brand
 from app.modules.marketing.images import LOGO_PATH, MARGIN, load_font, wrap
 
 from .palette import Palette, contrast, luminance
@@ -310,22 +311,21 @@ class Canvas:
     def logo(self, x: int, y: int, d: int) -> None:
         try:
             with Image.open(LOGO_PATH) as im:
-                im = im.convert("RGB").resize((d, d), Image.LANCZOS)
+                im = im.convert("RGBA").resize((d, d), Image.LANCZOS)
         except Exception:
             self.circle((x + d // 2, y + d // 2), d // 2, self.pal.accent_fill)
             return
-        mask = self._mask(d, d, lambda dr, s: dr.ellipse([0, 0, d * s - 1, d * s - 1], fill=255))
-        self.img.paste(im, (x, y), mask)
+        self.img.paste(im, (x, y), im)  # the Avasetu mark is a round disc; its own alpha is the mask
         self.shapes.append((x, y, x + d, y + d))
 
     def brand_bar(self, y: Optional[int] = None, right: Optional[str] = None, dark_bg: bool = True) -> None:
-        """Logo badge + 'PUNE Property' at the bottom margin (or at y); an optional cue on the right."""
+        """Avasetu mark + wordmark + tagline at the bottom margin (or at y); an optional cue on the right."""
         d = 64
         y = self.bottom - d if y is None else y
         self.logo(self.left, y, d)
         ink = self.pal.ink if dark_bg else self.pal.card_ink
-        self.text("PUNE Property", self.left + d + 18, y + 4, 420, 30, "semibold", ink, 1, role="brand", balance=False)
-        self.text("Find. Compare. Decide.", self.left + d + 18, y + 4 + 38, 420, 21, "medium", self.pal.accent if dark_bg else self.pal.muted,
+        self.text(brand.NAME, self.left + d + 18, y + 4, 420, 30, "semibold", ink, 1, role="brand", balance=False)
+        self.text(brand.TAGLINE, self.left + d + 18, y + 4 + 38, 420, 21, "medium", self.pal.accent if dark_bg else self.pal.muted,
                   1, role="brand", balance=False)
         if right:
             self.text(right, self.right - 360, y + 14, 360, 28, "semibold", self.pal.accent if dark_bg else self.pal.muted, 1, align="right",

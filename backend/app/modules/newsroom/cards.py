@@ -8,6 +8,7 @@ Everything printed on a card is cut from the checked draft and its facts (`prese
 the supporting line is another checked fact, the figure variant only enlarges a figure already in the hook. Nothing is added.
 Three looks, chosen by a small rule (`choose_variant`):  figure (a rupee amount in the hook), photo (infrastructure, on a bundled dark
 photo, labelled 'Illustrative photo'), headline (everything else, a typographic card)."""
+from app.core import brand
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -271,7 +272,7 @@ def digest_slides(dg: dict, channel: str = "ig") -> List[Image.Image]:
         "NEWS · BUYER TIP", place="BEFORE YOU DECIDE", pal="cream", meta="General information, not investment or legal advice",
         size=80, lines=8, min=48)))
     slides.append(_hl(base, channel, "Every story, with its source, on our site", "Tap the link in our bio and open News.", "",
-                                   _digest_over("NEWS · PUNE PROPERTY", place="", meta="", cue="Link in our bio")))
+                                   _digest_over("NEWS · " + brand.NAME.upper(), place="", meta="", cue="Link in our bio")))
     return slides
 
 

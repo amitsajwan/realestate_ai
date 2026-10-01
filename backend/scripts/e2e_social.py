@@ -75,7 +75,7 @@ check("no secret in the publish response", SECRET not in r.text)
 if MODE == "dry":
     check("both channels recorded as dry_run with fake ids", sorted(p["status"] for p in pubs) == ["dry_run", "dry_run"] and all(p["external_id"] for p in pubs), [(p["channel"], p["status"]) for p in pubs])
     check("payload snapshot holds the exact text and image urls", all(p["payload"]["text"] and isinstance(p["payload"]["image_urls"], list) for p in pubs))
-    check("consent is stored with each record", all(p["consent"]["given_at"] and "PUNE Property" in p["consent"]["text"] for p in pubs), pubs[0]["consent"])
+    check("consent is stored with each record", all(p["consent"]["given_at"] and "Avasetu" in p["consent"]["text"] for p in pubs), pubs[0]["consent"])
     again = c.post(P, headers=H, json=body)
     check("posting the same pack twice is refused (409)", again.status_code == 409, again.status_code)
     forced = c.post(P, headers=H, json={**body, "force": True})

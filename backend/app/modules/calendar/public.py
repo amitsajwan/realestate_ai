@@ -1,6 +1,7 @@
-"""Public, read-only view of what the PUNE Property Page has already posted: `GET /public/posts` (mounted by the integrator, no auth).
+"""Public, read-only view of what the Avasetu Page has already posted: `GET /public/posts` (mounted by the integrator, no auth).
 Only rows with status 'published' and a real permalink are ever returned; planned, approved, scheduled, failed and skipped rows never are.
 The same item posted on two channels (same slug, published close together) is shown once with both links. No phone numbers, ever."""
+from app.core import brand
 import os
 import re
 import time
@@ -23,7 +24,7 @@ CHANNELS = {"facebook_page": "facebook", "facebook": "facebook", "instagram": "i
 _URL = re.compile(r"https?://\S+|www\.\S+")
 _TAG = re.compile(r"#\w+")
 _PHONE = re.compile(r"(?<!\w)\+?\d[\d\s\-]{8,}\d(?!\w)")
-_FOOTER = re.compile(r"^\s*PUNE Property\s*·.*$", re.M)
+_FOOTER = re.compile(r"^\s*(?:PUNE Property|" + re.escape(brand.NAME) + r")\s*·.*$", re.M)  # old posts carry the pre-rebrand footer
 _cache: Dict[int, tuple] = {}
 
 
@@ -45,7 +46,7 @@ def _title(caption: str) -> str:
         line = re.sub(r"\s+", " ", line).strip(" -–—:·•")
         if line:
             return line if len(line) <= TITLE_MAX else line[:TITLE_MAX - 1].rstrip() + "…"
-    return "PUNE Property"
+    return brand.NAME
 
 
 def _excerpt(caption: str) -> str:

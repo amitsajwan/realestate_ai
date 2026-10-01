@@ -1,5 +1,6 @@
 """Realistic sample items for design review and tests: `python -m app.modules.newsroom.samples <out_dir>` renders the cards, the digest
 carousel and a contact sheet. The items are illustrations written for review (not live news) and are never stored or published."""
+from app.core import brand
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,7 +18,7 @@ def make_doc(id: str, title: str, facts: List[str], pillar: str, areas: List[str
     body = text or "\n\n".join([
         what, f"What to check: Read the official notice for the latest status before you decide.",
         f"Source: {source}, as of {AS_OF.day} Sep {AS_OF.year}. https://news.google.com/rss/articles/CBMi{id}",
-        question or f"Does this change how you look at homes in {where}? Tell us in the comments.", "#Pune #PunePropertyHub"])
+        question or f"Does this change how you look at homes in {where}? Tell us in the comments.", "#Pune " + brand.HASHTAG])
     return {"_id": id, "status": status, "created_at": AS_OF, "updated_at": AS_OF, "published_at": AS_OF,
             "raw": {"id": id, "source": source, "url": f"https://news.google.com/rss/articles/CBMi{id}", "title": title + " | " + source,
                     "text": " ".join(facts), "published_at": AS_OF, "fetched_at": AS_OF},

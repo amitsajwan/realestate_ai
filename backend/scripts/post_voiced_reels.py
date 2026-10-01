@@ -7,13 +7,14 @@ import sys
 from dataclasses import replace
 from pathlib import Path
 
+from app.core import brand
 from app.modules.reels import publish
 from app.modules.social.config import load
 
 UP = Path(os.environ.get("UPLOAD_DIRECTORY", "uploads"))
-SITE = "https://34-180-39-243.sslip.io"
-TAGS_HOME = "#Kharadi #PuneRealEstate #2BHK #PuneHomes #PunePropertyHub #HindiReels"
-TAGS_TIP = "#PuneRealEstate #HomeBuyingTips #SiteVisit #Kharadi #Wagholi #PunePropertyHub"
+SITE = brand.SITE
+TAGS_HOME = "#Kharadi #PuneRealEstate #2BHK #PuneHomes " + brand.HASHTAG + " #HindiReels"
+TAGS_TIP = "#PuneRealEstate #HomeBuyingTips #SiteVisit #Kharadi #Wagholi " + brand.HASHTAG
 
 HOME_HI = ("Kharadi mein 2BHK? \U0001F3E1 Dekhiye asal mein kya milta hai.\n\n"
            "780 sq ft carpet · Floor 7 of 22 · Ready to move\nParking, gym, lift, security, power backup\n\n"
@@ -29,7 +30,7 @@ JOBS = [
     ("voiced-kharadi-2bhk-hi.mp4", "facebook_page", f"{HOME_HI}\n\n\U0001F449 {SITE}/go\n\n{TAGS_HOME}"),
     ("voiced-tip-water-power-hi.mp4", "instagram", f"{TIP_HI}\n\n{TAGS_TIP}"),
     ("voiced-tip-water-power-hi.mp4", "facebook_page", f"{TIP_HI}\n\nMore buyer guides: {SITE}/insights\n\n{TAGS_TIP}"),
-    ("voiced-kharadi-2bhk-en.mp4", "facebook_page", f"{HOME_EN}\n\n\U0001F449 {SITE}/go\n\n#Kharadi #PuneRealEstate #PunePropertyHub"),
+    ("voiced-kharadi-2bhk-en.mp4", "facebook_page", f"{HOME_EN}\n\n\U0001F449 {SITE}/go\n\n#Kharadi #PuneRealEstate {brand.HASHTAG}"),
 ]
 
 

@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 # Removed duplicate smart_properties import - using unified_properties now
+from app.core import brand
 from app.core.auth_backend import current_active_user
 from app.models.user import User
 # Import authentication module - disabled to avoid conflicts
@@ -62,7 +63,7 @@ def setup_additional_endpoints(app: FastAPI):
     @app.get("/health")
     async def health_check():
         """Health check endpoint"""
-        return {"status": "healthy", "message": "PropertyAI API is running"}
+        return {"status": "healthy", "message": f"{brand.NAME} API is running"}
 
     @app.get("/api/v1/dashboard/stats")
     async def get_dashboard_stats(current_user: User = Depends(current_active_user)):

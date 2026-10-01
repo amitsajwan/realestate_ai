@@ -3,6 +3,7 @@
 The LLM returns short parts; code assembles the final text so the link, the 'as of' line, the hashtags and the disclaimer are
 always there. Every draft still goes through `check` afterwards: this stage does not vouch for its own output.
 """
+from app.core import brand
 import re
 import asyncio
 from typing import List, Optional
@@ -10,7 +11,7 @@ from typing import List, Optional
 from .. import policy
 from ..types import Draft, Facts, Llm, RawItem, Relevance
 
-BRAND = "PUNE Property team"
+BRAND = brand.TEAM
 AREA_NAMES = {"kharadi": "Kharadi", "upper_kharadi": "Upper Kharadi", "wagholi": "Wagholi"}
 AREA_TAGS = {"kharadi": "#Kharadi", "upper_kharadi": "#UpperKharadi", "wagholi": "#Wagholi"}
 URL = re.compile(r"https?://\S+", re.I)
@@ -71,7 +72,7 @@ def _areas(rel: Relevance) -> List[str]:
 
 
 def _tags(rel: Relevance) -> str:
-    return " ".join(["#Pune", "#PunePropertyHub"] + [AREA_TAGS[a] for a in _areas(rel)])
+    return " ".join(["#Pune", brand.HASHTAG] + [AREA_TAGS[a] for a in _areas(rel)])
 
 
 def _question(rel: Relevance) -> str:

@@ -43,7 +43,7 @@ META_INSTAGRAM_CALLBACK_HTML = """<!doctype html>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Connecting Instagram to PropertyAI</title>
+    <title>Connecting Instagram to Avasetu</title>
     <style>
         body { font: 16px system-ui, sans-serif; max-width: 36rem; margin: 12vh auto; padding: 0 1.25rem; color: #172033; }
         main { border: 1px solid #dbe2ea; border-radius: 1rem; padding: 2rem; box-shadow: 0 12px 36px #10204012; }
@@ -54,7 +54,7 @@ META_INSTAGRAM_CALLBACK_HTML = """<!doctype html>
     <main>
         <h1>Connecting your Instagram account</h1>
         <p id="message" role="status" aria-live="polite">Completing the secure connection…</p>
-        <a id="return-link" href="/" hidden>Return to PropertyAI</a>
+        <a id="return-link" href="/" hidden>Return to Avasetu</a>
     </main>
     <script>
         (async function () {
@@ -89,7 +89,7 @@ META_INSTAGRAM_CALLBACK_HTML = """<!doctype html>
                 });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.detail || 'Meta connection failed.');
-                message.textContent = 'Instagram is connected to your Facebook Page. Return to PropertyAI and refresh the Facebook integration screen.';
+                message.textContent = 'Instagram is connected to your Facebook Page. Return to Avasetu and refresh the Facebook integration screen.';
                 returnLink.hidden = false;
             } catch (error) {
                 message.textContent = error instanceof Error ? error.message : 'Could not complete the Meta connection.';

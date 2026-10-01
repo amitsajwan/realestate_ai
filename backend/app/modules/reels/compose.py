@@ -4,6 +4,7 @@ photo, eased text animation, cross-fade or slide transitions, progress bar, bran
 Output: H.264 (yuv420p, High profile), 1080x1920, 30 fps, AAC stereo audio (silent unless `music` is given), faststart, < 30 s.
 Text stays inside the Instagram safe zone: nothing in the top 10% or bottom 20% of the frame (see SAFE_TOP / SAFE_BOTTOM).
 """
+from app.core import brand
 import os
 import re
 from dataclasses import dataclass
@@ -28,8 +29,8 @@ WHITE = (255, 255, 255)
 SOFT = (226, 232, 243)
 INK = (24, 30, 44)
 NAVY_BLACK = (8, 10, 16)
-BRAND = "PUNE Property"
-TAGLINE = "Find. Compare. Decide."
+BRAND = brand.NAME
+TAGLINE = brand.TAGLINE
 PHONE_RE = re.compile(r"(?:\+?\d[\s\-]?){9,}")
 PAD = 28
 CONTENT_TOP = SAFE_TOP + 150   # below the brand tag row

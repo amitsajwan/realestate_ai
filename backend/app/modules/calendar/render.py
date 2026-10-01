@@ -4,6 +4,7 @@ Facebook keeps the 1080x1080 square:  <uploads>/calendar/<slug>.jpg
 Instagram uses 4:5 portrait 1080x1350: <uploads>/calendar/ig/<slug>.jpg  (a square is cropped to 3:4 in the profile grid and loses its sides)
 All text stays inside the 84 px margins (the grid trims about 34 px per side).
 """
+from app.core import brand
 import inspect
 import shutil
 from pathlib import Path
@@ -48,8 +49,8 @@ def _card(kicker: str, title: str, points: list, size: Tuple[int, int]) -> Card:
         c.draw.text((c.left + 21, cy), str(i + 1), font=load_font(26, "bold"), fill=DARK_INK, anchor="mm")
         y = c.block(p, y, sz, WHITE, 2, 24, x=c.left + 64, weight="medium") + (28 if tall else 20)
     _stamp_logo(c, c.left, c.bottom - 88, 88)
-    c.block("PUNE Property", c.bottom - 88, 34, GOLD, 1, 20, x=c.left + 108, weight="semibold")
-    c.block("Find. Compare. Decide.", c.bottom - 88 + int(34 * PITCH), 26, SOFT, 1, 18, x=c.left + 108, weight="medium")
+    c.block(brand.NAME, c.bottom - 88, 34, GOLD, 1, 20, x=c.left + 108, weight="semibold")
+    c.block(brand.TAGLINE, c.bottom - 88 + int(34 * PITCH), 26, SOFT, 1, 18, x=c.left + 108, weight="medium")
     return c
 
 

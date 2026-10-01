@@ -3,6 +3,7 @@
 A polished text is REJECTED (the deterministic draft is kept) if it is empty, over its length limit, or drops any
 protected fact (price text, BHK, locality, area, RERA number) or the share link that the draft contained.
 """
+from app.core import brand
 import logging
 import re
 from typing import Awaitable, Callable, Dict, List, Optional
@@ -46,7 +47,7 @@ POLISH_SYSTEM = (
     "You are a careful copywriter for an Indian real-estate page. Rewrite the post so it reads warmer and more natural, "
     "keeping the SAME facts, order of information and length (no more than 15% longer). Rules: keep every number, price, area, "
     "RERA number, locality, BHK, URL and hashtag EXACTLY as written; keep the phrase 'Comment INTERESTED' and the words "
-    "'PUNE Property team'; keep emojis and line breaks; write in the same language as the draft. NEVER add facts, amenities, "
+    f"'{brand.TEAM}'; keep emojis and line breaks; write in the same language as the draft. NEVER add facts, amenities, "
     "distances, nearby places, prices, promises, superlatives (best, perfect, dream, guaranteed) or phone numbers. "
     "Output ONLY the rewritten post."
 )

@@ -1,10 +1,13 @@
-"""The standard footer of every PUNE Property post: the website for Facebook, 'link in our bio' for Instagram (captions cannot hold links).
+"""The standard footer of every Avasetu post: the website for Facebook, 'link in our bio' for Instagram (captions cannot hold links).
 `with_footer` is pure and idempotent. The integrator applies it where captions are built; nothing here touches stored captions."""
+from app.core import brand
 import re
 
-SITE_URL = "https://34-180-39-243.sslip.io"
-FACEBOOK_FOOTER = f"PUNE Property · {SITE_URL}"
-INSTAGRAM_FOOTER = "PUNE Property · link in our bio"
+SITE_URL = brand.SITE
+FACEBOOK_FOOTER = brand.footer("facebook")
+INSTAGRAM_FOOTER = brand.footer("instagram")
+# footers of drafts written before the rebrand; replaced by the current footer, never kept twice
+_LEGACY_FOOTER = re.compile(r"^[ \t]*PUNE Property[ \t]*·.*$", re.M)
 FACEBOOK_MAX = 900     # strictly under
 INSTAGRAM_MAX = 2000   # strictly under
 MAX_HASHTAGS = 10
@@ -44,7 +47,7 @@ def _cut(body: str, room: int) -> str:
 def with_footer(caption: str, channel: str) -> str:
     """Caption + footer, once. At most 10 hashtags; Facebook stays under 900 characters and Instagram under 2000 (the body is trimmed, never the footer)."""
     foot = footer_for(channel)
-    body = (caption or "").strip()
+    body = _LEGACY_FOOTER.sub("", caption or "").strip()
     if foot in body:
         body = body.replace(foot, "").rstrip(" \n·")
     body = _trim_hashtags(body)

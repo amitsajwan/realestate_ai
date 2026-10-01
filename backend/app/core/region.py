@@ -1,8 +1,9 @@
 """Where the platform operates. For the pilot it is Pune only: set ALLOWED_CITIES (comma separated words) to widen it, or to '*' for anywhere."""
+from app.core import brand
 import os
 
 DEFAULT = "pune,pimpri,chinchwad,pcmc"
-MESSAGE = "PUNE Property lists homes in Pune for now. Please use a Pune city or locality."
+MESSAGE = f"{brand.NAME} lists homes in Pune for now. Please use a Pune city or locality."
 
 
 def allowed_words() -> list:

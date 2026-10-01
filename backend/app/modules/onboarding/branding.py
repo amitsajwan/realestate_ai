@@ -3,6 +3,7 @@
 Everything here is additive and optional. Free text is kept plain: no phone numbers, links, e-mail addresses or markup
 (the public site sends buyers to the enquiry form, never to a number typed into a tagline).
 """
+from app.core import brand
 import re
 from typing import List, Optional
 
@@ -140,7 +141,7 @@ def clean_areas(v) -> Optional[List[str]]:
             raise ValueError("Use plain locality names, like Baner or Kharadi")
         key = s.lower()
         if key not in PUNE_LOCALITIES and not any(w in key for w in _PUNE_WORDS):
-            raise ValueError(f"'{s}' is outside Pune. PUNE Property covers Pune localities for now.")
+            raise ValueError(f"'{s}' is outside Pune. {brand.NAME} covers Pune localities for now.")
         if key not in [x.lower() for x in out]:
             out.append(s)
     if len(out) > MAX_AREAS:

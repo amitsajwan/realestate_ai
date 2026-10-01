@@ -1,9 +1,10 @@
 """Text-first posts for the Page: one idea, a question that invites comments, and (usually) a link that unfolds into a preview card.
 Only stable, checkable statements: no prices, no predictions, transport is 'approved is not running'. Nothing here contains a phone number."""
+from app.core import brand
 from typing import Dict, List
 
-SITE = "https://34-180-39-243.sslip.io"
-TAGS = "#Pune #PunePropertyHub #PuneRealEstate"
+SITE = brand.SITE
+TAGS = "#Pune " + brand.HASHTAG + " #PuneRealEstate"
 
 TEXT_POSTS: List[Dict] = [
     {
@@ -63,6 +64,6 @@ TEXT_POSTS: List[Dict] = [
             "2️⃣ Answering the same questions again and again\n"
             "3️⃣ Finding out who is serious\n"
             "4️⃣ Following up\n\n"
-            "Comment your number. We are building PUNE Property to take these off your plate. It is a free, invite-only pilot: {link}\n\n#PuneAgents " + TAGS),
+            "Comment your number. We are building " + brand.NAME + " to take these off your plate. It is a free, invite-only pilot: {link}\n\n#PuneAgents " + TAGS),
     },
 ]

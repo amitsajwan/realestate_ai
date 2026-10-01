@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PropertyAI - Main Application Entry Point
+Avasetu - Main Application Entry Point
 ========================================
 FastAPI application for AI-powered real estate platform.
 All API v1 routers are mounted once, in app/core/routes.py (setup_routes).

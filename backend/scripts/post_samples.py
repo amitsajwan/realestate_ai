@@ -1,4 +1,4 @@
-"""Post clearly labelled SAMPLE listings to the Facebook Page, as illustrations of how a listing looks on PUNE Property.
+"""Post clearly labelled SAMPLE listings to the Facebook Page, as illustrations of how a listing looks on Avasetu.
 
   python scripts/post_samples.py preview                  show what would be posted (no network writes)
   python scripts/post_samples.py post [--only N ...]      publish (default: one per area)

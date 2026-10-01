@@ -1,5 +1,6 @@
 """Builds GET /report/weekly. Read-only over other modules' collections (events, contacts, listings, engage_comments, chat_sessions). Deterministic:
 every number is a count from the last 7 days and every tip is a rule over the agent's own data, so nothing is invented."""
+from app.core import brand
 from datetime import datetime, timedelta
 from typing import Callable, Dict, List, Optional
 
@@ -83,7 +84,7 @@ class ReportService:
 
     @staticmethod
     def _share_text(n: Dict, top: Optional[Dict], profile: Dict) -> str:
-        lines = ["My week on PUNE Property:"]
+        lines = [f"My week on {brand.NAME}:"]
         lines.append(f"• {n['listing_views']} listing views from {n['visitors']} visitors")
         lines.append(f"• {n['new_enquiries']} new enquir{'y' if n['new_enquiries'] == 1 else 'ies'}" + (f" ({n['qualified_enquiries']} with budget or timeline)" if n["new_enquiries"] else ""))
         if n["facebook_interest"] or n["chats"]:

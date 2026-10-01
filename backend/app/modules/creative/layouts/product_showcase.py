@@ -1,5 +1,6 @@
 """Layout 7, product showcase for agent-attraction posts: a drawn phone with a mini agent-site listing card and an INTERESTED
 comment, plus a floating lead card (looking for, budget, timing). Everything on the phone is an illustration, labelled as such."""
+from app.core import brand
 from typing import List
 
 from ..models import Copy, Design
@@ -26,7 +27,7 @@ def _phone(c: Canvas, x0: int, y0: int, pw: int, ph: int, k: float, key: str) ->
     y = sy0 + int(54 * k)
     # app bar
     c.logo(sx0 + m, y, int(34 * k))
-    c.text("PUNE Property", sx0 + m + int(44 * k), y + int(6 * k), sw // 2, int(21 * k), "bold", INK, 1, balance=False, role="mock", bg_hint=SCREEN, min_size=14)
+    c.text(brand.NAME, sx0 + m + int(44 * k), y + int(6 * k), sw // 2, int(21 * k), "bold", INK, 1, balance=False, role="mock", bg_hint=SCREEN, min_size=14)
     y += int(34 * k) + int(18 * k)
     # listing card with photo
     card_h = int(330 * k)

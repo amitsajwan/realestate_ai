@@ -1,4 +1,4 @@
-"""Starter posts for the PUNE Property Facebook Page.
+"""Starter posts for the Avasetu Facebook Page.
 
   python scripts/brand_posts.py preview [--out DIR]     render the cards (no network) and print the captions
   python scripts/brand_posts.py replace                 delete the earlier copies of these posts, then publish the current ones

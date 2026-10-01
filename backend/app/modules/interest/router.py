@@ -8,6 +8,7 @@
   GET  /public/hub                          the Instagram bio-link page data (cached 60 s)
 `router` is mounted at /interest (bearer auth): POST /interest/links, GET /interest/links/{ref}.
 """
+from app.core import brand
 import io
 import os
 import time
@@ -160,7 +161,7 @@ async def build_hub(svc: InterestService) -> dict:
                           "image_url": home["image_url"], "interest_code": code, "permalink": None, "sample": True})
     site = site_url()
     return {
-        "brand": os.environ.get("NEXT_PUBLIC_BUSINESS_NAME") or "PUNE Property",
+        "brand": os.environ.get("NEXT_PUBLIC_BUSINESS_NAME") or brand.NAME,
         "line": "Homes and guides for Pune buyers. Tap I am interested and we will get back to you.",
         "items": items,
         "links": {"website": site, "invite": f"{site}/request-invite",

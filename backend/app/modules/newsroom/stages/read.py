@@ -12,7 +12,7 @@ from urllib.robotparser import RobotFileParser
 
 from ..types import Fetcher, RawItem
 
-USER_AGENT = "PunePropertyNewsroom"  # matches the fetcher's "PunePropertyNewsroom/1.0"
+USER_AGENT = "AvasetuNewsroom"  # matches the fetcher's "AvasetuNewsroom/1.0"
 SHORT_TEXT = 300  # only items with less text than this are enriched
 MIN_BODY = 400  # the page must yield at least this much main text
 MAX_BODY = 6000

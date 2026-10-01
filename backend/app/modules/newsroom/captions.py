@@ -5,6 +5,7 @@ Facebook: short summary, our view and 'what to check' when there is room, 'Sourc
 (captions cannot hold links): 'Read more: link in our bio', up to 8 hashtags, the footer. The owner sees these strings before approving and
 the publisher sends exactly them. `verify` runs the `check` stage over each final caption, so an edit or a template change can never slip a
 number, a name or a link policy problem past the owner."""
+from app.core import brand
 import inspect
 import re
 from dataclasses import replace
@@ -21,7 +22,7 @@ CHANNELS = ("facebook", "instagram")
 
 
 def footer(channel: str) -> str:
-    return "PUNE Property · link in our bio" if channel == "instagram" else f"PUNE Property · {pr.site_url()}"
+    return f"{brand.NAME} · link in our bio" if channel == "instagram" else f"{brand.NAME} · {pr.site_url()}"
 
 
 def _cut(text: str, room: int) -> str:
@@ -67,7 +68,7 @@ def story(doc: dict, channel: str) -> str:
 def digest(doc: dict, channel: str) -> str:
     text = (doc.get("draft") or {}).get("text", "").strip()
     link = f"Read more: {pr.site_url()}/news" if channel == "facebook" else "Read more: link in our bio."
-    tags = ["#Pune", "#PunePropertyHub", "#Kharadi", "#Wagholi", "#PuneNews"][:FB_TAGS if channel == "facebook" else IG_TAGS]
+    tags = ["#Pune", brand.HASHTAG, "#Kharadi", "#Wagholi", "#PuneNews"][:FB_TAGS if channel == "facebook" else IG_TAGS]
     return _assemble([text, link], tags, channel, DIGEST_MAX) or _assemble([text], [], channel, DIGEST_MAX) or ""
 
 

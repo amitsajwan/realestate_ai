@@ -5,6 +5,7 @@ number or name ever appears in a URL.
 
 Other streams call `interest_url(db, kind=..., ref=..., agent_id=..., channel=...)` to get the URL for a caption.
 """
+from app.core import brand
 import hashlib
 import logging
 import os
@@ -102,7 +103,7 @@ class InterestService:
         return {
             "code": link["code"], "kind": link["kind"], "channel": link["channel"], "title": link.get("title") or "",
             "subtitle": link.get("subtitle") or "", "locality": link.get("locality") or "", "image_url": link.get("image_url") or "",
-            "agent_name": profile.get("agent_name") or profile.get("display_name") or "PUNE Property",
+            "agent_name": profile.get("agent_name") or profile.get("display_name") or brand.NAME,
             "sample": bool(link.get("sample")), "consent_wording": CONSENT_WORDING,
         }
 

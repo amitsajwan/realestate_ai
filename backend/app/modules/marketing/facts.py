@@ -1,8 +1,9 @@
 """Listing facts + formatting helpers + per-language word tables. Everything here is derived from the listing only."""
+from app.core import brand
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-PUBLIC_NAME = "PUNE Property team"
+PUBLIC_NAME = brand.TEAM
 LAKH = 100_000
 CRORE = 10_000_000
 

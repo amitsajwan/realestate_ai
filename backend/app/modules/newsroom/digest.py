@@ -6,6 +6,7 @@ Rules (all in code, tested): only stories that were approved, scheduled or publi
 digest); at most 5, at most 2 per pillar, most important pillar first; one tip; the digest text passes the same `check` stage as a
 story (its source text is the stories' own facts and the tip); one digest per ISO week (the id carries the week); the runner builds it
 on Sunday from 18:00 IST. Pure helpers plus one `build` that talks to the store."""
+from app.core import brand
 import inspect
 import logging
 from datetime import datetime, timedelta, timezone
@@ -103,7 +104,7 @@ def compose(docs: List[dict], now: datetime, tip: Optional[str] = None) -> Optio
     basis += [_chunk(f"Buyer tip: {tip}"), f"Reported by {', '.join(sources)}."]
     wid = week_id(now)
     site = pr.site_url()
-    raw = RawItem(id=wid, source="PUNE Property team", url=f"{site}/news", title="Weekly local news roundup", text="\n".join(basis),
+    raw = RawItem(id=wid, source=brand.TEAM, url=f"{site}/news", title="Weekly local news roundup", text="\n".join(basis),
                   published_at=ist, fetched_at=ist)
     facts = Facts([Fact(text=s["line"] or s["hook"], quote=s["hook"]) for s in stories], as_of=ist)
     draft = Draft("digest", text, TITLE, f"{site}/news", sources)

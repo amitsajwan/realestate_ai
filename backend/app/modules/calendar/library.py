@@ -7,11 +7,12 @@ Rules every entry follows (enforced by tests and `calendar_admin.py --dry-check`
   * the body ends with a question or a save/share prompt;
   * the Facebook caption may link to our site; the Instagram caption never has a URL (it says "link in our bio").
 """
+from app.core import brand
 import os
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
-SITE = (os.environ.get("PUBLIC_SITE_URL") or "https://34-180-39-243.sslip.io").rstrip("/")
+SITE = brand.SITE
 
 PILLARS = ("myth", "explainer", "checklist", "local", "poll", "agent")
 
@@ -59,7 +60,7 @@ class Entry:
 _IG_CTA = {"insights": "The full guide is at the link in our bio.", "localities": "Area guides: link in our bio.",
            "request-invite": "Request your invite: link in our bio."}
 
-B = "#PunePropertyHub"
+B = brand.HASHTAG
 
 
 def _e(slug, pillar, kicker, title, points, body, tags, review, **kw) -> Entry:

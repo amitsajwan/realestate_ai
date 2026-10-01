@@ -12,6 +12,7 @@ Flow of `answer(question, grounding, channel, llm)`:
 Sample homes: availability and visit questions say honestly that it is an illustration; price questions give only the labelled sample figure.
 Channels: 'facebook' (public reply with the {interest_url} placeholder), 'instagram' (never a URL: 'link in our bio'), 'chat' (website widget).
 """
+from app.core import brand
 import re
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Set, Tuple
@@ -345,7 +346,7 @@ def valid_text(text: str, source: str, channel: str, limit: int, strict: bool = 
 
 
 LLM_SYSTEM = (
-    "You answer a home buyer's question for the PUNE Property team using ONLY the FACTS given. Reply with ONE JSON object: "
+    f"You answer a home buyer's question for the {brand.TEAM} using ONLY the FACTS given. Reply with ONE JSON object: "
     '{"answerable": true or false, "answer": "..."}. The answer is 1 or 2 short, plain, friendly sentences written in {lang}. '
     "Use only numbers, names and claims that appear in FACTS (never repeat a number or name that only the QUESTION contains). If FACTS do not fully answer the question, set answerable=false and answer=''. "
     "A sample home is only an illustration: never say it is available. Never invent prices, distances, dates, schools, amenities or approvals. "

@@ -1,4 +1,5 @@
 """Editorial policy as data (docs/NEWSROOM_PLAN.md section 1). Plain constants, no I/O."""
+from app.core import brand
 import re
 
 MAX_AGE_DAYS = 14  # news older than this is dropped (evergreen education items are exempt)
@@ -44,4 +45,4 @@ BANNED = re.compile(
 
 DISCLAIMER = ("Approvals and project status change, so check the sources before you decide. "
               "This is general information, not investment or legal advice.")
-SITE = "https://34-180-39-243.sslip.io"
+SITE = brand.SITE

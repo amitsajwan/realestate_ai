@@ -2,6 +2,7 @@
 
 Closed by default: only superusers and ids in CONCIERGE_OWNER_IDS get in (403 otherwise).
 """
+from app.core import brand
 import time
 from collections import defaultdict, deque
 from pathlib import Path
@@ -47,7 +48,7 @@ limiter = Limiter()
 async def owner_only(user: User = Depends(current_active_user)) -> User:
     if getattr(user, "is_superuser", False) or str(user.id) in config.owner_ids():
         return user
-    raise HTTPException(403, "Only the PUNE Property owner can use the concierge")
+    raise HTTPException(403, f"Only the {brand.NAME} owner can use the concierge")
 
 
 def writer(bucket: str, limit: int, window: float = 60.0):

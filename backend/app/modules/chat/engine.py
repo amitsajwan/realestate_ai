@@ -4,6 +4,7 @@ State lives in a plain dict (`data`). One call to `turn()` reads the visitor's m
 knowledge base (or, failing that, from an LLM restricted to that knowledge and checked before use), and then asks for the next missing detail.
 A phone number is only accepted after the visitor has been shown the consent line, and never guessed.
 """
+from app.core import brand
 import re
 from dataclasses import dataclass, field
 from typing import List, Optional
@@ -15,7 +16,7 @@ from app.modules.tracking import requirement as rq
 
 from . import kb
 
-CONSENT = "By sharing your number you agree that PUNE Property may contact you about this enquiry."
+CONSENT = f"By sharing your number you agree that {brand.NAME} may contact you about this enquiry."
 ORDER = ["tx", "locality", "bhk", "budget", "timeline", "name", "phone"]
 GREETING = re.compile(r"^\W*(hi+|hello+|hey+|namaste|namaskar|hii+|good (morning|afternoon|evening))\W*$", re.I)
 YES = re.compile(r"^\W*(yes|y|yeah|yep|ok|okay|sure|haan|ha|ho|confirm|please do)\W*$", re.I)
@@ -139,7 +140,7 @@ def is_question(text: str) -> bool:
 
 
 LLM_SYSTEM = (
-    "You answer a home buyer's question for the PUNE Property team, using ONLY the KNOWLEDGE below. Reply with one JSON object: "
+    f"You answer a home buyer's question for the {brand.TEAM}, using ONLY the KNOWLEDGE below. Reply with one JSON object: "
     '{"answerable": true or false, "answer": "..."}. The answer is at most 3 short sentences, in the buyer\'s language, friendly and plain. '
     "If KNOWLEDGE does not contain the answer, set answerable=false and answer=''. Never invent prices, distances, dates, amenities, approvals or "
     "availability. Never include phone numbers or links. Never use words like best, perfect, guaranteed, dream."
@@ -206,7 +207,7 @@ async def turn(d: dict, text: str, llm, grounding=None) -> Turn:
     if first and GREETING.match(text):
         p, q = PROMPTS[nf := next_field(d) or "tx"]
         d["asked"] = nf
-        return Turn(f"Hi! I am the PUNE Property assistant. I can answer basic questions about buying or renting in Pune and pass your requirement to our team. {p}", q)
+        return Turn(f"Hi! I am the {brand.NAME} assistant. I can answer basic questions about buying or renting in Pune and pass your requirement to our team. {p}", q)
 
     new = extract(d, text)
     parts: List[str] = []

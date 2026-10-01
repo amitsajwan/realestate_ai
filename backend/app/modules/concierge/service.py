@@ -7,6 +7,7 @@ listings, marketing, social), so all their validation and owner scoping apply un
 Phone numbers: stored only where the app already keeps them (invites, profile, this agent row); responses mask them,
 except the invite response, which goes to the owner who must send the code.
 """
+from app.core import brand
 import urllib.parse
 from datetime import datetime
 from types import SimpleNamespace
@@ -17,7 +18,7 @@ from pydantic import ValidationError
 from app.modules.listings.schemas import ListingCreate, ListingUpdate
 from app.modules.listings.service import ListingError
 
-CONSENT_TEXT = ("I agree that PUNE Property may feature me and my listings on the PUNE Property Facebook Page, Instagram "
+CONSENT_TEXT = (f"I agree that {brand.NAME} may feature me and my listings on the {brand.NAME} Facebook Page, Instagram "
                 "and website, with my name and RERA number, and that buyers' interest comes to my inbox.")
 
 # Price sanity (INR): catches a missed zero or a monthly rent typed as a sale price. Not a market opinion.
@@ -127,7 +128,7 @@ class ConciergeService:
                "whatsapp_message": None, "whatsapp_url": None}
         if code:
             first = (name.split() or [name])[0]
-            msg = (f"Hi {first}, welcome to PUNE Property! Open {self.site}/join, enter {phone[3:]} and your personal "
+            msg = (f"Hi {first}, welcome to {brand.NAME}! Open {self.site}/join, enter {phone[3:]} and your personal "
                    f"code {code}. Please don't share it.")
             out["whatsapp_message"] = msg
             out["whatsapp_url"] = f"https://wa.me/{phone.lstrip('+')}?text={urllib.parse.quote(msg)}"
@@ -210,7 +211,7 @@ class ConciergeService:
         await self._audit(owner_id, "branding.update", agent_id, list(data))
         return result
 
-    # ---- posting to the PUNE Property pages ----------------------------------------------------------------
+    # ---- posting to the Avasetu pages ----------------------------------------------------------------------
     def _need_social(self):
         if not self.social:
             raise ConciergeError("Posting is not configured", 503)

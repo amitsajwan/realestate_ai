@@ -1,4 +1,5 @@
 """Deterministic marketing copy built ONLY from listing facts. No network, no invented amenities/prices/claims."""
+from app.core import brand
 import re
 import unicodedata
 from typing import Dict, List, Optional
@@ -118,7 +119,7 @@ def _cta(f: Facts, lang: str, key: str = "cta") -> str:
     return p[key].format(agent=f.agent_name) if f.agent_name else p[key + "_anon"]
 
 
-SAMPLE_LINE = "SAMPLE LISTING (an illustration of how a listing looks on PUNE Property, not available for sale)"
+SAMPLE_LINE = f"SAMPLE LISTING (an illustration of how a listing looks on {brand.NAME}, not available for sale)"
 
 
 def instagram_caption(f: Facts, lang: str) -> str:

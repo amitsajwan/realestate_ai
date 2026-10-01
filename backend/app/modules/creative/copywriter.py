@@ -5,6 +5,7 @@ hashtags; Facebook may link. Slides are at most 14 words, one idea each. Every n
 HYPE / PHONE guards run on every field; a field that fails is replaced by its deterministic draft, so the result is always clean.
 English first; Hinglish and Marathi caption variants only when asked and only with an LLM.
 """
+from app.core import brand
 import logging
 import re
 from typing import Any, Dict, List, Optional, Sequence
@@ -17,7 +18,7 @@ log = logging.getLogger(__name__)
 SLIDE_MAX_WORDS = 14
 FIRST_LINE_MAX = 125      # what Instagram shows before "more"
 BODY_MAX = 900
-SIGN_OFF = "PUNE Property team"
+SIGN_OFF = brand.TEAM
 TAG = re.compile(r"^#[A-Za-z][A-Za-z0-9_]{2,30}$")
 
 BUYER_TAGS = ["#PuneProperty", "#Kharadi", "#HomeBuyingTips", "#PuneRealEstate", "#UpperKharadi", "#Wagholi", "#FirstHomeBuyer"]
@@ -47,9 +48,9 @@ CARD_CTA = {"stat": "Save this", "myth-vs-fact": "Share with a buyer", "poll": "
             "checklist": "Save this list", "carousel": "Swipe", "single": "Save this"}
 
 SYSTEM = (
-    "You are the copywriter of PUNE Property, an Indian real-estate brand (home buyers and property agents in Kharadi, "
+    f"You are the copywriter of {brand.NAME}, an Indian real-estate brand (home buyers and property agents in Kharadi, "
     "Upper Kharadi and Wagholi, Pune). Write the post copy for the given angle.\n"
-    "Rules: plain, warm, direct English; brand voice 'PUNE Property team'. Use ONLY the supplied facts: no prices, no "
+    f"Rules: plain, warm, direct English; brand voice '{brand.TEAM}'. Use ONLY the supplied facts: no prices, no "
     "predictions, no invented numbers or claims, no phone numbers, no personal or builder names, no superlatives (best, "
     "perfect, dream, guaranteed). Avoid filler such as 'in today's world', 'unlock', 'game changer'. Each slide is at most "
     "14 words and carries ONE idea. The caption's first line is the only line visible before 'more': make it concrete and "
@@ -72,7 +73,7 @@ KICKER = {"stat": "WORTH REMEMBERING", "myth-vs-fact": "MYTH VS FACT", "poll": "
 
 def _payload(brief: Brief, angle: Angle) -> Dict[str, object]:
     f = angle.fmt
-    kicker = "FOR AGENTS" if angle.audience == "agent" and f == "single" else KICKER.get(f, "PUNE PROPERTY")
+    kicker = "FOR AGENTS" if angle.audience == "agent" and f == "single" else KICKER.get(f, brand.NAME.upper())
     base: Dict[str, object] = {"kicker": kicker, "audience": angle.audience, "fmt": f}
     if f == "stat":
         base.update(value=brief.stat_value, label=brief.stat_label)

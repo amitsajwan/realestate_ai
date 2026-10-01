@@ -7,6 +7,7 @@ FastAPI application creation and configuration
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+from app.core import brand
 from app.core.config import settings
 from app.core.database import init_database, close_database
 from app.core.rate_limiting import setup_rate_limiting
@@ -129,7 +130,7 @@ def create_application() -> FastAPI:
 
     # Create FastAPI app with custom JSON encoder
     app = FastAPI(
-        title="PropertyAI API",
+        title=f"{brand.NAME} API",
         description="AI-powered real estate platform API",
         version="2.0.0",
         docs_url="/docs" if settings.environment != "production" else None,

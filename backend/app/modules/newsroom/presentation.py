@@ -3,6 +3,7 @@ item document, no I/O. Everything here is cut from the checked draft and its fac
 
 The stored draft text is a post such as 'what\\n\\nOur view: ..\\n\\nWhat to check: ..\\n\\nSource: X, as of 5 Oct 2026. <url>\\n\\n<question>\\n\\n#tags';
 `split_text` takes it apart so the website, the cards and the captions can each reuse the parts."""
+from app.core import brand
 import os
 import re
 from dataclasses import dataclass, field
@@ -13,7 +14,7 @@ from . import policy
 URL = re.compile(r"https?://\S+|www\.\S+", re.I)
 TAG = re.compile(r"#\w+")
 PHONE = re.compile(r"(?<!\w)\+?\d[\d\s\-]{8,}\d(?!\w)")
-BRAND = "PUNE Property team"
+BRAND = brand.TEAM
 SPACE = re.compile(r"\s+")
 AREA_NAMES = {"kharadi": "Kharadi", "upper_kharadi": "Upper Kharadi", "wagholi": "Wagholi"}
 AREA_SLUGS = {"kharadi": "kharadi", "upper_kharadi": "upper-kharadi", "wagholi": "wagholi"}
@@ -62,7 +63,7 @@ def split_text(text: str) -> Parts:
         flat = one_line(p)
         if not TAG.sub("", flat).strip():
             parts.tags += TAG.findall(flat)
-        elif flat == policy.DISCLAIMER or flat.startswith("PUNE Property ·"):
+        elif flat == policy.DISCLAIMER or flat.startswith((f"{brand.NAME} ·", "PUNE Property ·")):
             continue
         elif (v := _strip_prefix(flat, ("Our view:", "Why it may matter:"))) is not None:
             parts.our_view = v.replace("This is our view, not a fact from the source.", "").strip()
@@ -190,7 +191,7 @@ def figure(doc: dict) -> Optional[Tuple[str, str]]:
     return m.group(0).strip(), h
 
 
-HASHTAGS_BASE = ["#Pune", "#PunePropertyHub"]
+HASHTAGS_BASE = ["#Pune", brand.HASHTAG]
 HASHTAG_BY_PILLAR = {"infrastructure": "#PuneInfrastructure", "new_supply": "#MahaRERA", "rules_money": "#HomeBuyerTips",
                      "locality_life": "#PuneLife", "education": "#HomeBuyerTips", "digest": "#PuneNews"}
 AREA_TAGS = {"kharadi": "#Kharadi", "upper_kharadi": "#UpperKharadi", "wagholi": "#Wagholi"}

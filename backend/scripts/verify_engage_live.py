@@ -13,6 +13,7 @@ from dataclasses import replace
 
 import httpx
 
+from app.core import brand
 from app.core import database as dbmod
 from app.modules.ai_listing.llm import default_llm
 from app.modules.engage.config import load
@@ -71,7 +72,7 @@ async def main() -> None:
                     reply_ids.append(d["reply_id"])
                     rr = await c.get(f"{G}/{d['reply_id']}", params={"fields": "text,username" if IG else "message,parent{id}", "access_token": cfg.page_token})
                     check("  the reply exists under that comment", rr.status_code == 200 and (IG or (rr.json().get("parent") or {}).get("id") == cid))
-                    has_link = ("link in our bio" in d["reply"] and "http" not in d["reply"]) if IG else "sslip.io" in d["reply"]
+                    has_link = ("link in our bio" in d["reply"] and "http" not in d["reply"]) if IG else brand.site().split("//")[-1] in d["reply"]
                     check("  the reply points to our link (if it should) and has no phone number", (intent == "greeting" or has_link) and not __import__("re").search(r"\d{10}", d["reply"]))
             else:
                 check(f"  spam was NOT answered", bool(d) and d["status"] == "ignored" and not d.get("reply_id"))
