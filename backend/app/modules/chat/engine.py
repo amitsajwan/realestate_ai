@@ -28,7 +28,8 @@ from app.modules.onboarding.phone import normalize_indian_mobile
 from app.modules.tracking import requirement as rq
 
 from . import kb
-from .phrases import WHATSAPP, quick as qr, say
+from . import phrases
+from .phrases import WHATSAPP, ack_word, quick as qr, say
 
 WHATSAPP_LABEL = WHATSAPP
 
@@ -37,8 +38,9 @@ ORDER = ["tx", "locality", "bhk", "budget", "timeline", "name", "phone"]
 MAX_ASKS = 2            # any one question
 MAX_PHONE_ASKS = 2      # the number, per conversation
 SNOOZE_TURNS = 5        # after 'Not now'
+PHONE_GAP_TURNS = 3     # never ask for the number in back-to-back replies
 MAX_NAME_USES = 2
-GREETING = re.compile(r"^\W*(hi+|hello+|hey+|namaste|namaskar|hii+|good (morning|afternoon|evening))\W*$", re.I)
+GREETING = re.compile(r"^\W*(hi+|hello+|hey+|namaste|namaskar|hii+|good (morning|afternoon|evening)|नमस्ते|नमस्कार)\W*$", re.I)
 YES = re.compile(r"^\W*(yes|y|yeah|yep|ok|okay|sure|haan|ha|ho|confirm|please do)\W*$", re.I)
 NO = re.compile(r"^\W*(no|nope|not now|later|skip|nahi|nako|no thanks|na|maybe later|abhi nahi|baad mein|aata nako|nantar|अभी नहीं|आता नको)\W*$", re.I)
 HUMAN = re.compile(r"\b(talk|speak|connect|call)\b.*\b(human|person|agent|someone|team|me)\b|\bcall me\b|\breal person\b", re.I)
@@ -82,7 +84,7 @@ def new_data(localise: bool = False) -> dict:
             "lead_done": False, "questions": [], "needs_human": False, "greeted": False, "missing": [],
             # v2
             "localise": localise, "lang": "en", "turn_no": 0, "asks": {}, "phone_asks": 0, "phone_snooze_until": 0, "after_lead": False,
-            "name_uses": 0, "value_given": False, "shown_sig": None, "shown_ids": [], "needs_you_sent": False, "locality_src": None, "bhk_src": None,
+            "name_uses": 0, "value_given": False, "shown_sig": None, "shown_ids": [], "needs_you_sent": False, "phone_asked_turn": 0, "locality_src": None, "bhk_src": None,
             "page": None}
 
 
@@ -193,7 +195,7 @@ def extract(d: dict, text: str) -> List[str]:
     elif NO.match(t) and d["pending_phone"]:
         d["pending_phone"] = None
         _snooze_phone(d)
-    elif NO.match(t) and asked == "phone":
+    elif NO.match(t) and asked in ("phone", None):
         _snooze_phone(d)
     elif NO.match(t) and asked and asked not in d["declined"] and not filled(d, asked):
         d["declined"].append(asked)
@@ -251,7 +253,11 @@ def extract(d: dict, text: str) -> List[str]:
             d["pending_phone"] = phone
     if not d["name"]:
         d["name"] = _name_in(t, asked)
-    return [f for f in ORDER if filled(d, f) and not before[f]]
+    newly = [f for f in ORDER if filled(d, f) and not before[f]]
+    if asked and asked != "phone" and not filled(d, asked) and newly and not is_question(t):
+        # they told us something else instead (their name, another detail): move on rather than ask the same thing twice in a row
+        d.setdefault("asks", {})[asked] = MAX_ASKS
+    return newly
 
 
 def _snooze_phone(d: dict) -> None:
@@ -303,29 +309,37 @@ def summary(d: dict) -> str:
     return text[:900]
 
 
-def _budget_text(d: dict) -> Optional[str]:
-    if d.get("tx") == "rent" and (d["budget_min"] or d["budget_max"] or 0) < rq.LAKH * 5:
-        lo, hi = d["budget_min"], d["budget_max"]
-        f = lambda n: f"{n:,}"  # noqa: E731
-        txt = f"under {f(hi)}" if hi and not lo else f"above {f(lo)}" if lo and not hi else f"{f(lo)}-{f(hi)}" if lo and hi else None
-        return txt + "/month" if txt else None
-    return rq.budget_text(d["budget_min"], d["budget_max"])
+def _budget_text(d: dict, lang: str = "en") -> Optional[str]:
+    """'under 80L', '50L-80L', 'under 25,000/month' (and the same in the buyer's language for acknowledgements)."""
+    lo, hi = d["budget_min"], d["budget_max"]
+    if lo is None and hi is None:
+        return None
+    rent = d.get("tx") == "rent" and (lo or hi or 0) < rq.LAKH * 5
+    f = (lambda n: f"{n:,}") if rent else rq.fmt_inr  # noqa: E731
+    if hi is not None and not lo:
+        txt = ack_word("under", lang, x=f(hi))
+    elif lo is not None and hi is None:
+        txt = ack_word("above", lang, x=f(lo))
+    else:
+        txt = f(lo) if lo == hi else f"{f(lo)}-{f(hi)}"
+    return txt + ("/month" if rent else "")
 
 
 def _ack(new: List[str], d: dict) -> str:
     bits = []
+    lang = _lang(d)
     if "tx" in new and d["tx"] in ("buy", "rent"):
-        bits.append(d["tx"])
+        bits.append(ack_word(d["tx"], lang))
     if "locality" in new:
         bits.append(d["locality"])
     if "bhk" in new:
         bits.append(rq.bhk_text(d["bhk"]) or "")
     if "budget" in new:
-        bits.append(_budget_text(d) or "")
-    if "timeline" in new:
-        bits.append({"now": "moving soon", "1_3_months": "moving in 1-3 months", "3_6_months": "moving in 3-6 months", "exploring": "just exploring"}.get(d["timeline"], ""))
+        bits.append(_budget_text(d, lang) or "")
+    if "timeline" in new and d["timeline"] in phrases.ACK:
+        bits.append(ack_word(d["timeline"], lang))
     bits = [b for b in bits if b]
-    return (say("got_it", _lang(d)) + ", ".join(bits) + ".") if bits else ""
+    return (say("got_it", lang) + ", ".join(bits) + ".") if bits else ""
 
 
 def _lang(d: dict) -> str:
@@ -358,12 +372,14 @@ def _use_name(d: dict) -> str:
 
 def _can_ask_phone(d: dict) -> bool:
     return (not d["phone"] and not d["pending_phone"] and not d["lead_done"] and "phone" not in d["declined"]
-            and d.get("phone_asks", 0) < MAX_PHONE_ASKS and d.get("turn_no", 0) >= d.get("phone_snooze_until", 0))
+            and d.get("phone_asks", 0) < MAX_PHONE_ASKS and d.get("turn_no", 0) >= d.get("phone_snooze_until", 0)
+            and (not d.get("phone_asks") or d.get("turn_no", 0) >= d.get("phone_asked_turn", 0) + PHONE_GAP_TURNS))
 
 
 def _phone_ask(d: dict) -> tuple:
     lang = _lang(d)
     d["phone_asks"] = d.get("phone_asks", 0) + 1
+    d["phone_asked_turn"] = d.get("turn_no", 0)
     d["asked"] = "phone"
     if not d["consent_shown"]:
         d["consent_shown"] = True
@@ -537,7 +553,7 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
         parts.append(ack)
     if d["name"] and not had_name:
         parts.insert(0, say("thanks_name", lang, name=_use_name(d) or _first_name(d)))
-    if NO.match(text) and asked_before == "phone" and not parts:
+    if NO.match(text) and asked_before in ("phone", None) and not parts:
         parts.append(say("not_now_ok", lang))
     notify = bool(d["needs_human"]) and not was_needed and not d.get("needs_you_sent")
     if notify:

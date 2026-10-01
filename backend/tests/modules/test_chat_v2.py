@@ -345,11 +345,12 @@ async def test_a_hinglish_buyer_gets_hinglish_fixed_phrases_and_no_english_templ
 
 async def test_hindi_and_marathi_buyers_get_their_language():
     d = engine.new_data(localise=True)
-    t = (await chat(d, ["नमस्ते", "मुझे 2 BHK चाहिए"]))[-1][1]
-    assert phrases.say("ask_tx", "hi") in t.reply and "Are you" not in t.reply
+    tr = await chat(d, ["नमस्ते", "मुझे 2 BHK चाहिए"])
+    assert phrases.say("ask_tx", "hi") in tr[0][1].reply and phrases.say("greet", "hi") in tr[0][1].reply
+    assert phrases.say("ask_locality", "hi") in tr[1][1].reply and "Which" not in tr[1][1].reply
     d2 = engine.new_data(localise=True)
     t = (await chat(d2, ["hi", "mala Wagholi madhye ghar pahije aahe"]))[-1][1]
-    assert d2["lang"] == "mr_latn" and phrases.say("ask_tx", "mr_latn") in t.reply
+    assert d2["lang"] == "mr_latn" and t.reply.startswith("Theek aahe: Wagholi.") and phrases.say("ask_bhk", "mr_latn") in t.reply
 
 
 async def test_short_english_answers_keep_the_buyers_language_and_whatsapp_state_stays_english():

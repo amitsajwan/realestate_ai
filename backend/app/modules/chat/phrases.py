@@ -152,6 +152,27 @@ P: Dict[str, Dict[str, str]] = {
     "got_it": {"en": "Got it: ", "hinglish": "Theek hai: ", "hi": "ठीक है: ", "mr": "ठीक आहे: ", "mr_latn": "Theek aahe: "},
 }
 
+# the words inside 'Got it: buy, Kharadi, 2 BHK, under 80L.' (so an acknowledgement is one language, not English in a Hinglish frame)
+ACK = {
+    "buy": {"en": "buy", "hinglish": "kharidna", "hi": "खरीदना", "mr": "विकत घेणे", "mr_latn": "vikat ghene"},
+    "rent": {"en": "rent", "hinglish": "rent par", "hi": "किराए पर", "mr": "भाड्याने", "mr_latn": "bhadyane"},
+    "under": {"en": "under {x}", "hinglish": "{x} tak", "hi": "{x} तक", "mr": "{x} पर्यंत", "mr_latn": "{x} paryant"},
+    "above": {"en": "above {x}", "hinglish": "{x} se upar", "hi": "{x} से ऊपर", "mr": "{x} पेक्षा जास्त", "mr_latn": "{x} peksha jast"},
+    "now": {"en": "moving soon", "hinglish": "jaldi shift", "hi": "जल्दी शिफ्ट", "mr": "लवकर शिफ्ट", "mr_latn": "lavkar shift"},
+    "1_3_months": {"en": "moving in 1-3 months", "hinglish": "1-3 mahine mein shift", "hi": "1-3 महीने में शिफ्ट", "mr": "1-3 महिन्यांत शिफ्ट",
+                   "mr_latn": "1-3 mahinyat shift"},
+    "3_6_months": {"en": "moving in 3-6 months", "hinglish": "3-6 mahine mein shift", "hi": "3-6 महीने में शिफ्ट", "mr": "3-6 महिन्यांत शिफ्ट",
+                   "mr_latn": "3-6 mahinyat shift"},
+    "exploring": {"en": "just exploring", "hinglish": "abhi sirf dekh rahe hain", "hi": "अभी सिर्फ़ देख रहे हैं", "mr": "सध्या फक्त पाहत आहात",
+                  "mr_latn": "sadhya fakt pahat aahat"},
+}
+
+
+def ack_word(key: str, lang: str = "en", **kw) -> str:
+    table = ACK[key]
+    return table.get(lang, table["en"]).format(**kw)
+
+
 # quick replies the engine understands in every language (the parser reads the English and these)
 QUICK = {
     "not_now": {"en": "Not now", "hinglish": "Abhi nahi", "hi": "अभी नहीं", "mr": "आता नको", "mr_latn": "Aata nako"},
