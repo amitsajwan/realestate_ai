@@ -288,7 +288,9 @@ def reel_scenes(spec: ReelSpec, entry: Optional[Entry] = None):
         if entry is None:
             raise ValueError("a tip reel needs a library entry")
         pts = _points(entry)[:3]
-        return t.tip_reel([entry.title.strip('"')] + pts + ["Save this for when you need it."], seed=spec.key)
+        from app.modules.creative.layouts.base import PHOTO_DIR
+        photos = [PHOTO_DIR / f"{k}.jpg" for k in DARK_PHOTOS + ("living-room",) if (PHOTO_DIR / f"{k}.jpg").is_file()]
+        return t.tip_reel([entry.title.strip('"')] + pts + ["Save this for when you need it."], images=photos or None, seed=spec.key)
     if spec.template == "tour":
         h = get_home(spec.ref)
         photos = [p.path for p in h.photos]
