@@ -25,7 +25,7 @@ CLEAN = (
     "Our view: This may matter if you are looking at Kharadi, but the line is approved and is not open to passengers yet.\n\n"
     "What to check: Check the latest status in the official notice.\n\n"
     f"Source: Metro Times, as of 12 Sep 2026. {URL}\n\n"
-    "Does a planned metro change how you pick a home? Tell us in the comments.\n\n#Pune #PunePropertyHub #Kharadi"
+    "Does a planned metro change how you pick a home? Tell us in the comments.\n\n#Pune #Avasetu #Kharadi"
 )
 
 

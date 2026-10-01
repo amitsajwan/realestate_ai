@@ -48,7 +48,7 @@ async def test_post_shape_and_passes_check():
     d = await draft(ITEM, FACTS, REL, "post", FakeLlm(GOOD))
     assert d.format == "post" and d.link == URL and d.source_names == ["Pune Mirror"]
     lines = d.text.split("\n\n")
-    assert lines[-1] == "#Pune #PunePropertyHub #Wagholi"
+    assert lines[-1] == "#Pune #Avasetu #Wagholi"
     assert lines[-2].endswith("?")
     assert "Our view:" in d.text and "Source: Pune Mirror, as of 12 Sep 2026" in d.text and URL in d.text
     assert len(d.text) <= policy.POST_MAX_CHARS

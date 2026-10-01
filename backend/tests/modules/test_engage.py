@@ -115,7 +115,7 @@ def comment(cid, text, who="u1", name="Priya Sharma", parent=None, when=NOW - ti
     return c
 
 
-def post(comments, pid="PAGE_P1", message="Welcome to PUNE Property"):
+def post(comments, pid="PAGE_P1", message="Welcome to Avasetu"):
     return {"id": pid, "message": message, "comments": {"data": comments}}
 
 

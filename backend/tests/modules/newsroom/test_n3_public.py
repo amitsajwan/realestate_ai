@@ -47,7 +47,7 @@ async def test_item_shape_headline_summary_source_and_date():
     assert r["image_url"] == "https://media.test/uploads/news/a1b2c3d4e5-fb.jpg"
     assert r["permalinks"] == [{"channel": "facebook", "url": "https://www.facebook.com/1"}]  # the failed channel has none
     # the summary is the draft text without the link line, the question, the hashtags and the footer
-    assert "http" not in r["summary"] and "#" not in r["summary"] and "?" not in r["summary"] and "PUNE Property" not in r["summary"]
+    assert "http" not in r["summary"] and "#" not in r["summary"] and "?" not in r["summary"] and "Avasetu" not in r["summary"]
     assert r["summary"].startswith("The eastern stretch of the Pune Ring Road")
 
 

@@ -190,9 +190,9 @@ async def test_sample_listing_gets_no_attribution():
 
 def test_attribution_line_with_and_without_business_name():
     base = {"agent_name": "Rahul Sharma", "branding_data": {}}
-    assert attribution.attribution_line(base) == "Listed by Rahul Sharma"
+    assert attribution.attribution_line(base) == "Listed by Rahul Sharma on Avasetu"
     biz = {**base, "branding_data": {"business_name": "Baner Homes", "rera_agent_no": "A52100012345"}}
-    assert attribution.attribution_line(biz) == "Listed by Baner Homes | RERA agent reg: A52100012345"
+    assert attribution.attribution_line(biz) == "Listed by Baner Homes on Avasetu | RERA agent reg: A52100012345"
     assert attribution.attribution_line({"agent_name": "", "branding_data": {}}) == ""
 
 

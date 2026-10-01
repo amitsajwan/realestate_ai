@@ -32,7 +32,7 @@ def test_status_endpoint_has_no_secrets():
     c, _ = client(make_db(), SocialService(make_db(), config_loader=lambda: cfg))
     r = c.get("/social/status")
     assert r.status_code == 200
-    assert r.json() == {"dry_run": True, "channels": {"facebook_page": True, "instagram": False}, "brand": "PUNE Property", "media_url_ok": True}
+    assert r.json() == {"dry_run": True, "channels": {"facebook_page": True, "instagram": False}, "brand": "Avasetu", "media_url_ok": True}
     assert TOKEN not in r.text
 
 

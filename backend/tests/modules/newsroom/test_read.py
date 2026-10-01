@@ -96,7 +96,7 @@ async def test_robots_disallow_blocks_the_page_fetch():
 
 
 async def test_robots_rule_naming_our_agent_applies_and_path_rules_are_honoured():
-    robots = "User-agent: PunePropertyNewsroom\nDisallow: /private/\n\nUser-agent: *\nDisallow:\n"
+    robots = "User-agent: AvasetuNewsroom\nDisallow: /private/\n\nUser-agent: *\nDisallow:\n"
     get = fetcher({URL: page("clean_article"), "https://news.test/private/a": page("clean_article")}, robots=robots)
     assert await read(short(), get) is not None and "girder" in (await read(short(), get)).text
     blocked = short(url="https://news.test/private/a")

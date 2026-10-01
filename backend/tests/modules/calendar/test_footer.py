@@ -2,8 +2,8 @@ from app.modules.calendar.footer import FACEBOOK_FOOTER, INSTAGRAM_FOOTER, with_
 
 
 def test_footers_are_the_agreed_text():
-    assert FACEBOOK_FOOTER == "PUNE Property · https://34-180-39-243.sslip.io"
-    assert INSTAGRAM_FOOTER == "PUNE Property · link in our bio"
+    assert FACEBOOK_FOOTER == "Avasetu · https://34-180-39-243.sslip.io"
+    assert INSTAGRAM_FOOTER == "Avasetu · link in our bio"
 
 
 def test_appended_once_per_channel():
@@ -16,7 +16,7 @@ def test_appended_once_per_channel():
 def test_idempotent():
     for ch in ("facebook_page", "instagram"):
         once = with_footer("Body text #pune", ch)
-        assert with_footer(once, ch) == once and once.count("PUNE Property ·") == 1
+        assert with_footer(once, ch) == once and once.count("Avasetu ·") == 1
 
 
 def test_length_limits_keep_the_footer():
@@ -38,3 +38,9 @@ def test_at_most_ten_hashtags_and_tail_block_survives():
 
 def test_empty_caption():
     assert with_footer("", "facebook_page") == FACEBOOK_FOOTER
+
+
+def test_pre_rebrand_footer_is_replaced_not_doubled():
+    old = "Body text\n\nPUNE Property · https://34-180-39-243.sslip.io"
+    out = with_footer(old, "facebook_page")
+    assert "PUNE Property" not in out and out.count("Avasetu ·") == 1 and out.endswith(FACEBOOK_FOOTER)

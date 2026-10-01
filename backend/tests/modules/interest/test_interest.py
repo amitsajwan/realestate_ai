@@ -54,7 +54,7 @@ async def make():
     db, clock = Db(), Clock()
     p = db.get_collection("agent_public_profiles")
     await p.insert_one({"slug": "rahul", "agent_id": "A1", "is_public": True, "agent_name": "Rahul Sharma"})
-    await p.insert_one({"slug": "owner", "agent_id": "OWNER", "is_public": True, "agent_name": "PUNE Property"})
+    await p.insert_one({"slug": "owner", "agent_id": "OWNER", "is_public": True, "agent_name": "Avasetu"})
     await db.get_collection("listings").insert_one({"_id": "L1", "agent_id": "A1", "title": "2BHK in Baner", "locality": "Baner"})
     svc = InterestService(db, now=clock, samples=samples, owner_agent_id=owner)
     return svc, db, clock
@@ -99,7 +99,7 @@ async def test_view_shows_subject_agent_and_sample_flag():
     assert v["title"] == "2BHK in Baner" and v["agent_name"] == "Rahul Sharma" and v["sample"] is False
     s = await svc.create_link("listing", "kharadi-2bhk-ready", "A1", "instagram")
     v = await svc.view(s["code"])
-    assert v["sample"] is True and v["title"].startswith("Sample listing") and v["agent_name"] == "PUNE Property"
+    assert v["sample"] is True and v["title"].startswith("Sample listing") and v["agent_name"] == "Avasetu"
     with pytest.raises(InterestError) as e:
         await svc.view("zzzzzzz")
     assert e.value.status_code == 404

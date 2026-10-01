@@ -55,7 +55,7 @@ def test_golden_full_listing():
     cap = c["instagram"]["caption"]
     assert cap.startswith("\U0001F3E1 2 BHK apartment for sale in Baner, Pune\n₹85 Lakh · 1,100 sq ft · Ready to move\nRERA: P52100012345")
     assert "Amenities: Gym, Swimming pool, Clubhouse" in cap
-    assert cap.splitlines()[-1] == "\U0001F4AC Interested? Comment INTERESTED and PUNE Property team will share the details and plan a site visit."
+    assert cap.splitlines()[-1] == "\U0001F4AC Interested? Comment INTERESTED and Avasetu team will share the details and plan a site visit."
     assert c["instagram"]["hashtags"][:4] == ["#Baner", "#Pune", "#2BHK", "#Apartment"]
 
 
@@ -216,7 +216,7 @@ def test_facebook_post_reads_well_and_stays_within_limits():
 @pytest.mark.asyncio
 @pytest.mark.parametrize("bad", [
     lambda d: d.replace("Comment INTERESTED", "Contact us"),                 # lost the call to action
-    lambda d: d.replace("PUNE Property team", "Rahul"),                        # lost the team signature
+    lambda d: d.replace("Avasetu team", "Rahul"),                        # lost the team signature
     lambda d: d + "\nCall 9876543210 now",                                     # invented a phone number
     lambda d: d.replace("Interested?", "Your dream home!"),                    # hype
 ])

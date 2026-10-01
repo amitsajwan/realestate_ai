@@ -18,7 +18,7 @@ def test_agent_business_and_rera_line_on_cards_without_phone(kind):
 
 
 def test_cards_without_agent_branding_keep_the_team_line():
-    assert "Listed by PUNE Property" in " ".join(render("cover", facts(), None).texts)
+    assert "Listed by Avasetu team" in " ".join(render("cover", facts(), None).texts)
 
 
 def test_facts_reads_business_name_and_rera_from_branding_data():

@@ -51,7 +51,7 @@ async def test_status_has_no_secrets(monkeypatch):
     monkeypatch.setenv("PUBLIC_MEDIA_BASE_URL", "http://insecure.test")
     monkeypatch.delenv("SOCIAL_DRY_RUN", raising=False)
     st = SocialService(make_db()).status()
-    assert st == {"dry_run": True, "channels": {"facebook_page": True, "instagram": False}, "brand": "PUNE Property", "media_url_ok": False}
+    assert st == {"dry_run": True, "channels": {"facebook_page": True, "instagram": False}, "brand": "Avasetu", "media_url_ok": False}
     assert TOKEN not in str(st)
 
 

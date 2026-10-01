@@ -20,7 +20,7 @@ from .helpers import NOW
 def test_facebook_caption_has_our_link_never_the_source_link_and_the_footer():
     for d in SAMPLES:
         fb = captions.build(d)["facebook"]
-        assert f"Read more: https://site.test/news/{d['_id']}" in fb and "news.google.com" not in fb and fb.endswith("PUNE Property · https://site.test")
+        assert f"Read more: https://site.test/news/{d['_id']}" in fb and "news.google.com" not in fb and fb.endswith("Avasetu · https://site.test")
         assert f"as of {pr.as_of_label(d)}" in fb and "Source: " in fb and len(fb) < 900 and "?" in fb
 
 
@@ -28,7 +28,7 @@ def test_instagram_caption_has_no_url_a_bio_line_max_eight_hashtags_and_the_foot
     for d in SAMPLES:
         ig = captions.build(d)["instagram"]
         assert "http" not in ig and "www." not in ig and ".sslip.io" not in ig
-        assert "link in our bio" in ig and ig.endswith("PUNE Property · link in our bio") and len(ig) < 900
+        assert "link in our bio" in ig and ig.endswith("Avasetu · link in our bio") and len(ig) < 900
         assert len([w for w in ig.split() if w.startswith("#")]) <= 8
 
 

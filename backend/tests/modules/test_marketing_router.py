@@ -130,4 +130,4 @@ def test_agent_without_public_profile_still_works(env):
     db.get_collection("agent_public_profiles").docs.clear()
     p = c.post("/listings/L1/marketing").json()
     assert p["share_url"] == "https://site.test/listings/L1?src=whatsapp"
-    assert "PUNE Property team will share the details" in p["instagram"]["caption"]
+    assert "Avasetu team will share the details" in p["instagram"]["caption"]
