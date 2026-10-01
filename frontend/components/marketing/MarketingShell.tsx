@@ -16,7 +16,7 @@ export default function MarketingShell({ children, showInviteCta = true }: { chi
     <div data-surface="v2" lang="en" className={poppins.className + ' min-h-screen bg-white text-slate-900'}>
       <SiteHeader businessName={cfg.businessName} showInviteCta={showInviteCta} />
       {children}
-      <ChatWidget agentSlug={process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'amit-sajwan'} />
+      <div data-print="hide"><ChatWidget agentSlug={process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'amit-sajwan'} /></div>
       <SiteFooter cfg={cfg} />
     </div>
   )

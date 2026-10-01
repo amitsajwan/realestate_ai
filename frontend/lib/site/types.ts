@@ -71,6 +71,8 @@ export interface AgentBranding {
   areas?: string[]
   languages?: string[]
   years_experience?: number | null
+  /** Owner-only: the fictional demo agent page (shows a DEMO ribbon). Agents cannot set it. */
+  demo?: boolean
 }
 
 export interface AgentProfile {

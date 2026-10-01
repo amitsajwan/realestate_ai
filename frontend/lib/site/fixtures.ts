@@ -218,6 +218,17 @@ export const FIXTURE_BRAND_AGENTS: Record<string, AgentProfile> = {
   }),
 }
 
+// The fictional demo agent (backend/scripts/create_demo_agent.py makes the real one): no phone, no RERA number, owner-only demo flag.
+FIXTURE_BRAND_AGENTS.demo = brandAgent({
+  agent_name: 'Avasetu Demo Homes', slug: 'demo', phone: null, photo: null, bio: 'A fictional agent that shows what an Avasetu page looks like.',
+  branding_data: {
+    business_name: 'Avasetu Demo Homes', tagline: 'Kharadi and Wagholi homes, explained clearly',
+    about: 'This is a fictional agent created to show what an agent page on Avasetu looks like. The homes here are labelled samples and are not for sale.',
+    preset: 'emerald', logo: '/uploads/images/demo-logo.png', banner: '/uploads/images/demo-banner.jpg',
+    areas: ['Kharadi', 'Upper Kharadi', 'Wagholi'], languages: ['English', 'Hindi', 'Marathi'], demo: true,
+  },
+})
+
 export function fixtureAgent(slug: string): AgentProfile | null {
   if (FIXTURE_BRAND_AGENTS[slug]) return FIXTURE_BRAND_AGENTS[slug]
   return FIXTURE_SLUGS.indexOf(slug) >= 0 ? { ...FIXTURE_AGENT, slug } : null
@@ -226,8 +237,10 @@ export function fixtureAgent(slug: string): AgentProfile | null {
 export function fixtureListings(slug: string): ListingsPage | null {
   if (FIXTURE_SLUGS.indexOf(slug) < 0) return null
   const a = FIXTURE_BRAND_AGENTS[slug] || FIXTURE_AGENT
+  const demo = a.branding_data?.demo === true
   const items = FIXTURE_LISTINGS.map((l) => ({
     ...l,
+    ...(demo ? { title: 'Sample: ' + l.title, rera_no: null } : {}),
     agent: { slug, agent_name: a.agent_name, phone: a.phone, photo: a.photo },
   }))
   return { items, total: items.length }

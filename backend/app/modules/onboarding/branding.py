@@ -26,6 +26,11 @@ _MARKUP = re.compile(r"[<>{}\\`]")
 _AREA = re.compile(r"^[A-Za-z][A-Za-z ,.'\-/]{1,38}$")
 _LANG = re.compile(r"^[A-Za-z][A-Za-z ]{1,19}$")
 
+# Keys in branding_data that only the owner sets (from backend scripts, never from agent input). `demo: true` marks the
+# fictional demo agent (scripts/create_demo_agent.py); the public site then shows a DEMO ribbon. SiteCreate/SiteUpdate have
+# no such field, so agent requests cannot set it, and update_site keeps it when the agent edits the rest of his brand.
+OWNER_ONLY_KEYS = ("demo",)
+
 LIMITS = {"business_name": 60, "tagline": 90, "about": 600}
 MAX_AREAS = 6
 MAX_LANGUAGES = 6

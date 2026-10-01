@@ -18,7 +18,8 @@ describe('landing page', () => {
 
   it('links to sign in and the legal pages', () => {
     render(<LandingPage />)
-    expect(screen.getAllByRole('link', { name: /sign in/i })[0]).toHaveAttribute('href', '/join')
+    expect(screen.getAllByRole('link', { name: /sign in/i })[0]).toHaveAttribute('href', '/studio') // header: studio sends a signed-out agent to /join
+    expect(screen.getByRole('link', { name: /already invited\? sign in/i })).toHaveAttribute('href', '/join')
     const footer = screen.getByRole('contentinfo')
     expect(within(footer).getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy')
     expect(within(footer).getByRole('link', { name: 'Terms' })).toHaveAttribute('href', '/terms')

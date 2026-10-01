@@ -21,6 +21,7 @@
 }
 ```
 
+- Owner-only key `demo` (bool, `bd.OWNER_ONLY_KEYS`): `true` only on the fictional demo agent made by `backend/scripts/create_demo_agent.py`. The public profile passes it through and the agent page shows a DEMO ribbon and note. Agents cannot set it (not a `SiteCreate`/`SiteUpdate` field, so it is ignored) and their PATCH keeps it.
 - `colors` (and `site_config.theme`) are derived from `preset` / `custom_primary` for legacy consumers; the frontend ignores them.
 - Public response: `GET /api/v1/agent/public/{slug}` already passes `branding_data` through, so all fields are public. No phone numbers are ever stored in it.
 - `tagline` also sets `site_config.hero.subheadline`; `about` also sets the profile `bio`; `business_name` sets `site_config.hero.headline`.

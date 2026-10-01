@@ -17,7 +17,7 @@ const sharedChecks = (title: RegExp) => {
   expect(screen.getByRole('heading', { level: 1, name: title })).toBeInTheDocument()
   expect(screen.getByText(LEGAL_LAST_UPDATED)).toBeInTheDocument()
   const footer = screen.getByRole('contentinfo')
-  for (const [name, href] of [['Privacy', '/privacy'], ['Terms', '/terms'], ['Data deletion', '/data-deletion'], ['Request an invite', '/request-invite'], ['Sign in', '/join']]) {
+  for (const [name, href] of [['Privacy', '/privacy'], ['Terms', '/terms'], ['Data deletion', '/data-deletion'], ['Request an invite', '/request-invite'], ['Sign in', '/studio']]) {
     expect(within(footer).getByRole('link', { name })).toHaveAttribute('href', href)
   }
   expect(screen.getByText(/not legal advice/i)).toBeInTheDocument()

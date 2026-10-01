@@ -15,6 +15,7 @@ import AboutAgent from '@/components/site/AboutAgent'
 import Link from 'next/link'
 import { INSIGHTS } from '@/lib/marketing/insights'
 import { BRAND_NAME } from '@/lib/brand'
+import DemoRibbon from './DemoRibbon'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -40,6 +41,7 @@ export default async function AgentHomePage({ params }: Props) {
     <SiteShell agent={agent}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(agentJsonLd(agent, city)) }} />
       <TrackingBeacon agentSlug={slug} />
+      <DemoRibbon agent={agent} />
       <Hero agent={agent} city={city} />
 
       <div className="mx-auto max-w-5xl space-y-12 px-4 py-10">
