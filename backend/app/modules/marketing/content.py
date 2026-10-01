@@ -23,7 +23,7 @@ P = {
         "v_hook": "Cover photo with the headline text", "v_prop": "Photo of the main room, text overlay",
         "v_loc": "Photo or map pin of the locality", "v_price": "Price on a plain card", "v_cta": "Agent name card",
         "am": "Amenities: {items}", "link": "🔗 Details and photos: {url}",
-        "avail": "✅ Available as of {d}",
+        "avail": "✅ Available as of {d}", "bio": "🔗 Full details and photos: link in bio",
     },
     "hi": {
         "cta": "💬 रुचि है? कमेंट में INTERESTED लिखें, {agent} विवरण भेजेंगे और साइट विज़िट तय करेंगे।",
@@ -34,7 +34,7 @@ P = {
         "v_hook": "कवर फोटो और हेडलाइन टेक्स्ट", "v_prop": "मुख्य कमरे की फोटो, ऊपर टेक्स्ट",
         "v_loc": "इलाके की फोटो या मैप पिन", "v_price": "सादे कार्ड पर कीमत", "v_cta": "एजेंट के नाम का कार्ड",
         "am": "सुविधाएं: {items}", "link": "🔗 विवरण और फोटो: {url}",
-        "avail": "✅ {d} तक उपलब्ध",
+        "avail": "✅ {d} तक उपलब्ध", "bio": "🔗 पूरा विवरण और फोटो: बायो में लिंक",
     },
     "mr": {
         "cta": "💬 आवड आहे? कमेंटमध्ये INTERESTED लिहा, {agent} तपशील पाठवतील आणि साइट व्हिजिट ठरवतील.",
@@ -45,7 +45,7 @@ P = {
         "v_hook": "कव्हर फोटो आणि हेडलाइन मजकूर", "v_prop": "मुख्य खोलीचा फोटो, वर मजकूर",
         "v_loc": "परिसराचा फोटो किंवा मॅप पिन", "v_price": "साध्या कार्डवर किंमत", "v_cta": "एजंटच्या नावाचे कार्ड",
         "am": "सुविधा: {items}", "link": "🔗 तपशील आणि फोटो: {url}",
-        "avail": "✅ {d} रोजी उपलब्ध",
+        "avail": "✅ {d} रोजी उपलब्ध", "bio": "🔗 संपूर्ण तपशील आणि फोटो: बायोमध्ये लिंक",
     },
 }
 
@@ -124,6 +124,8 @@ def instagram_caption(f: Facts, lang: str) -> str:
         must.append(f"RERA: {f.rera}")
     optional = [_amen(f, lang, 4), f.project]
     cta = _cta(f, lang)
+    if f.share_url:  # Instagram captions are not clickable: point to the link in bio (the agent's site)
+        cta = P[lang]["bio"] + "\n" + cta
     lines = [x for x in must if x]
     for extra in optional:
         if extra and len("\n".join(lines + [extra]) + "\n\n" + cta) <= CAPTION_MAX:
@@ -155,6 +157,8 @@ def facebook_post(f: Facts, lang: str) -> str:
     if f.amenities:
         paras.append(_amen(f, lang, 10))
     cta = _cta(f, lang)
+    if f.share_url:  # Facebook links are clickable; src=facebook shows up as the channel in leads
+        cta = P[lang]["link"].format(url=f.share_url.replace("src=whatsapp", "src=facebook")) + "\n\n" + cta
     paras.append(cta)
     return clip("\n\n".join(paras[:-1]), FB_MAX - len(cta) - 2) + "\n\n" + cta
 

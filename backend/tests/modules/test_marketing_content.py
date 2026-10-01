@@ -304,3 +304,22 @@ def test_group_post_is_short_dated_tracked_and_has_no_contact_details(lang):
 def test_group_post_without_a_date_omits_the_line_and_samples_are_labelled():
     assert "Available as of" not in build_content(facts(), "en")["group"]["post"]
     assert build_content(facts(title="Sample: 2 BHK"), "en")["group"]["post"].startswith("SAMPLE LISTING")
+
+
+# ---- links back to the agent's site -----------------------------------------------------------------------------
+@pytest.mark.parametrize("lang", ["en", "hi", "mr"])
+def test_facebook_post_links_to_the_listing_tagged_as_facebook(lang):
+    f = facts()
+    f.share_url = "https://x.test/agent/rahul/listings/L1?src=whatsapp"
+    c = build_content(f, lang)
+    assert "https://x.test/agent/rahul/listings/L1?src=facebook" in c["facebook"]["post"]
+    assert "src=whatsapp" not in c["facebook"]["post"] and len(c["facebook"]["post"]) <= FB_MAX
+    assert "http" not in c["instagram"]["caption"]  # Instagram captions are not clickable
+    assert "link in bio" in build_content(f, "en")["instagram"]["caption"] and len(c["instagram"]["caption"]) <= CAPTION_MAX
+
+
+def test_no_link_lines_without_a_share_url():
+    f = facts()
+    f.share_url = ""
+    c = build_content(f, "en")
+    assert "http" not in c["facebook"]["post"] and "link in bio" not in c["instagram"]["caption"]

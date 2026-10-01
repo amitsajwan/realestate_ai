@@ -20,8 +20,7 @@ LIMITS = {"headline": HEADLINE_MAX, "caption": CAPTION_MAX, "post": FB_MAX, "mes
 def required_facts(draft: str, f: Facts) -> List[str]:
     """Protected facts (plus the share link) that appear in the draft, so they must appear in the re-write."""
     need = [x for x in f.protected() if x in draft]
-    if f.share_url and f.share_url in draft:
-        need.append(f.share_url)
+    need += re.findall(r"https?://\S+", draft)  # every link (share link, channel-tagged copies) must survive
     need += [k for k in ("INTERESTED", f.agent_name) if k and k in draft]  # the call to action and the team signature stay
     return need
 
