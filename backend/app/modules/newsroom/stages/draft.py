@@ -80,6 +80,24 @@ def _question(rel: Relevance) -> str:
     return f"Does this change how you look at homes in {where}? Tell us in the comments."
 
 
+def _safe_title(title, item: RawItem, facts: Facts) -> Optional[str]:
+    """A headline for the website and the cards: the model's own title when it is short, is not the source headline and adds no
+    capitalised word that the source or the facts lack; else None (the card then uses the first fact, already in our wording)."""
+    t = _clean(title).rstrip(".")
+    ws = t.split()
+    if not t or len(ws) < 3 or len(ws) > 14:
+        return None
+    flat = lambda x: re.sub(r"\W+", " ", x or "").lower()  # noqa: E731
+    src = " ".join(flat(x) for x in [item.title, item.text] + [f.text for f in facts.facts])
+    if flat(t) == flat(item.title):
+        return None
+    for w in ws[1:]:
+        core = re.sub(r"[^\w₹]", "", w)
+        if core[:1].isupper() and not core.isupper() and core.lower() not in src:
+            return None
+    return t
+
+
 def _assemble(item: RawItem, facts: Facts, rel: Relevance, fmt: str, parts: dict) -> Draft:
     name, as_of = _source_name(item), _as_of(facts, item)
     src = f"Source: {name}" + (f", as of {as_of}" if as_of else "")
@@ -101,7 +119,7 @@ def _assemble(item: RawItem, facts: Facts, rel: Relevance, fmt: str, parts: dict
     text = post(True)
     if len(text) > policy.POST_MAX_CHARS:
         text = post(False)  # shortest honest version: the check line goes first
-    return Draft("post", text, None, item.url, [name])
+    return Draft("post", text, _safe_title(parts.get("title"), item, facts), item.url, [name])
 
 
 def template_draft(item: RawItem, facts: Facts, rel: Relevance, fmt: str = "post") -> Optional[Draft]:

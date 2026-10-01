@@ -59,6 +59,26 @@ class Store:
     async def queue(self, limit: int = 50) -> List[dict]:
         return await self.items.find({"status": "pending_review"}).sort("updated_at", -1).limit(limit).to_list(limit)
 
+    async def insert_item(self, doc: dict) -> bool:
+        """Insert a ready-made item (the weekly digest); False when that id already exists."""
+        if await self.items.find_one({"_id": doc["_id"]}):
+            return False
+        try:
+            await self.items.insert_one(doc)
+        except Exception as e:
+            if "duplicate" not in f"{type(e).__name__} {e}".lower():
+                raise
+            return False
+        return True
+
+    async def recent_done(self, since: datetime, limit: int = 200) -> List[dict]:
+        """Items approved, scheduled or published, newest first (the digest keeps those from the last week; the window is applied by the caller)."""
+        return await self.items.find({"status": {"$in": ["approved", *DONE]}, "updated_at": {"$gte": since}}).sort("updated_at", -1).limit(limit).to_list(limit)
+
+    async def public(self, limit: int = 20) -> List[dict]:
+        """Items shown on the public news page: approved, scheduled or published, newest first."""
+        return await self.items.find({"status": {"$in": ["approved", *DONE]}}).sort("updated_at", -1).limit(limit).to_list(limit)
+
     async def counts(self) -> Dict[str, int]:
         return {s: await self.items.count_documents({"status": s}) for s in STATUSES}
 
