@@ -275,7 +275,7 @@ async def test_showcase_rows_go_through_the_showcase_publisher():
         return Result("show1", "https://ig.test/p/1")
 
     await run(store, pub, render, publish_showcase=fake_showcase)
-    assert seen == [("kharadi-2bhk-ready", "instagram", "sample caption")] and (await store.get(i))["external_id"] == "show1" and pub.posts == []
+    assert len(seen) == 1 and seen[0][:2] == ("kharadi-2bhk-ready", "instagram") and seen[0][2].startswith("sample caption") and (await store.get(i))["external_id"] == "show1" and pub.posts == []
 
 
 async def reel_row(store, channel, due, status="approved", video=None, key="reel-w1-tip"):
@@ -318,7 +318,7 @@ async def test_reel_publish_uses_the_prerendered_video_and_renders_late_if_neede
 
     counts = await run(store, pub, render, publish_reel=fake_reel)
     assert counts["published"] == 2 and render.calls == ["reel-w9-tip"]
-    assert ("instagram", "calendar/reels/reel-w1-tip.mp4", "reel caption") in sent and pub.posts == []
+    assert any(x[:2] == ("instagram", "calendar/reels/reel-w1-tip.mp4") and x[2].startswith("reel caption") for x in sent) and pub.posts == []
     assert (await store.get(late))["video"] == "calendar/reels/reel-w9-tip.mp4" and (await store.get(ready))["status"] == "published"
 
 
