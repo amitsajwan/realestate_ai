@@ -5,7 +5,7 @@ const { chromium } = require('playwright-core')
 const OUT = process.argv[2]
 const APP = process.argv[3] || 'https://34-180-39-243.sslip.io'
 fs.mkdirSync(OUT, { recursive: true })
-const PAGES = { landing: '/', invite: '/request-invite', localities: '/localities', locality: '/localities/baner', insights: '/insights', agent: '/agent/amit-sajwan', join: '/join', studio: '/studio' }
+const PAGES = { landing: '/', invite: '/request-invite', localities: '/localities', locality: '/localities/kharadi', insights: '/insights', agent: '/agent/amit-sajwan', join: '/join', studio: '/studio' }
 ;(async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true })
   for (const [vp, w, h, mobile] of [['m', 390, 844, true], ['d', 1280, 800, false]]) {
