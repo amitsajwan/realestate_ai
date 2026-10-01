@@ -178,7 +178,7 @@ class WhatsAppService:
         else:
             await self._lead(conv, agent_id, wa_id, pid, text or f"[{mtype}]", now)
         if not conv.get("notice_sent_at") and agent_id:
-            reply = f"{reply}\n\n{L.pick(L.NOTICE, lang, agent=await adapters.agent_name(self.db, agent_id))}"
+            reply = f"{reply}\n\n{L.pick(L.NOTICE, lang, agent=await adapters.agent_name(self.db, agent_id) or L.pick(L.TEAM, lang))}"
             conv["notice_sent_at"] = now
         return await self._finish(conv, mid, reply, "answered", now, text, mtype)
 

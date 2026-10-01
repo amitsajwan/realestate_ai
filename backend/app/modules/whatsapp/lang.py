@@ -54,6 +54,8 @@ NOTICE = {
     "mr": "सूचना: {agent} तुमच्या चौकशीबद्दल याच WhatsApp नंबरवर तुमच्याशी संपर्क साधतील. मेसेज बंद करण्यासाठी कधीही STOP लिहा.",
     "mr_latn": "Note: {agent} tumchya chaukashibaddal yach WhatsApp number var tumchyashi samparka sadhtil. Message band karnyasathi kadhihi STOP liha.",
 }
+TEAM = {"en": "The PUNE Property team", "hi": "PUNE Property की टीम", "hinglish": "PUNE Property ki team", "mr": "PUNE Property ची टीम",
+        "mr_latn": "PUNE Property chi team"}
 STOPPED = {
     "en": "Done. You will not get any more messages from us here. If you change your mind, reply START.",
     "hi": "ठीक है। अब आपको यहाँ हमारी ओर से कोई संदेश नहीं मिलेगा। फिर से बात करनी हो तो START लिखें।",

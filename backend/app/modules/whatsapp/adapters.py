@@ -133,9 +133,10 @@ async def record_interest_event(db, code: str, anon_id: str, now: datetime) -> N
         log.info("whatsapp: interest event not stored: %s", type(e).__name__)
 
 
-async def agent_name(db, agent_id: str) -> str:
+async def agent_name(db, agent_id: str):
+    """The agent's public name, or None (the caller then says 'the PUNE Property team' in the buyer's language)."""
     p = await db.get_collection("agent_public_profiles").find_one({"agent_id": agent_id}) or {}
-    return p.get("agent_name") or p.get("display_name") or "the PUNE Property team"
+    return p.get("agent_name") or p.get("display_name") or None
 
 
 # ---- leads (contacts) ---------------------------------------------------------------------------------------------
