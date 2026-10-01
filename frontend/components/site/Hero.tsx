@@ -37,7 +37,7 @@ export default function Hero({ agent, city }: { agent: AgentProfile; city: strin
   const photo = safeImage(agent.photo) || (agent.photo && /^https:\/\//.test(agent.photo) ? agent.photo : null)
   const light = !banner && t.id === 'cream-ink'
   const areas = (b?.areas || []).slice(0, 2)
-  const eyebrow = [city ? city + ' property' : 'Property', ...areas].join(' · ')
+  const eyebrow = areas.length ? [...areas, city || 'Pune'].join(' · ') : `Homes in ${city || 'Pune'}`  // area first; never reads like a brand name
   const bg: React.CSSProperties = banner ? { backgroundColor: BANNER_OVERLAY.solid } : { backgroundImage: 'linear-gradient(165deg, var(--site-hero-from), var(--site-hero-to))' }
   const fill = light ? 'var(--site-primary)' : 'var(--site-accent)'
   const fillInk = light ? '#ffffff' : 'var(--site-on-accent)'

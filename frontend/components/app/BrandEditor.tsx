@@ -80,7 +80,7 @@ export function BrandPreview({ draft, agentName, logoSrc, bannerSrc }: { draft: 
         )}
         <div className="relative">
           <span className="inline-block rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide" style={{ background: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>
-            Pune property{draft.areas[0] ? ' · ' + draft.areas[0] : ''}
+            {draft.areas[0] ? draft.areas[0] + ' · Pune' : 'Homes in Pune'}
           </span>
           <p className="mt-2 text-lg font-extrabold leading-tight">{draft.tagline.trim() || 'Homes in Pune, shared clearly'}</p>
           <span className="mt-3 inline-block px-4 py-1.5 text-xs font-bold" style={{ background: light ? 'var(--site-primary)' : 'var(--site-accent)', color: light ? '#fff' : 'var(--site-on-accent)', borderRadius: 'var(--site-radius)' }}>I&apos;m interested</span>
