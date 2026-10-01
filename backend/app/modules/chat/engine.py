@@ -103,6 +103,7 @@ class Turn:
     needs_human: bool = False
     cards: List[dict] = field(default_factory=list)
     notify_needs_you: bool = False    # the first time this chat needs a person: the caller alerts the agent
+    follow_up: str = ""               # with cards: the next question, shown after the cards (the reply is what comes before them)
 
 
 Finder = Callable[[dict, Optional[str]], Awaitable[List[dict]]]
@@ -591,16 +592,17 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
     nf = None if want_phone else next_field(d)
     if nf == "phone" and not _can_ask_phone(d):
         nf = None
+    ask = ""
     if want_phone or nf == "phone":
-        prompt, quick = _phone_ask(d)
-        parts.append(prompt)
+        ask, quick = _phone_ask(d)
     elif nf:
-        prompt, quick = _prompt(d, nf)
-        parts.append(prompt)
+        ask, quick = _prompt(d, nf)
     else:
         d["asked"] = None
         if not shown:
             parts.append(say("anything_else", lang))
     if whatsapp and (shown or needs_human) and WHATSAPP not in quick:
         quick = quick + [WHATSAPP]
-    return Turn(" ".join(p for p in parts if p), quick, None, needs_human, cards, notify)
+    if cards and ask:  # the cards sit between what we found and what we ask next
+        return Turn(" ".join(p for p in parts if p), quick, None, needs_human, cards, notify, ask)
+    return Turn(" ".join(p for p in parts + [ask] if p), quick, None, needs_human, cards, notify)

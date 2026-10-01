@@ -28,16 +28,16 @@ export function ChatHomeCard({ card }: { card: ChatCard }) {
   return (
     <li>
       <a href={card.url} data-testid="chat-home-card"
-        className="flex min-h-[72px] items-stretch gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white no-underline shadow-sm hover:border-[#102340] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f0b440]">
-        <span className="relative block w-[76px] shrink-0 bg-[#102340]" aria-hidden="true">
+        className="flex min-h-[64px] items-stretch gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white no-underline shadow-sm hover:border-[#102340] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f0b440]">
+        <span className="relative block w-[64px] shrink-0 bg-[#102340]" aria-hidden="true">
           {card.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={card.image_url} alt="" width={76} height={76} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+            <img src={card.image_url} alt="" width={64} height={64} loading="lazy" decoding="async" className="h-full w-full object-cover" />
           ) : (
             <span className="flex h-full w-full items-center justify-center text-2xl text-[#f0b440]">⌂</span>
           )}
         </span>
-        <span className="flex min-w-0 flex-1 flex-col justify-center py-2 pr-3">
+        <span className="flex min-w-0 flex-1 flex-col justify-center py-1.5 pr-3">
           <span className="truncate text-[14px] font-semibold leading-tight text-slate-900">{card.title}</span>
           {facts && <span className="mt-0.5 truncate text-[13px] text-slate-600">{facts}</span>}
           <span className="mt-1">
@@ -66,7 +66,10 @@ export default function ChatWidget({ agentSlug }: { agentSlug: string }) {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const end = useRef<HTMLDivElement>(null)
+  const anchor = useRef<HTMLDivElement>(null)
   const started = useRef(false)
+  // the newest reply with homes (it and its follow-up question are the last two messages): read from its first line, not from the bottom
+  const anchorAt = msgs.findIndex((m, i) => i >= msgs.length - 2 && m.role === 'bot' && !!m.cards?.length)
 
   useEffect(() => {
     try {
@@ -75,9 +78,10 @@ export default function ChatWidget({ agentSlug }: { agentSlug: string }) {
     } catch { /* ignore */ }
   }, [])
   useEffect(() => {
-    end.current?.scrollIntoView?.({ block: 'end' })
+    if (anchorAt >= 0) anchor.current?.scrollIntoView?.({ block: 'start' })
+    else end.current?.scrollIntoView?.({ block: 'end' })
     try { if (msgs.length) window.localStorage.setItem(LOG_KEY, JSON.stringify(msgs.slice(-30))) } catch { /* ignore */ }
-  }, [msgs, open])
+  }, [msgs, open, anchorAt])
 
   async function send(message: string) {
     const m = message.trim()
@@ -94,7 +98,9 @@ export default function ChatWidget({ agentSlug }: { agentSlug: string }) {
       })
       if (!res.ok) throw new Error(String(res.status))
       const data = parseChatReply(await res.json())
-      setMsgs((x) => [...x, { role: 'bot', text: data.reply, ...(data.cards.length ? { cards: data.cards } : {}) }])
+      const bot: Msg[] = [{ role: 'bot', text: data.reply, ...(data.cards.length ? { cards: data.cards } : {}) }]
+      if (data.follow_up) bot.push({ role: 'bot', text: data.follow_up })
+      setMsgs((x) => [...x, ...bot])
       setQuick(data.quick_replies)
       setWaUrl(data.whatsapp_url)
     } catch {
@@ -113,7 +119,7 @@ export default function ChatWidget({ agentSlug }: { agentSlug: string }) {
   return (
     <div className="fixed bottom-20 right-4 z-40 md:bottom-6" data-testid="chat-widget">
       {open && (
-        <section aria-label={`Chat with ${BRAND_NAME}`} className="mb-3 flex h-[70vh] max-h-[560px] w-[min(92vw,380px)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <section aria-label={`Chat with ${BRAND_NAME}`} className="mb-3 flex h-[78vh] max-h-[640px] w-[min(92vw,380px)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
           <header className="flex items-center justify-between bg-[var(--site-primary,#102340)] px-4 py-3 text-white">
             <div>
               <p className="font-semibold">{BRAND_NAME}</p>
@@ -123,7 +129,7 @@ export default function ChatWidget({ agentSlug }: { agentSlug: string }) {
           </header>
           <div className="flex-1 space-y-2 overflow-y-auto bg-slate-50 p-3" role="log" aria-live="polite">
             {msgs.map((m, i) => (
-              <div key={i} className={m.role === 'you' ? 'flex justify-end' : 'flex flex-col items-start gap-2'}>
+              <div key={i} ref={i === anchorAt ? anchor : undefined} className={m.role === 'you' ? 'flex justify-end' : 'flex scroll-mt-2 flex-col items-start gap-2'}>
                 <p className={'max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-[15px] leading-snug ' + (m.role === 'you' ? 'bg-[#102340] text-white' : 'bg-white text-slate-900 shadow-sm')}>{m.text}</p>
                 {m.cards && m.cards.length > 0 && (
                   <ul aria-label="Matching homes" className="w-full max-w-[92%] space-y-2">
@@ -136,14 +142,14 @@ export default function ChatWidget({ agentSlug }: { agentSlug: string }) {
             <div ref={end} />
           </div>
           {quick.length > 0 && (
-            <div className="flex flex-wrap gap-2 border-t border-slate-100 bg-white px-3 py-2">
+            <div className="flex gap-2 overflow-x-auto border-t border-slate-100 bg-white px-3 py-2 [scrollbar-width:none]" role="group" aria-label="Quick replies">
               {quick.map((q) => q === WHATSAPP_QUICK ? (
                 waUrl && (
                   <a key={q} href={waUrl} target="_blank" rel="noopener noreferrer"
-                    className="inline-flex min-h-[40px] items-center rounded-full bg-[#1f7a4d] px-3 text-sm font-semibold text-white no-underline">{q}</a>
+                    className="inline-flex min-h-[40px] shrink-0 items-center whitespace-nowrap rounded-full bg-[#1f7a4d] px-3 text-sm font-semibold text-white no-underline">{q}</a>
                 )
               ) : (
-                <button key={q} type="button" onClick={() => send(q)} className="min-h-[40px] rounded-full border border-[#102340] px-3 text-sm font-semibold text-[#102340]">{q}</button>
+                <button key={q} type="button" onClick={() => send(q)} className="min-h-[40px] shrink-0 whitespace-nowrap rounded-full border border-[#102340] px-3 text-sm font-semibold text-[#102340]">{q}</button>
               ))}
             </div>
           )}

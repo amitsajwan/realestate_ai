@@ -98,18 +98,18 @@ P: Dict[str, Dict[str, str]] = {
     "thanks_name": {"en": "Thanks, {name}.", "hinglish": "Shukriya, {name}.", "hi": "धन्यवाद, {name}।", "mr": "धन्यवाद, {name}.", "mr_latn": "Dhanyavad, {name}."},
     # ---- homes ----------------------------------------------------------------------------------------------------
     "cards": {
-        "en": "Here are {n} homes that fit what you told me. Tap one to see it.",
-        "hinglish": "Aapki requirement se milte {n} ghar yeh rahe. Dekhne ke liye tap karein.",
-        "hi": "आपकी ज़रूरत से मिलते {n} घर ये रहे। देखने के लिए टैप करें।",
-        "mr": "तुमच्या गरजेशी जुळणारी {n} घरे ही आहेत. पाहण्यासाठी टॅप करा.",
-        "mr_latn": "Tumchya garjeshi julnari {n} ghare hi aahet. Pahanyasathi tap kara.",
+        "en": "Here are {n} homes that fit what you told me.",
+        "hinglish": "Aapki requirement se milte {n} ghar yeh rahe.",
+        "hi": "आपकी ज़रूरत से मिलते {n} घर ये रहे।",
+        "mr": "तुमच्या गरजेशी जुळणारी {n} घरे ही आहेत.",
+        "mr_latn": "Tumchya garjeshi julnari {n} ghare hi aahet.",
     },
     "cards_one": {
-        "en": "Here is a home that fits what you told me. Tap it to see it.",
-        "hinglish": "Aapki requirement se milta ek ghar yeh raha. Dekhne ke liye tap karein.",
-        "hi": "आपकी ज़रूरत से मिलता एक घर यह रहा। देखने के लिए टैप करें।",
-        "mr": "तुमच्या गरजेशी जुळणारे एक घर हे आहे. पाहण्यासाठी टॅप करा.",
-        "mr_latn": "Tumchya garjeshi julnare ek ghar he aahe. Pahanyasathi tap kara.",
+        "en": "Here is a home that fits what you told me.",
+        "hinglish": "Aapki requirement se milta ek ghar yeh raha.",
+        "hi": "आपकी ज़रूरत से मिलता एक घर यह रहा।",
+        "mr": "तुमच्या गरजेशी जुळणारे एक घर हे आहे.",
+        "mr_latn": "Tumchya garjeshi julnare ek ghar he aahe.",
     },
     "cards_samples": {
         "en": "These sample homes show how matches look. They are illustrations, not for sale.",

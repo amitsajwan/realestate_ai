@@ -51,6 +51,8 @@ def card(doc: dict, slug: str) -> dict:
     imgs = sorted([m for m in (doc.get("media") or []) if isinstance(m, dict) and m.get("kind", "image") == "image" and m.get("url")],
                   key=lambda m: m.get("order") or 0)
     title = re.sub(r"^\s*sample\s*[:\-]\s*", "", doc.get("title") or "", flags=re.I).strip() or "Home"
+    if sample:  # 'Sample: 2 BHK apartment for sale in Kharadi' -> '2 BHK apartment in Kharadi' (a sample is never for sale)
+        title = re.sub(r"\s+for\s+(sale|rent)\b", "", title, flags=re.I)
     rent = (doc.get("transaction") or "sale") == "rent"
     price = doc.get("price_inr")
     return {"id": str(doc["_id"]), "title": title[:90], "locality": doc.get("locality"), "bhk": doc.get("bhk"), "carpet_sqft": doc.get("carpet_sqft"),
@@ -172,7 +174,7 @@ class ChatService:
         s["hits"] = [h for h in s.get("hits", []) if h > now - timedelta(hours=1)]
         if len(s["hits"]) >= MAX_PER_HOUR:
             return {"reply": "You have sent a lot of messages in a short time. Please try again a little later.", "quick_replies": [], "lead_created": False,
-                    "cards": [], "whatsapp_url": None}
+                    "cards": [], "follow_up": None, "whatsapp_url": None}
         s["hits"].append(now)
 
         grounding = await self.grounding_for(context)
@@ -209,7 +211,7 @@ class ChatService:
             await self._notify(agent_id, "chat_needs_you", f"{who} asked something in the website chat we could not answer: \"{asked[:120]}\"", ref, now)
 
         s["messages"] = (s.get("messages", []) + [
-            {"role": "user", "text": text, "ts": now}, {"role": "bot", "text": t.reply, "ts": now, **({"cards": [c["id"] for c in t.cards]} if t.cards else {})}])[-MAX_MESSAGES_KEPT:]
+            {"role": "user", "text": text, "ts": now}, {"role": "bot", "text": " ".join(x for x in (t.reply, t.follow_up) if x), "ts": now, **({"cards": [c["id"] for c in t.cards]} if t.cards else {})}])[-MAX_MESSAGES_KEPT:]
         s.update(updated_at=now, needs_human=bool(data.get("needs_human")), lead_created=bool(s.get("lead_created") or lead_created))
         if await self.sessions.find_one({"_id": session_id}):
             await self.sessions.update_one({"_id": session_id}, {"$set": {k: v for k, v in s.items() if k != "_id"}})
@@ -217,7 +219,8 @@ class ChatService:
             await self.sessions.insert_one(s)
         wa = await self.whatsapp_url(data, page) if wa_number and engine.WHATSAPP_LABEL in t.quick else None
         quick = [q for q in t.quick if q != engine.WHATSAPP_LABEL or wa]
-        return {"reply": t.reply, "quick_replies": quick, "lead_created": lead_created, "cards": t.cards, "whatsapp_url": wa}
+        return {"reply": t.reply, "quick_replies": quick, "lead_created": lead_created, "cards": t.cards, "follow_up": t.follow_up or None,
+                "whatsapp_url": wa}
 
     async def _notify(self, agent_id: Optional[str], kind: str, summary: str, ref: dict, now: datetime) -> None:
         if not agent_id:

@@ -203,13 +203,14 @@ async def test_matching_homes_are_shown_as_cards_from_this_agent_only_with_sampl
     r = tr[-1][1]
     ids = [c["id"] for c in r["cards"]]
     assert 1 <= len(ids) <= 3 and set(ids) <= {"L2", "L3", "L4", "L5"}
-    assert "Here are 3 homes" in r["reply"]
+    assert "Here are 3 homes" in r["reply"] and r["follow_up"] == "When are you planning to move?"  # the next question comes after the cards
+    assert "When are you" not in r["reply"]
     c = r["cards"][0]
     assert set(c) >= {"title", "locality", "bhk", "carpet_sqft", "price_text", "sample", "url", "image_url"}
     assert c["url"] == f"/agent/rahul/listings/{c['id']}" and c["image_url"].startswith("https://img.test/")
     for c in r["cards"]:
         if c["id"] == "L3":
-            assert c["sample"] is True and c["price_text"] is None and not c["title"].lower().startswith("sample")
+            assert c["sample"] is True and c["price_text"] is None and c["title"] == "2 BHK apartment in Kharadi, Pune"  # never 'for sale'
         else:
             assert c["sample"] is False and c["price_text"].startswith("₹")
     if any(c["sample"] for c in r["cards"]):

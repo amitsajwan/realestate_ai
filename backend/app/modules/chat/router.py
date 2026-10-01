@@ -48,6 +48,8 @@ class MessageOut(BaseModel):
     quick_replies: List[str] = []
     lead_created: bool = False
     cards: List[HomeCard] = []
+    # with cards: the next question, shown after them (reply is the text before the cards)
+    follow_up: Optional[str] = None
     # set only when the platform WhatsApp number is configured and 'Continue on WhatsApp' is offered
     whatsapp_url: Optional[str] = None
 

@@ -33,7 +33,7 @@ describe('chat reply parsing', () => {
     expect(ok.quick_replies).toEqual(['Continue on WhatsApp'])
   })
   it('reads an older server reply without cards', () => {
-    expect(parseChatReply({ reply: 'Hi', quick_replies: [] })).toEqual({ reply: 'Hi', quick_replies: [], lead_created: false, cards: [], whatsapp_url: null })
+    expect(parseChatReply({ reply: 'Hi', quick_replies: [] })).toEqual({ reply: 'Hi', quick_replies: [], lead_created: false, cards: [], follow_up: null, whatsapp_url: null })
   })
 })
 
@@ -62,7 +62,7 @@ describe('ChatWidget', () => {
       .mockImplementationOnce(() => reply({ reply: 'Asking about the 2 BHK in Kharadi, 780 sq ft?', quick_replies: ['Tell me about it', 'Similar homes', 'Continue on WhatsApp'],
         whatsapp_url: 'https://wa.me/919876543210?text=Hi%20(ref%20abcd234)' }))
       .mockImplementationOnce(() => reply({ reply: 'Here are 2 homes that fit what you told me. Homes marked Sample are illustrations, not for sale.',
-        quick_replies: ['Not now'], cards: [REAL, SAMPLE] }))
+        quick_replies: ['Not now'], cards: [REAL, SAMPLE], follow_up: 'When are you planning to move?' }))
     global.fetch = fetchMock as unknown as typeof fetch
     render(<ChatWidget agentSlug="rahul" />)
     fireEvent.click(screen.getByRole('button', { name: /chat with us/i }))
@@ -75,6 +75,9 @@ describe('ChatWidget', () => {
     const cards = within(list).getAllByTestId('chat-home-card')
     expect(cards).toHaveLength(2)
     expect(cards[1]).toHaveTextContent('Sample')
+    // the next question is its own bubble after the cards
+    const followUp = screen.getByText('When are you planning to move?')
+    expect(list.compareDocumentPosition(followUp) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Not now' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Continue on WhatsApp' })).toBeNull()
     const body = JSON.parse(fetchMock.mock.calls[1][1].body)

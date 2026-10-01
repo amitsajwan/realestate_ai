@@ -20,6 +20,8 @@ export interface ChatReply {
   quick_replies: string[]
   lead_created: boolean
   cards: ChatCard[]
+  /** with cards: the next question, shown after them */
+  follow_up: string | null
   /** set only when the platform WhatsApp number is configured */
   whatsapp_url: string | null
 }
@@ -69,6 +71,7 @@ export function parseChatReply(data: unknown): ChatReply {
     quick_replies: quick.filter((q) => q !== WHATSAPP_QUICK || !!whatsapp),
     lead_created: Boolean(d.lead_created),
     cards,
+    follow_up: str(d.follow_up),
     whatsapp_url: whatsapp,
   }
 }
