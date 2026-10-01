@@ -84,7 +84,7 @@ homes to their agent; the click is recorded as an interest event) > owner. Once 
   marks read; 24-hour refusal incl. late retries; token never in logs or stored errors (Graph error and transport error); conversations
   agent scoped and masked; last 20 messages; notifications scoped and mark-read). Graph is `httpx.MockTransport`; no network.
 - Frontend jest: `__tests__/site/whatsapp-button.test.tsx`, `__tests__/app/interest-whatsapp.test.tsx` (plus the existing
-  `interest-instagram` and `interest-pages` suites still pass): 24 passed. `npx tsc --noEmit` clean. `next build --webpack`: see report.
+  `interest-instagram` and `interest-pages` suites still pass): 24 passed. `npx tsc --noEmit` clean. `next build --webpack`: passes (exit 0).
 
 ## Known limits / notes
 - Without an LLM, vetted knowledge-base answers (e.g. RERA explainer) stay in English inside an otherwise Hindi/Marathi reply; listing/area
