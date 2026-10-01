@@ -191,7 +191,7 @@ export function BrandEditor({ agentId, loadBranding, saveBranding, uploadImage, 
 
   return (
     <div data-testid="brand-editor" className="space-y-5">
-      <div className="sticky top-0 z-10 -mx-1 bg-gray-50 px-1 pb-2 pt-1">
+      <div>
         <BrandPreview draft={draft} agentName={doc.agent_name} logoSrc={assetUrl(draft.logo)} bannerSrc={assetUrl(draft.banner)} />
       </div>
 
@@ -207,7 +207,7 @@ export function BrandEditor({ agentId, loadBranding, saveBranding, uploadImage, 
                 <span aria-hidden className="flex h-8 w-12 shrink-0 overflow-hidden rounded-md border border-black/10">
                   <span className="w-1/2" style={{ background: p.primary }} /><span className="w-1/4" style={{ background: p.heroTo }} /><span className="w-1/4" style={{ background: p.accent }} />
                 </span>
-                <span className="min-w-0"><span className="block truncate text-sm font-semibold">{p.label}</span><span className="block truncate text-xs text-gray-500">{p.blurb}</span></span>
+                <span className="min-w-0 leading-tight"><span className="block text-sm font-semibold">{p.label}</span><span className="block text-xs text-gray-500">{p.blurb}</span></span>
               </button>
             )
           })}
