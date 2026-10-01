@@ -97,6 +97,7 @@ STAT = {
 STAT["myth-token-booking"] = STAT.pop("token-booking-cap")
 STAT_SLUGS = tuple(STAT)
 
+DARK_PHOTOS = ("tower-low", "glass-dusk")
 _EMOJI = re.compile(r"^[^\w\"“(]+", re.U)
 _NUM = re.compile(r"^\s*\d+[.)]\s*")
 
@@ -145,6 +146,8 @@ def entry_to_brief(entry: Entry, prefer: str = "", channel: str = "instagram") -
     title = entry.title.strip().strip('"“”')
     b = Brief(topic=title, short=SHORT.get(entry.slug, ""), facts=_facts(entry), steps=pts if len(pts) >= 3 else [], tip=pts[-1] if pts else "",
               link=f"{SITE}{entry.link}" if entry.link else "", hashtags=list(entry.tags))
+    if entry.pillar != "agent":  # the dark bundled photos keep the headline legible (the light ones greyed it out in review)
+        b.photo = DARK_PHOTOS[sum(map(ord, entry.slug)) % len(DARK_PHOTOS)]
     if entry.slug in HOOK:
         b.hooks = {p: HOOK[entry.slug] for p in ("mistake", "nobody", "question")}
     if entry.pillar == "myth" and entry.slug in MYTH_FACT:

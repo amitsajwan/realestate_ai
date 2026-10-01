@@ -41,12 +41,13 @@ def _reel_tile(doc: dict, h: int) -> Image.Image:
     im = Image.new("RGB", (w, h), (16, 35, 64))
     d = ImageDraw.Draw(im)
     d.text((14, 14), "REEL " + str((doc.get("creative") or {}).get("template", "")).upper(), font=load_font(15, "bold"), fill=(240, 180, 41))
-    y = 54
-    for line in ((doc.get("creative") or {}).get("script") or [])[:5]:
-        for ln in _wrap(d, line.replace("*", ""), load_font(15, "semibold"), w - 28)[:4]:
-            d.text((14, y), ln, font=load_font(15, "semibold"), fill=(255, 255, 255))
-            y += 20
-        y += 10
+    y = 44
+    f = load_font(12, "semibold")
+    for line in ((doc.get("creative") or {}).get("script") or [])[:7]:
+        for ln in _wrap(d, line.replace("*", ""), f, w - 28)[:4]:
+            d.text((14, y), ln, font=f, fill=(255, 255, 255))
+            y += 16
+        y += 7
     return im
 
 

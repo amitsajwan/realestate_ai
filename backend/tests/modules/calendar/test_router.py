@@ -37,7 +37,7 @@ async def seed(store):
 
 
 def test_every_route_is_owner_only():
-    assert len(cr.router.routes) == 3
+    assert len(cr.router.routes) == 4
     for route in cr.router.routes:
         assert any(d.call is cr.owner_only for d in route.dependant.dependencies), route.path
 
@@ -47,6 +47,7 @@ def test_strangers_are_refused_everywhere():
     assert c.get("/calendar/upcoming").status_code == 403
     assert c.get("/calendar/status").status_code == 403
     assert c.post("/calendar/items/x/skip").status_code == 403
+    assert c.post("/calendar/items/x/approve").status_code == 403
 
 
 def test_superuser_is_allowed_even_without_the_owner_list(monkeypatch):
@@ -79,3 +80,21 @@ async def test_skip_then_not_skippable_again():
     assert c.post(f"/calendar/items/{a}/skip").status_code == 409
     assert c.post("/calendar/items/nope/skip").status_code == 404
     assert [r["id"] for r in c.get("/calendar/upcoming").json()] != [a]
+
+
+async def test_upcoming_shows_kind_images_and_planned_items_and_approve_moves_them():
+    c, store = setup()
+    pid = await store.add("w1-a", "instagram", "cap", "calendar/w1/a-1.jpg", NOW + timedelta(days=1), kind="post", status="planned",
+                          images=["calendar/w1/a-1.jpg", "calendar/w1/a-2.jpg"], creative={"layout": "checklist", "path": "rules", "secret": "x"}, week=1)
+    rid = await store.add("reel-w1-tip", "facebook_page", "cap", "", NOW + timedelta(days=2), kind="reel", status="planned", week=1)
+    rows = c.get("/calendar/upcoming").json()
+    first = rows[0]
+    assert first["id"] == pid and first["kind"] == "post" and first["status"] == "planned" and first["week"] == 1
+    assert first["image_urls"] == ["/uploads/calendar/w1/a-1.jpg", "/uploads/calendar/w1/a-2.jpg"] and first["caption"] == "cap"
+    assert first["creative"] == {"path": "rules", "layout": "checklist"}  # whitelisted fields only
+    assert rows[1]["kind"] == "reel" and rows[1]["image_urls"] == [] and rows[1]["video_url"] is None
+    assert c.post(f"/calendar/items/{pid}/approve").json() == {"id": pid, "status": "approved"}
+    assert (await store.get(pid))["status"] == "approved"
+    assert c.post(f"/calendar/items/{pid}/approve").status_code == 409
+    assert c.post("/calendar/items/nope/approve").status_code == 404
+    assert c.post(f"/calendar/items/{rid}/skip").json()["status"] == "skipped"
