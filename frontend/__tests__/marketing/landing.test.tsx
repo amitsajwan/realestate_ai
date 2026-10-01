@@ -4,6 +4,9 @@ import LandingPage from '@/app/page'
 import RequestInvitePage from '@/app/request-invite/page'
 import { SHOTS } from '@/lib/marketing/strings'
 
+// PostsSection is an async server component (fetches /public/posts); it is covered in __tests__/posts.
+jest.mock('@/components/site/PostsSection', () => ({ __esModule: true, default: () => null }))
+
 describe('landing page', () => {
   it('has one h1 and a primary call to action to /request-invite', () => {
     render(<LandingPage />)

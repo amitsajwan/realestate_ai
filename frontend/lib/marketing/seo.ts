@@ -27,7 +27,7 @@ export function pageMetadata(cfg: MarketingConfig, m: PageMeta): Metadata {
 }
 
 /** Organization structured data. Only facts we actually have: name, url, description, and contact when configured. */
-export function organizationJsonLd(cfg: MarketingConfig, description: string): Record<string, unknown> {
+export function organizationJsonLd(cfg: MarketingConfig, description: string, sameAs?: string[]): Record<string, unknown> {
   const contact: Record<string, unknown>[] = []
   if (cfg.email) contact.push({ '@type': 'ContactPoint', contactType: 'customer support', email: cfg.email })
   return {
@@ -37,6 +37,7 @@ export function organizationJsonLd(cfg: MarketingConfig, description: string): R
     url: cfg.siteUrl,
     description,
     areaServed: { '@type': 'City', name: 'Pune' },
+    sameAs: sameAs && sameAs.length ? sameAs : undefined,
     contactPoint: contact.length ? contact : undefined,
   }
 }
