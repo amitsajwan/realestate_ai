@@ -63,8 +63,9 @@ TOPICS: Dict[str, Topic] = {
     "floor": _t(r"\bfloors?\b|मंज़िल|मंजिल|मजला|माळा|फ्लोर", (r"\bfloor\b",), "the floor", "मंज़िल", "मजला", "floor"),
     "facing": _t(r"\bfacing\b|\bfaces\b|\bdirection\b|दिशा", (r"\bfaces\b",), "the facing direction", "दिशा", "दिशा", "facing"),
     "parking": _t(r"parking|पार्किंग|garage|gaadi|car\s*(space|park)", (r"parking",), "the parking details", "पार्किंग", "पार्किंगची माहिती", "parking"),
-    "amenities": _t(r"amenit|\bgym\b|swimming|\bpool\b|club\s?house|\blift\b|elevator|garden|play\s?(area|ground)|security|power\s*back\s*up|backup|facilit|सुविधा|जिम|लिफ्ट",
-                    (r"amenities", r"\b(gym|pool|clubhouse|lift|garden|play area|security|power backup)\b"), "the amenities", "सुविधाओं", "सुविधांची माहिती", "amenities"),
+    "amenities": _t(r"amenit|\bgym\b|swimming|\bpool\b|club\s?house|\blift\b|elevator|garden|play\s?(area|ground)|security|facilit|सुविधा|जिम|लिफ्ट",
+                    (r"amenities", r"\b(gym|pool|clubhouse|lift|garden|play area|security)\b"), "the amenities", "सुविधाओं", "सुविधांची माहिती", "amenities"),
+    "power": _t(r"power\s*back\s*up|backup|generator|\bbijli\b|बिजली|वीज", (r"^Power backup", r"power backup"), "the power backup details", "पावर बैकअप", "पॉवर बॅकअप", "power backup"),
     "school": _t(r"schools?\b|college|शाळा|स्कूल|कॉलेज|vidyalaya", (r"school|college",), "details of nearby schools", "आसपास के स्कूल", "जवळच्या शाळांची माहिती", "nearby school"),
     "hospital": _t(r"hospital|clinic|doctor|अस्पताल|हॉस्पिटल|दवाखाना|रुग्णालय", (r"hospital|clinic",), "details of nearby hospitals", "आसपास के अस्पताल", "जवळच्या रुग्णालयांची माहिती", "nearby hospital"),
     "market": _t(r"market|\bmall\b|grocery|\bshops?\b|supermarket|मार्केट|बाजार|दुकान|मॉल", (r"market|\bmall\b|shop|grocer",), "details of nearby markets", "आसपास के बाजार", "जवळच्या बाजाराची माहिती", "nearby market"),
@@ -408,7 +409,7 @@ OVERRIDE = {
     "amenity": {"en": "confirmation of that amenity", "hi": "उस सुविधा की पुष्टि", "mr": "त्या सुविधेची खात्री",
                 "hinglish": "us amenity ki confirmation", "mr_latn": "tya suvidhechi khatri"},
 }
-AMENITY_WORDS = re.compile(r"\b(gym|swimming|pool|club\s?house|lift|elevator|garden|play\s?(area|ground)|security|power\s*back\s*up|backup)\b", I)
+AMENITY_WORDS = re.compile(r"\b(gym|swimming|pool|club\s?house|lift|elevator|garden|play\s?(area|ground)|security)\b", I)
 
 
 async def answer(question: str, grounding: Grounding, channel: str = "facebook", llm=None) -> Reply:
