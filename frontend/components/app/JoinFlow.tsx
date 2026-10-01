@@ -121,6 +121,7 @@ export function JoinFlow() {
         {step === 'phone' && (
           <form onSubmit={sendOtp} className="space-y-5">
             <h1 className="text-3xl font-bold">Get your property website in 1 minute</h1>
+            <p className="text-gray-700">Sign in with your mobile number. Your website, share-ready posts and buyer lead cards are all in one place.</p>
             <Field label={t('phoneLabel')} htmlFor="phone">
               <div className="flex gap-2">
                 <span className="flex min-h-[52px] items-center rounded-xl border border-gray-300 bg-gray-100 px-3 font-semibold">+91</span>
@@ -139,6 +140,11 @@ export function JoinFlow() {
             </Field>
             {error && <ErrorBox message={error} />}
             <Btn type="submit" disabled={busy}>{busy ? t('loading') : t('sendOtp')}</Btn>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-gray-800">
+              <p className="font-semibold">Free, invite-only pilot for agents in Pune.</p>
+              <p className="mt-1">Your phone number is never shown publicly. No app to install.</p>
+              <Link href="/request-invite" className="mt-2 flex min-h-[44px] items-center font-semibold text-blue-800 underline">No invite yet? Request one</Link>
+            </div>
           </form>
         )}
 

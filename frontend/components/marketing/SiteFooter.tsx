@@ -7,7 +7,7 @@ import ContactLines from './ContactLines'
 export default function SiteFooter({ cfg }: { cfg: MarketingConfig }) {
   const link = 'flex min-h-[44px] items-center text-slate-800 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-800'
   return (
-    <footer className="border-t border-slate-200 bg-slate-50 px-4 py-10 text-sm">
+    <footer className="border-t border-[#ead9ae] bg-[#fbf6ea] px-4 py-10 text-sm">
       <div className="mx-auto grid max-w-5xl gap-8 sm:grid-cols-2">
         <div>
           <p className="text-base font-bold text-slate-900">{cfg.businessName}</p>

@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react'
 import type { PublicListing } from '@/lib/site/types'
+import { isSampleListing } from '@/lib/site/format'
 import ListingCard from './ListingCard'
 
 type Tx = 'all' | 'sale' | 'rent'
@@ -25,10 +26,22 @@ export default function ListingBrowser({ slug, items }: { slug: string; items: P
   const shown = useMemo(() => filterListings(items, tx, bhk), [items, tx, bhk])
 
   if (items.length === 0) {
-    return <p className="rounded-xl bg-slate-50 p-6 text-center text-slate-600">New properties are coming soon. Message us on WhatsApp to hear first.</p>
+    return (
+      <div className="rounded-2xl border border-[#ead9ae] bg-[#fbf6ea] p-6 text-center">
+        <p className="text-lg font-bold text-[#0f2340]">New homes are being added</p>
+        <p className="mt-1 text-slate-700">Tell us your budget and the area you like, and we will send you matching homes as they are posted.</p>
+        <a href="#enquire" className="mt-4 inline-flex min-h-[48px] items-center rounded-full bg-[var(--site-accent)] px-6 font-bold text-[#18202c] no-underline">I&apos;m interested</a>
+      </div>
+    )
   }
+  const hasSamples = items.some((l) => isSampleListing(l.title))
   return (
     <div>
+      {hasSamples && (
+        <p className="mb-4 rounded-xl border border-[#ead9ae] bg-[#fbf6ea] px-4 py-3 text-sm text-slate-800">
+          <strong>Homes marked Sample listing</strong> show how this page looks. They are not for sale. Real homes appear here as they are posted.
+        </p>
+      )}
       <div className="mb-4 space-y-2" role="group" aria-label="Filter properties">
         <div className="flex flex-wrap gap-2">
           {([['all', 'All'], ['sale', 'Buy'], ['rent', 'Rent']] as [Tx, string][]).map(([v, label]) => (

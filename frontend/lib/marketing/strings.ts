@@ -71,35 +71,68 @@ export const LANDING = {
   metaOrgDescription: 'A free, invite-only pilot that helps real estate agents in Pune get buyer enquiries and follow them up.',
   hero: {
     eyebrow: 'For real estate agents in Pune',
-    title: 'Get more buyer enquiries. Know who to call first.',
+    pilot: 'Free, invite-only pilot',
+    title: 'A buyer comments "INTERESTED". Do you know who they are?',
     lead:
-      'Post a property from your phone. You get a website and ready-to-share posts. Every buyer who enquires shows up with a short summary of what they want, so you can call the right person first.',
+      'Post a property from your phone. We make the posts and your website, and every enquiry becomes a lead card: what the buyer wants and who to call first. Call or WhatsApp them in one tap.',
     cta: 'Request an invite',
     signIn: 'Already invited? Sign in',
-    facts: ['Free during the pilot', 'Invite-only', 'Pune'],
+    facts: ['Free during the pilot', 'Invite-only', 'Pune', 'Works in your phone browser'],
+  },
+  problem: {
+    heading: 'Sound familiar?',
+    items: [
+      { title: 'Comments with no names', body: 'People write "price?" or "interested" under your post, and you are left guessing who they are.' },
+      { title: 'Enquiries all over the place', body: 'Calls, WhatsApp, Instagram and Facebook: nothing in one list, so the warm buyer gets a late reply.' },
+      { title: 'Posts take your evening', body: 'Writing the same property up again in English, Hindi and Marathi is slow work.' },
+    ],
+  },
+  mock: {
+    heading: 'This is the whole idea',
+    lead: 'A comment on your post turns into a card you can act on. The example below is made-up sample data.',
+    postLabel: 'Comment on your property post',
+    comment: 'INTERESTED',
+    commenter: 'Sample buyer',
+    cardLabel: 'Lead card',
+    cardName: 'Sample buyer',
+    hot: 'HOT',
+    summary: 'Wants a 2 BHK in Baner, budget 80 lakh to 1.2 crore, ready in 1-3 months, will need a home loan.',
+    chips: ['2 BHK', '80 L - 1.2 Cr', 'Baner', '1-3 months', 'Home loan'],
+    call: 'Call',
+    whatsapp: 'WhatsApp',
+    next: 'Suggested next step: call today and offer a site visit.',
+    sample: 'Sample data',
   },
   steps: {
     id: 'what-it-does',
-    heading: 'What it does, in four steps',
-    lead: 'Everything below works today.',
+    heading: 'Create, attract, qualify, close',
+    lead: 'Four steps, in plain words. All of this works today except where marked.',
     items: [
       {
-        key: 'create', label: 'Create', title: 'Post a property from your phone',
-        body: 'Take photos or add them from your gallery, check the title and price we fill in, and post. The property goes live on your own website.',
+        key: 'create', label: 'Create', title: 'Photos in, posts out',
+        body: 'Take photos on your phone. We fill in the title and price for you to check, then make share-ready posts in English, Hindi and Marathi.',
       },
       {
-        key: 'market', label: 'Market', title: 'Get posts you can share right away',
-        body: 'For each property you get image cards for Instagram and a WhatsApp message, in English, Hindi and Marathi. You copy or share them yourself.',
+        key: 'attract', label: 'Attract', title: 'One link for every buyer',
+        body: 'Your property goes on your own website with an I\'m interested button. Share the link on WhatsApp, Instagram or Facebook. Your phone number is never shown publicly.',
       },
       {
-        key: 'attract', label: 'Attract', title: 'Give buyers one place to look',
-        body: 'Your website shows your properties with an I\'m interested button and an enquiry form, and comments on your posts are answered for you. Buyers tick a box to agree to be contacted, and your phone number is never shown publicly.',
+        key: 'qualify', label: 'Qualify', title: 'Every enquiry becomes a lead card',
+        body: 'Budget, bedrooms, area, timing and how warm the buyer is, in a few lines. Buyers tick a box to agree to be contacted.',
       },
       {
-        key: 'close', label: 'Qualify and close', title: 'See who is serious',
-        body: 'Each enquiry shows what the buyer wants (budget, bedrooms, timing) and how warm they are, with a suggested next step. When you add a property, you see which of your buyers match it. Nothing is sent to a buyer unless you tap send.',
+        key: 'close', label: 'Close', title: 'Call the right person first',
+        body: 'Call or WhatsApp from the card. When you add a property, you see which of your buyers match it. Nothing is sent to a buyer unless you tap send.',
       },
     ],
+  },
+  screens: {
+    heading: 'The real screens',
+    lead: 'Screenshots from the product. Names and numbers are sample data.',
+  },
+  whatsapp: {
+    title: 'Built around the apps you already use',
+    body: 'Share posts and property links straight to WhatsApp, and reach buyers by call or WhatsApp from their lead card. No app to install.',
   },
   how: {
     id: 'how-it-works',
@@ -138,6 +171,18 @@ export const LANDING = {
     heading: 'Questions',
     items: [
       {
+        q: 'What does it cost?',
+        a: 'Nothing during the pilot. If that ever changes, we will tell you first.',
+      },
+      {
+        q: 'Who sees my buyer leads?',
+        a: 'You do. Each enquiry goes to the agent the buyer contacted, and we handle it only to run the service. We do not sell it and we do not share it with other agents.',
+      },
+      {
+        q: 'What about RERA?',
+        a: 'We do not issue or verify RERA registration. You stay responsible for your own RERA details, and for showing them on a listing where the law asks. Our Pune guides explain how buyers can check a project.',
+      },
+      {
         q: 'Who can see my listings?',
         a: 'Only properties you post appear on your public website, and anyone with the link can see them. Drafts you have not posted stay private to you.',
       },
@@ -162,8 +207,8 @@ export const LANDING = {
     deletionLink: 'Data deletion',
   },
   finalCta: {
-    title: 'Want to try it?',
-    body: 'Places in the pilot are limited to agents in Pune. Send a request and we will get back to you.',
+    title: 'Want to see your own lead cards?',
+    body: 'Places in the pilot are limited to agents in Pune. Name and mobile number is all we need, and we will get back to you.',
     cta: 'Request an invite',
   },
 }
@@ -205,6 +250,7 @@ export const INVITE = {
   privacyNote: 'We use your details only to reply to your request.',
   privacyLink: 'Privacy',
   signInHint: 'Already have a code?',
+  more: 'More details (city, a note)',
 }
 
 // ---------------------------------------------------------------------------------------------------------

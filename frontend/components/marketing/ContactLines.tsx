@@ -9,10 +9,10 @@ export default function ContactLines({ cfg }: { cfg: MarketingConfig }) {
     <ul className="space-y-1 text-slate-800">
       <li><span className="font-medium">{cfg.businessName}</span></li>
       {cfg.email && (
-        <li>Email: <a href={'mailto:' + cfg.email} className="font-medium text-blue-800 underline">{cfg.email}</a></li>
+        <li>Email: <a href={'mailto:' + cfg.email} className="font-medium text-[#0f2340] underline">{cfg.email}</a></li>
       )}
       {cfg.whatsappUrl && (
-        <li>WhatsApp: <a href={cfg.whatsappUrl} className="font-medium text-blue-800 underline" rel="noopener noreferrer">{cfg.whatsappDisplay}</a></li>
+        <li>WhatsApp: <a href={cfg.whatsappUrl} className="font-medium text-[#0f2340] underline" rel="noopener noreferrer">{cfg.whatsappDisplay}</a></li>
       )}
     </ul>
   )

@@ -24,7 +24,7 @@ export default function RequestInvitePage() {
         </div>
         <p className="mt-6 text-sm text-slate-700">
           {INVITE.signInHint}{' '}
-          <Link href={PATHS.signIn} className="font-medium text-blue-800 underline">Sign in</Link>
+          <Link href={PATHS.signIn} className="font-medium text-[#0f2340] underline">Sign in</Link>
         </p>
       </section>
     </MarketingShell>
