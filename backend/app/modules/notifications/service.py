@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from typing import Callable, Optional
 
-KINDS = ("new_whatsapp_lead", "whatsapp_needs_you")
+KINDS = ("new_whatsapp_lead", "whatsapp_needs_you", "new_chat_lead", "chat_needs_you")
 MAX_SUMMARY = 300
 
 

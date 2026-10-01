@@ -30,10 +30,26 @@ class MessageIn(BaseModel):
     context: Optional[ChatContext] = None
 
 
+class HomeCard(BaseModel):
+    """A matching home from the agent's live listings. Samples carry sample=True and no price."""
+    id: str
+    title: str
+    locality: Optional[str] = None
+    bhk: Optional[float] = None
+    carpet_sqft: Optional[int] = None
+    price_text: Optional[str] = None
+    sample: bool = False
+    url: str
+    image_url: Optional[str] = None
+
+
 class MessageOut(BaseModel):
     reply: str
     quick_replies: List[str] = []
     lead_created: bool = False
+    cards: List[HomeCard] = []
+    # set only when the platform WhatsApp number is configured and 'Continue on WhatsApp' is offered
+    whatsapp_url: Optional[str] = None
 
 
 def get_service() -> ChatService:
