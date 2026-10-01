@@ -46,6 +46,8 @@ from app.modules.social.router import router as social_router
 from app.modules.engage.router import router as engage_router
 from app.modules.newsroom.router import router as newsroom_router
 from app.modules.concierge.router import router as concierge_router
+from app.modules.whatsapp.router import router as whatsapp_router
+from app.modules.notifications.router import router as notifications_router
 from app.modules.newsroom.public import router as newsroom_public_router
 from app.modules.calendar.router import router as calendar_router
 from app.modules.calendar.public import router as calendar_public_router
@@ -101,6 +103,8 @@ api_router.include_router(social_router, prefix="/social", tags=["social"])
 api_router.include_router(engage_router, prefix="/engage", tags=["engage"])
 api_router.include_router(newsroom_router, prefix="/newsroom", tags=["newsroom"])
 api_router.include_router(concierge_router, prefix="/concierge", tags=["concierge"])
+api_router.include_router(whatsapp_router, prefix="/whatsapp", tags=["whatsapp"])
+api_router.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(newsroom_public_router, prefix="/public", tags=["public"])
 api_router.include_router(calendar_router, prefix="/calendar", tags=["calendar"])
 api_router.include_router(interest_router, prefix="/interest", tags=["interest"])
