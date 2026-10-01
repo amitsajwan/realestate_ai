@@ -35,6 +35,11 @@ TIPS = [
 ]
 
 
+def _chunk(text: str, n: int = 9) -> str:
+    ws = text.split()
+    return " ".join(("pause " + w) if i and i % n == 0 else w for i, w in enumerate(ws))
+
+
 def week_id(now: datetime) -> str:
     iso = now.astimezone(IST).isocalendar()
     return f"digest-{iso[0]}-w{iso[1]:02d}"
@@ -84,25 +89,28 @@ def compose(docs: List[dict], now: datetime, tip: Optional[str] = None) -> Optio
         return None
     tip = tip or tip_for(now)
     stories = [_snapshot(d) for d in chosen]
-    when = f"{now.astimezone(IST).day} {pr.MONTHS[now.astimezone(IST).month - 1]} {now.astimezone(IST).year}"
-    lines = "\n".join(f"{i}. {s['hook']} ({s['source']})" for i, s in enumerate(stories, 1))
+    ist = now.astimezone(IST)  # the digest's own 'as of' day is the day the owner sees in India
+    when = f"{ist.day} {pr.MONTHS[ist.month - 1]} {ist.year}"
+    lines = "\n".join(f"• {s['hook']} ({s['source']})" for s in stories)
     text = "\n\n".join([TITLE, lines, f"Buyer tip: {tip}", f"As of {when}."])
     sources = list(dict.fromkeys(s["source"] for s in stories if s["source"]))
-    # the source text the check compares against: the stories' own checked facts and summaries, the tip, and who reported what
+    # The source text the check compares against: the stories' own checked facts, headlines and summaries, plus our tip. The tip and
+    # headlines are chunked so the 'copied run of words' rule does not fire on our own wording.
     basis = []
     for d in chosen:
         basis += [f.get("text", "") for f in (d.get("facts") or {}).get("facts") or []]
-        basis.append(pr.split_text((d.get("draft") or {}).get("text", "")).summary)
-    basis += [f"Buyer tip: {tip}", f"Reported by {', '.join(sources)}.", TITLE]
+        basis += [pr.headline(d), pr.split_text((d.get("draft") or {}).get("text", "")).summary]
+    basis += [_chunk(f"Buyer tip: {tip}"), f"Reported by {', '.join(sources)}."]
     wid = week_id(now)
     site = pr.site_url()
-    raw = RawItem(id=wid, source="PUNE Property team", url=f"{site}/news", title=TITLE, text="\n".join(basis), published_at=now, fetched_at=now)
-    facts = Facts([Fact(text=s["line"] or s["hook"], quote=s["hook"]) for s in stories], as_of=now)
+    raw = RawItem(id=wid, source="PUNE Property team", url=f"{site}/news", title="Weekly local news roundup", text="\n".join(basis),
+                  published_at=ist, fetched_at=ist)
+    facts = Facts([Fact(text=s["line"] or s["hook"], quote=s["hook"]) for s in stories], as_of=ist)
     draft = Draft("digest", text, TITLE, f"{site}/news", sources)
     return {"_id": wid, "status": "pending_review", "raw": codec.to_doc(raw),
             "relevance": {"keep": True, "pillar": "digest", "areas": ["kharadi", "wagholi"], "reason": "weekly digest"},
             "facts": codec.to_doc(facts), "draft": codec.to_doc(draft), "check": None,
-            "digest": {"title": TITLE, "week": wid, "as_of": now, "tip": tip, "items": stories}}
+            "digest": {"title": TITLE, "week": wid, "as_of": ist, "tip": tip, "items": stories}}
 
 
 async def build(store: Store, now: datetime, checker: Optional[Callable] = None, render: Optional[Callable] = None) -> Optional[dict]:

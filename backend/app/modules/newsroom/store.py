@@ -17,6 +17,7 @@ def _utcnow() -> datetime:
 
 class Store:
     def __init__(self, db, clock: Callable[[], datetime] = _utcnow):
+        self.db = db
         self.items = db.get_collection(ITEMS)
         self.status = db.get_collection(STATUS)
         self.clock = clock
@@ -48,6 +49,10 @@ class Store:
         now = self.clock()
         await self.items.update_one({"_id": id}, {"$set": {**fields, "status": status, "updated_at": now},
                                                   "$push": {"history": {"at": now, "status": status, "note": note}}})
+
+    async def update(self, id: str, **fields) -> None:
+        """Set fields on an item without changing its status or history (card paths, publish bookkeeping)."""
+        await self.items.update_one({"_id": id}, {"$set": {**fields, "updated_at": self.clock()}})
 
     async def update_raw(self, id: str, text: str) -> None:
         """Replace the stored raw text (the article reader enriches it); status and history are untouched."""

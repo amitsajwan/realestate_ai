@@ -27,7 +27,9 @@ def default_stages() -> Dict[str, Callable]:
     from .stages.extract import extract
     from .stages.filter import assess
     from .stages.filter import same_story
-    stages = {"filter": assess, "extract": extract, "draft": draft, "check": check, "same_story": same_story}
+    from . import adapters  # cards and hub registration live behind the adapters (the only place that touches creative and interest)
+    stages = {"filter": assess, "extract": extract, "draft": draft, "check": check, "same_story": same_story,
+              "cards": adapters.card_stage, "after_publish": adapters.after_publish}
     if load().read_articles:
         from .stages.read import RobotsCache, polite_get, read
         robots, polite = RobotsCache(), {}
@@ -122,10 +124,38 @@ async def _check(store, stages, doc):
         await store.move(doc["_id"], "pending_review", "awaiting owner", check=codec.to_doc(res))
     else:
         await store.move(doc["_id"], "dropped", "check failed: " + "; ".join(res.problems)[:200], check=codec.to_doc(res))
+        return
+    if stages.get("cards"):  # optional: the card the owner previews and the channels publish; a failure only means no preview yet
+        try:
+            await store.update(doc["_id"], card=await _call(stages["cards"], {**doc, "status": "pending_review"}))
+        except Exception as e:
+            log.warning("newsroom: card for %s failed: %s", doc.get("_id"), sanitize(e))
 
 
-async def _publish(store: Store, publisher: Publisher, now: datetime, cfg: NewsroomConfig, counts: dict) -> None:
+async def _publish_item(store: Store, publisher, doc: dict, now: datetime, when, counts: dict, stages: dict) -> None:
+    """Multi-channel publish (Facebook photo post and Instagram image). Success on any channel is 'published'; every channel's result is
+    stored. Only when every channel fails is the item marked failed, with the reasons."""
+    res = await publisher.publish_item(doc, None)
+    channels = {k: v for k, v in res.items() if k in ("facebook", "instagram")}
+    done = {k: v for k, v in channels.items() if v.get("ok")}
+    if not done:
+        raise RuntimeError("no channel published: " + "; ".join(f"{k}: {v.get('error')}" for k, v in channels.items())[:240])
+    note = "; ".join(f"{k} failed: {v.get('error')}" for k, v in channels.items() if not v.get("ok") and not v.get("skipped"))
+    fields = {"published_at": now, "publish": {"platform_id": next(iter(done.values()))["id"], "scheduled_for": None, "channels": channels}}
+    if res.get("card"):
+        fields["card"] = res["card"]
+    await store.move(doc["_id"], "published", note[:240], **fields)
+    after = stages.get("after_publish")
+    if after is not None:  # hub, interest links: best effort, never blocks or fails the item
+        try:
+            await _call(after, store.db, {**doc, **fields}, channels)
+        except Exception as e:
+            log.warning("newsroom: after-publish step failed for %s: %s", doc.get("_id"), sanitize(e))
+
+
+async def _publish(store: Store, publisher: Publisher, now: datetime, cfg: NewsroomConfig, counts: dict, stages: Optional[dict] = None) -> None:
     used = await store.published_since(now - timedelta(hours=24))
+    multi = hasattr(publisher, "publish_item")
     for doc in await store.next_batch("approved", BATCH):
         if used >= cfg.daily_cap:
             counts["capped"] += 1  # stays approved; picked up on a later run when the cap frees up
@@ -139,10 +169,16 @@ async def _publish(store: Store, publisher: Publisher, now: datetime, cfg: Newsr
                     raise ValueError("scheduled more than 30 days ahead")
                 if when - now < MIN_AHEAD:
                     when = None  # too soon to schedule: post now
-            d = codec.draft(doc)
-            pid = await publisher.publish(d.text, d.link, when)
-            await store.move(doc["_id"], "scheduled" if when else "published", "", published_at=now,
-                             publish={"platform_id": pid, "scheduled_for": when})
+                elif multi:  # Instagram cannot schedule: wait until the time comes, then post on both channels together
+                    counts["waiting"] = counts.get("waiting", 0) + 1
+                    continue
+            if multi:
+                await _publish_item(store, publisher, doc, now, when, counts, stages or {})
+            else:
+                d = codec.draft(doc)
+                pid = await publisher.publish(d.text, d.link, when)
+                await store.move(doc["_id"], "scheduled" if when else "published", "", published_at=now,
+                                 publish={"platform_id": pid, "scheduled_for": when})
             used += 1
             counts["published"] += 1
         except Exception as e:
@@ -164,7 +200,7 @@ async def run_once(store: Store, sources: list, stages: Optional[Dict[str, Calla
         await _each(store, "extracted", "draft", counts, lambda d: _draft(store, stages, llm, d))
     await _each(store, "drafted", "check", counts, lambda d: _check(store, stages, d))
     if publisher is not None:
-        await _publish(store, publisher, now, cfg, counts)
+        await _publish(store, publisher, now, cfg, counts, stages)
     return counts
 
 
