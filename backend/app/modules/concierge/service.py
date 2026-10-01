@@ -196,16 +196,9 @@ class ConciergeService:
         site update (logo, photo, Instagram, Facebook)."""
         await self._agent(agent_id)
         who = SimpleNamespace(id=agent_id)
-        full = getattr(self.onboarding, "update_branding", None)
         try:
-            if full:
-                result = await full(who, data)
-            else:
-                from app.modules.onboarding.schemas import SiteUpdate
-                legacy = {k: v for k, v in data.items() if k in ("photo", "logo", "instagram", "facebook_url")}
-                if len(legacy) != len(data):
-                    raise ConciergeError("Only logo, photo, Instagram and Facebook can be set until branding is available", 409)
-                result = await self.onboarding.update_site(who, SiteUpdate(**legacy))
+            from app.modules.onboarding.schemas import SiteUpdate
+            result = await self.onboarding.update_site(who, SiteUpdate(**data))
         except ConciergeError:
             raise
         except ValidationError as e:

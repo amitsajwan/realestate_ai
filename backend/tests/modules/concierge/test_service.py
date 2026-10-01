@@ -207,22 +207,16 @@ def test_mask_phone():
     assert mask_phone("+919876543210") == "98******10" and mask_phone("") == ""
 
 
-async def test_branding_update_delegates_and_rejects_unknown_fields_until_a1_lands():
+async def test_branding_update_uses_the_site_update_with_all_branding_fields():
     svc, db, _ = make()
     aid = (await agent(svc))["agent"]["id"]
-    out = await svc.update_branding("OWNER", aid, {"logo": "/uploads/images/logo.png"})
-    assert out["logo"] == "/uploads/images/logo.png"
-    with pytest.raises(ConciergeError) as e:
-        await svc.update_branding("OWNER", aid, {"banner": "x"})
-    assert e.value.status_code == 409
+    out = await svc.update_branding("OWNER", aid, {"logo": "/uploads/images/logo.png", "rera_agent_no": "a52100012345", "preset": "emerald"})
+    assert out is not None
+    prof = await svc.profiles.find_one({"agent_id": aid})
+    assert prof["branding_data"]["logo"] == "/uploads/images/logo.png" and prof["branding_data"]["rera_agent_no"] == "A52100012345"
     with pytest.raises(ConciergeError) as e:
         await svc.update_branding("OWNER", aid, {"logo": "http://evil.example/x.png"})
     assert e.value.status_code == 422
-
-    async def full(who, data):
-        return {"ok": True, **data}
-    svc.onboarding.update_branding = full  # once A1's service exists, it is used
-    assert (await svc.update_branding("OWNER", aid, {"banner": "b"}))["ok"]
 
 
 async def test_no_phone_number_in_agent_responses():
