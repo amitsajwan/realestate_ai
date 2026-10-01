@@ -188,7 +188,13 @@ def agent_items() -> List[Dict]:
     creative samples: comments become lead cards with BHK, budget and timing)."""
     briefs = _creative_samples.agent_briefs()
     slugs = ["agent-lead-cards", "agent-post-to-lead", "agent-comment-not-lead", "agent-notebook-vs-cards", "agent-three-details", "agent-poll-tracking"]
-    return [{"slug": s, "brief": agent_brief(b)} for s, b in zip(slugs, briefs)]
+    hooks = ["Still copying buyer comments into a notebook?", "From one listing post to a ready lead", "Is every comment really a lead?",
+             "Notebook chaos or ready lead cards?", "3 details on every lead before you reply", "How do you track buyer comments today?"]
+    out = []
+    for s, b, h in zip(slugs, briefs, hooks):
+        b.hooks = {p: h for p in ("mistake", "nobody", "question")}
+        out.append({"slug": s, "brief": agent_brief(b)})
+    return out
 
 
 AGENT_POOL = {a["slug"]: a for a in agent_items()}
