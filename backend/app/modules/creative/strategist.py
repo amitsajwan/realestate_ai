@@ -10,7 +10,7 @@ from typing import Any, List, Optional, Sequence
 
 from . import hooks
 from .catalog import layouts_for
-from .guards import GENERIC_HOOK, problems_in, word_count
+from .guards import GENERIC_HOOK, problems_in, tidy, word_count
 from .models import AUDIENCES, CHANNELS, Angle, Brief
 
 log = logging.getLogger(__name__)
@@ -93,7 +93,7 @@ def rule_angle(brief: Brief, audience: str, channel: str, seed: int, recent_layo
 def _valid_hook(h: Any, corpus: str) -> Optional[str]:
     if not isinstance(h, str):
         return None
-    h = h.strip().strip('"').strip()
+    h = tidy(h).strip().strip('"').strip()
     if not h or not (2 <= word_count(h) <= hooks.HOOK_MAX_WORDS) or GENERIC_HOOK.match(h):
         return None
     return None if problems_in(h, corpus) else h

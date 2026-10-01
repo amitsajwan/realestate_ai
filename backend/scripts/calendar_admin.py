@@ -44,9 +44,13 @@ def dry_check() -> int:
 
 
 async def _store():
-    from app.core.database import get_database
+    from app.core.database import get_database, init_database
     from app.modules.calendar.store import Store
-    return Store(get_database())
+    try:
+        return Store(get_database())
+    except RuntimeError:  # scripts run outside the app lifespan: connect first
+        await init_database()
+        return Store(get_database())
 
 
 def _llm(use: bool):

@@ -238,3 +238,8 @@ async def test_llm_critique_is_advice_only():
 def test_hooks_library_has_the_six_patterns():
     assert set(hooks.PATTERNS) == {"mistake", "number", "myth", "nobody", "comparison", "question"}
     assert hooks.pick_pattern(0, ["a", "b", "c"]) != hooks.pick_pattern(1, ["a", "b", "c"])
+
+
+def test_tidy_replaces_characters_the_card_font_cannot_draw():
+    from app.modules.creative.guards import tidy
+    assert tidy("carpet‑area mistake​") == "carpet-area mistake"

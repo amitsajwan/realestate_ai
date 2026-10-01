@@ -9,7 +9,7 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Sequence
 
-from .guards import filler_hits, problems_in, word_count
+from .guards import filler_hits, problems_in, tidy, word_count
 from .models import Angle, Brief, Copy
 
 log = logging.getLogger(__name__)
@@ -169,7 +169,7 @@ def build_user(angle: Angle, brief: Brief, feedback: Optional[str]) -> str:
 def _clean_str(v: Any, corpus: str, max_words: Optional[int] = None, max_chars: Optional[int] = None) -> Optional[str]:
     if not isinstance(v, str) or not v.strip():
         return None
-    s = v.strip()
+    s = tidy(v).strip()
     if max_words and word_count(s) > max_words:
         return None
     if max_chars and len(s) > max_chars:

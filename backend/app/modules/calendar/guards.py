@@ -19,9 +19,12 @@ PROMPT = re.compile(r"\?|\bsave\b|\bshare\b|\bcomment\b|शेयर|शेअ�
 FRONTEND = Path(__file__).resolve().parents[4] / "frontend"
 
 
-def site_paths(frontend: Optional[Path] = None) -> Set[str]:
-    """Public site paths that exist: parsed from the frontend sources (insight slugs, locality slugs, fixed pages)."""
+def site_paths(frontend: Optional[Path] = None) -> Optional[Set[str]]:
+    """Public site paths that exist: parsed from the frontend sources (insight slugs, locality slugs, fixed pages).
+    None when the frontend sources are not on this machine (the backend container), so the link check is skipped there."""
     root = frontend or FRONTEND
+    if not (root / "lib" / "marketing" / "insights.ts").is_file():
+        return None
     paths = {"/", "/localities", "/insights", "/request-invite"}
     ins = root / "lib" / "marketing" / "insights.ts"
     loc = root / "lib" / "marketing" / "localities.ts"

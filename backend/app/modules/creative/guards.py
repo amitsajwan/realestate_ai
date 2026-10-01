@@ -22,6 +22,14 @@ GENERIC_HOOK = re.compile(r"^(?:tips? (?:for|to)|things to|guide to|all about|in
 CLICKBAIT = re.compile(r"\b(you won'?t believe|shocking|secret they|doctors hate|this one trick|mind-?blowing|must[- ]see)\b", re.I)
 
 
+_ODD = {"‐": "-", "‑": "-", "‒": "-", " ": " ", " ": " ", " ": " ", " ": " ", "​": "", "⁠": "", "­": ""}
+
+
+def tidy(s: str) -> str:
+    """Replace characters the card font cannot draw (non-breaking hyphen, thin spaces, zero-width marks) with plain ones."""
+    return "".join(_ODD.get(ch, ch) for ch in s or "")
+
+
 def words(s: str) -> List[str]:
     return WORD.findall(s or "")
 
