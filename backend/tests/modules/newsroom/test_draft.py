@@ -72,17 +72,23 @@ async def test_article_shape():
     ok(d)
 
 
-async def test_llm_returns_none_gives_none():
-    assert await draft(ITEM, FACTS, REL, "post", FakeLlm(None)) is None
+async def test_llm_returns_none_falls_back_to_the_plain_template():
+    d = await draft(ITEM, FACTS, REL, "post", FakeLlm(None))
+    assert d is not None and d.format == "post"
+    ok(d)
 
 
-async def test_llm_raises_gives_none():
-    assert await draft(ITEM, FACTS, REL, "post", FakeLlm(boom=True)) is None
+async def test_llm_raises_falls_back_to_the_plain_template():
+    d = await draft(ITEM, FACTS, REL, "post", FakeLlm(boom=True))
+    assert d is not None
+    ok(d)
 
 
 @pytest.mark.parametrize("reply", [{}, {"what": "x"}, {"why": "y"}, ["not", "a", "dict"]])
-async def test_unusable_llm_reply_gives_none(reply):
-    assert await draft(ITEM, FACTS, REL, "post", FakeLlm(reply)) is None
+async def test_unusable_llm_reply_falls_back_to_the_plain_template(reply):
+    d = await draft(ITEM, FACTS, REL, "post", FakeLlm(reply))
+    assert d is not None
+    ok(d)
 
 
 async def test_no_facts_gives_none():

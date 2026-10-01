@@ -4,6 +4,7 @@ The LLM returns short parts; code assembles the final text so the link, the 'as 
 always there. Every draft still goes through `check` afterwards: this stage does not vouch for its own output.
 """
 import re
+import asyncio
 from typing import List, Optional
 
 from .. import policy
@@ -118,6 +119,10 @@ def template_draft(item: RawItem, facts: Facts, rel: Relevance, fmt: str = "post
     return _assemble(item, facts, rel, "article" if fmt == "article" else "post", parts)
 
 
+LLM_TRIES = 3
+RETRY_DELAY = 2.0  # seconds; tests set it to 0
+
+
 async def draft(item: RawItem, facts: Facts, relevance: Relevance, fmt: str, llm: Optional[Llm]) -> Optional[Draft]:
     if not facts.facts:
         return None
@@ -129,14 +134,20 @@ async def draft(item: RawItem, facts: Facts, relevance: Relevance, fmt: str, llm
         fmt = "post"  # a headline alone never supports an article
     user = (f"Format: {fmt}\nArea: {where}\nPillar: {relevance.pillar or 'general'}\nAs of: {_as_of(facts, item) or 'unknown'}\n"
             "Facts:\n" + "\n".join(f"- {_clean(f.text)}" for f in facts.facts))
-    try:
-        parts = await llm.json(SYSTEM_HEADLINE if thin else SYSTEM, user)
-    except Exception:  # an LLM outage must never crash the pipeline
-        return None
+    parts = None
+    for attempt in range(LLM_TRIES):  # free models are flaky under a burst of calls: try again before giving up
+        try:
+            parts = await llm.json(SYSTEM_HEADLINE if thin else SYSTEM, user)
+        except Exception:  # an LLM outage must never crash the pipeline
+            parts = None
+        if isinstance(parts, dict) and _clean(parts.get("what")):
+            break
+        if attempt < LLM_TRIES - 1:
+            await asyncio.sleep(RETRY_DELAY * (attempt + 1))
     if not isinstance(parts, dict) or not _clean(parts.get("what")):
-        return None
+        return None if thin else template_draft(item, facts, relevance, fmt)
     if thin:
         parts = {**parts, "why": "", "check": parts.get("check") or HEADLINE_CHECK}
     elif not _clean(parts.get("why")):
-        return None
+        return template_draft(item, facts, relevance, fmt)
     return _assemble(item, facts, relevance, "article" if fmt == "article" else "post", parts)
