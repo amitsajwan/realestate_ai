@@ -4,6 +4,7 @@ import Link from 'next/link'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError } from '@/lib/app/api'
 import { api, errorMessage } from '@/lib/app/client'
+import { conciergeApi, firstName } from '@/lib/app/concierge'
 import { getSiteUrl } from '@/lib/app/session'
 import { listingLink } from '@/lib/app/share'
 import { compactAbout } from '@/lib/app/about'
@@ -35,7 +36,15 @@ export function cleanInput(v: ListingInput): ListingInput {
   return out as ListingInput
 }
 
-export function NewListingFlow() {
+/** The owner entering a listing for an agent (white-glove): everything is created under that agent. */
+export interface OnBehalfOf {
+  id: string
+  name: string
+}
+
+export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {}) {
+  const agentHome = onBehalfOf ? `/studio/agents/${encodeURIComponent(onBehalfOf.id)}` : null
+  const backHref = agentHome ?? '/studio/listings'
   const [step, setStep] = useState<Step>('capture')
   const [text, setText] = useState('')
   const [audio, setAudio] = useState<Blob | null>(null)
@@ -108,9 +117,11 @@ export function NewListingFlow() {
         media: uploaded.current.urls.map((url, order) => ({ url, kind: 'image' as const, order })),
       })
       // Retry-safe: never create the same draft twice if publish fails.
-      const saved = createdId.current ? await api.updateListing(createdId.current, body) : await api.createListing(body)
+      const saved = onBehalfOf
+        ? createdId.current ? await conciergeApi.updateListing(onBehalfOf.id, createdId.current, body) : await conciergeApi.createListing(onBehalfOf.id, body)
+        : createdId.current ? await api.updateListing(createdId.current, body) : await api.createListing(body)
       createdId.current = saved.id
-      setPosted(await api.publishListing(saved.id))
+      setPosted(onBehalfOf ? await conciergeApi.publishListing(onBehalfOf.id, saved.id) : await api.publishListing(saved.id))
       setStep('done')
     } catch (e) {
       if (e instanceof ApiError && e.status === 422) setErrors(e.fields)
@@ -123,7 +134,20 @@ export function NewListingFlow() {
   let overlay: React.ReactNode = null
   if (step === 'drafting') overlay = <Spinner label={t('reading')} />
   else if (step === 'posting') overlay = <Spinner label={t('posting')} />
-  else if (step === 'done' && posted) {
+  else if (step === 'done' && posted && onBehalfOf && agentHome) {
+    overlay = (
+      <div className="space-y-5" data-testid="behalf-done">
+        <div className="space-y-2 text-center">
+          <div className="text-5xl" aria-hidden>✅</div>
+          <h1 className="text-2xl font-bold">Saved for {firstName(onBehalfOf.name)}</h1>
+          <p className="font-semibold">{posted.title}</p>
+          <p className="text-sm text-gray-600">It is live on his website. Open his page to post it on PUNE Property.</p>
+        </div>
+        <LinkBtn href={agentHome}>Back to {firstName(onBehalfOf.name)}</LinkBtn>
+        <Btn variant="secondary" onClick={() => window.location.assign(`${agentHome}/listings/new`)}>{t('postAnother')}</Btn>
+      </div>
+    )
+  } else if (step === 'done' && posted) {
     const link = listingLink(getSiteUrl(), posted.id)
     overlay = (
       <div className="space-y-5">
@@ -203,8 +227,8 @@ export function NewListingFlow() {
       {overlay}
       <div className="space-y-5" hidden={!!overlay}>
       <div className="flex items-center gap-2">
-        <Link href="/studio/listings" className="flex min-h-[44px] min-w-[44px] items-center text-xl" aria-label={t('back')}>←</Link>
-        <h1 className="text-2xl font-bold">{t('addListing').replace('+ ', '')}</h1>
+        <Link href={backHref} className="flex min-h-[44px] min-w-[44px] items-center text-xl" aria-label={t('back')}>←</Link>
+        <h1 className="text-2xl font-bold">{onBehalfOf ? `Listing for ${firstName(onBehalfOf.name)}` : t('addListing').replace('+ ', '')}</h1>
       </div>
       <textarea
         aria-label={t('describe')}

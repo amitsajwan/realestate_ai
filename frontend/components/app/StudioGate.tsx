@@ -11,7 +11,7 @@ export function StudioGate({ children }: { children: React.ReactNode }) {
   const path = usePathname() || ''
   const authed = session.ready && !!session.token
   return (
-    <AppShell hideTabs={path.startsWith('/studio/listings/new')}>
+    <AppShell hideTabs={path.startsWith('/studio/listings/new') || /^\/studio\/agents\/[^/]+\/listings\/new/.test(path)}>
       {authed ? children : <Spinner />}
     </AppShell>
   )

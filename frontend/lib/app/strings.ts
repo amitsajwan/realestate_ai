@@ -56,6 +56,7 @@ const en = {
   interest: 'Interest',
   newsroom: 'Newsroom',
   content: 'Content',
+  agents: 'Agents',
   voicePremium: 'Voice listing',
   voicePremiumBadge: 'Premium',
   voicePremiumSub: 'Speak in Hindi, Marathi or English and we write the listing. Coming with Premium. For now, type the details.',

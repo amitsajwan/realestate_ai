@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { isFixtureMode } from '@/lib/app/client'
 import { t } from '@/lib/app/strings'
+import { useIsOwner } from './agents/useIsOwner'
 
 const TABS = [
   { href: '/studio', label: 'home', icon: 'M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z' },
@@ -13,6 +14,9 @@ const TABS = [
   { href: '/studio/content', label: 'content', icon: 'M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M9 9h.01' },
   { href: '/studio/leads', label: 'leads', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 014-4h2a4 4 0 014 4v2zM12 7a3 3 0 11-6 0 3 3 0 016 0z' },
 ] as const
+
+/** Owner only (the server answers 403 to anyone else, so the tab is simply not shown). */
+const AGENTS_TAB = { href: '/studio/agents', label: 'agents', icon: 'M16 11a4 4 0 10-8 0 4 4 0 008 0zM4 21a8 8 0 0116 0M18 8l2 2 3-3' } as const
 
 export function FixtureBanner() {
   const [on, setOn] = useState(false)
@@ -27,6 +31,7 @@ export function FixtureBanner() {
  */
 export function AppShell({ children, hideTabs = false }: { children: React.ReactNode; hideTabs?: boolean }) {
   const path = usePathname() || ''
+  const tabs = useIsOwner() ? [...TABS, AGENTS_TAB] : TABS
   const active = (href: string) => (href === '/studio' ? path === '/studio' : path.startsWith(href))
   return (
     <div data-surface="v2" className="fixed inset-0 z-50 flex flex-col bg-gray-50 text-gray-900">
@@ -40,7 +45,7 @@ export function AppShell({ children, hideTabs = false }: { children: React.React
           style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         >
           <ul className="mx-auto flex max-w-md">
-            {TABS.map((tab) => (
+            {tabs.map((tab) => (
               <li key={tab.href} className="flex-1">
                 <Link
                   href={tab.href}
