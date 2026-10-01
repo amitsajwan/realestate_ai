@@ -5,6 +5,7 @@ import secrets
 from datetime import datetime
 from typing import Awaitable, Callable, Protocol
 
+from . import branding as bd
 from .otp import OTPService
 from .schemas import SiteCreate
 from .slug import unique_slug
@@ -96,6 +97,12 @@ class OnboardingService:
 
         slug = await unique_slug(self.profiles, data.preferred_slug or "", data.name, f"{data.name}-{data.city}")
         brand = await self.branding(data.name, data.city)
+        if data.tagline:
+            brand = {**brand, "tagline": data.tagline}
+        if data.about:
+            brand = {**brand, "about": data.about}
+        if data.preset or data.custom_primary:
+            brand = {**brand, "colors": bd.theme_for(data.preset, data.custom_primary)}
         phone = data.whatsapp or getattr(user, "phone", "") or ""
         now = datetime.utcnow()
         doc = {
@@ -105,7 +112,7 @@ class OnboardingService:
             "office_address": data.city, "specialties": data.specialties,
             "experience": "", "languages": data.languages,
             "is_active": True, "is_public": True, "view_count": 0, "contact_count": 0,
-            "branding_data": {"tagline": brand["tagline"], "colors": brand["colors"], **self._social(data)},
+            "branding_data": {"tagline": brand["tagline"], "colors": brand["colors"], **self._social(data), **self._brand(data)},
             "site_config": {
                 "theme": brand["colors"],
                 "hero": {"headline": data.name, "subheadline": brand["tagline"]},
@@ -118,6 +125,19 @@ class OnboardingService:
         await self.profiles.insert_one(doc)
         await self.users.mark_onboarded(user, data.name)
         return self._result(doc, created=True)
+
+    @staticmethod
+    def _brand(data) -> dict:
+        """Brand fields given at creation (business name, preset, ...). Only what the agent actually set is stored."""
+        out = {}
+        for key in ("business_name", "preset", "custom_primary", "rera_agent_no", "years_experience"):
+            if getattr(data, key, None) not in (None, ""):
+                out[key] = getattr(data, key)
+        if getattr(data, "areas", None):
+            out["areas"] = list(data.areas)
+        if getattr(data, "languages", None):
+            out["languages"] = list(data.languages)
+        return out
 
     @staticmethod
     def _social(data) -> dict:
@@ -157,10 +177,43 @@ class OnboardingService:
             branding["social"] = social
         else:
             branding.pop("social", None)
+        if "banner" in given:
+            if data.banner:
+                branding["banner"] = data.banner
+            else:
+                branding.pop("banner", None)
+        for key in ("business_name", "tagline", "about", "preset", "custom_primary", "rera_agent_no", "years_experience", "areas", "languages"):
+            if key in given:
+                val = getattr(data, key)
+                if val in (None, "", []):
+                    branding.pop(key, None)
+                else:
+                    branding[key] = val
+        if "preset" in given or "custom_primary" in given:
+            branding["colors"] = bd.theme_for(branding.get("preset"), branding.get("custom_primary"))
+            sets["site_config.theme"] = branding["colors"]
+        if branding.get("tagline") and "tagline" in given:
+            sets["site_config.hero.subheadline"] = branding["tagline"]
+        if branding.get("about") and "about" in given:
+            sets["bio"] = branding["about"]
+        if "business_name" in given:
+            sets["site_config.hero.headline"] = branding.get("business_name") or doc.get("agent_name", "")
         sets["branding_data"] = branding
         sets["updated_at"] = datetime.utcnow()
         await self.profiles.update_one({"user_id": user_id}, {"$set": sets})
-        return {"slug": doc["slug"], "photo": sets.get("photo", doc.get("photo", "")), "logo": branding.get("logo"), "social": branding.get("social") or {}}
+        return self._site_view({**doc, "photo": sets.get("photo", doc.get("photo", "")), "branding_data": branding})
+
+    async def get_site(self, user) -> dict:
+        doc = await self.profiles.find_one({"user_id": str(user.id)})
+        if not doc:
+            raise OnboardingError("Create your site first", 404)
+        return self._site_view(doc)
+
+    @staticmethod
+    def _site_view(doc: dict) -> dict:
+        branding = doc.get("branding_data") or {}
+        return {"slug": doc["slug"], "agent_name": doc.get("agent_name", ""), "photo": doc.get("photo", ""),
+                "logo": branding.get("logo"), "social": branding.get("social") or {}, "branding_data": branding}
 
     def _result(self, doc: dict, created: bool) -> dict:
         return {

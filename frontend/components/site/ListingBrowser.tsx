@@ -30,7 +30,7 @@ export default function ListingBrowser({ slug, items }: { slug: string; items: P
       <div className="rounded-2xl border border-[#ead9ae] bg-[#fbf6ea] p-6 text-center">
         <p className="text-lg font-bold text-[#0f2340]">New homes are being added</p>
         <p className="mt-1 text-slate-700">Tell us your budget and the area you like, and we will send you matching homes as they are posted.</p>
-        <a href="#enquire" className="mt-4 inline-flex min-h-[48px] items-center rounded-full bg-[var(--site-accent)] px-6 font-bold text-[#18202c] no-underline">I&apos;m interested</a>
+        <a href="#enquire" className="mt-4 inline-flex min-h-[48px] items-center rounded-full bg-[var(--site-accent)] px-6 font-bold text-[var(--site-on-accent)] no-underline">I&apos;m interested</a>
       </div>
     )
   }

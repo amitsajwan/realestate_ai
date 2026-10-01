@@ -103,6 +103,8 @@ class Facts:
     highlights: List[str] = field(default_factory=list)  # from the listing's about.highlights (agent-written), at most 2 used in captions
     agent_name: str = ""
     agent_phone: Optional[str] = None
+    agent_business: str = ""  # the agent's own business name (branding_data), shown as a small 'Listed by' line on cards
+    agent_rera_no: str = ""  # the agent's self-declared MahaRERA agent number (not verified by us)
     share_url: str = ""
     as_of: str = ""  # 'available as of' date shown on group posts (set when the pack is generated)
     sample: bool = False  # an illustrative listing (title starts with 'Sample'): labelled everywhere, never presented as available
@@ -122,6 +124,8 @@ class Facts:
             amenities=[a for a in (listing.get("amenities") or []) if a],
             highlights=[h for h in ((listing.get("about") or {}).get("highlights") or []) if isinstance(h, str) and h.strip()][:2],
             agent_name=PUBLIC_NAME, agent_phone=profile.get("phone"),  # posts are signed by the team, never by an agent's own name
+            agent_business=str(((profile.get("branding_data") or {}).get("business_name")) or "")[:60],
+            agent_rera_no=str(((profile.get("branding_data") or {}).get("rera_agent_no")) or "")[:20],
             share_url=share_url, sample=(listing.get("title") or "").strip().lower().startswith("sample"))
 
     # -- derived text ------------------------------------------------------------------------

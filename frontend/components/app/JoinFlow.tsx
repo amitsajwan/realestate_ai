@@ -8,6 +8,7 @@ import { api, errorMessage } from '@/lib/app/client'
 import { displayPhone, normalizePhone } from '@/lib/app/format'
 import { getToken, saveSession, saveSiteUrl } from '@/lib/app/session'
 import { t } from '@/lib/app/strings'
+import { PRESETS, PRESET_IDS } from '@/lib/site/presets'
 import type { SiteResult } from '@/lib/app/types'
 import { FixtureBanner } from './AppShell'
 import { ShareBar } from './ShareBar'
@@ -40,6 +41,8 @@ export function JoinFlow() {
   const [specialties, setSpecialties] = useState<string[]>([])
   const [extras, setExtras] = useState<ProfileExtrasValue>(EMPTY_EXTRAS)
   const [site, setSite] = useState<SiteResult | null>(null)
+  const [businessName, setBusinessName] = useState('')
+  const [preset, setPreset] = useState('navy-gold')
 
   useEffect(() => {
     if (getToken()) router.replace('/studio') // already signed in
@@ -98,6 +101,7 @@ export function JoinFlow() {
       const [photo, logo] = await Promise.all([extras.photo, extras.logo].map(async (f) => (f ? (await api.uploadImages([await compressImage(f)]))[0]?.url : undefined)))
       const r = await api.createSite({
         name: name.trim(), city: city.trim(), languages, specialties,
+        ...(businessName.trim() ? { business_name: businessName.trim() } : {}), preset,
         ...(photo ? { photo } : {}), ...(logo ? { logo } : {}),
         ...(extras.instagram.trim() ? { instagram: extras.instagram.trim() } : {}),
         ...(extras.facebook.trim() ? { facebook_url: extras.facebook.trim() } : {}),
@@ -201,6 +205,22 @@ export function JoinFlow() {
             <Field label={t('yourCity')} htmlFor="city">
               <input id="city" className={inputCls} value={city} onChange={(e) => setCity(e.target.value)} placeholder="Pune" />
             </Field>
+            <Field label="Business name (optional)" htmlFor="biz">
+              <input id="biz" className={inputCls} value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="e.g. Kulkarni Homes" maxLength={60} />
+            </Field>
+            <fieldset>
+              <legend className="mb-2 text-sm font-medium text-gray-700">Colour theme for your website</legend>
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Colour theme">
+                {PRESET_IDS.map((id) => (
+                  <button key={id} type="button" role="radio" aria-checked={preset === id} aria-label={PRESETS[id].label} data-testid={'join-preset-' + id} onClick={() => setPreset(id)}
+                    className={`flex min-h-[44px] items-center gap-2 rounded-full border-2 px-3 text-sm font-semibold ${preset === id ? 'border-blue-600 bg-blue-50' : 'border-gray-200 bg-white'}`}>
+                    <span aria-hidden className="h-5 w-5 rounded-full border border-black/10" style={{ background: `linear-gradient(135deg, ${PRESETS[id].primary} 60%, ${PRESETS[id].accent} 60%)` }} />
+                    {PRESETS[id].label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-xs text-gray-500">You can add a logo, banner and RERA number later under My brand.</p>
+            </fieldset>
             <ChipPicker label={t('languages')} options={LANGS} value={languages} onChange={setLanguages} />
             <ChipPicker label={t('specialties')} options={SPECIALTIES} value={specialties} onChange={setSpecialties} />
             <ProfileExtras value={extras} onChange={setExtras} />

@@ -62,3 +62,11 @@ async def update_site(body: SiteUpdate, user: User = Depends(current_active_user
         return await svc.update_site(user, body)
     except OnboardingError as e:
         raise HTTPException(status_code=e.status_code, detail=str(e))
+
+
+@router.get("/site")
+async def get_site(user: User = Depends(current_active_user), svc: OnboardingService = Depends(get_service)):
+    try:
+        return await svc.get_site(user)
+    except OnboardingError as e:
+        raise HTTPException(status_code=e.status_code, detail=str(e))
