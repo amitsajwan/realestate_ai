@@ -4,6 +4,7 @@ photo, eased text animation, cross-fade or slide transitions, progress bar, bran
 Output: H.264 (yuv420p, High profile), 1080x1920, 30 fps, AAC stereo audio (silent unless `music` is given), faststart, < 30 s.
 Text stays inside the Instagram safe zone: nothing in the top 10% or bottom 20% of the frame (see SAFE_TOP / SAFE_BOTTOM).
 """
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -351,6 +352,15 @@ class _Prepared:
         else:
             self.fx0, self.fx1 = (0.47, 0.53) if not flip else (0.53, 0.47)
         self.fy0, self.fy1 = (0.52, 0.46) if not flip else (0.46, 0.52)
+        self.depth = None
+        if self.has_photo and os.environ.get("REEL_PARALLAX", "on").lower() != "off":
+            try:
+                from .depth import depth_map
+                self.depth = depth_map(self.base)  # 2.5D: nearness per pixel, or None (plain zoom)
+            except Exception:
+                self.depth = None
+        if self.depth is not None:  # with parallax the zoom stays gentle so the depth motion reads clearly
+            self.z0, self.z1 = (1.02, 1.07) if not flip else (1.07, 1.02)
         self.mask = self._scrim_mask()
         self.solid = Image.new("RGB", (W, H), NAVY_BLACK)
         self.items = layout_scene(scene)
@@ -375,7 +385,15 @@ class _Prepared:
         cy = (self.fy0 + (self.fy1 - self.fy0) * p) * bh
         x0 = min(max(cx - ww / 2, 0), bw - ww)
         y0 = min(max(cy - wh / 2, 0), bh - wh)
-        return self.base.resize((W, H), Image.BILINEAR, box=(x0, y0, x0 + ww, y0 + wh))
+        view = self.base.resize((W, H), Image.BILINEAR, box=(x0, y0, x0 + ww, y0 + wh))
+        if self.depth is None:
+            return view
+        import cv2
+        dcrop = self.depth[int(y0):int(y0 + wh), int(x0):int(x0 + ww)]
+        d = cv2.resize(dcrop, (W, H), interpolation=cv2.INTER_LINEAR)
+        swing = (p - 0.5) * 2 * (1 if self.index % 2 == 0 else -1)
+        from .depth import parallax
+        return parallax(view, d, shift_x=34 * swing, shift_y=-10 * swing)
 
     def frame(self, lt: float, p: float) -> Image.Image:
         img = Image.composite(self.solid, self.background(p), self.mask)

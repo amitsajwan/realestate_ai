@@ -55,7 +55,8 @@ async def write_script(subject: str, facts: Sequence[str], lang: str, llm, fallb
     return {**fallback, "made_by": "rules"}
 
 
-def build(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Optional[str] = None, kicker: Optional[str] = None) -> Path:
+def build(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Optional[str] = None, kicker: Optional[str] = None,
+          with_music: bool = True) -> Path:
     beats = list(script["beats"]) + [{"screen": script["cta_screen"], "voice": script["cta_voice"]}]
     work = Path(tempfile.mkdtemp(prefix="reel-"))
     clips, durs = [], []
@@ -79,7 +80,16 @@ def build(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opti
         ms = int((tl.starts[i] + (0.35 if i == 0 else 0.25)) * 1000)
         filters.append(f"[{i}:a]adelay={ms}|{ms},aresample=48000[a{i}]")
     mix = "".join(f"[a{i}]" for i in range(len(clips)))
-    filters.append(f"{mix}amix=inputs={len(clips)}:normalize=0,apad=whole_dur={tl.total:.2f},volume=1.35[out]")
+    filters.append(f"{mix}amix=inputs={len(clips)}:normalize=0,apad=whole_dur={tl.total:.2f},volume=1.35[voice]")
+    if with_music:
+        from .music import write as write_music
+        bed = write_music(work / "bed.wav", seconds=tl.total + 1.0)
+        inputs += ["-i", str(bed)]
+        m = len(clips)
+        filters.append(f"[{m}:a]aresample=48000,volume=0.22[bed]")
+        filters.append("[voice][bed]amix=inputs=2:normalize=0:duration=first[out]")
+    else:
+        filters[-1] = filters[-1].replace("[voice]", "[out]")
     narration = work / "narration.m4a"
     ffmpeg.run([*inputs, "-filter_complex", ";".join(filters), "-map", "[out]", "-t", f"{tl.total:.2f}", "-c:a", "aac", "-b:a", "160k", str(narration), "-y"])
     return make_reel(scenes, out_path, music=narration, transition="slide", xfade=XFADE)
