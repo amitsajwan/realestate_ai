@@ -3,11 +3,13 @@ import os
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.auth_backend import current_active_user
 from app.models.user import User
 
 from .llm import LLMClient, Transcriber, TranscriptionError, default_llm, default_transcriber
+from .about import suggest_about
 from .schemas import AIDraft
 from .service import AIListingService, AudioInput, TranscriberUnavailable
 
@@ -77,3 +79,19 @@ async def ai_draft(
         raise HTTPException(status_code=503, detail=str(e) + " You can still send the details as text.")
     except TranscriptionError:
         raise HTTPException(status_code=502, detail="Voice could not be turned into text right now. Please type the details instead.")
+
+
+class AboutSuggestRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    locality: Optional[str] = Field(None, max_length=120)
+    project_name: Optional[str] = Field(None, max_length=120)
+    bhk: Optional[float] = Field(None, ge=0.5, le=20)
+    description: str = Field("", max_length=MAX_TEXT_CHARS)
+
+
+@router.post("/ai/about-suggest")
+async def ai_about_suggest(body: AboutSuggestRequest, user: User = Depends(current_active_user),
+                           llm: Optional[LLMClient] = Depends(get_llm)):
+    """DRAFT `about` for the agent to confirm. Agent lines come from their own words (source 'agent'); connectivity and
+    nearby offices only from curated area facts (source 'area_guide'). Persists nothing."""
+    return await suggest_about(body.locality, body.project_name, body.bhk, body.description, llm)

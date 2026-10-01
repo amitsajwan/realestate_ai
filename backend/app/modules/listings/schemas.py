@@ -4,6 +4,8 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
 
+from .about import About, PublicAbout
+
 Status = Literal["draft", "live", "under_offer", "sold", "rented", "paused", "expired"]
 Visibility = Literal["private", "network", "public"]
 Transaction = Literal["sale", "rent"]
@@ -63,6 +65,7 @@ class _Fields(BaseModel):
     rera_no: Optional[str] = Field(None, max_length=60)
     amenities: List[str] = Field(default_factory=list, max_length=60)
     media: List[Media] = Field(default_factory=list, max_length=MAX_PHOTOS)
+    about: Optional[About] = None  # project and area knowledge (docs/contracts/engagement.md); optional, never migrated
 
     @field_validator("amenities")
     @classmethod
@@ -151,6 +154,7 @@ class PublicListing(BaseModel):
     rera_no: Optional[str] = None
     amenities: List[str] = Field(default_factory=list)
     media: List[Media] = Field(default_factory=list)
+    about: Optional[PublicAbout] = None
     created_at: datetime
     updated_at: datetime
     published_at: Optional[datetime] = None

@@ -323,3 +323,19 @@ def test_no_link_lines_without_a_share_url():
     f.share_url = ""
     c = build_content(f, "en")
     assert "http" not in c["facebook"]["post"] and "link in bio" not in c["instagram"]["caption"]
+
+
+def test_about_highlights_appear_in_captions_at_most_two_and_verbatim():
+    f = facts(about={"highlights": ["East facing", "Corner flat", "Park facing"]})
+    assert f.highlights == ["East facing", "Corner flat"]
+    c = build_content(f, "en")
+    ig, fb = c["instagram"]["caption"], c["facebook"]["post"]
+    for txt in (ig, fb):
+        assert "East facing" in txt and "Corner flat" in txt and "Park facing" not in txt
+    assert len(ig) <= CAPTION_MAX and len(fb) <= FB_MAX
+
+
+def test_no_about_means_captions_unchanged():
+    assert facts().highlights == []
+    assert facts(about={"water": "Borewell water"}).highlights == []
+    assert build_content(facts(about={"highlights": []}), "en") == build_content(facts(), "en")

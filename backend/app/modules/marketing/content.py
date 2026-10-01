@@ -108,6 +108,11 @@ def _amen(f: Facts, lang: str, n: int) -> Optional[str]:
     return P[lang]["am"].format(items=", ".join(f.amenities[:n])) if f.amenities else None
 
 
+def _highlights(f: Facts) -> Optional[str]:
+    """1 to 2 of the agent's own `about` highlights, verbatim (no new claims)."""
+    return " · ".join(f.highlights[:2]) if f.highlights else None
+
+
 def _cta(f: Facts, lang: str, key: str = "cta") -> str:
     p = P[lang]
     return p[key].format(agent=f.agent_name) if f.agent_name else p[key + "_anon"]
@@ -122,7 +127,7 @@ def instagram_caption(f: Facts, lang: str) -> str:
     must = ([SAMPLE_LINE] if f.sample else []) + [head, _summary_line(f, lang)]
     if f.rera:
         must.append(f"RERA: {f.rera}")
-    optional = [_amen(f, lang, 4), f.project]
+    optional = [_amen(f, lang, 4), f.project, _highlights(f)]
     cta = _cta(f, lang)
     if f.share_url:  # Instagram captions are not clickable: point to the link in bio (the agent's site)
         cta = P[lang]["bio"] + "\n" + cta
@@ -154,6 +159,8 @@ def facebook_post(f: Facts, lang: str) -> str:
     paras = [p1]
     if details:
         paras.append("\n".join(details))
+    if f.highlights:
+        paras.append(_highlights(f))
     if f.amenities:
         paras.append(_amen(f, lang, 10))
     cta = _cta(f, lang)
