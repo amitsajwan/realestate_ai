@@ -108,6 +108,23 @@ async def test_spam_is_ignored_and_a_question_is_queued_for_a_person():
 
 
 
+async def test_instagram_questions_are_answered_from_the_post_with_link_in_bio_and_never_a_url():
+    meta = Meta([media([ig_comment("c1", "kitna hai carpet area?", user="amit"), ig_comment("c2", "is it available?", user="neha"),
+                        ig_comment("c3", "Which school is nearby?", user="ravi")], caption="Sample listing")])
+    svc, db = make(meta, llm=None)
+    db.get_collection("content_calendar").docs.append({"_id": "CAL", "slug": "kharadi-2bhk-ready", "kind": "showcase", "channel": "instagram", "external_id": "M1",
+                                                      "caption": "", "status": "published"})
+    await svc.run_once()
+    by = {d["comment_id"]: d for d in rows(db)}
+    assert "780 sq ft" in by["c1"]["reply"] and by["c1"]["needs_human"] is False
+    assert "sample home" in by["c2"]["reply"] and not by["c2"]["needs_human"]
+    assert by["c3"]["needs_human"] and "I do not have details of nearby schools" in by["c3"]["reply"] and by["c3"]["missing"]
+    for d in by.values():
+        assert "http" not in d["reply"] and "{" not in d["reply"] and "link in our bio" in d["reply"]
+        assert d["answer_basis"] is not None
+    assert len(meta.replies) == 3
+
+
 @pytest.mark.parametrize("text", ["DM me the price", "@kharadi_prop is this available", "pls dm"])
 async def test_mentions_and_dm_requests_are_queued_without_a_public_reply(text):
     d = await decide(text, "amit", "facts", "https://x", None, channel="instagram", handle=ME)

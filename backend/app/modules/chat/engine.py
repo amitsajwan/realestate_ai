@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from app.modules.engage.brain import ABUSE, valid_reply
+from app.modules.knowledge.reply import answer as grounded_answer, has_topic, topics_in
 from app.modules.onboarding.phone import normalize_indian_mobile
 from app.modules.tracking import requirement as rq
 
@@ -37,7 +38,7 @@ PROMPTS = {
 def new_data() -> dict:
     return {"tx": None, "locality": None, "bhk": None, "budget_min": None, "budget_max": None, "timeline": None, "financing": None,
             "name": None, "phone": None, "pending_phone": None, "consent_shown": False, "declined": [], "asked": None,
-            "lead_done": False, "questions": [], "needs_human": False, "greeted": False}
+            "lead_done": False, "questions": [], "needs_human": False, "greeted": False, "missing": []}
 
 
 @dataclass
@@ -194,7 +195,9 @@ def _ack(new: List[str], d: dict) -> str:
     return ("Got it: " + ", ".join(bits) + ".") if bits else ""
 
 
-async def turn(d: dict, text: str, llm) -> Turn:
+async def turn(d: dict, text: str, llm, grounding=None) -> Turn:
+    """`grounding` (knowledge.Grounding) is what we know about the home, post or area the visitor is looking at; questions about it are answered
+    from it, and what it does not cover is said plainly and handed to a person."""
     text = (text or "").strip()
     first = not d["greeted"]
     d["greeted"] = True
@@ -214,7 +217,16 @@ async def turn(d: dict, text: str, llm) -> Turn:
     if HUMAN.search(text):
         d["needs_human"] = needs_human = True
         parts.append("Of course, our team can take it from here.")
-    if is_question(text) and not (d["asked"] and not kb.search(text, 1) and len(text.split()) <= 3):
+    # 'ready' or 'Kharadi' typed straight after we asked about timeline or area is the answer to that, not a question about the home
+    short_reply = bool(d["asked"]) and len(text.split()) <= 3 and "?" not in text and set(topics_in(text)) <= {"possession", "price", "location", "size"}
+    if grounding is not None and has_topic(text) and not short_reply and (is_question(text) or len(text.split()) <= 6):
+        d["questions"].append(text[:200])
+        r = await grounded_answer(text, grounding, "chat", llm)
+        parts.append(r.text)
+        if not r.confident:
+            d["needs_human"] = needs_human = True
+            d.setdefault("missing", []).append((r.missing or "")[:100])
+    elif is_question(text) and not (d["asked"] and not kb.search(text, 1) and len(text.split()) <= 3):
         d["questions"].append(text[:200])
         ans = await answer(text, llm)
         if ans:
