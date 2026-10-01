@@ -1,8 +1,9 @@
 'use client'
 import React, { useEffect, useState } from 'react'
+import { aboutSummaryLines } from '@/lib/app/about'
 import { formatInr, groupIndian, parseInr } from '@/lib/app/format'
 import { t } from '@/lib/app/strings'
-import type { Furnishing, ListingInput, PropertyType, Transaction } from '@/lib/app/types'
+import type { About, Furnishing, ListingInput, PropertyType, Transaction } from '@/lib/app/types'
 import { LOW_CONFIDENCE, priceSanity } from '@/lib/app/validate'
 import { ChipPicker } from './JoinFlow'
 import { Field, inputCls } from './ui'
@@ -18,6 +19,9 @@ export interface ReviewFormProps {
   missing?: string[]
   /** Server-side field errors (e.g. from a 422). */
   errors?: Record<string, string>
+  /** Project and area info (kept outside `value` so the form stays the listing fields). Shows a summary with an edit link. */
+  about?: About | null
+  onEditAbout?: () => void
 }
 
 function PriceField({ value, onChange, flag, warning }: { value?: number; onChange: (n: number) => void; flag: { error?: string; check?: boolean; required?: boolean }; warning?: string | null }) {
@@ -50,7 +54,24 @@ function PriceField({ value, onChange, flag, warning }: { value?: number; onChan
   )
 }
 
-export function ReviewForm({ value, onChange, confidence = {}, missing = [], errors = {} }: ReviewFormProps) {
+function AboutSummary({ about, onEdit }: { about?: About | null; onEdit: () => void }) {
+  const lines = aboutSummaryLines(about)
+  return (
+    <section aria-label={t('aboutSummaryTitle')} className="rounded-xl border border-gray-200 bg-white p-3">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-gray-800">{t('aboutSummaryTitle')}</h2>
+        <button type="button" onClick={onEdit} className="min-h-[44px] min-w-[44px] text-sm font-semibold text-blue-700 underline">{lines.length ? t('aboutEdit') : t('aboutAdd')}</button>
+      </div>
+      {lines.length ? (
+        <ul className="mt-1 space-y-1 text-sm text-gray-700">{lines.map((l) => <li key={l}>{l}</li>)}</ul>
+      ) : (
+        <p className="mt-1 text-sm text-gray-500">{t('aboutSummaryEmpty')}</p>
+      )}
+    </section>
+  )
+}
+
+export function ReviewForm({ value, onChange, confidence = {}, missing = [], errors = {}, about, onEditAbout }: ReviewFormProps) {
   const [lang, setLang] = useState<'en' | 'hi' | 'mr'>('en')
   const set = (patch: ListingInput) => onChange({ ...value, ...patch })
   const flag = (key: string) => {
@@ -144,6 +165,8 @@ export function ReviewForm({ value, onChange, confidence = {}, missing = [], err
       </Field>
 
       <ChipPicker label="Amenities" options={AMENITIES} value={value.amenities ?? []} onChange={(a) => set({ amenities: a })} />
+
+      {onEditAbout && <AboutSummary about={about} onEdit={onEditAbout} />}
 
       <Field label="Description" {...flag('description.en')}>
         <div role="tablist" className="mb-2 flex gap-2">

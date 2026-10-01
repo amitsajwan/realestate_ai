@@ -6,9 +6,11 @@ import { ApiError } from '@/lib/app/api'
 import { api, errorMessage } from '@/lib/app/client'
 import { getSiteUrl } from '@/lib/app/session'
 import { listingLink } from '@/lib/app/share'
+import { compactAbout } from '@/lib/app/about'
 import { t } from '@/lib/app/strings'
-import type { AIDraft, Listing, ListingInput } from '@/lib/app/types'
+import type { About, AIDraft, Listing, ListingInput } from '@/lib/app/types'
 import { FIELD_LABELS, lowConfidenceFields, missingFields, priceSanity } from '@/lib/app/validate'
+import { AboutStep } from './AboutStep'
 import { MarketingScreen } from './MarketingScreen'
 import { PhotoPicker } from './PhotoPicker'
 import { ReviewForm } from './ReviewForm'
@@ -16,7 +18,7 @@ import { ShareBar } from './ShareBar'
 import { VoiceRecorder } from './VoiceRecorder'
 import { Btn, ErrorBox, LinkBtn, Spinner, inputCls } from './ui'
 
-type Step = 'capture' | 'drafting' | 'review' | 'posting' | 'done'
+type Step = 'capture' | 'drafting' | 'about' | 'review' | 'posting' | 'done'
 
 /** Drop empty values so PATCH/POST bodies stay clean. media is set separately. */
 export function cleanInput(v: ListingInput): ListingInput {
@@ -40,6 +42,7 @@ export function NewListingFlow() {
   const [photos, setPhotos] = useState<File[]>([])
   const [draft, setDraft] = useState<AIDraft | null>(null)
   const [form, setForm] = useState<ListingInput>({})
+  const [about, setAbout] = useState<About>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [posted, setPosted] = useState<Listing | null>(null)
@@ -68,8 +71,10 @@ export function NewListingFlow() {
     try {
       const d = await api.aiDraft({ text, audio: audio ?? undefined, image_count: photos.length })
       setDraft(d)
-      setForm({ visibility: 'network', ...d.draft })
-      setStep('review')
+      const { about: found, ...rest } = d.draft
+      setForm({ visibility: 'network', ...rest })
+      setAbout(found ?? {})
+      setStep('about') // quick and skippable: what the assistant uses to answer buyers
     } catch (e) {
       setError(errorMessage(e))
       setStep('capture')
@@ -79,6 +84,7 @@ export function NewListingFlow() {
   function fillManually() {
     setDraft({ draft: {}, confidence: {}, missing: [], warnings: [] })
     setForm({ visibility: 'network', description: { en: text.trim() } })
+    setAbout({})
     setStep('review')
   }
 
@@ -98,6 +104,7 @@ export function NewListingFlow() {
       }
       const body = cleanInput({
         ...form,
+        about: compactAbout(about),
         media: uploaded.current.urls.map((url, order) => ({ url, kind: 'image' as const, order })),
       })
       // Retry-safe: never create the same draft twice if publish fails.
@@ -142,6 +149,16 @@ export function NewListingFlow() {
         <LinkBtn variant="ghost" href="/studio/listings">{t('listings')}</LinkBtn>
       </div>
     )
+  } else if (step === 'about' && draft) {
+    overlay = (
+      <AboutStep
+        value={about}
+        onChange={setAbout}
+        context={{ locality: form.locality ?? undefined, project_name: form.project_name ?? undefined, bhk: form.bhk ?? undefined, description: text || form.description?.en || '' }}
+        onDone={() => setStep('review')}
+        onSkip={() => setStep('review')}
+      />
+    )
   } else if (step === 'review' && draft) {
     overlay = (
       <div className="space-y-4">
@@ -163,7 +180,7 @@ export function NewListingFlow() {
         )}
         {low.length > 0 && <p className="text-sm text-amber-700">{t('pleaseCheck')}: {low.map((k) => FIELD_LABELS[k] ?? k.replace('_', ' ')).join(', ')}</p>}
         <PhotoPicker files={photos} onChange={setPhotos} />
-        <ReviewForm value={view} onChange={({ media, ...rest }) => setForm(rest)} confidence={draft.confidence} missing={missing} errors={errors} />
+        <ReviewForm value={view} about={about} onEditAbout={() => setStep('about')} onChange={({ media, ...rest }) => setForm(rest)} confidence={draft.confidence} missing={missing} errors={errors} />
         {priceWarning && (
           <label className="flex min-h-[44px] items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
             <input type="checkbox" className="h-5 w-5" checked={priceAck === priceWarning} onChange={(e) => setPriceAck(e.target.checked ? priceWarning : null)} />

@@ -6,6 +6,7 @@ import ContactButtons from '@/components/site/ContactButtons'
 import DescriptionSwitch from '@/components/site/DescriptionSwitch'
 import EnquiryForm from '@/components/site/EnquiryForm'
 import Gallery from '@/components/site/Gallery'
+import ListingAbout from '@/components/site/ListingAbout'
 import ListingFacts from '@/components/site/ListingFacts'
 import { isSampleListing } from '@/lib/site/format'
 import ShareButton from '@/components/site/ShareButton'
@@ -84,6 +85,8 @@ export default async function ListingPage({ params }: Props) {
             </ul>
           </section>
         )}
+
+        <ListingAbout about={l.about} listingAmenities={l.amenities} />
 
         <EnquiryForm agentSlug={slug} agentName="PUNE Property" agentPhone={phone} listingId={l.id} waMessage={msg} id="enquire" />
       </div>

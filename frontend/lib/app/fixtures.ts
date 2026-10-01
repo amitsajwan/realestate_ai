@@ -15,6 +15,8 @@ import { outcomePatchError } from './outcomes'
 import type {
   AIDraft,
   AIDraftRequest,
+  AboutSuggestRequest,
+  AboutSuggestion,
   AppApi,
   BusinessToday,
   DraftLanguage,
@@ -295,6 +297,39 @@ export function fileToDataUrl(file: File): Promise<string> {
 }
 
 /** Heuristic stand-in for the AI listing draft: enough to exercise every review-screen state. */
+const AREA_GUIDE: Record<string, { name: string; connectivity: string[]; offices: string[] }> = {
+  kharadi: { name: 'Kharadi', connectivity: ["On Pune's eastern IT corridor, close to large office campuses.", 'Metro Line 4 (Kharadi to Khadakwasla) is approved, not running yet. Check the latest status with Maha-Metro.'], offices: ['EON Free Zone', 'World Trade Center Pune'] },
+  'upper kharadi': { name: 'Upper Kharadi', connectivity: ['On the same eastern corridor as Kharadi and Wagholi.', 'Metro Line 4 (Kharadi to Khadakwasla) is approved, not running yet. Check the latest status with Maha-Metro.', 'Metro Corridor 2B (Ramwadi to Wagholi) is approved, not running yet. Check the latest status with Maha-Metro.'], offices: [] },
+  wagholi: { name: 'Wagholi', connectivity: ['On the eastern corridor of Pune, further out than Kharadi.', 'Metro Corridor 2B (Ramwadi to Wagholi) is approved, not running yet. Check the latest status with Maha-Metro.'], offices: [] },
+}
+
+/** Mirrors POST /listings/ai/about-suggest: keyword matches from the agent's words, area lines only from the guide. */
+export function fakeAboutSuggestion(req: AboutSuggestRequest): AboutSuggestion {
+  const s = (req.description || '').toLowerCase()
+  const agent = 'agent' as const
+  const out: AboutSuggestion = { highlights: [], amenities: [], nearby: [], connectivity: [], fields: {}, project_name: req.project_name ?? null, area_known: false, area_name: null }
+  for (const [label, rx] of [['Parking', /parking/], ['Lift', /\blift/], ['Gym', /\bgym/], ['Swimming pool', /pool/], ['Security', /security|cctv|guard/], ['Power backup', /power backup|generator/], ['Garden', /garden/], ['Clubhouse', /club ?house/]] as Array<[string, RegExp]>) {
+    if (rx.test(s)) out.amenities.push({ text: label, source: agent })
+  }
+  for (const [label, rx] of [['East facing', /east[\s-]*facing/], ['Corner flat', /corner flat/], ['Ready to move', /ready[\s-]*to[\s-]*move/]] as Array<[string, RegExp]>) {
+    if (rx.test(s)) out.highlights.push({ text: label, source: agent })
+  }
+  if (/school (nearby|close)|near .*school/.test(s)) out.nearby.push({ type: 'school', name: 'School nearby', source: agent })
+  const park = s.match(/(\d|one|two)\s*(covered|open|car)?\s*parking/)
+  if (park) out.fields.parking = { text: `${park[1]}${park[2] ? ' ' + park[2] : ''} parking`.replace(/^./, (c) => c.toUpperCase()), source: agent }
+  if (/24\s*x\s*7 water/.test(s)) out.fields.water = { text: '24x7 water supply', source: agent }
+  const maint = s.match(/maintenance\s*(?:rs\.?|₹)?\s*(\d[\d,]*)/)
+  if (maint) out.fields.maintenance = { text: `Maintenance ₹${maint[1]}`, source: agent }
+  const guide = AREA_GUIDE[(req.locality || '').toLowerCase().replace(/-/g, ' ').trim()]
+  if (guide) {
+    out.area_known = true
+    out.area_name = guide.name
+    out.connectivity = guide.connectivity.map((text) => ({ text, source: 'area_guide' as const }))
+    out.nearby.push(...guide.offices.map((name) => ({ type: 'office' as const, name, source: 'area_guide' as const })))
+  }
+  return out
+}
+
 export function fakeDraft(text: string, imageCount: number, hasAudio: boolean): AIDraft {
   const raw = hasAudio && !text.trim() ? '2 BHK flat in Baner Pune, 85 lakh, ready possession' : text
   const s = raw.toLowerCase()
@@ -456,6 +491,10 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
       await new Promise((r) => setTimeout(r, 600))
       if (!req.text?.trim() && !req.audio && req.image_count < 1) throw fixtureError(400, 'Send text, audio or photos')
       return fakeDraft(req.text ?? '', req.image_count, !!req.audio)
+    },
+    async suggestAbout(req: AboutSuggestRequest) {
+      await new Promise((r) => setTimeout(r, 300))
+      return fakeAboutSuggestion(req)
     },
     async uploadImages(files: File[]) {
       return Promise.all(files.map(async (f, i) => ({ id: `img${Date.now()}${i}`, url: await fileToDataUrl(f), original_name: f.name })))
