@@ -19,6 +19,7 @@ import { whatsappMessage } from '@/lib/site/links'
 import { jsonLdString, listingJsonLd, listingMetadata } from '@/lib/site/seo'
 import { agentPath, normalizeSlug, siteOrigin } from '@/lib/site/slug'
 import { BRAND_NAME } from '@/lib/brand'
+import DemoRibbon from '../../DemoRibbon'
 
 interface Props {
   params: Promise<{ slug: string; id: string }>
@@ -49,6 +50,7 @@ export default async function ListingPage({ params }: Props) {
     <SiteShell agent={agent} bottomPad>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(listingJsonLd(agent, l)) }} />
       <TrackingBeacon agentSlug={slug} listingId={l.id} />
+      <DemoRibbon agent={agent} />
       <Gallery media={l.media} title={l.title} />
 
       <div className="mx-auto max-w-5xl space-y-8 px-4 py-6">
