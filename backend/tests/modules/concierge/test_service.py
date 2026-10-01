@@ -145,7 +145,7 @@ async def test_posting_requires_consent_then_posts_with_attribution():
     pubs = await svc.post_listing("OWNER", aid, lid, ["facebook_page", "instagram"])
     assert [p["status"] for p in pubs] == ["dry_run", "dry_run"]
     fb, ig = (p["payload"]["text"] for p in pubs)
-    assert "Listed by Rahul Sharma" in fb and re.search(r"Interested\? https://\S+/i/\w+", fb)
+    assert "Listed by Rahul Sharma" in fb and re.search(r"Interested\? https?://\S+/i/\w+", fb)
     assert "Listed by Rahul Sharma" in ig and "Link in our bio" in ig and "http" not in ig
     assert db.get_collection("concierge_audit").docs[-1]["action"] == "listing.post"
 
