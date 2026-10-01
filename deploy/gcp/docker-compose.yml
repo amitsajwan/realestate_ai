@@ -1,4 +1,4 @@
-# Pune Property on a single GCP VM: Caddy (auto-HTTPS) -> frontend + backend, MongoDB private.
+# Avasetu on a single GCP VM: Caddy (auto-HTTPS) -> frontend + backend, MongoDB private.
 # Only Caddy publishes ports; Mongo, backend and frontend are reachable only on the internal network.
 services:
   mongo:
@@ -23,6 +23,8 @@ services:
       MONGODB_URL: mongodb://app:${MONGO_PASSWORD}@mongo:27017/?authSource=admin
       ENVIRONMENT: production
       DEBUG: "false"
+      # the public site in captions, footers and links (app/core/brand.py); follows SITE_HOST unless set in .env
+      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-https://${SITE_HOST}}
     volumes:
       - uploads:/app/uploads
     depends_on:
@@ -34,7 +36,7 @@ services:
       context: ../../frontend
       args:
         # set these in deploy/gcp/.env on the VM, then redeploy (they are baked in at build time)
-        NEXT_PUBLIC_BUSINESS_NAME: ${NEXT_PUBLIC_BUSINESS_NAME:-PUNE Property}
+        NEXT_PUBLIC_BUSINESS_NAME: ${NEXT_PUBLIC_BUSINESS_NAME:-Avasetu}
         NEXT_PUBLIC_CONTACT_EMAIL: ${NEXT_PUBLIC_CONTACT_EMAIL:-}
         NEXT_PUBLIC_WHATSAPP_NUMBER: ${NEXT_PUBLIC_WHATSAPP_NUMBER:-}
         NEXT_PUBLIC_CONTACT_WHATSAPP: ${NEXT_PUBLIC_CONTACT_WHATSAPP:-}

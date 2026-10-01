@@ -1,4 +1,4 @@
-# Contract: social publishing to the PUNE Property brand accounts (Sprint 5, frozen)
+# Contract: social publishing to the Avasetu brand accounts (Sprint 5, frozen)
 
 Scope: publish a listing's MARKETING PACK (docs/contracts/marketing.md) to ONE brand Facebook Page and its linked Instagram
 Business account, using the Meta Graph API with a Page access token. This works without Meta App Review because the token
@@ -7,7 +7,7 @@ Review and Business Verification; later).
 
 Safety rules (non-negotiable):
 1. HUMAN APPROVAL for every post. Nothing is ever posted without an explicit `approve: true` request from the agent who owns the listing.
-2. CONSENT. The agent must also send `consent: true` ("I agree to post this listing, on the PUNE Property
+2. CONSENT. The agent must also send `consent: true` ("I agree to post this listing, on the Avasetu
    Page"); it is stored with the publication. Only the owning agent's own live listings can be posted.
 3. DRY RUN by default. `SOCIAL_DRY_RUN` defaults to true: nothing leaves the server, publications are recorded with status `dry_run`.
 4. SECRETS. Tokens live only in environment variables. Never log them, never return them, never store them in Mongo, and strip
@@ -49,7 +49,7 @@ ERROR/EXPIRED -> failed), then `POST /{ig-id}/media_publish` (creation_id). Fetc
 
 ## API (bearer auth, mounted by the integrator at prefix /social; owner scoped; other agents get 404)
 ```
-GET  /social/status                          -> { dry_run: bool, channels: { facebook_page: bool, instagram: bool }, brand: "PUNE Property",
+GET  /social/status                          -> { dry_run: bool, channels: { facebook_page: bool, instagram: bool }, brand: "Avasetu",
                                                    media_url_ok: bool }        (no secrets)
 POST /social/listings/{listing_id}/publish   body { channels: ["facebook_page"|"instagram", ...], approve: true, consent: true, force?: bool }
                                              -> { publications: Publication[] }     422 unless approve and consent are both true; 409 when there is no
@@ -61,4 +61,4 @@ POST /social/publications/{id}/retry         -> Publication                     
 
 ## Ownership (Sprint 5)
 - B  backend/app/modules/social/** and backend/tests/modules/test_social*.py (integrator mounts router at /social and adds settings)
-- F  frontend/components/app/**, frontend/lib/app/**, frontend/app/studio/**, frontend/__tests__/app/** (the "Post to PUNE Property" section on the marketing screen)
+- F  frontend/components/app/**, frontend/lib/app/**, frontend/app/studio/**, frontend/__tests__/app/** (the "Post to Avasetu" section on the marketing screen)

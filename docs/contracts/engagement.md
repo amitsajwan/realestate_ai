@@ -1,7 +1,7 @@
 # Contract: interest links, posts on the site, grounded replies, project and area knowledge
 
 Owner feedback (1 Oct 2026): (1) a tap-to-show-interest link is better than asking people to type INTERESTED; (2) every post should carry the website link, and the website should show and link the posts; (3) replies must be intelligent and answer enquiry details, not 'we will forward to the team'; (4) when a post or listing is created we must also capture project and area information so the AI can answer from it.
-Hard rules stay: no phone numbers or personal names in public posts, sample homes labelled as samples, no invented facts, nothing published without the existing approval gates. Brand voice 'PUNE Property team'.
+Hard rules stay: no phone numbers or personal names in public posts, sample homes labelled as samples, no invented facts, nothing published without the existing approval gates. Brand voice 'Avasetu team'.
 
 ## Shared vocabulary
 

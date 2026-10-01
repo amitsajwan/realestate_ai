@@ -171,7 +171,7 @@ function listing(agent: string, n: number, over: Partial<Listing> = {}): Listing
 
 export function fixtureAgents(): AgentDetail[] {
   const mk = (id: string, name: string, label: string, slug: string, mobile: string, done: string[], listings: Listing[], consent: boolean): AgentDetail => ({
-    id, name, label, slug, mobile, site_url: `https://punepropertyhub.example/agent/${slug}`, checklist: ITEMS(done),
+    id, name, label, slug, mobile, site_url: `https://avasetu.example/agent/${slug}`, checklist: ITEMS(done),
     progress: { done: done.length, total: 8 }, listing_count: listings.filter((x) => x.status === 'live').length, consent_given: consent,
     last_activity: '2026-09-30T08:30:00Z', listings,
     consent: consent ? { text: CONSENT_TEXT, given: true, at: '2026-09-29T09:00:00Z', recorded_by: 'owner' } : { text: CONSENT_TEXT },
@@ -201,7 +201,7 @@ export function createFixtureConciergeApi(): ConciergeApi {
     a.checklist = a.checklist.map((c) => ({ ...c, done: done.has(c.key) }))
     a.progress = { done: done.size, total: a.checklist.length }
   }
-  const attribution = (a: AgentDetail) => `Listed by ${a.name} | RERA agent reg: A52100012345`
+  const attribution = (a: AgentDetail) => `Listed by ${a.name} on ${BRAND_NAME} | RERA agent reg: A52100012345`
   return {
     list: async () => agents.map(({ listings: _l, consent: _c, ...s }) => s),
     create: async (input) => {
@@ -209,7 +209,7 @@ export function createFixtureConciergeApi(): ConciergeApi {
       const slug = input.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
       const digits = input.mobile.replace(/\D/g, '').slice(-10)
       const agent: AgentDetail = {
-        id, name: input.name, label: input.label ?? '', slug, mobile: `${digits.slice(0, 2)}******${digits.slice(-2)}`, site_url: `https://punepropertyhub.example/agent/${slug}`,
+        id, name: input.name, label: input.label ?? '', slug, mobile: `${digits.slice(0, 2)}******${digits.slice(-2)}`, site_url: `https://avasetu.example/agent/${slug}`,
         checklist: ITEMS([]), progress: { done: 0, total: 8 }, listing_count: 0, consent_given: false, last_activity: new Date().toISOString(), listings: [], consent: { text: CONSENT_TEXT },
       }
       agents.unshift(agent)
@@ -253,7 +253,7 @@ export function createFixtureConciergeApi(): ConciergeApi {
       const a = find(id)
       const out: Captions = {}
       if (channels.includes('facebook_page'))
-        out.facebook_page = { text: `Ready 2 BHK in Baner, Pune. Bright rooms, gym and parking.\n\n${attribution(a)}\nInterested? https://punepropertyhub.example/i/k7m2x9p\n\n\u{1F517} Details and photos: https://punepropertyhub.example/agent/${a.slug}/listings/fx-l1`, image_urls: [], link: null }
+        out.facebook_page = { text: `Ready 2 BHK in Baner, Pune. Bright rooms, gym and parking.\n\n${attribution(a)}\nInterested? https://avasetu.example/i/k7m2x9p\n\n\u{1F517} Details and photos: https://avasetu.example/agent/${a.slug}/listings/fx-l1`, image_urls: [], link: null }
       if (channels.includes('instagram'))
         out.instagram = { text: `2 BHK in Baner, Pune. Gym, parking, ready to move.\n\n${attribution(a)}\nInterested? Link in our bio.\n\n#Pune #Baner #PuneProperty`, image_urls: [], link: null }
       return out

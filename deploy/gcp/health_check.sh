@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Health check for the PUNE Property pilot. Runs ON THE VM, every 15 minutes from cron (see install_health_cron.ps1).
+# Health check for the Avasetu pilot. Runs ON THE VM, every 15 minutes from cron (see install_health_cron.ps1).
 #
 #   bash health_check.sh               # run the checks; write ~/health.log only when something is wrong (or recovers)
 #   bash health_check.sh --verbose     # also print every check result to the terminal
@@ -57,9 +57,9 @@ notify() { # $1 = message
     else echo "$(date -u +%FT%TZ) NOTIFY webhook delivery failed" >> "$LOG"; fi
   fi
   if [ -n "$mail" ]; then
-    if command -v mail >/dev/null 2>&1;    then printf '%s\n' "$msg" | mail -s "PUNE Property: health alert" "$mail" && sent=1
-    elif command -v mailx >/dev/null 2>&1;  then printf '%s\n' "$msg" | mailx -s "PUNE Property: health alert" "$mail" && sent=1
-    elif command -v sendmail >/dev/null 2>&1; then printf 'Subject: PUNE Property: health alert\n\n%s\n' "$msg" | sendmail "$mail" && sent=1
+    if command -v mail >/dev/null 2>&1;    then printf '%s\n' "$msg" | mail -s "Avasetu: health alert" "$mail" && sent=1
+    elif command -v mailx >/dev/null 2>&1;  then printf '%s\n' "$msg" | mailx -s "Avasetu: health alert" "$mail" && sent=1
+    elif command -v sendmail >/dev/null 2>&1; then printf 'Subject: Avasetu: health alert\n\n%s\n' "$msg" | sendmail "$mail" && sent=1
     else echo "$(date -u +%FT%TZ) NOTIFY ALERT_EMAIL is set but no mail/mailx/sendmail on this VM (use ALERT_WEBHOOK_URL instead)" >> "$LOG"; fi
   fi
   return 0

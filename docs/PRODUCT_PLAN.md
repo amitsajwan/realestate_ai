@@ -1,4 +1,4 @@
-# PUNE Property: product plan
+# Avasetu: product plan
 
 *Find. Compare. Decide.* Working plan by the product owner / architect. Updated 30 September 2026. Companion to `docs/PILOT_RUNBOOK.md`.
 

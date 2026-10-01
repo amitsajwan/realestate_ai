@@ -1,6 +1,6 @@
-# WhatsApp setup for PUNE Property (do this yourself; about 30 minutes)
+# WhatsApp setup for Avasetu (do this yourself; about 30 minutes)
 
-What you get: a buyer taps **Chat on WhatsApp** on the website (or messages the number), the PUNE Property assistant answers in their
+What you get: a buyer taps **Chat on WhatsApp** on the website (or messages the number), the Avasetu assistant answers in their
 language from the facts we hold (never inventing prices or details), the buyer's requirement becomes a **lead** in Studio, and the agent
 sees a **badge** on the Studio home.
 
@@ -11,7 +11,7 @@ Never share your Facebook password with anyone, including an AI assistant. Nothi
 secret, and you paste those into a hidden prompt on your own PC (the script never prints them).
 
 We start on **Meta's free test number** (it can message up to 5 numbers that you add). Later: the agent's own WhatsApp Business App number
-(coexistence) or a real PUNE Property number (sections F and G).
+(coexistence) or a real Avasetu number (sections F and G).
 
 ---
 
@@ -19,7 +19,7 @@ We start on **Meta's free test number** (it can message up to 5 numbers that you
 1. Open https://developers.facebook.com/apps and click your app **PuneProperties** (App ID `1072258319113727`).
 2. In the left menu click **Use cases** (or **Add product** on older layouts) > **Add use case**.
 3. Choose **Connect with customers through WhatsApp** > **Next** / **Add**.
-4. If Meta asks for a **business portfolio**, pick the one that owns the PUNE Property Page. If it asks to create a WhatsApp Business
+4. If Meta asks for a **business portfolio**, pick the one that owns the Avasetu Page. If it asks to create a WhatsApp Business
    Account, accept the suggested one. Meta creates a **test number** for you automatically.
 
 ## B. Find the test number and its Phone number ID (2 min)
@@ -36,7 +36,7 @@ The test number only talks to numbers you list here.
 
 ## D. Create a permanent token (System User) (8 min)
 The temporary token on the API Setup page expires in 24 hours. For the pilot we use a token that does not expire.
-1. Open https://business.facebook.com/settings (Business Settings) and choose the PUNE Property business portfolio.
+1. Open https://business.facebook.com/settings (Business Settings) and choose the Avasetu business portfolio.
 2. **Users** > **System users** > **Add**. Name: `pune-property-whatsapp`, role **Admin** > **Create system user**.
 3. With that system user selected: **Assign assets** > **Apps** > tick **PuneProperties** > **Full control** > **Save changes**.
 4. Still on the system user: **Assign assets** > **WhatsApp accounts** > tick your WhatsApp Business Account > **Full control** > **Save**.
@@ -93,7 +93,7 @@ Messages he sends from his phone are reported to us too.
 What Meta requires today (check again when you start; Meta changes this):
 - The agent's number must be on the **WhatsApp Business app** (not plain WhatsApp), version **2.24.17 or newer**.
 - Onboarding runs through Meta's **Embedded Signup** flow, which Meta offers to **Tech Providers / Solution Partners**. Our app has to be
-  set up as a Tech Provider for this (or we use a partner). This is a one-time step for PUNE Property, not for each agent.
+  set up as a Tech Provider for this (or we use a partner). This is a one-time step for Avasetu, not for each agent.
 - Limits on a shared number: about 20 messages per second; group chats, disappearing messages, view-once and live location are turned off
   for that number; chat history sync must finish within 24 hours.
 
@@ -108,10 +108,10 @@ What we do afterwards: add his Phone number ID to `WHATSAPP_NUMBER_AGENTS` on th
 `{"<phone number id>": "<agent id>"}`), so every chat to his number goes to his Studio. His number is never shown on the public site unless
 his branding has `show_whatsapp` turned on.
 
-## G. Later: a real PUNE Property number
+## G. Later: a real Avasetu number
 1. Get a number that is **not** on WhatsApp now (or delete the WhatsApp account on it first). A landline that can receive a voice call works.
 2. WhatsApp Manager (business.facebook.com > WhatsApp accounts > your account > **Phone numbers** > **Add phone number**).
-3. Display name **PUNE Property**: Meta reviews it (usually 1-2 days). It must match your brand on the website and Page.
+3. Display name **Avasetu**: Meta reviews it (usually 1-2 days). It must match your brand on the website and Page.
 4. Verify the number by SMS or voice call. Copy its new Phone number ID.
 5. Run the connect script again with the new `-PhoneNumberId` (and `-PublicNumber` so the website button shows it).
 6. **Business verification** (Business Settings > Security Center) raises Meta's limits and is needed for the green tick later; it asks for

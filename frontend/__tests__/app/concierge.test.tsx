@@ -146,7 +146,7 @@ describe('Agent detail', () => {
     await screen.findByRole('heading', { name: 'Rahul Sharma' })
     fireEvent.click(screen.getAllByRole('button', { name: 'Post to Avasetu' })[0])
     const fb = await screen.findByTestId('caption-facebook_page')
-    expect(fb).toHaveTextContent('Listed by Rahul Sharma | RERA agent reg: A52100012345')
+    expect(fb).toHaveTextContent('Listed by Rahul Sharma on Avasetu | RERA agent reg: A52100012345')
     expect(fb).toHaveTextContent(/Interested\? https:\/\//)
     expect(screen.getByTestId('caption-instagram')).toHaveTextContent('Link in our bio')
     expect(mockApi.post).not.toHaveBeenCalled()

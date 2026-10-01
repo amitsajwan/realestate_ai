@@ -1,6 +1,6 @@
 # Newsroom: the content agent
 
-Goal: keep the PUNE Property Page and site fresh with accurate, useful, original content about Kharadi, Upper Kharadi, Wagholi and the things that change life there (roads, metro, approvals, new registrations, rules). Trust comes first: a wrong claim costs more than a missed post.
+Goal: keep the Avasetu Page and site fresh with accurate, useful, original content about Kharadi, Upper Kharadi, Wagholi and the things that change life there (roads, metro, approvals, new registrations, rules). Trust comes first: a wrong claim costs more than a missed post.
 
 This plan makes the editorial decisions so the owner does not have to. The owner only approves or rejects.
 

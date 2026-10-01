@@ -59,7 +59,7 @@ if (-not $longUser) { throw "No token came back from the exchange" }
 Write-Host "==> Reading your Page and its Page token" -ForegroundColor Cyan
 $accts = Graph "me/accounts" @{ fields = "id,name,access_token,instagram_business_account"; limit = 100; access_token = $longUser }
 $page = $accts.data | Where-Object { $_.id -eq $PageId } | Select-Object -First 1
-if (-not $page) { throw "Page $PageId is not in the list. Regenerate the token in Graph API Explorer and opt in to the PUNE Property page." }
+if (-not $page) { throw "Page $PageId is not in the list. Regenerate the token in Graph API Explorer and opt in to the Avasetu page." }
 $pageTok = $page.access_token
 Write-Host "Page found: $($page.name) ($($page.id))"
 

@@ -34,7 +34,7 @@ describe('themed agent site', () => {
     expect(footer).toHaveTextContent(/not verified by Avasetu/)
     const link = screen.getByRole('link', { name: /check on maharera/i })
     expect(link).toHaveAttribute('href', 'https://maharera.maharashtra.gov.in')
-    expect(container.textContent).not.toMatch(/(?<!not )verified by pune property/i)
+    expect(container.textContent).not.toMatch(/(?<!not )verified by avasetu/i)
   })
 
   it('uses the logo image when one is uploaded', () => {

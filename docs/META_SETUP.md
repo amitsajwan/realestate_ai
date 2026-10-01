@@ -1,4 +1,4 @@
-# Meta setup for the PUNE Property Page (do this yourself; ~30 minutes)
+# Meta setup for the Avasetu Page (do this yourself; ~30 minutes)
 
 Why you and not me: these steps need your Facebook login, 2-step verification and your acceptance of Meta's terms. Do not share your
 password with anyone, including an AI assistant. The app never needs it: it needs a **Page access token** that you create and put in
@@ -76,20 +76,20 @@ PUBLIC_MEDIA_BASE_URL=https://34-180-39-243.sslip.io
 (`/privacy`). Once you own a domain, point it at the server and use it instead: Meta settings are easier to set once.
 For testing on this PC only, a free tunnel also works: `cloudflared tunnel --url http://localhost:8000`.
 
-## G. First real post (after the app shows the "Post to PUNE Property" section)
+## G. First real post (after the app shows the "Post to Avasetu" section)
 1. Keep `SOCIAL_DRY_RUN=true` and post once to see the "Test post" result. Nothing goes to Facebook.
 2. Set `SOCIAL_DRY_RUN=false`, restart the backend, post a listing you own, tick your consent, tap Approve. Check the Page and Instagram.
 
 ## Rules we follow
 - Every post needs a human tap (Approve). Nothing is auto-posted.
-- Only listings whose agent agreed ("post with my name and phone on the PUNE Property Page") are posted.
+- Only listings whose agent agreed ("post with my name and phone on the Avasetu Page") are posted.
 - No invented numbers: no fake views, likes or followers anywhere.
 
 ---
 
 ## H. Rebuild the app from scratch: use cases and permissions (now and later)
 
-Use this if the app's use cases disappear, the app is deleted, or you create a new one. Values you will need: App display name **PUNE Property** (or PuneProperties), contact email, the URLs from section C.
+Use this if the app's use cases disappear, the app is deleted, or you create a new one. Values you will need: App display name **Avasetu**, contact email, the URLs from section C.
 
 ### H1. Use cases to add (Meta developer dashboard, app > Use cases > Add use case)
 | # | Use case (name in the picker) | Permissions to add under Customize | Needed for | When |
@@ -113,7 +113,7 @@ While the app is in Development mode, only people with a role can use it. Add yo
 
 ### H4. Generate the token and connect the server
 1. Graph API Explorer: Meta App = the app, User or Page = "Get Token".
-2. Add every permission from H1 rows 1 and 2, then **Generate Access Token** and approve everything for the PUNE Property Page (keep it selected).
+2. Add every permission from H1 rows 1 and 2, then **Generate Access Token** and approve everything for the Avasetu Page (keep it selected).
 3. `.\deploy\gcp\meta_connect.ps1` (token + App Secret). It prints the permissions it received and whether Instagram is linked.
 4. Check: `python scripts/verify_engage_live.py` (on the server) must say ALL PASSED.
 

@@ -42,7 +42,7 @@ The owner can set up agents without them touching the app first (see AGENT_INVIT
 - **Add an agent:** creates his login, website and invite code in one step. Codes are stored hashed and shown once; "Make a new code" (reissue) invalidates the old one. At most 10 new invites per hour.
 - **Consent first:** `POST /concierge/agents/{id}/consent` records the exact wording, time and who recorded it. Posting an agent's listing returns 409 until it is recorded; switching it off blocks posting again.
 - **Audit:** every owner change is a row in `concierge_audit` (who, when, action, agent, changed field names, listing id). `db.concierge_audit.find({agent_id: "<id>"}).sort({at: -1})`.
-- **What gets posted:** the PUNE Property Page and Instagram only (still dry-run unless real posting is switched on in the social settings). Captions carry "Listed by ..." and the RERA agent number when known, never a phone. Instagram items also appear on `/go`.
+- **What gets posted:** the Avasetu Page and Instagram only (still dry-run unless real posting is switched on in the social settings). Captions carry "Listed by ..." and the RERA agent number when known, never a phone. Instagram items also appear on `/go`.
 - **Phone numbers:** lists and detail show masked numbers (98******10). The full number appears only in the invite response to the owner.
 - **Wrong listing or consent withdrawn:** switch consent off in Agents; to take a post down use Facebook/Instagram directly (we do not delete posts from the app).
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Nightly MongoDB backup for the PUNE Property pilot. Runs ON THE VM (normally from cron, see install_backup_cron.ps1).
+# Nightly MongoDB backup for the Avasetu pilot. Runs ON THE VM (normally from cron, see install_backup_cron.ps1).
 #
 #   bash backup.sh            # dump -> ~/backups/YYYY-MM-DD.archive.gz, keep the newest 14
 #   bash backup.sh --dry-run  # print what it would do, touch nothing

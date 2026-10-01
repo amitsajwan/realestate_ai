@@ -54,7 +54,7 @@ Look at the road in front of the project, not just the brochure.
 - Choose **Upper Kharadi** if you want newer towers and more open space without going as far out as Wagholi.
 - Choose **Wagholi** if you want more space for your budget and can live with the commute (and the wait for the metro).
 
-**Want to see homes in these areas?** Follow the PUNE Property page. We share clear details (price, carpet area, possession and RERA number) on
+**Want to see homes in these areas?** Follow the Avasetu page. We share clear details (price, carpet area, possession and RERA number) on
 every listing, and you can comment INTERESTED on any post.
 
 ---

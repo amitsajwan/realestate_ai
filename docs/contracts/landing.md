@@ -6,7 +6,7 @@
 - `/privacy`  `/terms`  `/data-deletion`   plain-language legal pages (see below)
 All show the business name and contact details from environment variables (NEXT_PUBLIC_*), never hard-coded personal data:
 ```
-NEXT_PUBLIC_BUSINESS_NAME   default "PUNE Property"
+NEXT_PUBLIC_BUSINESS_NAME   default "Avasetu"
 NEXT_PUBLIC_CONTACT_EMAIL   optional; when unset the email line is simply not shown (do NOT invent an address)
 NEXT_PUBLIC_CONTACT_WHATSAPP optional (digits, e.g. 919876543210); when unset no WhatsApp contact is shown
 NEXT_PUBLIC_SITE_URL        existing; used for canonical/OG
