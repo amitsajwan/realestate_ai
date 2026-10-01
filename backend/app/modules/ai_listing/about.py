@@ -161,7 +161,7 @@ def extract_about(text: str) -> dict[str, Any]:
             unit = {"month": "per month", "mo": "per month", "mahina": "per month", "mahine": "per month",
                     "year": "per year", "yr": "per year", "annum": "per year", "quarter": "per quarter",
                     "sqft": "per sq ft", "sq ft": "per sq ft", "psf": "per sq ft"}.get(per, "")
-            out["maintenance"] = f"Maintenance {_inr(amt)} {unit}".strip()
+            out["maintenance"] = f"{_inr(amt)} {unit}".strip()
 
     for rx, label in _SOCIETY:
         if rx.search(t):

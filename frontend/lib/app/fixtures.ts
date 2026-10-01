@@ -319,7 +319,7 @@ export function fakeAboutSuggestion(req: AboutSuggestRequest): AboutSuggestion {
   if (park) out.fields.parking = { text: `${park[1]}${park[2] ? ' ' + park[2] : ''} parking`.replace(/^./, (c) => c.toUpperCase()), source: agent }
   if (/24\s*x\s*7 water/.test(s)) out.fields.water = { text: '24x7 water supply', source: agent }
   const maint = s.match(/maintenance\s*(?:rs\.?|₹)?\s*(\d[\d,]*)/)
-  if (maint) out.fields.maintenance = { text: `Maintenance ₹${maint[1]}`, source: agent }
+  if (maint) out.fields.maintenance = { text: `₹${maint[1]} per month`, source: agent }
   const guide = AREA_GUIDE[(req.locality || '').toLowerCase().replace(/-/g, ' ').trim()]
   if (guide) {
     out.area_known = true

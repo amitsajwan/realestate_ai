@@ -159,7 +159,7 @@ export const FIXTURE_LISTINGS: PublicListing[] = [
       amenities: ['Lift', 'Gym', 'Play area', 'Clubhouse'],
       nearby: [{ type: 'school', name: 'School nearby' }, { type: 'office', name: 'EON Free Zone' }, { type: 'office', name: 'World Trade Center Pune' }],
       connectivity: ["On Pune's eastern IT corridor, close to large office campuses.", 'Metro Line 4 (Kharadi to Khadakwasla) is approved, not running yet. Check the latest status with Maha-Metro.'],
-      water: '24x7 water supply', parking: '1 covered parking', power_backup: 'Full power backup', maintenance: 'Maintenance ₹3,000 per month',
+      water: '24x7 water supply', parking: '1 covered parking', power_backup: 'Full power backup', maintenance: '₹3,000 per month',
     },
     media: imgs('kharadi-25bhk', 3),
     published_at: '2026-09-20T08:00:00Z',

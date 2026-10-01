@@ -176,7 +176,7 @@ export function AboutStep({ value, onChange, context, onDone, onSkip }: AboutSte
         <input id="about-project" className={inputCls} maxLength={MAX_TEXT} value={value.project_name ?? ''} onChange={(e) => set({ project_name: e.target.value })} />
       </div>
 
-      <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3">
         {FIELDS.map((f) => (
           <div key={f.key}>
             <label htmlFor={`about-${f.key}`} className="mb-1 block text-sm font-medium text-gray-700">{t(f.label)}</label>

@@ -17,7 +17,7 @@ ABOUT = {
     "amenities": ["Lift", "Gym"],
     "nearby": [{"type": "school", "name": "School nearby", "minutes": 5}],
     "connectivity": ["Metro Line 4 is approved, not running yet."],
-    "water": "24x7 water supply", "parking": "1 covered parking", "maintenance": "Maintenance ₹3,000 per month",
+    "water": "24x7 water supply", "parking": "1 covered parking", "maintenance": "₹3,000 per month",
     "faq": [{"q": "Is parking included?", "a": "Yes, one covered slot."}],
 }
 
@@ -77,7 +77,7 @@ def test_phone_numbers_and_links_are_rejected_with_a_clear_message(env, bad):
 
 def test_ordinary_numbers_are_fine(env):
     c, _ = env
-    about = {"highlights": ["1100 sq ft carpet, 2,00,000 maintenance fund, 24x7 water, 12 floors"], "maintenance": "Maintenance ₹3,000 per month"}
+    about = {"highlights": ["1100 sq ft carpet, 2,00,000 maintenance fund, 24x7 water, 12 floors"], "maintenance": "₹3,000 per month"}
     assert c.post("/listings", json={**FULL, "about": about}).status_code == 201
 
 
