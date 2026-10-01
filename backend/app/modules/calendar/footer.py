@@ -56,4 +56,5 @@ def with_footer(caption: str, channel: str) -> str:
         block, body = m.group(1).rstrip(), body[:m.start()].rstrip()
     room = _limit(channel) - 1 - len(foot) - len(block) - 2
     body = _cut(body, room)
-    return "\n".join(p for p in (body + block if body else block.lstrip("\n"), "", foot) if p is not None).replace("\n\n\n", "\n\n")
+    text = (body + block).strip()
+    return f"{text}\n\n{foot}" if text else foot
