@@ -22,7 +22,7 @@ export default function LegalPage({ doc, cfg }: { doc: LegalDoc; cfg: MarketingC
           <ol className="mt-2 columns-1 gap-6 text-sm sm:columns-2">
             {doc.sections.map((s) => (
               <li key={s.id} className="break-inside-avoid">
-                <a href={'#' + s.id} className="inline-flex min-h-[36px] items-center text-blue-800 underline underline-offset-2">{s.heading}</a>
+                <a href={'#' + s.id} className="inline-flex min-h-[36px] items-center text-[#0f2340] underline underline-offset-2">{s.heading}</a>
               </li>
             ))}
           </ol>
@@ -49,11 +49,11 @@ export default function LegalPage({ doc, cfg }: { doc: LegalDoc; cfg: MarketingC
           <ul className="flex flex-wrap gap-x-6">
             {NAV.legal.map((l) => (
               <li key={l.href}>
-                <Link href={l.href} className="flex min-h-[44px] items-center text-blue-800 underline underline-offset-2">{l.label}</Link>
+                <Link href={l.href} className="flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{l.label}</Link>
               </li>
             ))}
             <li>
-              <Link href={PATHS.invite} className="flex min-h-[44px] items-center text-blue-800 underline underline-offset-2">{NAV.requestInvite}</Link>
+              <Link href={PATHS.invite} className="flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{NAV.requestInvite}</Link>
             </li>
           </ul>
         </nav>

@@ -42,7 +42,7 @@ export default async function LocalityPage({ params }: Props) {
     <MarketingShell>
       <article className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd).replace(/</g, '\\u003c') }} />
-        <p className="text-sm"><Link href="/localities" className="text-blue-800 underline underline-offset-2">All localities</Link></p>
+        <p className="text-sm"><Link href="/localities" className="text-[#0f2340] underline underline-offset-2">All localities</Link></p>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{l.name}, Pune</h1>
         <p className="mt-1 font-semibold text-amber-700">{l.tagline}</p>
         <p className="mt-2 text-sm text-slate-600">Last updated: <time dateTime={l.updated}>{l.updatedLabel}</time></p>
@@ -70,11 +70,11 @@ export default async function LocalityPage({ params }: Props) {
 
         {guides.length > 0 && (
           <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Related guides</h2>
-            <ul className="mt-3 space-y-1">{guides.map((g) => <li key={g.slug}><Link href={`/insights/${g.slug}`} className="text-blue-800 underline underline-offset-2">{g.title}</Link></li>)}</ul></section>
+            <ul className="mt-3 space-y-1">{guides.map((g) => <li key={g.slug}><Link href={`/insights/${g.slug}`} className="text-[#0f2340] underline underline-offset-2">{g.title}</Link></li>)}</ul></section>
         )}
 
         <section className="mt-10 border-t border-slate-200 pt-6"><h2 className="text-lg font-semibold text-slate-900">Sources</h2>
-          <ul className="mt-2 list-disc space-y-1 pl-6 text-sm">{l.sources.map((s) => <li key={s.href}><a href={s.href} target="_blank" rel="noopener noreferrer" className="text-blue-800 underline underline-offset-2">{s.label}</a></li>)}</ul></section>
+          <ul className="mt-2 list-disc space-y-1 pl-6 text-sm">{l.sources.map((s) => <li key={s.href}><a href={s.href} target="_blank" rel="noopener noreferrer" className="text-[#0f2340] underline underline-offset-2">{s.label}</a></li>)}</ul></section>
         <p className="mt-8 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-700">{INSIGHT_NOTE}</p>
       </article>
     </MarketingShell>

@@ -48,14 +48,14 @@ export default function RequestInviteForm() {
       <section aria-live="polite" className="rounded-2xl border border-emerald-300 bg-emerald-50 p-6 text-emerald-950">
         <h2 ref={doneRef} tabIndex={-1} className="text-2xl font-bold outline-none">{INVITE.success.title(first)}</h2>
         <p className="mt-2 text-lg">{INVITE.success.body(donePhone)}</p>
-        <Link href={PATHS.home} className="mt-5 inline-flex min-h-[48px] items-center rounded-xl bg-blue-700 px-6 font-semibold text-white no-underline hover:bg-blue-800">
+        <Link href={PATHS.home} className="mt-5 inline-flex min-h-[48px] items-center rounded-xl bg-[#0f2340] px-6 font-semibold text-white no-underline hover:bg-[#183a5d]">
           {INVITE.success.back}
         </Link>
       </section>
     )
   }
 
-  const field = 'mt-1 block min-h-[48px] w-full rounded-lg border border-slate-400 bg-white px-3 text-base text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/40'
+  const field = 'mt-1 block min-h-[48px] w-full rounded-lg border border-slate-400 bg-white px-3 text-base text-slate-900 focus:border-[#0f2340] focus:outline-none focus:ring-2 focus:ring-[#f0b440]'
   const L = INVITE.labels
   return (
     <form onSubmit={onSubmit} noValidate aria-busy={status === 'sending'} className="space-y-5">
@@ -96,7 +96,7 @@ export default function RequestInviteForm() {
       <div>
         <label className="flex min-h-[44px] items-start gap-3">
           <input type="checkbox" name="consent" checked={consent} onChange={(e) => setConsent(e.target.checked)}
-            aria-invalid={!!errors.consent} aria-describedby={errors.consent ? 'ri-consent-err' : undefined} className="mt-1 h-6 w-6 flex-none accent-blue-700" />
+            aria-invalid={!!errors.consent} aria-describedby={errors.consent ? 'ri-consent-err' : undefined} className="mt-1 h-6 w-6 flex-none accent-[#0f2340]" />
           <span>{L.consent}</span>
         </label>
         {errors.consent && <p id="ri-consent-err" role="alert" className="mt-1 text-sm text-red-700">{errors.consent}</p>}
@@ -105,11 +105,11 @@ export default function RequestInviteForm() {
       {formError && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-800">{formError}</p>}
 
       <button type="submit" disabled={status === 'sending'}
-        className="min-h-[52px] w-full rounded-xl bg-blue-700 px-6 text-lg font-bold text-white hover:bg-blue-800 disabled:opacity-60">
+        className="min-h-[52px] w-full rounded-xl bg-[#0f2340] px-6 text-lg font-bold text-white hover:bg-[#183a5d] disabled:opacity-60">
         {status === 'sending' ? L.sending : L.submit}
       </button>
       <p className="text-sm text-slate-600">
-        {INVITE.privacyNote} <Link href={PATHS.privacy} className="text-blue-800 underline">{INVITE.privacyLink}</Link>
+        {INVITE.privacyNote} <Link href={PATHS.privacy} className="text-[#0f2340] underline">{INVITE.privacyLink}</Link>
       </p>
     </form>
   )
