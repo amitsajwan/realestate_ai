@@ -2,6 +2,7 @@ import React from 'react'
 import type { Metadata } from 'next'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { getHub, type Hub, type HubItem } from '@/lib/interest/api'
+import WhatsAppButton from '@/components/site/WhatsAppButton'
 
 export const revalidate = 60
 
@@ -37,6 +38,7 @@ function Card({ item }: { item: HubItem }) {
               I am interested
             </a>
           )}
+          {item.interest_code && <WhatsAppButton title={item.title} code={item.interest_code} />}
           {item.permalink && (
             <a href={item.permalink} target="_blank" rel="noopener noreferrer" className={pill}>See the post</a>
           )}
