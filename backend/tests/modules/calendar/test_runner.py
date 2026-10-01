@@ -74,7 +74,7 @@ async def test_publishes_only_due_items():
     fb, ig = pub.posts
     assert fb.channel == "facebook_page" and fb.image_urls == ["https://media.test/uploads/calendar/carpet-under-rera.jpg"]
     assert ig.channel == "instagram" and ig.image_urls == ["https://media.test/uploads/calendar/ig/myth-rera-means-safe.jpg"]
-    assert "http" not in ig.text and ig.text.startswith(library.BY_SLUG["myth-rera-means-safe"].ig_caption.rstrip())
+    assert "http" not in ig.text and ig.text.startswith(library.BY_SLUG["myth-rera-means-safe"].ig_caption[:120]) and ig.text.rstrip().endswith("link in our bio")
 
 
 async def test_nothing_due_publishes_nothing_and_records_status():

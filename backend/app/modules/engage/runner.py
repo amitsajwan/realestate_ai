@@ -27,13 +27,34 @@ def _ig(cfg):
     return _IG[cfg.ig_business_id]
 
 
+def interest_resolver(db, owner_agent_id: str):
+    """`interest_url(ctx, channel)` for the comment assistant: the tap-to-show-interest link of the post's listing or calendar item."""
+    async def resolve(ctx: dict, channel: str):
+        from app.modules.interest.service import interest_url
+        ch = "instagram" if channel == "instagram" else "facebook"
+        try:
+            if ctx.get("listing_id"):
+                return await interest_url(db, kind="listing", ref=str(ctx["listing_id"]), agent_id=str(ctx.get("agent_id") or owner_agent_id), channel=ch)
+            if ctx.get("calendar_id") and owner_agent_id:
+                item = await db.get_collection("content_calendar").find_one({"_id": ctx["calendar_id"]}) or {}
+                if item.get("slug"):
+                    kind = "listing" if item.get("kind") == "showcase" else "post"
+                    return await interest_url(db, kind=kind, ref=item["slug"], agent_id=owner_agent_id, channel=ch)
+        except Exception:  # a missing link must never stop a reply
+            log.exception("engage: could not build an interest link")
+        return None
+    return resolve
+
+
 async def loop() -> None:
     log.info("engage: comment assistant loop started")
     while True:
         cfg = load()
         try:
             if cfg.enabled and cfg.page_id and cfg.page_token:
-                counts = await EngageService(get_database(), EngageGraph(cfg), default_llm(), cfg, ig_graph=_ig(cfg)).run_once()
+                db = get_database()
+                counts = await EngageService(db, EngageGraph(cfg), default_llm(), cfg, ig_graph=_ig(cfg),
+                                             interest_url=interest_resolver(db, cfg.owner_agent_id or "")).run_once()
                 if counts:
                     log.info("engage: cycle done %s (dry_run=%s)", counts, cfg.dry_run)
         except asyncio.CancelledError:
