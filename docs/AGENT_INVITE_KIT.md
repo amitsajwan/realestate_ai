@@ -62,3 +62,29 @@ Agent | Area | Invited on | First listing on | Listings after 14 days | Photos o
 - Sign-in problem: re-issue the code (section 5). Five wrong codes lock a number for 30 minutes.
 - A wrong or unsafe reply on the Page: delete it on Facebook, then tell the developer the comment text.
 - Site down: `https://34-180-39-243.sslip.io/api/v1/health` should say healthy; otherwise see `docs/PILOT_RUNBOOK.md`.
+
+## 9. White-glove onboarding (the owner sets him up; no Facebook or Instagram connection)
+For the first agents we do the typing. We do not connect his Facebook or Instagram (that needs Meta review). His listings are posted on the **PUNE Property Page and Instagram** with his name on them, and buyers' interest lands in **his** Interest inbox.
+
+**Collect from the agent (one WhatsApp thread, ask for it in one message):**
+1. **Logo** (square image, PNG or JPG) and a **banner** (wide image; his office or a skyline is fine).
+2. **Brand colour** (a colour he likes, or his logo's colour) and **business name** (if he trades under one).
+3. **Tagline** (one line) and a short **bio** (2 to 3 sentences: years, areas, what he is known for).
+4. **RERA agent registration number** (shown as "RERA agent reg: ..." on his posts and page). We do not verify it for him.
+5. **Areas** he works in and **languages** he speaks.
+6. A clear **photo of himself**.
+7. **Per listing:** locality and project name, BHK, carpet area, price, possession, floor, furnishing, amenities, 3 to 6 real photos, and anything buyers always ask (parking, maintenance, nearby schools, metro).
+8. **Consent**, in his own words (a WhatsApp reply is enough). Ask him to confirm this exact wording and record it in the Agents screen only after he has said yes:
+   > I agree that PUNE Property may feature me and my listings on the PUNE Property Facebook Page, Instagram and website, with my name and RERA number, and that buyers' interest comes to my inbox.
+
+**Owner steps (Studio, Agents tab; visible only to owner accounts):**
+1. **Add agent:** name, mobile, a label. The sheet shows his 6-digit code and a ready WhatsApp message. Copy it and send it. The code is shown once (it is stored scrambled); "Make a new code" replaces it.
+2. **Brand:** upload logo and photo, and fill the rest of the brand fields.
+3. **Add listing for him:** the usual listing flow, saved under his name. Checks are the same as for him (Pune only, price sanity, required fields). Publish it.
+4. **Preview his page:** open it and read it as a buyer would.
+5. **Consent:** switch it on once he has agreed. Posting his listings is blocked until then.
+6. **Post to PUNE Property:** the screen shows the exact Facebook and Instagram captions first. Each carries "Listed by <his business or name>" and "RERA agent reg: <no>" when known, never a phone number. Facebook has his interest link; Instagram says "link in our bio" and the listing appears on our link-in-bio page. You approve on his behalf; the post goes out as the PUNE Property team.
+
+The checklist ring on each agent counts: logo, banner, RERA number, areas, photo, first listing, three listings, consent. Everything you change for him is written to an audit log (who, when, which fields; no values, codes or phone numbers).
+
+**Tell him plainly:** his listings appear on our pages with his name; buyers reach him through the interest link and his Interest tab; we do not post from his own Facebook or Instagram yet.

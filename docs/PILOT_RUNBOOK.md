@@ -36,6 +36,16 @@ When there is a business entity: register with an SMS provider (DLT) or WhatsApp
 
 ---
 
+## Concierge (setting up an agent for him)
+The owner can set up agents without them touching the app first (see AGENT_INVITE_KIT.md section 9). Studio shows an **Agents** tab only to owner accounts.
+- **Who is the owner:** a superuser, or user ids in `CONCIERGE_OWNER_IDS` (comma separated). Closed by default: with neither set, everyone gets 403 and the tab stays hidden. `INTEREST_OWNER_AGENT_ID` / `ENGAGE_OWNER_AGENT_ID` listings are treated as the owner's own (no "Listed by" line).
+- **Add an agent:** creates his login, website and invite code in one step. Codes are stored hashed and shown once; "Make a new code" (reissue) invalidates the old one. At most 10 new invites per hour.
+- **Consent first:** `POST /concierge/agents/{id}/consent` records the exact wording, time and who recorded it. Posting an agent's listing returns 409 until it is recorded; switching it off blocks posting again.
+- **Audit:** every owner change is a row in `concierge_audit` (who, when, action, agent, changed field names, listing id). `db.concierge_audit.find({agent_id: "<id>"}).sort({at: -1})`.
+- **What gets posted:** the PUNE Property Page and Instagram only (still dry-run unless real posting is switched on in the social settings). Captions carry "Listed by ..." and the RERA agent number when known, never a phone. Instagram items also appear on `/go`.
+- **Phone numbers:** lists and detail show masked numbers (98******10). The full number appears only in the invite response to the owner.
+- **Wrong listing or consent withdrawn:** switch consent off in Agents; to take a post down use Facebook/Instagram directly (we do not delete posts from the app).
+
 # Running the pilot on the GCP server
 
 Live address: https://34-180-39-243.sslip.io (a real domain replaces this later: point an A record at 34.180.39.243 and change `SITE_HOST` in `deploy/gcp/.env`).
