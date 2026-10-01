@@ -34,5 +34,16 @@ export const LOGO = {
 /** Production site origin while there is no domain; set NEXT_PUBLIC_SITE_URL to change it (one setting). */
 export const DEFAULT_SITE_URL = 'https://34-180-39-243.sslip.io'
 
+/** The public site origin (no trailing slash): NEXT_PUBLIC_SITE_URL, else the production default. Printed links and QR codes use it. */
+export const siteUrl = (): string => ((process.env.NEXT_PUBLIC_SITE_URL || '').trim() || DEFAULT_SITE_URL).replace(/\/+$/, '')
+
+/** Slug of the fictional demo agent page (backend/scripts/create_demo_agent.py creates it): NEXT_PUBLIC_DEMO_AGENT_SLUG, else 'demo'. */
+export const DEFAULT_DEMO_AGENT_SLUG = 'demo'
+export const demoAgentSlug = (): string => {
+  const v = (process.env.NEXT_PUBLIC_DEMO_AGENT_SLUG || '').trim().toLowerCase()
+  return /^[a-z0-9][a-z0-9-]{0,59}$/.test(v) ? v : DEFAULT_DEMO_AGENT_SLUG
+}
+export const demoAgentPath = (): string => '/agent/' + demoAgentSlug()
+
 /** The business name shown on public pages: NEXT_PUBLIC_BUSINESS_NAME, else the brand. */
 export const businessName = (): string => (process.env.NEXT_PUBLIC_BUSINESS_NAME || '').trim() || BRAND_NAME
