@@ -24,18 +24,39 @@ const h2 = 'text-2xl font-extrabold tracking-tight text-[#0f2340] sm:text-3xl pr
 const section = 'py-10 sm:py-14 print:py-[3.5mm]'
 const short = (url: string) => url.replace(/^https?:\/\//, '').replace(/\/$/, '')
 
-/* Print: A4, two pages, no header/footer/chat, brand colours kept, every link printed as its address. */
+/* Print: A4, two pages, no header/footer/chat, every link printed as its address.
+   The app's global print sheet (styles/components.css) makes every background transparent and all text black. Inside this
+   brochure we restore colour inheritance and re-apply the brand colours that the Tailwind classes in the markup use, so the
+   PDF keeps navy, gold and cream. Keep these maps in step with the classes below. */
+const esc = (cls: string) => cls.replace(/[^a-zA-Z0-9_-]/g, (c) => '\\' + c)
+const PRINT_BG: Record<string, string> = {
+  'bg-[#0f2340]': '#0f2340', 'fa-navy': '#102340', 'bg-[#f0b440]': '#f0b440', 'bg-[#fbf6ea]': '#fbf6ea', 'bg-white': '#fff',
+  'bg-[#fbf1d8]': '#fbf1d8', 'bg-[#e6f4f1]': '#e6f4f1', 'bg-white/15': 'rgba(255,255,255,.15)', 'bg-white/[0.06]': 'rgba(255,255,255,.07)',
+}
+const PRINT_TEXT: Record<string, string> = {
+  'text-white': '#fff', 'text-[#f0b440]': '#f0b440', 'text-[#0f2340]': '#0f2340', 'text-slate-100': '#f1f5f9', 'text-slate-200': '#e2e8f0',
+  'text-slate-600': '#475569', 'text-slate-700': '#334155', 'text-slate-800': '#1e293b', 'text-[#8a6410]': '#8a6410',
+  'text-[#0b3f3a]': '#0b3f3a', 'text-[#0f766e]': '#0f766e',
+}
+const PRINT_BORDER: Record<string, string> = {
+  'border-[#ead9ae]': '#ead9ae', 'border-slate-200': '#e2e8f0', 'border-[#f0b440]': '#f0b440', 'border-white/15': 'rgba(255,255,255,.15)',
+}
+const rules = (m: Record<string, string>, prop: string) =>
+  Object.entries(m).map(([cls, v]) => `  .fa-root .${esc(cls)} { ${prop}: ${v} !important; }`).join('\n')
 const PRINT_CSS = `
 @media print {
   @page { size: A4; margin: 10mm 11mm; }
   html { font-size: 10.5px !important; }
   html, body, #main-content, [data-surface] { background: #fff !important; min-height: 0 !important; }
   [data-print="hide"], #navigation, [data-testid="chat-widget"] { display: none !important; }
-  .fa-root { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .fa-root { color: #0f172a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .fa-root * { color: inherit !important; }
   .fa-root a { text-decoration: none !important; }
   .fa-page2 { break-before: page; }
   .fa-keep { break-inside: avoid; }
-  .fa-root a[data-print-url]::after { content: " " attr(data-print-url); font-weight: 600; }
+${rules(PRINT_BG, 'background-color')}
+${rules(PRINT_TEXT, 'color')}
+${rules(PRINT_BORDER, 'border-color')}
 }
 `
 
@@ -70,8 +91,8 @@ export default function ForAgentsPage() {
       <style dangerouslySetInnerHTML={{ __html: PRINT_CSS }} />
       <article className="fa-root" aria-labelledby="fa-title">
         {/* Hero */}
-        <header className="bg-gradient-to-b from-[#0f2340] to-[#183a5d] text-white print:bg-none print:bg-[#102340]">
-          <div className={wrap + ' grid items-center gap-8 py-10 sm:py-14 md:grid-cols-[1.35fr_1fr] print:grid-cols-[1.5fr_1fr] print:gap-[6mm] print:py-[7mm]'}>
+        <header className="bg-gradient-to-b from-[#0f2340] to-[#183a5d] text-white fa-navy print:bg-none">
+          <div className={wrap + ' grid items-center gap-8 py-10 sm:py-14 md:grid-cols-[1.35fr_1fr] print:!grid-cols-[1.5fr_1fr] print:gap-[6mm] print:py-[7mm]'}>
             <div>
               <p className="flex items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -110,7 +131,7 @@ export default function ForAgentsPage() {
         <section aria-labelledby="fa-problem" className={'bg-[#fbf6ea] ' + section}>
           <div className={wrap}>
             <h2 id="fa-problem" className={h2}>{C.problem.heading}</h2>
-            <ul className="mt-5 grid gap-3 p-0 md:grid-cols-3 print:mt-[3mm] print:grid-cols-3 print:gap-[3mm]">
+            <ul className="mt-5 grid gap-3 p-0 md:grid-cols-3 print:mt-[3mm] print:!grid-cols-3 print:gap-[3mm]">
               {C.problem.items.map((p) => (
                 <li key={p.title} className="fa-keep list-none rounded-2xl border border-[#ead9ae] bg-white p-5 print:p-[3.5mm]">
                   <h3 className="text-lg font-bold text-[#0f2340]">{p.title}</h3>
@@ -125,7 +146,7 @@ export default function ForAgentsPage() {
         <section id="how" aria-labelledby="fa-steps" className={section}>
           <div className={wrap}>
             <h2 id="fa-steps" className={h2}>{C.steps.heading}</h2>
-            <ol className="mt-5 grid gap-3 p-0 sm:grid-cols-2 lg:grid-cols-4 print:mt-[3mm] print:grid-cols-4 print:gap-[3mm]">
+            <ol className="mt-5 grid gap-3 p-0 sm:grid-cols-2 lg:grid-cols-4 print:mt-[3mm] print:!grid-cols-4 print:gap-[3mm]">
               {C.steps.items.map((st, i) => (
                 <li key={st.key} className="fa-keep list-none rounded-2xl bg-[#0f2340] p-5 text-white print:p-[3.5mm]">
                   <p className="flex items-center gap-3 text-sm font-bold uppercase tracking-wide text-[#f0b440]">
@@ -144,7 +165,7 @@ export default function ForAgentsPage() {
         <section aria-labelledby="fa-gets" className={'fa-page2 bg-slate-50 print:bg-white ' + section}>
           <div className={wrap}>
             <h2 id="fa-gets" className={h2}>{C.gets.heading}</h2>
-            <ul className="mt-5 grid gap-3 p-0 sm:grid-cols-2 print:mt-[3mm] print:grid-cols-2 print:gap-[3mm]">
+            <ul className="mt-5 grid gap-3 p-0 sm:grid-cols-2 print:mt-[3mm] print:!grid-cols-2 print:gap-[3mm]">
               {C.gets.items.map((g, i) => (
                 <li key={g.title} className="fa-keep flex list-none gap-4 rounded-2xl border border-slate-200 bg-white p-5 print:p-[3.5mm]">
                   <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#fbf1d8] text-[#0f2340]">
@@ -162,7 +183,7 @@ export default function ForAgentsPage() {
 
         {/* Cost, what is coming, trust */}
         <section aria-label="Cost, what is coming and trust" className={section}>
-          <div className={wrap + ' grid gap-4 md:grid-cols-3 print:grid-cols-3 print:gap-[3mm]'}>
+          <div className={wrap + ' grid gap-4 md:grid-cols-3 print:!grid-cols-3 print:gap-[3mm]'}>
             <div className="fa-keep rounded-2xl border-2 border-[#f0b440] bg-[#fbf6ea] p-5 print:p-[3.5mm]">
               <h2 id="fa-cost" className="text-sm font-bold uppercase tracking-wide text-[#8a6410]">{C.cost.heading}</h2>
               <p className="mt-2 text-2xl font-extrabold text-[#0f2340]">{C.cost.title}</p>
@@ -193,7 +214,7 @@ export default function ForAgentsPage() {
           <div className={wrap}>
             <h2 id="fa-live" className={h2}>{C.live.heading}</h2>
             <p className="mt-1 text-slate-700">{C.live.lead}</p>
-            <ul className="mt-4 grid gap-3 p-0 sm:grid-cols-2 print:mt-[2.5mm] print:grid-cols-2 print:gap-[2.5mm]">
+            <ul className="mt-4 grid gap-3 p-0 sm:grid-cols-2 print:mt-[2.5mm] print:!grid-cols-2 print:gap-[2.5mm]">
               {live.map((l) => (
                 <li key={l.label} className="fa-keep list-none">
                   <a href={l.href} {...(l.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
@@ -209,14 +230,17 @@ export default function ForAgentsPage() {
         </section>
 
         {/* Call to action + QR */}
-        <section id="invite" aria-labelledby="fa-cta" className="bg-gradient-to-b from-[#0f2340] to-[#183a5d] py-10 text-white sm:py-14 print:bg-none print:bg-[#102340] print:py-[5mm]">
-          <div className={wrap + ' grid items-center gap-8 md:grid-cols-[1.4fr_1fr] print:grid-cols-[1.6fr_1fr] print:gap-[6mm]'}>
+        <section id="invite" aria-labelledby="fa-cta" className="bg-gradient-to-b from-[#0f2340] to-[#183a5d] py-10 text-white sm:py-14 fa-navy print:bg-none print:py-[5mm]">
+          <div className={wrap + ' grid items-center gap-8 md:grid-cols-[1.4fr_1fr] print:!grid-cols-[1.6fr_1fr] print:gap-[6mm]'}>
             <div>
               <h2 id="fa-cta" className="text-2xl font-extrabold sm:text-3xl print:text-[15pt]">{C.cta.heading}</h2>
               <p className="mt-3 text-lg leading-relaxed text-slate-100">{C.cta.body}</p>
-              <div className="mt-6 flex flex-wrap gap-3 print:mt-[3mm]">
-                <Link href={INVITE_PATH} data-print-url={short(inviteUrl)}
-                  className="inline-flex min-h-[52px] w-full items-center justify-center rounded-xl bg-[#f0b440] px-7 text-lg font-extrabold text-[#0f2340] no-underline hover:bg-[#f5c75e] sm:w-auto print:min-h-0 print:px-[4mm] print:py-[2mm]">
+              <p data-testid="print-invite" className="mt-[3mm] hidden text-lg text-white print:block">
+                Open <strong className="text-[#f0b440]">{short(inviteUrl)}</strong> or scan the code.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3 print:hidden">
+                <Link href={INVITE_PATH}
+                  className="inline-flex min-h-[52px] w-full items-center justify-center rounded-xl bg-[#f0b440] px-7 text-lg font-extrabold text-[#0f2340] no-underline hover:bg-[#f5c75e] sm:w-auto">
                   {C.cta.button}
                 </Link>
                 <Link href={demoAgentPath()} className="inline-flex min-h-[52px] w-full items-center justify-center rounded-xl border-2 border-white/70 px-6 text-lg font-bold text-white no-underline hover:bg-white/10 sm:w-auto print:hidden">
@@ -227,7 +251,7 @@ export default function ForAgentsPage() {
             <figure className="mx-auto w-full max-w-[15rem] rounded-2xl bg-white p-4 text-center text-[#0f2340] print:max-w-[45mm] print:p-[3mm]">
               <InviteQr value={inviteUrl} label={`QR code: ${short(inviteUrl)}`} className="mx-auto block h-auto w-full" />
               <figcaption className="mt-2 text-sm font-bold">{C.cta.qr}</figcaption>
-              <p className="break-all text-xs text-slate-600">{short(inviteUrl)}</p>
+              <p className="text-[11px] leading-snug text-slate-600 [overflow-wrap:anywhere]">{short(site)}<wbr />{INVITE_PATH}</p>
             </figure>
           </div>
         </section>

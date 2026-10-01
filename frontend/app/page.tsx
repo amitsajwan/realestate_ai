@@ -40,9 +40,9 @@ export default function LandingPage() {
             </p>
             <h1 id="hero-title" className="mt-4 text-[2rem] font-extrabold leading-[1.15] tracking-tight sm:text-5xl">{L.hero.title}</h1>
             <p className="mt-4 text-base leading-relaxed text-slate-100 sm:text-lg">{L.hero.lead}</p>
-            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2">
+            <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-3">
               <Link href={PATHS.invite} className={goldBtn + ' w-full sm:w-auto'}>{L.hero.cta}</Link>
-              <Link href={demoAgentPath()} className="inline-flex min-h-[52px] w-full items-center justify-center rounded-xl border-2 border-white/70 px-6 text-lg font-bold text-white no-underline hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-auto">
+              <Link href={demoAgentPath()} className="inline-flex min-h-[52px] w-full items-center justify-center rounded-xl border-2 border-white/70 px-5 text-lg font-bold text-white no-underline hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-auto">
                 See a demo agent page
               </Link>
               <Link href={PATHS.signIn} className="flex min-h-[44px] items-center font-medium text-white underline underline-offset-4">{L.hero.signIn}</Link>

@@ -42,14 +42,16 @@ describe('/for-agents brochure', () => {
     expect(within(article).getAllByRole('link', { name: /request an invite/i }).length).toBeGreaterThanOrEqual(2)
   })
 
-  it('prints the links as addresses (See it live shows each URL; the invite button carries data-print-url)', () => {
+  it('prints the links as addresses and keeps the brand colours in print', () => {
     const { container } = render(<ForAgentsPage />)
     const host = siteUrl().replace(/^https?:\/\//, '')
     expect(container.textContent).toContain(host + '/agent/demo')
     expect(container.textContent).toContain(host + '/go')
-    expect(container.querySelector('[data-print-url]')!.getAttribute('data-print-url')).toBe(host + '/request-invite')
-    expect(container.innerHTML).toMatch(/@media print/)
-    expect(container.innerHTML).toMatch(/size: A4/)
+    expect(screen.getByTestId('print-invite')).toHaveTextContent(host + '/request-invite')
+    const css = container.querySelector('style')!.innerHTML
+    expect(css).toMatch(/@media print/)
+    expect(css).toMatch(/size: A4/)
+    expect(css).toContain('.fa-root .bg-\\[\\#0f2340\\] { background-color: #0f2340 !important; }')
   })
 
   it('has a QR code for the invite page URL built from the site setting', () => {

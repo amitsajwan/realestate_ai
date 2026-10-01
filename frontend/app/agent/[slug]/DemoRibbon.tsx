@@ -23,8 +23,8 @@ export default function DemoRibbon({ agent }: { agent: Pick<AgentProfile, 'brand
           <Link href="/for-agents" className="font-semibold text-amber-950 underline underline-offset-2">Get a page like this</Link>
         </p>
       </div>
-      <div aria-hidden="true" data-testid="demo-ribbon" className="pointer-events-none fixed bottom-0 left-0 z-50 h-28 w-28 overflow-hidden print:hidden">
-        <span className="absolute bottom-[1.6rem] left-[-2.6rem] block w-40 rotate-45 bg-amber-500 py-1 text-center text-xs font-extrabold tracking-[0.3em] text-amber-950 shadow-md">
+      <div aria-hidden="true" data-testid="demo-ribbon" className="pointer-events-none fixed bottom-0 left-0 z-50 h-[5.5rem] w-[5.5rem] overflow-hidden print:hidden">
+        <span className="absolute bottom-[1.05rem] left-[-2.2rem] block w-32 rotate-45 bg-amber-500 py-0.5 pl-[0.3em] text-center text-[11px] font-extrabold tracking-[0.3em] text-amber-950 shadow-md">
           DEMO
         </span>
       </div>
