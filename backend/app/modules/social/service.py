@@ -42,7 +42,8 @@ def rebase(url: str, base: str) -> str:
     return f"{base.rstrip('/')}{path}" if base else path
 
 
-def build_payload(pack: dict, channel: str, base: str) -> dict:
+def build_payload(pack: dict, channel: str, base: str, attribution: str = "") -> dict:
+    """`attribution` (concierge: 'Listed by ...' lines, never a phone number) goes between the caption and the link/hashtags."""
     imgs = pack.get("images") or {}
 
     def urls(kinds) -> List[str]:
@@ -52,16 +53,18 @@ def build_payload(pack: dict, channel: str, base: str) -> dict:
     if channel == "facebook_page":
         post = (pack.get("facebook") or {}).get("post", "")
         link_line = content_phrases[resolve_language(pack.get("language") or "en")]["link"].format(url=share) if share else ""
-        text = f"{post}\n\n{link_line}".strip()
+        text = (f"{post}\n\n{attribution}\n\n{link_line}" if attribution else f"{post}\n\n{link_line}").strip()
         return {"text": text, "image_urls": urls(("cover",)), "link": share or None}
     ig = pack.get("instagram") or {}
     tags = " ".join(ig.get("hashtags") or [])
-    return {"text": f"{ig.get('caption', '')}\n\n{tags}".strip(), "image_urls": urls(IG_ORDER)[:10], "link": None}
+    caption = f"{ig.get('caption', '')}\n\n{attribution}" if attribution else ig.get("caption", "")
+    return {"text": f"{caption}\n\n{tags}".strip(), "image_urls": urls(IG_ORDER)[:10], "link": None}
 
 
 class SocialService:
     def __init__(self, db, publisher_factory: Callable[[SocialConfig], Publisher] = default_publisher,
                  config_loader: Callable[[], SocialConfig] = load_config, now: Callable[[], datetime] = datetime.utcnow):
+        self.db = db
         self.listings = db.get_collection("listings")
         self.packs = db.get_collection("marketing_packs")
         self.pubs = db.get_collection("publications")
@@ -134,6 +137,20 @@ class SocialService:
         await self.pubs.update_one({"_id": doc["_id"]}, {"$set": {"status": "queued", "updated_at": self._ts()}})
         return self._out(await self._attempt(cfg, {**doc, "status": "queued"}))
 
+    async def _attribution(self, agent_id: str, listing: dict, channel: str) -> str:
+        """Concierge attribution lines for an agent's listing on the PUNE Property pages ('' for the owner's own)."""
+        from app.modules.concierge.attribution import attribution_text
+        return await attribution_text(self.db, agent_id, listing, channel)
+
+    async def captions(self, agent_id: str, listing_id: str, channels: List[str]) -> dict:
+        """The exact text each channel would post, without posting or recording anything."""
+        listing = await self._listing(agent_id, listing_id)
+        pack = await self.packs.find_one({"_id": listing_id, "agent_id": agent_id})
+        if not pack:
+            raise SocialError("Create the marketing pack for this listing first", 409)
+        base = self.load_config().media_base_url
+        return {c: build_payload(pack, c, base, await self._attribution(agent_id, listing, c)) for c in dict.fromkeys(channels)}
+
     # ---- publish ---------------------------------------------------------------------------------------------
     async def publish(self, agent_id: str, listing_id: str, body: PublishIn) -> List[Publication]:
         if not (body.approve and body.consent):
@@ -148,7 +165,7 @@ class SocialService:
             raise SocialError("Create the marketing pack for this listing first", 409)
         cfg, version = self.load_config(), int(pack.get("version") or 1)
         channels = list(dict.fromkeys(body.channels))
-        payloads = {c: build_payload(pack, c, cfg.media_base_url) for c in channels}
+        payloads = {c: build_payload(pack, c, cfg.media_base_url, await self._attribution(agent_id, listing, c)) for c in channels}
         if "instagram" in channels and not payloads["instagram"]["image_urls"]:
             raise SocialError("Instagram needs at least one image and this marketing pack has none", 400)
         existing = {c: await self._same_key(listing_id, agent_id, c, version) for c in channels}
@@ -169,7 +186,11 @@ class SocialService:
                        "status": "queued", "external_id": None, "permalink": None, "error": None, "consent": consent,
                        "approved_at": now, "created_at": now, "updated_at": now, "attempts": 0, "payload": payloads[c]}
                 await self.pubs.insert_one(doc)
-            results.append(await self._start(doc, cfg))
+            res = await self._start(doc, cfg)
+            if c == "instagram" and res.status == "published":
+                from app.modules.concierge.attribution import register_hub_item
+                await register_hub_item(self.db, agent_id, listing, pack, cfg.media_base_url, res.permalink or "")
+            results.append(res)
         return results
 
     async def retry(self, agent_id: str, publication_id: str) -> Publication:
