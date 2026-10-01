@@ -15,11 +15,19 @@ from .service import ChatError, ChatService
 router = APIRouter()
 
 
+class ChatContext(BaseModel):
+    """What the visitor is looking at (from the page URL): lets the assistant answer about that home, post or area. All optional, all re-checked server side."""
+    listing_id: Optional[str] = Field(None, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    post_id: Optional[str] = Field(None, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    locality: Optional[str] = Field(None, max_length=40, pattern=r"^[A-Za-z][A-Za-z _-]+$")
+
+
 class MessageIn(BaseModel):
     session_id: str = Field(..., min_length=12, max_length=64)
     agent_slug: str = Field(..., min_length=2, max_length=60)
     message: str = Field(..., min_length=1, max_length=500)
     source: Optional[str] = Field(None, max_length=40)
+    context: Optional[ChatContext] = None
 
 
 class MessageOut(BaseModel):
@@ -36,7 +44,7 @@ def get_service() -> ChatService:
 @router.post("/message", response_model=MessageOut)
 async def chat_message(body: MessageIn, svc: ChatService = Depends(get_service)):
     try:
-        return await svc.message(body.session_id, body.agent_slug, body.message, body.source)
+        return await svc.message(body.session_id, body.agent_slug, body.message, body.source, body.context.model_dump(exclude_none=True) if body.context else None)
     except ChatError as e:
         raise HTTPException(status_code=e.status_code, detail=str(e))
 

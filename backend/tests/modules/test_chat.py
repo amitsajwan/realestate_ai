@@ -246,3 +246,67 @@ def test_timeline_acknowledgement_reads_naturally():
     d["asked"] = "timeline"
     new = engine.extract(d, "In 1-3 months")
     assert "moving in 1-3 months" in engine._ack(new, d)
+
+
+# ---- grounded answers about the page the visitor is on ------------------------------------------------------------
+HOME = {"_id": "L1", "agent_id": "A1", "status": "live", "visibility": "public", "transaction": "sale", "property_type": "apartment", "price_inr": 8_500_000,
+        "city": "Pune", "locality": "Kharadi", "bhk": 2, "carpet_sqft": 1100, "floor": 7, "total_floors": 20, "possession": "ready", "title": "x",
+        "about": {"parking": "One covered slot", "nearby": [{"type": "school", "name": "City School", "minutes": 8}]}}
+
+
+def svc_with_home(**over):
+    s, db = svc(FakeTracking())
+    db.get_collection("listings").docs.append({**HOME, **over})
+    return s, db
+
+
+async def test_chat_answers_about_the_listing_page_the_visitor_is_on():
+    s, _ = svc_with_home()
+    ctx = {"listing_id": "L1"}
+    r = await s.message(SID, "rahul", "what is the carpet area?", context=ctx)
+    assert "1,100 sq ft" in r["reply"] and "{interest_url}" not in r["reply"] and "http" not in r["reply"]
+    r = await s.message(SID, "rahul", "nearby school?", context=ctx)
+    assert "City School, about 8 minutes away" in r["reply"]
+    r = await s.message(SID, "rahul", "parking milegi?", context=ctx)
+    assert "One covered slot" in r["reply"]
+
+
+async def test_chat_says_plainly_what_it_does_not_know_and_asks_a_person_with_consent_first_phone_capture():
+    s, db = svc_with_home()
+    r = await s.message(SID, "rahul", "what is the maintenance?", context={"listing_id": "L1"})
+    assert "I do not have the maintenance figure for this home" in r["reply"] and "ask our team" in r["reply"]
+    assert "Share your mobile number" in r["reply"] and "may contact you" in r["reply"]  # the consent line is shown before any number is taken
+    row = db.get_collection("chat_sessions").docs[0]
+    assert row["needs_human"] and row["data"]["missing"] == ["the maintenance figure"] and not row["data"]["phone"]
+    assert (await s.conversations("A1"))[0]["missing"] == ["the maintenance figure"]
+
+
+async def test_chat_uses_the_area_when_the_visitor_is_on_a_locality_page():
+    s, _ = svc()
+    r = await s.message(SID, "rahul", "is the metro running?", context={"locality": "upper-kharadi"})
+    assert "approved" in r["reply"] and "not the same as running" in r["reply"]
+    r = await s.message(SID, "rahul", "which school is nearby?", context={"locality": "upper-kharadi"})
+    assert "I do not have details of nearby schools for this area" in r["reply"]
+
+
+@pytest.mark.parametrize("ctx", [{"listing_id": "NOPE"}, {"listing_id": "../etc"}, {"post_id": "missing"}, {"locality": "Mars"}, {"locality": "x" * 80}, {}])
+async def test_unknown_or_hostile_context_is_ignored_and_the_normal_assistant_answers(ctx):
+    s, _ = svc_with_home()
+    r = await s.message(SID, "rahul", "how do I check RERA?", context=ctx)
+    assert "MahaRERA" in r["reply"]
+
+
+async def test_a_listing_that_is_not_public_is_never_used_for_answers():
+    s, _ = svc_with_home(status="draft")
+    r = await s.message(SID, "rahul", "what is the carpet area?", context={"listing_id": "L1"})
+    assert "1,100" not in r["reply"]
+
+
+async def test_answering_questions_does_not_change_the_consent_first_rule():
+    s, _ = svc_with_home()
+    r = await s.message(SID, "rahul", "price?", context={"listing_id": "L1"})
+    assert "₹85 Lakh" in r["reply"]
+    r = await s.message(SID, "rahul", "my number is 9822012345", context={"listing_id": "L1"})
+    assert not r["lead_created"] and "Reply YES to confirm" in r["reply"]
+    r = await s.message(SID, "rahul", "yes", context={"listing_id": "L1"})
+    assert r["lead_created"]

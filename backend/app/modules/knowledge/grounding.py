@@ -27,6 +27,8 @@ VISIT = "You can request a site visit and the agent will confirm a day and time.
 LOAN = "Most buyers use a home loan; a bank will tell you your eligibility, so keep income proofs and ID ready."
 RERA_GENERAL = "Every project above the RERA limits must be registered, and its RERA number, promised possession date and complaints can be looked up on the MahaRERA website."
 GENERAL = [VISIT, LOAN, RERA_GENERAL]
+SAMPLE_1 = "This is a sample home shown for illustration, not available for sale."
+SAMPLE_2 = "Because it is a sample, it cannot be visited or booked; tell us your budget and preferred area and we will look for a real match."
 
 
 @dataclass
@@ -135,11 +137,15 @@ def listing_grounding(doc: dict) -> Grounding:
     subject = (doc.get("title") or " ".join(x for x in (bhk_t, doc.get("property_type") or "home", ("in " + loc) if loc else "") if x)).strip()
     g = Grounding(subject=subject, kind="listing", sample=(doc.get("title") or "").strip().lower().startswith("sample"))
     f = g.facts
+    if g.sample:  # a stored sample listing is still only an illustration: the first two sentences are what availability and visit questions get
+        _add(f, SAMPLE_1, SAMPLE_2)
+        g.general = [LOAN]
     _add(f, f"It is a {bhk_t} {doc.get('property_type') or 'home'} {'for rent' if rent else 'for sale'}{' in ' + loc if loc else ''}." if bhk_t or loc else None)
     if loc:
         _add(f, f"It is located in {loc}.")
     if doc.get("price_inr"):
-        _add(f, f"The {'rent' if rent else 'price'} is {money(int(doc['price_inr']), rent)}.")
+        amount = money(int(doc["price_inr"]), rent)
+        _add(f, f"The sample price figure is {amount}, a labelled sample figure and not a real offer." if g.sample else f"The {'rent' if rent else 'price'} is {amount}.")
     if doc.get("carpet_sqft"):
         _add(f, f"The carpet area is {sqft(int(doc['carpet_sqft']))}.")
     if doc.get("super_built_up_sqft"):
@@ -158,7 +164,7 @@ def listing_grounding(doc: dict) -> Grounding:
     amen = list(dict.fromkeys([str(a).strip() for a in (doc.get("amenities") or []) + (about.get("amenities") or []) if str(a).strip()]))
     if amen:
         _add(f, f"Amenities: {_join(amen)}.")
-    status = doc.get("status")
+    status = None if g.sample else doc.get("status")
     if status == "live":
         _add(f, "It is currently listed as available on our site.")
     elif status == "under_offer":
@@ -190,8 +196,7 @@ def sample_grounding(slug: str) -> Grounding:
     h = S.get(slug)
     g = Grounding(subject=f"Sample home: {h.title}", kind="sample", sample=True, general=[LOAN, "A sample home has no RERA number; real listings show theirs, and every project can be looked up on the MahaRERA website."])
     f = g.facts
-    _add(f, "This is a sample home shown for illustration, not available for sale.",
-         "Because it is a sample, it cannot be visited or booked; tell us your budget and preferred area and we will look for a real match.",
+    _add(f, SAMPLE_1, SAMPLE_2,
          f"It is a {h.bhk} BHK in {h.locality}.", f"This sample home is located in {h.locality}, Pune.",f"The carpet area is {h.carpet_text}.", f"It is on floor {h.floor} of {h.total_floors}.",
          f"The sample price figure is {h.price_text}, a labelled sample figure and not a real offer.",
          f"It is {h.furnishing.lower()}.")
