@@ -99,8 +99,12 @@ export function formatNewsDate(iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
-  return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }).format(d)
+  // Day, month and year in India time, written out here so the month is always 'Sep' (ICU data differs between Node and browsers: 'Sept').
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'numeric', year: 'numeric', timeZone: 'Asia/Kolkata' }).formatToParts(d).map((x) => [x.type, x.value]))
+  return `${Number(p.day)} ${MONTHS[Number(p.month) - 1]} ${p.year}`
 }
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 /** True when the original link is a Google News redirect (long, ugly, and previews Google): the site never shows it as text. */
 export const isGoogleRedirect = (u: string | null): boolean => !!u && /news\.google\.com|google\.com\/rss/i.test(u)

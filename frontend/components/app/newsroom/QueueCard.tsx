@@ -1,19 +1,26 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Btn, Chip, ErrorBox } from '@/components/app/ui'
 import { ageLabel, friendlyNewsroomError, pillarLabel, whenToIso } from '@/lib/app/newsroom'
-import type { ApproveBody, NewsroomItem } from '@/lib/app/newsroom'
+import type { ApproveBody, NewsroomItem, NewsroomPreview } from '@/lib/app/newsroom'
 import { CheckResult } from './CheckResult'
 import { FactsList } from './FactsList'
+import { PostPreview } from './PostPreview'
 
 export interface QueueCardProps {
   item: NewsroomItem
   onApprove: (id: string, body: ApproveBody) => Promise<void>
   onReject: (id: string, reason?: string) => Promise<void>
+  /** Optional: the final captions for edited text, without saving (the owner sees what will really be sent). */
+  onPreview?: (id: string, text: string) => Promise<NewsroomPreview>
 }
 
-export function QueueCard({ item, onApprove, onReject }: QueueCardProps) {
+const PREVIEW_DELAY_MS = 600
+
+export function QueueCard({ item, onApprove, onReject, onPreview }: QueueCardProps) {
   const [text, setText] = useState(item.draft)
+  const [live, setLive] = useState<{ captions: Record<string, string>; problems: Record<string, string[]> } | null>(null)
+  const [updating, setUpdating] = useState(false)
   const [when, setWhen] = useState('')
   const [scheduling, setScheduling] = useState(false)
   const [rejecting, setRejecting] = useState(false)
@@ -22,6 +29,28 @@ export function QueueCard({ item, onApprove, onReject }: QueueCardProps) {
   const [error, setError] = useState<string | null>(null)
   const edited = text !== item.draft
   const fieldId = `draft-${item.id}`
+
+  // When the owner edits the text, ask the server for the captions that edit would really produce (and their checks), after a short pause.
+  useEffect(() => {
+    if (!edited || !onPreview) {
+      setLive(null)
+      setUpdating(false)
+      return
+    }
+    let stale = false
+    setUpdating(true)
+    const t = setTimeout(() => {
+      onPreview(item.id, text)
+        .then((p) => { if (!stale) setLive({ captions: p.captions, problems: p.captionProblems }) })
+        .catch(() => { if (!stale) setLive(null) })
+        .finally(() => { if (!stale) setUpdating(false) })
+    }, PREVIEW_DELAY_MS)
+    return () => { stale = true; clearTimeout(t) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, edited])
+  const captions = live?.captions ?? item.captions
+  const problems = live?.problems ?? item.captionProblems
+  const captionsBlocked = Object.values(problems).some((p) => p.length > 0)
 
   async function run(fn: () => Promise<void>) {
     setBusy(true)
@@ -69,6 +98,8 @@ export function QueueCard({ item, onApprove, onReject }: QueueCardProps) {
       </div>
 
       <CheckResult check={item.check} />
+      <PostPreview card={item.card} channels={item.channels} captions={captions} problems={problems} dryRun={item.dryRun} updating={updating} title={item.title} />
+      {captionsBlocked && <p className="text-sm font-semibold text-red-800" data-testid="approve-blocked">Fix the text so every caption passes the checks, then approve.</p>}
       <FactsList facts={item.facts} />
 
       {item.sources.length > 0 && (
@@ -121,7 +152,7 @@ export function QueueCard({ item, onApprove, onReject }: QueueCardProps) {
         </div>
       ) : (
         <div className="space-y-2">
-          <Btn onClick={approve} disabled={busy || !text.trim()} className="!bg-blue-900 active:!bg-blue-950 disabled:!bg-blue-300">
+          <Btn onClick={approve} disabled={busy || !text.trim() || captionsBlocked}className="!bg-blue-900 active:!bg-blue-950 disabled:!bg-blue-300">
             {busy ? 'Approving...' : scheduling ? 'Approve and schedule' : 'Approve'}
           </Btn>
           <div className="flex gap-2">
