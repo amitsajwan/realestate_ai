@@ -57,9 +57,20 @@ export interface PublicListing {
 
 export interface AgentBranding {
   tagline?: string
+  /** Legacy stored colours: not used for rendering (the preset / custom_primary decide). */
   colors?: { primary?: string; secondary?: string; accent?: string }
   logo?: string | null
   social?: { instagram?: string; facebook?: string }
+  // A1 brand profile (all optional; see docs/handoff/A1-brand.md)
+  business_name?: string
+  about?: string
+  banner?: string | null
+  preset?: 'navy-gold' | 'emerald' | 'terracotta' | 'royal-purple' | 'slate-teal' | 'cream-ink'
+  custom_primary?: string | null
+  rera_agent_no?: string | null
+  areas?: string[]
+  languages?: string[]
+  years_experience?: number | null
 }
 
 export interface AgentProfile {
