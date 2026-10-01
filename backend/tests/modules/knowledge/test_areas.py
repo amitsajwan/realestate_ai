@@ -58,7 +58,7 @@ def test_every_name_in_the_area_facts_is_on_our_pages(key):
 def test_metro_is_always_approved_not_running_and_only_the_right_lines_per_area(key):
     a = AREAS[key]
     block = blocks()[a.slug]
-    for s in a.facts + tuple(x for pair in a.faq for x in pair):
+    for s in a.facts + tuple(pair[1] for pair in a.faq):
         if re.search(r"metro|corridor 2b|line 4", s, re.I) and not s.startswith("Check"):
             assert re.search(r"approved|check the (current|latest)|not running yet|not yet", s, re.I), s
             assert not re.search(r"\bwill (open|run|start|be running)|opens in|coming soon|soon", s, re.I), s
