@@ -1,3 +1,4 @@
+import { dontCacheThisRender } from '@/lib/site/noCacheOnError'
 import { fixturesForced, serverApiBase } from '@/lib/site/api'
 import { FIXTURE_NEWS } from './fixtures'
 import { BRAND_NAME, TEAM } from '@/lib/brand'
@@ -80,7 +81,7 @@ async function getJson(path: string): Promise<{ status: number; body: unknown } 
 export async function fetchNews(limit = 20): Promise<NewsListResult> {
   if (fixturesForced()) return { ok: true, items: FIXTURE_NEWS.slice(0, limit) }
   const res = await getJson(`?limit=${limit}`)
-  if (!res || res.status >= 400) return { ok: false, items: [] }
+  if (!res || res.status >= 400) { await dontCacheThisRender(); return { ok: false, items: [] } }
   return { ok: true, items: cleanNewsList(res.body) }
 }
 
@@ -90,7 +91,7 @@ export async function fetchNewsItem(id: string): Promise<NewsItemResult> {
     return item ? { ok: true, item } : { ok: false, notFound: true }
   }
   const res = await getJson(`/${encodeURIComponent(id)}`)
-  if (!res) return { ok: false, notFound: false }
+  if (!res) { await dontCacheThisRender(); return { ok: false, notFound: false } }
   if (res.status === 404) return { ok: false, notFound: true }
   const item = cleanNewsItem(res.body)
   return item ? { ok: true, item } : { ok: false, notFound: false }

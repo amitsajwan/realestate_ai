@@ -1,3 +1,4 @@
+import { dontCacheThisRender } from '@/lib/site/noCacheOnError'
 import { serverApiBase } from '@/lib/site/api'
 import { BRAND_NAME } from '@/lib/brand'
 
@@ -56,9 +57,10 @@ export async function fetchPosts(limit = 12): Promise<PostsResult> {
     const res = await fetch(`${serverApiBase()}/api/v1/public/posts?limit=${limit}`, {
       headers: { Accept: 'application/json' }, next: { revalidate: 60 }, signal: ctrl.signal,
     })
-    if (!res.ok) return { ok: false, posts: [] }
+    if (!res.ok) { await dontCacheThisRender(); return { ok: false, posts: [] } }
     return { ok: true, posts: cleanPosts(await res.json()) }
   } catch {
+    await dontCacheThisRender()
     return { ok: false, posts: [] }
   } finally {
     clearTimeout(timer)

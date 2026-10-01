@@ -1,3 +1,4 @@
+import { dontCacheThisRender } from '@/lib/site/noCacheOnError'
 import { serverApiBase } from '@/lib/site/api'
 
 export interface InterestSubject {
@@ -47,8 +48,10 @@ export async function getInterest(code: string): Promise<InterestSubject | null>
 export async function getHub(): Promise<Hub | null> {
   try {
     const res = await fetch(serverApiBase() + '/api/v1/public/hub', { headers: { Accept: 'application/json' }, next: { revalidate: 60 } })
-    return res.ok ? ((await res.json()) as Hub) : null
+    if (!res.ok) { await dontCacheThisRender(); return null }
+    return (await res.json()) as Hub
   } catch {
+    await dontCacheThisRender()
     return null
   }
 }
