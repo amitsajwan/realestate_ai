@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { absoluteImage, getInterest } from '@/lib/interest/api'
 import InterestActions, { type Step } from './InterestActions'
+import WhatsAppButton from '@/components/site/WhatsAppButton'
 
 interface Props {
   params: Promise<{ code: string }>
@@ -68,6 +69,11 @@ export default async function InterestPage({ params, searchParams }: Props) {
         <div className="mt-5">
           <InterestActions code={s.code} agentName={s.agent_name} sample={s.sample} consentWording={s.consent_wording}
             initialStep={step} initialError={q.e || ''} />
+        </div>
+        <div className="mt-3">
+          {/* the agent's own number only when his branding opts in (show_whatsapp); otherwise the PUNE Property number, if set */}
+          <WhatsAppButton title={headline(s)} code={s.code} agentNumber={(s as { agent_whatsapp?: string }).agent_whatsapp}
+            showAgentNumber={(s as { show_whatsapp?: boolean }).show_whatsapp === true} />
         </div>
         <p className="mt-8 text-center text-xs text-slate-500">
           We only store what you type here, and only if you tick the box. See our <a href="/privacy" className="underline">privacy page</a>.
