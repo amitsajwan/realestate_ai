@@ -119,9 +119,10 @@ async def test_headline_only_accepts_reply_without_why_and_fills_check():
 
 
 @pytest.mark.asyncio
-async def test_long_source_still_needs_why():
+async def test_long_source_without_a_why_falls_back_to_the_plain_template():
     long_item = it("Ring road", " ".join(["PMRDA said work has begun near Wagholi."] * 8))
-    assert await draft(long_item, HFACTS, REL, "post", FakeLlm({"what": "Work began."})) is None
+    d = await draft(long_item, HFACTS, REL, "post", FakeLlm({"what": "Work began."}))
+    assert d is not None and "Our view" not in d.text
 
 
 def test_template_draft_has_no_generic_why_and_passes_check():
