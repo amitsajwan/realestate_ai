@@ -113,7 +113,7 @@ async def test_llm_proposals_are_kept_only_when_traceable():
     assert "Rooftop garden walkway" in hl and "Kids cricket net" in hl
     assert "Five star spa" not in hl and not any("appreciation" in h for h in hl)
     assert [a["text"] for a in res["amenities"]] == ["Parking", "Garden"]  # Helipad is not in the vocabulary nor in the text
-    assert res["fields"]["parking"]["text"] == "Parking for 2 cars"
+    assert res["fields"]["parking"]["text"] == "Parking available"  # deterministic wins
     assert "water" not in res["fields"]
     assert all(n["name"] != "Harvard School" for n in res["nearby"])
 
