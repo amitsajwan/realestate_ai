@@ -58,7 +58,7 @@ async def main():
         ("voiced-tip-water-power-hi", "hi", TIP_FACTS[0], TIP_FACTS[1], TIP_FALLBACK_HI, [in2, in1, ext, in2, in1], None, "SITE VISIT TIP"),
     ]
     for name, lang, subj, f, fb, photos, badge, kicker in jobs:
-        script = await director.write_script(subj, f, lang, llm, fb)
+        script = await director.write_script(subj, f, lang, llm if lang != "en" else None, fb)  # English: the reviewed script (the model added hype)
         print(f"===== {name} ({script['made_by']})\n" + json.dumps(script, ensure_ascii=False, indent=1))
         out = director.build(script, photos, lang, UP / f"{name}.mp4", badge=badge, kicker=kicker)
         print("->", out)
