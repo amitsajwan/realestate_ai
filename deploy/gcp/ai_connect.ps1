@@ -1,25 +1,23 @@
 <#
-  Switch the pilot's listing AI (text extraction/translation AND voice notes) to Google Gemini's free tier.
+  Configure Groq as the primary text/voice provider and OpenRouter as its independent text fallback.
+  OpenRouter free models are probed with the supplied key and working models are ordered first.
+  Gemini fallback is disabled because a stale/invalid key causes pointless 401s.
   No secret passes through chat or git.
 
-  1. Get a free key (no card): https://aistudio.google.com/apikey  -> "Create API key" (sign in with any Google account).
-  2. Run in your own PowerShell, from the repo root:    .\deploy\gcp\ai_connect.ps1
-     Paste the key when asked (typing is hidden).
-
-  It checks the key, picks the newest Gemini Flash model your key can use, PROVES that text AND audio both work on your free tier,
-  and only then writes these into the VM's private deploy/gcp/.env and restarts the backend:
-     GEMINI_API_KEY, AI_STT_PROVIDER=gemini, AI_GEMINI_STT_MODEL, AI_LLM_BASE_URL, AI_LLM_API_KEY, AI_LISTING_LLM_MODEL
+  1. Create fresh keys at https://console.groq.com/keys and https://openrouter.ai/keys.
+  2. Run from the repo root; both keys are requested with hidden input.
 #>
 param(
-  [string]$Model     = "",          # leave empty to auto-pick the newest gemini-N.M-flash
-  [string]$Project   = "trader-502012",
-  [string]$Zone      = "asia-south1-a",
-  [string]$Instance  = "pune-property",
+  [string[]]$Models = @("openai/gpt-oss-120b", "openai/gpt-oss-20b"),
+  [string]$Project = "trader-502012",
+  [string]$Zone = "asia-south1-a",
+  [string]$Instance = "pune-property",
   [string]$RemoteDir = "app",
   [switch]$Iap
 )
 $ErrorActionPreference = "Stop"
-$base = "https://generativelanguage.googleapis.com/v1beta"
+$base = "https://api.groq.com/openai/v1"
+$routerBase = "https://openrouter.ai/api/v1"
 
 function Plain($secure) {
   $b = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
@@ -29,82 +27,84 @@ function ErrText($err) {
   $msg = $err.Exception.Message
   try {
     $j = $err.ErrorDetails.Message | ConvertFrom-Json
-    if ($j -is [array]) { $j = $j[0] }
     if ($j.error.message) { $msg = $j.error.message }
   } catch {}
+  if ($msg.Length -gt 160) { $msg = $msg.Substring(0, 160) }
   return $msg
 }
-function Call($method, $url, $key, $body) {
-  $h = @{ "x-goog-api-key" = $key }
-  try {
-    if ($body) { Invoke-RestMethod -Method $method -Uri $url -Headers $h -ContentType "application/json" -Body ($body | ConvertTo-Json -Depth 12 -Compress) -TimeoutSec 60 }
-    else { Invoke-RestMethod -Method $method -Uri $url -Headers $h -TimeoutSec 60 }
-  } catch { throw "Google said: $(ErrText $_)" }
-}
 
-$key = $env:GEMINI_CONNECT_KEY   # testing hook only; normally you are prompted and typing is hidden
-if (-not $key) { $key = Plain (Read-Host "Paste your Gemini API key (hidden)" -AsSecureString) }
-$key = $key.Trim()
-if (-not $key) { throw "A key is required" }
+$groqKey = $env:GROQ_CONNECT_KEY   # testing hook only; normally prompted with hidden input
+if (-not $groqKey) { $groqKey = Plain (Read-Host "Paste your NEW Groq API key (hidden)" -AsSecureString) }
+$groqKey = $groqKey.Trim()
+if (-not $groqKey) { throw "A Groq key is required" }
+$groqAuth = @{ Authorization = "Bearer $groqKey" }
 
-Write-Host "==> Checking the key and finding models" -ForegroundColor Cyan
-$models = (Call GET "$base/models?pageSize=200" $key $null).models
-$flash = $models | Where-Object { $_.name -match '^models/gemini-(\d+(\.\d+)?)-flash$' -and ($_.supportedGenerationMethods -contains "generateContent") } |
-  ForEach-Object { [pscustomobject]@{ Id = $_.name -replace '^models/', ''; Ver = [version]([regex]::Match($_.name, 'gemini-(\d+(\.\d+)?)-flash').Groups[1].Value) } } |
-  Sort-Object Ver -Descending
-if ($Model) { $candidates = @($Model) } elseif ($flash) { $candidates = @($flash | Select-Object -First 5 | ForEach-Object { $_.Id }) } else { throw "No gemini-N.M-flash model is available to this key; pass -Model <id>" }
-Write-Host "Flash models available: $($candidates -join ', ')"
+$routerKey = $env:OPENROUTER_CONNECT_KEY   # testing hook only; normally prompted with hidden input
+if (-not $routerKey) { $routerKey = Plain (Read-Host "Paste your NEW OpenRouter API key (hidden)" -AsSecureString) }
+$routerKey = $routerKey.Trim()
+if (-not $routerKey) { throw "An OpenRouter key is required" }
+$routerAuth = @{ Authorization = "Bearer $routerKey" }
 
-# A brand-new model is often "503 unavailable" on the free tier; try each candidate (twice) and keep the first that passes both tests.
-function TryText($m) {
-  $chat = @{ model = $m; temperature = 0; response_format = @{ type = "json_object" }
-             messages = @(@{ role = "system"; content = 'Reply with one JSON object with key bhk (number).' }, @{ role = "user"; content = "2 bhk upper kharadi 85 lakh" }) }
-  for ($i = 1; $i -le 2; $i++) {
-    try {
-      $r = Invoke-RestMethod -Method POST -Uri "$base/openai/chat/completions" -Headers @{ Authorization = "Bearer $key" } -ContentType "application/json" -Body ($chat | ConvertTo-Json -Depth 8 -Compress) -TimeoutSec 60
-      return @{ ok = $true; note = "$($r.choices[0].message.content)" }
-    } catch { $last = ErrText $_; Start-Sleep -Seconds 3 }
-  }
-  return @{ ok = $false; note = $last }
-}
-$rate = 16000; $n = $rate; $ms = New-Object IO.MemoryStream; $bw = New-Object IO.BinaryWriter($ms)
-$bw.Write([Text.Encoding]::ASCII.GetBytes("RIFF")); $bw.Write([int](36 + 2 * $n)); $bw.Write([Text.Encoding]::ASCII.GetBytes("WAVEfmt "))
-$bw.Write([int]16); $bw.Write([int16]1); $bw.Write([int16]1); $bw.Write([int]$rate); $bw.Write([int]($rate * 2)); $bw.Write([int16]2); $bw.Write([int16]16)
-$bw.Write([Text.Encoding]::ASCII.GetBytes("data")); $bw.Write([int](2 * $n)); $bw.Write((New-Object byte[] (2 * $n))); $bw.Flush()
-$wav = [Convert]::ToBase64String($ms.ToArray())
-$aud = @{ contents = @(@{ parts = @(@{ text = "Transcribe this audio. If there is no speech, output nothing." }, @{ inline_data = @{ mime_type = "audio/wav"; data = $wav } }) }) }
-function TryAudio($m) {
-  for ($i = 1; $i -le 2; $i++) {
-    try {
-      Invoke-RestMethod -Method POST -Uri "$base/models/${m}:generateContent" -Headers @{ "x-goog-api-key" = $key } -ContentType "application/json" -Body ($aud | ConvertTo-Json -Depth 12 -Compress) -TimeoutSec 60 | Out-Null
-      return @{ ok = $true; note = "accepted" }
-    } catch { $last = ErrText $_; Start-Sleep -Seconds 3 }
-  }
-  return @{ ok = $false; note = $last }
-}
+Write-Host "==> Checking Groq key" -ForegroundColor Cyan
+try { $null = Invoke-RestMethod -Uri "$base/models" -Headers $groqAuth -TimeoutSec 30 }
+catch { throw "Groq rejected the key: $(ErrText $_)" }
 
 $passed = @()
-$audioNote = ""
-foreach ($m in $candidates) {
-  Write-Host "==> Testing $m (text, then audio with 1 second of silence)" -ForegroundColor Cyan
-  $t = TryText $m
-  if (-not $t.ok) { Write-Host "  text failed: $($t.note)" -ForegroundColor Yellow; continue }
-  Write-Host "  text OK: $($t.note)" -ForegroundColor Green
-  $a = TryAudio $m
-  if (-not $a.ok) { Write-Host "  audio failed: $($a.note)" -ForegroundColor Yellow; $audioNote = $a.note; continue }
-  Write-Host "  audio OK: Gemini accepted an audio request on your key" -ForegroundColor Green
-  $passed += $m
-  if ($passed.Count -ge 3) { break }
+foreach ($m in $Models) {
+  Write-Host "==> Testing $m with a JSON extraction request" -ForegroundColor Cyan
+  try {
+    $body = @{ model = $m; temperature = 0; response_format = @{ type = "json_object" }
+               messages = @(@{ role = "system"; content = 'Reply with one JSON object with key bhk (number).' },
+                            @{ role = "user"; content = "2 bhk upper kharadi 85 lakh" }) }
+    $r = Invoke-RestMethod -Method POST -Uri "$base/chat/completions" -Headers $groqAuth -ContentType "application/json" `
+      -Body ($body | ConvertTo-Json -Depth 8 -Compress) -TimeoutSec 45
+    $result = "$($r.choices[0].message.content)" | ConvertFrom-Json
+    if ($result.bhk -ne 2) { throw "model returned invalid test JSON" }
+    Write-Host "  OK" -ForegroundColor Green
+    $passed += $m
+    if ($passed.Count -ge 3) { break }
+  } catch { Write-Host "  failed: $(ErrText $_)" -ForegroundColor Yellow }
 }
-if (-not $passed) { throw "No candidate model passed both the text and audio tests (last audio message: '$audioNote'). Nothing was changed on the server. Try again in a few minutes, or tell Claude the messages above." }
-# The free tier gives every model its own small DAILY quota, so the server tries them in this order and moves on when one is used up or busy.
-# Models that did not pass today (for example quota already used) stay at the end of the list; they recover tomorrow and a retired one just fails over.
-$chain = @($passed) + @($candidates | Where-Object { $passed -notcontains $_ })
-$pick = $chain -join ","
-Write-Host "Model order on the server: $pick"
+if (-not $passed) { throw "No Groq model passed the test. Nothing was changed on the server." }
+$groqPick = $passed -join ","
+Write-Host "Groq primary model order: $groqPick" -ForegroundColor Green
+
+Write-Host "==> Checking OpenRouter key and discovering free fallback models" -ForegroundColor Cyan
+try {
+  $null = Invoke-RestMethod -Uri "$routerBase/auth/key" -Headers $routerAuth -TimeoutSec 30
+  $available = (Invoke-RestMethod -Uri "$routerBase/models" -Headers $routerAuth -TimeoutSec 60).data
+} catch { throw "OpenRouter rejected the key or model-list request failed: $(ErrText $_)" }
+$routerCandidates = @($available | Where-Object {
+    $_.id -like "*:free" -and [double]$_.pricing.prompt -eq 0 -and [double]$_.pricing.completion -eq 0 -and
+    ($_.supported_parameters -contains "response_format" -or $_.supported_parameters -contains "structured_outputs") -and
+    $_.id -notmatch "safety|code|lyria|omni" } |
+  Sort-Object { $_.context_length } -Descending | Select-Object -First 5 | ForEach-Object { $_.id })
+$routerCandidates += "openrouter/free"
+$routerCandidates = @($routerCandidates | Select-Object -Unique)
+Write-Host "Testing OpenRouter candidates: $($routerCandidates -join ', ')" -ForegroundColor Cyan
+$routerPassed = @()
+foreach ($m in $routerCandidates) {
+  Write-Host "==> Testing OpenRouter $m" -ForegroundColor Cyan
+  try {
+    $body = @{ model = $m; temperature = 0; response_format = @{ type = "json_object" }
+               messages = @(@{ role = "system"; content = 'Reply with one JSON object with key bhk (number).' },
+                            @{ role = "user"; content = "2 bhk upper kharadi 85 lakh" }) }
+    $r = Invoke-RestMethod -Method POST -Uri "$routerBase/chat/completions" -Headers $routerAuth -ContentType "application/json" `
+      -Body ($body | ConvertTo-Json -Depth 8 -Compress) -TimeoutSec 45
+    $result = "$($r.choices[0].message.content)" | ConvertFrom-Json
+    if ($result.bhk -ne 2) { throw "model returned invalid test JSON" }
+    Write-Host "  OK" -ForegroundColor Green
+    $routerPassed += $m
+    if ($routerPassed.Count -ge 3) { break }
+  } catch { Write-Host "  failed: $(ErrText $_)" -ForegroundColor Yellow }
+}
+if (-not $routerPassed) { throw "No OpenRouter free model passed the live test. Nothing was changed on the server." }
+$routerOrder = @($routerPassed) + @($routerCandidates | Where-Object { $routerPassed -notcontains $_ })
+$routerPick = $routerOrder -join ","
+Write-Host "OpenRouter fallback model order: $routerPick" -ForegroundColor Green
 
 Write-Host "==> Writing the settings into the VM's private .env" -ForegroundColor Cyan
-$lines = @("GEMINI_API_KEY=$key", "AI_STT_PROVIDER=gemini", "AI_GEMINI_STT_MODEL=$pick", "AI_LLM_BASE_URL=$base/openai", "AI_LLM_API_KEY=$key", "AI_LISTING_LLM_MODEL=$pick")
+$lines = @("AI_LLM_BASE_URL=$base", "AI_LLM_API_KEY=$groqKey", "AI_LISTING_LLM_MODEL=$groqPick", "AI_LLM_FALLBACK_BASE_URL=$routerBase", "AI_LLM_FALLBACK_API_KEY=$routerKey", "AI_LLM_PROVIDER_FALLBACK_MODEL=$routerPick", "AI_LLM_FALLBACK=off", "AI_STT_PROVIDER=groq", "AI_STT_BASE_URL=$base", "AI_STT_API_KEY=$groqKey")
 $remoteSh = @'
 set -e
 cd ~/__DIR__/deploy/gcp
@@ -119,7 +119,7 @@ rm -f ~/ai.env
 sudo docker compose up -d backend
 sleep 15
 sudo docker compose ps backend --format '{{.Name}} {{.Status}}'
-grep -E '^(AI_STT_PROVIDER|AI_GEMINI_STT_MODEL|AI_LLM_BASE_URL|AI_LISTING_LLM_MODEL)=' .env
+grep -E '^(AI_LLM_BASE_URL|AI_LISTING_LLM_MODEL|AI_LLM_FALLBACK_BASE_URL|AI_LLM_PROVIDER_FALLBACK_MODEL|AI_LLM_FALLBACK|AI_STT_PROVIDER|AI_STT_BASE_URL)=' .env
 '@ -replace "__DIR__", $RemoteDir
 $tmpEnv = Join-Path $env:TEMP "ai.env"; $tmpSh = Join-Path $env:TEMP "ai_apply.sh"
 try {
@@ -132,4 +132,4 @@ try {
 } finally {
   Remove-Item $tmpEnv, $tmpSh -ErrorAction SilentlyContinue
 }
-Write-Host "Done. Listing AI and voice now use Gemini ($pick)." -ForegroundColor Green
+Write-Host "Done. Groq ($groqPick) is primary; OpenRouter is the text fallback; Groq handles voice notes." -ForegroundColor Green

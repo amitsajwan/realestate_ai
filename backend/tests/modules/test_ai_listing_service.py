@@ -296,6 +296,32 @@ async def test_text_llm_fails_over_across_models():
     assert seen == ["bad1", "bad2", "good"]
 
 
+async def test_provider_fallback_runs_after_primary_quota_exhaustion():
+    import httpx
+    import json
+    from app.modules.ai_listing.llm import FallbackLLM
+
+    primary_models = []
+    backup_calls = []
+
+    def primary_handler(request):
+        primary_models.append(json.loads(request.content)["model"])
+        return httpx.Response(429, json={"error": "shared daily quota exhausted"})
+
+    def backup_handler(request):
+        backup_calls.append((request.url.host, request.headers["authorization"]))
+        return httpx.Response(200, json={"choices": [{"message": {"content": '{"bhk": 2}'}}]})
+
+    primary_client = httpx.AsyncClient(transport=httpx.MockTransport(primary_handler))
+    backup_client = httpx.AsyncClient(transport=httpx.MockTransport(backup_handler))
+    primary = GroqLLM("openrouter-key", model="or-a,or-b", client=primary_client, url="https://openrouter.test/chat/completions")
+    backup = GroqLLM("groq-key", model="gpt-oss", client=backup_client, url="https://api.groq.test/chat/completions")
+
+    assert await FallbackLLM([primary, backup]).extract("2 bhk") == {"bhk": 2}
+    assert primary_models == ["or-a", "or-b"]
+    assert backup_calls == [("api.groq.test", "Bearer groq-key")]
+
+
 def test_provider_switch(monkeypatch):
     from app.modules.ai_listing.llm import GeminiTranscriber, GroqTranscriber, default_transcriber
 
@@ -307,6 +333,42 @@ def test_provider_switch(monkeypatch):
     assert default_transcriber() is None  # provider chosen but no key: voice is reported as unavailable, text still works
     monkeypatch.setenv("GEMINI_API_KEY", "k")
     assert isinstance(default_transcriber(), GeminiTranscriber)
+
+
+def test_default_llm_configures_a_separate_provider_fallback(monkeypatch):
+    from app.modules.ai_listing.llm import FallbackLLM, default_llm
+
+    for name in ("AI_LLM_API_KEY", "AI_LLM_BASE_URL", "AI_LISTING_LLM_MODEL", "GROQ_API_KEY", "GEMINI_API_KEY",
+                 "AI_LLM_FALLBACK_API_KEY", "AI_LLM_FALLBACK_BASE_URL", "AI_LLM_PROVIDER_FALLBACK_MODEL"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("AI_LLM_BASE_URL", "https://api.groq.com/openai/v1")
+    monkeypatch.setenv("AI_LLM_API_KEY", "groq-key")
+    monkeypatch.setenv("AI_LISTING_LLM_MODEL", "openai/gpt-oss-120b")
+    monkeypatch.setenv("AI_LLM_FALLBACK_BASE_URL", "https://openrouter.ai/api/v1/")
+    monkeypatch.setenv("AI_LLM_FALLBACK_API_KEY", "openrouter-key")
+    monkeypatch.setenv("AI_LLM_PROVIDER_FALLBACK_MODEL", "model-a,model-b")
+    monkeypatch.setenv("AI_LLM_FALLBACK", "off")
+
+    llm = default_llm()
+    assert isinstance(llm, FallbackLLM)
+    assert len(llm.providers) == 2
+    assert llm.providers[0].api_key == "groq-key"
+    assert llm.providers[0].url == "https://api.groq.com/openai/v1/chat/completions"
+    assert llm.providers[0].model == "openai/gpt-oss-120b"
+    assert llm.providers[1].api_key == "openrouter-key"
+    assert llm.providers[1].url == "https://openrouter.ai/api/v1/chat/completions"
+    assert llm.providers[1].model == "model-a,model-b"
+
+
+def test_groq_transcriber_uses_dedicated_stt_key(monkeypatch):
+    from app.modules.ai_listing.llm import GroqTranscriber, default_transcriber
+
+    monkeypatch.delenv("AI_STT_PROVIDER", raising=False)
+    monkeypatch.setenv("AI_STT_API_KEY", "stt-groq-key")
+    monkeypatch.setenv("AI_LLM_API_KEY", "openrouter-key")
+    transcriber = default_transcriber()
+    assert isinstance(transcriber, GroqTranscriber)
+    assert transcriber.api_key == "stt-groq-key"
 
 
 async def test_missing_and_media():

@@ -278,14 +278,24 @@ GEMINI_OPENAI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/cha
 
 
 def default_llm() -> Optional[LLMClient]:
-    """The configured provider, with Gemini's free tier (same GEMINI_API_KEY as speech) as automatic backup unless AI_LLM_FALLBACK=off."""
+    """Use the configured provider, then an optional OpenAI-compatible backup, then Gemini if enabled."""
     key = groq_api_key()
     primary = GroqLLM(key) if key else None
+    providers = [primary] if primary else []
+
+    fallback_key = os.environ.get("AI_LLM_FALLBACK_API_KEY")
+    fallback_base = os.environ.get("AI_LLM_FALLBACK_BASE_URL", "").rstrip("/")
+    fallback_model = os.environ.get("AI_LLM_PROVIDER_FALLBACK_MODEL", "openai/gpt-oss-120b")
+    if fallback_key and fallback_base:
+        providers.append(GroqLLM(fallback_key, model=fallback_model, url=f"{fallback_base}/chat/completions"))
+
     gkey = os.environ.get("GEMINI_API_KEY")
     if (os.environ.get("AI_LLM_FALLBACK") or "on").strip().lower() != "off" and gkey:
         backup = GroqLLM(gkey, model=os.environ.get("AI_LLM_FALLBACK_MODEL", "gemini-2.5-flash,gemini-2.5-flash-lite"), url=GEMINI_OPENAI_URL)
-        return FallbackLLM([primary, backup] if primary else [backup])
-    return primary
+        providers.append(backup)
+    if not providers:
+        return None
+    return providers[0] if len(providers) == 1 else FallbackLLM(providers)
 
 
 def default_transcriber() -> Optional[Transcriber]:
@@ -293,5 +303,5 @@ def default_transcriber() -> Optional[Transcriber]:
     if (os.environ.get("AI_STT_PROVIDER") or "").strip().lower() == "gemini":
         gkey = os.environ.get("AI_STT_API_KEY") or os.environ.get("GEMINI_API_KEY")
         return GeminiTranscriber(gkey) if gkey else None
-    key = groq_api_key()
+    key = os.environ.get("AI_STT_API_KEY") or groq_api_key()
     return GroqTranscriber(key) if key else None
