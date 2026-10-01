@@ -22,12 +22,17 @@ const log = (ok, name, extra = '') => { results.push(ok); console.log((ok ? 'PAS
     await page.screenshot({ path: path.join(OUT, 'site-1-top.png') })
     await page.screenshot({ path: path.join(OUT, 'site-2-full.png'), fullPage: true })
     const body = await page.locator('body').innerText()
-    const bg = await page.evaluate(() => getComputedStyle(document.querySelector('header')).backgroundColor)
-    log(bg === 'rgb(16, 35, 64)', 'header is the brand navy', bg)
-    log(/Homes in Pune, shared clearly/.test(body) && /I'm interested/.test(body), 'hero carries the brand headline and the I\'m interested action')
+    // Agent pages carry the AGENT's own brand (name, colours, optional logo and banner); only the footer credits the platform.
+    const head = await page.evaluate(() => {
+      const h = document.querySelector('header')
+      return { bg: getComputedStyle(h).backgroundColor, text: h.innerText.trim() }
+    })
+    log(head.text.length > 0 && head.bg !== 'rgba(0, 0, 0, 0)', "the header shows the agent's own name on a branded background", `${head.bg} | ${head.text.split('\n')[0]}`)
+    log(/I'm interested/.test(body), "the hero carries the I'm interested action")
+    log(/Powered by PUNE Property/.test(body), 'the footer credits the platform ("Powered by PUNE Property")')
+    log(!/Verified by PUNE Property/i.test(body), 'we never claim the agent is verified')
     log((await page.locator('a[href^="tel:"]').count()) === 0 && (await page.locator('a[href*="wa.me"]').count()) === 0, 'no call/WhatsApp links (no phone number exposed)')
     log(!/\b[6-9]\d{9}\b/.test(body), 'no phone number in the page text')
-    log((await page.locator('img[src="/brand/logo.png"]').count()) > 0, 'the PP logo is in the header')
     log(/Guides for Pune home buyers/.test(body) && (await page.locator('a[href^="/insights/"]').count()) >= 3, 'the guides are on the home page and link to /insights')
     log((await page.getByText('Sample listing').count()) >= 6, 'sample listings are labelled on their cards', String(await page.getByText('Sample listing').count()))
     const href = await page.locator('a[href*="/listings/"]').first().getAttribute('href')
