@@ -3,7 +3,8 @@ import type { AgentProfile, ListingsPage, PublicListing } from './types'
 // Realistic Pune fixtures for SITE_USE_FIXTURES=1 / dev fallback when the API is unreachable.
 // Slugs served: FIXTURE_SLUGS. Anything else 404s (so the not-found page can be exercised).
 
-export const FIXTURE_SLUGS = ['priya-deshmukh-pune', 'demo']
+export const FIXTURE_BRAND_SLUGS = ['rohan-kulkarni-aundh', 'meera-joshi-kothrud', 'sanjay-patil-hinjewadi', 'aditi-rao-koregaon', 'neha-kapoor-kharadi']
+export const FIXTURE_SLUGS = ['priya-deshmukh-pune', 'demo', ...FIXTURE_BRAND_SLUGS]
 
 const img = (seed: string, order = 0) => ({
   url: 'https://picsum.photos/seed/' + seed + '/1200/800',
@@ -188,13 +189,43 @@ export const FIXTURE_LISTINGS: PublicListing[] = [
   },
 ]
 
+// Fictional agents with different brand presets (names, numbers and registrations are invented) for visual review and tests.
+const brandAgent = (a: Partial<AgentProfile> & Pick<AgentProfile, 'agent_name' | 'slug'>): AgentProfile => ({
+  phone: '+91 98765 43211', email: null, city: 'Pune', languages: ['English', 'Hindi', 'Marathi'], specialties: ['Resale flats', 'New projects'],
+  office_address: 'Pune', view_count: 0, ...a,
+})
+
+export const FIXTURE_BRAND_AGENTS: Record<string, AgentProfile> = {
+  'rohan-kulkarni-aundh': brandAgent({
+    agent_name: 'Rohan Kulkarni', slug: 'rohan-kulkarni-aundh', photo: '/uploads/images/fx-agent-m.jpg', bio: 'Pune advisor.',
+    branding_data: { business_name: 'Kulkarni Homes', tagline: 'Aundh and Baner homes, explained properly', about: 'Twelve years of helping Pune families buy their first and second homes in Aundh, Baner and Pashan. I walk every flat myself before it reaches this page, and I tell you what I would check before paying a token amount.', preset: 'emerald', banner: '/uploads/images/fx-banner-aundh.jpg', rera_agent_no: 'A52100023456', areas: ['Aundh', 'Baner', 'Pashan', 'Balewadi'], languages: ['English', 'Hindi', 'Marathi'], years_experience: 12, social: { instagram: 'kulkarnihomes.pune' } },
+  }),
+  'meera-joshi-kothrud': brandAgent({
+    agent_name: 'Meera Joshi', slug: 'meera-joshi-kothrud', photo: null, bio: 'Pune advisor.', languages: ['English', 'Marathi'],
+    branding_data: { business_name: 'Joshi & Associates', tagline: 'Kothrud, Karve Nagar and Bavdhan, since 2011', about: 'A family-run property practice in west Pune. We handle resale, rentals and redevelopment flats, with clear paperwork and no pressure.', preset: 'terracotta', rera_agent_no: 'A52100031122', areas: ['Kothrud', 'Karve Nagar', 'Bavdhan', 'Erandwane', 'Warje'], languages: ['Marathi', 'English'], years_experience: 15 },
+  }),
+  'sanjay-patil-hinjewadi': brandAgent({
+    agent_name: 'Sanjay Patil', slug: 'sanjay-patil-hinjewadi', photo: '/uploads/images/fx-agent-d.jpg', bio: 'Pune advisor.',
+    branding_data: { business_name: 'Patil Prime Estates', tagline: 'Homes near Hinjewadi IT Park, without the guesswork', about: 'Rentals and purchases for IT professionals around Hinjewadi, Wakad and Tathawade. Commute times, society details and possession status, stated plainly.', preset: 'royal-purple', banner: '/uploads/images/fx-banner-hinjewadi.jpg', areas: ['Hinjewadi', 'Wakad', 'Tathawade', 'Ravet'], languages: ['English', 'Hindi'], years_experience: 7 },
+  }),
+  'aditi-rao-koregaon': brandAgent({
+    agent_name: 'Aditi Rao', slug: 'aditi-rao-koregaon', photo: '/uploads/images/fx-agent-w.jpg', bio: 'Pune advisor.', languages: ['English', 'Hindi'],
+    branding_data: { business_name: 'Rao & Co. Realty', tagline: 'Quietly good homes in Koregaon Park and Kalyani Nagar', about: 'A boutique practice for premium homes in central-east Pune. Fewer listings, each one visited and documented.', preset: 'cream-ink', rera_agent_no: 'A52100044567', areas: ['Koregaon Park', 'Kalyani Nagar', 'Viman Nagar'], languages: ['English', 'Hindi'], years_experience: 9 },
+  }),
+  'neha-kapoor-kharadi': brandAgent({
+    agent_name: 'Neha Kapoor', slug: 'neha-kapoor-kharadi', photo: '/uploads/images/fx-agent-w2.jpg', bio: 'Pune advisor.',
+    branding_data: { business_name: 'Studio Kharadi', tagline: 'Modern flats in Kharadi, Wagholi and Hadapsar', about: 'We help first-time buyers compare new projects and ready flats east of the river, with the possession and RERA details up front.', preset: 'slate-teal', banner: '/uploads/images/fx-banner-kharadi.jpg', rera_agent_no: 'A52100055678', areas: ['Kharadi', 'Wagholi', 'Hadapsar', 'Mundhwa', 'Magarpatta'], languages: ['English', 'Hindi'], years_experience: 5 },
+  }),
+}
+
 export function fixtureAgent(slug: string): AgentProfile | null {
+  if (FIXTURE_BRAND_AGENTS[slug]) return FIXTURE_BRAND_AGENTS[slug]
   return FIXTURE_SLUGS.indexOf(slug) >= 0 ? { ...FIXTURE_AGENT, slug } : null
 }
 
 export function fixtureListings(slug: string): ListingsPage | null {
   if (FIXTURE_SLUGS.indexOf(slug) < 0) return null
-  const a = FIXTURE_AGENT
+  const a = FIXTURE_BRAND_AGENTS[slug] || FIXTURE_AGENT
   const items = FIXTURE_LISTINGS.map((l) => ({
     ...l,
     agent: { slug, agent_name: a.agent_name, phone: a.phone, photo: a.photo },

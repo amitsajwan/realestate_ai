@@ -137,6 +137,9 @@ export interface SiteCreateInput {
   instagram?: string
   facebook_url?: string
   logo?: string
+  /** Optional brand fields (A1): business name and preset can be set when the site is created. */
+  business_name?: string
+  preset?: string
 }
 
 export interface FacebookInterest {
@@ -192,6 +195,17 @@ export interface SiteUpdateInput {
   logo?: string
   instagram?: string
   facebook_url?: string
+  // brand profile (empty string / null / [] clears a value; omitted fields stay)
+  business_name?: string
+  tagline?: string
+  about?: string
+  banner?: string
+  preset?: string
+  custom_primary?: string
+  rera_agent_no?: string
+  areas?: string[]
+  languages?: string[]
+  years_experience?: number | null
 }
 
 export interface SiteResult {

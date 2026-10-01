@@ -66,6 +66,18 @@ export function monogram(name: string): string {
   return (words.length === 1 ? words[0].slice(0, 2) : words[0][0] + words[1][0]).toUpperCase()
 }
 
+const IMG = /^(?:https?:\/\/[^/\s]+)?\/uploads\/images\/[A-Za-z0-9][A-Za-z0-9._-]{0,200}$/
+/** Logo/banner are rendered only when they are images we stored ourselves (same rule as the API). */
+export function safeImage(v: unknown): string | null {
+  return typeof v === 'string' && IMG.test(v.trim()) ? v.trim() : null
+}
+
+export const MAHARERA_URL = 'https://maharera.maharashtra.gov.in'
+const RERA = /^A\d{6,18}$/
+export function safeRera(v: unknown): string | null {
+  return typeof v === 'string' && RERA.test(v.trim()) ? v.trim() : null
+}
+
 /** What the public site calls the agent: his business name when he set one, else his own name. */
 export function displayName(agent: { agent_name: string; branding_data?: AgentBranding | null }): string {
   return (agent.branding_data?.business_name || '').trim() || agent.agent_name
