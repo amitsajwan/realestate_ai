@@ -206,8 +206,7 @@ class EngageService:
         contacts = self.db.get_collection("contacts")
         key = f"{doc['channel']}:{doc.get('from_id') or who}"
         topic = ((post.get("message") or post.get("caption") or "").splitlines() or [""])[0][:120]
-        message = f"{doc['channel'].title()} comment: “{doc.get('text', '')[:300]}”" + (f"
-On the post: {topic}" if topic else "")
+        message = f"{doc['channel'].title()} comment: “{doc.get('text', '')[:300]}”" + (f"\nOn the post: {topic}" if topic else "")
         now = self.now()
         existing = await contacts.find_one({"agent_id": agent, "anon_ids": key})
         if existing:
