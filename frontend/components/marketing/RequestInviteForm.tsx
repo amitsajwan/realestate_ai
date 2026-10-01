@@ -60,7 +60,7 @@ export default function RequestInviteForm({ idPrefix = 'ri' }: { idPrefix?: stri
     )
   }
 
-  const field = 'mt-1 block min-h-[48px] w-full rounded-lg border border-slate-400 bg-white px-3 text-base text-slate-900 focus:border-[#0f2340] focus:outline-none focus:ring-2 focus:ring-[#f0b440]'
+  const field = 'placeholder:text-slate-500 mt-1 block min-h-[48px] w-full rounded-lg border border-slate-400 bg-white px-3 text-base text-slate-900 focus:border-[#0f2340] focus:outline-none focus:ring-2 focus:ring-[#f0b440]'
   const L = INVITE.labels
   const moreOpen = !!(errors.city || errors.message)
   return (

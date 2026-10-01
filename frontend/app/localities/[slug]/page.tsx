@@ -2,6 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import AgentStrip from '@/components/marketing/AgentStrip'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import ListingCard from '@/components/site/ListingCard'
 import { getMarketingConfig } from '@/lib/marketing/config'
@@ -76,6 +77,7 @@ export default async function LocalityPage({ params }: Props) {
         <section className="mt-10 border-t border-slate-200 pt-6"><h2 className="text-lg font-semibold text-slate-900">Sources</h2>
           <ul className="mt-2 list-disc space-y-1 pl-6 text-sm">{l.sources.map((s) => <li key={s.href}><a href={s.href} target="_blank" rel="noopener noreferrer" className="text-[#0f2340] underline underline-offset-2">{s.label}</a></li>)}</ul></section>
         <p className="mt-8 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-700">{INSIGHT_NOTE}</p>
+        <AgentStrip />
       </article>
     </MarketingShell>
   )

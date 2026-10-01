@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import AgentStrip from '@/components/marketing/AgentStrip'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { INSIGHTS, INSIGHT_NOTE } from '@/lib/marketing/insights'
@@ -34,6 +35,7 @@ export default function InsightsPage() {
           ))}
         </ul>
         <p className="mt-10 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-700">{INSIGHT_NOTE}</p>
+        <AgentStrip />
       </div>
     </MarketingShell>
   )

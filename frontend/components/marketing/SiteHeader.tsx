@@ -12,7 +12,7 @@ export default function SiteHeader({ businessName, showInviteCta = true }: { bus
           {businessName}
         </Link>
         <nav aria-label={NAV.primaryLabel} className="flex items-center gap-1 text-sm">
-          <Link href={PATHS.signIn} className="flex min-h-[44px] items-center whitespace-nowrap px-2 font-medium text-white/90 no-underline hover:text-white sm:px-3">
+          <Link href={PATHS.signIn} className="hidden min-h-[44px] items-center whitespace-nowrap px-2 font-medium text-white/90 sm:flex no-underline hover:text-white sm:px-3">
             {NAV.signIn}
           </Link>
           {showInviteCta && (

@@ -10,6 +10,8 @@ const PAGES = { landing: '/', invite: '/request-invite', localities: '/localitie
   const browser = await chromium.launch({ channel: 'chrome', headless: true })
   for (const [vp, w, h, mobile] of [['m', 390, 844, true], ['d', 1280, 800, false]]) {
     const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1, isMobile: mobile, hasTouch: mobile })
+    // read-only: never let a screenshot run write to the live API (tracking beacons, chat, forms)
+    await ctx.route('**/api/**', (route) => (route.request().method() === 'GET' ? route.continue() : route.abort()))
     const page = await ctx.newPage()
     for (const [name, p] of Object.entries(PAGES)) {
       try {

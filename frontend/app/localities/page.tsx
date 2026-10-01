@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import AgentStrip from '@/components/marketing/AgentStrip'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { LOCALITIES } from '@/lib/marketing/localities'
@@ -23,13 +24,14 @@ export default function LocalitiesPage() {
         <ul className="mt-8 grid gap-4 sm:grid-cols-3">
           {LOCALITIES.map((l) => (
             <li key={l.slug}>
-              <Link href={`/localities/${l.slug}`} className="flex h-full flex-col rounded-2xl border border-slate-200 p-5 no-underline hover:border-slate-400">
+              <Link href={`/localities/${l.slug}`} className="flex h-full flex-col rounded-2xl border border-slate-200 border-l-4 border-l-[#f0b440] bg-[#fbf6ea] p-5 no-underline hover:border-slate-400 hover:border-l-[#f0b440]">
                 <span className="text-xl font-semibold text-slate-900">{l.name}</span>
                 <span className="mt-1 text-sm text-slate-600">{l.tagline}</span>
               </Link>
             </li>
           ))}
         </ul>
+        <AgentStrip />
       </div>
     </MarketingShell>
   )

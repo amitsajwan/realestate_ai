@@ -2,6 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import AgentStrip from '@/components/marketing/AgentStrip'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { INSIGHT_NOTE, INSIGHTS, getInsight } from '@/lib/marketing/insights'
@@ -58,6 +59,7 @@ export default async function InsightPage({ params }: Props) {
             </ul>
           </nav>
         )}
+        <AgentStrip />
       </article>
     </MarketingShell>
   )
