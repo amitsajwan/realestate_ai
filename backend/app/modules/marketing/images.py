@@ -371,6 +371,14 @@ def _agent_line(f: Facts) -> str:
     return latin(f.agent_name)
 
 
+def _listed_by(f: Facts) -> str:
+    """'Listed by <business> · RERA <no>' when the agent has set them (never a phone number); empty otherwise."""
+    biz = latin(f.agent_business)
+    if not biz:
+        return ""
+    return f"Listed by {biz}" + (f" · RERA {f.agent_rera_no}" if f.agent_rera_no else "")
+
+
 def _headline_parts(f: Facts) -> Tuple[str, str]:
     """('2 BHK Apartment', 'Kharadi, Pune') - the two lines that name the property on the cover and story."""
     what = " ".join(x for x in (f.bhk_text, f.type_text("en").title()) if x)
@@ -413,7 +421,7 @@ def _cover_footer(c: "Card", f: Facts) -> int:
         saved = c.right
         c.right = px - 24
         if c.right - c.left > 120:
-            c.block(f"Listed by {agent}", y + (h - int(30 * PITCH)) // 2, 30, SOFT, 1, 20, weight="medium")
+            c.block(_listed_by(f) or f"Listed by {agent}", y + (h - int(30 * PITCH)) // 2, 30, SOFT, 1, 20, weight="medium")
         c.right = saved
     return y
 
@@ -460,7 +468,7 @@ def render(kind: str, f: Facts, src: Optional[Image.Image]) -> Card:
         c = Card(size, img, top, bottom)
         _stamp_logo(c, c.right - 96, c.top)
         if agent:
-            _pill(c, f"Listed by {agent}", c.top)
+            _pill(c, _listed_by(f) or f"Listed by {agent}", c.top)
         y = c.stack(items, anchor="top", gap=gap, y0=start) + 30 - gap
         y = _button(c, f"Reply {CTA_WORD}", y, btn, True) + 20
         c.block("to get the details and plan a site visit", y, 34, SOFT, 1, 22, weight="medium")
@@ -483,6 +491,8 @@ def render(kind: str, f: Facts, src: Optional[Image.Image]) -> Card:
         y = _button(c, "Send us a message", y, 46, False) + 30
         y = c.block(who, y, 38, WHITE, 3, 26, weight="medium") + 10
         y = c.block(title, y, 32, SOFT, 2, 22) + 6
+        if _listed_by(f):
+            y = c.block(_listed_by(f), y, 26, SOFT, 1, 18, weight="medium") + 6
         if f.rera:
             y = c.block(f"RERA: {f.rera}", y, 28, SOFT, 1, 20)
         return y
