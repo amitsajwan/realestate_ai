@@ -10,6 +10,7 @@ const TABS = [
   { href: '/studio/listings', label: 'listings', icon: 'M4 6h16M4 12h16M4 18h16' },
   { href: '/studio/interest', label: 'interest', icon: 'M21 11.5a8.4 8.4 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.4 8.4 0 013.8-.9h.5a8.5 8.5 0 018 8v.5z' },
   { href: '/studio/newsroom', label: 'newsroom', icon: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h11a2 2 0 012 2v3h3v9a2 2 0 01-2 2zM7 8h7M7 12h7M7 16h4' },
+  { href: '/studio/content', label: 'content', icon: 'M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M9 9h.01' },
   { href: '/studio/leads', label: 'leads', icon: 'M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 014-4h2a4 4 0 014 4v2zM12 7a3 3 0 11-6 0 3 3 0 016 0z' },
 ] as const
 

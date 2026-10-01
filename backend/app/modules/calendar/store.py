@@ -1,12 +1,15 @@
 """The only Mongo file of the calendar. Collections: content_calendar, calendar_status.
 Uses only find/find_one/insert_one/update_one/count_documents with $set/$push so the in-memory test fakes work too."""
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Callable, Dict, List, Optional, Tuple
 
 from .config import COLLECTION, STATUS_COLLECTION
 
-STATUSES = ("scheduled", "published", "failed", "skipped")
+STATUSES = ("planned", "approved", "scheduled", "published", "failed", "skipped")
+PUBLISHABLE = ("approved", "scheduled")   # the approval gate: nothing else is ever published
+OPEN = ("planned", "approved", "scheduled")  # not yet published, failed or skipped
+KINDS = ("post", "showcase", "reel")
 
 
 def _utcnow() -> datetime:
@@ -23,12 +26,18 @@ class Store:
         self.status = db.get_collection(STATUS_COLLECTION)
         self.clock = clock
 
-    async def add(self, slug: str, channel: str, caption: str, image_path: str, due_at: datetime) -> str:
+    async def add(self, slug: str, channel: str, caption: str, image_path: str, due_at: datetime, *, kind: str = "post", status: str = "scheduled",
+                  images: Optional[List[str]] = None, video: Optional[str] = None, creative: Optional[dict] = None, week: Optional[int] = None,
+                  extra: Optional[dict] = None) -> str:
+        """A row. `status` defaults to "scheduled" (publishable); the plan builder passes "planned" so that nothing posts before the owner approves."""
         now = self.clock()
         id = uuid.uuid4().hex
-        await self.items.insert_one({"_id": id, "slug": slug, "channel": channel, "caption": caption, "image_path": image_path, "due_at": aware(due_at),
-                                     "status": "scheduled", "external_id": None, "permalink": None, "error": None, "attempts": 0,
-                                     "created_at": now, "updated_at": now, "history": [{"at": now, "status": "scheduled", "note": "seeded"}]})
+        imgs = list(images) if images else ([image_path] if image_path else [])
+        await self.items.insert_one({"_id": id, "slug": slug, "kind": kind, "channel": channel, "caption": caption, "image_path": imgs[0] if imgs else image_path,
+                                     "images": imgs, "video": video, "creative": creative or {}, "week": week, "due_at": aware(due_at),
+                                     "status": status, "external_id": None, "permalink": None, "error": None, "attempts": 0,
+                                     "created_at": now, "updated_at": now, "history": [{"at": now, "status": status, "note": "created"}],
+                                     **(extra or {})})
         return id
 
     async def get(self, id: str) -> Optional[dict]:
@@ -45,11 +54,26 @@ class Store:
         return [d for d in await self.all() if status is None or d["status"] == status][:limit]
 
     async def upcoming(self, limit: int = 50) -> List[dict]:
-        return [d for d in await self.all() if d["status"] == "scheduled"][:limit]
+        return [d for d in await self.all() if d["status"] in OPEN][:limit]
 
     async def due(self, now: datetime) -> List[dict]:
-        """Scheduled rows whose time has come, oldest first."""
-        return [d for d in await self.all() if d["status"] == "scheduled" and aware(d["due_at"]) <= now]
+        """Approved (or scheduled) rows whose time has come, oldest first. Planned rows are never due."""
+        return [d for d in await self.all() if d["status"] in PUBLISHABLE and aware(d["due_at"]) <= now]
+
+    async def reels_to_render(self, now: datetime, lead: timedelta) -> List[dict]:
+        """Approved reel rows due within `lead` that have no video yet."""
+        return [d for d in await self.all() if d["status"] in PUBLISHABLE and d.get("kind") == "reel" and not d.get("video")
+                and aware(d["due_at"]) <= now + lead]
+
+    async def set_video(self, id: str, video: str) -> None:
+        await self.items.update_one({"_id": id}, {"$set": {"video": video, "updated_at": self.clock()}})
+
+    async def approve(self, id: str) -> bool:
+        doc = await self.get(id)
+        if not doc or doc["status"] != "planned":
+            return False
+        await self._move(id, "approved", "approved by owner")
+        return True
 
     async def _move(self, id: str, status: str, note: str, **fields) -> None:
         now = self.clock()
@@ -60,13 +84,15 @@ class Store:
         await self._move(id, "published", note or "published", external_id=external_id, permalink=permalink, error=None, published_at=self.clock())
 
     async def attempt_failed(self, id: str, reason: str, attempts: int, final: bool) -> None:
-        """Record a failed try. Not final: the row stays scheduled and is retried after a pause."""
-        await self._move(id, "failed" if final else "scheduled", f"attempt {attempts} failed: {reason}", error=reason, attempts=attempts,
+        """Record a failed try. Not final: the row keeps its approved status and is retried after a pause."""
+        doc = await self.get(id)
+        keep = doc["status"] if doc and doc["status"] in PUBLISHABLE else "approved"
+        await self._move(id, "failed" if final else keep, f"attempt {attempts} failed: {reason}", error=reason, attempts=attempts,
                          last_attempt_at=self.clock())
 
     async def skip(self, id: str, note: str = "skipped by owner") -> bool:
         doc = await self.get(id)
-        if not doc or doc["status"] != "scheduled":
+        if not doc or doc["status"] not in OPEN:
             return False
         await self._move(id, "skipped", note)
         return True

@@ -26,8 +26,13 @@ def get_store() -> Store:
 
 
 def _view(d: dict) -> dict:
-    return {"id": d["_id"], "slug": d["slug"], "channel": d["channel"], "due_at": d["due_at"], "status": d["status"], "caption": d["caption"],
-            "image_path": d["image_path"], "attempts": d.get("attempts", 0), "error": d.get("error"), "permalink": d.get("permalink")}
+    images = list(d.get("images") or ([d["image_path"]] if d.get("image_path") else []))
+    c = d.get("creative") or {}
+    return {"id": d["_id"], "slug": d["slug"], "kind": d.get("kind", "post"), "channel": d["channel"], "due_at": d["due_at"], "status": d["status"],
+            "week": d.get("week"), "caption": d["caption"], "image_path": d.get("image_path"), "images": images,
+            "image_urls": [f"/uploads/{p}" for p in images], "video_url": f"/uploads/{d['video']}" if d.get("video") else None,
+            "creative": {k: c.get(k) for k in ("role", "path", "layout", "format", "hook", "template", "area", "ok", "problems") if k in c},
+            "attempts": d.get("attempts", 0), "error": d.get("error"), "permalink": d.get("permalink")}
 
 
 @router.get("/upcoming")
@@ -44,11 +49,21 @@ async def status(user: User = Depends(owner_only), store: Store = Depends(get_st
             "now": datetime.now(timezone.utc)}
 
 
+@router.post("/items/{id}/approve")
+async def approve(id: str, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
+    doc = await store.get(id)
+    if not doc:
+        raise HTTPException(404, "Item not found")
+    if not await store.approve(id):
+        raise HTTPException(409, f"Item is {doc['status']}, not planned")
+    return {"id": id, "status": "approved"}
+
+
 @router.post("/items/{id}/skip")
 async def skip(id: str, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
     doc = await store.get(id)
     if not doc:
         raise HTTPException(404, "Item not found")
     if not await store.skip(id):
-        raise HTTPException(409, f"Item is {doc['status']}, not scheduled")
+        raise HTTPException(409, f"Item is {doc['status']}, so it cannot be skipped")
     return {"id": id, "status": "skipped"}

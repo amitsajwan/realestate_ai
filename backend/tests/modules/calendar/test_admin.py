@@ -9,6 +9,7 @@ from app.modules.calendar.store import Store
 from ..fakes import FakeDb
 
 SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "calendar_admin.py"
+START = date(2026, 10, 12)
 
 
 @pytest.fixture
@@ -32,27 +33,30 @@ def test_dry_check_fails_on_a_bad_caption(admin, monkeypatch, capsys):
     assert admin.dry_check() == 1 and "FAIL bad" in capsys.readouterr().out
 
 
-async def test_seed_is_idempotent_and_skips_used_slugs(admin, monkeypatch):
+async def test_plan_preview_approve_skip_flow(admin, tmp_path, capsys):
     store = Store(FakeDb())
-
-    async def fake_store():
-        return store
-
-    monkeypatch.setattr(admin, "_store", fake_store)
-    await admin.seed(date(2026, 10, 6), 8)
+    made = await admin.plan(store, START, 2, False, False, False, tmp_path / "uploads")
     rows = await store.all()
-    assert len(rows) > 40 and all(r["status"] == "scheduled" for r in rows)
-    assert all(r["image_path"].startswith("calendar/ig/") for r in rows if r["channel"] == "instagram")
-    assert all("http" not in r["caption"] for r in rows if r["channel"] == "instagram")
-    await admin.seed(date(2026, 10, 6), 8)  # second run adds nothing
-    assert len(await store.all()) == len(rows)
-    for ch in ("facebook_page", "instagram"):
-        slugs = [r["slug"] for r in rows if r["channel"] == ch]
-        assert len(slugs) == len(set(slugs))
+    assert len(made) == len(rows) == 20 and {r["status"] for r in rows} == {"planned"}
+    assert "nothing posts until you approve" in capsys.readouterr().out
 
+    paths = await admin.preview_plan(store, tmp_path / "review", None, tmp_path / "uploads")
+    assert sorted(paths) == [1, 2]
+    for p in paths.values():
+        assert p.is_file() and p.stat().st_size < 1_000_000
+    text = (tmp_path / "review" / "week-1-captions.txt").read_text(encoding="utf8")
+    assert "instagram" in text and "id=" in text and "Sample listing" in text
 
-def test_preview_renders_cards_and_prints_the_schedule(admin, tmp_path, capsys):
-    assert admin.main(["preview", "--out", str(tmp_path), "--start", "2026-10-06", "--weeks", "1"]) == 0
+    assert await admin.approve(store, None, 1, False) == 10  # --week 1
+    assert {r["status"] for r in await store.all() if r["week"] == 1} == {"approved"}
+    assert {r["status"] for r in await store.all() if r["week"] == 2} == {"planned"}
+    target = next(r for r in await store.all() if r["week"] == 2)
+    assert await admin.approve(store, target["_id"], None, False) == 1  # a single id
+    assert await admin.approve(store, None, None, True) == 9  # --all takes the rest
+    victim = (await store.all())[0]["_id"]
+    await admin.skip(store, victim)
+    assert (await store.get(victim))["status"] == "skipped"
+    await admin.list_rows(store, "approved")
     out = capsys.readouterr().out
-    assert "rendered 78 cards" in out and "IST" in out
-    assert (tmp_path / "ig" / "red-flags-in-ads.jpg").is_file() and (tmp_path / "red-flags-in-ads.jpg").is_file()
+    assert "approved" in out and victim not in out
+    assert await admin.plan(store, START, 2, False, False, False, tmp_path / "uploads") == []  # idempotent
