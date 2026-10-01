@@ -106,6 +106,12 @@ class SiteCreate(SocialFields):
     specialties: List[str] = Field(default_factory=list)
     photo: Optional[str] = Field(None, max_length=300)
 
+    @field_validator("city")
+    @classmethod
+    def _pilot_region(cls, v):
+        from app.core.region import check_city
+        return check_city(v)
+
     @field_validator("photo")
     @classmethod
     def _photo_ok(cls, v):

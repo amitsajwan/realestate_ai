@@ -87,6 +87,13 @@ class _Fields(BaseModel):
         return v
 
 
+    @field_validator("city")
+    @classmethod
+    def _pilot_region(cls, v):
+        from app.core.region import check_city
+        return check_city(v)
+
+
 class ListingCreate(_Fields):
     pass
 
