@@ -2,6 +2,7 @@ import re
 from typing import List, Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
+from . import branding as bd
 from .phone import normalize_indian_mobile
 
 
@@ -89,17 +90,76 @@ class SocialFields(BaseModel):
         return check_image(v)
 
 
-class SiteUpdate(SocialFields):
-    """PATCH /join/site: any of these, all optional. An empty string clears instagram / facebook / logo."""
-    photo: Optional[str] = Field(None, max_length=300)
+class BrandFields(BaseModel):
+    """Optional brand profile (stored in branding_data). Empty string / null clears a value on PATCH."""
+    business_name: Optional[str] = Field(None, max_length=120)
+    tagline: Optional[str] = Field(None, max_length=200)
+    about: Optional[str] = Field(None, max_length=1000)
+    preset: Optional[str] = Field(None, max_length=30)
+    custom_primary: Optional[str] = Field(None, max_length=9)
+    rera_agent_no: Optional[str] = Field(None, max_length=40)
+    areas: Optional[List[str]] = Field(None, max_length=20)
+    years_experience: Optional[int] = None
 
-    @field_validator("photo")
+    @field_validator("business_name")
+    @classmethod
+    def _bn(cls, v):
+        return bd.clean_business_name(v)
+
+    @field_validator("tagline")
+    @classmethod
+    def _tl(cls, v):
+        return bd.clean_tagline(v)
+
+    @field_validator("about")
+    @classmethod
+    def _ab(cls, v):
+        return bd.clean_about(v)
+
+    @field_validator("preset")
+    @classmethod
+    def _pr(cls, v):
+        return bd.clean_preset(v)
+
+    @field_validator("custom_primary")
+    @classmethod
+    def _cp(cls, v):
+        return bd.clean_custom_primary(v)
+
+    @field_validator("rera_agent_no")
+    @classmethod
+    def _ra(cls, v):
+        return bd.clean_rera_agent_no(v)
+
+    @field_validator("areas")
+    @classmethod
+    def _ar(cls, v):
+        return bd.clean_areas(v)
+
+    @field_validator("years_experience")
+    @classmethod
+    def _yr(cls, v):
+        return bd.clean_years(v)
+
+
+class SiteUpdate(SocialFields, BrandFields):
+    """PATCH /join/site: any of these, all optional. An empty string (or null) clears a value; omitted fields stay."""
+    photo: Optional[str] = Field(None, max_length=300)
+    banner: Optional[str] = Field(None, max_length=300)
+    languages: Optional[List[str]] = Field(None, max_length=20)
+
+    @field_validator("photo", "banner")
     @classmethod
     def _photo(cls, v):
         return check_image(v)
 
+    @field_validator("languages")
+    @classmethod
+    def _langs(cls, v):
+        return bd.clean_languages(v)
 
-class SiteCreate(SocialFields):
+
+class SiteCreate(SocialFields, BrandFields):
     name: str = Field(..., min_length=2, max_length=100)
     city: str = Field(..., min_length=2, max_length=60)
     languages: List[str] = Field(default_factory=lambda: ["English", "Hindi"])
