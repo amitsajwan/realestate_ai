@@ -92,5 +92,5 @@ async def verify(doc: dict, checker: Optional[Callable]) -> Dict[str, List[str]]
     for ch, text in build(doc).items():
         res = checker(replace(d, text=text, title=None), facts, raw)
         res = await res if inspect.isawaitable(res) else res
-        out[ch] = list(res.problems)
+        out[ch] = [] if res.ok else (list(res.problems) or ["did not pass the checks"])
     return out
