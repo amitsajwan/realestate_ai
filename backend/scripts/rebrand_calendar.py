@@ -3,7 +3,7 @@
 Published rows are untouched. Rows that were approved come back approved (by due date); planned rows come back planned."""
 import asyncio
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.core.database import get_database, init_database
@@ -18,12 +18,15 @@ async def main():
     col = db.get_collection("content_calendar")
     approved = [d async for d in col.find({"status": {"$in": ["approved", "scheduled"]}})]
     last_approved = max((d["due_at"] for d in approved), default=None)
+    if os.environ.get("REBRAND_UNTIL"):  # a rerun after the rows were already removed: keep the window the owner approved
+        last_approved = datetime.fromisoformat(os.environ["REBRAND_UNTIL"])
+        approved = approved or [{"due_at": datetime.fromisoformat(os.environ["REBRAND_FROM"])}]
     gone = await col.delete_many({"status": {"$in": ["approved", "scheduled", "planned"]}})
     print(f"removed {gone.deleted_count} unpublished rows ({len(approved)} were approved, up to {last_approved})")
     store = Store(db)
     uploads = Path(os.environ.get("UPLOAD_DIRECTORY", "uploads"))
     first = min((d["due_at"] for d in approved), default=datetime.now(timezone.utc))
-    weeks = max(1, ((last_approved - first).days // 7) + 1) if last_approved else 1
+    weeks = max(1, ((last_approved.date() - (first.date() - timedelta(days=first.weekday()))).days // 7) + 1) if last_approved else 1  # Monday-based weeks
     made = await build_and_store(store, first.date(), weeks, uploads, llm=default_llm(), say=print)
     n = 0
     if last_approved is not None:
