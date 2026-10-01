@@ -9,6 +9,23 @@ export interface ListingMedia {
   order: number
 }
 
+/** `about` as the public listing endpoint returns it (the agent-side faq is never included). */
+export interface PublicAbout {
+  project_name?: string | null
+  builder_known_as?: string | null
+  highlights?: string[]
+  amenities?: string[]
+  nearby?: Array<{ type: string; name: string; minutes?: number | null }>
+  connectivity?: string[]
+  water?: string | null
+  power_backup?: string | null
+  maintenance?: string | null
+  society?: string | null
+  parking?: string | null
+  possession_note?: string | null
+  rera_note?: string | null
+}
+
 export interface PublicListing {
   id: string
   agent_id?: string
@@ -31,6 +48,7 @@ export interface PublicListing {
   rera_no?: string | null
   amenities: string[]
   media: ListingMedia[]
+  about?: PublicAbout | null
   created_at?: string
   updated_at?: string
   published_at?: string | null

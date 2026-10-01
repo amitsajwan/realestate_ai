@@ -4,6 +4,8 @@ import { outcomePatchError } from './outcomes'
 import type {
   AIDraft,
   AIDraftRequest,
+  AboutSuggestRequest,
+  AboutSuggestion,
   AppApi,
   BusinessToday,
   FollowupDraft,
@@ -164,6 +166,9 @@ export function createApiClient(opts: ClientOptions): AppApi {
       form.append('image_count', String(req.image_count))
       return request<AIDraft>('/listings/ai/draft', { method: 'POST', form })
     },
+
+    suggestAbout: (req: AboutSuggestRequest) =>
+      request<AboutSuggestion>('/listings/ai/about-suggest', { method: 'POST', json: req }),
 
     // Legacy endpoint: POST /api/v1/uploads/images, multipart field `files`, response {success, files:[{url,...}]}.
     uploadImages: async (files: File[]) => {

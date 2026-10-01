@@ -18,6 +18,41 @@ export interface Description {
   mr?: string
 }
 
+/** Project and area knowledge the assistant answers from (docs/contracts/engagement.md). Every field optional. */
+export type NearbyType = 'school' | 'hospital' | 'transit' | 'office' | 'market' | 'park' | 'other'
+export interface AboutNearby { type: NearbyType; name: string; minutes?: number | null }
+export interface AboutFaq { q: string; a: string }
+export interface About {
+  project_name?: string | null
+  builder_known_as?: string | null
+  highlights?: string[]
+  amenities?: string[]
+  nearby?: AboutNearby[]
+  connectivity?: string[]
+  water?: string | null
+  power_backup?: string | null
+  maintenance?: string | null
+  society?: string | null
+  parking?: string | null
+  possession_note?: string | null
+  rera_note?: string | null
+  faq?: AboutFaq[]
+}
+
+export type AboutSource = 'agent' | 'area_guide'
+export interface AboutSuggestRequest { locality?: string; project_name?: string; bhk?: number; description: string }
+/** DRAFT from POST /listings/ai/about-suggest: nothing is saved until the agent keeps items. */
+export interface AboutSuggestion {
+  highlights: Array<{ text: string; source: AboutSource }>
+  amenities: Array<{ text: string; source: AboutSource }>
+  nearby: Array<AboutNearby & { source: AboutSource }>
+  connectivity: Array<{ text: string; source: AboutSource }>
+  fields: Partial<Record<'water' | 'power_backup' | 'maintenance' | 'parking' | 'society', { text: string; source: AboutSource }>>
+  project_name?: string | null
+  area_known: boolean
+  area_name?: string | null
+}
+
 export interface Listing {
   id: string
   agent_id: string
@@ -41,6 +76,7 @@ export interface Listing {
   rera_no?: string | null
   amenities: string[]
   media: Media[]
+  about?: About | null
   created_at: string
   updated_at: string
   published_at?: string | null
@@ -512,6 +548,7 @@ export interface AppApi {
   publishListing(id: string): Promise<Listing>
   setListingStatus(id: string, status: ListingStatus): Promise<Listing>
   aiDraft(req: AIDraftRequest): Promise<AIDraft>
+  suggestAbout(req: AboutSuggestRequest): Promise<AboutSuggestion>
   uploadImages(files: File[]): Promise<UploadedFile[]>
   listLeads(stage?: Stage): Promise<Lead[]>
   getLead(id: string): Promise<LeadDetail>

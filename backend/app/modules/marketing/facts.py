@@ -100,6 +100,7 @@ class Facts:
     possession: Optional[str] = None
     rera: Optional[str] = None
     amenities: List[str] = field(default_factory=list)
+    highlights: List[str] = field(default_factory=list)  # from the listing's about.highlights (agent-written), at most 2 used in captions
     agent_name: str = ""
     agent_phone: Optional[str] = None
     share_url: str = ""
@@ -119,6 +120,7 @@ class Facts:
             floor=listing.get("floor"), total_floors=listing.get("total_floors"),
             furnishing=listing.get("furnishing"), possession=listing.get("possession"), rera=listing.get("rera_no"),
             amenities=[a for a in (listing.get("amenities") or []) if a],
+            highlights=[h for h in ((listing.get("about") or {}).get("highlights") or []) if isinstance(h, str) and h.strip()][:2],
             agent_name=PUBLIC_NAME, agent_phone=profile.get("phone"),  # posts are signed by the team, never by an agent's own name
             share_url=share_url, sample=(listing.get("title") or "").strip().lower().startswith("sample"))
 

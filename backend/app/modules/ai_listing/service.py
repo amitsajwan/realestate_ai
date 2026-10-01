@@ -7,6 +7,7 @@ from typing import Optional
 from . import copywriter as copy
 from .extractor import extract
 from .llm import LLMClient, LLM_TIMEOUT, Transcriber, TranscriptionError
+from .about import about_from_text
 from .merge import merge, sanitise_llm
 from .schemas import REQUIRED_TO_PUBLISH, AIDraft, Extraction
 from .plausibility import build_warnings
@@ -83,8 +84,12 @@ class AIListingService:
                 if isinstance(tr, dict):
                     desc.update({k: v for k, v in tr.items() if k in ("hi", "mr") and isinstance(v, str) and v.strip()})
             draft["description"] = desc
+        about = await about_from_text(text, self.llm if llm_up else None)
+        about.pop("project_name", None)  # already a top-level draft field
+        if about:
+            draft["about"] = about
 
-        present = set(draft) - {"description"} | ({"description.en"} if en else set())
+        present = set(draft) - {"description", "about"} | ({"description.en"} if en else set())
         missing = [k for k in REQUIRED_TO_PUBLISH if k not in present]
         return AIDraft(draft=draft, confidence={k: round(v, 2) for k, v in conf.items()}, missing=missing,
                        transcript=transcript, warnings=(warnings or []) + build_warnings(facts, conf))
