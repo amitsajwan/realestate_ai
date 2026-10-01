@@ -35,13 +35,13 @@ export function PostPreview({ card, channels, captions, problems, dryRun, updati
           {card.ig && (
             <a href={card.ig} target="_blank" rel="noopener noreferrer" className="block flex-none">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={card.ig} alt={`Instagram card: ${title}`} width={160} height={200} className="h-[200px] w-[160px] rounded-lg border border-gray-200 object-cover" />
+              <img src={card.ig} alt={`Instagram card: ${title}`} width={160} height={200} className="h-[160px] w-[128px] rounded-lg border border-gray-200 object-cover" />
               <span className="mt-1 block text-center text-xs text-gray-600">Instagram{card.slides.length > 1 ? ` (${card.slides.length} slides)` : ''}</span>
             </a>
           )}
           <a href={card.fb} target="_blank" rel="noopener noreferrer" className="block flex-none">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={card.fb} alt={`Facebook card: ${title}`} width={200} height={200} className="h-[160px] w-[160px] rounded-lg border border-gray-200 object-cover" />
+            <img src={card.fb} alt={`Facebook card: ${title}`} width={200} height={200} className="h-[128px] w-[128px] rounded-lg border border-gray-200 object-cover" />
             <span className="mt-1 block text-center text-xs text-gray-600">Facebook</span>
           </a>
         </div>
