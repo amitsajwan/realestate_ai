@@ -79,6 +79,7 @@ TOPICS: Dict[str, Topic] = {
     "rera": _t(r"\brera\b|maharera|रेरा|registered|registration\s*(no|number)", (r"\bRERA\b",), "the RERA number", "RERA नंबर", "RERA क्रमांक", "RERA number"),
     "visit": _t(r"visit|see\s*(it|the\s*(flat|home|house|property))|appointment|come\s*and\s*see|dekhne|dekh\s*sakta|dekhna|देखने|देखना|भेट|पाहायला|पाहता\s*येईल|sunday|saturday|weekend|रविवार",
                 (r"site visit",), "the visit", "विज़िट", "भेट", "visit"),
+    "booking": _t(r"\bbook(ing|ed)?\b|reserve|token\s*amount|advance\s*(amount|payment)|बुकिंग|बुक", (r"(?!x)x",), "the booking process and amount", "बुकिंग की जानकारी", "बुकिंगची माहिती", "booking"),
     "availability": _t(r"available|availability|still\s*(there|open|on)|\bsold\b|booked|uplabdh|उपलब्ध|अवेलेबल",
                        (r"available|under offer",), "the live availability", "अभी उपलब्धता", "सध्याची उपलब्धता", "availability"),
     "negotiation": _t(r"negotiab|negotiat|discount|bargain|best\s*price|final\s*price|kam\s*(hoga|ho\s*sakta|karo)|कम\s*(होगा|हो\s*सकता)|सौदा|मोलभाव|कमी\s*होईल|तडजोड",
@@ -87,11 +88,11 @@ TOPICS: Dict[str, Topic] = {
     "furnishing": _t(r"furnish|furniture|फर्निश|फर्निचर", (r"furnish",), "the furnishing details", "फर्निशिंग", "फर्निशिंगची माहिती", "furnishing"),
     "location": _t(r"\bwhere\b|location|locat|kahan|kahaan|kuthe|kuthhe|कहाँ|कहां|कुठे|लोकेशन|कोठे", (r"located in", r"east Pune|eastern corridor"), "the location", "लोकेशन", "ठिकाण", "location"),
     "address": _t(r"address|\bpata\b|पता|पत्ता", (r"(?!x)x",), "the exact address", "पूरा पता", "पूर्ण पत्ता", "exact address"),
-    "builder": _t(r"builder|developer|who\s*(built|is\s*building)|project\s*name|बिल्डर|डेव्हलपर|डेवलपर", (r"builder|project is",), "the builder details", "बिल्डर", "बिल्डरची माहिती", "builder"),
+    "builder": _t(r"builder|developer|who\s*(built|is\s*building)|project\s*name|बिल्डर|डेव्हलपर|डेवलपर", (r"builder", r"project is"), "the builder details", "बिल्डर", "बिल्डरची माहिती", "builder"),
 }
 AREA_TOPICS = {"commute", "metro", "nearby", "location"}          # may be answered from the area's facts
 GENERAL_TOPICS = {"visit", "loan", "rera"}            # may be answered from process statements true for any home
-SAMPLE_TOPICS = {"availability", "visit", "negotiation"}
+SAMPLE_TOPICS = {"availability", "visit", "negotiation", "booking"}
 WEAK_PRICE = re.compile(r"\bprice|₹|kimat|kimmat|keemat|किंमत|कीमत|दाम|भाव|daam", I)
 DISTANCE = re.compile(r"how\s*far|distance|travel\s*time|kitna\s*door|kitni\s*door|kiti\s*(lamb|antar)|दूर|अंतर|\blamb\b|minutes|\btime\b", I)
 FACT_DIGIT = re.compile(r"\d")
@@ -246,6 +247,8 @@ def plan(question: str, g: Grounding) -> Plan:
             continue
         hit = _faq_hit(topic, g.faq, q, set(qt)) if (g.kind != "area" or topic in AREA_TOPICS) else None
         picked = [hit] if hit else []
+        if hit and g.kind == "area" and not DISTANCE.search(q):
+            picked = _pick(topic, g.facts, multi) or picked      # the area's curated FAQ answers 'how far' questions; its facts answer the rest
         # home-level facts first, then (for area-type topics) the area's facts; a pure area grounding keeps its sentences in `facts`
         if not picked:
             picked = _pick(topic, g.facts, multi) if (g.kind != "area" or topic in AREA_TOPICS) else []
@@ -310,8 +313,17 @@ def _nums(text: str) -> Set[str]:
     return {n.replace(",", "").rstrip(".") for n in NUM.findall(_norm(text))}
 
 
-def valid_text(text: str, source: str, channel: str, limit: int) -> bool:
-    """`source` is everything the answer may draw on (grounding corpus + the question)."""
+FUNCTION_WORDS = set("""about above after again against also because been before being below between both could does doing down during each either enough every
+from have having here hence into just least like made make many more most much must never next none only other over please quite rather really same should since
+some still such than that their them then there these they this those though through under until upon very want wants what when where whether which while whom
+whose will with within without would your yours agent details detail confirm share visit request home house place listed listing currently available sorry thanks
+thank kindly right note price shown shows state given yes""".split())
+
+
+def valid_text(text: str, source: str, channel: str, limit: int, strict: bool = False) -> bool:
+    """`source` is everything the answer may draw on (the grounding, or the English text being translated); the question is NOT a source, so a number
+    or name typed by a commenter can never become a stated fact. `strict` (English answers written freely by the model) also rejects any
+    content word that the grounding does not contain, which catches invented claims like 'away from the road noise'."""
     t = (text or "").strip()
     if not t or len(t) > limit:
         return False
@@ -319,17 +331,23 @@ def valid_text(text: str, source: str, channel: str, limit: int) -> bool:
         return False
     if not _nums(t) <= _nums(source):
         return False
-    vocab = {w.lower() for w in re.findall(r"[A-Za-z][A-Za-z']+", source)} | ALLOWED_NAMES
+    words = [w.lower() for w in re.findall(r"[A-Za-z][A-Za-z']+", source)]
+    vocab = set(words) | ALLOWED_NAMES
     for m in CAPITAL.finditer(t):
         if m.group(0).lower() not in vocab:
             return False
+    if strict:
+        known = {w[:5] for w in words}
+        for w in re.findall(r"[a-z]{5,}", t.lower()):
+            if w not in FUNCTION_WORDS and w[:5] not in known:
+                return False
     return True
 
 
 LLM_SYSTEM = (
     "You answer a home buyer's question for the PUNE Property team using ONLY the FACTS given. Reply with ONE JSON object: "
     '{"answerable": true or false, "answer": "..."}. The answer is 1 or 2 short, plain, friendly sentences written in {lang}. '
-    "Use only numbers and names that appear in FACTS or in the QUESTION. If FACTS do not fully answer the question, set answerable=false and answer=''. "
+    "Use only numbers, names and claims that appear in FACTS (never repeat a number or name that only the QUESTION contains). If FACTS do not fully answer the question, set answerable=false and answer=''. "
     "A sample home is only an illustration: never say it is available. Never invent prices, distances, dates, schools, amenities or approvals. "
     "Never include phone numbers, links, promises, predictions, or words like best, perfect, guaranteed, dream. Never say you will forward the query."
 )
@@ -350,7 +368,7 @@ SAMPLE_WORD = re.compile(r"sample|illustrat|सैंपल|सॅम्पल|�
 
 async def _llm_answer(question: str, g: Grounding, lang: str, channel: str, llm) -> Tuple[str, Optional[str]]:
     """('ok', text) | ('no', None) when the model says the grounding does not answer | ('fail', None) when it is absent, down or its draft is unsafe."""
-    if llm is None or not hasattr(llm, "json"):
+    if llm is None or not hasattr(llm, "json") or lang != "en":  # other languages: the grounded English sentences are translated instead (see _localise)
         return "fail", None
     try:
         raw = await llm.json(LLM_SYSTEM.replace("{lang}", LANG_NAME[lang]), f"{_facts_block(g)}\n\nQUESTION:\n{question[:400]}")
@@ -361,23 +379,24 @@ async def _llm_answer(question: str, g: Grounding, lang: str, channel: str, llm)
     if raw["answerable"] is False:
         return "no", None
     text = str(raw.get("answer") or "").strip()
-    if not valid_text(text, g.corpus() + " " + question, channel, MAX_BODY[channel]) or (g.sample and not SAMPLE_WORD.search(text)):
+    if not valid_text(text, g.corpus(), channel, MAX_BODY[channel], strict=True) or (g.sample and not SAMPLE_WORD.search(text)):
         return "fail", None
     return "ok", text
 
 
-async def _localise(body: str, question: str, lang: str, channel: str, llm) -> str:
-    """Put an already grounded English answer into the buyer's language; the English text stays when the LLM is absent or its output fails the checks."""
+async def _localise(body: str, lang: str, channel: str, llm) -> Tuple[str, bool]:
+    """Put an already grounded English answer into the buyer's language -> (text, translated). The English text stays when the LLM is absent or
+    its output fails the checks (same numbers, same names, no phone, link or hype)."""
     if lang == "en" or llm is None or not hasattr(llm, "json"):
-        return body
+        return body, False
     try:
         raw = await llm.json(TRANSLATE_SYSTEM.replace("{lang}", LANG_NAME[lang]), f"TEXT:\n{body}")
     except Exception:
-        return body
+        return body, False
     text = str(raw.get("text") or "").strip() if isinstance(raw, dict) else ""
-    if not valid_text(text, body + " " + question, channel, MAX_BODY[channel] * 2) or (SAMPLE_WORD.search(body) and not SAMPLE_WORD.search(text)):
-        return body
-    return text
+    if not valid_text(text, body, channel, MAX_BODY[channel] * 2) or (SAMPLE_WORD.search(body) and not SAMPLE_WORD.search(text)):
+        return body, False
+    return text, True
 
 
 def _basis_for(text: str, g: Grounding) -> List[str]:
@@ -426,8 +445,8 @@ async def answer(question: str, grounding: Grounding, channel: str = "facebook",
             return Reply(f"{text} {tail}".strip(), True, None, _basis_for(text, g), lang, "llm")
         hit = overlap_hit(q, g) if status == "fail" else None
         if hit:
-            text = await _localise(_cap(hit, MAX_BODY[ch]), q, lang, ch, llm)
-            return Reply(f"{text} {tail}".strip(), True, None, [hit], lang, "rules")
+            text, done = await _localise(_cap(hit, MAX_BODY[ch]), lang, ch, llm)
+            return Reply(f"{text} {tail}".strip(), True, None, [hit], lang, "llm" if done else "rules")
         pl.missing = ["other"]
 
     if not pl.missing:  # everything is covered: the LLM phrases it from the grounding, else the sentences themselves are used
@@ -435,8 +454,8 @@ async def answer(question: str, grounding: Grounding, channel: str = "facebook",
         status, text = await _llm_answer(q, g, lang, ch, llm)
         if text:
             return Reply(f"{text} {tail}".strip(), True, None, basis, lang, "llm")
-        text = await _localise(" ".join(_body(pl.found, ch, MAX_FOUND[ch])), q, lang, ch, llm)
-        return Reply(f"{text} {tail}".strip(), True, None, basis, lang, "rules")
+        text, done = await _localise(" ".join(_body(pl.found, ch, MAX_FOUND[ch])), lang, ch, llm)
+        return Reply(f"{text} {tail}".strip(), True, None, basis, lang, "llm" if done else "rules")
 
     # something is not covered: say what we can, then say plainly what we do not have
     labels = [UNKNOWN_DETAIL[lang] if m == "other" else OVERRIDE[pl.over[m]][lang] if m in pl.over else _label(m, lang) for m in pl.missing]
@@ -444,7 +463,7 @@ async def answer(question: str, grounding: Grounding, channel: str = "facebook",
     found = _body(pl.found, ch, MAX_FOUND[ch] - 1 if ch != "chat" else 2)
     text = " ".join(found)
     if found and lang != "en":
-        text = await _localise(text, q, lang, ch, llm)
+        text, _ = await _localise(text, lang, ch, llm)
     gap = "; ".join(q[:100] if m == "other" else (OVERRIDE[pl.over[m]]["en"] if m in pl.over else _label(m, "en")) for m in pl.missing)
     return Reply(f"{text} {unknown}".strip(), False, gap, [s for _, s in pl.found], lang, "rules")
 
