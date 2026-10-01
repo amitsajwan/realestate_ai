@@ -41,7 +41,22 @@ def _valid(text: str, quote: str, sources: List[str]) -> bool:
     return all(n in quote_nums for n in _numbers(text))
 
 
+def headline_fact(item: RawItem) -> Optional[Facts]:
+    """When a source gives only a headline, the publisher's own headline is the one checkable statement: use it as the fact
+    (its quote is the headline itself), minus a trailing ' - Publisher' tag."""
+    title = _norm(re.sub(r"\s[-|–—]\s[^-|–—]{2,40}$", "", item.title or ""))
+    body = _norm(item.text or "")
+    if len(title) < MIN_QUOTE_CHARS or (body and len(body) > len(title) + 40):
+        return None  # there is real article text: the LLM path should have found facts
+    return Facts(facts=[Fact(text=title, quote=title)], as_of=item.published_at or item.fetched_at)
+
+
 async def extract(item: RawItem, llm: Llm) -> Optional[Facts]:
+    got = await _extract_llm(item, llm)
+    return got or headline_fact(item)
+
+
+async def _extract_llm(item: RawItem, llm: Llm) -> Optional[Facts]:
     user = f"Title: {item.title}\n\nArticle:\n{(item.text or '')[:MAX_SOURCE_CHARS]}"
     try:
         data = await llm.json(SYSTEM, user)
