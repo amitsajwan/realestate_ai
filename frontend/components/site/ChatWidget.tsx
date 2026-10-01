@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { API_BASE_URL } from '@/lib/config/api'
 import { readAttribution } from '@/lib/site/tracking'
+import { chatContextFromPath } from '@/lib/site/chatContext'
 
 interface Msg { role: 'bot' | 'you'; text: string }
 const SID_KEY = 'pp_chat_sid'
@@ -54,7 +55,7 @@ export default function ChatWidget({ agentSlug }: { agentSlug: string }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/chat/message`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId(), agent_slug: agentSlug, message: m, source: readAttribution().source || 'chat' }),
+        body: JSON.stringify({ session_id: sessionId(), agent_slug: agentSlug, message: m, source: readAttribution().source || 'chat', context: chatContextFromPath(window.location.pathname) }),
       })
       if (!res.ok) throw new Error(String(res.status))
       const data = (await res.json()) as { reply: string; quick_replies: string[] }
