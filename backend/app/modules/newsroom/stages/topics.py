@@ -18,7 +18,7 @@ OTHER_LOCALITIES = [
 # (label, pattern). Checked against the title and the first sentence of the text.
 DENY_TOPICS = [
     ("vehicle prices", re.compile(r"\b(on[- ]road price|ex[- ]showroom|car prices?|bike prices?|mileage|test drive)\b", re.I)),
-    ("hotels and restaurants", re.compile(r"\b(hotels?|resorts?|restaurants?|cafes?|menu|buffet|general manager|chef|cuisine)\b", re.I)),
+    ("hotels and restaurants", re.compile(r"\b(hotels?|resorts?|restaurants?|cafes?|menu|buffet|brunch|dinner|lunch|breakfast|general manager|chef|cuisine|novotel|marriott|hyatt|radisson|hospitality)\b", re.I)),
     ("PG and rental ads", re.compile(r"\b(paying guests?|pg accommodation|pg in|co-?living|hostels?|rooms? for rent|flatmates?)\b", re.I)),
     ("festival or celebration", re.compile(
         r"\b(celebrat\w*|festivals?|utsav|ganeshotsav|ganpati|navratri|dandiya|diwali|dussehra|holi|eid|christmas|"

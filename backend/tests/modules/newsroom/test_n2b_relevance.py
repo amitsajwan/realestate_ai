@@ -191,3 +191,18 @@ def test_wrong_unit_still_caught():
     item = it("Thar OG price ₹12.37L", "Thar OG price ₹12.37L")
     r = check(_draft(_price_post("₹12.37 crore")), Facts([Fact("x", item.title)], PUB), item, now=NOW)
     assert any("unit" in p.lower() for p in r.problems)
+
+
+def test_hotel_brunch_news_is_not_buyer_news():
+    r = assess(it("Novotel Pune Nagar Road Brings Back Its Sunday Brunch", "Novotel Pune Nagar Road has restarted its Sunday brunch service."), NOW)
+    assert not r.keep
+
+
+def test_a_hyphenated_name_made_of_source_words_is_not_flagged():
+    item = it("Pune Ring Road: Rs 10,502 Crore Nod for Soratwadi-Varve Budruk Stretch", "The Pune Ring Road project has approval of Rs 10,502 crore for Soratwadi-Varve Budruk.")
+    facts = Facts([Fact("Approval of Rs 10,502 crore", "approval of Rs 10,502 crore")], PUB)
+    text = ("The Pune Ring Road has approval of Rs 10,502 crore to develop the Soratwadi-Varve Budruk section.\n\nSource: Pune Mirror, as of 28 Sep 2026. "
+            + URL + "\n\nWould you like more details?\n\n#Pune")
+    d = Draft("post", text, None, URL, ["Pune Mirror"])
+    res = check(d, facts, item, now=NOW)
+    assert not any("Names not in the source" in p for p in res.problems), res.problems
