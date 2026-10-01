@@ -39,18 +39,39 @@ describe('landing page', () => {
     expect(screen.getByText(/screens show sample data/i)).toBeInTheDocument()
   })
 
-  it('uses the six real screenshots with alt text, dimensions and lazy loading below the fold', () => {
+  it('uses the six real screenshots, lazy loaded, with alt text and dimensions', () => {
     const { container } = render(<LandingPage />)
-    const imgs = Array.from(container.querySelectorAll('img'))
-    expect(imgs.map((i) => i.getAttribute('src')).sort()).toEqual(Object.values(SHOTS).map((s) => s.src).sort())
-    imgs.forEach((i) => {
+    const shots = Array.from(container.querySelectorAll('img')).filter((i) => (i.getAttribute('src') || '').startsWith('/landing/'))
+    expect(shots.map((i) => i.getAttribute('src')).sort()).toEqual(Object.values(SHOTS).map((s) => s.src).sort())
+    shots.forEach((i) => {
       expect(i.getAttribute('alt')!.length).toBeGreaterThan(20)
       expect(i).toHaveAttribute('width', '780')
       expect(i).toHaveAttribute('height', '1688')
+      expect(i).toHaveAttribute('loading', 'lazy')
     })
-    const hero = imgs.find((i) => i.getAttribute('src') === SHOTS.home.src)!
-    expect(hero).toHaveAttribute('loading', 'eager')
-    imgs.filter((i) => i !== hero).forEach((i) => expect(i).toHaveAttribute('loading', 'lazy'))
+  })
+
+  it('leads with the agent problem and an HTML phone mock of the lead card, labelled as sample', () => {
+    render(<LandingPage />)
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/interested/i)
+    expect(screen.getAllByText('INTERESTED').length).toBeGreaterThan(0)
+    expect(screen.getByText('HOT')).toBeInTheDocument()
+    expect(screen.getByText('Sample data')).toBeInTheDocument()
+  })
+
+  it('tells the create, attract, qualify, close story in order', () => {
+    const { container } = render(<LandingPage />)
+    const steps = container.querySelector('#what-it-does')!
+    const labels = Array.from(steps.querySelectorAll('ol > li > p:first-child')).map((p) => (p.textContent || '').replace(/^\d/, '').trim())
+    expect(labels).toEqual(['Create', 'Attract', 'Qualify', 'Close'])
+  })
+
+  it('answers cost, lead visibility, RERA and data in the FAQ, and puts the short form on the page', () => {
+    render(<LandingPage />)
+    for (const q of [/what does it cost/i, /who sees my buyer leads/i, /what about rera/i, /what happens to my buyers/i]) {
+      expect(screen.getByText(q)).toBeInTheDocument()
+    }
+    expect(screen.getByRole('button', { name: /send request/i })).toBeInTheDocument()
   })
 
   it('renders standalone on the v2 surface and embeds Organization JSON-LD without contact invented', () => {
