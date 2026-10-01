@@ -1,0 +1,85 @@
+"""AI reel director: an LLM writes the beats (short on-screen text + a spoken line each) from supplied facts only; a voice is synthesised per
+beat, each scene lasts as long as its line, and the narration is mixed under the video. Hindi/Marathi voice + Hinglish on-screen text (the
+renderer cannot shape Devanagari)."""
+import json
+import re
+import tempfile
+from pathlib import Path
+from typing import Dict, List, Optional, Sequence
+
+from . import ffmpeg, voice
+from .compose import Scene, TextLine, make_reel, plan
+
+END_SECONDS = 2.6
+XFADE = 0.4
+NUM = re.compile(r"\d[\d,.]*")
+
+SYSTEM = (
+    "You direct a 12 to 16 second vertical property reel for Pune home buyers. Write JSON only: "
+    '{"beats": [{"screen": "...", "voice": "..."}], "cta_screen": "...", "cta_voice": "..."}. '
+    "Rules: 4 beats. beat 1 is the hook: a question or surprise that makes a buyer stop scrolling. "
+    "screen: at most 6 words, Roman letters only (English or Hinglish), wrap ONE key word in *stars* for gold. "
+    "voice: one natural spoken sentence of at most 16 words in the requested voice language (Hindi = Devanagari script, Marathi = Devanagari, "
+    "English = English). Use ONLY the facts given: never invent numbers, distances, prices, schools, builders or promises. "
+    "Never mention phone numbers. If the subject is a sample home say it is a sample. cta: invite them to tap 'interested' via the link in bio."
+)
+
+
+def _numbers(s: str) -> set:
+    return {n.replace(",", "").rstrip(".") for n in NUM.findall(s or "")}
+
+
+def _valid(script: dict, facts: str) -> bool:
+    if not isinstance(script, dict) or not isinstance(script.get("beats"), list) or not (3 <= len(script["beats"]) <= 5):
+        return False
+    allowed = _numbers(facts)
+    for b in script["beats"] + [{"screen": script.get("cta_screen", ""), "voice": script.get("cta_voice", "")}]:
+        if not isinstance(b, dict) or not str(b.get("screen", "")).strip() or not str(b.get("voice", "")).strip():
+            return False
+        if len(str(b["screen"]).split()) > 8 or re.search(r"[ऀ-ॿ]", str(b["screen"])):
+            return False
+        if (_numbers(b["screen"]) | _numbers(b["voice"])) - allowed:
+            return False
+        if re.search(r"\b[6-9]\d{9}\b", b["screen"] + b["voice"]):
+            return False
+    return True
+
+
+async def write_script(subject: str, facts: Sequence[str], lang: str, llm, fallback: Dict) -> Dict:
+    facts_text = "\n".join(f"- {f}" for f in facts)
+    if llm is not None:
+        for _ in range(3):
+            out = await llm.json(SYSTEM, f"Voice language: {dict(en='English', hi='Hindi', mr='Marathi')[lang]}\nSubject: {subject}\nFacts:\n{facts_text}")
+            if _valid(out, subject + "\n" + facts_text):
+                return {**out, "made_by": "llm"}
+    return {**fallback, "made_by": "rules"}
+
+
+def build(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Optional[str] = None, kicker: Optional[str] = None) -> Path:
+    beats = list(script["beats"]) + [{"screen": script["cta_screen"], "voice": script["cta_voice"]}]
+    work = Path(tempfile.mkdtemp(prefix="reel-"))
+    clips, durs = [], []
+    for i, b in enumerate(beats):
+        mp3 = work / f"b{i}.mp3"
+        mp3.write_bytes(voice.synth(b["voice"], lang))
+        d = ffmpeg.probe(mp3).duration
+        clips.append(mp3)
+        durs.append(max(2.2, d + 0.55))
+    scenes = []
+    for i, b in enumerate(beats):
+        first = i == 0
+        lines = [TextLine(b["screen"], size=104 if first else 96)]
+        scenes.append(Scene(image=photos[i % len(photos)], lines=lines, layout="lower", badge=badge,
+                            kicker=kicker if first else None, seconds=durs[i], seed=f"dir-{i}"))
+    tl = plan(durs + [END_SECONDS], XFADE)
+    # narration: each line starts just after its scene appears; one track as long as the whole reel
+    inputs, filters = [], []
+    for i, c in enumerate(clips):
+        inputs += ["-i", str(c)]
+        ms = int((tl.starts[i] + (0.35 if i == 0 else 0.25)) * 1000)
+        filters.append(f"[{i}:a]adelay={ms}|{ms},aresample=48000[a{i}]")
+    mix = "".join(f"[a{i}]" for i in range(len(clips)))
+    filters.append(f"{mix}amix=inputs={len(clips)}:normalize=0,apad=whole_dur={tl.total:.2f},volume=1.35[out]")
+    narration = work / "narration.m4a"
+    ffmpeg.run([*inputs, "-filter_complex", ";".join(filters), "-map", "[out]", "-t", f"{tl.total:.2f}", "-c:a", "aac", "-b:a", "160k", str(narration), "-y"])
+    return make_reel(scenes, out_path, music=narration, transition="slide", xfade=XFADE)
