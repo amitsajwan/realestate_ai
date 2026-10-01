@@ -71,7 +71,8 @@ NOT_NAME = set("""a an the and or but so i im am is are was me my mine you your 
 there from in at on of for to with new just only also very not no yes ok okay fine good great thanks thank sure hi hello hey namaste buying
 renting selling buyer seller agent owner broker investor family working moving relocating shifting coming staying living hai hoon hu hun
 aur ka ki ke se mein mai main bhi ji sir madam please pls want need would like ready free available currently still bhk lakh crore rent
-buy budget flat home house property apartment kharadi wagholi pune baner hinjewadi viman nagar upper this that it""".split())
+buy budget flat home house property apartment kharadi wagholi pune baner hinjewadi viman nagar upper this that it urgent serious sorry
+confused busy happy back done fine okay calling asking writing""".split())
 NAME_TRIGGER = re.compile(r"(?:\bmy name is|\bmy name's|\bi am|\bi'm|\bim|\bthis is|\bmera naam|\bmaza nav|\bmaze nav|\bmajhe nav|\bmaza naav|\bnaam)\s+(.+)", re.I)
 
 
@@ -208,17 +209,19 @@ def extract(d: dict, text: str) -> List[str]:
         elif asked == "tx" and re.search(r"exploring|just looking|browsing", low):
             d["tx"] = "exploring"
 
+    # a statement ('actually 3 BHK', 'make it Wagholi') replaces what we had; a question ('is the metro in Wagholi?') only fills a gap
+    stating = not is_question(t)
     if found.get("localities"):
-        if not d["locality"] or (d.get("locality_src") == "page" and found["localities"][0] != d["locality"]):
+        if not d["locality"] or (stating and found["localities"][0] != d["locality"]):
             d["locality"], d["locality_src"] = found["localities"][0], "buyer"
-    if not filled(d, "budget"):
-        if d["tx"] == "rent" and (RENT_WORDS.search(low) or asked == "budget") and not _lakh_budget(t):
-            b = _rent_budget(t)
-            if b:
-                d["budget_min"], d["budget_max"] = b
-        elif "budget_min_inr" in found or "budget_max_inr" in found:
-            d["budget_min"], d["budget_max"] = found.get("budget_min_inr"), found.get("budget_max_inr")
-    if found.get("bhk") and d.get("bhk_src") == "page" and found["bhk"] != d["bhk"]:
+    budget = None
+    if d["tx"] == "rent" and (RENT_WORDS.search(low) or asked == "budget") and not _lakh_budget(t):
+        budget = _rent_budget(t)
+    elif "budget_min_inr" in found or "budget_max_inr" in found:
+        budget = (found.get("budget_min_inr"), found.get("budget_max_inr"))
+    if budget and (not filled(d, "budget") or stating):
+        d["budget_min"], d["budget_max"] = budget
+    if found.get("bhk") and d["bhk"] and found["bhk"] != d["bhk"] and (stating or d.get("bhk_src") == "page"):
         d["bhk"], d["bhk_src"] = None, "buyer"
     for src, dst in (("bhk", "bhk"), ("timeline", "timeline"), ("financing", "financing")):
         if found.get(src) and not d[dst]:
@@ -434,7 +437,7 @@ def _about(g) -> Optional[str]:
     """A short description of the home from its vetted facts (the first few sentences: what, where, price, size)."""
     if g is None or not getattr(g, "facts", None):
         return None
-    skip = re.compile(r"^It is located in ")
+    skip = re.compile(r"^(It is located in |Because it is a sample)")
     picked = [f for f in g.facts if not skip.match(f)][:4]
     return " ".join(picked) or None
 
