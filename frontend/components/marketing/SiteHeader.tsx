@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { NAV, PATHS } from '@/lib/marketing/strings'
+import { LOGO } from '@/lib/brand'
 
 export default function SiteHeader({ businessName, showInviteCta = true }: { businessName: string; showInviteCta?: boolean }) {
   return (
@@ -8,7 +9,7 @@ export default function SiteHeader({ businessName, showInviteCta = true }: { bus
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-1.5">
         <Link href={PATHS.home} className="flex min-h-[44px] items-center gap-2 whitespace-nowrap text-base font-bold text-white no-underline sm:text-lg">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/logo.png" alt="" width={32} height={32} className="h-8 w-8 rounded-full" />
+          <img src={LOGO.mark} alt="" width={32} height={32} className="h-8 w-8" />
           {businessName}
         </Link>
         <nav aria-label={NAV.primaryLabel} className="flex items-center gap-1 text-sm">

@@ -1,14 +1,15 @@
 /** Fixture-mode logic for social publishing (docs/contracts/social.md): always a dry run, both channels configured. */
 import type { MarketingPack, Publication, SocialChannel, SocialPublishRequest, SocialStatus } from './types'
+import { BRAND_NAME } from '@/lib/brand'
 
 export const FIXTURE_SOCIAL_STATUS: SocialStatus = {
   dry_run: true,
   channels: { facebook_page: true, instagram: true },
-  brand: 'PUNE Property',
+  brand: BRAND_NAME,
   media_url_ok: false,
 }
 
-const CONSENT_TEXT = 'I agree to post this listing, on the PUNE Property Page.'
+const CONSENT_TEXT = `I agree to post this listing, on the ${BRAND_NAME} Page.`
 
 function payloadFor(pack: MarketingPack, channel: SocialChannel): Publication['payload'] {
   if (channel === 'facebook_page') {

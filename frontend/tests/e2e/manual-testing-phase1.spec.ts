@@ -29,7 +29,7 @@ test.describe('MANUAL TESTING PHASE 1 - Basic Forms and Navigation', () => {
     });
     
     console.log('Home page analysis:', homePageCheck);
-    expect(homePageCheck.title).toContain('PropertyAI');
+    expect(homePageCheck.title).toContain('Avasetu');
     console.log('✅ Home page loaded successfully');
     
     // Test 1.2: Navigation to Login

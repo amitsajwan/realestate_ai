@@ -69,7 +69,7 @@ describe('Add agent flow', () => {
     const onCreated = jest.fn()
     mockApi.create.mockResolvedValue({
       agent: FX[2], created: true, code: '482913', reissued: false,
-      whatsapp_message: 'Hi Sandeep, welcome to PUNE Property! Open https://s.test/join, enter 9876543210 and your personal code 482913.',
+      whatsapp_message: 'Hi Sandeep, welcome to Avasetu! Open https://s.test/join, enter 9876543210 and your personal code 482913.',
       whatsapp_url: 'https://wa.me/919876543210?text=x',
     })
     Object.assign(navigator, { clipboard: { writeText: jest.fn().mockResolvedValue(undefined) } })
@@ -144,7 +144,7 @@ describe('Agent detail', () => {
     mockApi.post.mockResolvedValue([{ channel: 'facebook_page', status: 'dry_run' }, { channel: 'instagram', status: 'dry_run' }])
     render(<AgentDetailPage />)
     await screen.findByRole('heading', { name: 'Rahul Sharma' })
-    fireEvent.click(screen.getAllByRole('button', { name: 'Post to PUNE Property' })[0])
+    fireEvent.click(screen.getAllByRole('button', { name: 'Post to Avasetu' })[0])
     const fb = await screen.findByTestId('caption-facebook_page')
     expect(fb).toHaveTextContent('Listed by Rahul Sharma | RERA agent reg: A52100012345')
     expect(fb).toHaveTextContent(/Interested\? https:\/\//)
@@ -163,7 +163,7 @@ describe('Agent detail', () => {
     mockApi.makePack.mockResolvedValue(undefined)
     render(<AgentDetailPage />)
     await screen.findByRole('heading', { name: 'Rahul Sharma' })
-    fireEvent.click(screen.getAllByRole('button', { name: 'Post to PUNE Property' })[0])
+    fireEvent.click(screen.getAllByRole('button', { name: 'Post to Avasetu' })[0])
     await screen.findByTestId('caption-facebook_page')
     expect(mockApi.makePack).toHaveBeenCalledWith('fx-a1', 'fx-l1')
     expect(screen.getByRole('alert')).toHaveTextContent(/consent first/)

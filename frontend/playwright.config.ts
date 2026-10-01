@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Playwright MCP Configuration for PropertyAI
+ * Playwright MCP Configuration for Avasetu
  * ===========================================
  * 
  * This configuration enables natural language testing across

@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { getHub, type Hub, type HubItem } from '@/lib/interest/api'
 import WhatsAppButton from '@/components/site/WhatsAppButton'
+import { LOGO } from '@/lib/brand'
 
 export const revalidate = 60
 
@@ -57,7 +58,7 @@ export default async function GoPage() {
     <div className="mx-auto min-h-screen max-w-md">
       <header className="bg-[#0f2340] px-4 pb-6 pt-5 text-center text-white">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/logo.png" alt="" width={64} height={64} className="mx-auto h-16 w-16 rounded-full ring-2 ring-[#f0b440]" />
+        <img src={LOGO.mark} alt="" width={64} height={64} className="mx-auto h-16 w-16" />
         <h1 className="mt-3 text-2xl font-bold">{hub?.brand || cfg.businessName}</h1>
         <p className="mx-auto mt-1 max-w-xs text-sm leading-relaxed text-white/85">
           {hub?.line || 'Homes and guides for Pune buyers.'}

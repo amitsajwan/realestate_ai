@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import type { MarketingConfig } from './config'
+import { LOGO, TAGLINE } from '@/lib/brand'
 
 export interface PageMeta {
   title: string
@@ -12,7 +13,7 @@ export interface PageMeta {
 export function pageMetadata(cfg: MarketingConfig, m: PageMeta): Metadata {
   const url = cfg.siteUrl + (m.path === '/' ? '' : m.path)
   // every page gets a brand preview so a shared link (Facebook, WhatsApp) shows a card, not a bare title
-  const img = m.image ?? { path: '/brand/og.jpg', width: 1200, height: 630, alt: cfg.businessName + ': Find. Compare. Decide.' }
+  const img = m.image ?? { path: '/brand/og.jpg', width: 1200, height: 630, alt: cfg.businessName + ': ' + TAGLINE }
   const image = { url: cfg.siteUrl + img.path, width: img.width, height: img.height, alt: img.alt }
   return {
     title: m.title,
@@ -35,6 +36,7 @@ export function organizationJsonLd(cfg: MarketingConfig, description: string, sa
     '@type': 'Organization',
     name: cfg.businessName,
     url: cfg.siteUrl,
+    logo: cfg.siteUrl + LOGO.icon512,
     description,
     areaServed: { '@type': 'City', name: 'Pune' },
     sameAs: sameAs && sameAs.length ? sameAs : undefined,

@@ -1,4 +1,5 @@
 import { serverApiBase } from '@/lib/site/api'
+import { BRAND_NAME } from '@/lib/brand'
 
 /** One published post, as returned by GET /api/v1/public/posts. */
 export interface PublicPost {
@@ -35,7 +36,7 @@ export function cleanPosts(raw: unknown): PublicPost[] {
       kind: p.kind === 'showcase' || p.kind === 'reel' ? p.kind : 'post',
       channel: links[0].channel,
       channels: links.map((l) => l.channel),
-      title: typeof p.title === 'string' ? p.title : 'PUNE Property',
+      title: typeof p.title === 'string' ? p.title : BRAND_NAME,
       excerpt: typeof p.excerpt === 'string' ? p.excerpt : '',
       image_url: safeUrl(p.image_url) ? p.image_url : null,
       permalink: links[0].url,
@@ -71,7 +72,7 @@ export function formatPostDate(iso: string): string {
 }
 
 export const POSTS_TEXT = {
-  heading: 'Latest from PUNE Property',
+  heading: `Latest from ${BRAND_NAME}`,
   lead: 'Homes and guides we have posted on Facebook and Instagram.',
   all: 'See all posts',
   empty: 'First posts going out now',
@@ -80,6 +81,6 @@ export const POSTS_TEXT = {
   errorLead: 'Please try again in a minute, or see them directly on Facebook or Instagram.',
   sampleBadge: 'Sample home',
   sampleNote: 'A sample home, shown to illustrate how a post looks.',
-  pageTitle: 'Latest posts | PUNE Property',
-  pageDescription: 'The newest posts from PUNE Property on Facebook and Instagram: homes, guides and Pune area notes.',
+  pageTitle: `Latest posts | ${BRAND_NAME}`,
+  pageDescription: `The newest posts from ${BRAND_NAME} on Facebook and Instagram: homes, guides and Pune area notes.`,
 }

@@ -9,6 +9,7 @@ import {
     SparklesIcon
 } from '@heroicons/react/24/outline'
 import { AnimatePresence, motion } from 'framer-motion'
+import { BRAND_NAME } from '@/lib/brand'
 
 interface MobileNavigationProps {
     activeSection: string
@@ -77,7 +78,7 @@ export function MobileNavigation({
                                             <HomeIcon className="w-6 h-6 text-white" />
                                         </div>
                                         <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                                            PropertyAI
+                                            {BRAND_NAME}
                                         </h1>
                                     </div>
                                     <Button

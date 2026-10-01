@@ -4,11 +4,12 @@ import { ApiError } from '@/lib/app/api'
 import { CHANNEL_LABEL, conciergeApi, firstName, friendlyConciergeError } from '@/lib/app/concierge'
 import type { Captions, PostChannel, PostResult } from '@/lib/app/concierge'
 import { Btn, ErrorBox, Spinner } from '../ui'
+import { BRAND_NAME } from '@/lib/brand'
 
 const ORDER: PostChannel[] = ['facebook_page', 'instagram']
 
 /**
- * Shows the exact captions first (with 'Listed by' and his interest link), then posts on the PUNE Property Page and
+ * Shows the exact captions first (with 'Listed by' and his interest link), then posts on the Avasetu Page and
  * Instagram after the owner approves on the agent's behalf. Needs the agent's recorded consent.
  */
 export function PostSheet({ agentId, agentName, listingId, listingTitle, consentGiven, onClose }: {
@@ -61,13 +62,13 @@ export function PostSheet({ agentId, agentName, listingId, listingTitle, consent
 
   const dry = results?.some((r) => r.status === 'dry_run')
   return (
-    <div className="fixed inset-0 z-[60] flex items-end bg-black/50" role="dialog" aria-modal="true" aria-label="Post to PUNE Property">
+    <div className="fixed inset-0 z-[60] flex items-end bg-black/50" role="dialog" aria-modal="true" aria-label={`Post to ${BRAND_NAME}`}>
       <div className="mx-auto max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-5" style={{ paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))' }}>
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">Post to PUNE Property</h2>
+          <h2 className="text-xl font-bold text-gray-900">Post to {BRAND_NAME}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="min-h-[44px] min-w-[44px] text-2xl text-gray-500">×</button>
         </div>
-        <p className="mb-3 text-sm text-gray-600">{listingTitle}. This goes on the PUNE Property pages, not {firstName(agentName)}&apos;s own accounts. Buyers who tap the link reach {firstName(agentName)}.</p>
+        <p className="mb-3 text-sm text-gray-600">{listingTitle}. This goes on the {BRAND_NAME} pages, not {firstName(agentName)}&apos;s own accounts. Buyers who tap the link reach {firstName(agentName)}.</p>
 
         {!captions && !error && <Spinner label="Preparing the post..." />}
         {captions && (

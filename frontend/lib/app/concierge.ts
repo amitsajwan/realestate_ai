@@ -4,13 +4,14 @@ import { ApiError, parseErrorBody } from './api'
 import { isFixtureMode } from './client'
 import { getToken } from './session'
 import type { Listing, ListingInput } from './types'
+import { BRAND_NAME } from '@/lib/brand'
 
 /** The exact wording the agent agrees to. Must match the backend, which refuses any other text. */
 export const CONSENT_TEXT =
-  "I agree that PUNE Property may feature me and my listings on the PUNE Property Facebook Page, Instagram and website, with my name and RERA number, and that buyers' interest comes to my inbox."
+  `I agree that ${BRAND_NAME} may feature me and my listings on the ${BRAND_NAME} Facebook Page, Instagram and website, with my name and RERA number, and that buyers' interest comes to my inbox.`
 
 export type PostChannel = 'facebook_page' | 'instagram'
-export const CHANNEL_LABEL: Record<PostChannel, string> = { facebook_page: 'PUNE Property Facebook Page', instagram: 'PUNE Property Instagram' }
+export const CHANNEL_LABEL: Record<PostChannel, string> = { facebook_page: `${BRAND_NAME} Facebook Page`, instagram: `${BRAND_NAME} Instagram` }
 
 export interface ChecklistItem {
   key: string
@@ -213,7 +214,7 @@ export function createFixtureConciergeApi(): ConciergeApi {
       }
       agents.unshift(agent)
       const code = '482913'
-      const msg = `Hi ${firstName(input.name)}, welcome to PUNE Property! Open https://punepropertyhub.example/join, enter ${digits} and your personal code ${code}. Please don't share it.`
+      const msg = `Hi ${firstName(input.name)}, welcome to ${BRAND_NAME}! Open https://avasetu.example/join, enter ${digits} and your personal code ${code}. Please don't share it.`
       return { agent, created: true, code, reissued: false, whatsapp_message: msg, whatsapp_url: `https://wa.me/91${digits}?text=${encodeURIComponent(msg)}` }
     },
     get: async (id) => ({ ...find(id) }),

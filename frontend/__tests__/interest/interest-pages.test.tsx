@@ -113,7 +113,7 @@ describe('InterestActions', () => {
 
 describe('/go hub', () => {
   const hub = (n: number, sample = false) => ({
-    brand: 'PUNE Property', line: 'Homes and guides', links: { website: 'https://site.test', invite: 'https://site.test/request-invite', facebook: 'https://facebook.com/p', instagram: 'https://instagram.com/p' },
+    brand: 'Avasetu', line: 'Homes and guides', links: { website: 'https://site.test', invite: 'https://site.test/request-invite', facebook: 'https://facebook.com/p', instagram: 'https://instagram.com/p' },
     items: Array.from({ length: n }, (_, i) => ({ kind: 'listing', ref: 'r' + i, title: 'Home ' + i, subtitle: 'sub', image_url: '/i.jpg', interest_code: 'code' + i, permalink: i === 0 ? 'https://fb.test/1' : null, sample })),
   })
 

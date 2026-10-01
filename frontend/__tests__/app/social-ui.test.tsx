@@ -21,11 +21,11 @@ jest.mock('@/lib/app/client', () => ({
   isFixtureMode: () => false,
 }))
 
-const CONSENT = 'I agree to post this listing, on the PUNE Property Page.'
+const CONSENT = 'I agree to post this listing, on the Avasetu Page.'
 const status = (over: Partial<SocialStatus> = {}, ch: Partial<SocialStatus['channels']> = {}): SocialStatus => ({
   dry_run: true,
   channels: { facebook_page: true, instagram: true, ...ch },
-  brand: 'PUNE Property',
+  brand: 'Avasetu',
   media_url_ok: false,
   ...over,
 })
@@ -68,8 +68,8 @@ const postBtn = (name = 'Approve and test post') => screen.getByRole('button', {
 describe('SocialPublishSection: gating and test mode', () => {
   it('explains itself and sends nothing on load', async () => {
     await ready()
-    expect(screen.getByRole('region', { name: 'Post to PUNE Property' })).toHaveTextContent(
-      'We can post this on the PUNE Property Facebook Page and Instagram. Posts go out as the PUNE Property team, with no name or phone number: buyers tap Interested or comment, and you follow up from your inbox.',
+    expect(screen.getByRole('region', { name: 'Post to Avasetu' })).toHaveTextContent(
+      'We can post this on the Avasetu Facebook Page and Instagram. Posts go out as the Avasetu team, with no name or phone number: buyers tap Interested or comment, and you follow up from your inbox.',
     )
     expect(getSocialStatus).toHaveBeenCalledTimes(1)
     expect(listPublications).toHaveBeenCalledWith('l1')
@@ -239,7 +239,7 @@ describe('SocialPublishSection: already posted and history', () => {
 describe('MarketingPackView placement', () => {
   it('puts the social section above the "Publish everywhere" block, whose note is about connecting own accounts later', async () => {
     render(<MarketingPackView pack={pack} />)
-    const social = await screen.findByRole('region', { name: 'Post to PUNE Property' })
+    const social = await screen.findByRole('region', { name: 'Post to Avasetu' })
     const publish = screen.getByRole('region', { name: 'Publish everywhere' })
     expect(social.compareDocumentPosition(publish) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(publish).toHaveTextContent(/connect your own Instagram, Facebook and WhatsApp Business accounts/i)

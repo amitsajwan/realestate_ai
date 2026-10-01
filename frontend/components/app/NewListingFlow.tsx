@@ -18,6 +18,7 @@ import { ReviewForm } from './ReviewForm'
 import { ShareBar } from './ShareBar'
 import { VoiceRecorder } from './VoiceRecorder'
 import { Btn, ErrorBox, LinkBtn, Spinner, inputCls } from './ui'
+import { BRAND_NAME } from '@/lib/brand'
 
 type Step = 'capture' | 'drafting' | 'about' | 'review' | 'posting' | 'done'
 
@@ -141,7 +142,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
           <div className="text-5xl" aria-hidden>✅</div>
           <h1 className="text-2xl font-bold">Saved for {firstName(onBehalfOf.name)}</h1>
           <p className="font-semibold">{posted.title}</p>
-          <p className="text-sm text-gray-600">It is live on his website. Open his page to post it on PUNE Property.</p>
+          <p className="text-sm text-gray-600">It is live on his website. Open his page to post it on {BRAND_NAME}.</p>
         </div>
         <LinkBtn href={agentHome}>Back to {firstName(onBehalfOf.name)}</LinkBtn>
         <Btn variant="secondary" onClick={() => window.location.assign(`${agentHome}/listings/new`)}>{t('postAnother')}</Btn>

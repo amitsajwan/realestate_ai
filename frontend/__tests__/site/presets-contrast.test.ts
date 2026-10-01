@@ -66,7 +66,7 @@ describe('custom primary colour', () => {
     expect(v['--site-accent']).toBe('#f0b440')
   })
 
-  it('an agent with no branding keeps the PUNE Property navy and gold', () => {
+  it('an agent with no branding keeps the Avasetu navy and gold', () => {
     const v = themeVars(null)
     expect(v['--site-primary']).toBe('#102340')
     expect(v['--site-secondary']).toBe('#0b1a33')

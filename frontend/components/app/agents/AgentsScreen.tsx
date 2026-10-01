@@ -7,6 +7,7 @@ import { useAsync } from '@/lib/app/useAsync'
 import { Btn, ErrorBox, PageTitle, Spinner } from '../ui'
 import { AddAgentSheet } from './AddAgentSheet'
 import { ProgressRing } from './ProgressRing'
+import { BRAND_NAME } from '@/lib/brand'
 
 /** Studio > Agents (owner only): every agent you set up, with how far along each one is. */
 export function AgentsScreen() {
@@ -19,7 +20,7 @@ export function AgentsScreen() {
   return (
     <div className="space-y-4">
       <PageTitle>Agents</PageTitle>
-      <p className="text-sm text-gray-600">Agents you set up. Their listings go on the PUNE Property pages with their name, and buyers reach them.</p>
+      <p className="text-sm text-gray-600">Agents you set up. Their listings go on the {BRAND_NAME} pages with their name, and buyers reach them.</p>
       {error && <ErrorBox message={error} onRetry={reload} />}
       {data && data.length === 0 ? (
         <p className="rounded-2xl bg-white p-6 text-center text-gray-600">No agents yet. Add the first one.</p>

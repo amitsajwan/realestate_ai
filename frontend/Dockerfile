@@ -17,7 +17,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Public site settings are baked into the client bundle at BUILD time (Next.js NEXT_PUBLIC_*).
-ARG NEXT_PUBLIC_BUSINESS_NAME="PUNE Property"
+ARG NEXT_PUBLIC_BUSINESS_NAME="Avasetu"
 ARG NEXT_PUBLIC_CONTACT_EMAIL=
 ARG NEXT_PUBLIC_WHATSAPP_NUMBER=
 ARG NEXT_PUBLIC_CONTACT_WHATSAPP=

@@ -1,5 +1,6 @@
 import { fixturesForced, serverApiBase } from '@/lib/site/api'
 import { FIXTURE_NEWS } from './fixtures'
+import { BRAND_NAME, TEAM } from '@/lib/brand'
 
 /** One approved news item, as returned by GET /api/v1/public/news (list) and /public/news/{id} (detail adds the long parts). */
 export interface NewsArea { slug: string; name: string }
@@ -126,9 +127,9 @@ export const NEWS_TEXT = {
   how: 'How we write news',
   howLead: 'We read public reports, then write a short note in our own words. Every note names its source, the date its facts are true from, and what you should check yourself. We do not predict prices and we do not praise or criticise any builder. Approved is not the same as running: we say which one it is.',
   interestTitle: (area: string) => `Looking in ${area}?`,
-  interestLead: 'Tell us what you are looking for and the PUNE Property team will get back to you.',
+  interestLead: `Tell us what you are looking for and the ${TEAM} will get back to you.`,
   interestCta: (area: string) => `I am interested in ${area}`,
-  pageTitle: 'Local property news | PUNE Property',
+  pageTitle: `Local property news | ${BRAND_NAME}`,
   pageDescription: 'Short summaries of Kharadi, Upper Kharadi and Wagholi property news in plain words, each with its source and date.',
   all: 'All news',
   digestHeading: 'In this digest',

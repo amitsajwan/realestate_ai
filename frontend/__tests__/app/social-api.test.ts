@@ -12,7 +12,7 @@ const auth = (init: RequestInit) => (init.headers as Record<string, string>).Aut
 
 describe('social client methods', () => {
   it('getSocialStatus GETs /social/status with the bearer token', async () => {
-    const status = { dry_run: true, channels: { facebook_page: true, instagram: false }, brand: 'PUNE Property', media_url_ok: false }
+    const status = { dry_run: true, channels: { facebook_page: true, instagram: false }, brand: 'Avasetu', media_url_ok: false }
     const f = fakeFetch(200, status)
     const api = createApiClient({ baseUrl: 'http://x', getToken: () => 'tok', fetchImpl: f })
     expect(await api.getSocialStatus()).toEqual(status)

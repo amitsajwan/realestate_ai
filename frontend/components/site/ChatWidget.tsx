@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { API_BASE_URL } from '@/lib/config/api'
 import { readAttribution } from '@/lib/site/tracking'
 import { chatContextFromPath } from '@/lib/site/chatContext'
+import { BRAND_NAME } from '@/lib/brand'
 
 interface Msg { role: 'bot' | 'you'; text: string }
 const SID_KEY = 'pp_chat_sid'
@@ -77,10 +78,10 @@ export default function ChatWidget({ agentSlug }: { agentSlug: string }) {
   return (
     <div className="fixed bottom-20 right-4 z-40 md:bottom-6" data-testid="chat-widget">
       {open && (
-        <section aria-label="Chat with PUNE Property" className="mb-3 flex h-[70vh] max-h-[560px] w-[min(92vw,380px)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <section aria-label={`Chat with ${BRAND_NAME}`} className="mb-3 flex h-[70vh] max-h-[560px] w-[min(92vw,380px)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
           <header className="flex items-center justify-between bg-[var(--site-primary,#102340)] px-4 py-3 text-white">
             <div>
-              <p className="font-semibold">PUNE Property</p>
+              <p className="font-semibold">{BRAND_NAME}</p>
               <p className="text-xs text-[var(--site-accent,#f0b440)]">Ask us anything about buying in Pune</p>
             </div>
             <button type="button" onClick={toggle} aria-label="Close chat" className="flex h-11 w-11 items-center justify-center text-2xl text-white">×</button>

@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import NotificationCenter from './NotificationCenter';
 import SearchBar from './SearchBar';
 import ThemeToggle from './ThemeToggle';
+import { BRAND_NAME } from '@/lib/brand'
 
 export default function Navigation() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -72,7 +73,7 @@ export default function Navigation() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link href="/" className="flex-shrink-0 flex items-center">
-              <span className="text-2xl font-bold text-gray-900 dark:text-white">PropertyAI</span>
+              <span className="text-2xl font-bold text-gray-900 dark:text-white">{BRAND_NAME}</span>
             </Link>
           </div>
 

@@ -19,6 +19,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useState } from 'react'
+import { BRAND_NAME } from '@/lib/brand'
 
 interface NavigationItem {
     name: string
@@ -89,7 +90,7 @@ export default function MobileFirstNavigation({
                                 <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
                                     <HomeIcon className="w-5 h-5 text-white" />
                                 </div>
-                                <h1 className="text-lg font-bold text-gray-900">PropertyAI</h1>
+                                <h1 className="text-lg font-bold text-gray-900">{BRAND_NAME}</h1>
                             </div>
                         </div>
 
@@ -174,7 +175,7 @@ export default function MobileFirstNavigation({
                                             <HomeIcon className="w-6 h-6 text-white" />
                                         </div>
                                         <div>
-                                            <h2 className="text-lg font-bold text-gray-900">PropertyAI</h2>
+                                            <h2 className="text-lg font-bold text-gray-900">{BRAND_NAME}</h2>
                                             <p className="text-sm text-gray-500">Real Estate Platform</p>
                                         </div>
                                     </div>

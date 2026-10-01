@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { formatNewsDate, NEWS_TEXT, type NewsItem } from '@/lib/news/data'
 import { policyDisclaimer } from '@/lib/news/disclaimer'
 import InterestStrip from './InterestStrip'
+import { TEAM } from '@/lib/brand'
 
 const CHANNEL = { facebook: 'Facebook', instagram: 'Instagram' } as const
 
@@ -20,7 +21,7 @@ export default function NewsArticle({ item }: { item: NewsItem }) {
       </p>
       <h1 className="mt-3 text-3xl font-extrabold leading-tight tracking-tight text-[#0f2340] sm:text-4xl">{item.headline}</h1>
       <p className="mt-3 text-sm text-slate-700">
-        By the PUNE Property team{date && <> &middot; {NEWS_TEXT.asOf} <time dateTime={item.as_of ?? undefined}>{date}</time></>}
+        By the {TEAM}{date && <> &middot; {NEWS_TEXT.asOf} <time dateTime={item.as_of ?? undefined}>{date}</time></>}
       </p>
       {!digest && <p className="mt-1 text-sm font-medium text-slate-600" data-testid="summary-badge">{NEWS_TEXT.badge}{item.source_name && <> by {item.source_name}</>}</p>}
 

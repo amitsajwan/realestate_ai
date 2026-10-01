@@ -1,10 +1,10 @@
-# PropertyAI Design System
+# Avasetu Design System
 
 A comprehensive, Google-level centralized design system built with modern CSS and accessibility in mind.
 
 ## Overview
 
-This design system provides a complete set of design tokens, components, and utilities that ensure consistency, accessibility, and maintainability across the PropertyAI application.
+This design system provides a complete set of design tokens, components, and utilities that ensure consistency, accessibility, and maintainability across the Avasetu application.
 
 ## Architecture
 

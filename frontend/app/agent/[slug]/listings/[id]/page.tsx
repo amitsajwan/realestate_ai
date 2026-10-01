@@ -18,6 +18,7 @@ import { formatPrice } from '@/lib/site/format'
 import { whatsappMessage } from '@/lib/site/links'
 import { jsonLdString, listingJsonLd, listingMetadata } from '@/lib/site/seo'
 import { agentPath, normalizeSlug, siteOrigin } from '@/lib/site/slug'
+import { BRAND_NAME } from '@/lib/brand'
 
 interface Props {
   params: Promise<{ slug: string; id: string }>
@@ -58,7 +59,7 @@ export default async function ListingPage({ params }: Props) {
           <p className="text-3xl font-extrabold text-[var(--site-primary)]">{formatPrice(l.price_inr, l.transaction)}</p>
           {isSampleListing(l.title) && (
             <p role="note" className="mt-2 rounded-lg bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-900">
-              Sample listing: an illustration of how a listing looks on PUNE Property. This home is not available. Tell us what you are looking for and we will find real options.
+              Sample listing: an illustration of how a listing looks on {BRAND_NAME}. This home is not available. Tell us what you are looking for and we will find real options.
             </p>
           )}
           <h1 className="mt-1 text-2xl font-bold leading-snug">{l.title}</h1>
@@ -88,7 +89,7 @@ export default async function ListingPage({ params }: Props) {
 
         <ListingAbout about={l.about} listingAmenities={l.amenities} />
 
-        <EnquiryForm agentSlug={slug} agentName="PUNE Property" agentPhone={phone} listingId={l.id} waMessage={msg} id="enquire" />
+        <EnquiryForm agentSlug={slug} agentName={BRAND_NAME} agentPhone={phone} listingId={l.id} waMessage={msg} id="enquire" />
       </div>
       <StickyBar agentSlug={slug} phone={phone} waMessage={msg} listingId={l.id} />
     </SiteShell>

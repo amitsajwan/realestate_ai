@@ -3,6 +3,7 @@ import { API_BASE_URL } from '@/lib/config/api'
 import { ApiError, parseErrorBody } from './api'
 import { isFixtureMode } from './client'
 import { getToken } from './session'
+import { HASHTAG } from '@/lib/brand'
 
 export type ContentKind = 'post' | 'showcase' | 'reel'
 export type ContentStatus = 'planned' | 'approved' | 'scheduled' | 'published' | 'failed' | 'skipped'
@@ -143,7 +144,7 @@ export const FIXTURE_ITEMS: ContentItem[] = [
     due_at: day(1, 19),
     status: 'planned',
     week: 1,
-    caption: 'Ask these water and power questions before booking.\n\nWhere does the water come from? Save this for your next visit.\n\n#PunePropertyHub #HomeBuyingTips',
+    caption: 'Ask these water and power questions before booking.\n\nWhere does the water come from? Save this for your next visit.\n\n' + HASHTAG + ' #HomeBuyingTips',
     image_urls: [card('#16213f', 'Cover'), card('#2a1c4a', '1. Where does the water come from?'), card('#2a1c4a', '2. How much storage?')],
     video_url: null,
     error: null,

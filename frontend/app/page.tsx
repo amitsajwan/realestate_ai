@@ -10,12 +10,13 @@ import { socialLinks } from '@/lib/marketing/social'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { jsonLdString, organizationJsonLd, pageMetadata } from '@/lib/marketing/seo'
 import { LANDING as L, PATHS, SAMPLE_NOTE, SHOTS } from '@/lib/marketing/strings'
+import { BRAND_NAME, TAGLINE } from '@/lib/brand'
 
 export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
   title: L.metaTitle,
   description: L.metaDescription,
   path: '/',
-  image: { path: '/brand/og-landing.jpg', width: 1200, height: 630, alt: 'A buyer comments INTERESTED and it becomes a lead card. PUNE Property, free invite-only pilot for agents in Pune.' },
+  image: { path: '/brand/og-landing.jpg', width: 1200, height: 630, alt: `${BRAND_NAME}: ${TAGLINE}. Homes, guides and trusted local agents in Pune.` },
 })
 
 const goldBtn =

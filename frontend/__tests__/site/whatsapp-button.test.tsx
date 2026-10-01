@@ -44,7 +44,7 @@ describe('WhatsAppButton', () => {
     expect(waNumber('98765 43210')).toBe('919876543210')
     expect(waNumber('12345')).toBe('')
     expect(waNumber(undefined)).toBe('')
-    expect(waText('', null)).toBe('Hi, I am interested in a home on PUNE Property')
+    expect(waText('', null)).toBe('Hi, I am interested in a home on Avasetu')
     expect(waLink('919876543210', 'A & B', 'x')).toBe('https://wa.me/919876543210?text=' + encodeURIComponent('Hi, I am interested in A & B (ref x)'))
   })
 })

@@ -1,6 +1,6 @@
 /*
  * Browser check (phone viewport, system Chrome): voice shows as a disabled Premium feature; the posted listing's marketing pack and
- * the "Post to PUNE Property" panel carry no phone number or personal name, and a spoken/recorded upload is refused by the server.
+ * the "Post to Avasetu" panel carry no phone number or personal name, and a spoken/recorded upload is refused by the server.
  * Same prereqs as browser-journey.js. Run: node e2e/premium-post-check.js
  */
 const fs = require('fs')
@@ -55,7 +55,7 @@ const log = (ok, name, extra = '') => { results.push(ok); console.log((ok ? 'PAS
     const body = await page.locator('body').innerText()
     log(!/\+?91\d{10}|\b[6-9]\d{9}\b/.test(body.replace(/\d{6,}[a-f0-9]{20,}/g, '')), 'the posted screen shows no phone number', '')
     log(!/Amit Sajwan/.test(body.split('Your property is ready')[1] || ''), 'and no personal agent name in the post pack area')
-    log(/PUNE Property team/.test(body), 'the pack is signed by the PUNE Property team')
+    log(/Avasetu team/.test(body), 'the pack is signed by the Avasetu team')
 
     const listings = await (await fetch(API + '/listings', { headers: { Authorization: 'Bearer ' + token } })).json()
     const id = (listings.items || listings)[0].id

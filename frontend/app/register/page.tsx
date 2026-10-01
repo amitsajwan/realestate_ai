@@ -4,6 +4,7 @@ import { API_BASE_URL } from '@/lib/config/api';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { BRAND_NAME } from '@/lib/brand'
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -67,7 +68,7 @@ export default function RegisterPage() {
             Create your account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-300">
-            Join PropertyAI and start managing your real estate business
+            Join {BRAND_NAME} and start managing your real estate business
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>

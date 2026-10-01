@@ -49,7 +49,7 @@ const post = (p, body, token) => fetch(API + p, { method: 'POST', headers: { 'Co
     log(await waitFor(/call you/), 'requirement captured through the chips; the assistant asks for a name')
     await widget.getByLabel('Your message').fill('Priya Sharma')
     await widget.getByRole('button', { name: 'Send' }).click()
-    log(await waitFor(/mobile number[\s\S]*agree that PUNE Property may contact you/), 'consent is shown together with the request for the phone number')
+    log(await waitFor(/mobile number[\s\S]*agree that Avasetu may contact you/), 'consent is shown together with the request for the phone number')
     await page.screenshot({ path: path.join(OUT, 'chat-2-consent.png') })
     let leads = await (await fetch(API + '/inbox/leads', { headers: { Authorization: 'Bearer ' + login.access_token } })).json()
     log(leads.leads.length === 0, 'no lead exists before the visitor shares a number')

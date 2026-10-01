@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test';
  * Tier 1 and Tier 2 testing results.
  */
 
-test.describe('PropertyAI Working E2E Tests', () => {
+test.describe('Avasetu Working E2E Tests', () => {
   
   test('Backend API is accessible and healthy', async ({ page }) => {
     // Natural Language: "Check if the backend API is responding"
@@ -22,7 +22,7 @@ test.describe('PropertyAI Working E2E Tests', () => {
   test('Frontend application loads', async ({ page }) => {
     // Natural Language: "Go to the application and verify it loads"
     await page.goto('/');
-    await expect(page).toHaveTitle(/PropertyAI/);
+    await expect(page).toHaveTitle(/Avasetu/);
     
     // Natural Language: "Check that the page has some content"
     await expect(page.locator('body')).toBeVisible();
@@ -31,7 +31,7 @@ test.describe('PropertyAI Working E2E Tests', () => {
   test('Login page is accessible', async ({ page }) => {
     // Natural Language: "Go to the login page"
     await page.goto('/login');
-    await expect(page).toHaveTitle(/PropertyAI/);
+    await expect(page).toHaveTitle(/Avasetu/);
     
     // Natural Language: "Check that the page loaded"
     await expect(page.locator('body')).toBeVisible();
@@ -43,7 +43,7 @@ test.describe('PropertyAI Working E2E Tests', () => {
   test('Analytics page is accessible', async ({ page }) => {
     // Natural Language: "Go to the analytics page"
     await page.goto('/analytics');
-    await expect(page).toHaveTitle(/PropertyAI/);
+    await expect(page).toHaveTitle(/Avasetu/);
     
     // Natural Language: "Wait for the page to fully load"
     await page.waitForLoadState('networkidle');
@@ -58,7 +58,7 @@ test.describe('PropertyAI Working E2E Tests', () => {
   test('Properties page is accessible', async ({ page }) => {
     // Natural Language: "Go to the properties page"
     await page.goto('/properties');
-    await expect(page).toHaveTitle(/PropertyAI/);
+    await expect(page).toHaveTitle(/Avasetu/);
     
     // Natural Language: "Check that the page loaded"
     await expect(page.locator('body')).toBeVisible();
@@ -117,7 +117,7 @@ test.describe('PropertyAI Working E2E Tests', () => {
     await page.goto('/');
     
     // Natural Language: "Check that the page has proper title"
-    await expect(page).toHaveTitle(/PropertyAI/);
+    await expect(page).toHaveTitle(/Avasetu/);
     
     // Natural Language: "Check that the page has proper description"
     const metaDescription = await page.locator('meta[name="description"]').getAttribute('content');

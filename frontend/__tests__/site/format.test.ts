@@ -53,7 +53,7 @@ describe('links and theme', () => {
     expect(withParam('https://a.in/x', 'src', 'share')).toBe('https://a.in/x?src=share')
     expect(withParam('https://a.in/x?a=1#h', 'src', 'share')).toBe('https://a.in/x?a=1&src=share#h')
   })
-  it('themeVars always uses the PUNE Property brand (stored agent colours, even hostile ones, are ignored)', () => {
+  it('themeVars always uses the Avasetu brand (stored agent colours, even hostile ones, are ignored)', () => {
     const v = themeVars({ colors: { primary: '#0f766e', secondary: 'red;}', accent: '#fff' } })
     expect(v['--site-primary']).toBe('#102340')
     expect(v['--site-secondary']).toBe('#0b1a33')

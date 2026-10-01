@@ -17,12 +17,22 @@ import '../styles/colors.css'
 import '../styles/spacing.css'
 import '../styles/components.css'
 import '../styles/mobile.css'
+import { BRAND_NAME, DEFAULT_DESCRIPTION, DEFAULT_TITLE, LOGO, NAVY } from '@/lib/brand'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'PropertyAI - AI-Powered Real Estate Platform',
-  description: 'Modern real estate platform with AI-powered property management and lead generation',
+  title: DEFAULT_TITLE,
+  description: DEFAULT_DESCRIPTION,
+  applicationName: BRAND_NAME,
+  icons: {
+    icon: [
+      { url: LOGO.icon32, sizes: '32x32', type: 'image/png' },
+      { url: LOGO.icon192, sizes: '192x192', type: 'image/png' },
+      { url: LOGO.mark, type: 'image/svg+xml' },
+    ],
+    apple: [{ url: LOGO.appleTouch, sizes: '180x180', type: 'image/png' }],
+  },
 }
 
 export const viewport = {
@@ -30,6 +40,7 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
+  themeColor: NAVY,
 }
 
 export default function RootLayout({

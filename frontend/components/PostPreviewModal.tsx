@@ -11,6 +11,7 @@ import {
 import { BookmarkIcon as BookmarkSolidIcon, HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useState } from 'react'
+import { BRAND_NAME } from '@/lib/brand'
 
 interface Post {
     id: string
@@ -39,7 +40,7 @@ interface PostPreviewModalProps {
 }
 
 const platforms = [
-    { id: 'facebook', name: 'Facebook', icon: '⬜', platformIcon: 'text-[#1877F2]', handle: 'PropertyAI' },
+    { id: 'facebook', name: 'Facebook', icon: '⬜', platformIcon: 'text-[#1877F2]', handle: BRAND_NAME },
     { id: 'instagram', name: 'Instagram', icon: '📷', platformIcon: 'text-[#E4405F]', handle: 'realestate_ai' },
     { id: 'twitter', name: 'Twitter', icon: '🐦', platformIcon: 'text-[#1DA1F2]', handle: '@realestate_ai' },
     { id: 'linkedin', name: 'LinkedIn', icon: '🟦', platformIcon: 'text-[#0A66C2]', handle: 'RealEstate AI' },

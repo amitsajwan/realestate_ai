@@ -2,6 +2,7 @@
 import React from 'react'
 import { timeAgo } from '@/lib/app/format'
 import type { NewsroomStatus } from '@/lib/app/newsroom'
+import { BRAND_NAME } from '@/lib/brand'
 
 const SHOWN: Array<[string, string]> = [
   ['pending_review', 'To review'],
@@ -16,7 +17,7 @@ export function StatusStrip({ status }: { status: NewsroomStatus }) {
     <section aria-label="Newsroom status" className="space-y-2">
       {!status.enabled && (
         <p role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
-          The newsroom is switched off, so no new drafts are being written. Ask your PUNE Property admin to turn it on.
+          The newsroom is switched off, so no new drafts are being written. Ask your {BRAND_NAME} admin to turn it on.
         </p>
       )}
       {status.last_error && (

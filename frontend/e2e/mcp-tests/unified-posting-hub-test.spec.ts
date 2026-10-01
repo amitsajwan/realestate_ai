@@ -18,7 +18,7 @@ test.describe('UnifiedPostingHub E2E Tests', () => {
 
   test('Dashboard loads and shows unified posting options', async ({ page }) => {
     // Natural Language: "Check that the dashboard loads properly"
-    await expect(page).toHaveTitle(/PropertyAI/);
+    await expect(page).toHaveTitle(/Avasetu/);
     
     // Natural Language: "Look for the AI Tools quick action button"
     await expect(page.locator('text=AI Tools')).toBeVisible();

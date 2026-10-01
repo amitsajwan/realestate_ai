@@ -2,6 +2,7 @@ import React from 'react'
 import type { AgentProfile } from '@/lib/site/types'
 import { MAHARERA_URL, displayName, safeImage, safeRera } from '@/lib/site/theme'
 import SocialLinks from './SocialLinks'
+import { BRAND_NAME } from '@/lib/brand'
 
 /** About section of the agent's own page: photo/logo, about text, areas, languages, experience and the self-declared RERA agent number. */
 export default function AboutAgent({ agent }: { agent: AgentProfile }) {
@@ -51,7 +52,7 @@ export default function AboutAgent({ agent }: { agent: AgentProfile }) {
       {rera && (
         <p data-testid="rera-agent" className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">
           <span className="font-semibold">RERA agent registration: {rera}</span>
-          <span className="block text-slate-600">This number is stated by the agent. PUNE Property has not verified it.{' '}
+          <span className="block text-slate-600">This number is stated by the agent. {BRAND_NAME} has not verified it.{' '}
             <a href={MAHARERA_URL} target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-2" style={{ color: 'var(--site-primary)' }}>Check it on MahaRERA</a>.
           </span>
         </p>

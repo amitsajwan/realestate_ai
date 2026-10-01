@@ -7,6 +7,7 @@ import { t } from '@/lib/app/strings'
 import { useAsync } from '@/lib/app/useAsync'
 import type { ChatConversation, FacebookInterest, FacebookStatus } from '@/lib/app/types'
 import { getNotifications, getWhatsAppConversations, markNotificationRead, REPLY_STATUS_LABEL, type WhatsAppConversation } from '@/lib/app/whatsapp'
+import { BRAND_NAME } from '@/lib/brand'
 
 const CHIP: Record<string, string> = {
   interested: 'bg-green-100 text-green-800',
@@ -101,9 +102,9 @@ export default function InterestPage() {
     <div className="space-y-4">
       <PageTitle>{t('interest')}</PageTitle>
       {(data?.fb?.reconnect || data?.fb?.instagram?.reconnect) && (
-        <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800">The Facebook connection has stopped working, so comments are not being answered right now. Ask your PUNE Property admin to reconnect it.</p>
+        <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800">The Facebook connection has stopped working, so comments are not being answered right now. Ask your {BRAND_NAME} admin to reconnect it.</p>
       )}
-      <p className="text-sm text-gray-600">People who commented on your posts on the PUNE Property Page and Instagram. Interested people are answered automatically; questions we cannot answer wait here for you.</p>
+      <p className="text-sm text-gray-600">People who commented on your posts on the {BRAND_NAME} Page and Instagram. Interested people are answered automatically; questions we cannot answer wait here for you.</p>
       {whatsapp.length > 0 && <WhatsAppChats chats={whatsapp} />}
       {chats.length > 0 && (
         <section aria-label="Website chats" className="space-y-2">

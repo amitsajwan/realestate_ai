@@ -1,4 +1,5 @@
 /** All user-facing copy lives here so Hindi/Marathi can be added. Use t(key). */
+import { BRAND_NAME } from '@/lib/brand'
 export type Lang = 'en' | 'hi' | 'mr'
 
 const en = {
@@ -167,13 +168,13 @@ const en = {
   reelCta: 'Call to action',
   publishEverywhere: 'Publish everywhere',
   publishNote: 'Later you will be able to connect your own Instagram, Facebook and WhatsApp Business accounts and post from them. For now you copy or share each item yourself.',
-  socialTitle: 'Post to PUNE Property',
-  socialExplain: 'We can post this on the PUNE Property Facebook Page and Instagram. Posts go out as the PUNE Property team, with no name or phone number: buyers tap Interested or comment, and you follow up from your inbox.',
+  socialTitle: `Post to ${BRAND_NAME}`,
+  socialExplain: `We can post this on the ${BRAND_NAME} Facebook Page and Instagram. Posts go out as the ${BRAND_NAME} team, with no name or phone number: buyers tap Interested or comment, and you follow up from your inbox.`,
   socialTestBanner: 'Test mode: nothing is posted publicly.',
   socialFacebookPage: 'Facebook Page',
   socialInstagram: 'Instagram',
   socialNotSetUp: 'Not set up yet',
-  socialConsent: 'I agree to post this listing, on the PUNE Property Page.',
+  socialConsent: `I agree to post this listing, on the ${BRAND_NAME} Page.`,
   socialApprove: 'Approve and post',
   socialApproveTest: 'Approve and test post',
   socialPosting: 'Posting...',
@@ -192,7 +193,7 @@ const en = {
   socialNotReady: 'This listing cannot be posted yet. Make sure it is live and your marketing is ready, then try again.',
   socialAlreadyPosted: 'This was already posted. Tap Post again if you want to post it once more.',
   socialErrNotConfigured: 'This channel is not set up yet. Please tell support.',
-  socialErrAccount: 'The PUNE Property account needs to be reconnected. Please tell support.',
+  socialErrAccount: `The ${BRAND_NAME} account needs to be reconnected. Please tell support.`,
   socialErrImage: 'The photo could not be used. Try again in a few minutes.',
   socialErrGeneric: 'The post did not go through. Please try again in a few minutes.',
   socialDetails: 'Details',

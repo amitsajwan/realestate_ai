@@ -5,8 +5,9 @@ import { displayName, monogram, resolveTheme, safeImage, safeRera, themeVars, MA
 import type { AgentProfile } from '@/lib/site/types'
 import ChatWidget from './ChatWidget'
 import ContactBlock from '@/components/marketing/ContactBlock'
+import { BRAND_NAME } from '@/lib/brand'
 
-/** Server-rendered wrapper in the AGENT's own brand (preset colours, logo or monogram, business name). Footer carries a small 'Powered by PUNE Property'. */
+/** Server-rendered wrapper in the AGENT's own brand (preset colours, logo or monogram, business name). Footer carries a small 'Powered by Avasetu'. */
 export default function SiteShell({ agent, children, bottomPad = false }: { agent: AgentProfile; children: React.ReactNode; bottomPad?: boolean }) {
   const b = agent.branding_data
   const t = resolveTheme(b)
@@ -46,7 +47,7 @@ export default function SiteShell({ agent, children, bottomPad = false }: { agen
         {b?.tagline && <p className="mt-1 text-[var(--site-accent)]">{b.tagline}</p>}
         {rera && (
           <p className="mt-2 text-slate-300">
-            RERA agent registration: <span className="font-semibold text-white">{rera}</span> (as stated by the agent; not verified by PUNE Property).{' '}
+            RERA agent registration: <span className="font-semibold text-white">{rera}</span> (as stated by the agent; not verified by {BRAND_NAME}).{' '}
             <a href={MAHARERA_URL} target="_blank" rel="noopener noreferrer" className="text-white underline underline-offset-2">Check on MahaRERA</a>
           </p>
         )}
@@ -54,7 +55,7 @@ export default function SiteShell({ agent, children, bottomPad = false }: { agen
           <ContactBlock tone="dark" />
         </div>
         <p className="mt-3">&copy; {new Date().getFullYear()} {name}</p>
-        <p className="mt-2 text-xs text-slate-300">Powered by <Link href="/" className="text-white underline underline-offset-2">PUNE Property</Link></p>
+        <p className="mt-2 text-xs text-slate-300">Powered by <Link href="/" className="text-white underline underline-offset-2">{BRAND_NAME}</Link></p>
       </footer>
     </div>
   )

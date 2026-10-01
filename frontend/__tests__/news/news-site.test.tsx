@@ -92,7 +92,7 @@ describe('NewsArticle', () => {
     expect(screen.getByTestId('news-our-view')).toHaveTextContent('This is our own reading, not a fact from the source.')
     expect(within(screen.getByTestId('what-to-check')).getByText(/Read the official notice/)).toBeInTheDocument()
     expect(screen.getByTestId('news-disclaimer')).toHaveTextContent('Approvals and project status change, so check the sources before you decide.')
-    expect(screen.getByText(/By the PUNE Property team/)).toBeInTheDocument()
+    expect(screen.getByText(/By the Avasetu team/)).toBeInTheDocument()
   })
 
   it('links to the Page post when there is one and works without an image', () => {
@@ -148,7 +148,7 @@ describe('SEO', () => {
     expect(ld.isBasedOn.publisher.name).toBe('Times of India')
     expect(ld.isBasedOn.url).toBeUndefined()
     expect(JSON.stringify(ld)).not.toMatch(/news\.google\.com/)
-    expect(ld.author.name).toBe('PUNE Property team')
+    expect(ld.author.name).toBe('Avasetu team')
     expect(ld.dateModified).toBe(ring.as_of)
     expect((newsJsonLd(cfg, direct) as any).isBasedOn.url).toBe(direct.source_url)
     expect((newsJsonLd(cfg, digest) as any).isBasedOn).toBeUndefined()

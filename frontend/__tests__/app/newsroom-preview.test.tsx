@@ -124,7 +124,7 @@ describe('preview client and normalising', () => {
     const f = createFixtureNewsroomApi()
     const p = await f.preview('gn-metro-hinjewadi-1', 'Fresh line.')
     expect(p.captions.facebook.startsWith('Fresh line.')).toBe(true)
-    expect(p.captions.facebook.endsWith('PUNE Property · https://34-180-39-243.sslip.io')).toBe(true)
+    expect(p.captions.facebook.endsWith('Avasetu · https://34-180-39-243.sslip.io')).toBe(true)
     await expect(f.preview('gone')).rejects.toMatchObject({ status: 404 })
   })
 })

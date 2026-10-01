@@ -24,7 +24,7 @@ describe('fixture social publishing', () => {
     expect(await api.getSocialStatus()).toEqual({
       dry_run: true,
       channels: { facebook_page: true, instagram: true },
-      brand: 'PUNE Property',
+      brand: 'Avasetu',
       media_url_ok: false,
     })
   })
@@ -53,7 +53,7 @@ describe('fixture social publishing', () => {
     expect(created.map((p) => p.channel)).toEqual(['facebook_page', 'instagram'])
     for (const p of created) {
       expect(p).toMatchObject({ listing_id: 'l1', status: 'dry_run', pack_version: pack.version, permalink: null, error: null, attempts: 1 })
-      expect(p.consent.text).toMatch(/PUNE Property Page/)
+      expect(p.consent.text).toMatch(/Avasetu Page/)
     }
     expect(created[0].payload.text).toContain(pack.share_url)
     expect(created[0].payload.image_urls).toHaveLength(1)

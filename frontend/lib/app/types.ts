@@ -580,7 +580,7 @@ export interface AppApi {
   getListingActivity(id: string, limit?: number): Promise<ListingActivity>
   /** "Yes, still available": stamps the listing as confirmed. 409 unless it is live or under offer. */
   confirmAvailable(id: string): Promise<Listing>
-  /** Social publishing to the PUNE Property brand accounts (docs/contracts/social.md). */
+  /** Social publishing to the Avasetu brand accounts (docs/contracts/social.md). */
   getSocialStatus(): Promise<SocialStatus>
   /** Posts only on this call; needs approve and consent both true. 409: no pack yet, listing not live, or already posted (without force). */
   publishToSocial(listingId: string, req: SocialPublishRequest): Promise<Publication[]>

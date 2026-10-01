@@ -6,7 +6,7 @@ import { poppins } from '@/lib/marketing/font'
 import ChatWidget from '@/components/site/ChatWidget'
 
 /**
- * Standalone public surface in the PUNE Property brand (navy, gold, cream, Poppins).
+ * Standalone public surface in the Avasetu brand (navy, gold, cream, Poppins).
  * `data-surface="v2"` keeps the legacy phone CSS (forced white button text, dark headings) away from these pages.
  * The root layout already provides <main id="main-content">.
  */

@@ -1,7 +1,9 @@
 /**
  * Public social profiles and the contact wording. There is deliberately no phone number, email or personal name here:
- * contact is the website, the Facebook Page and Instagram. Override with NEXT_PUBLIC_FACEBOOK_URL / NEXT_PUBLIC_INSTAGRAM_URL.
+ * contact is the website, the Facebook Page and Instagram. Override with NEXT_PUBLIC_FACEBOOK_URL / NEXT_PUBLIC_INSTAGRAM_URL
+ * (the owner renames the Page and the Instagram handle to Avasetu by hand; the defaults are the current profile URLs).
  */
+import { BRAND_NAME } from '@/lib/brand'
 export const DEFAULT_FACEBOOK_URL = 'https://www.facebook.com/profile.php?id=61595137641524'
 export const DEFAULT_INSTAGRAM_URL = 'https://www.instagram.com/kharadi_prop/'
 
@@ -15,8 +17,8 @@ export function socialLinks(): { facebook: string; instagram: string } {
 }
 
 export const CONTACT = {
-  heading: 'Contact PUNE Property',
-  before: 'Contact PUNE Property via this website (',
+  heading: `Contact ${BRAND_NAME}`,
+  before: `Contact ${BRAND_NAME} via this website (`,
   invite: 'request an invite',
   middle: ', or tap I am interested on any home), ',
   facebook: 'Facebook',

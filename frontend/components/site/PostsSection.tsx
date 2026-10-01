@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { fetchPosts, POSTS_TEXT } from '@/lib/posts/data'
 import PostsGrid from './PostsGrid'
 
-/** 'Latest from PUNE Property' for the landing page. Server component, data cached 60 s. */
+/** 'Latest from Avasetu' for the landing page. Server component, data cached 60 s. */
 export default async function PostsSection() {
   const res = await fetchPosts(3)
   return (

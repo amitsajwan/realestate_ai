@@ -1,11 +1,12 @@
-/** Pure helpers for the "Post to PUNE Property" section (docs/contracts/social.md). Nothing here sends anything. */
+/** Pure helpers for the "Post to Avasetu" section (docs/contracts/social.md). Nothing here sends anything. */
 import { ApiError } from './api'
 import { t } from './strings'
 import type { Publication, PublicationStatus, SocialChannel } from './types'
+import { BRAND_NAME } from '@/lib/brand'
 
 export const SOCIAL_CHANNELS: SocialChannel[] = ['facebook_page', 'instagram']
 
-export const SOCIAL_CONSENT_TEXT = 'I agree to post this listing, on the PUNE Property Page.'
+export const SOCIAL_CONSENT_TEXT = `I agree to post this listing, on the ${BRAND_NAME} Page.`
 
 export function channelLabel(c: SocialChannel): string {
   return c === 'facebook_page' ? t('socialFacebookPage') : t('socialInstagram')

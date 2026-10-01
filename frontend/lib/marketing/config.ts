@@ -4,6 +4,7 @@
  *
  * NEXT_PUBLIC_* values are inlined at build time, so each variable is read by its full literal name.
  */
+import { BRAND_NAME } from '@/lib/brand'
 export interface MarketingConfig {
   businessName: string
   /** Contact email, or null when not configured (never show an address then). */
@@ -18,7 +19,7 @@ export interface MarketingConfig {
   siteUrl: string
 }
 
-export const DEFAULT_BUSINESS_NAME = 'PUNE Property'
+export const DEFAULT_BUSINESS_NAME = BRAND_NAME
 
 export interface MarketingEnv {
   NEXT_PUBLIC_BUSINESS_NAME?: string

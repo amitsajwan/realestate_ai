@@ -49,7 +49,7 @@ function ResultRow({ p, onRetry, retrying }: { p: Publication; onRetry?: () => v
 }
 
 /**
- * "Post to PUNE Property": posts the marketing pack to the brand Facebook Page and Instagram.
+ * "Post to Avasetu": posts the marketing pack to the brand Facebook Page and Instagram.
  * Nothing is ever sent until the agent taps the approve button with a channel and the consent ticked.
  */
 export function SocialPublishSection({ pack }: { pack: MarketingPack }) {

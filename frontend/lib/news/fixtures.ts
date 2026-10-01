@@ -1,4 +1,5 @@
 import type { NewsItem } from './data'
+import { TEAM } from '@/lib/brand'
 
 /** Sample news for local review and tests (SITE_USE_FIXTURES=1). Written for design review, not live news. */
 const DISCLAIMER = 'Approvals and project status change, so check the sources before you decide. This is general information, not investment or legal advice.'
@@ -58,7 +59,7 @@ export const FIXTURE_NEWS: NewsItem[] = [
   },
   {
     ...base, id: 'digest-2026-w40', kind: 'digest', headline: 'Kharadi and Wagholi this week',
-    summary: 'Kharadi and Wagholi this week', pillar: 'digest', pillar_label: 'This week', areas: [K, W, UK], source_name: 'PUNE Property team', source_url: null,
+    summary: 'Kharadi and Wagholi this week', pillar: 'digest', pillar_label: 'This week', areas: [K, W, UK], source_name: TEAM, source_url: null,
     as_of: '2026-09-27T12:30:00+00:00', image_url: media('digest-2026-w40'), published_at: '2026-09-27T13:00:00+00:00',
     items: [
       { id: 'a1b2c3d4e5', headline: 'Pune Ring Road: ₹10,502 crore approved for the 32 km eastern stretch', source_name: 'Times of India', line: '' },

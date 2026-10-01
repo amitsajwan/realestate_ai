@@ -10,6 +10,7 @@ import { Btn, ErrorBox, LinkBtn, Spinner, StatusChip } from '../ui'
 import { AgentBrandEditor } from './BrandEditorSlot'
 import { PostSheet } from './PostSheet'
 import { ProgressRing } from './ProgressRing'
+import { BRAND_NAME } from '@/lib/brand'
 
 const card = 'space-y-3 rounded-2xl border border-gray-200 bg-white p-4'
 
@@ -88,7 +89,7 @@ function ListingRow({ l, agent, onPost, onChanged }: { l: Listing; agent: AgentD
         <StatusChip status={l.status} />
       </div>
       {l.status === 'draft' && <Btn variant="secondary" onClick={publish} disabled={busy} className="!min-h-[44px]">{busy ? 'Publishing...' : 'Publish'}</Btn>}
-      {l.status === 'live' && <Btn variant="secondary" onClick={() => onPost(l)} className="!min-h-[44px]">Post to PUNE Property</Btn>}
+      {l.status === 'live' && <Btn variant="secondary" onClick={() => onPost(l)} className="!min-h-[44px]">Post to {BRAND_NAME}</Btn>}
       {error && <ErrorBox message={error} />}
     </li>
   )

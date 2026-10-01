@@ -9,7 +9,7 @@ const clip = (s: string, n: number) => (s.length <= n ? s : s.slice(0, n - 1).re
 export function newsMetadata(cfg: MarketingConfig, item: NewsItem): Metadata {
   const path = `/news/${item.id}`
   const description = clip(item.summary || item.headline, 200)
-  const base = pageMetadata(cfg, { title: `${item.headline} | PUNE Property`, description, path })
+  const base = pageMetadata(cfg, { title: `${item.headline} | ${cfg.businessName}`, description, path })
   const image = item.image_url ? { url: item.image_url, width: 1080, height: 1080, alt: item.headline } : undefined
   const url = cfg.siteUrl + path
   return {
@@ -35,7 +35,7 @@ export function newsJsonLd(cfg: MarketingConfig, item: NewsItem): Record<string,
     '@type': 'NewsArticle',
     headline: clip(item.headline, 110),
     description: clip(item.summary || item.headline, 300),
-    abstract: 'A short summary written by the PUNE Property team. The facts are from the source named in isBasedOn.',
+    abstract: `A short summary written by the ${cfg.businessName} team. The facts are from the source named in isBasedOn.`,
     articleSection: item.pillar_label,
     inLanguage: 'en-IN',
     mainEntityOfPage: `${cfg.siteUrl}/news/${item.id}`,

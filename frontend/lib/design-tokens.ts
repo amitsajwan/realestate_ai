@@ -1,5 +1,5 @@
 /**
- * PropertyAI Design Tokens
+ * Avasetu Design Tokens
  * TypeScript definitions for design system tokens
  */
 

@@ -1,4 +1,5 @@
 import React from 'react'
+import { BRAND_NAME } from '@/lib/brand'
 
 /** Digits only, Indian 10-digit mobiles get the 91 country code. '' when it does not look like a phone number. */
 export function waNumber(raw: string | null | undefined): string {
@@ -9,7 +10,7 @@ export function waNumber(raw: string | null | undefined): string {
 
 /** The prefilled first message. The backend reads `(ref <code>)` to route the chat to the right agent and home. */
 export function waText(title?: string | null, code?: string | null): string {
-  const what = (title || '').trim() || 'a home on PUNE Property'
+  const what = (title || '').trim() || `a home on ${BRAND_NAME}`
   return `Hi, I am interested in ${what}${code ? ` (ref ${code})` : ''}`
 }
 

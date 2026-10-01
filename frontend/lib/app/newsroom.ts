@@ -3,6 +3,7 @@ import { API_BASE_URL } from '@/lib/config/api'
 import { ApiError, parseErrorBody } from './api'
 import { isFixtureMode } from './client'
 import { getToken } from './session'
+import { BRAND_NAME, DEFAULT_SITE_URL, HASHTAG } from '@/lib/brand'
 
 export interface NewsroomFact {
   text: string
@@ -241,9 +242,9 @@ export const FIXTURE_QUEUE: NewsroomItem[] = [
     ],
     captions: {
       facebook:
-        'Metro Line 3 between Hinjewadi and Shivajinagar has crossed 90 percent of civil work.\n\nSource: Times of India, as of 29 Sep 2026.\n\nWhich station would make your daily commute easier?\n\nRead more: https://34-180-39-243.sslip.io/news/gn-metro-hinjewadi-1\n\n#Pune #PunePropertyHub #PuneInfrastructure\n\nPUNE Property · https://34-180-39-243.sslip.io',
+        `Metro Line 3 between Hinjewadi and Shivajinagar has crossed 90 percent of civil work.\n\nSource: Times of India, as of 29 Sep 2026.\n\nWhich station would make your daily commute easier?\n\nRead more: ${DEFAULT_SITE_URL}/news/gn-metro-hinjewadi-1\n\n#Pune ${HASHTAG} #PuneInfrastructure\n\n${BRAND_NAME} · ${DEFAULT_SITE_URL}`,
       instagram:
-        'Metro Line 3 between Hinjewadi and Shivajinagar has crossed 90 percent of civil work.\n\nSource: Times of India, as of 29 Sep 2026.\n\nWhich station would make your daily commute easier?\n\nRead more: link in our bio.\n\n#Pune #PunePropertyHub #PuneInfrastructure #PuneRealEstate\n\nPUNE Property · link in our bio',
+        'Metro Line 3 between Hinjewadi and Shivajinagar has crossed 90 percent of civil work.\n\nSource: Times of India, as of 29 Sep 2026.\n\nWhich station would make your daily commute easier?\n\nRead more: link in our bio.\n\n#Pune ' + HASHTAG + ' #PuneInfrastructure #PuneRealEstate\n\n' + BRAND_NAME + ' · link in our bio',
     },
     captionProblems: {},
     dryRun: true,

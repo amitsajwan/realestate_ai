@@ -4,7 +4,7 @@ import type { AgentBranding } from './types'
 
 const HEX6 = /^#[0-9a-f]{6}$/i
 
-export const DEFAULT_COLORS = { primary: '#102340', secondary: '#0b1a33', accent: '#f0b440' } // PUNE Property navy + gold (= the navy-gold preset)
+export const DEFAULT_COLORS = { primary: '#102340', secondary: '#0b1a33', accent: '#f0b440' } // Avasetu navy + gold (= the navy-gold preset)
 
 /** Readable text colour (dark/white) on a hex background. */
 export function onColor(hex: string): string {

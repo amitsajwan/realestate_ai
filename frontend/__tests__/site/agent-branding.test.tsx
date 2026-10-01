@@ -16,22 +16,22 @@ const kulkarni = FIXTURE_BRAND_AGENTS['rohan-kulkarni-aundh']
 const joshi = FIXTURE_BRAND_AGENTS['meera-joshi-kothrud']
 
 describe('themed agent site', () => {
-  it('header shows the agent business name and monogram, not the PUNE Property brand', () => {
+  it('header shows the agent business name and monogram, not the Avasetu brand', () => {
     const { container } = render(<SiteShell agent={joshi}><p>body</p></SiteShell>)
     const header = container.querySelector('header')!
     expect(header).toHaveTextContent('Joshi & Associates')
-    expect(header).not.toHaveTextContent('PUNE Property')
+    expect(header).not.toHaveTextContent('Avasetu')
     expect(header).toHaveTextContent('JA')
     expect(container.querySelector('[data-surface="v2"]')!.getAttribute('style')).toContain(PRESETS.terracotta.primary)
-    expect(container.querySelector('img[src="/brand/logo.png"]')).toBeNull()
+    expect(container.querySelector('img[src="/brand/mark.svg"]')).toBeNull()
   })
 
-  it('footer says Powered by PUNE Property, shows the RERA agent number with a MahaRERA link, never "Verified"', () => {
+  it('footer says Powered by Avasetu, shows the RERA agent number with a MahaRERA link, never "Verified"', () => {
     const { container } = render(<SiteShell agent={joshi}><p>body</p></SiteShell>)
     const footer = container.querySelector('footer')!
-    expect(footer).toHaveTextContent('Powered by PUNE Property')
+    expect(footer).toHaveTextContent('Powered by Avasetu')
     expect(footer).toHaveTextContent('RERA agent registration: A52100031122')
-    expect(footer).toHaveTextContent(/not verified by PUNE Property/)
+    expect(footer).toHaveTextContent(/not verified by Avasetu/)
     const link = screen.getByRole('link', { name: /check on maharera/i })
     expect(link).toHaveAttribute('href', 'https://maharera.maharashtra.gov.in')
     expect(container.textContent).not.toMatch(/(?<!not )verified by pune property/i)

@@ -182,7 +182,7 @@ test.describe('Complete Agent Website Test', () => {
     // Check if agent website loads properly
     const pageTitle = await page.title();
     console.log(`📄 Agent Website Title: "${pageTitle}"`);
-    expect(pageTitle).toContain('PropertyAI');
+    expect(pageTitle).toContain('Avasetu');
 
     // Verify agent name is displayed
     const agentNameElement = page.locator('h1:has-text("John Doe"), h2:has-text("John Doe"), .agent-name:has-text("John Doe")').first();
@@ -291,7 +291,7 @@ test.describe('Complete Agent Website Test', () => {
 
     // Final assertions
     expect(page.url()).toContain('/agent/');
-    expect(pageTitle).toContain('PropertyAI');
+    expect(pageTitle).toContain('Avasetu');
     
     // Agent website should be accessible
     const agentWebsiteAccessible = page.url().includes('/agent/') && !page.url().includes('404');

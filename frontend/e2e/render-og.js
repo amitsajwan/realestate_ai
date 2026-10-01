@@ -1,8 +1,9 @@
-/* Renders public/brand/og-landing.jpg (1200x630) from inline HTML in the brand look. Run: node e2e/render-og.js */
+/* Renders the agent-pilot share card (1200x630) from inline HTML in the brand look. Run: node e2e/render-og.js
+   Note: public/brand/og-landing.jpg is now the Avasetu share image (docs/brand/avasetu/og.png); running this replaces it. */
 const path = require('path')
 const { chromium } = require('playwright-core')
 const OUT = path.join(__dirname, '..', 'public', 'brand', 'og-landing.jpg')
-const LOGO = 'data:image/png;base64,' + require('fs').readFileSync(path.join(__dirname, '..', 'public', 'brand', 'logo.png')).toString('base64')
+const LOGO = 'data:image/png;base64,' + require('fs').readFileSync(path.join(__dirname, '..', 'public', 'brand', 'mark.png')).toString('base64')
 const html = `<!doctype html><meta charset="utf-8"><style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;700;800&display=swap');
 *{box-sizing:border-box;margin:0}
@@ -23,7 +24,7 @@ p{font-size:28px;margin-top:26px;color:#e8eef6;font-weight:500}
 .ch{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap}.ch span{background:#e6f4f1;color:#0b5f56;border-radius:99px;padding:3px 10px;font-size:14px;font-weight:700}
 .btns{display:flex;gap:8px;margin-top:12px}.btns span{flex:1;text-align:center;border-radius:10px;padding:9px;color:#fff;font-weight:700;font-size:16px}
 </style>
-<div class="l"><div class="brand"><img src="${LOGO}">PUNE Property</div>
+<div class="l"><div class="brand"><img src="${LOGO}">Avasetu</div>
 <h1>A buyer comments <b>INTERESTED</b>.<br>Who are they?</h1>
 <p>Every enquiry becomes a lead card. Free invite-only pilot for Pune agents.</p>
 <span class="pill">Request an invite</span></div>

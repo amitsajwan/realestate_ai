@@ -39,7 +39,7 @@ const nav = navigator as unknown as Record<string, unknown>
 
 beforeEach(() => {
   ;[createMarketingPack, getMarketingPack, getMatchingLeads, getToday, listLeads, getSocialStatus, listPublications].forEach((m) => m.mockReset())
-  getSocialStatus.mockResolvedValue({ dry_run: true, channels: { facebook_page: true, instagram: true }, brand: 'PUNE Property', media_url_ok: false })
+  getSocialStatus.mockResolvedValue({ dry_run: true, channels: { facebook_page: true, instagram: true }, brand: 'Avasetu', media_url_ok: false })
   listPublications.mockResolvedValue([])
   clipboard = jest.fn().mockResolvedValue(undefined)
   Object.defineProperty(navigator, 'clipboard', { value: { writeText: clipboard }, configurable: true })

@@ -5,13 +5,14 @@ import { getMarketingConfig } from '@/lib/marketing/config'
 import { absoluteImage, getInterest } from '@/lib/interest/api'
 import InterestActions, { type Step } from './InterestActions'
 import WhatsAppButton from '@/components/site/WhatsAppButton'
+import { BRAND_NAME, LOGO } from '@/lib/brand'
 
 interface Props {
   params: Promise<{ code: string }>
   searchParams: Promise<{ done?: string; e?: string }>
 }
 
-const headline = (s: { title: string; kind: string }) => s.title || (s.kind === 'listing' ? 'A home in Pune' : 'From PUNE Property')
+const headline = (s: { title: string; kind: string }) => s.title || (s.kind === 'listing' ? 'A home in Pune' : `From ${BRAND_NAME}`)
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { code } = await params
@@ -43,7 +44,7 @@ export default async function InterestPage({ params, searchParams }: Props) {
     <div className="mx-auto flex min-h-screen max-w-md flex-col">
       <header className="flex items-center gap-2 bg-[#0f2340] px-4 py-3 text-white">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/logo.png" alt="" width={32} height={32} className="h-8 w-8 rounded-full" />
+        <img src={LOGO.mark} alt="" width={32} height={32} className="h-8 w-8" />
         <span className="text-base font-bold">{cfg.businessName}</span>
       </header>
       <div className="flex-1 px-4 pb-10 pt-5">
@@ -71,7 +72,7 @@ export default async function InterestPage({ params, searchParams }: Props) {
             initialStep={step} initialError={q.e || ''} />
         </div>
         <div className="mt-3">
-          {/* the agent's own number only when his branding opts in (show_whatsapp); otherwise the PUNE Property number, if set */}
+          {/* the agent's own number only when his branding opts in (show_whatsapp); otherwise the Avasetu number, if set */}
           <WhatsAppButton title={headline(s)} code={s.code} agentNumber={(s as { agent_whatsapp?: string }).agent_whatsapp}
             showAgentNumber={(s as { show_whatsapp?: boolean }).show_whatsapp === true} />
         </div>

@@ -1,5 +1,6 @@
 /** All English copy for the public pages (landing, invite request, legal). Plain language, no invented facts. */
 import type { MarketingConfig } from './config'
+import { BRAND_NAME, TAGLINE } from '@/lib/brand'
 
 export const LEGAL_LAST_UPDATED_ISO = '2026-09-29'
 export const LEGAL_LAST_UPDATED = '29 September 2026'
@@ -28,7 +29,7 @@ export const NAV = {
 }
 
 export const FOOTER = {
-  tagline: 'A free pilot for real estate agents in Pune.',
+  tagline: TAGLINE + '. A free pilot for real estate agents in Pune.',
   contactUnset: 'Contact details are shared when you request an invite.',
   contactHeading: 'Contact',
 }
@@ -65,7 +66,7 @@ export const SHOTS = {
 export const SAMPLE_NOTE = 'Screens show sample data.'
 
 export const LANDING = {
-  metaTitle: 'Get buyer enquiries and know who to call first | For real estate agents in Pune',
+  metaTitle: `${BRAND_NAME}: ${TAGLINE} | Free pilot for real estate agents in Pune`,
   metaDescription:
     'Post a property from your phone, get a website and share-ready posts, and see every buyer enquiry with a short summary of what they want. Free invite-only pilot for real estate agents in Pune.',
   metaOrgDescription: 'A free, invite-only pilot that helps real estate agents in Pune get buyer enquiries and follow them up.',

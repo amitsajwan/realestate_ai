@@ -1,4 +1,4 @@
-# PropertyAI Design System Analysis
+# Avasetu Design System Analysis
 
 ## Current State Analysis
 

@@ -6,6 +6,7 @@ import { PRESETS, PRESET_IDS, BANNER_OVERLAY, type PresetId } from '@/lib/site/p
 import { monogram, resolveTheme, safeCustomPrimary, themeVars } from '@/lib/site/theme'
 import type { AgentBranding } from '@/lib/site/types'
 import { Btn, ErrorBox, Field, Spinner, inputCls } from './ui'
+import { BRAND_NAME } from '@/lib/brand'
 
 export interface BrandEditorProps {
   /** Set by the owner screen when editing another agent; passed back to the injected callbacks. */
@@ -247,7 +248,7 @@ export function BrandEditor({ agentId, loadBranding, saveBranding, uploadImage, 
         <Field label="MahaRERA agent registration number (optional)" htmlFor="brand-rera">
           <input id="brand-rera" className={inputCls} value={draft.rera_agent_no} maxLength={20} autoCapitalize="characters" onChange={(e) => set({ rera_agent_no: e.target.value.toUpperCase() })} placeholder="A52100012345" />
         </Field>
-        <p className="text-xs text-gray-500">Shown on your page as stated by you. PUNE Property does not verify it and does not call you &quot;verified&quot;.</p>
+        <p className="text-xs text-gray-500">Shown on your page as stated by you. {BRAND_NAME} does not verify it and does not call you &quot;verified&quot;.</p>
       </section>
 
       {error && <ErrorBox message={error} />}
