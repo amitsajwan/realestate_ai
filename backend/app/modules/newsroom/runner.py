@@ -11,6 +11,7 @@ from .pipeline import default_stages, run_once
 from .store import Store
 
 log = logging.getLogger(__name__)
+MAX_PASSES = 15
 
 
 def load_sources(names) -> list:
@@ -25,7 +26,13 @@ async def cycle(store: Store, cfg) -> dict:
     try:
         stages = default_stages()
         stages["get"] = adapters.make_fetcher()
-        counts = await run_once(store, load_sources(cfg.sources), stages, adapters.SocialPublisher(), adapters.default_llm(), now, cfg)
+        sources, publisher, llm = load_sources(cfg.sources), adapters.SocialPublisher(), adapters.default_llm()
+        counts = await run_once(store, sources, stages, publisher, llm, now, cfg)
+        for _ in range(MAX_PASSES - 1):  # each pass handles a small batch per stage: keep going while there is work
+            if not (counts.get("filter") or counts.get("extract") or counts.get("draft") or counts.get("check")):
+                break
+            more = await run_once(store, [], stages, publisher, llm, datetime.now(timezone.utc), cfg)
+            counts = {k: counts.get(k, 0) + more.get(k, 0) for k in set(counts) | set(more)}
         await store.set_run(last_run_at=now, last_error=None, last_counts=counts)
         return counts
     except asyncio.CancelledError:
