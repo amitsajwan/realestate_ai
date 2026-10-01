@@ -4,6 +4,8 @@ import { agentPath } from '@/lib/site/slug'
 import { themeVars } from '@/lib/site/theme'
 import type { AgentProfile } from '@/lib/site/types'
 import ChatWidget from './ChatWidget'
+import SocialStrip from './SocialStrip'
+import ContactBlock from '@/components/marketing/ContactBlock'
 
 /** Server-rendered wrapper in the PUNE Property brand (navy + gold, PP logo). Theme variables come from lib/site/theme. */
 export default function SiteShell({ agent, children, bottomPad = false }: { agent: AgentProfile; children: React.ReactNode; bottomPad?: boolean }) {
@@ -28,6 +30,9 @@ export default function SiteShell({ agent, children, bottomPad = false }: { agen
       <footer className="bg-[var(--site-secondary)] px-4 py-8 text-center text-sm text-slate-300">
         <p className="font-semibold text-white">PUNE Property</p>
         <p className="mt-1 text-[var(--site-accent)]">Find. Compare. Decide.</p>
+        <div className="mx-auto mt-5 flex max-w-md flex-col items-center text-center">
+          <ContactBlock tone="dark" />
+        </div>
         <p className="mt-3">&copy; {new Date().getFullYear()} PUNE Property. All rights reserved.</p>
       </footer>
     </div>

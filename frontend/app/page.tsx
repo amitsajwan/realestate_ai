@@ -1,10 +1,12 @@
 import React from 'react'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import PostsSection from '@/components/site/PostsSection'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import LeadCardMock from '@/components/marketing/LeadCardMock'
 import PhoneFrame from '@/components/marketing/PhoneFrame'
 import RequestInviteForm from '@/components/marketing/RequestInviteForm'
+import { socialLinks } from '@/lib/marketing/social'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { jsonLdString, organizationJsonLd, pageMetadata } from '@/lib/marketing/seo'
 import { LANDING as L, PATHS, SAMPLE_NOTE, SHOTS } from '@/lib/marketing/strings'
@@ -25,7 +27,7 @@ export default function LandingPage() {
   const cfg = getMarketingConfig()
   return (
     <MarketingShell>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(organizationJsonLd(cfg, L.metaOrgDescription)) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(organizationJsonLd(cfg, L.metaOrgDescription, Object.values(socialLinks()))) }} />
 
       {/* Hero: the agent's problem, the product, one CTA */}
       <section aria-labelledby="hero-title" className="bg-gradient-to-b from-[#0f2340] to-[#183a5d] text-white">
@@ -105,6 +107,8 @@ export default function LandingPage() {
         </ul>
         <p className={wrap + ' text-sm text-slate-600'}>{SAMPLE_NOTE}</p>
       </section>
+
+      <PostsSection />
 
       {/* How it works for an agent */}
       <section id={L.how.id} aria-labelledby="how-title" className="scroll-mt-16 py-12 sm:py-16">

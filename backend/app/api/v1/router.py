@@ -46,6 +46,7 @@ from app.modules.social.router import router as social_router
 from app.modules.engage.router import router as engage_router
 from app.modules.newsroom.router import router as newsroom_router
 from app.modules.calendar.router import router as calendar_router
+from app.modules.calendar.public import router as calendar_public_router
 from app.modules.interest.router import router as interest_router, public_router as interest_public_router
 from app.modules.chat.router import router as chat_router
 from app.modules.report.router import router as report_router
@@ -100,6 +101,7 @@ api_router.include_router(newsroom_router, prefix="/newsroom", tags=["newsroom"]
 api_router.include_router(calendar_router, prefix="/calendar", tags=["calendar"])
 api_router.include_router(interest_router, prefix="/interest", tags=["interest"])
 api_router.include_router(interest_public_router, prefix="/public", tags=["public"])
+api_router.include_router(calendar_public_router, prefix="/public", tags=["public"])
 api_router.include_router(chat_router, prefix="/chat", tags=["chat"])
 api_router.include_router(report_router, prefix="/report", tags=["report"])
 api_router.include_router(listings_public_router, prefix="/public", tags=["public"])
