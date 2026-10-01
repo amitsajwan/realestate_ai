@@ -119,6 +119,14 @@ def _sentence_start(text: str, start: int) -> bool:
     return not last.isalnum() and last not in ",;&'-"
 
 
+def _headline_quoted(text: str, title_words: List[str]) -> bool:
+    """A short headline shown inside quotation marks with the publisher named is attribution, not copying."""
+    for m in re.finditer(r"[“\"]([^”\"]{10,220})[”\"]", text):
+        if _words(m.group(1)) == title_words and len(title_words) <= policy.MAX_QUOTE_WORDS:
+            return True
+    return False
+
+
 def _unknown_names(text: str, known: Set[str], allowed: Set[str]) -> List[str]:
     t = HASHTAG.sub(" ", URL.sub(" ", text))
     bad: List[str] = []
@@ -189,7 +197,7 @@ def check(draft: Draft, facts: Facts, item: RawItem, now: Optional[datetime] = N
     if any(tuple(dr_words[i:i + n]) in grams for i in range(len(dr_words) - n + 1)):
         problems.append(f"Copies more than {policy.MAX_QUOTE_WORDS} words in a row from the source: reword it")
     t_words = _words(item.title or "")
-    if len(t_words) >= 5 and " ".join(t_words) in " ".join(dr_words):
+    if len(t_words) >= 5 and " ".join(t_words) in " ".join(dr_words) and not _headline_quoted(full, t_words):
         problems.append("Repeats the source headline: write our own")
 
     # 5. Source name and link

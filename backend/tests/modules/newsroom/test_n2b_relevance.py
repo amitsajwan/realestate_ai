@@ -207,3 +207,12 @@ def test_a_hyphenated_name_made_of_source_words_is_not_flagged():
     d = Draft("post", text, None, URL, ["Pune Mirror"])
     res = check(d, facts, item, now=NOW)
     assert not any("Names not in the source" in p for p in res.problems), res.problems
+
+
+async def test_headline_only_item_gets_a_quoted_and_credited_draft_when_the_llm_is_down():
+    item = it("Pune advances INR 90.5 crore land acquisition for two Kharadi DP roads", "", source="Prop News Time")
+    facts = Facts([Fact("Pune advances INR 90.5 crore land acquisition for two Kharadi DP roads", "Pune advances INR 90.5 crore land acquisition for two Kharadi DP roads")], PUB)
+    d = await draft(item, facts, REL, "post", FakeLlm(None))
+    assert d is not None and "“Pune advances INR 90.5 crore" in d.text
+    res = check(d, facts, item, now=NOW)
+    assert res.ok, res.problems

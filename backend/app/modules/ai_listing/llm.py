@@ -106,8 +106,9 @@ class GroqLLM:
     """OpenAI-compatible chat client (Groq, Gemini's OpenAI endpoint, OpenRouter...). `model` may be a comma-separated failover list."""
 
     def __init__(self, api_key: str, model: str = LLM_MODEL, timeout: float = LLM_TIMEOUT,
-                 client: Optional[httpx.AsyncClient] = None):
+                 client: Optional[httpx.AsyncClient] = None, url: Optional[str] = None):
         self.api_key, self.model, self.timeout, self._client = api_key, model, timeout, client
+        self.url = url or GROQ_CHAT_URL
 
     async def _chat(self, system: str, user: str) -> Optional[dict[str, Any]]:
         order = model_order(self.model)
@@ -117,9 +118,9 @@ class GroqLLM:
             body = {"model": model, "temperature": 0, "response_format": {"type": "json_object"},
                     "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
             if self._client:
-                return await self._client.post(GROQ_CHAT_URL, json=body, headers=headers, timeout=timeout)
+                return await self._client.post(self.url, json=body, headers=headers, timeout=timeout)
             async with httpx.AsyncClient(timeout=timeout) as c:
-                return await c.post(GROQ_CHAT_URL, json=body, headers=headers)
+                return await c.post(self.url, json=body, headers=headers)
 
         try:
             r = await post_with_failover(order, send, per_attempt=self.timeout / 2 if len(set(order)) > 1 else self.timeout,
@@ -142,9 +143,9 @@ class GroqLLM:
             body = {"model": model, "temperature": 0.4,
                     "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
             if self._client:
-                return await self._client.post(GROQ_CHAT_URL, json=body, headers=headers, timeout=t)
+                return await self._client.post(self.url, json=body, headers=headers, timeout=t)
             async with httpx.AsyncClient(timeout=t) as c:
-                return await c.post(GROQ_CHAT_URL, json=body, headers=headers)
+                return await c.post(self.url, json=body, headers=headers)
 
         try:
             r = await post_with_failover(order, send, per_attempt=budget / 2 if len(set(order)) > 1 else budget, budget=budget)
@@ -247,9 +248,44 @@ class GeminiTranscriber:
             raise TranscriptionError(f"transcription failed ({type(e).__name__})") from e
 
 
+class FallbackLLM:
+    """Tries each provider in turn; the first usable answer wins. Free tiers have daily caps, so one provider running out must not stop the product."""
+
+    def __init__(self, providers):
+        self.providers = list(providers)
+
+    async def _first(self, method: str, *args, **kw):
+        for p in self.providers:
+            out = await getattr(p, method)(*args, **kw)
+            if out:
+                return out
+        return None
+
+    async def json(self, system: str, user: str):
+        return await self._first("json", system, user)
+
+    async def text(self, system: str, user: str, timeout: Optional[float] = None):
+        return await self._first("text", system, user, timeout)
+
+    async def extract(self, text: str, city_hint: Optional[str] = None):
+        return await self._first("extract", text, city_hint)
+
+    async def translate(self, facts, description_en: str):
+        return await self._first("translate", facts, description_en)
+
+
+GEMINI_OPENAI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+
+
 def default_llm() -> Optional[LLMClient]:
+    """The configured provider, with Gemini's free tier (same GEMINI_API_KEY as speech) as automatic backup unless AI_LLM_FALLBACK=off."""
     key = groq_api_key()
-    return GroqLLM(key) if key else None
+    primary = GroqLLM(key) if key else None
+    gkey = os.environ.get("GEMINI_API_KEY")
+    if (os.environ.get("AI_LLM_FALLBACK") or "on").strip().lower() != "off" and gkey:
+        backup = GroqLLM(gkey, model=os.environ.get("AI_LLM_FALLBACK_MODEL", "gemini-2.5-flash,gemini-2.5-flash-lite"), url=GEMINI_OPENAI_URL)
+        return FallbackLLM([primary, backup] if primary else [backup])
+    return primary
 
 
 def default_transcriber() -> Optional[Transcriber]:

@@ -109,9 +109,13 @@ def template_draft(item: RawItem, facts: Facts, rel: Relevance, fmt: str = "post
     texts = [_clean(f.text) for f in facts.facts if _clean(f.text)]
     if not texts:
         return None
+    if headline_only(item) and len(facts.facts) == 1:  # the headline itself is the only statement: quote it and credit the publisher
+        what = f"{_source_name(item)} reports: “{texts[0].rstrip('.')}”"
+    else:
+        what = " ".join(t if t.endswith(".") else t + "." for t in texts[:2])
     parts = {
         "title": texts[0].rstrip(".")[:90],
-        "what": " ".join(t if t.endswith(".") else t + "." for t in texts[:2]),
+        "what": what,
         "why": "",  # nothing specific to say, so say nothing: generic filler is worse than silence
         "check": "Read the source and any official notice for the latest status before you decide.",
         "question": _question(rel),
@@ -145,7 +149,7 @@ async def draft(item: RawItem, facts: Facts, relevance: Relevance, fmt: str, llm
         if attempt < LLM_TRIES - 1:
             await asyncio.sleep(RETRY_DELAY * (attempt + 1))
     if not isinstance(parts, dict) or not _clean(parts.get("what")):
-        return None if thin else template_draft(item, facts, relevance, fmt)
+        return template_draft(item, facts, relevance, fmt)
     if thin:
         parts = {**parts, "why": "", "check": parts.get("check") or HEADLINE_CHECK}
     elif not _clean(parts.get("why")):

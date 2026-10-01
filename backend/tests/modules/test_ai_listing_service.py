@@ -367,3 +367,16 @@ async def test_silent_audio_warns():
     res = await AIListingService(transcriber=FakeTranscriber("")).create_draft(
         audio=AudioInput(b"x", "n.webm", "audio/webm"))
     assert res.transcript == "" and any("No speech" in w for w in res.warnings)
+
+
+async def test_fallback_llm_uses_the_next_provider_when_the_first_has_no_answer():
+    from app.modules.ai_listing.llm import FallbackLLM
+
+    class P:
+        def __init__(self, out): self.out = out
+        async def json(self, s, u): return self.out
+        async def text(self, s, u, timeout=None): return self.out
+
+    assert await FallbackLLM([P(None), P({"ok": 1})]).json("s", "u") == {"ok": 1}
+    assert await FallbackLLM([P({"a": 1}), P({"b": 2})]).json("s", "u") == {"a": 1}
+    assert await FallbackLLM([P(None), P(None)]).text("s", "u") is None
