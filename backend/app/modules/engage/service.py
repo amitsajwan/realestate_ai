@@ -5,6 +5,7 @@ Guard rails: the whole thing is off unless ENGAGE_ENABLED; in dry-run mode it on
 per person per day; our own comments, threaded replies, spam and abuse are never answered; questions the post cannot answer go to a person.
 """
 import logging
+import uuid
 from datetime import datetime, timedelta
 from typing import Callable, Dict, List, Optional
 from urllib.parse import quote
@@ -17,6 +18,7 @@ from .config import EngageConfig
 from .graph import EngageGraphError
 
 log = logging.getLogger(__name__)
+LEAD_INTENTS = ("interested", "question")
 MAX_COMMENT_AGE = timedelta(days=7)
 UNKNOWN_PER_POST_PER_DAY = 6  # commenters whose identity Meta does not show us
 
@@ -187,8 +189,38 @@ class EngageService:
                 if doc:
                     await self.comments.insert_one(doc)
                     counts[doc["status"]] = counts.get(doc["status"], 0) + 1
+                    if doc["intent"] in LEAD_INTENTS and doc["status"] in ("replied", "needs_human", "dry_run", "capped"):
+                        try:
+                            await self._record_lead(doc, post)
+                        except Exception:  # a lead problem must never stop replies
+                            log.exception("engage: could not record a lead for comment %s", c["id"])
                     log.info("engage: %s comment %s intent=%s status=%s%s", channel, c["id"], doc["intent"], doc["status"], f" error={doc['error']}" if doc["error"] else "")
         return True
+
+    async def _record_lead(self, doc: dict, post: dict) -> None:
+        """An interested or asking commenter becomes a lead in the agent's inbox (no phone yet: the agent can reply or DM on the platform)."""
+        agent = doc.get("agent_id") or self.cfg.owner_agent_id
+        who = (doc.get("from_name") or "").strip()
+        if not agent or not who:
+            return
+        contacts = self.db.get_collection("contacts")
+        key = f"{doc['channel']}:{doc.get('from_id') or who}"
+        topic = ((post.get("message") or post.get("caption") or "").splitlines() or [""])[0][:120]
+        message = f"{doc['channel'].title()} comment: “{doc.get('text', '')[:300]}”" + (f"
+On the post: {topic}" if topic else "")
+        now = self.now()
+        existing = await contacts.find_one({"agent_id": agent, "anon_ids": key})
+        if existing:
+            await contacts.update_one({"_id": existing["_id"]}, {"$set": {"last_activity_at": now, "last_message": message}})
+            return
+        await contacts.insert_one({
+            "_id": uuid.uuid4().hex, "agent_id": agent,
+            "name": f"@{who}" if doc["channel"] == "instagram" else who,
+            "phone": "", "message": message, "anon_ids": [key], "stage": "new", "source": f"{doc['channel']}_comment", "utm": {},
+            "first_listing_id": doc.get("listing_id"), "consent": None,
+            "score_base": 10 if doc["intent"] == "interested" else 6, "created_at": now, "last_activity_at": now, "last_message": message,
+            "notes": [], "requirement": None, "social": {"channel": doc["channel"], "handle": who, "comment_link": doc.get("permalink")},
+        })
 
     async def _set_status(self, channel: str, ok: bool, err: Optional[EngageGraphError] = None) -> None:
         """Remember whether Meta accepts our token, per channel, so the app can tell the owner when it stops (error 190 = reconnect needed)."""

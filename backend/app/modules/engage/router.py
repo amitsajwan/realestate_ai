@@ -33,5 +33,6 @@ async def status(user: User = Depends(current_active_user)) -> dict:
 @router.get("/comments")
 async def my_comments(limit: int = 50, user: User = Depends(current_active_user)) -> List[dict]:
     limit = max(1, min(limit, 100))
-    docs = await get_database().get_collection("engage_comments").find({"agent_id": str(user.id)}).sort("processed_at", -1).limit(limit).to_list(limit)
+    docs = await get_database().get_collection("engage_comments").find(
+        {"agent_id": str(user.id), "reason": {"$not": {"$regex": "^own comment"}}}).sort("processed_at", -1).limit(limit).to_list(limit)  # our own comments are noise
     return [{"id": d["_id"], **{k: d.get(k) for k in SAFE}, "channel": d.get("channel") or "facebook"} for d in docs]
