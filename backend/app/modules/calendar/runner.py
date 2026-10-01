@@ -86,6 +86,7 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
     attempts = int(doc.get("attempts") or 0) + 1
     try:
         kind = doc.get("kind") or "post"
+        doc = await adapters.with_interest(store.db, doc)
         if social.dry_run:
             res = await DryRunPublisher().publish(Post(doc["channel"], doc["caption"], []))
             await store.published(doc["_id"], res.external_id, res.permalink, "dry run: nothing was sent")
@@ -112,6 +113,7 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
             urls = [f"{social.media_base_url}/uploads/{p}" for p in imgs]
             res = await publisher.publish(Post(doc["channel"], doc["caption"], urls))
         await store.published(doc["_id"], res.external_id, res.permalink)
+        await adapters.register_hub(store.db, doc, res.permalink or "")
         return "published"
     except asyncio.CancelledError:
         raise

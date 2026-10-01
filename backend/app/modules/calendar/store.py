@@ -22,6 +22,7 @@ def aware(d: Optional[datetime]) -> Optional[datetime]:
 
 class Store:
     def __init__(self, db, clock: Callable[[], datetime] = _utcnow):
+        self.db = db
         self.items = db.get_collection(COLLECTION)
         self.status = db.get_collection(STATUS_COLLECTION)
         self.clock = clock

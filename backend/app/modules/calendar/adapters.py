@@ -335,3 +335,57 @@ async def publish_reel(doc: dict, social: SocialConfig, uploads: Path) -> Result
     name = _reel_publish.stage(mp4, Path(uploads), f"{spec_of(doc).key}.mp4")
     url = _reel_publish.public_url(social, name)
     return await _reel_publish.publish_reel(doc["channel"], url, doc["caption"], cfg=social, file_path=mp4)
+
+
+# ---- interest links, footer and the link-in-bio hub ----------------------------------------------------------------------------------------
+def _owner_agent() -> str:
+    import os
+    return os.environ.get("INTEREST_OWNER_AGENT_ID") or os.environ.get("ENGAGE_OWNER_AGENT_ID") or ""
+
+
+async def with_interest(db, doc: dict) -> dict:
+    """The row with its caption ready to publish: a tap-to-show-interest line (a real link on Facebook, 'link in our bio' on Instagram,
+    whose bio link is the /go hub) and the standard footer. Any failure returns the row unchanged: a post never waits on this."""
+    try:
+        from app.modules.interest.service import interest_url
+        from .footer import with_footer
+        channel = "instagram" if doc["channel"] == "instagram" else "facebook"
+        agent = _owner_agent()
+        caption = doc["caption"]
+        if agent:
+            kind = "listing" if doc.get("kind") == "showcase" else "post"
+            url = await interest_url(db, kind=kind, ref=doc["slug"], agent_id=agent, channel=channel,
+                                     title=(caption.splitlines() or [""])[0][:140])
+            if "link in our bio" not in caption and channel == "instagram":
+                line = "👉 Interested? Tap the link in our bio and press 'I am interested'."
+            elif channel == "facebook":
+                line = f"👉 Interested? One tap tells us: {url}"
+            else:
+                line = ""
+            if line and line not in caption:
+                caption = caption.rstrip() + "\n\n" + line
+        return {**doc, "caption": with_footer(caption, channel)}
+    except Exception:
+        return doc
+
+
+async def register_hub(db, doc: dict, permalink: str = "") -> None:
+    """Best effort: show a published post or home on the /go link-in-bio hub."""
+    try:
+        if doc.get("kind") == "reel" or not (doc.get("images") or doc.get("image_path")):
+            return
+        from app.modules.interest.service import interest_url, upsert_hub_item
+        import os
+        agent = _owner_agent()
+        if not agent:
+            return
+        kind = "listing" if doc.get("kind") == "showcase" else "post"
+        channel = "instagram" if doc["channel"] == "instagram" else "facebook"
+        url = await interest_url(db, kind=kind, ref=doc["slug"], agent_id=agent, channel=channel)
+        code = url.rsplit("/", 1)[-1]
+        first = (doc.get("images") or [doc.get("image_path")])[0]
+        base = os.environ.get("PUBLIC_MEDIA_BASE_URL", "").rstrip("/")
+        await upsert_hub_item(db, kind, doc["slug"], (doc["caption"].splitlines() or [""])[0][:140], f"{base}/uploads/{first}" if base else "",
+                              "Sample home" if doc.get("kind") == "showcase" else "", code, permalink or "", sample=doc.get("kind") == "showcase")
+    except Exception:
+        return
