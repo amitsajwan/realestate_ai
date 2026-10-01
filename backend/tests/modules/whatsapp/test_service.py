@@ -105,13 +105,14 @@ async def test_a_sample_home_is_labelled_and_only_the_sample_figure_is_given():
 async def test_hindi_buyers_get_hindi_questions_and_notice():
     svc, db, _, _ = make()
     r = await say(svc, "मुझे 2 BHK चाहिए, बजट 80 लाख है")
-    assert "क्या आप घर खरीदना चाहते हैं या किराए पर लेना?" in r["reply"]
+    # a budget in lakh means buying (chat v2 infers it), so the next question is the area, in Hindi
+    assert "आपको कौन सा इलाका सबसे ज़्यादा पसंद है?" in r["reply"] and "किराए पर लेना?" not in r["reply"]
     assert "सूचना:" in r["reply"] and "STOP" in r["reply"]
     assert "Are you looking" not in r["reply"]
     conv = await conv_of(db)
-    assert conv["language"] == "hi" and conv["data"]["bhk"] == 2
-    r = await say(svc, "Buy")  # a short English answer keeps the conversation in Hindi
-    assert "आपको कौन सा इलाका सबसे ज़्यादा पसंद है?" in r["reply"]
+    assert conv["language"] == "hi" and conv["data"]["bhk"] == 2 and conv["data"]["tx"] == "buy"
+    r = await say(svc, "Kharadi")  # a short English answer keeps the conversation in Hindi
+    assert "आप कब तक शिफ्ट होना चाहते हैं?" in r["reply"]
 
 
 async def test_hinglish_and_marathi():

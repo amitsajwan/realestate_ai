@@ -54,9 +54,10 @@ async def test_full_journey_captures_requirement_then_phone_with_consent_and_mak
     t = await say(d, "80 lakh to 1.2 crore")
     assert d["budget_min"] == 8_000_000 and d["budget_max"] == 12_000_000 and "planning to move" in t.reply
     t = await say(d, "In 1-3 months")
-    assert d["timeline"] == "1_3_months" and "call you" in t.reply
+    assert d["timeline"] == "1_3_months" and "your name" in t.reply
     t = await say(d, "Priya Sharma")
     assert d["name"] == "Priya Sharma" and "mobile number" in t.reply and engine.CONSENT in t.reply and d["consent_shown"]
+    assert t.reply.startswith("Thanks, Priya.")
     assert not t.lead
     t = await say(d, "98765 43210")
     assert t.lead and t.lead["phone"] == "+919876543210" and t.lead["name"] == "Priya Sharma"
@@ -97,7 +98,7 @@ async def test_declining_the_number_is_respected_and_not_asked_again():
     for m in ("hi", "buy", "Kharadi", "2 bhk", "under 1 crore", "just looking", "Rahul"):
         await say(d, m)
     t = await say(d, "not now")
-    assert "phone" in d["declined"] and not t.lead and "mobile" not in t.reply
+    assert d["phone_snooze_until"] > d["turn_no"] + 4 and not t.lead and "mobile" not in t.reply
     t = await say(d, "what is a carpet area?")
     assert "mobile" not in t.reply and not d["phone"]
 
@@ -232,7 +233,7 @@ async def test_the_agent_sees_chats_that_need_them_and_never_a_phone_number():
     await s.message(SID, "rahul", "hi")
     await s.message(SID, "rahul", "Which school is nearest to Sky Heights tower B?")
     other = "other-session-1234567"
-    for m in ("hi", "buy", "Wagholi", "2 bhk", "1 crore", "now", "Meera", "9822012345"):
+    for m in ("hi", "buy", "Wagholi", "2 bhk", "1 crore", "I am Meera", "9822012345"):
         await s.message(other, "rahul", m)
     rows = await s.conversations("A1")
     by_lead = {r["lead_created"]: r for r in rows}
@@ -275,7 +276,7 @@ async def test_chat_says_plainly_what_it_does_not_know_and_asks_a_person_with_co
     s, db = svc_with_home()
     r = await s.message(SID, "rahul", "what is the maintenance?", context={"listing_id": "L1"})
     assert "I do not have the maintenance figure for this home" in r["reply"] and "ask our team" in r["reply"]
-    assert "Share your mobile number" in r["reply"] and "may contact you" in r["reply"]  # the consent line is shown before any number is taken
+    assert "share your mobile number" in r["reply"] and "may contact you" in r["reply"]  # the consent line is shown before any number is taken
     row = db.get_collection("chat_sessions").docs[0]
     assert row["needs_human"] and row["data"]["missing"] == ["the maintenance figure"] and not row["data"]["phone"]
     assert (await s.conversations("A1"))[0]["missing"] == ["the maintenance figure"]

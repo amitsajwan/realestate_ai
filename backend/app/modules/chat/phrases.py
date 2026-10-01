@@ -126,8 +126,8 @@ P: Dict[str, Dict[str, str]] = {
         "mr_latn": "Sample asleli ghare fakt udaharane aahet, vikrisathi nahit.",
     },
     "no_match": {
-        "en": "I could not find a listed home that matches this right now. Our team can look for options for you.",
-        "hinglish": "Abhi is requirement se milta koi listed ghar nahi mila. Hamari team aapke liye options dhoondh sakti hai.",
+        "en": "I could not find a listed home that matches this right now, but our team can look for you.",
+        "hinglish": "Abhi is requirement se milta koi listed ghar nahi mila, par hamari team aapke liye dhoondh sakti hai.",
         "hi": "अभी इस ज़रूरत से मिलता कोई लिस्टेड घर नहीं मिला। हमारी टीम आपके लिए विकल्प ढूँढ सकती है।",
         "mr": "सध्या या गरजेशी जुळणारे कोणतेही लिस्टेड घर सापडले नाही. आमची टीम तुमच्यासाठी पर्याय शोधू शकते.",
         "mr_latn": "Sadhya ya garjeshi julnare kontehi listed ghar sapadle nahi. Aamchi team tumchyasathi paryay shodhu shakte.",
