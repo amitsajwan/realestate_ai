@@ -42,7 +42,8 @@ export default function NewsroomPage() {
       ) : (
         <ul className="space-y-4">
           {data.queue.map((item) => (
-            <QueueCard key={item.id} item={item} onApprove={approve} onReject={reject} />
+            <QueueCard key={item.id} item={item} onApprove={approve} onReject={reject}
+              onPreview={typeof newsroomApi.preview === 'function' ? (id, text) => newsroomApi.preview(id, text) : undefined} />
           ))}
         </ul>
       )}

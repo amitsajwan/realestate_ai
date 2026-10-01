@@ -11,7 +11,7 @@ from app.core.auth_backend import current_active_user
 from app.core.database import get_database
 from app.models.user import User
 
-from . import codec
+from . import codec, preview
 from .config import load
 from .store import Store
 
@@ -60,10 +60,46 @@ def _view(doc: dict, now: datetime) -> dict:
             "age_days": max(0, (now - born).days) if born else None}
 
 
+MAX_LAZY_CARDS = 5  # cards drawn on demand per request for items queued before cards existed
+
+
+async def _ensure_card(store: Store, doc: dict) -> dict:
+    """The item with its card; a missing one is drawn now (best effort: no card just means no preview)."""
+    if doc.get("card") or not doc.get("draft"):
+        return doc
+    try:
+        from .adapters import card_stage
+        card = await card_stage(doc)
+        await store.update(doc["_id"], card=card)
+        return {**doc, "card": card}
+    except Exception:
+        return doc
+
+
 @router.get("/queue")
-async def queue(limit: int = 50, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> List[dict]:
+async def queue(limit: int = 50, user: User = Depends(owner_only), store: Store = Depends(get_store),
+                checker: Optional[Callable] = Depends(get_checker)) -> List[dict]:
     now = datetime.now(timezone.utc)
-    return [_view(d, now) for d in await store.queue(max(1, min(limit, 100)))]
+    out = []
+    for n, d in enumerate(await store.queue(max(1, min(limit, 100)))):
+        if n < MAX_LAZY_CARDS:
+            d = await _ensure_card(store, d)
+        out.append({**_view(d, now), **await preview.build(d, checker)})
+    return out
+
+
+class PreviewBody(BaseModel):
+    text: Optional[str] = None
+
+
+@router.post("/items/{id}/preview")
+async def preview_item(id: str, body: PreviewBody, user: User = Depends(owner_only), store: Store = Depends(get_store),
+                       checker: Optional[Callable] = Depends(get_checker)) -> dict:
+    """The final captions (and their check results) for the draft, or for edited text, without saving anything."""
+    doc = await _pending(store, id)
+    if body.text and body.text.strip():
+        doc = {**doc, "draft": {**doc["draft"], "text": body.text.strip()}}
+    return await preview.build(doc, checker)
 
 
 @router.get("/status")

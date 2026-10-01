@@ -16,7 +16,28 @@ export interface NewsroomCheck {
   ok: boolean
   problems: string[]
 }
-export interface NewsroomItem {
+/** A channel an approved item will be published to. */
+export interface NewsroomChannel {
+  id: 'facebook' | 'instagram'
+  label: string
+  post: string
+}
+/** The rendered social card (public image addresses): `fb` square, `ig` portrait, `slides` every Instagram slide (a digest has several). */
+export interface NewsroomCard {
+  fb: string
+  ig: string | null
+  slides: string[]
+  variant: string | null
+}
+/** What the owner is about to publish: the card, the channels, and the exact final caption per channel with its check problems. */
+export interface NewsroomPreview {
+  card: NewsroomCard | null
+  channels: NewsroomChannel[]
+  captions: Record<string, string>
+  captionProblems: Record<string, string[]>
+  dryRun: boolean
+}
+export interface NewsroomItem extends NewsroomPreview {
   id: string
   title: string
   pillar: string
@@ -40,6 +61,38 @@ export interface ApproveBody {
 /** The approve answer is not frozen by the contract: tolerate anything. */
 export type ApproveResult = Record<string, unknown>
 
+/** A media address from the API: absolute, or a path on the API host (when PUBLIC_MEDIA_BASE_URL is not set). */
+export function mediaUrl(u: unknown, base: string = API_BASE_URL): string | null {
+  if (typeof u !== 'string' || !u) return null
+  if (/^https?:\/\//.test(u)) return u
+  return u.startsWith('/') ? base.replace(/\/+$/, '') + u : null
+}
+
+/** The preview part of a queue item (or of the preview endpoint's answer). Tolerates missing fields, so an older server still works. */
+export function normalizePreview(raw: unknown): NewsroomPreview {
+  const r = (raw ?? {}) as Record<string, unknown>
+  const c = (r.card ?? null) as { fb?: unknown; ig?: unknown; slides?: unknown; variant?: unknown } | null
+  const fb = mediaUrl(c?.fb)
+  const ig = mediaUrl(c?.ig)
+  const slides = (Array.isArray(c?.slides) ? (c!.slides as unknown[]) : []).map((x) => mediaUrl(x)).filter((x): x is string => !!x)
+  const channels = (Array.isArray(r.channels) ? r.channels : []).flatMap((x): NewsroomChannel[] => {
+    const o = x as { id?: string; label?: string; post?: string }
+    return o && (o.id === 'facebook' || o.id === 'instagram')
+      ? [{ id: o.id, label: o.label ?? (o.id === 'facebook' ? 'Facebook Page' : 'Instagram'), post: o.post ?? '' }]
+      : []
+  })
+  const captions: Record<string, string> = {}
+  for (const [k, v] of Object.entries((r.captions ?? {}) as Record<string, unknown>)) if (typeof v === 'string') captions[k] = v
+  const captionProblems: Record<string, string[]> = {}
+  for (const [k, v] of Object.entries((r.caption_problems ?? r.captionProblems ?? {}) as Record<string, unknown>)) {
+    if (Array.isArray(v) && v.length) captionProblems[k] = v.map(String)
+  }
+  return {
+    card: fb ? { fb, ig, slides: slides.length ? slides : ig ? [ig] : [], variant: typeof c?.variant === 'string' ? c.variant : null } : null,
+    channels, captions, captionProblems, dryRun: r.dry_run === true || r.dryRun === true,
+  }
+}
+
 /** Accept the contract shape but tolerate loose variants (draft as object, sources as strings or name only). */
 export function normalizeItem(raw: unknown): NewsroomItem {
   const r = (raw ?? {}) as Record<string, unknown>
@@ -54,6 +107,7 @@ export function normalizeItem(raw: unknown): NewsroomItem {
     return { name: o.name ?? url ?? 'Source', url }
   })
   return {
+    ...normalizePreview(r),
     id: String(r.id ?? ''),
     title: String(r.title ?? ''),
     pillar: String(r.pillar ?? ''),
@@ -111,6 +165,8 @@ export interface NewsroomApi {
   getStatus(): Promise<NewsroomStatus>
   approve(id: string, body?: ApproveBody): Promise<ApproveResult>
   reject(id: string, reason?: string): Promise<void>
+  /** The final captions (checked) for the draft, or for edited text, without saving anything. */
+  preview(id: string, text?: string): Promise<NewsroomPreview>
 }
 
 export function createNewsroomApi(opts: { getToken: () => string | null; baseUrl?: string; fetchImpl?: typeof fetch }): NewsroomApi {
@@ -152,6 +208,7 @@ export function createNewsroomApi(opts: { getToken: () => string | null; baseUrl
     reject: async (id, reason) => {
       await request<unknown>(`/items/${encodeURIComponent(id)}/reject`, { method: 'POST', json: reason ? { reason } : {} })
     },
+    preview: async (id, text) => normalizePreview(await request<unknown>(`/items/${encodeURIComponent(id)}/preview`, { method: 'POST', json: text ? { text } : {} })),
   }
 }
 
@@ -172,6 +229,24 @@ export const FIXTURE_QUEUE: NewsroomItem[] = [
     check: { ok: true, problems: [] },
     sources: [{ name: 'Times of India', url: 'https://example.test/metro-line-3' }],
     age_days: 1,
+    card: {
+      fb: 'https://media.example.com/uploads/news/gn-metro-hinjewadi-1-fb.jpg',
+      ig: 'https://media.example.com/uploads/news/gn-metro-hinjewadi-1-ig.jpg',
+      slides: ['https://media.example.com/uploads/news/gn-metro-hinjewadi-1-ig.jpg'],
+      variant: 'figure',
+    },
+    channels: [
+      { id: 'facebook', label: 'Facebook Page', post: 'photo post with our link' },
+      { id: 'instagram', label: 'Instagram', post: 'image post, link in bio' },
+    ],
+    captions: {
+      facebook:
+        'Metro Line 3 between Hinjewadi and Shivajinagar has crossed 90 percent of civil work.\n\nSource: Times of India, as of 29 Sep 2026.\n\nWhich station would make your daily commute easier?\n\nRead more: https://34-180-39-243.sslip.io/news/gn-metro-hinjewadi-1\n\n#Pune #PunePropertyHub #PuneInfrastructure\n\nPUNE Property · https://34-180-39-243.sslip.io',
+      instagram:
+        'Metro Line 3 between Hinjewadi and Shivajinagar has crossed 90 percent of civil work.\n\nSource: Times of India, as of 29 Sep 2026.\n\nWhich station would make your daily commute easier?\n\nRead more: link in our bio.\n\n#Pune #PunePropertyHub #PuneInfrastructure #PuneRealEstate\n\nPUNE Property · link in our bio',
+    },
+    captionProblems: {},
+    dryRun: true,
   },
   {
     id: 'mr-kharadi-2',
@@ -186,6 +261,11 @@ export const FIXTURE_QUEUE: NewsroomItem[] = [
     },
     sources: [{ name: 'MahaRERA', url: 'https://example.test/maharera/P52100012345' }],
     age_days: 3,
+    card: null,
+    channels: [{ id: 'facebook', label: 'Facebook Page', post: 'photo post with our link' }],
+    captions: {},
+    captionProblems: {},
+    dryRun: false,
   },
 ]
 
@@ -210,6 +290,13 @@ export function createFixtureNewsroomApi(seed: NewsroomItem[] = FIXTURE_QUEUE, s
       return {}
     },
     reject: async (id) => done(id),
+    preview: async (id, text) => {
+      const item = queue.find((i) => i.id === id)
+      if (!item) throw new ApiError(404, 'Not found')
+      if (!text) return { card: item.card, channels: item.channels, captions: item.captions, captionProblems: item.captionProblems, dryRun: item.dryRun }
+      const captions = Object.fromEntries(Object.entries(item.captions).map(([k, v]) => [k, text.trim() + '\n\n' + v.split('\n\n').slice(-1)[0]]))
+      return { card: item.card, channels: item.channels, captions, captionProblems: item.captionProblems, dryRun: item.dryRun }
+    },
   }
 }
 
@@ -223,4 +310,5 @@ export const newsroomApi: NewsroomApi = {
   getStatus: () => impl().getStatus(),
   approve: (id, body) => impl().approve(id, body),
   reject: (id, reason) => impl().reject(id, reason),
+  preview: (id, text) => impl().preview(id, text),
 }

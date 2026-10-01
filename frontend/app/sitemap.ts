@@ -9,6 +9,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const at = (path: string, priority: number, date?: string) => ({ url: base + path, lastModified: date ? new Date(date) : undefined, priority })
   return [
     at('/', 1),
+    at('/news', 0.8),
     at('/posts', 0.7),
     at('/localities', 0.8),
     ...LOCALITIES.map((l) => at(`/localities/${l.slug}`, 0.8, l.updated)),
