@@ -170,7 +170,7 @@ UNKNOWN = {
            "instagram": "I do not have {what}{for_}, but the agent can tell you; see the link in our bio.",
            "chat": "I do not have {what}{for_}; I will ask our team to confirm it for you."},
     "hinglish": {"facebook": "{what} ki jaankari mere paas nahi hai, lekin agent share kar sakte hain: {interest_url}",
-                 "instagram": "{what} ki jaankari mere paas nahi hai, lekin agent share kar sakte hain; hamare bio ka link dekhein.",
+                 "instagram": "{what} ki jaankari mere paas nahi hai, lekin agent share kar sakte hain; link in our bio dekhein.",
                  "chat": "{what} ki jaankari mere paas nahi hai; hum apni team se confirm karwa lete hain."},
     "hi": {"facebook": "{what} की जानकारी मेरे पास नहीं है, लेकिन एजेंट बता सकते हैं: {interest_url}",
            "instagram": "{what} की जानकारी मेरे पास नहीं है, लेकिन एजेंट बता सकते हैं; हमारे बायो का लिंक देखें।",
@@ -179,15 +179,15 @@ UNKNOWN = {
            "instagram": "{what} माझ्याकडे नाही, पण एजंट सांगू शकतात; आमच्या बायोमधील लिंक पहा.",
            "chat": "{what} माझ्याकडे नाही; आम्ही आमच्या टीमकडून याची खात्री करून घेऊ."},
     "mr_latn": {"facebook": "{what} chi mahiti majhyakade nahi, pan agent sangu shaktat: {interest_url}",
-                "instagram": "{what} chi mahiti majhyakade nahi, pan agent sangu shaktat; aamchya bio madhil link baha.",
+                "instagram": "{what} chi mahiti majhyakade nahi, pan agent sangu shaktat; link in our bio baha.",
                 "chat": "{what} chi mahiti majhyakade nahi; aamhi aamchya team kadun khatri karun gheu."},
 }
 TAIL = {
     "en": {"facebook": "More details: {interest_url}", "instagram": "More details at the link in our bio.", "chat": ""},
-    "hinglish": {"facebook": "Poori jaankari: {interest_url}", "instagram": "Poori jaankari hamare bio ke link par hai.", "chat": ""},
+    "hinglish": {"facebook": "Poori jaankari: {interest_url}", "instagram": "Poori jaankari link in our bio par hai.", "chat": ""},
     "hi": {"facebook": "पूरी जानकारी: {interest_url}", "instagram": "पूरी जानकारी हमारे बायो के लिंक पर है।", "chat": ""},
     "mr": {"facebook": "संपूर्ण माहिती: {interest_url}", "instagram": "संपूर्ण माहिती आमच्या बायोमधील लिंकवर आहे.", "chat": ""},
-    "mr_latn": {"facebook": "Sampurna mahiti: {interest_url}", "instagram": "Sampurna mahiti aamchya bio madhil linkvar aahe.", "chat": ""},
+    "mr_latn": {"facebook": "Sampurna mahiti: {interest_url}", "instagram": "Sampurna mahiti link in our bio madhe aahe.", "chat": ""},
 }
 
 

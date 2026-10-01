@@ -1,3 +1,4 @@
+import dataclasses
 from datetime import datetime, timedelta
 
 import pytest
@@ -170,7 +171,68 @@ async def test_questions_needing_a_person_are_queued_not_answered_publicly_with_
     svc, g, db = make([post([comment("C1", "Which school is nearby?")])], llm=llm)
     await svc.run_once()
     doc = db.get_collection("engage_comments").docs[0]
-    assert doc["needs_human"] and "Our team will reply" in doc["reply"] and not any("school" in r[1].lower() for r in g.replies)
+    # not in our facts: the reply says so plainly (no invented school, no bare brush-off) and a person is asked as well
+    assert doc["needs_human"] and "I do not have details of nearby schools" in doc["reply"] and "Our team will reply" not in doc["reply"]
+    assert doc["missing"] == "details of nearby schools" and doc["answer_basis"] == []
+
+
+LISTING = {"_id": "L1", "agent_id": "A1", "transaction": "sale", "property_type": "apartment", "price_inr": 8_500_000, "city": "Pune", "locality": "Kharadi", "bhk": 2,
+           "carpet_sqft": 1100, "floor": 7, "total_floors": 20, "possession": "ready", "status": "live", "title": "x",
+           "about": {"maintenance": "3 rupees per sq ft per month", "nearby": [{"type": "school", "name": "City School", "minutes": 8}]}}
+
+
+def with_listing(comments):
+    svc, g, db = make([post(comments, pid="PAGE_555")])
+    db.get_collection("publications").docs.append({"_id": "P1", "channel": "facebook_page", "external_id": "555", "listing_id": "L1"})
+    db.get_collection("listings").docs.append(dict(LISTING))
+    db.get_collection("agent_public_profiles").docs.append({"agent_id": "A1", "slug": "rahul"})
+    return svc, g, db
+
+
+async def test_a_question_about_a_listing_post_is_answered_from_the_listing_with_the_real_link():
+    svc, g, db = with_listing([comment("C1", "What is the carpet area?"), comment("C2", "maintenance kitna hai", who="u2"), comment("C3", "Is there a clubhouse?", who="u3")])
+    await svc.run_once()
+    by = {d["_id"]: d for d in db.get_collection("engage_comments").docs}
+    assert "1,100 sq ft" in by["C1"]["reply"] and by["C1"]["needs_human"] is False and by["C1"]["status"] == "replied"
+    assert by["C1"]["reply"].endswith("https://site.test/agent/rahul/listings/L1?src=facebook_comment#enquire") and "{interest_url}" not in by["C1"]["reply"]
+    assert by["C1"]["answer_basis"] == ["The carpet area is 1,100 sq ft."]
+    assert "3 rupees per sq ft per month" in by["C2"]["reply"] and by["C2"]["language"] == "hi"
+    # the clubhouse is not in the facts: said plainly, the agent is asked, and the gap is recorded for the owner
+    assert by["C3"]["needs_human"] and "I do not have the amenities for this home" in by["C3"]["reply"] and by["C3"]["missing"] == "the amenities"
+    assert [r[0] for r in g.replies] == ["C1", "C2", "C3"]
+
+
+async def test_a_question_on_an_evergreen_calendar_post_uses_the_posts_own_verified_text():
+    svc, g, db = make([post([comment("C1", "Does a RERA number mean I can relax?")], pid="PAGE_777", message="x")])
+    db.get_collection("content_calendar").docs.append({"_id": "CAL1", "slug": "myth-rera-means-safe", "kind": "post", "channel": "facebook_page", "external_id": "PAGE_777",
+                                                      "caption": "", "status": "published"})
+    await svc.run_once()
+    doc = db.get_collection("engage_comments").docs[0]
+    assert doc["intent"] == "question" and doc["status"] == "replied" and "RERA" in doc["reply"] and "forward" not in doc["reply"].lower()
+
+
+async def test_a_question_on_a_sample_home_post_says_it_is_a_sample_and_never_that_it_is_available():
+    svc, g, db = make([post([comment("C1", "Is it available?"), comment("C2", "price?", who="u2")], pid="PAGE_888", message="Sample listing")])
+    db.get_collection("content_calendar").docs.append({"_id": "CAL2", "slug": "kharadi-2bhk-ready", "kind": "showcase", "channel": "facebook_page", "external_id": "888",
+                                                      "caption": "", "status": "published"})
+    await svc.run_once()
+    by = {d["_id"]: d for d in db.get_collection("engage_comments").docs}
+    assert "sample home" in by["C1"]["reply"] and by["C1"]["needs_human"] is False and "tell us your budget" in by["C1"]["reply"]
+    assert "sample price figure is ₹98 Lakh" in by["C2"]["reply"]
+
+
+async def test_the_interest_url_function_supplies_the_link():
+    svc, g, db = with_listing([comment("C1", "Which floor is it on?")])
+    svc.interest_url = lambda ctx, channel: f"https://site.test/i/ab12cd?c={channel}"
+    await svc.run_once()
+    assert g.replies[0][1].endswith("https://site.test/i/ab12cd?c=facebook") and "floor 7 of 20" in g.replies[0][1]
+
+
+async def test_the_caps_and_dry_run_still_apply_to_grounded_answers():
+    svc, g, db = with_listing([comment("C1", "Price?"), comment("C2", "Which floor?"), comment("C3", "carpet area?")])
+    svc.cfg = dataclasses.replace(svc.cfg, dry_run=True)
+    counts = await svc.run_once()
+    assert counts == {"dry_run": 2, "capped": 1} and g.replies == []
 
 
 async def test_listing_posts_link_to_the_listing_page_and_record_the_agent():

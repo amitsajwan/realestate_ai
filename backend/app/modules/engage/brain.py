@@ -2,9 +2,10 @@
 Every LLM draft is checked before it can be posted: length, no phone numbers, no hype, only our own link, and no number that is not in the
 post it answers. Anything that fails the checks becomes a safe template or goes to a human."""
 import re
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import List, Optional
 
+from app.modules.knowledge.reply import answer as grounded_answer, has_topic
 from app.modules.marketing.polish import HYPE, PHONE
 
 INTENTS = ("interested", "question", "praise", "greeting", "complaint", "spam", "other")
@@ -77,6 +78,8 @@ class Decision:
     reply: Optional[str]
     needs_human: bool = False
     reason: str = ""
+    missing: Optional[str] = None                      # what the grounded reply could not answer (for the owner)
+    basis: List[str] = field(default_factory=list)     # the facts the reply rests on (stored as answer_basis)
 
 
 def detect_language(text: str) -> str:
@@ -141,7 +144,26 @@ def wants_a_person(text: str, handle: str) -> bool:
     return not SPAM.search(re.sub(r"dm\s*(me|us)", "", t, flags=re.I))
 
 
-async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm, channel: str = "facebook", handle: str = "") -> Decision:
+ASKING = re.compile(r"\?|^\s*(what|where|how|which|when|is|are|can|could|do|does|will|kya|kaise|kitna|kitni|kahan|kab|kuthe|kiti|kay)\b|\b(kitna|kitne|kitni|kab|kahan|kuthe|kiti|kya|milega|milegi|tell me|send|share|please)\b|[?？]", re.I)
+
+
+def asks_about_the_post(text: str) -> bool:
+    """A question, or a very short comment that names one thing ('carpet area', 'possession date'): worth a grounded answer."""
+    return has_topic(text) and (bool(ASKING.search(text)) or len(text.split()) <= 4)
+
+
+REPLY_LANG = {"en": "en", "hi": "hi", "hinglish": "hi", "mr": "mr", "mr_latn": "mr"}
+
+
+async def grounded_decision(text: str, grounding, link: str, llm, channel: str) -> Decision:
+    """Answer a question from what we know about the post's home, project or area. Only when the answer is not fully covered is a person asked as well."""
+    r = await grounded_answer(text, grounding, channel, llm)
+    reply = r.text.replace("{interest_url}", link)
+    reason = "grounded answer" if r.confident else f"not in our facts: {r.missing}"
+    return Decision("question", REPLY_LANG.get(r.language, "en"), reply, needs_human=not r.confident, reason=reason, missing=r.missing, basis=r.basis)
+
+
+async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm, channel: str = "facebook", handle: str = "", grounding=None) -> Decision:
     ig = channel == "instagram"
     if ig and wants_a_person(text, handle):
         return Decision("question", detect_language(text), None, needs_human=True, reason="mention or DM request")
@@ -149,6 +171,16 @@ async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm
         link = BIO["en"]  # never put a URL in an Instagram reply
     lang = detect_language(text)
     intent = by_rules(text)
+    if grounding is not None and intent is None and asks_about_the_post(text):
+        # the LLM (when there is one) still gets to say it is spam, abuse or plain praise; a question about the post is answered from facts
+        raw = await llm.json(SYSTEM, f"POST FACTS:\n{(facts or '')[:900]}\n\nCOMMENT:\n{text[:500]}") if llm is not None and hasattr(llm, "json") else None
+        said = raw.get("intent") if isinstance(raw, dict) else None
+        if said == "spam":
+            return Decision("spam", lang, None, reason="not answered")
+        if said == "complaint":
+            return Decision("complaint", lang, None, needs_human=True, reason="complaint")
+        if said not in ("praise", "greeting"):
+            return await grounded_decision(text, grounding, link, llm, channel)
     if intent == "interested":
         return Decision("interested", lang, render("interested", lang, from_name, link, channel))
     if intent == "greeting":

@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from typing import Callable, Dict, List, Optional
 from urllib.parse import quote
 
+from app.modules.knowledge.grounding import Ref, facts_for
 from app.modules.marketing.facts import Facts
 
 from .brain import Decision, decide
@@ -44,8 +45,12 @@ def parse_time(value: Optional[str]) -> Optional[datetime]:
 
 
 class EngageService:
-    def __init__(self, db, graph, llm, cfg: EngageConfig, now: Callable[[], datetime] = datetime.utcnow, ig_graph=None):
+    def __init__(self, db, graph, llm, cfg: EngageConfig, now: Callable[[], datetime] = datetime.utcnow, ig_graph=None, interest_url: Optional[Callable] = None):
+        """`interest_url(ctx, channel)` (sync or async), when given, returns the tap-to-show-interest URL for the post's listing or post; without
+        it the listing page (or the landing page) is used, as before."""
         self.cfg, self.graph, self.llm, self.now, self.ig_graph = cfg, graph, llm, now, ig_graph
+        self.db, self.interest_url = db, interest_url
+        self.calendar = db.get_collection("content_calendar")
         self.comments = db.get_collection("engage_comments")
         self.pubs = db.get_collection("publications")
         self.listings = db.get_collection("listings")
@@ -67,12 +72,34 @@ class EngageService:
                 return p
         return None
 
+    async def _calendar_item(self, post_id: str) -> Optional[dict]:
+        """The calendar row (an evergreen post or a showcase sample home) that was published as this Page / Instagram post."""
+        tail = post_id.split("_")[-1]
+        for ext in dict.fromkeys([post_id, tail]):
+            doc = await self.calendar.find_one({"external_id": ext})
+            if doc:
+                return doc
+        return None
+
     async def _context(self, post: dict, channel: str = "facebook") -> Dict:
-        """(facts text, link, listing_id, agent_id) for a post. Listing posts use the listing's facts; other posts use the post's own text."""
+        """{facts, link, listing_id, agent_id, grounding} for a post. Listing posts use the listing's facts; calendar posts use their verified
+        text (or the sample home); other posts use the post's own text. `grounding` is what a question about the post may be answered from."""
+        ctx = await self._base_context(post, channel)
+        if self.interest_url is not None:
+            url = self.interest_url(ctx, channel)
+            url = await url if hasattr(url, "__await__") else url
+            if url:
+                ctx["link"] = url
+        return ctx
+
+    async def _base_context(self, post: dict, channel: str = "facebook") -> Dict:
         message = (post.get("message") or "")[:900]
         source = f"{channel}_comment"
         pub = await self._publication(post["id"], channel)
         listing = await self.listings.find_one({"_id": pub["listing_id"]}) if pub else None
+        item = None if listing else await self._calendar_item(post["id"])
+        grounding = await facts_for(Ref.listing(listing["_id"]), self.db) if listing else (
+            await facts_for(Ref.calendar(item["_id"]), self.db) if item else None) or await facts_for(Ref.text(message), self.db)
         if listing:
             profile = await self.profiles.find_one({"agent_id": listing.get("agent_id")}) or {}
             slug = profile.get("slug")
@@ -80,8 +107,9 @@ class EngageService:
             f = Facts.from_docs(listing, profile, "")
             facts = "\n".join(x for x in (f.title_line("en"), f.price_text, f.area_text, f.possession_text("en"), f.floor_text("en"),
                                           f"RERA {f.rera}" if f.rera else None, "Amenities: " + ", ".join(f.amenities) if f.amenities else None, message) if x)
-            return {"facts": facts, "link": with_source(base, source), "listing_id": listing["_id"], "agent_id": listing.get("agent_id")}
-        return {"facts": message, "link": with_source(self.cfg.landing_url, source), "listing_id": None, "agent_id": self.cfg.owner_agent_id or None}
+            return {"facts": facts, "link": with_source(base, source), "listing_id": listing["_id"], "agent_id": listing.get("agent_id"), "grounding": grounding}
+        return {"facts": message, "link": with_source(self.cfg.landing_url, source), "listing_id": None, "agent_id": self.cfg.owner_agent_id or None,
+                "grounding": grounding, "calendar_id": item["_id"] if item else None}
 
     # ---- limits ------------------------------------------------------------------------------------------------
     async def _hourly_full(self) -> bool:
@@ -105,8 +133,9 @@ class EngageService:
         if own or c.get("replied") or c.get("parent") or (t and self.now() - t > MAX_COMMENT_AGE):
             return {**base, "intent": "other", "language": "en", "status": "ignored", "needs_human": False, "reason": "own comment, already answered, thread reply or old"}
         extra = {"channel": channel, "handle": handle} if channel != "facebook" else {}
-        d: Decision = await decide(c.get("message") or "", sender.get("name"), ctx["facts"], ctx["link"], self.llm, **extra)
-        doc = {**base, "intent": d.intent, "language": d.language, "reply": d.reply, "needs_human": d.needs_human, "reason": d.reason, "status": "ignored"}
+        d: Decision = await decide(c.get("message") or "", sender.get("name"), ctx["facts"], ctx["link"], self.llm, grounding=ctx.get("grounding"), **extra)
+        doc = {**base, "intent": d.intent, "language": d.language, "reply": d.reply, "needs_human": d.needs_human, "reason": d.reason, "status": "ignored",
+               "answer_basis": d.basis, "missing": d.missing}
         if d.needs_human and not d.reply:
             doc["status"] = "needs_human"
         if not d.reply:
