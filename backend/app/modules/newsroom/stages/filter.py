@@ -27,7 +27,8 @@ _EDU_RE = [_phrase(k, True) for k in topics.EDUCATION_KEYWORDS]
 _HOROSCOPE = re.compile(r"\b(horoscope|zodiac|rashifal|astrology|lucky number)\b", re.I)
 _CRIME = re.compile(
     r"\b(murder(ed)?|stabb?(ed|ing)|arrest(ed)?|theft|robbery|robbed|kidnap\w*|rape[ds]?|assault(ed)?|"
-    r"molest\w*|killed|suicide|fir registered|accused|held for|cheating case|extortion|drunk driving)\b", re.I)
+    r"molest\w*|killed|suicide|fir registered|accused|held for|cheating case|extortion|drunk driving|"
+    r"fraud(ster)?s?|nabbed?|apprehend\w*|duped|swindl\w*|cheated|busted|smuggl\w*|detained|cisf)\b", re.I)
 _CLASSIFIED = re.compile(
     r"^\s*(for (sale|rent)|wanted|required|urgent sale|resale)\b|\b(owner|direct from owner)\b.*\b(call|whatsapp)\b|"
     r"(\+?91[\s-]?)?\b[6-9]\d{9}\b|\bcall\s*(now|us|@)|\bwhatsapp\s*(now|us|@)", re.I)
