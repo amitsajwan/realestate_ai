@@ -97,7 +97,7 @@ Facebook Page:
 - [ ] Then set `NEXT_PUBLIC_FACEBOOK_URL` in `deploy/gcp/.env` to the new Page URL and redeploy.
 
 Instagram:
-- [ ] Change the username from `kharadi_prop` to `avasetu` (or `avasetu.in`), and the name to **Avasetu**.
+- [ ] Username is now `avasetu_` (https://www.instagram.com/avasetu_/), and the name to **Avasetu**.
 - [ ] Bio: "Your bridge to the right home · सही घर तक आपका सेतु · Homes, guides and trusted local agents in Pune".
 - [ ] Profile picture: `profile.png`. Website link: `<site>/go`.
 - [ ] Then set `NEXT_PUBLIC_INSTAGRAM_URL` to the new profile URL and redeploy.

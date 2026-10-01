@@ -5,7 +5,7 @@
  */
 import { BRAND_NAME } from '@/lib/brand'
 export const DEFAULT_FACEBOOK_URL = 'https://www.facebook.com/profile.php?id=61595137641524'
-export const DEFAULT_INSTAGRAM_URL = 'https://www.instagram.com/kharadi_prop/'
+export const DEFAULT_INSTAGRAM_URL = 'https://www.instagram.com/avasetu_/'
 
 const https = (v: string | undefined, fallback: string) => (v && /^https:\/\/[^\s]+$/.test(v.trim()) ? v.trim() : fallback)
 

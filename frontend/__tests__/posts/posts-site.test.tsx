@@ -69,8 +69,8 @@ describe('social strip and contact block', () => {
   it('links to the real Facebook Page and Instagram in a new tab', () => {
     render(<SocialStrip />)
     expect(screen.getByRole('link', { name: /Facebook/ })).toHaveAttribute('href', DEFAULT_FACEBOOK_URL)
-    expect(screen.getByRole('link', { name: /Instagram/ })).toHaveAttribute('href', 'https://www.instagram.com/kharadi_prop/')
-    expect(DEFAULT_INSTAGRAM_URL).toBe('https://www.instagram.com/kharadi_prop/')
+    expect(screen.getByRole('link', { name: /Instagram/ })).toHaveAttribute('href', 'https://www.instagram.com/avasetu_/')
+    expect(DEFAULT_INSTAGRAM_URL).toBe('https://www.instagram.com/avasetu_/')
     for (const a of screen.getAllByRole('link')) expect(a.getAttribute('rel')).toContain('noopener')
   })
 
