@@ -145,6 +145,19 @@ class FileUploadService:
                 "format": None
             }
 
+async def _photo_quality(file_path: Path) -> dict:
+    """{quality, enhanced_url, use_enhanced} for a stored photo, or {} (off with PHOTO_QUALITY=off, or on any failure)."""
+    if os.environ.get("PHOTO_QUALITY", "on").strip().lower() == "off":
+        return {}
+    try:
+        import asyncio
+        from app.modules.photoquality.store import process_file
+        return await asyncio.wait_for(asyncio.to_thread(process_file, file_path), timeout=8.0)
+    except Exception as e:
+        logger.warning(f"photo quality skipped for {file_path.name}: {type(e).__name__}")
+        return {}
+
+
 @router.post("/images")
 @limiter.limit("10/minute")
 async def upload_property_images(
@@ -186,6 +199,10 @@ async def upload_property_images(
 
             # Create file record
             base_url = str(request.base_url).rstrip('/')
+            # Photo quality: analysis + an enhanced copy beside the original (the original is kept untouched). Best effort.
+            photo = await _photo_quality(file_path)
+            if photo.get("enhanced_url"):
+                photo["enhanced_url"] = f"{base_url}{photo['enhanced_url']}"
             file_record = {
                 "id": str(uuid.uuid4()),
                 "filename": unique_filename,
@@ -197,7 +214,8 @@ async def upload_property_images(
                 "property_id": property_id,
                 "agent_id": agent_id,
                 "uploaded_at": "2024-01-01T00:00:00Z",  # Would be datetime.utcnow() in real implementation
-                **image_info
+                **image_info,
+                **photo,
             }
 
             uploaded_files.append(file_record)

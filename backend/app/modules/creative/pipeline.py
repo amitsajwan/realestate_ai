@@ -8,9 +8,10 @@ the LLM is down or returns rubbish, the deterministic path builds the pack from 
 import asyncio
 import hashlib
 import logging
+import os
 import tempfile
 from pathlib import Path
-from typing import Any, List, Optional, Sequence, Tuple
+from typing import Any, Callable, List, Optional, Sequence, Tuple
 
 from app.modules.marketing.images import save_jpeg
 
@@ -40,8 +41,37 @@ def _alt_text(angle: Angle, copy: Copy, design: Design) -> str:
     return f"{design.layout.replace('_', ' ')} card: {copy.hook}" + (f". {copy.support}" if copy.support else "")
 
 
+def _default_reviewer() -> Optional[Callable]:
+    """The visual review (app/modules/photoquality/vision_review.py), unless AI_VISION_REVIEW=off."""
+    if (os.environ.get("AI_VISION_REVIEW") or "on").strip().lower() == "off":
+        return None
+    try:
+        from app.modules.photoquality.vision_review import review
+        return review
+    except Exception:
+        return None
+
+
+async def _save(rendered: List[Rendered], out: Path, channel: str, design: Design, copy: Copy, seed: int) -> List[str]:
+    stem = f"{channel}-{design.layout}-{hashlib.md5((copy.hook + str(seed)).encode('utf8')).hexdigest()[:8]}"
+    paths: List[str] = []
+    for r in rendered:
+        p = out / (f"{stem}-{r.index + 1}.jpg" if len(rendered) > 1 else f"{stem}.jpg")
+        await asyncio.to_thread(save_jpeg, r.img, p)
+        paths.append(str(p))
+    return paths
+
+
+def _review_context(copy: Copy, report: Report, channel: str, link: Optional[str]) -> dict:
+    return {"kind": "post", "headline": copy.hook, "caption": copy.caption(channel, link), "critic": report.as_dict()}
+
+
 async def make(brief: Brief, audience: str, channel: str, llm: Any = None, seed: int = 0, recent_layouts: Sequence[str] = (),
-               out_dir: Optional[Path] = None, languages: Sequence[str] = (), llm_critic: bool = False) -> CreativePack:
+               out_dir: Optional[Path] = None, languages: Sequence[str] = (), llm_critic: bool = False,
+               reviewer: Any = "default") -> CreativePack:
+    """`reviewer`: async (paths, context) -> {score, verdict, notes, source}; "default" uses the photoquality visual review,
+    None skips it. When the AI review says 'redo', the pack is regenerated ONCE with the review notes as feedback; the new
+    pack must still pass every critic guard, and it is kept only if its review is not worse."""
     recent = list(recent_layouts)
     tries: List[Tuple[Angle, Copy, Design, List[Rendered], Report]] = []
     plan = [(llm, seed, None)]
@@ -70,17 +100,46 @@ async def make(brief: Brief, audience: str, channel: str, llm: Any = None, seed:
 
     out = Path(out_dir) if out_dir else Path(tempfile.mkdtemp(prefix="creative-"))
     out.mkdir(parents=True, exist_ok=True)
-    stem = f"{channel}-{design.layout}-{hashlib.md5((copy.hook + str(seed)).encode('utf8')).hexdigest()[:8]}"
-    paths: List[str] = []
-    for r in rendered:
-        p = out / (f"{stem}-{r.index + 1}.jpg" if len(rendered) > 1 else f"{stem}.jpg")
-        await asyncio.to_thread(save_jpeg, r.img, p)
-        paths.append(str(p))
+    paths = await _save(rendered, out, channel, design, copy, seed)
+    attempts = len(tries)
+
+    review_fn = _default_reviewer() if reviewer == "default" else reviewer
+    vision: Optional[dict] = None
+    if review_fn is not None:
+        vision = await _safe_review(review_fn, paths, _review_context(copy, report, channel, brief.link))
+        if vision and vision.get("verdict") == "redo" and vision.get("source") == "ai":
+            fb = "visual review: " + "; ".join(str(n) for n in (vision.get("notes") or [])[:3])
+            client = llm if angle.source == "llm" or copy.source == "llm" else None
+            try:
+                redo = await _attempt(brief, audience, channel, client, seed + 11, recent, languages if client is not None else (), fb)
+            except Exception:
+                log.warning("creative redo after visual review failed", exc_info=True)
+                redo = None
+            attempts += 1
+            if redo is not None and redo[4].ok:   # the redo must pass every existing guard
+                r_angle, r_copy, r_design, r_rendered, r_report = redo
+                r_paths = await _save(r_rendered, out, channel, r_design, r_copy, seed + 11)
+                r_vision = await _safe_review(review_fn, r_paths, _review_context(r_copy, r_report, channel, brief.link))
+                if r_vision and r_vision.get("score", 0) >= vision.get("score", 0):
+                    angle, copy, design, rendered, report, paths = r_angle, r_copy, r_design, r_rendered, r_report, r_paths
+                    vision = {**r_vision, "redone": True}
+    report_dict = report.as_dict()
+    if vision is not None:
+        report_dict["vision"] = vision
     return CreativePack(
         channel=channel, audience=audience, images=paths, caption=copy.caption(channel, brief.link), hashtags=copy.hashtags,
         design={"layout": design.layout, "palette": design.palette, "photo": design.photo, "emphasis": list(design.emphasis),
                 "size": list(design.size), "format": angle.fmt, "pattern": angle.pattern, "notes": design.notes, "slides": len(rendered)},
-        report=report.as_dict(), angle={"pain": angle.pain, "idea": angle.idea, "hook": angle.hook, "pattern": angle.pattern,
+        report=report_dict, angle={"pain": angle.pain, "idea": angle.idea, "hook": angle.hook, "pattern": angle.pattern,
                                          "proof": angle.proof, "format": angle.fmt, "cta": angle.cta, "source": angle.source},
         alt_text=_alt_text(angle, copy, design), variants=copy.variants,
-        used_llm=(angle.source == "llm" or copy.source == "llm"), attempts=len(tries))
+        used_llm=(angle.source == "llm" or copy.source == "llm"), attempts=attempts)
+
+
+async def _safe_review(fn: Callable, paths: List[str], context: dict) -> Optional[dict]:
+    try:
+        res = await fn(paths, context)
+        return res if isinstance(res, dict) else None
+    except Exception:
+        log.warning("visual review failed", exc_info=True)
+        return None

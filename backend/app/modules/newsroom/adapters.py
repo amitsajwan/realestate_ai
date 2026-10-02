@@ -49,7 +49,13 @@ def render_cards(doc: dict, uploads: Optional[Path] = None) -> dict:
 
 async def card_stage(doc: dict) -> dict:
     """The pipeline's optional `cards` stage: drawing is CPU work, so it runs off the event loop."""
-    return await asyncio.to_thread(render_cards, doc)
+    card = await asyncio.to_thread(render_cards, doc)
+    try:  # warm the visual review (photoquality) for the queue's quality chip; never blocks or fails the stage
+        from app.modules.photoquality.targets import news_target, warm
+        warm(*news_target({**doc, "card": card}))
+    except Exception:
+        pass
+    return card
 
 
 def _owner_agent() -> str:

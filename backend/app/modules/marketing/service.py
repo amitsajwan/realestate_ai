@@ -74,6 +74,11 @@ class MarketingService:
             await self.packs.update_one({"_id": listing_id, "agent_id": agent_id}, {"$set": doc})
         else:
             await self.packs.insert_one({"_id": listing_id, **doc})
+        try:  # warm the visual review (photoquality) so the Approve screen's quality chip is instant; never blocks
+            from app.modules.photoquality.targets import listing_target, warm
+            warm(*listing_target(doc, listing, self.uploads_dir))
+        except Exception:
+            pass
         return self._out({"_id": listing_id, **doc}, base_url)
 
     async def get(self, agent_id: str, listing_id: str, base_url: str) -> MarketingPack:

@@ -28,11 +28,36 @@ class Description(BaseModel):
 MAX_PHOTOS = 10
 
 
+class PhotoQuality(BaseModel):
+    """The upload's photo-quality analysis (app/modules/photoquality), carried on the photo record. Advice only."""
+    model_config = ConfigDict(extra="ignore")
+    score: StrictInt = Field(..., ge=0, le=100)
+    issues: List[str] = Field(default_factory=list, max_length=8)
+    tips: List[str] = Field(default_factory=list, max_length=4)
+    enhanced_score: Optional[StrictInt] = Field(None, ge=0, le=100)
+    width: Optional[int] = None
+    height: Optional[int] = None
+
+    @field_validator("tips")
+    @classmethod
+    def _tips(cls, v: List[str]) -> List[str]:
+        return [t[:160] for t in v]
+
+    @field_validator("issues")
+    @classmethod
+    def _issues(cls, v: List[str]) -> List[str]:
+        return [i[:40] for i in v]
+
+
 class Media(BaseModel):
     model_config = ConfigDict(extra="forbid")
     url: str = Field(..., min_length=1, max_length=2000)
     kind: Literal["image", "video"] = "image"
     order: StrictInt = Field(0, ge=0)
+    # photo quality (optional): the enhanced copy stored beside the original, and whether to show it instead
+    quality: Optional[PhotoQuality] = None
+    enhanced_url: Optional[str] = Field(None, max_length=2000)
+    use_enhanced: Optional[bool] = None
 
     @field_validator("url")
     @classmethod
@@ -41,6 +66,25 @@ class Media(BaseModel):
         if not v:
             raise ValueError("media url must not be empty")
         return v
+
+    @field_validator("enhanced_url")
+    @classmethod
+    def _enhanced(cls, v: Optional[str]) -> Optional[str]:
+        """Only our own enhanced uploads ('/uploads/images/<name>-enh.jpg', relative or on our host) are accepted."""
+        if v is None or not v.strip():
+            return None
+        from app.modules.photoquality.store import _local_path, is_enhanced_name
+        p = _local_path(v)
+        if not p or not is_enhanced_name(p.rsplit("/", 1)[-1]):
+            raise ValueError("enhanced_url must be an enhanced upload")
+        return v.strip()
+
+
+class PublicMedia(BaseModel):
+    """What public pages see: one url per photo (the enhanced copy when the agent chose it)."""
+    url: str
+    kind: Literal["image", "video"] = "image"
+    order: int = 0
 
 
 class _Fields(BaseModel):
@@ -160,8 +204,14 @@ class PublicListing(BaseModel):
     possession: Optional[str] = None
     rera_no: Optional[str] = None
     amenities: List[str] = Field(default_factory=list)
-    media: List[Media] = Field(default_factory=list)
+    media: List[PublicMedia] = Field(default_factory=list)
     about: Optional[PublicAbout] = None
+
+    @field_validator("media", mode="before")
+    @classmethod
+    def _chosen_photo(cls, v):
+        from app.modules.photoquality.store import public_media
+        return public_media(v) if isinstance(v, list) else v
     created_at: datetime
     updated_at: datetime
     published_at: Optional[datetime] = None
