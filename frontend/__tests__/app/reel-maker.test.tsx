@@ -59,7 +59,7 @@ test('idle: language picker and Make my reel, which starts a job in the chosen l
     fireEvent.click(screen.getByRole('button', { name: 'Make my reel' }))
   })
   expect(s.make).toHaveBeenCalledWith('hi', false)
-  expect(screen.getByTestId('reel-progress')).toHaveTextContent('Making your reel... about 1 to 2 minutes')
+  expect(screen.getByTestId('reel-progress')).toHaveTextContent('Making your reel... this takes a few minutes')
 })
 
 test('queued and rendering: polls every 5 s until done, then shows the player, Download and WhatsApp', async () => {
