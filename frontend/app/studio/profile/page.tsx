@@ -8,7 +8,7 @@ import { getSiteUrl } from '@/lib/app/session'
 
 const load = () => brandingApi.load()
 const save = (patch: Parameters<typeof brandingApi.save>[0]) => brandingApi.save(patch)
-const upload = (file: File) => brandingApi.upload(file)
+const upload = (file: File) => brandingApi.uploadFile(file)
 
 /** The agent's own brand: how his public page looks (logo, banner, colours, texts, RERA agent number). */
 export default function ProfilePage() {

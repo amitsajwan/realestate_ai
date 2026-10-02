@@ -6,6 +6,7 @@ import type { ApproveBody, NewsroomItem, NewsroomPreview } from '@/lib/app/newsr
 import { CheckResult } from './CheckResult'
 import { FactsList } from './FactsList'
 import { PostPreview } from './PostPreview'
+import { ReviewChip } from '../quality/ReviewChip'
 
 export interface QueueCardProps {
   item: NewsroomItem
@@ -152,6 +153,7 @@ export function QueueCard({ item, onApprove, onReject, onPreview }: QueueCardPro
         </div>
       ) : (
         <div className="space-y-2">
+          <ReviewChip kind="news" id={item.id} />
           <Btn onClick={approve} disabled={busy || !text.trim() || captionsBlocked}className="!bg-blue-900 active:!bg-blue-950 disabled:!bg-blue-300">
             {busy ? 'Approving...' : scheduling ? 'Approve and schedule' : 'Approve'}
           </Btn>

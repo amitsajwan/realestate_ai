@@ -21,7 +21,7 @@ export function AgentBrandEditor({ agentId, onSaved }: { agentId: string; onSave
         onSaved?.()
         return { ...flat, branding_data: flat } as unknown as BrandingDoc
       }}
-      uploadImage={async (file) => (await api.uploadImages([await compressImage(file)]))[0].url}
+      uploadImage={async (file) => (await api.uploadImages([await compressImage(file)]))[0]}
     />
   )
 }

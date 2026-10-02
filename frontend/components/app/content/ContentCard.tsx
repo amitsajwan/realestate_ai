@@ -3,6 +3,7 @@ import React, { useState } from 'react'
 import { Btn, Chip, ErrorBox } from '@/components/app/ui'
 import { channelLabel, dueLabel, friendlyContentError, kindLabel, mediaUrl, statusLabel } from '@/lib/app/content'
 import type { ContentItem } from '@/lib/app/content'
+import { ReviewChip } from '../quality/ReviewChip'
 
 export interface ContentCardProps {
   item: ContentItem
@@ -60,6 +61,7 @@ export function ContentCard({ item, onApprove, onSkip }: ContentCardProps) {
       {item.error && <p className="text-xs text-red-700">Last error: {item.error}</p>}
       {error && <ErrorBox message={error} />}
 
+      {needsOk && item.kind !== 'reel' && item.image_urls.length > 0 && <ReviewChip kind="calendar" id={item.id} />}
       <div className="flex gap-2">
         {needsOk && (
           <Btn disabled={busy} onClick={() => run(() => onApprove(item.id))}>

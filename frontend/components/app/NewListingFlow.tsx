@@ -9,7 +9,8 @@ import { getSiteUrl } from '@/lib/app/session'
 import { listingLink } from '@/lib/app/share'
 import { compactAbout } from '@/lib/app/about'
 import { t } from '@/lib/app/strings'
-import type { About, AIDraft, Listing, ListingInput } from '@/lib/app/types'
+import type { About, AIDraft, Listing, ListingInput, UploadedFile } from '@/lib/app/types'
+import { qualityFields } from '@/lib/app/quality'
 import { FIELD_LABELS, lowConfidenceFields, missingFields, priceSanity } from '@/lib/app/validate'
 import { AboutStep } from './AboutStep'
 import { MarketingScreen } from './MarketingScreen'
@@ -57,7 +58,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
   const [error, setError] = useState<string | null>(null)
   const [posted, setPosted] = useState<Listing | null>(null)
   const createdId = useRef<string | null>(null)
-  const uploaded = useRef<{ key: string; urls: string[] } | null>(null)
+  const uploaded = useRef<{ key: string; files: UploadedFile[] } | null>(null)
 
   const previews = useMemo(() => photos.map((f) => URL.createObjectURL(f)), [photos])
   useEffect(() => () => previews.forEach((u) => URL.revokeObjectURL(u)), [previews])
@@ -110,12 +111,12 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
         // Photos are optional: nothing to upload means no call (the upload endpoint rejects an empty request).
         // Compressing first keeps files small = cheap storage and fast on mobile data.
         const files = photos.length ? await api.uploadImages(await Promise.all(photos.map((p) => compressImage(p)))) : []
-        uploaded.current = { key, urls: files.map((f) => f.url) }
+        uploaded.current = { key, files }
       }
       const body = cleanInput({
         ...form,
         about: compactAbout(about),
-        media: uploaded.current.urls.map((url, order) => ({ url, kind: 'image' as const, order })),
+        media: uploaded.current.files.map((f, order) => ({ url: f.url, kind: 'image' as const, order, ...qualityFields(f) })),
       })
       // Retry-safe: never create the same draft twice if publish fails.
       const saved = onBehalfOf

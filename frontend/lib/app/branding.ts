@@ -5,7 +5,7 @@ import { ApiError, parseErrorBody } from './api'
 import { isFixtureMode } from './client'
 import { compressImage } from './imageCompress'
 import { getToken } from './session'
-import type { SiteUpdateInput } from './types'
+import type { SiteUpdateInput, UploadedFile } from './types'
 import { api } from './client'
 
 /** What the editor loads: the agent's identity plus his stored branding_data. */
@@ -22,6 +22,8 @@ export interface BrandingApi {
   load(): Promise<BrandingDoc>
   save(patch: BrandingPatch): Promise<BrandingDoc>
   upload(file: File): Promise<string>
+  /** Same upload, with the photo-quality fields (quality, enhanced_url, use_enhanced) of the stored copy. */
+  uploadFile(file: File): Promise<UploadedFile>
 }
 
 /** Relative upload paths ('/uploads/images/x.jpg') are served by the API host. */
@@ -57,10 +59,11 @@ async function call<T>(method: string, json?: unknown): Promise<T> {
 const realBranding: BrandingApi = {
   load: () => call<BrandingDoc>('GET'),
   save: (patch) => call<BrandingDoc>('PATCH', patch),
-  upload: async (file) => {
+  upload: async (file) => (await realBranding.uploadFile(file)).url,
+  uploadFile: async (file) => {
     const [up] = await api.uploadImages([await compressImage(file)])
     if (!up?.url) throw new ApiError(422, 'Upload failed. Try a smaller JPG or PNG.')
-    return up.url
+    return up
   },
 }
 
@@ -85,6 +88,9 @@ const fixtureBranding: BrandingApi = {
   async upload(file) {
     return api.uploadImages([file]).then((r) => r[0].url)
   },
+  async uploadFile(file) {
+    return api.uploadImages([file]).then((r) => r[0])
+  },
 }
 
 /** What screens import: the fixture version in fixture mode, else the real one. */
@@ -92,4 +98,5 @@ export const brandingApi: BrandingApi = {
   load: () => (isFixtureMode() ? fixtureBranding : realBranding).load(),
   save: (p) => (isFixtureMode() ? fixtureBranding : realBranding).save(p),
   upload: (f) => (isFixtureMode() ? fixtureBranding : realBranding).upload(f),
+  uploadFile: (f) => (isFixtureMode() ? fixtureBranding : realBranding).uploadFile(f),
 }

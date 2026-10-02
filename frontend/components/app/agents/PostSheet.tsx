@@ -7,6 +7,7 @@ import { REEL_LANGS, reelsApi } from '@/lib/app/reels'
 import type { ReelJob, ReelLang, ReelPost } from '@/lib/app/reels'
 import { Btn, ErrorBox, Spinner } from '../ui'
 import { BRAND_NAME } from '@/lib/brand'
+import { ReviewChip } from '../quality/ReviewChip'
 
 const ORDER: PostChannel[] = ['facebook_page', 'instagram']
 
@@ -131,6 +132,7 @@ export function PostSheet({ agentId, agentName, listingId, listingTitle, consent
           </div>
         ) : (
           <div className="mt-4 space-y-2">
+            {captions && <ReviewChip kind="listing" id={listingId} />}
             {!consentGiven && <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-900">Record {firstName(agentName)}&apos;s consent first (on his page). Posting is blocked until then.</p>}
             <Btn onClick={post} disabled={!captions || !consentGiven || busy}>{busy ? 'Posting...' : `Approve and post for ${firstName(agentName)}`}</Btn>
             <Btn variant="ghost" onClick={onClose}>Cancel</Btn>

@@ -5,12 +5,14 @@ import React, { useEffect, useState } from 'react'
 import { FreshnessSection } from '@/components/app/FreshnessPrompt'
 import { cleanInput } from '@/components/app/NewListingFlow'
 import { PhotoPicker } from '@/components/app/PhotoPicker'
+import { ListingPhotos } from '@/components/app/quality/ListingPhotos'
 import { ReviewForm } from '@/components/app/ReviewForm'
 import { ShareBar } from '@/components/app/ShareBar'
 import { Btn, ErrorBox, LinkBtn, Spinner, StatusChip } from '@/components/app/ui'
 import { ApiError } from '@/lib/app/api'
 import { api, errorMessage } from '@/lib/app/client'
 import { compressImage } from '@/lib/app/imageCompress'
+import { qualityFields } from '@/lib/app/quality'
 import { getSiteUrl } from '@/lib/app/session'
 import { listingLink } from '@/lib/app/share'
 import { t } from '@/lib/app/strings'
@@ -81,7 +83,7 @@ export default function ListingDetailPage() {
 
   async function addPhotos() {
     const uploaded = await api.uploadImages(await Promise.all(newPhotos.map((f) => compressImage(f))))
-    const media = [...listing.media, ...uploaded.map((u, i) => ({ url: u.url, kind: 'image' as const, order: listing.media.length + i }))]
+    const media = [...listing.media, ...uploaded.map((u, i) => ({ url: u.url, kind: 'image' as const, order: listing.media.length + i, ...qualityFields(u) }))]
     await run(() => api.updateListing(listing.id, { media }), 'Photos added. Open "Marketing" and refresh your post to use them.')
     setNewPhotos([])
   }
@@ -140,14 +142,9 @@ export default function ListingDetailPage() {
       {msg && <p role="status" className="rounded-xl bg-green-50 p-3 text-center text-sm font-semibold text-green-800">{msg}</p>}
       {err && <ErrorBox message={err} />}
 
-      {listing.media.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto">
-          {listing.media.map((m) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={m.url} src={m.url} alt="" className="h-28 w-40 flex-none rounded-xl object-cover" />
-          ))}
-        </div>
-      )}
+      <ListingPhotos media={listing.media} busy={busy}
+        onToggle={(i, v) => run(() => api.updateListing(listing.id, { media: listing.media.map((m, j) => (j === i ? { ...m, use_enhanced: v } : m)) }),
+          v ? 'Using the enhanced photo.' : 'Using your original photo.')} />
 
       <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4" aria-label="Photos">
         <p className="font-semibold">Photos {listing.media.length === 0 && <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">None yet</span>}</p>

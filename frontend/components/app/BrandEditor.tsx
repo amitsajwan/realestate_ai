@@ -6,6 +6,10 @@ import { PRESETS, PRESET_IDS, BANNER_OVERLAY, type PresetId } from '@/lib/site/p
 import { monogram, resolveTheme, safeCustomPrimary, themeVars } from '@/lib/site/theme'
 import type { AgentBranding } from '@/lib/site/types'
 import { Btn, ErrorBox, Field, Spinner, inputCls } from './ui'
+import { EnhanceToggle, QualityBadge, QualityTip } from './quality/QualityBadge'
+import { analyzeFile } from '@/lib/app/quality'
+import type { PhotoQuality } from '@/lib/app/quality'
+import type { UploadedFile } from '@/lib/app/types'
 import { BRAND_NAME } from '@/lib/brand'
 
 export interface BrandEditorProps {
@@ -13,7 +17,8 @@ export interface BrandEditorProps {
   agentId?: string
   loadBranding: (agentId?: string) => Promise<BrandingDoc>
   saveBranding: (patch: BrandingPatch, agentId?: string) => Promise<BrandingDoc>
-  uploadImage: (file: File, agentId?: string) => Promise<string>
+  /** Returns the stored url, or the whole upload record (with photo-quality fields) so the picker can offer the enhanced copy. */
+  uploadImage: (file: File, agentId?: string) => Promise<string | UploadedFile>
   onSaved?: (doc: BrandingDoc) => void
 }
 
@@ -90,7 +95,18 @@ export function BrandPreview({ draft, agentName, logoSrc, bannerSrc }: { draft: 
   )
 }
 
-function ImagePick({ id, label, hint, src, busy, onPick, onClear, wide }: { id: string; label: string; hint: string; src: string; busy: boolean; onPick: (f: File) => void; onClear: () => void; wide?: boolean }) {
+/** What we know about the logo or banner picked in this session: its quality and, for the banner, the enhanced copy. */
+interface Picked {
+  quality: PhotoQuality | null
+  url: string
+  enhanced_url?: string | null
+  use: boolean
+}
+
+// a logo is a graphic: dark or plain areas are intended, so only size and sharpness are judged
+const LOGO_ISSUES = new Set(['small', 'blurry'])
+
+function ImagePick({ id, label, hint, src, busy, onPick, onClear, wide, extra }: { id: string; label: string; hint: string; src: string; busy: boolean; onPick: (f: File) => void; onClear: () => void; wide?: boolean; extra?: React.ReactNode }) {
   const ref = useRef<HTMLInputElement>(null)
   return (
     <div className="space-y-2">
@@ -99,12 +115,26 @@ function ImagePick({ id, label, hint, src, busy, onPick, onClear, wide }: { id: 
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {src ? <img src={src} alt={label + ' preview'} className={'h-full w-full ' + (wide ? 'object-cover' : 'object-contain p-1')} /> : <span>{wide ? 'No banner yet' : 'No logo yet'}</span>}
       </div>
+      {extra}
       <p className="text-xs text-gray-500">{hint}</p>
       <div className="flex gap-2">
         <Btn variant="secondary" block={false} disabled={busy} onClick={() => ref.current?.click()}>{busy ? 'Uploading...' : src ? 'Change' : 'Add'}</Btn>
         {src && <Btn variant="ghost" block={false} disabled={busy} onClick={onClear}>Remove</Btn>}
       </div>
       <input ref={ref} id={id} data-testid={id} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f); e.target.value = '' }} />
+    </div>
+  )
+}
+
+function PickedQuality({ p, onUse }: { p: Picked; onUse?: (v: boolean) => void }) {
+  return (
+    <div className="space-y-1" data-testid="picked-quality">
+      <QualityBadge quality={p.quality} />
+      <QualityTip quality={p.quality} />
+      {onUse && p.enhanced_url && (
+        <EnhanceToggle original={assetUrl(p.url)} enhanced={assetUrl(p.enhanced_url)} value={p.use} onChange={onUse}
+          scores={{ before: p.quality?.score, after: p.quality?.enhanced_score }} />
+      )}
     </div>
   )
 }
@@ -135,6 +165,7 @@ export function BrandEditor({ agentId, loadBranding, saveBranding, uploadImage, 
   const [busy, setBusy] = useState<'logo' | 'banner' | 'save' | null>(null)
   const [saved, setSaved] = useState(false)
   const [custom, setCustom] = useState('')
+  const [picked, setPicked] = useState<Partial<Record<'logo' | 'banner', Picked>>>({})
 
   useEffect(() => {
     let alive = true
@@ -151,8 +182,14 @@ export function BrandEditor({ agentId, loadBranding, saveBranding, uploadImage, 
     setBusy(kind)
     setError(null)
     try {
-      const url = await uploadImage(file, agentId)
-      set({ [kind]: url } as Partial<Draft>)
+      const [local, up] = await Promise.all([analyzeFile(file).catch(() => null), uploadImage(file, agentId)])
+      const rec: UploadedFile = typeof up === 'string' ? { id: '', url: up } : up
+      let quality = rec.quality ?? local
+      if (kind === 'logo' && quality) quality = { ...quality, issues: quality.issues.filter((i) => LOGO_ISSUES.has(i)) }
+      const enhanced = kind === 'banner' ? rec.enhanced_url ?? null : null
+      const use = !!(enhanced && rec.use_enhanced)
+      setPicked((p) => ({ ...p, [kind]: { quality, url: rec.url, enhanced_url: enhanced, use } }))
+      set({ [kind]: use && enhanced ? enhanced : rec.url } as Partial<Draft>)
     } catch (e) {
       setError(errorMessage(e))
     } finally {
@@ -228,8 +265,16 @@ export function BrandEditor({ agentId, loadBranding, saveBranding, uploadImage, 
 
       <section className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4">
         <h2 className="text-base font-semibold">Logo and banner</h2>
-        <ImagePick id="brand-logo" label="Logo" hint="Square or wide, a plain background works best. It is shown small in your header." src={assetUrl(draft.logo)} busy={busy === 'logo'} onPick={(f) => pick('logo', f)} onClear={() => set({ logo: '' })} />
-        <ImagePick id="brand-banner" label="Banner photo" hint="A wide landscape photo, about 1600 x 600 px. The middle stays visible on phones, so keep faces and text away from the edges. We darken it so your words stay readable." src={assetUrl(draft.banner)} busy={busy === 'banner'} onPick={(f) => pick('banner', f)} onClear={() => set({ banner: '' })} wide />
+        <ImagePick id="brand-logo" label="Logo" hint="Square or wide, a plain background works best. It is shown small in your header." src={assetUrl(draft.logo)} busy={busy === 'logo'} onPick={(f) => pick('logo', f)} onClear={() => { setPicked((p) => ({ ...p, logo: undefined })); set({ logo: '' }) }}
+          extra={picked.logo && draft.logo ? <PickedQuality p={picked.logo} /> : null} />
+        <ImagePick id="brand-banner" label="Banner photo" hint="A wide landscape photo, about 1600 x 600 px. The middle stays visible on phones, so keep faces and text away from the edges. We darken it so your words stay readable." src={assetUrl(draft.banner)} busy={busy === 'banner'} onPick={(f) => pick('banner', f)} onClear={() => { setPicked((p) => ({ ...p, banner: undefined })); set({ banner: '' }) }} wide
+          extra={picked.banner && draft.banner ? (
+            <PickedQuality p={picked.banner} onUse={(v) => {
+              const b = picked.banner as Picked
+              setPicked((p) => ({ ...p, banner: { ...b, use: v } }))
+              set({ banner: v && b.enhanced_url ? b.enhanced_url : b.url })
+            }} />
+          ) : null} />
       </section>
 
       <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4">

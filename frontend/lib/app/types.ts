@@ -1,3 +1,4 @@
+import type { PhotoQuality } from './quality'
 /** Types mirroring docs/contracts/listing.md (frozen for Sprint 1) and the built onboarding/tracking modules. */
 
 export type ListingStatus = 'draft' | 'live' | 'under_offer' | 'sold' | 'rented' | 'paused' | 'expired'
@@ -10,6 +11,10 @@ export interface Media {
   url: string
   kind: 'image' | 'video'
   order: number
+  /** Photo quality (lib/app/quality.ts): the analysis, the enhanced copy beside the original, and which one to show. */
+  quality?: PhotoQuality | null
+  enhanced_url?: string | null
+  use_enhanced?: boolean | null
 }
 
 export interface Description {
@@ -397,6 +402,9 @@ export interface UploadedFile {
   url: string
   thumbnail_url?: string | null
   original_name?: string
+  quality?: PhotoQuality | null
+  enhanced_url?: string | null
+  use_enhanced?: boolean | null
 }
 
 export type ImageKind = 'cover' | 'facts' | 'amenities' | 'cta' | 'status'
