@@ -73,6 +73,14 @@ async function signIn(page, phone, code, shotPrefix) {
   await page.getByRole('button', { name: /Send OTP|Continue|Next/ }).click()
   await page.getByText('Enter your 6-digit invite code').waitFor()
   if (shotPrefix) await shot(page, shotPrefix + '-join-code')
+  if (shotPrefix) {
+    // one wrong code first: the message must be readable (not "Request failed (400)"); the right code resets the counter
+    const wrong = code === '000000' ? '111111' : '000000'
+    await page.getByLabel(/code|OTP/i).first().fill(wrong)
+    await page.getByText(/Incorrect code/).waitFor({ timeout: 20000 })
+    await shot(page, shotPrefix + '-join-wrong-code')
+    await page.getByLabel(/code|OTP/i).first().fill('')
+  }
   await page.getByLabel(/code|OTP/i).first().fill(code) // 6 digits submit on their own
   await Promise.race([page.locator('#name').waitFor({ timeout: 30000 }), page.waitForURL(/\/studio/, { timeout: 30000 })])
 }
@@ -156,6 +164,8 @@ async function self(browser) {
     await step('A7 review the AI draft and publish', async () => {
       await page.getByRole('button', { name: /Confirm & post/ }).waitFor()
       await settle(page)
+      await page.evaluate(() => { window.scrollTo(0, 0); document.querySelectorAll('main, [data-surface=v2]').forEach((el) => { el.scrollTop = 0 }) })
+      await page.waitForTimeout(400)
       await shot(page, 'a07-review-top')
       const vals = await page.locator('input,textarea,select').evaluateAll((els) => els.map((e) => e.value).join(' | '))
       const ok = /Kharadi/i.test(vals) && /950/.test(vals) && /(8500000|85)/.test(vals)
@@ -186,6 +196,9 @@ async function self(browser) {
       return `listing ${state.listingId}`
     })
     await step('A9 the agent\'s public page and the listing page', async () => {
+      // the public page refreshes about 30 seconds after a change: the first visit can show the old version, a second one the new
+      await page.goto(`${APP}/agent/${state.slug}`, { waitUntil: 'domcontentloaded' })
+      await page.waitForTimeout(31000)
       await page.goto(`${APP}/agent/${state.slug}`, { waitUntil: 'domcontentloaded' })
       await settle(page, 1500)
       await shot(page, 'a09-public-page')
@@ -281,7 +294,7 @@ async function owner(browser) {
       const msg = await page.locator('#ag-msg').inputValue()
       await page.getByRole('button', { name: 'Copy message' }).click().catch(() => {})
       // the code is a test code, but blur it in the screenshot anyway
-      await page.getByTestId('invite-code').evaluate((el) => { el.style.filter = 'blur(8px)' })
+      await page.getByTestId('invite-code').evaluate((el) => { el.textContent = '••••••' })
       await page.locator('#ag-msg').evaluate((el) => { el.value = el.value.replace(/\b\d{6}\b/g, '••••••') })
       await shot(page, 'b02-agent-code')
       state.conciergeMsg = msg.replace(/\b\d{6}\b/g, '<code>')

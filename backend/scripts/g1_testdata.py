@@ -11,6 +11,7 @@ import argparse
 import asyncio
 import os
 import re
+import shutil
 
 from bson import ObjectId, json_util
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -100,6 +101,11 @@ async def main() -> None:
                 os.remove(p)
                 removed_files += 1
     for (coll, _id), (doc, _f) in hits.items():
+        if coll == "listings" and re.fullmatch(r"[A-Za-z0-9]{8,40}", _id):
+            d = os.path.join("uploads", "marketing", _id)  # the marketing pack folder of a test listing
+            if os.path.isdir(d):
+                shutil.rmtree(d)
+                removed_files += 1
         await db[coll].delete_one({"_id": doc["_id"]})
     print(f"deleted documents={len(hits)} files={removed_files} kept_shared_files={len(ours & others)}")
 
