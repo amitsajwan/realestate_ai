@@ -1,28 +1,59 @@
-"""Build AGENT_GUIDE.html (self-contained, phone-first, Avasetu look) from docs/AGENT_GUIDE.md.
+"""Build the shareable guides as self-contained, phone-first HTML pages in the Avasetu look.
 
-    backend/.venv/Scripts/python.exe docs/brand/avasetu/guide/build_html.py
+    backend/.venv/Scripts/python.exe docs/brand/avasetu/guide/build_html.py            # agent guide (default)
+    backend/.venv/Scripts/python.exe docs/brand/avasetu/guide/build_html.py partner    # docs/partner/PARTNER_GUIDE.html
+    backend/.venv/Scripts/python.exe docs/brand/avasetu/guide/build_html.py operator   # docs/operator/OPERATOR_GUIDE.html
+    backend/.venv/Scripts/python.exe docs/brand/avasetu/guide/build_html.py all
 
-Handles only the Markdown the guide uses: headings, paragraphs, lists, task lists, tables, quotes, code blocks, <img> tags,
-**bold**, *italic*, `code`. Screenshots are shrunk to 520 px wide and embedded as data URIs (the page stays under 4 MB).
+Handles only the Markdown the guides use: headings, paragraphs, lists, task lists, tables, quotes, code blocks, ```mermaid blocks
+(written as <pre class="mermaid"> for viewers that render Mermaid), <img> tags, **bold**, *italic*, `code`. Image paths are relative
+to the Markdown file. Screenshots are shrunk to 520 px wide and embedded as data URIs (each page stays under 4 MB).
 """
 import base64
 import html
 import io
 import re
+import sys
 from pathlib import Path
 
 from PIL import Image
 
 HERE = Path(__file__).resolve().parent
-DOCS = HERE.parents[2]
+DOCS = HERE.parents[2]  # image paths resolve against the folder of the Markdown being built (set per guide in build())
 MD = DOCS / "AGENT_GUIDE.md"
 OUT = HERE / "AGENT_GUIDE.html"
+PROTECT_CODE = False  # True: `code` spans get no bold/italic/link processing (the partner and operator guides)
 _cache: dict = {}
+
+
+# Test phone numbers that some agent-guide screenshots show in full: the shareable guides cover them with a masked version
+# (box in source pixels, replacement text, background, text colour, font size).
+_MUTED = (75, 85, 99)
+_PAGE = (247, 251, 254)
+_JOIN_NO = [((288, 266, 562, 312), "+91 90******11", _PAGE, _MUTED, 30)]
+PHONE_MASKS = {
+    "a01-join-code.jpg": _JOIN_NO,
+    "a01-join-wrong-code.jpg": _JOIN_NO,
+    "a10-chat-lead.jpg": [((508, 1114, 706, 1166), "90******12", (17, 36, 66), (255, 255, 255), 30)],
+    "a11-leads.jpg": [((94, 400, 334, 444), "+91 90******12", (255, 255, 255), _MUTED, 28)],
+    "a11-lead-detail.jpg": [((60, 186, 334, 232), "+91 90******12", _PAGE, _MUTED, 30)],
+}
+MASKS: dict = {}  # set per guide in build()
+FONT = HERE.parents[2].parent / "backend" / "app" / "modules" / "marketing" / "fonts" / "Poppins-Regular.ttf"
+
+
+def _mask(im: Image.Image, name: str) -> Image.Image:
+    from PIL import ImageDraw, ImageFont
+    d = ImageDraw.Draw(im)
+    for (x0, y0, x1, y1), text, bg, fg, size in MASKS.get(name, ()):
+        d.rectangle((x0, y0, x1, y1), fill=bg)
+        d.text((x0 + 4, (y0 + y1) // 2), text, fill=fg, font=ImageFont.truetype(str(FONT), size), anchor="lm")
+    return im
 
 
 def data_uri(src: str) -> str:
     if src not in _cache:
-        im = Image.open(DOCS / src).convert("RGB")
+        im = _mask(Image.open(DOCS / src).convert("RGB"), Path(src).name)
         w = 520
         if im.width > w:
             im = im.resize((w, round(im.height * w / im.width)), Image.LANCZOS)
@@ -45,10 +76,19 @@ def inline(text: str) -> str:
     text = re.sub(r"<img [^>]*>", keep_img, text)
     text = text.replace("<br>", "\x01")
     t = html.escape(text, quote=False)
-    t = re.sub(r"`([^`]+)`", r"<code>\1</code>", t)
+    codes = []
+    if PROTECT_CODE:
+        def keep_code(m):
+            codes.append(f"<code>{m.group(1)}</code>")
+            return f"\x05{len(codes) - 1}\x05"
+        t = re.sub(r"`([^`]+)`", keep_code, t)
+    else:
+        t = re.sub(r"`([^`]+)`", r"<code>\1</code>", t)
     t = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", t)
     t = re.sub(r"(?<![\w*])\*([^*\n]+)\*(?![\w*])", r"<em>\1</em>", t)
     t = re.sub(r"(https://[A-Za-z0-9./_?=&%-]+[A-Za-z0-9/])", r'<a href="\1">\1</a>', t)
+    for i, c in enumerate(codes):
+        t = t.replace(f"\x05{i}\x05", c)
     t = t.replace("\x01", "")
     for i, tag in enumerate(imgs):
         t = t.replace(f"\x00{i}\x00", tag)
@@ -208,25 +248,87 @@ MARK = ('<svg viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height=
         '<path d="M188 330 L188 396 M256 330 L256 396 M324 330 L324 396" stroke="#102340" stroke-width="18" stroke-linecap="round"/></svg>')
 
 
-def main() -> None:
-    md = MD.read_text(encoding="utf8")
+# Extra styles for the partner and operator guides only (the agent guide's page stays byte-identical).
+EXTRA_CSS = """
+pre.mermaid{background:var(--card);color:var(--ink);border:1px solid var(--line);white-space:pre}
+nav.toc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:12px 0}
+nav.toc strong{display:block;margin-bottom:4px}
+nav.toc ol{margin:0;padding-left:22px}
+nav.toc li{margin:2px 0}
+td code,li code{word-break:break-word}
+"""
+
+GUIDES = {
+    "agent": dict(md=DOCS / "AGENT_GUIDE.md", out=HERE / "AGENT_GUIDE.html", title="Avasetu Agent Guide",
+                  description="Show Avasetu to a Pune agent, onboard him, his first listing and leads, the day-7 check-in and troubleshooting.",
+                  tag="Agent guide: showcase, onboard, first leads",
+                  legend=("✅ run on the live site", "⚠️ not run, instructions only"), extras=False),
+    "partner": dict(md=DOCS / "partner" / "PARTNER_GUIDE.md", out=DOCS / "partner" / "PARTNER_GUIDE.html", title="Avasetu Partner Guide",
+                    description="For Avasetu partners: what to promise, the rules, the Admin page, showcasing to Pune agents, onboarding, first leads, "
+                                "the day-7 check-in, a daily routine and troubleshooting.",
+                    tag="Partner guide: showcase, onboard, run the daily admin",
+                    legend=("✅ run on the live site", "⚠️ not run, instructions only"), extras=True),
+    "operator": dict(md=DOCS / "operator" / "OPERATOR_GUIDE.md", out=DOCS / "operator" / "OPERATOR_GUIDE.html", title="Avasetu Operator Guide",
+                     description="For Avasetu operators: architecture, a fresh GCP install, every setting, connect scripts, deploys, operations, "
+                                 "domain switch, security and common fixes.",
+                     tag="Operator guide: set up, deploy and run Avasetu",
+                     legend=("✅ in use on the pilot server", "⚠️ not run as written, check as you go"), extras=True),
+}
+MAX_BYTES = 4_000_000
+
+
+def _toc(body: str) -> str:
+    items = re.findall(r'<h2 id="([^"]+)">(.*?)</h2>', body)
+    lis = "".join(f'<li><a href="#{slug}">{re.sub(r"^[0-9]+[.] ", "", txt)}</a></li>' for slug, txt in items)
+    return f'<nav class="toc" aria-label="Contents"><strong>Contents</strong><ol>{lis}</ol></nav>' if items else ""
+
+
+def build(name: str) -> None:
+    global DOCS, PROTECT_CODE, MASKS
+    g = GUIDES[name]
+    md_path, out = g["md"], g["out"]
+    DOCS, PROTECT_CODE = md_path.parent, g["extras"]
+    MASKS = PHONE_MASKS if g["extras"] else {}
+    md = md_path.read_text(encoding="utf8")
     md = re.sub(r"^# .*\n", "", md, count=1)  # the title goes in the header
+    diagrams = []
+
+    def keep_mermaid(m):
+        diagrams.append(m.group(1).strip("\n"))
+        return f"\nMERMAIDBLOCK{len(diagrams) - 1}\n"
+    md = re.sub(r"^```mermaid\n(.*?)^```[ \t]*$", keep_mermaid, md, flags=re.S | re.M)
     body = convert(md)
+    for i, d in enumerate(diagrams):
+        body = body.replace(f"<p>MERMAIDBLOCK{i}</p>", f'<pre class="mermaid">{html.escape(d, quote=False)}</pre>')
+    css, toc = CSS, ""
+    if g["extras"]:
+        css, toc = CSS + EXTRA_CSS, _toc(body)
+    legend = "".join(f"<span>{x}</span>" for x in g["legend"])
     page = f"""<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Avasetu Agent Guide</title>
-<meta name="description" content="Show Avasetu to a Pune agent, onboard him, his first listing and leads, the day-7 check-in and troubleshooting.">
+<title>{g["title"]}</title>
+<meta name="description" content="{html.escape(g["description"])}">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@800&family=Hind:wght@400;600;700&display=swap" rel="stylesheet">
-<style>{CSS}</style>
-<header class="top"><div class="brand">{MARK}<span>Avasetu</span></div><p class="tag">Agent guide: showcase, onboard, first leads</p></header>
+<style>{css}</style>
+<header class="top"><div class="brand">{MARK}<span>Avasetu</span></div><p class="tag">{g["tag"]}</p></header>
 <main>
-<div class="legend"><span>✅ run on the live site</span><span>⚠️ not run, instructions only</span></div>
-{body}
+<div class="legend">{legend}</div>
+{toc}{body}
 </main>
 <footer>Avasetu · Your bridge to the right home · आवासेतु</footer>
 """
-    OUT.write_text(page, encoding="utf8")
-    print(f"{OUT.name}: {OUT.stat().st_size / 1e6:.2f} MB, {len(_cache)} images")
+    out.write_text(page, encoding="utf8")
+    size = out.stat().st_size
+    print(f"{out.name}: {size / 1e6:.2f} MB, {len(_cache)} images")
+    if size > MAX_BYTES:
+        raise SystemExit(f"{out.name} is over 4 MB: use fewer or smaller screenshots")
+
+
+def main() -> None:
+    names = sys.argv[1:] or ["agent"]
+    for name in (list(GUIDES) if names == ["all"] else names):
+        _cache.clear()
+        build(name)
 
 
 if __name__ == "__main__":
