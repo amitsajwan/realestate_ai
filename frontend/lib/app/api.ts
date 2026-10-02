@@ -61,7 +61,16 @@ export function parseErrorBody(body: unknown, status: number): ApiError {
   const fields: Record<string, string> = {}
   let missing: string[] = []
   let detail = `Request failed (${status})`
-  const b = body as Record<string, unknown> | null
+  let b = body as Record<string, unknown> | null
+  // The server's global handlers wrap every error as {error: {message, details?: {validation_errors: [{field: 'body -> x', message}]}}}.
+  // Unwrap it to the plain FastAPI shape, or every message ("Incorrect code", "Create the marketing pack first") reads "Request failed (NNN)".
+  if (b && typeof b === 'object' && b.detail === undefined && b.error && typeof b.error === 'object') {
+    const e = b.error as { message?: unknown; details?: { validation_errors?: Array<{ field?: string; message?: string }> } }
+    const ve = e.details?.validation_errors
+    b = Array.isArray(ve) && ve.length
+      ? { detail: ve.map((v) => ({ loc: String(v.field ?? '').split(' -> '), msg: v.message ?? 'Invalid value' })) }
+      : { detail: e.message }
+  }
   if (b && typeof b === 'object') {
     const d = (b.detail ?? b) as unknown
     if (typeof d === 'string') {
