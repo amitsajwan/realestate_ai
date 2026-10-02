@@ -131,3 +131,6 @@ Thumbs.db
 .nyc_output/
 backend/uploads/
 docs/brand/reel-samples/*.mp4
+
+# runtime files (renders, downloaded AI models); the depth model downloads itself when missing
+/uploads/
