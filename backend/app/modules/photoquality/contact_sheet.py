@@ -19,7 +19,7 @@ from .enhance import enhance
 
 PHOTOS = Path(__file__).resolve().parents[1] / "showcase" / "assets" / "photos"
 PICK = ("u0tVimluL_ls.jpg", "u4453DIQWtsQ.jpg", "uKAXJqMoe8OI.jpg", "uRUOLhYJF75w.jpg", "ulqu_NESnqfc.jpg", "uf9O_1eKGlQM.jpg")
-CELL_W = 520
+CELL_W = 440
 
 
 def degraded(img: np.ndarray) -> List[Tuple[str, np.ndarray]]:
@@ -71,7 +71,7 @@ def build(out_path: Path) -> Path:
     sheet = np.vstack([np.vstack([r, np.full((12, r.shape[1], 3), 255, np.uint8)]) for r in rows])
     sheet = np.hstack([sheet, np.full((sheet.shape[0], w - sheet.shape[1], 3), 255, np.uint8)]) if sheet.shape[1] < w else sheet
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    cv2.imwrite(str(out_path), sheet, [cv2.IMWRITE_JPEG_QUALITY, 82])
+    cv2.imwrite(str(out_path), sheet, [cv2.IMWRITE_JPEG_QUALITY, 74])
     return out_path
 
 
