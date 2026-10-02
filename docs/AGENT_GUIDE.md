@@ -10,6 +10,50 @@ Our site address is `https://34-180-39-243.sslip.io`. Below it is shortened to *
 
 ---
 
+## Part 0. Your Admin page ✅
+
+**Studio → Admin** (the site/studio/admin) is where you run everything from your phone. Only owner accounts see the **Admin** tab
+(it sits just before **Agents** in the bottom bar). Everyone else gets "Only the Avasetu owner can open Admin". Every section below was
+run on the live site on 2 October 2026 with a temporary owner account and test numbers. All of that test data was deleted afterwards.
+
+The page has six parts, top to bottom:
+
+1. **+ Add agent** (the big gold button). It opens the same sheet as Studio → Agents: his name, his mobile number and a label for you.
+   You then get his 6-digit code and a ready WhatsApp message with **Copy message**. Part B, Way 1 starts here.
+   <br><img src="brand/avasetu/guide/admin-01-top.jpg" width="220" alt="Admin: Add agent and Today">
+2. **Today.** Seven count tiles: new leads, interest taps, chat leads, WhatsApp leads, comments answered, posts published and news
+   published. The big number is today (since midnight, India time) and the line under it is the last 7 days. Tap a tile to open the
+   screen the number comes from: **Leads**, **Interest**, **Content** or **Newsroom**. *(In the test, the Leads tile opened Leads.)*
+   <br><img src="brand/avasetu/guide/admin-02-today.jpg" width="220" alt="Today tiles">
+3. **Needs you.** Posts that wait for your approval (tap to open **Content**), news stories to review (tap to open **Newsroom**), and
+   people who asked to join on the site/request-invite. Each request shows the name, a masked number (like `90******17`), the city and
+   their note, with two buttons:
+   - **Invite** makes his login, his site and his code at once, and shows the code and the WhatsApp message to send (like Add agent).
+     The request then disappears and he appears under **Agents**.
+   - **Dismiss** asks "Yes, dismiss" or "Keep" first, so a stray tap does nothing.
+   <br><img src="brand/avasetu/guide/admin-07-request-sent.jpg" width="200" alt="Someone asks to join"> <img src="brand/avasetu/guide/admin-08-needs-you.jpg" width="200" alt="Needs you"> <img src="brand/avasetu/guide/admin-08-invited.jpg" width="200" alt="Invited: code and message">
+4. **Agents.** Everyone you set up, with the ring (steps done out of 8), the masked number, when he was last active, and what is
+   left, for example "Finish setup: add logo, add banner, add RERA number". Tap a row to open his detail screen (brand, listings,
+   consent). In the test the ring went from 0/8 to 4/8 after his brand and consent, and the hint changed to "add banner, add his photo,
+   add first listing". **All agents** opens the full Agents tab.
+   <br><img src="brand/avasetu/guide/admin-04-agents.jpg" width="200" alt="Agents"> <img src="brand/avasetu/guide/admin-09-agents-after.jpg" width="200" alt="Invited person in Agents">
+5. **Health.** One row each for Facebook, Instagram, WhatsApp, AI, Posting, Comments and News. **Green** means working. **Amber**
+   means switched off, paused or in practice mode. **Red** means broken. Amber and red rows say how to fix it, for example
+   "Facebook disconnected: Meta rejected our token. Fix: Run deploy/gcp/meta_connect.ps1 to reconnect". The AI is checked at most once
+   every 10 minutes. In the test, everything was green except WhatsApp ("WhatsApp replies are off").
+   <br><img src="brand/avasetu/guide/admin-11-health.jpg" width="220" alt="Health">
+6. **Controls.** Three switches: **Pause posting** (scheduled Facebook and Instagram posts), **Pause comment replies** (the comment
+   assistant) and **Pause news** (collecting, drafting and posting news). Each switch first tells you what will happen and asks
+   "Yes, pause posting" or **Cancel**. While posting is paused, the Health row says "Paused by you" and nothing scheduled goes out.
+   Switch it back the same way ("Yes, resume posting"). Posts that came due while paused go out on the next run. ✅ Pause and resume
+   posting were tested: the switch was saved, and the server's posting runner logged "paused by owner, cycle skipped" until it was
+   resumed. ⚠️ Pause comment replies and Pause news were not switched in the test (they work the same way and have automatic tests).
+   <br><img src="brand/avasetu/guide/admin-10-pause-confirm.jpg" width="200" alt="Pause posting: confirm"> <img src="brand/avasetu/guide/admin-10-paused.jpg" width="200" alt="Posting paused">
+
+**Every morning:** open Admin, look at **Needs you** first, then glance at **Health**. If anything is red, fix it before you post.
+
+---
+
 ## One-page checklist
 
 **Before the meeting**
@@ -21,7 +65,7 @@ Our site address is `https://34-180-39-243.sslip.io`. Below it is shortened to *
 - [ ] Ask: "Shall I make your page now? It takes 10 minutes."
 
 **Onboard (Part B). Pick one way**
-- [ ] **You do it for him:** Studio → Agents → + Add agent → send him the WhatsApp message → Brand → Add listing for him → he agrees on WhatsApp → switch Consent on → Preview his page → Post to Avasetu
+- [ ] **You do it for him:** Studio → Admin → + Add agent → send him the WhatsApp message → Brand → Add listing for him → he agrees on WhatsApp → switch Consent on → Preview his page → Post to Avasetu
 - [ ] **He does it himself:** run `invite.ps1` for his number → send him the code → he opens the site/join → creates his site → My brand → + Add listing
 - [ ] Collect: logo, banner, his photo, colour, business name, MahaRERA agent number, areas, languages, 3 to 6 photos per home, home details, about-the-project facts, consent on WhatsApp
 
@@ -83,19 +127,21 @@ Rules the app enforces (you will see an error if you break them): text fields re
 business name can be up to 60 characters and the tagline up to 90. Areas must be in Pune. The RERA number is "A" followed by digits.
 We show it as "stated by the agent" and never call him "verified".
 
-### Way 1. You set him up (Studio → Agents) ✅
+### Way 1. You set him up (Studio → Admin → + Add agent) ✅
 
-This needs an owner account (yours). The **Agents** tab appears in Studio only for owner accounts. The test used a temporary owner
-account, which has been deleted.
+This needs an owner account (yours). The **Admin** and **Agents** tabs appear in Studio only for owner accounts. The tests used
+temporary owner accounts, which have been deleted. (If he already asked on the site/request-invite, use **Invite** on his request
+under Admin → **Needs you** instead of steps 1 and 2: it does the same and gives you the same code and message.)
 
-1. **Studio → Agents → + Add agent.** Fill in his name, his 10-digit mobile number, and a label for yourself (for example "Rahul, Baner").
-   Tap **Create agent**. *(4 s)*
-   <br><img src="brand/avasetu/guide/b02-add-agent.jpg" width="220" alt="Add agent"> <img src="brand/avasetu/guide/b02-agent-code.jpg" width="220" alt="Code and message">
+1. **Studio → Admin → + Add agent** (the gold button at the top). Fill in his name, his 10-digit mobile number, and a label for yourself
+   (for example "Rahul, Baner"). Tap **Create agent**. *(about 1 s)* The same sheet is also under Studio → Agents → + Add agent.
+   <br><img src="brand/avasetu/guide/admin-03-add-agent.jpg" width="220" alt="Add agent from Admin"> <img src="brand/avasetu/guide/admin-03-agent-code.jpg" width="220" alt="Code and message">
 2. The sheet shows his **6-digit code** (shown **only now**) and a ready message:
    *"Hi Rahul, welcome to Avasetu! Open https://34-180-39-243.sslip.io/join, enter 98XXXXXXXX and your personal code XXXXXX. Please don't share it."*
-   Tap **Copy message**, then **Open WhatsApp** (or paste the message into his chat). Then tap **Done**.
-   ⚠️ The test did not open WhatsApp. Sending the message by hand works the same way.
-3. Tap his row. You see his **Setup checklist** (logo, banner, RERA number, areas, photo, first listing, 3 listings, consent) and the ring (0/8).
+   Tap **Copy message** (✅ the test checked the copied text is the whole message), then **Open WhatsApp** (or paste the message into
+   his chat). Then tap **Done**. ⚠️ The test did not open WhatsApp. Sending the message by hand works the same way.
+   Note: the greeting uses the first word of the name you typed ("Hi Rahul").
+3. Tap his row under Admin → **Agents** (or in the Agents tab). You see his **Setup checklist** (logo, banner, RERA number, areas, photo, first listing, 3 listings, consent) and the ring (0/8).
    <br><img src="brand/avasetu/guide/b03-agent-detail.jpg" width="220" alt="Agent detail">
 4. **Brand:** fill in the business name and tagline, tap his areas, upload his logo, type his RERA number, then tap **Save my brand**. ✅ (logo, name,
    tagline, areas and RERA were tested. ⚠️ Banner and his photo were not uploaded in the test, but they use the same picker.)
@@ -186,7 +232,7 @@ Ask these questions and write down the answers:
 5. If this saved you an hour a day, what would you pay per month?
 
 **Success measure:** he adds a **second listing within 7 days** of the first, **without being asked**.
-Check it in Studio → Agents (the ring and "3 listings" item) or on his page.
+Check it in Studio → Admin → Agents or Studio → Agents (the ring and "3 listings" item) or on his page.
 
 **Tracking sheet (one row per agent):** Agent | Area | Invited on | First listing on | Listings after 14 days | Photos on listings |
 Enquiries | Site visits | Second listing within 7 days (Y/N) | Main complaint | Would pay (₹/month)
@@ -212,7 +258,13 @@ Enquiries | Site visits | Second listing within 7 days (Y/N) | Main complaint | 
 
 ### For the developer: how this guide was tested
 - Script: `frontend/e2e/guide-run.js` (system Chrome, 390x844). Commands: `PHASE=self|owner|show CODE=<test code> node e2e/guide-run.js`.
-- Test data helper: `backend/scripts/g1_testdata.py scan | promote <test no> | delete --confirm`. It only touches 9000000011 to 9000000014 and the G1 test names.
+- Admin page (Part 0): `frontend/e2e/admin-run.js` (`PHASE=signup CODE=<code for 9000000015>`, then `promote 9000000015`, then
+  `PHASE=admin`; it waits after "Pause posting" until `e2e/.out/admin/resume.flag` exists, so the server log can be checked). Test numbers:
+  temp owner 9000000015, agent 9000000016, website request 9000000017. Run twice on 2 October 2026 (14 of 14 steps passed both times).
+  Fixed during that run: with 8 owner tabs the bottom bar overflowed on a 390 px phone ("Agents" cut off), and the Admin header did not
+  reach the screen edges (now a rounded card).
+- Test data helper: `backend/scripts/g1_testdata.py scan | promote <test no> | controls | delete --confirm`. It only touches 9000000011 to
+  9000000019 and the guides' test names. `delete` also undoes Admin pause switches that a test user changed.
 - Bugs found and fixed during the run: app error messages showed "Request failed (NNN)" (server error envelope not unwrapped), which
   broke Post to Avasetu on first use; the chat on a listing page said "could not find a listed home that matches" when the page's own home
   matched; the Studio badge read "New website chat lead or chat"; the server invite script printed "<your app link>" instead of the join link.
