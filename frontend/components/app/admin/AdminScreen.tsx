@@ -209,7 +209,7 @@ export function AdminScreen() {
 
   return (
     <div className="space-y-6 pb-4" data-testid="admin-screen">
-      <header className={`-mx-4 -mt-4 ${NAVY} px-4 pb-5 pt-5 text-white`}>
+      <header className={`rounded-3xl ${NAVY} px-4 pb-5 pt-5 text-white`}>
         <p className={`text-sm font-semibold ${GOLD_TEXT}`}>{BRAND_NAME} Admin</p>
         <h1 className="text-2xl font-extrabold">Your day at a glance</h1>
         <p className="mt-1 text-xs text-white/70">Updated {timeAgo(o.generated_at)} · <button type="button" className="underline" onClick={reload}>{loading ? 'Refreshing...' : 'Refresh'}</button></p>

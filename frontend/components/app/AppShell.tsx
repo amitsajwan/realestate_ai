@@ -47,16 +47,16 @@ export function AppShell({ children, hideTabs = false }: { children: React.React
         >
           <ul className="mx-auto flex max-w-md">
             {tabs.map((tab) => (
-              <li key={tab.href} className="flex-1">
+              <li key={tab.href} className="min-w-0 flex-1">
                 <Link
                   href={tab.href}
                   aria-current={active(tab.href) ? 'page' : undefined}
-                  className={`flex min-h-[60px] flex-col items-center justify-center gap-1 text-xs font-semibold ${active(tab.href) ? 'text-blue-700' : 'text-gray-500'}`}
+                  className={`flex min-h-[60px] flex-col items-center justify-center gap-1 font-semibold ${tabs.length > 7 ? 'text-[10px] tracking-tight' : 'text-xs'} ${active(tab.href) ? 'text-blue-700' : 'text-gray-500'}`}
                 >
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     <path d={tab.icon} />
                   </svg>
-                  {t(tab.label)}
+                  <span className="max-w-full truncate">{t(tab.label)}</span>
                 </Link>
               </li>
             ))}
