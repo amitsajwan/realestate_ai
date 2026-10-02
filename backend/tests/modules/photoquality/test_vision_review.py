@@ -75,8 +75,9 @@ async def test_rules_only_uses_photo_analysis_and_critic(tmp_path):
     critic = {"ok": False, "problems": [{"rule": "truncated", "message": "cover#1: 'Wakad' does not fit", "severity": "error"},
                                         {"rule": "orphan", "message": "x", "severity": "warn"}]}
     res = await vr.review([p], {"critic": critic}, clients=[])
-    assert res["source"] == "rules" and res["score"] < 75 and res["verdict"] in ("fix", "redo")
-    assert any("too dark" in n for n in res["notes"]) and any("does not fit" in n for n in res["notes"])
+    assert res["source"] == "rules" and res["score"] < 90  # the critic error and warning pull it down
+    assert any("does not fit" in n for n in res["notes"])
+    assert not any("too dark" in n for n in res["notes"])  # finished cards: exposure is a design choice, not a defect
     assert vr.summary(res).startswith(f"Quality {res['score']} · Check: ")
 
 
@@ -134,3 +135,26 @@ async def test_openai_vision_request_shape(card):
     async with httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(429))) as http:
         res = await vr.review([card], {"caption": "z"}, clients=[vr.OpenAIVision("k", "m", "https://x", client=http)])
     assert res["source"] == "rules"
+
+
+def test_promise_gap_flags_a_list_post_that_does_not_deliver():
+    from app.modules.photoquality.vision_review import promise_gap
+    thin = {"headline": "3 details every lead should have",
+            "caption": "3 details every lead should have\n\n• Each lead card shows BHK\n- Avasetu team\n\n#Avasetu"}
+    assert promise_gap(thin) == "Headline promises 3 details but the caption lists 1"
+    full = {"headline": "", "caption": "Ye 3 sawaal poochhiye\n1️⃣ a\n2️⃣ b\n3️⃣ c"}
+    assert promise_gap(full) is None
+    for not_a_list in ("4 months to register, or lose your rights", "3 BHK in Kharadi", "1,050 sq ft carpet"):
+        assert promise_gap({"headline": not_a_list, "caption": ""}) is None
+
+
+def test_rule_review_does_not_call_designed_dark_cards_too_dark(tmp_path):
+    import numpy as np
+    import cv2
+    from app.modules.photoquality.vision_review import rule_review
+    card = np.full((1350, 1080, 3), (60, 30, 20), np.uint8)  # a navy card with white text
+    cv2.putText(card, "3 details every lead", (60, 600), cv2.FONT_HERSHEY_SIMPLEX, 2.4, (255, 255, 255), 6)
+    p = tmp_path / "card.jpg"
+    cv2.imwrite(str(p), card)
+    r = rule_review([p], {})
+    assert not any("dark" in n for n in r["notes"])

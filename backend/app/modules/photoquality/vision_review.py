@@ -49,7 +49,10 @@ SYSTEM = (
     "facts, prices, places or features and do not suggest adding any. Do not comment on the property itself or its price. "
     'Reply with ONE JSON object only: {"score": integer 0-100, "verdict": "good"|"fix"|"redo", '
     '"notes": [at most 4 short, concrete strings, e.g. "text cut at the bottom"]}. Use "redo" only for a clear defect '
-    "(cut-off or unreadable text, broken layout), \"fix\" for small issues, \"good\" when it is ready to post."
+    "(cut-off or unreadable text, broken layout), \"fix\" for small issues, \"good\" when it is ready to post. "
+    "These are designed cards: panels, boxes, badges, flat or dark backgrounds, placeholder bars and struck-through text "
+    "(a myth shown crossed out next to the fact) are deliberate and are not defects. Judge the image as a whole; never "
+    "describe it as zoomed, cropped from a larger image or a composite unless text is visibly cut at the frame edge."
 )
 
 
@@ -165,6 +168,29 @@ def default_clients() -> List[VisionClient]:
 
 
 # ---- rule score ---------------------------------------------------------------------------------------
+_PROMISE = re.compile(r"(?<![\d,.])(\d{1,2})(?!\s*bhk)\s+(?:\w+\s+){0,2}?(details|questions|tips|things|steps|ways|mistakes|signs|"
+                      r"reasons|checks|documents|points|rules|myths|facts|items|papers|costs|charges|sawaal)(?!\w)", re.I)
+_LIST_LINE = re.compile("^\\s*(?:[-•*▪✅✔☑]|\\d{1,2}[.)]|\\d️?⃣|\U0001F51F)\\s*\\S")
+
+
+def promise_gap(context: Dict[str, Any]) -> Optional[str]:
+    """'3 tips ...' in the headline but fewer than 3 listed in the caption: the post does not deliver what it promises."""
+    head = str(context.get("headline") or "")
+    caption = str(context.get("caption") or "")
+    first = caption.strip().splitlines()[0] if caption.strip() else ""
+    m = _PROMISE.search(head) or _PROMISE.search(first)
+    if not m:
+        return None
+    want = int(m.group(1))
+    if want < 2 or want > 12:
+        return None
+    have = sum(1 for line in caption.splitlines()
+               if _LIST_LINE.match(line) and "#" not in line[:3] and "avasetu team" not in line.lower())  # not the sign-off
+    if have >= want:
+        return None
+    return f"Headline promises {want} {m.group(2).lower()} but the caption lists {have}"
+
+
 def rule_review(paths: Sequence[Path], context: Dict[str, Any]) -> Dict[str, Any]:
     """Score from the photo analysis of each image and the creative critic report (if the context carries one)."""
     notes: List[str] = []
@@ -174,13 +200,18 @@ def rule_review(paths: Sequence[Path], context: Dict[str, Any]) -> Dict[str, Any
             q = analyze(p)
         except Exception:
             continue
-        # rendered cards are designed graphics: only exposure and blur matter (flat colour areas are intended)
-        issues = [i for i in q["issues"] if i in ("dark", "bright", "blurry", "small")]
+        # rendered cards are designed graphics: dark navy or light cream backgrounds and flat colour areas are intended,
+        # so only blur and size count here (the photos inside were checked for exposure when they were uploaded)
+        issues = [i for i in q["issues"] if i in ("blurry", "small")]
         s = 100 - 18 * len(issues)
         scores.append(s)
         if issues:
             notes.append(f"{Path(p).name}: {label({'issues': issues}).replace('Check: ', '')}")
     score = sum(scores) / len(scores) if scores else 70.0
+    gap = promise_gap(context)
+    if gap:
+        notes.insert(0, gap)
+        score -= 30
     critic = context.get("critic") or {}
     for prob in (critic.get("problems") or []) if isinstance(critic, dict) else []:
         sev = prob.get("severity") if isinstance(prob, dict) else None
@@ -188,6 +219,8 @@ def rule_review(paths: Sequence[Path], context: Dict[str, Any]) -> Dict[str, Any
         score -= 10 if sev == "error" else 3 if sev == "warn" else 0
         if sev == "error" and msg:
             notes.append(str(msg)[:140])
+        if sev == "error":
+            score = min(score, GOOD - 1)  # a hard critic failure is never 'good'
     s = int(round(max(0, min(100, score))))
     return {"score": s, "verdict": verdict_for(s), "notes": notes[:MAX_NOTES]}
 
