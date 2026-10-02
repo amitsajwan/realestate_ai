@@ -76,7 +76,7 @@ FORWARD = re.compile(r"\b(will|expected to|likely to|set to|poised to|bound to|g
 BUILDER_WORD = re.compile(r"\b(builders?|developers?|promoters?|bilders?)\b|\b[A-Z][a-z]+ (?:Developers|Builders|Constructions|Realty|Group|Infra|Properties|Estates|Lifespaces|Homes)\b")
 OPINION = re.compile(r"\b(reliable|trusted?|trustworthy|best|top|excellent|renowned|reputed|reputable|leading|great|fraud\w*|cheat\w*|scam\w*|poor|bad|worst|"
                      r"avoid|recommend\w*|shoddy|unreliable|untrustworthy|admired|well[- ]known|known for|quality|superb|amazing)\b", re.I)
-WORD = re.compile(r"[A-Za-z][A-Za-z'’\-]*")
+WORD = re.compile(r"(?<![A-Za-z0-9])[A-Za-z][A-Za-z'’\-]*(?![A-Za-z0-9])")  # whole words: "PR1260002601689" is a number, not the name "PR"
 
 
 def _words(text: str) -> List[str]:

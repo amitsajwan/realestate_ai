@@ -18,6 +18,7 @@ const getQueue = jest.fn()
 const getStatus = jest.fn()
 const approve = jest.fn()
 const reject = jest.fn()
+const mahareraRoundup = jest.fn()
 jest.mock('@/lib/app/client', () => ({
   errorMessage: (e: Error) => e.message,
   isFixtureMode: () => false,
@@ -30,6 +31,7 @@ jest.mock('@/lib/app/newsroom', () => ({
     getStatus: (...a: unknown[]) => getStatus(...a),
     approve: (...a: unknown[]) => approve(...a),
     reject: (...a: unknown[]) => reject(...a),
+    mahareraRoundup: (...a: unknown[]) => mahareraRoundup(...a),
   },
 }))
 
@@ -37,7 +39,7 @@ const status = (over: Partial<NewsroomStatus> = {}): NewsroomStatus => ({ ...FIX
 const items = (): NewsroomItem[] => FIXTURE_QUEUE.map((i) => ({ ...i }))
 
 beforeEach(() => {
-  ;[getQueue, getStatus, approve, reject].forEach((m) => m.mockReset())
+  ;[getQueue, getStatus, approve, reject, mahareraRoundup].forEach((m) => m.mockReset())
   getQueue.mockResolvedValue(items())
   getStatus.mockResolvedValue(status())
   approve.mockResolvedValue({})
@@ -169,6 +171,33 @@ describe('Newsroom screen', () => {
   })
 })
 
+describe('MahaRERA post button', () => {
+  const button = () => screen.findByRole('button', { name: 'Make the MahaRERA post (last 30 days)' })
+
+  it('queues the post with one click and reloads the queue', async () => {
+    mahareraRoundup.mockResolvedValue({ id: 'maharera-1', created: true, projects: 4 })
+    render(<NewsroomPage />)
+    fireEvent.click(await button())
+    expect(await screen.findByRole('status')).toHaveTextContent('Added to the queue below (4 projects).')
+    expect(mahareraRoundup).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(getQueue).toHaveBeenCalledTimes(2))
+  })
+
+  it('says so when one is already waiting', async () => {
+    mahareraRoundup.mockResolvedValue({ id: 'maharera-1', created: false, projects: 4 })
+    render(<NewsroomPage />)
+    fireEvent.click(await button())
+    expect(await screen.findByRole('status')).toHaveTextContent('One is already waiting for review below.')
+  })
+
+  it("shows the server's words when there is nothing to post", async () => {
+    mahareraRoundup.mockRejectedValue(new ApiError(404, 'No project in Kharadi or Wagholi was listed or updated on MahaRERA in the last 30 days'))
+    render(<NewsroomPage />)
+    fireEvent.click(await button())
+    expect(await screen.findByRole('status')).toHaveTextContent('No project in Kharadi or Wagholi')
+  })
+})
+
 describe('newsroom client and helpers', () => {
   const okRes = (body: unknown, status = 200) => ({ ok: status < 400, status, text: async () => (body === undefined ? '' : JSON.stringify(body)) }) as unknown as Response
 
@@ -180,6 +209,7 @@ describe('newsroom client and helpers', () => {
     await api.approve('i 1', { text: 'hi', when: '2026-10-05T04:00:00.000Z' })
     await api.reject('i1', 'old')
     await api.reject('i2')
+    await api.mahareraRoundup!()
     const calls = f.mock.calls.map((c) => [c[0], c[1].method, c[1].body, c[1].headers.Authorization])
     expect(calls).toEqual([
       ['http://x/api/v1/newsroom/queue', 'GET', undefined, 'Bearer abc'],
@@ -187,6 +217,7 @@ describe('newsroom client and helpers', () => {
       ['http://x/api/v1/newsroom/items/i%201/approve', 'POST', JSON.stringify({ text: 'hi', when: '2026-10-05T04:00:00.000Z' }), 'Bearer abc'],
       ['http://x/api/v1/newsroom/items/i1/reject', 'POST', JSON.stringify({ reason: 'old' }), 'Bearer abc'],
       ['http://x/api/v1/newsroom/items/i2/reject', 'POST', '{}', 'Bearer abc'],
+      ['http://x/api/v1/newsroom/maharera-roundup', 'POST', undefined, 'Bearer abc'],
     ])
   })
 

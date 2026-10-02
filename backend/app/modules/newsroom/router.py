@@ -150,3 +150,20 @@ async def reject(id: str, body: Optional[RejectBody] = None, user: User = Depend
     await store.move(id, "rejected", reason or "rejected by owner",
                      review={"by": str(user.id), "at": datetime.now(timezone.utc), "edits": False})
     return {"id": id, "status": "rejected"}
+
+
+@router.post("/maharera-roundup")
+async def maharera_roundup(user: User = Depends(owner_only), store: Store = Depends(get_store),
+                           checker: Optional[Callable] = Depends(get_checker)) -> dict:
+    """'New on MahaRERA' for the last 30 days: one click makes the carousel and the post, queued for review like any item.
+    While one is still waiting for review, that one is returned instead of a second."""
+    from . import roundup
+    from .adapters import card_stage
+    try:
+        out = await roundup.build(store, datetime.now(timezone.utc), checker, card_stage)
+    except roundup.NothingToPost as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    doc = out["doc"]
+    return {"id": doc["_id"], "created": out["created"], "projects": len((doc.get("facts") or {}).get("facts") or [])}

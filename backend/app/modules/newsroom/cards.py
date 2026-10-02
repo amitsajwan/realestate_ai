@@ -254,16 +254,17 @@ def _hl(*args, **kw) -> Image.Image:
 
 
 def digest_slides(dg: dict, channel: str = "ig") -> List[Image.Image]:
-    """Cover, one slide per story, the tip, and a closing slide (Instagram); just the cover for Facebook."""
+    """Cover, one slide per story, the tip, and a closing slide (Instagram); just the cover for Facebook.
+    A digest of another kind (New on MahaRERA) brings its own kicker, meta, cover line and closing words."""
     when = dg.get("as_of")
     as_of = f"{when.day} {pr.MONTHS[when.month - 1]} {when.year}" if when else ""
-    meta = "Our summaries of local reports" + (f" · As of {as_of}" if as_of else "")
+    meta = dg.get("meta") or "Our summaries of local reports" + (f" · As of {as_of}" if as_of else "")
     items = dg.get("items", [])
     base = {"_id": "digest", "relevance": {"pillar": "digest", "areas": ["kharadi", "wagholi"]}, "draft": {"format": "digest"}}
     n = len(items)
-    cover_sup = f"{n} local updates and one buyer tip" + (". Swipe." if channel == "ig" else "")
+    cover_sup = (dg.get("cover_line") or f"{n} local updates and one buyer tip") + (". Swipe." if channel == "ig" else "")
     slides = [_hl(base, channel, dg.get("title", "Kharadi and Wagholi this week"), cover_sup, "",
-                               _digest_over("NEWS · THIS WEEK", meta=meta))]
+                               _digest_over(dg.get("kicker") or "NEWS · THIS WEEK", meta=meta))]
     if channel != "ig":
         return slides
     for i, it in enumerate(items, 1):
@@ -271,7 +272,8 @@ def digest_slides(dg: dict, channel: str = "ig") -> List[Image.Image]:
     slides.append(_hl(base, channel, dg.get("tip", ""), "", "", _digest_over(
         "NEWS · BUYER TIP", place="BEFORE YOU DECIDE", pal="cream", meta="General information, not investment or legal advice",
         size=80, lines=8, min=48)))
-    slides.append(_hl(base, channel, "Every story, with its source, on our site", "Tap the link in our bio and open News.", "",
+    slides.append(_hl(base, channel, dg.get("closing_title") or "Every story, with its source, on our site",
+                      dg.get("closing_line") or "Tap the link in our bio and open News.", "",
                                    _digest_over("NEWS · " + brand.NAME.upper(), place="", meta="", cue="Link in our bio")))
     return slides
 

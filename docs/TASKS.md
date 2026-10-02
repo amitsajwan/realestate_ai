@@ -78,6 +78,10 @@ Diagnosis (see chat, Oct 2026): 10 of 10 newest MahaRERA projects were dropped b
   plus a Facebook post, linking to the site page from T2.2.
 - Goes through the existing review queue (owner approves).
 - **Done when:** one click in the newsroom review UI produces the carousel and the post for the last 30 days.
+- **Status:** done 2026-10-03 (`newsroom/roundup.py`, `POST /newsroom/maharera-roundup`, button on Studio > Newsroom).
+  Titled "Listed or updated on MahaRERA" (never "new": MahaRERA only gives Last Modified). Carousel: cover, up to 7 projects
+  (Instagram's 10-image limit), what to check, closing; the post lists every project. Links to `/localities` until T2.2
+  adds project pages. A second click while one waits for review returns that one.
 
 ### T1.4 Festival and events calendar [B]
 - Add dated moments to `calendar/plan.py`: Navratri, Dussehra, Diwali (buying muhurat), Gudi Padwa, Akshaya Tritiya,

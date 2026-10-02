@@ -59,6 +59,12 @@ export interface ApproveBody {
   text?: string
   when?: string
 }
+/** The 'New on MahaRERA' button's answer: the queued item, whether it was made now (false: one was already waiting), how many projects. */
+export interface RoundupResult {
+  id: string
+  created: boolean
+  projects: number
+}
 /** The approve answer is not frozen by the contract: tolerate anything. */
 export type ApproveResult = Record<string, unknown>
 
@@ -168,6 +174,8 @@ export interface NewsroomApi {
   reject(id: string, reason?: string): Promise<void>
   /** The final captions (checked) for the draft, or for edited text, without saving anything. */
   preview(id: string, text?: string): Promise<NewsroomPreview>
+  /** Queue the 'New on MahaRERA' carousel and post for the last 30 days (one waiting already: that one comes back). */
+  mahareraRoundup?(): Promise<RoundupResult>
 }
 
 export function createNewsroomApi(opts: { getToken: () => string | null; baseUrl?: string; fetchImpl?: typeof fetch }): NewsroomApi {
@@ -210,6 +218,7 @@ export function createNewsroomApi(opts: { getToken: () => string | null; baseUrl
       await request<unknown>(`/items/${encodeURIComponent(id)}/reject`, { method: 'POST', json: reason ? { reason } : {} })
     },
     preview: async (id, text) => normalizePreview(await request<unknown>(`/items/${encodeURIComponent(id)}/preview`, { method: 'POST', json: text ? { text } : {} })),
+    mahareraRoundup: () => request<RoundupResult>('/maharera-roundup', { method: 'POST' }),
   }
 }
 
@@ -298,6 +307,7 @@ export function createFixtureNewsroomApi(seed: NewsroomItem[] = FIXTURE_QUEUE, s
       const captions = Object.fromEntries(Object.entries(item.captions).map(([k, v]) => [k, text.trim() + '\n\n' + v.split('\n\n').slice(-1)[0]]))
       return { card: item.card, channels: item.channels, captions, captionProblems: item.captionProblems, dryRun: item.dryRun }
     },
+    mahareraRoundup: async () => ({ id: 'maharera-fixture', created: true, projects: 3 }),
   }
 }
 
@@ -312,4 +322,9 @@ export const newsroomApi: NewsroomApi = {
   approve: (id, body) => impl().approve(id, body),
   reject: (id, reason) => impl().reject(id, reason),
   preview: (id, text) => impl().preview(id, text),
+  mahareraRoundup: () => {
+    const api = impl()
+    if (!api.mahareraRoundup) throw new ApiError(0, 'Not available')
+    return api.mahareraRoundup()
+  },
 }
