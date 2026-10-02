@@ -396,3 +396,17 @@ def test_sales_words_are_refused_and_sample_homes_do_not_offer_a_visit():
     for lang in ("en", "hi", "mr"):
         s = for_sample(calm, lang)
         assert "visit" not in s["cta_screen"].lower() and "visit" not in s["cta_voice"].lower() and s["beats"] == calm["beats"]
+        assert s["cta_voice"].startswith(("This is a sample", "यह एक सैंपल", "ही एक सॅम्पल"))
+
+
+def test_a_sample_home_is_never_called_for_sale():
+    from app.modules.reels.listing_reel import for_sample
+    hi = {"beats": [{"screen": "Wagholi *3 BHK*", "voice": "वाघोली में यह 3 बीएचके अपार्टमेंट बिक्री के लिए उपलब्ध है।"},
+                    {"screen": "Price *82 Lakh*", "voice": "कीमत 82 लाख रुपये है।"}],
+          "cta_screen": "Message to book a *visit*", "cta_voice": "विज़िट बुक करें।"}
+    s = for_sample(hi, "hi")
+    assert s["beats"][0]["voice"] == "वाघोली में यह 3 बीएचके अपार्टमेंट है।" and "सैंपल" in s["cta_voice"]
+    en = {"beats": [{"screen": "Sample *2 BHK*", "voice": "This is a sample 2 BHK apartment for sale in Upper Kharadi."}],
+          "cta_screen": "x", "cta_voice": "y"}
+    s = for_sample(en, "en")
+    assert s["beats"][0]["voice"] == "This is a sample 2 BHK apartment in Upper Kharadi." and "visit" not in s["cta_voice"]

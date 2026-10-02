@@ -219,10 +219,16 @@ def pushy(script: Dict) -> bool:
     return any(_PUSHY.search(f"{b.get('screen', '')} {b.get('voice', '')}") for b in beats if isinstance(b, dict))
 
 
+_ON_SALE = re.compile(r"\s*(for sale|for rent|on sale|बिक्री के लिए( उपलब्ध)?|किराये के लिए|विक्रीसाठी|भाड्याने)", re.I)
+
+
 def for_sample(script: Dict, lang: str) -> Dict:
-    """A sample home cannot be visited: the closing asks what the viewer wants instead of offering a visit."""
+    """A sample home is not for sale and cannot be visited: no 'for sale' wording, and the closing says it is a sample and
+    asks what the viewer wants instead of offering a visit (the badge is on every scene too)."""
     w = _WORDS[lang]
-    return {**script, "cta_screen": w["cta_sample_s"], "cta_voice": w["cta_sample_v"]}
+    beats = [{**b, "screen": _ON_SALE.sub("", str(b.get("screen", ""))).strip(),
+              "voice": _ON_SALE.sub("", str(b.get("voice", ""))).strip()} for b in script.get("beats") or []]
+    return {**script, "beats": beats, "cta_screen": w["cta_sample_s"], "cta_voice": w["sample"] + w["cta_sample_v"]}
 
 
 async def write_script(subject: str, facts: Sequence[str], lang: str, llm, fallback: Dict) -> Dict:
@@ -416,7 +422,7 @@ class ReelJobs:
             subject, facts, f = reel_facts(listing, profile)
             llm = self.llm_factory() if self.llm_factory else None
             script = await write_script(subject, facts, job["lang"], llm, rules_script(f, job["lang"]))
-            if f.sample and script.get("made_by") == "llm":
+            if f.sample:
                 script = for_sample(script, job["lang"])
             await self.jobs.update_one({"_id": jid}, {"$set": {"script": script}})
             name = f"listing-{_safe_id(job['listing_id'])}-{job['lang']}-{jid[:8]}.mp4"

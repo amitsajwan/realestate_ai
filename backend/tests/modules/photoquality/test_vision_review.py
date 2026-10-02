@@ -57,7 +57,7 @@ async def test_failover_to_second_client_then_rules(card):
     bad = FakeVision(RuntimeError("down"), model="a")
     ok = FakeVision({"score": 40, "verdict": "redo", "notes": ["Text cut at the bottom", 7, "x" * 500]}, model="b")
     res = await vr.review([card], {}, clients=[bad, ok])
-    assert res["model"] == "b" and res["verdict"] == "redo"
+    assert res["model"] == "b" and res["verdict"] == "fix"  # an AI-only redo (no measured failure) asks a person to check
     assert res["notes"][0] == "Text cut at the bottom" and all(len(n) <= 140 for n in res["notes"])
 
 
@@ -158,3 +158,9 @@ def test_rule_review_does_not_call_designed_dark_cards_too_dark(tmp_path):
     cv2.imwrite(str(p), card)
     r = rule_review([p], {})
     assert not any("dark" in n for n in r["notes"])
+
+
+async def test_a_measured_failure_outranks_a_good_look(card):
+    fake = FakeVision({"score": 90, "verdict": "good", "notes": ["Clean layout"]}, model="m")
+    res = await vr.review([card], {"headline": "3 details every lead should have", "caption": "• one"}, clients=[fake], use_cache=False)
+    assert res["verdict"] == "fix" and res["score"] < vr.GOOD and res["notes"][0].startswith("Headline promises 3 details")

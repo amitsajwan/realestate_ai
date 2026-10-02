@@ -17,6 +17,7 @@ Results are cached per (file content hash, context hash, model) in memory and as
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import json
@@ -39,6 +40,7 @@ REVIEW_SIDE = 1024        # images are downscaled to this long side before sendi
 TIMEOUT = 25.0
 GOOD, FIX = 75, 50        # score >= GOOD: good; >= FIX: fix; else redo
 MAX_NOTES = 4
+RETRY_WAIT = 12.0          # seconds to wait once after a 429 before giving up on that provider
 UNAVAILABLE = "AI review unavailable"
 
 SYSTEM = (
@@ -134,11 +136,19 @@ class OpenAIVision:
                 "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": content}]}
         headers = {"Authorization": f"Bearer {self.api_key}"}
         try:
-            if self._client:
-                r = await self._client.post(self.url, json=body, headers=headers, timeout=self.timeout)
-            else:
-                async with httpx.AsyncClient(timeout=self.timeout) as c:
-                    r = await c.post(self.url, json=body, headers=headers)
+            for attempt in (1, 2):
+                if self._client:
+                    r = await self._client.post(self.url, json=body, headers=headers, timeout=self.timeout)
+                else:
+                    async with httpx.AsyncClient(timeout=self.timeout) as c:
+                        r = await c.post(self.url, json=body, headers=headers)
+                if r.status_code != 429 or attempt == 2:
+                    break
+                try:  # rate limited (images cost ~2k tokens each): wait as asked, at most RETRY_WAIT, then try once more
+                    wait = min(float(r.headers.get("retry-after") or RETRY_WAIT), RETRY_WAIT)
+                except ValueError:
+                    wait = RETRY_WAIT
+                await asyncio.sleep(wait)
             r.raise_for_status()
             return parse_reply(r.json()["choices"][0]["message"]["content"] or "")
         except Exception as e:
@@ -208,10 +218,12 @@ def rule_review(paths: Sequence[Path], context: Dict[str, Any]) -> Dict[str, Any
         if issues:
             notes.append(f"{Path(p).name}: {label({'issues': issues}).replace('Check: ', '')}")
     score = sum(scores) / len(scores) if scores else 70.0
+    hard = bool(scores) and min(scores) < 100  # a blurred or tiny image
     gap = promise_gap(context)
     if gap:
         notes.insert(0, gap)
         score -= 30
+        hard = True
     critic = context.get("critic") or {}
     for prob in (critic.get("problems") or []) if isinstance(critic, dict) else []:
         sev = prob.get("severity") if isinstance(prob, dict) else None
@@ -220,9 +232,11 @@ def rule_review(paths: Sequence[Path], context: Dict[str, Any]) -> Dict[str, Any
         if sev == "error" and msg:
             notes.append(str(msg)[:140])
         if sev == "error":
-            score = min(score, GOOD - 1)  # a hard critic failure is never 'good'
+            hard = True
+    if hard:
+        score = min(score, GOOD - 1)  # a measurable failure is never 'good'
     s = int(round(max(0, min(100, score))))
-    return {"score": s, "verdict": verdict_for(s), "notes": notes[:MAX_NOTES]}
+    return {"score": s, "verdict": verdict_for(s), "notes": notes[:MAX_NOTES], "hard": hard}
 
 
 # ---- cache --------------------------------------------------------------------------------------------
@@ -278,6 +292,7 @@ async def review(image_paths: Sequence[Any], context: Optional[Dict[str, Any]] =
         hashes = [str(p) for p in paths]
     ctx_hash = hashlib.sha256(json.dumps({"t": _context_text(context), "c": context.get("critic")}, sort_keys=True, default=str).encode()).hexdigest()[:16]
     models = ",".join(getattr(c, "model", "?") for c in chain) or "rules"
+    models += hashlib.sha256(SYSTEM.encode()).hexdigest()[:8]  # a new prompt or rule set is a new review
     key = hashlib.sha256(("|".join(hashes) + ctx_hash + models).encode()).hexdigest()[:40]
     if use_cache:
         hit = _cache_get(key, directory)
@@ -306,7 +321,14 @@ async def review(image_paths: Sequence[Any], context: Optional[Dict[str, Any]] =
                 verdict = ai["verdict"]
                 if verdict == "good" and score < FIX:
                     verdict = "fix"
-                notes = ai["notes"] + [n for n in rules["notes"] if n not in ai["notes"]]
+                if rules.get("hard") and verdict == "good":  # a measured failure (promise gap, critic error) outranks the look
+                    verdict, score = "fix", min(score, GOOD - 1)
+                if verdict == "redo" and not rules.get("hard"):
+                    # the vision model sometimes calls a clean designed card 'corrupted' or 'cropped'; without a measured
+                    # failure an AI 'redo' is a 'check', so a person looks rather than the item being regenerated
+                    verdict, score = "fix", max(score, FIX)
+                notes = [n for n in rules["notes"] if n.startswith("Headline promises")] + ai["notes"]
+                notes += [n for n in rules["notes"] if n not in notes]
                 result = {"score": score, "verdict": verdict, "notes": notes[:MAX_NOTES], "source": "ai", "ai_available": True,
                           "model": getattr(c, "model", None)}
                 break
