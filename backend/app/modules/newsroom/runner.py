@@ -4,6 +4,7 @@ import logging
 from datetime import datetime, timezone
 
 from app.core.database import get_database
+from app.modules.admin.controls import is_paused
 
 from . import adapters, digest
 from .config import load
@@ -64,7 +65,9 @@ async def loop() -> None:
     while True:
         cfg = load()
         try:
-            if cfg.enabled:
+            if cfg.enabled and await is_paused(get_database(), "news_paused"):
+                log.info("newsroom: paused by owner, cycle skipped")
+            elif cfg.enabled:
                 counts = await cycle(Store(get_database()), cfg)
                 if counts:
                     log.info("newsroom: cycle done %s", counts)

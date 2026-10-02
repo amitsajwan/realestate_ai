@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Callable, Dict, Optional
 
 from app.core.database import get_database
+from app.modules.admin.controls import is_paused
 from app.modules.social.config import SocialConfig
 from app.modules.social.config import load as load_social
 from app.modules.social.publisher import DryRunPublisher, Post, sanitize
@@ -131,7 +132,9 @@ async def loop() -> None:
     while True:
         cfg = load()
         try:
-            if cfg.enabled:
+            if cfg.enabled and await is_paused(get_database(), "posting_paused"):
+                log.info("calendar: paused by owner, cycle skipped")
+            elif cfg.enabled:
                 from app.modules.social.graph import GraphPublisher
                 social = load_social()
                 store = Store(get_database())

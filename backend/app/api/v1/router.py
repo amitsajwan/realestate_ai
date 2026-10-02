@@ -55,6 +55,7 @@ from app.modules.interest.router import router as interest_router, public_router
 from app.modules.chat.router import router as chat_router
 from app.modules.report.router import router as report_router
 from app.modules.waitlist.router import router as waitlist_router
+from app.modules.admin.router import router as admin_router
 
 # Create main API router
 api_router = APIRouter()
@@ -103,6 +104,7 @@ api_router.include_router(social_router, prefix="/social", tags=["social"])
 api_router.include_router(engage_router, prefix="/engage", tags=["engage"])
 api_router.include_router(newsroom_router, prefix="/newsroom", tags=["newsroom"])
 api_router.include_router(concierge_router, prefix="/concierge", tags=["concierge"])
+api_router.include_router(admin_router, prefix="/admin", tags=["admin"])
 api_router.include_router(whatsapp_router, prefix="/whatsapp", tags=["whatsapp"])
 api_router.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(newsroom_public_router, prefix="/public", tags=["public"])
