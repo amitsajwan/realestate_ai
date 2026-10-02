@@ -94,6 +94,6 @@ describe('LeadAlertsBadge', () => {
     await waitFor(() => expect(screen.getByTestId('lead-alerts-badge')).toHaveTextContent('2New leads and chats'))
   })
   it('names the channel when all alerts come from one', () => {
-    expect(alertsLabel([{ id: '1', kind: 'chat_needs_you', summary: '', ref: {}, created_at: '', read: false }], 1)).toBe('New website chat lead or chat')
+    expect(alertsLabel([{ id: '1', kind: 'chat_needs_you', summary: '', ref: {}, created_at: '', read: false }], 1)).toBe('New lead or chat from your website')
   })
 })

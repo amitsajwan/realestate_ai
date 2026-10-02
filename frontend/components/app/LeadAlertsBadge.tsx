@@ -6,9 +6,12 @@ import { getNotifications, type AppNotification } from '@/lib/app/whatsapp'
 /** "New WhatsApp lead", "Website chat needs you", ... for the badge line: what most of the unread alerts are about. */
 export function alertsLabel(items: AppNotification[], count: number): string {
   const kinds = new Set(items.map((n) => (n.kind.includes('whatsapp') ? 'whatsapp' : n.kind.includes('chat') ? 'chat' : 'other')))
-  const where = kinds.size === 1 && kinds.has('whatsapp') ? 'WhatsApp ' : kinds.size === 1 && kinds.has('chat') ? 'website chat ' : ''
-  const noun = count === 1 ? `New ${where}lead or chat` : `New ${where}leads and chats`
-  return noun.charAt(0).toUpperCase() + noun.slice(1)
+  // "New WhatsApp lead or chat", "New lead or chat from your website" (not "New website chat lead or chat"), "New leads and chats"
+  const one = kinds.size === 1
+  const noun = count === 1 ? 'lead or chat' : 'leads and chats'
+  if (one && kinds.has('whatsapp')) return `New WhatsApp ${noun}`
+  if (one && kinds.has('chat')) return `New ${noun} from your website`
+  return `New ${noun}`
 }
 
 /**

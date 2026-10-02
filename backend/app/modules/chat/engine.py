@@ -474,7 +474,7 @@ async def _show_homes(d: dict, finder: Optional[Finder], force: bool) -> tuple:
     lang = _lang(d)
     if not cards:
         d["want_phone_now"] = True
-        return say("no_match", lang), [], True
+        return say("no_other_match" if exclude else "no_match", lang), [], True
     d["shown_ids"] = list(dict.fromkeys((d.get("shown_ids") or []) + [c.get("id") for c in cards if c.get("id")]))[-12:]
     samples = [c for c in cards if c.get("sample")]
     if len(samples) == len(cards):

@@ -132,6 +132,14 @@ P: Dict[str, Dict[str, str]] = {
         "mr": "सध्या या गरजेशी जुळणारे कोणतेही लिस्टेड घर सापडले नाही. आमची टीम तुमच्यासाठी पर्याय शोधू शकते.",
         "mr_latn": "Sadhya ya garjeshi julnare kontehi listed ghar sapadle nahi. Aamchi team tumchyasathi paryay shodhu shakte.",
     },
+    # on a listing page the home being viewed is left out of the search, so "no match" would read as "this home does not fit"
+    "no_other_match": {
+        "en": "I could not find another listed home like this right now, but our team can look for you.",
+        "hinglish": "Abhi is jaisa koi aur listed ghar nahi mila, par hamari team aapke liye dhoondh sakti hai.",
+        "hi": "अभी इस जैसा कोई और लिस्टेड घर नहीं मिला। हमारी टीम आपके लिए विकल्प ढूँढ सकती है।",
+        "mr": "सध्या असे दुसरे कोणतेही लिस्टेड घर सापडले नाही. आमची टीम तुमच्यासाठी पर्याय शोधू शकते.",
+        "mr_latn": "Sadhya ase dusre kontehi listed ghar sapadle nahi. Aamchi team tumchyasathi paryay shodhu shakte.",
+    },
     # ---- the rest (English kept identical to whatsapp.lang.FIXED) -------------------------------------------------
     "anything_else": {"en": "Is there anything else I can help you with?", "hinglish": "Kya main aapki aur koi madad kar sakta hoon?",
                       "hi": "क्या मैं आपकी और कोई मदद कर सकता हूँ?", "mr": "अजून काही मदत हवी आहे का?", "mr_latn": "Ajun kahi madat havi aahe ka?"},

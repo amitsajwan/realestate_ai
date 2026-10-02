@@ -26,7 +26,7 @@ async def main() -> None:
     if args.action == "issue":
         code = await svc.issue(phone, args.label)
         print(f"Invite for {phone}: code {code}\n\nMessage to send:\n"
-              f"Welcome! Open <your app link>/join, enter {phone[3:]} and your personal code {code}. "
+              f"Welcome! Open {settings.public_site_url.rstrip('/')}/join, enter {phone[3:]} and your personal code {code}. "
               f"Please don't share it.")
     else:
         print("revoked" if await svc.revoke(phone) else "no invite found for that number")

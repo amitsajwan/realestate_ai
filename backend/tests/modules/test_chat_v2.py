@@ -233,6 +233,14 @@ async def test_no_match_is_said_honestly_and_the_agent_is_offered():
     assert "₹" not in r["reply"]
 
 
+async def test_on_a_listing_page_no_match_says_no_other_home_not_that_this_one_does_not_fit():
+    # live guide run: the only listing is the one being viewed and it fits the budget; "could not find a listed home" read as "this home does not fit"
+    s, _ = service([listing("L1")])
+    r = (await talk(s, ["hi", "Is parking included? My budget is 90 lakh, want to buy"], context={"listing_id": "L1"}))[-1][1]
+    assert r["cards"] == []
+    assert "could not find another listed home like this" in r["reply"] and "could not find a listed home" not in r["reply"]
+
+
 async def test_homes_are_not_shown_twice_for_the_same_requirement_but_again_when_asked_or_changed():
     find = await fake_finder([{"id": "L2", "title": "2 BHK", "sample": False}])
     d = engine.new_data()
