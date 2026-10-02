@@ -383,3 +383,16 @@ async def test_concierge_reel_routes_are_owner_only(monkeypatch):
     c = TestClient(app)
     assert c.post("/concierge/agents/a/listings/l/reel", json={"lang": "en"}).status_code == 403
     assert c.post("/concierge/agents/a/listings/l/reel/post", json={}).status_code == 403
+
+
+def test_sales_words_are_refused_and_sample_homes_do_not_offer_a_visit():
+    from app.modules.reels.listing_reel import for_sample, pushy
+    hype = {"beats": [{"screen": "Only *78 Lakh*", "voice": "Priced at just 78 lakh."}], "cta_screen": "x", "cta_voice": "y"}
+    assert pushy(hype)
+    assert pushy({"beats": [{"screen": "Price", "voice": "कीमत केवल 95 लाख रुपये।"}]})
+    calm = {"beats": [{"screen": "Price *78 Lakh*", "voice": "The price is 78 lakh."}],
+            "cta_screen": "Message to book a *visit*", "cta_voice": "Message us to book a visit."}
+    assert not pushy(calm)
+    for lang in ("en", "hi", "mr"):
+        s = for_sample(calm, lang)
+        assert "visit" not in s["cta_screen"].lower() and "visit" not in s["cta_voice"].lower() and s["beats"] == calm["beats"]

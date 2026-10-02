@@ -57,7 +57,8 @@ SYSTEM = (
     "Marathi = Devanagari, English = English). Write numbers as digits exactly as they appear in the facts. "
     "Use ONLY the facts given: never invent numbers, distances, prices, schools, builders, views or promises. "
     "Never mention phone numbers, names of people or the agent. If the facts say it is a sample listing, say it is a sample. "
-    "cta: invite them to message to book a visit."
+    "Plain, calm words: no sales words such as only, just, best, hurry, grab or limited. "
+    "cta: invite them to message to book a visit (for a sample listing our own closing line replaces it)."
 )
 
 
@@ -136,13 +137,16 @@ _UNIT = {"hi": {"Lakh": "लाख", "Cr": "करोड़", "/month": " मह
 _WORDS = {
     "en": {"price": "Price {p}.", "area": "{a} square feet {k} area", "sqft": "sq ft", "look": "Take a *look* inside",
            "look_v": "Take a look inside.", "cta_s": "Message to book a *visit*", "cta_v": "Like it? Message us to book a visit.",
-           "sample": "This is a sample listing, shown for illustration. ", "with": "with", "in": "{w} in {l}"},
+           "sample": "This is a sample listing, shown for illustration. ", "with": "with", "in": "{w} in {l}",
+           "cta_sample_s": "Tell us *what* you want", "cta_sample_v": "Tell us what you are looking for, and we will find a real one."},
     "hi": {"price": "कीमत {p}।", "area": "{a} स्क्वेयर फीट {k} एरिया", "look": "Andar ek *nazar*", "look_v": "अंदर एक नज़र डालिए।",
            "cta_s": "Visit ke liye *message* karein", "cta_v": "पसंद आया? विज़िट बुक करने के लिए मैसेज कीजिए।",
-           "sample": "यह एक सैंपल लिस्टिंग है, सिर्फ़ दिखाने के लिए। ", "with": "साथ में", "in": "{l} mein {w}"},
+           "sample": "यह एक सैंपल लिस्टिंग है, सिर्फ़ दिखाने के लिए। ", "with": "साथ में", "in": "{l} mein {w}",
+           "cta_sample_s": "Batayein aapko *kya* chahiye", "cta_sample_v": "बताइए आपको कैसा घर चाहिए, हम असली घर ढूँढेंगे।"},
     "mr": {"price": "किंमत {p}.", "area": "{a} स्क्वेअर फूट {k} एरिया", "look": "Aat ek *nazar*", "look_v": "आत एक नजर टाका.",
            "cta_s": "Visit sathi *message* kara", "cta_v": "आवडलं? व्हिजिट बुक करण्यासाठी मेसेज करा.",
-           "sample": "ही एक सॅम्पल लिस्टिंग आहे, फक्त दाखवण्यासाठी. ", "with": "सोबत", "in": "{l} madhye {w}"},
+           "sample": "ही एक सॅम्पल लिस्टिंग आहे, फक्त दाखवण्यासाठी. ", "with": "सोबत", "in": "{l} madhye {w}",
+           "cta_sample_s": "Sanga tumhala *kay* hava", "cta_sample_v": "तुम्हाला कसं घर हवं ते सांगा, आम्ही खरं घर शोधू."},
 }
 _KIND = {"hi": {"carpet": "कार्पेट", "super built-up": "सुपर बिल्ट-अप"}, "mr": {"carpet": "कार्पेट", "super built-up": "सुपर बिल्ट-अप"}}
 
@@ -201,7 +205,24 @@ def rules_script(f: Facts, lang: str) -> Dict:
         beats.append({"screen": _short(h, 6), "voice": h if lang == "en" else f.highlights[0]})
     while len(beats) < 3:
         beats.append({"screen": w["look"], "voice": w["look_v"]})
-    return {"beats": beats[:5], "cta_screen": w["cta_s"], "cta_voice": (w["sample"] if f.sample else "") + w["cta_v"]}
+    if f.sample:  # a sample home cannot be visited: ask what they want instead
+        return {"beats": beats[:5], "cta_screen": w["cta_sample_s"], "cta_voice": w["sample"] + w["cta_sample_v"]}
+    return {"beats": beats[:5], "cta_screen": w["cta_s"], "cta_voice": w["cta_v"]}
+
+
+_PUSHY = re.compile(r"\b(only|just|best|hurry|grab|limited|don'?t miss|guarantee\w*|steal|unbeatable)\b|केवल|जल्दी|मौका|घाई", re.I)
+
+
+def pushy(script: Dict) -> bool:
+    """Sales words ('only 78 lakh', 'hurry'): listing reels stay calm and factual."""
+    beats = list(script.get("beats") or []) + [{"screen": script.get("cta_screen", ""), "voice": script.get("cta_voice", "")}]
+    return any(_PUSHY.search(f"{b.get('screen', '')} {b.get('voice', '')}") for b in beats if isinstance(b, dict))
+
+
+def for_sample(script: Dict, lang: str) -> Dict:
+    """A sample home cannot be visited: the closing asks what the viewer wants instead of offering a visit."""
+    w = _WORDS[lang]
+    return {**script, "cta_screen": w["cta_sample_s"], "cta_voice": w["cta_sample_v"]}
 
 
 async def write_script(subject: str, facts: Sequence[str], lang: str, llm, fallback: Dict) -> Dict:
@@ -213,7 +234,7 @@ async def write_script(subject: str, facts: Sequence[str], lang: str, llm, fallb
                 out = await llm.json(SYSTEM, f"Voice language: {LANG_NAMES[lang]}\nSubject: {subject}\nFacts:\n{facts_text}")
             except Exception:
                 out = None
-            if _valid(out, subject + "\n" + facts_text):
+            if _valid(out, subject + "\n" + facts_text) and not pushy(out):
                 return {"beats": out["beats"], "cta_screen": out["cta_screen"], "cta_voice": out["cta_voice"], "made_by": "llm"}
     return {**fallback, "made_by": "rules"}
 
@@ -395,6 +416,8 @@ class ReelJobs:
             subject, facts, f = reel_facts(listing, profile)
             llm = self.llm_factory() if self.llm_factory else None
             script = await write_script(subject, facts, job["lang"], llm, rules_script(f, job["lang"]))
+            if f.sample and script.get("made_by") == "llm":
+                script = for_sample(script, job["lang"])
             await self.jobs.update_one({"_id": jid}, {"$set": {"script": script}})
             name = f"listing-{_safe_id(job['listing_id'])}-{job['lang']}-{jid[:8]}.mp4"
             out = self.uploads_dir / "reels" / name
