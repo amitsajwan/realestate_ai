@@ -136,3 +136,19 @@ def test_ffmpeg_errors_are_sanitised_and_music_path_checked(tmp_path):
     assert str(tmp_path) not in str(e.value) and "ffmpeg" in str(e.value)
     with pytest.raises(compose.ReelError):
         compose.make_reel([Scene(lines=["x"], seconds=1)], tmp_path / "m.mp4", music=tmp_path / "nope.mp3")
+
+
+def test_tour_with_a_price_opens_with_guess_the_price_and_reveals_it_last():
+    facts = {**templates.SAMPLE_FACTS["kharadi"], "price_text": "Rs 85 Lakh"}
+    sc, _ = templates.listing_tour(["p.jpg"], facts)
+    texts = [[l.text if isinstance(l, TextLine) else l for l in s.lines] for s in sc]
+    assert "Guess the *price*" in texts[0] and not any("Rs" in t for t in texts[0])
+    assert texts[-2][0] == "Rs 85 Lakh" and "Did you guess right?" in texts[-2]  # last scene before the call to action
+    assert sc[0].seconds <= 2.5
+
+
+def test_the_hook_is_readable_on_the_first_frame_but_later_scenes_still_animate_in():
+    first, later = compose._Prepared(Scene(lines=["Hook"]), 0, True), compose._Prepared(Scene(lines=["Beat"]), 1, False)
+    a = lambda p, k=0: compose.ease_out_cubic((0.0 - p.delay - p.stagger * k) / p.fade)
+    assert a(first) > 0.9 and a(first, 1) > 0.7
+    assert a(later) == 0.0

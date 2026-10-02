@@ -355,7 +355,8 @@ class _Prepared:
         self.solid = Image.new("RGB", (W, H), NAVY_BLACK)
         self.items = layout_scene(scene)
         self.badge = _chip_item(scene.badge, CONTENT_TOP - 4, "left", filled=False) if scene.badge else None
-        self.delay = 0.12 if is_first else 0.30
+        # The opening scene's text is already (almost) in place on frame one, so the hook is readable before anyone swipes away.
+        self.delay, self.fade, self.stagger = (-0.2, 0.3, 0.08) if is_first else (0.30, 0.6, 0.16)
 
     def _scrim_mask(self) -> Image.Image:
         grad = Image.linear_gradient("L").resize((W, H))
@@ -382,7 +383,7 @@ class _Prepared:
         if self.badge:
             _blit(img, self.badge, ease_out_cubic((lt - 0.1) / 0.5), rise=0)
         for k, it in enumerate(self.items):
-            _blit(img, it, ease_out_cubic((lt - self.delay - 0.16 * k) / 0.6), rise=46)
+            _blit(img, it, ease_out_cubic((lt - self.delay - self.stagger * k) / self.fade), rise=46)
         return img
 
 
