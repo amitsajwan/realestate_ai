@@ -31,7 +31,8 @@ INK = (24, 30, 44)
 NAVY_BLACK = (8, 10, 16)
 BRAND = brand.NAME
 TAGLINE = brand.TAGLINE
-PHONE_RE = re.compile(r"(?:\+?\d[\s\-]?){9,}")
+# a run of 9+ digits that does not start inside a word: 'A51800012345' (a MahaRERA agent number) is not a phone number
+PHONE_RE = re.compile(r"(?<![A-Za-z0-9])(?:\+?\d[\s\-]?){9,}")
 PAD = 28
 CONTENT_TOP = SAFE_TOP + 150   # below the brand tag row
 
