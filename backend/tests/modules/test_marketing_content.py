@@ -339,3 +339,26 @@ def test_no_about_means_captions_unchanged():
     assert facts().highlights == []
     assert facts(about={"water": "Borewell water"}).highlights == []
     assert build_content(facts(about={"highlights": []}), "en") == build_content(facts(), "en")
+
+# ---- reel hooks -----------------------------------------------------------------------------------------------
+def test_reel_hook_is_guess_the_price_with_a_reveal_and_never_the_old_take_a_look():
+    r = build_content(facts(), "en")["reel"]
+    assert r["hook"] == "Guess the price of this 2 BHK apartment in Baner"
+    assert r["beats"][3]["text"] == "₹85 Lakh. Did you guess right?"
+    assert "₹" not in r["hook"]  # the price is the reveal, not the opening
+    assert build_content(facts(**VARIANTS["rent_cheap"]), "en")["reel"]["hook"] == "Guess the rent of this 1 BHK apartment in Baner"
+
+
+def test_reel_hook_without_a_price_asks_a_question_and_skips_the_reveal():
+    r = build_content(facts(price_inr=None), "en")["reel"]
+    assert r["hook"] == "Would you live in this 2 BHK apartment in Baner?"
+    assert "guess" not in " ".join(b["text"] for b in r["beats"]).lower()
+    assert build_content(facts(price_inr=None, locality=None, city=None), "en")["reel"]["hook"] == "Would you live in this 2 BHK apartment?"
+
+
+@pytest.mark.parametrize("lang", ["hi", "mr"])
+def test_reel_hook_in_devanagari_keeps_the_facts(lang):
+    r = build_content(facts(), lang)["reel"]
+    assert re.search(r"[ऀ-ॿ]", r["hook"]) and "2 BHK" in r["hook"] and "Baner" in r["hook"] and "{" not in r["hook"]
+    assert r["beats"][3]["text"].startswith("₹85 Lakh. ")
+    assert "{" not in build_content(facts(price_inr=None, locality=None, city=None), lang)["reel"]["hook"]

@@ -20,33 +20,39 @@ P = {
         "cta": "💬 Interested? Comment INTERESTED and {agent} will share the details and plan a site visit.",
         "cta_anon": "💬 Interested? Comment INTERESTED and we will share the details and plan a site visit.",
         "wa_hi": "Hi! ", "wa_link": "Details and photos: {url}", "wa_ask": "Reply here to plan a visit.",
-        "status_cta": "Reply INTERESTED for details", "hook": "Take a look: {title}", "reel_cta": "Comment INTERESTED for a site visit",
+        "status_cta": "Reply INTERESTED for details", "reel_cta": "Comment INTERESTED for a site visit",
         "v_hook": "Cover photo with the headline text", "v_prop": "Photo of the main room, text overlay",
         "v_loc": "Photo or map pin of the locality", "v_price": "Price on a plain card", "v_cta": "Agent name card",
         "am": "Amenities: {items}", "link": "🔗 Details and photos: {url}",
         "avail": "✅ Available as of {d}", "bio": "🔗 Full details and photos: link in bio",
+        "where": " in {loc}", "guess": "Guess the price of this {what}{where}", "guess_rent": "Guess the rent of this {what}{where}",
+        "live": "Would you live in this {what}{where}?", "reveal": "{price}. Did you guess right?",
     },
     "hi": {
         "cta": "💬 रुचि है? कमेंट में INTERESTED लिखें, {agent} विवरण भेजेंगे और साइट विज़िट तय करेंगे।",
         "cta_anon": "💬 रुचि है? कमेंट में INTERESTED लिखें, हम विवरण भेजेंगे और साइट विज़िट तय करेंगे।",
         "wa_hi": "नमस्ते! ", "wa_link": "विवरण और फोटो: {url}", "wa_ask": "साइट विज़िट के लिए यहीं जवाब दें।",
-        "status_cta": "विवरण के लिए INTERESTED लिखकर जवाब दें", "hook": "देखिए: {title}",
+        "status_cta": "विवरण के लिए INTERESTED लिखकर जवाब दें",
         "reel_cta": "साइट विज़िट के लिए INTERESTED लिखें",
         "v_hook": "कवर फोटो और हेडलाइन टेक्स्ट", "v_prop": "मुख्य कमरे की फोटो, ऊपर टेक्स्ट",
         "v_loc": "इलाके की फोटो या मैप पिन", "v_price": "सादे कार्ड पर कीमत", "v_cta": "एजेंट के नाम का कार्ड",
         "am": "सुविधाएं: {items}", "link": "🔗 विवरण और फोटो: {url}",
         "avail": "✅ {d} तक उपलब्ध", "bio": "🔗 पूरा विवरण और फोटो: बायो में लिंक",
+        "where": "{loc} में ", "guess": "{where}इस {what} की कीमत का अंदाज़ा लगाइए", "guess_rent": "{where}इस {what} के किराये का अंदाज़ा लगाइए",
+        "live": "क्या आप {where}इस {what} में रहना चाहेंगे?", "reveal": "{price}. क्या आपका अंदाज़ा सही था?",
     },
     "mr": {
         "cta": "💬 आवड आहे? कमेंटमध्ये INTERESTED लिहा, {agent} तपशील पाठवतील आणि साइट व्हिजिट ठरवतील.",
         "cta_anon": "💬 आवड आहे? कमेंटमध्ये INTERESTED लिहा, आम्ही तपशील पाठवू आणि साइट व्हिजिट ठरवू.",
         "wa_hi": "नमस्कार! ", "wa_link": "तपशील आणि फोटो: {url}", "wa_ask": "साइट व्हिजिटसाठी इथेच उत्तर द्या.",
-        "status_cta": "तपशिलासाठी INTERESTED लिहून उत्तर द्या", "hook": "पहा: {title}",
+        "status_cta": "तपशिलासाठी INTERESTED लिहून उत्तर द्या",
         "reel_cta": "साइट व्हिजिटसाठी INTERESTED लिहा",
         "v_hook": "कव्हर फोटो आणि हेडलाइन मजकूर", "v_prop": "मुख्य खोलीचा फोटो, वर मजकूर",
         "v_loc": "परिसराचा फोटो किंवा मॅप पिन", "v_price": "साध्या कार्डवर किंमत", "v_cta": "एजंटच्या नावाचे कार्ड",
         "am": "सुविधा: {items}", "link": "🔗 तपशील आणि फोटो: {url}",
         "avail": "✅ {d} रोजी उपलब्ध", "bio": "🔗 संपूर्ण तपशील आणि फोटो: बायोमध्ये लिंक",
+        "where": "{loc} येथील ", "guess": "अंदाज लावा: {where}या {what}ची किंमत किती?", "guess_rent": "अंदाज लावा: {where}या {what}चे भाडे किती?",
+        "live": "{where}या {what}मध्ये राहायला आवडेल का?", "reveal": "{price}. तुमचा अंदाज बरोबर होता का?",
     },
 }
 
@@ -211,18 +217,28 @@ def status_text(f: Facts, lang: str) -> str:
     return clip(" | ".join(b for b in bits if b) + "\n" + P[lang]["status_cta"], STATUS_MAX)
 
 
+def reel_hook(f: Facts, lang: str) -> str:
+    """Opening line that stops the scroll, built from the listing facts only. With a price: 'guess the price', revealed near the end
+    (people watch to the reveal and comment their guess). Without one: a question that invites comments."""
+    p = P[lang]
+    what = f"{f.bhk_text} {f.type_text(lang)}" if f.bhk_text else f.type_text(lang)
+    where = p["where"].format(loc=f.locality or f.city) if (f.locality or f.city) else ""
+    key = ("guess_rent" if f.rent else "guess") if f.price_text else "live"
+    return p[key].format(what=what, where=where).replace("  ", " ").strip()
+
+
 def reel(f: Facts, lang: str) -> Dict:
-    """Script only: hook -> property -> location -> price -> call to action, ~15 s."""
+    """Script only: hook -> property -> location -> price reveal -> call to action, ~15 s."""
     p = P[lang]
     prop = " · ".join(x for x in (f"{f.bhk_text} {f.type_text(lang)}" if f.bhk_text else f.type_text(lang),
                                   f.area_text, f.possession_text(lang)) if x)
-    hook = p["hook"].format(title=f.title_line(lang))
+    hook = reel_hook(f, lang)
     cta = P[lang]["reel_cta"]
     beats = [
         {"seconds": "0-3s", "text": hook, "visual": p["v_hook"]},
         {"seconds": "3-6s", "text": prop, "visual": p["v_prop"]},
         {"seconds": "6-9s", "text": f.loc or "", "visual": p["v_loc"]},
-        {"seconds": "9-12s", "text": f.price_text or "", "visual": p["v_price"]},
+        {"seconds": "9-12s", "text": p["reveal"].format(price=f.price_text) if f.price_text else "", "visual": p["v_price"]},
         {"seconds": "12-15s", "text": cta, "visual": p["v_cta"]},
     ]
     return {"hook": hook, "beats": [b for b in beats if b["text"]], "cta": cta, "duration_s": 15}

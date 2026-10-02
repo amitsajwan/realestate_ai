@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 from .compose import Scene, TextLine
 
 CTA_WORD = "INTERESTED"
+HOOK_SECONDS = 2.2  # the opening scene: most viewers decide in the first 1-2 s, so the hook is short and on screen from frame one
 
 
 def tip_reel(lines: Sequence[str], images: Optional[Sequence] = None, seed: str = "tip") -> Tuple[List[Scene], Dict]:
@@ -22,7 +23,7 @@ def tip_reel(lines: Sequence[str], images: Optional[Sequence] = None, seed: str 
     def img(i):
         return imgs[i % len(imgs)] if imgs else None
 
-    scenes = [Scene(image=img(0), lines=[TextLine(hook, size=132)], kicker="Quick tip", seconds=3.4, seed=f"{seed}-0")]
+    scenes = [Scene(image=img(0), lines=[TextLine(hook, size=132)], kicker="Quick tip", seconds=HOOK_SECONDS, seed=f"{seed}-0")]
     for i, b in enumerate(beats):
         scenes.append(Scene(image=img(i + 1), lines=[TextLine(b, size=110, max_lines=5)], kicker=f"Tip {i + 1} of {len(beats)}",
                             seconds=3.3, seed=f"{seed}-{i + 1}"))
@@ -46,8 +47,12 @@ def listing_tour(photos: Sequence, facts: Dict, sample: bool = False) -> Tuple[L
     def ph(i):
         return photos[i % len(photos)]
 
-    scenes = [Scene(image=ph(0), lines=[TextLine(head.capitalize() if not bhk else head, size=108), TextLine(f"*{where}*", size=64, weight="semibold")],
-                    layout="lower", badge=badge, seconds=3.4, seed="tour-0")]
+    head = head.capitalize() if not bhk else head
+    if facts.get("price_text"):  # 'guess the price': the price is revealed on the last scene before the call to action
+        opening = [TextLine("Guess the *price*", size=124), TextLine(f"{head} in {where}", size=60, weight="semibold")]
+    else:
+        opening = [TextLine(head, size=108), TextLine(f"*{where}*", size=64, weight="semibold")]
+    scenes = [Scene(image=ph(0), lines=opening, layout="lower", badge=badge, seconds=HOOK_SECONDS + 0.2, seed="tour-0")]
     n = 1
     if facts.get("area_sqft"):
         scenes.append(Scene(image=ph(n), lines=[TextLine(f"{int(facts['area_sqft']):,}", size=176), TextLine("sq ft of *usable* space" if False else "square feet", size=60)],
@@ -63,7 +68,7 @@ def listing_tour(photos: Sequence, facts: Dict, sample: bool = False) -> Tuple[L
                             badge=badge, seconds=2.6, seed=f"tour-{n}"))
         n += 1
     if facts.get("price_text"):
-        scenes.append(Scene(image=ph(n), lines=[TextLine(str(facts["price_text"]), size=150), TextLine("Price", size=56)], layout="lower",
+        scenes.append(Scene(image=ph(n), lines=[TextLine(str(facts["price_text"]), size=150), TextLine("Did you guess right?", size=56)], layout="lower",
                             badge=badge, seconds=2.8, seed=f"tour-{n}"))
         n += 1
     scenes.append(Scene(image=ph(n), lines=[TextLine(f"Want the details?", size=100), TextLine(f"Comment *{CTA_WORD}*", size=72, weight="semibold")],
