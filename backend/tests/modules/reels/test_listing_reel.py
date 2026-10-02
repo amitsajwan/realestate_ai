@@ -282,7 +282,7 @@ def test_render_voiced_mixes_voice_and_music_and_closes_with_listed_by(tmp_path,
     assert len(scenes) == 5 and all(s.badge == "Sample listing" for s in scenes)
     assert [s.image for s in scenes] == ["a.jpg", "b.jpg", "a.jpg", "b.jpg", "a.jpg"]
     assert scenes[0].kicker == "KHARADI" and scenes[1].kicker is None
-    assert scenes[-1].lines[-1].text == "Listed by Rahul Homes · RERA A51800012345"
+    assert [l.text for l in scenes[-1].lines[1:]] == ["Listed by Rahul Homes", "RERA A51800012345"]
     assert all(s.seconds == pytest.approx(3.05) for s in scenes)
     assert [l for _, l in stubs["synth"]] == ["hi"] * 5 and stubs["ffmpeg"] and stubs["music"].suffix == ".m4a"
     compose._no_phone_numbers(scenes)  # the renderer's own phone check accepts the RERA number

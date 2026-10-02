@@ -179,7 +179,8 @@ def rules_script(f: Facts, lang: str) -> Dict:
     if f.price_text:
         beats.append({"screen": f"*{f.price_text}*", "voice": w["price"].format(p=_spoken_price(f, lang))})
     if f.area or f.floor is not None:
-        screen = " · ".join(x for x in [f"*{f.area:,}* sq ft" if f.area else "", f.floor_text("en") or ""] if x)
+        # commas, not ' · ': the renderer wraps on spaces, so a lone dot could start the next line
+        screen = ", ".join(x for x in [f"*{f.area:,}* sq ft" if f.area else "", f.floor_text("en") or ""] if x)
         kind = f.area_kind or "carpet"
         spoken = [w["area"].format(a=f"{f.area:,}", k=_KIND.get(lang, {}).get(kind, kind))] if f.area else []
         if f.floor_text(lang):
@@ -194,7 +195,7 @@ def rules_script(f: Facts, lang: str) -> Dict:
         if amen:
             spoken.append(f"with {_join_and(amen)}" if lang == "en" else f"{w['with']} " + ", ".join(amen))
         text = ", ".join(x[:1].lower() + x[1:] if lang == "en" else x for x in spoken)
-        beats.append({"screen": " · ".join(screen_bits), "voice": text[:1].upper() + text[1:] + _end(lang)})
+        beats.append({"screen": ", ".join(screen_bits), "voice": text[:1].upper() + text[1:] + _end(lang)})
     if f.highlights and len(beats) < 4 and latin(f.highlights[0]):
         h = latin(f.highlights[0])
         beats.append({"screen": _short(h, 6), "voice": h if lang == "en" else f.highlights[0]})
@@ -243,8 +244,9 @@ def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opt
         for i, b in enumerate(beats):
             first, last = i == 0, i == len(beats) - 1
             lines = [TextLine(b["screen"], size=104 if first else 96)]
-            if last and closing:
-                lines.append(TextLine(closing, size=44, weight="medium", max_lines=2))
+            if last and closing:  # 'Listed by X · RERA Y' as two lines, so the separator never starts a wrapped line
+                for part in [p.strip() for p in closing.split(" · ") if p.strip()]:
+                    lines.append(TextLine(part, size=44, weight="medium", max_lines=2))
             scenes.append(Scene(image=photos[i % len(photos)], lines=lines, layout="lower", badge=badge,
                                 kicker=kicker if first else None, seconds=durs[i], seed=f"listing-{i}"))
         tl = plan(durs + [END_SECONDS], XFADE)
