@@ -7,6 +7,8 @@ import { formatPrice, timeAgo } from '@/lib/app/format'
 import { useAsync } from '@/lib/app/useAsync'
 import type { Listing } from '@/lib/app/types'
 import { Btn, ErrorBox, LinkBtn, Spinner, StatusChip } from '../ui'
+import { ReelMaker } from '../MarketingPackView'
+import { reelsApi } from '@/lib/app/reels'
 import { AgentBrandEditor } from './BrandEditorSlot'
 import { PostSheet } from './PostSheet'
 import { ProgressRing } from './ProgressRing'
@@ -67,6 +69,7 @@ function ConsentCard({ agent, onChange }: { agent: AgentDetail; onChange: () => 
 function ListingRow({ l, agent, onPost, onChanged }: { l: Listing; agent: AgentDetail; onPost: (l: Listing) => void; onChanged: () => void }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [reelOpen, setReelOpen] = useState(false)
   async function publish() {
     setBusy(true)
     setError(null)
@@ -90,6 +93,15 @@ function ListingRow({ l, agent, onPost, onChanged }: { l: Listing; agent: AgentD
       </div>
       {l.status === 'draft' && <Btn variant="secondary" onClick={publish} disabled={busy} className="!min-h-[44px]">{busy ? 'Publishing...' : 'Publish'}</Btn>}
       {l.status === 'live' && <Btn variant="secondary" onClick={() => onPost(l)} className="!min-h-[44px]">Post to {BRAND_NAME}</Btn>}
+      {l.status === 'live' && (
+        reelOpen ? (
+          <div className="rounded-xl bg-gray-50 p-3">
+            <ReelMaker source={reelsApi.forAgentListing(agent.id, l.id)} caption={l.title} label="Make reel" />
+          </div>
+        ) : (
+          <Btn variant="ghost" onClick={() => setReelOpen(true)} className="!min-h-[44px]">Make reel</Btn>
+        )
+      )}
       {error && <ErrorBox message={error} />}
     </li>
   )
