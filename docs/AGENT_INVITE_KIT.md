@@ -1,5 +1,7 @@
 # Pilot invite kit (Pune agents)
 
+> **Replaced by [AGENT_GUIDE.md](AGENT_GUIDE.md)** (tested end to end on the live site, with screenshots). This file is kept for reference.
+
 Use this to invite, onboard and check in with the first 3 to 10 agents. Everything here reflects what works **today**. Keep promises inside this list.
 
 ## 1. Who to invite
