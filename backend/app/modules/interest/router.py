@@ -53,7 +53,7 @@ async def _owner_agent_id() -> Optional[str]:
     explicit = os.environ.get("INTEREST_OWNER_AGENT_ID") or os.environ.get("ENGAGE_OWNER_AGENT_ID")
     if explicit:
         return explicit
-    slug = os.environ.get("INTEREST_OWNER_SLUG") or "amit-sajwan"
+    slug = os.environ.get("INTEREST_OWNER_SLUG") or "avasetu"
     profile = await get_database().get_collection("agent_public_profiles").find_one({"slug": slug, "is_public": True})
     return profile["agent_id"] if profile else None
 

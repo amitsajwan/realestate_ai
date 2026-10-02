@@ -9,6 +9,13 @@ const nextConfig = {
   },
   // Enable standalone output for Docker (only in production)
   ...(process.env.NODE_ENV === 'production' && { output: 'standalone' }),
+  // The owner's page moved from a personal-name address to the official Avasetu address; old links in posts keep working
+  async redirects() {
+    return [
+      { source: '/agent/amit-sajwan', destination: '/agent/avasetu', permanent: true },
+      { source: '/agent/amit-sajwan/:path*', destination: '/agent/avasetu/:path*', permanent: true },
+    ]
+  },
   // Proxy API requests to backend
   async rewrites() {
     return [

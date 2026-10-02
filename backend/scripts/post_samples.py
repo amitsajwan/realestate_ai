@@ -20,7 +20,7 @@ from app.modules.social.graph import GraphPublisher
 from app.modules.social.publisher import Post
 from app.modules.social.service import build_payload
 
-AGENT_SLUG = "amit-sajwan"
+AGENT_SLUG = "avasetu"
 PICKS = [("Kharadi", 3), ("Upper Kharadi", 2), ("Wagholi", 2)]
 
 

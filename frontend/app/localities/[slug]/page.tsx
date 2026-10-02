@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 /** Where "I'm interested" leads: the house agent site's enquiry form (configurable at build time). */
-const ENQUIRE = `/agent/${process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'amit-sajwan'}#enquire`
+const ENQUIRE = `/agent/${process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'avasetu'}#enquire`
 
 export default async function LocalityPage({ params }: Props) {
   const l = getLocality((await params).slug)
