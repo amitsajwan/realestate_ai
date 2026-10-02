@@ -1,6 +1,8 @@
 """One pass of the newsroom. Orchestrates by item status only; stages are injected callables (see docs/contracts/newsroom.md).
 collect -> new; filter -> relevant|dropped; extract -> extracted|dropped; draft -> drafted|dropped; check -> pending_review|dropped;
-owner approves in the UI; approved -> publish (capped per day) -> scheduled|published. One item failing never stops the rest."""
+owner approves in the UI; approved -> publish (capped per day) -> scheduled|published. One item failing never stops the rest.
+Alongside: collect also records in-area MahaRERA projects in the project register (before any filter, so age does not matter),
+and filter links each kept news item to the registered projects it clearly names."""
 import inspect
 import logging
 from datetime import datetime, timedelta
@@ -8,7 +10,7 @@ from typing import Callable, Dict, Optional
 
 from app.modules.social.publisher import sanitize
 
-from . import codec, policy
+from . import codec, policy, register
 from .config import NewsroomConfig, load
 from .store import Store
 from .types import Publisher
@@ -56,7 +58,7 @@ async def _fail(store: Store, doc: dict, stage: str, e: Exception) -> None:
         log.exception("newsroom: could not mark %s failed", doc.get("_id"))
 
 
-async def _collect(store: Store, sources: list, get, counts: dict) -> None:
+async def _collect(store: Store, sources: list, get, counts: dict, now: datetime) -> None:
     for src in sources:
         try:
             items = await src.fetch(get)
@@ -64,6 +66,32 @@ async def _collect(store: Store, sources: list, get, counts: dict) -> None:
         except Exception as e:  # one broken source never blocks the others
             log.warning("newsroom: source %s failed: %s", getattr(src, "name", "?"), sanitize(e))
             counts["errors"] += 1
+            continue
+        if getattr(src, "projects", None):  # a MahaRERA source also hands over its records as fields
+            try:
+                counts["projects"] += (await store.record_projects(register.records(src.projects, now)))["new"]
+            except Exception as e:
+                log.warning("newsroom: project register failed: %s", sanitize(e))
+                counts["errors"] += 1
+
+
+async def _link_projects(store: Store, doc: dict, areas) -> int:
+    """Link a kept news item to the projects it clearly names: by registration number, or by full project name when the
+    story is about the project's area. A MahaRERA record is the project itself, not news about it."""
+    raw = doc.get("raw") or {}
+    if (raw.get("source") or "").strip().lower() == "maharera":
+        return 0
+    text = f"{raw.get('title', '')}\n{raw.get('text', '')}"
+    hits = {r: "registration number" for r in register.regnos_in(text)}
+    for p in await store.projects_in(areas) if areas else []:
+        if p["_id"] not in hits and register.names_project(p, text):
+            hits[p["_id"]] = "project name"
+    linked = 0
+    for regno, how in hits.items():
+        link = {"item_id": doc["_id"], "title": raw.get("title", ""), "url": raw.get("url", ""), "source": raw.get("source", ""),
+                "published_at": raw.get("published_at"), "matched_by": how}
+        linked += await store.link_news(regno, link)
+    return linked
 
 
 async def _each(store: Store, status: str, stage: str, counts: dict, step) -> None:
@@ -86,6 +114,10 @@ async def _filter(store, stages, now, doc):
             return
     if rel.keep:
         await store.move(doc["_id"], "relevant", rel.reason, relevance=codec.to_doc(rel))
+        try:
+            await _link_projects(store, doc, rel.areas)
+        except Exception as e:  # the register is a side record: it never holds an item back
+            log.warning("newsroom: project links for %s failed: %s", doc.get("_id"), sanitize(e))
     else:
         await store.move(doc["_id"], "dropped", rel.reason or "not relevant")
 
@@ -191,9 +223,9 @@ async def run_once(store: Store, sources: list, stages: Optional[Dict[str, Calla
     """Runs every step once and returns counters. `stages` keys: filter, extract, draft, check, and optional `get` (Fetcher for sources).
     Without an `llm` the LLM stages (extract, draft) wait; without a `publisher` nothing is published."""
     stages = stages or default_stages()
-    counts = {k: 0 for k in ("collected", "filter", "extract", "draft", "check", "published", "capped", "errors")}
+    counts = {k: 0 for k in ("collected", "filter", "extract", "draft", "check", "published", "capped", "errors", "projects")}
     if sources:
-        await _collect(store, sources, stages["get"] if "get" in stages else _no_fetch, counts)
+        await _collect(store, sources, stages["get"] if "get" in stages else _no_fetch, counts, now)
     await _each(store, "new", "filter", counts, lambda d: _filter(store, stages, now, d))
     if llm is not None:
         await _each(store, "relevant", "extract", counts, lambda d: _extract(store, stages, llm, d))

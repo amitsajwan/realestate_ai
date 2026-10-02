@@ -1,4 +1,4 @@
-"""The only file that touches Mongo for the newsroom. Collections: newsroom_items, newsroom_status.
+"""The only file that touches Mongo for the newsroom. Collections: newsroom_items, newsroom_status, projects (the project register).
 Uses only find/find_one/insert_one/update_one/count_documents with $set/$push/$in/$gte so the in-memory test fakes work too."""
 from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional
@@ -8,6 +8,7 @@ from .types import STATUSES, RawItem
 
 ITEMS = "newsroom_items"
 STATUS = "newsroom_status"
+PROJECTS = "projects"  # one document per MahaRERA registration number in our areas (_id = the number)
 DONE = ("scheduled", "published")
 
 
@@ -20,6 +21,7 @@ class Store:
         self.db = db
         self.items = db.get_collection(ITEMS)
         self.status = db.get_collection(STATUS)
+        self.projects = db.get_collection(PROJECTS)
         self.clock = clock
 
     async def add_new(self, items: List[RawItem]) -> int:
@@ -109,3 +111,37 @@ class Store:
 
     async def get_run(self) -> dict:
         return await self.status.find_one({"_id": "runner"}) or {}
+
+    # --- project register -----------------------------------------------------------------------------------------------
+
+    async def record_projects(self, records: List[dict]) -> Dict[str, int]:
+        """Insert or refresh register records (from register.records) by registration number: never two documents for one
+        project. `first_seen` is set once; everything else is what MahaRERA said when we last read it."""
+        out = {"new": 0, "updated": 0}
+        for r in records:
+            key = {"_id": r["regno"]}
+            if await self.projects.find_one(key) is None:
+                try:
+                    await self.projects.insert_one({**key, **r, "first_seen": r["checked_at"], "news": []})
+                    out["new"] += 1
+                    continue
+                except Exception as e:  # inserted meanwhile by another run: refresh it instead
+                    if "duplicate" not in f"{type(e).__name__} {e}".lower():
+                        raise
+            await self.projects.update_one(key, {"$set": r})
+            out["updated"] += 1
+        return out
+
+    async def project(self, regno: str) -> Optional[dict]:
+        return await self.projects.find_one({"_id": regno})
+
+    async def projects_in(self, areas: List[str], limit: int = 500) -> List[dict]:
+        return await self.projects.find({"locality": {"$in": list(areas)}}).to_list(limit)
+
+    async def link_news(self, regno: str, link: dict) -> bool:
+        """Add a news item to a project's `news` once; False when it was already linked or the project is unknown."""
+        doc = await self.projects.find_one({"_id": regno})
+        if doc is None or any(n.get("item_id") == link["item_id"] for n in doc.get("news") or []):
+            return False
+        await self.projects.update_one({"_id": regno}, {"$push": {"news": link}})
+        return True

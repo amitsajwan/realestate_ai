@@ -3,22 +3,30 @@
 Reads the public search page https://www.maharera.maharashtra.gov.in/projects-search-result (no login, no captcha).
 Results are paged 10 per page in ascending registration order, so the newest projects sit on the LAST pages.
 We fetch page 0 only to learn the total count, then read the last `pages` pages. Anything unexpected gives [].
+The site often answers "No Records Found" for a page that has results (about a third of requests, verified 2026-10-02), so an
+empty page is asked for again, up to `TRIES` times, before it is given up.
 See docs/handoff/N1a-sources.md for the verified limits.
 The only date a card gives is "Last Modified", so an item never claims the project is newly registered: it was listed or updated.
 """
+import asyncio
+import logging
 import re
 from datetime import datetime, timezone
 from typing import List, Optional
 
 from app.modules.newsroom.policy import MAHARERA_PAGES, MAHARERA_PHRASE
 from app.modules.newsroom.sources._util import canonical_url, item_id, now_utc, strip_html
-from app.modules.newsroom.types import Fetcher, RawItem
+from app.modules.newsroom.types import Fetcher, MahaReraProject, RawItem
+
+log = logging.getLogger(__name__)
 
 SEARCH = ("https://www.maharera.maharashtra.gov.in/projects-search-result?project_name=&project_location="
           "&project_completion_date=&project_state=27&project_district={district}&carpetAreas=&completionPercentages="
           "&project_division=&page={page}&op=")
 PUNE_DISTRICT = 521  # value of the site's district filter for Pune (verified 2026-09-30)
 PAGE_SIZE = 10
+TRIES = 3
+RETRY_DELAY = 2.0  # seconds, grows per try; tests set it to 0
 DETAIL = "https://maharerait.maharashtra.gov.in/public/project/view/"
 
 _TOTAL = re.compile(r'Showing Final\s*<span[^>]*>\s*(\d+)\s*</span>', re.I)
@@ -43,67 +51,98 @@ def parse_total(page: str) -> Optional[int]:
     return int(m.group(1)) if m else None
 
 
-def parse_page(page: str, fetched_at: Optional[datetime] = None) -> List[RawItem]:
-    fetched_at = fetched_at or now_utc()
-    out: List[RawItem] = []
+def parse_projects(page: str) -> List[MahaReraProject]:
+    """The cards of one results page as fields. A promoter is kept only when it is an organisation."""
+    out: List[MahaReraProject] = []
     for card in _CARD.findall(page or ""):
         try:
             reg = _REGNO.search(card)
             name = _NAME.search(card)
-            if not reg or not name:
-                continue
-            regno, title_name = reg.group(1), strip_html(name.group(1))
-            if not title_name:
+            if not reg or not name or not strip_html(name.group(1)):
                 continue
             loc = _LOCATION.search(card)
-            location = strip_html(loc.group(1)) if loc else ""
-            district, pincode, modified = _field("District", card), _field("Pincode", card), _field("Last Modified", card)
             prom = _PROMOTER.search(card)
             promoter = strip_html(prom.group(1)) if prom else ""
             det = _DETAIL.search(card)
-            url = DETAIL + det.group(1) if det else f"https://www.maharera.maharashtra.gov.in/projects-search-result?regno={regno}"
-            published = None
-            if re.fullmatch(r"\d{4}-\d{2}-\d{2}", modified):
-                published = datetime.strptime(modified, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            where = ", ".join(p for p in (location, f"{district} district" if district else "") if p)
-            parts = [f"Project {title_name} (MahaRERA registration number {regno}) was {MAHARERA_PHRASE}."]
-            if where:
-                parts.append(f"Location: {where}" + (f", pincode {pincode}." if pincode else "."))
-            if promoter and _ORG.search(promoter):
-                parts.append(f"Promoter: {promoter}.")
-            if modified:
-                parts.append(f"MahaRERA record last modified {modified}.")
-            out.append(RawItem(
-                id=item_id(url), source="MahaRERA", url=canonical_url(url),
-                title=f"{MAHARERA_PHRASE[0].upper()}{MAHARERA_PHRASE[1:]}: {title_name}" + (f", {location}" if location else ""),
-                text=" ".join(parts), published_at=published, fetched_at=fetched_at))
+            modified = _field("Last Modified", card)
+            out.append(MahaReraProject(
+                regno=reg.group(1), name=strip_html(name.group(1)),
+                promoter=promoter if promoter and _ORG.search(promoter) else "",
+                location=strip_html(loc.group(1)) if loc else "", district=_field("District", card),
+                pincode=_field("Pincode", card), last_modified=modified if re.fullmatch(r"\d{4}-\d{2}-\d{2}", modified) else "",
+                url=canonical_url(DETAIL + det.group(1) if det else
+                                  f"https://www.maharera.maharashtra.gov.in/projects-search-result?regno={reg.group(1)}")))
         except Exception:
             continue
     return out
 
 
+def to_item(p: MahaReraProject, fetched_at: Optional[datetime] = None) -> RawItem:
+    published = datetime.strptime(p.last_modified, "%Y-%m-%d").replace(tzinfo=timezone.utc) if p.last_modified else None
+    where = ", ".join(x for x in (p.location, f"{p.district} district" if p.district else "") if x)
+    parts = [f"Project {p.name} (MahaRERA registration number {p.regno}) was {MAHARERA_PHRASE}."]
+    if where:
+        parts.append(f"Location: {where}" + (f", pincode {p.pincode}." if p.pincode else "."))
+    if p.promoter:
+        parts.append(f"Promoter: {p.promoter}.")
+    if p.last_modified:
+        parts.append(f"MahaRERA record last modified {p.last_modified}.")
+    return RawItem(
+        id=item_id(p.url), source="MahaRERA", url=p.url,
+        title=f"{MAHARERA_PHRASE[0].upper()}{MAHARERA_PHRASE[1:]}: {p.name}" + (f", {p.location}" if p.location else ""),
+        text=" ".join(parts), published_at=published, fetched_at=fetched_at or now_utc())
+
+
+def parse_page(page: str, fetched_at: Optional[datetime] = None) -> List[RawItem]:
+    fetched_at = fetched_at or now_utc()
+    return [to_item(p, fetched_at) for p in parse_projects(page)]
+
+
+async def _ask(get: Fetcher, url: str, ok) -> Optional[str]:
+    """The page body once `ok(body)` holds; None after `TRIES` empty or failed answers."""
+    for attempt in range(TRIES):
+        try:
+            body = await get(url)
+            if ok(body):
+                return body
+        except Exception:
+            pass
+        if attempt < TRIES - 1:
+            await asyncio.sleep(RETRY_DELAY * (attempt + 1))
+    return None
+
+
 class MahaReraSource:
+    """`fetch` returns news items; `projects` then holds the same records as fields, for the project register."""
     name = "maharera"
 
     def __init__(self, district: int = PUNE_DISTRICT, pages: int = MAHARERA_PAGES):
         self.district, self.pages = district, max(1, pages)
+        self.projects: List[MahaReraProject] = []
 
     async def fetch(self, get: Fetcher) -> List[RawItem]:
+        self.projects = []
         try:
-            total = parse_total(await get(SEARCH.format(district=self.district, page=0)))
+            first = await _ask(get, SEARCH.format(district=self.district, page=0), lambda b: parse_total(b))
+            total = parse_total(first or "")
             if not total or total < 1:
+                log.warning("newsroom: MahaRERA gave no result count after %d tries", TRIES)
                 return []
             last = (total - 1) // PAGE_SIZE
-            out, seen = [], set()
+            seen, missed = set(), []
             for page in range(last, max(last - self.pages, -1), -1):
-                try:
-                    body = await get(SEARCH.format(district=self.district, page=page))
-                except Exception:
+                body = await _ask(get, SEARCH.format(district=self.district, page=page), lambda b: parse_projects(b))
+                if body is None:
+                    missed.append(page)
                     continue
-                for it in parse_page(body or ""):
-                    if it.id not in seen:
-                        seen.add(it.id)
-                        out.append(it)
-            return out
+                for p in parse_projects(body):
+                    if p.regno not in seen:
+                        seen.add(p.regno)
+                        self.projects.append(p)
+            if missed:
+                log.warning("newsroom: MahaRERA pages %s stayed empty after %d tries", missed, TRIES)
+            fetched_at = now_utc()
+            return [to_item(p, fetched_at) for p in self.projects]
         except Exception:
+            self.projects = []
             return []

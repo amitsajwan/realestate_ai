@@ -35,6 +35,8 @@ INDEXES: Iterable[Tuple[str, list, dict]] = [
     ("invite_request_attempts", [("phone", ASC), ("at", DESC)], {}),
     ("invite_request_attempts", [("ip_hash", ASC), ("at", DESC)], {}),
     ("invite_request_attempts", [("at", ASC)], {"expireAfterSeconds": 86400}),
+    # project register (newsroom): projects of an area, newest MahaRERA update first
+    ("projects", [("locality", ASC), ("last_modified", DESC)], {}),
     # marketing + social
     ("marketing_packs", [("agent_id", ASC)], {}),
     ("publications", [("listing_id", ASC), ("channel", ASC), ("pack_version", ASC)], {}),

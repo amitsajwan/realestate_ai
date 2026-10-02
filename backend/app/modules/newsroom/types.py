@@ -27,6 +27,19 @@ class RawItem:
 
 
 @dataclass(frozen=True)
+class MahaReraProject:
+    """One MahaRERA search card, as fields. Only facts the card states; `last_modified` is the only date it gives."""
+    regno: str
+    name: str
+    promoter: str  # organisations only; "" when the promoter is a person or not given
+    location: str  # the taluka, e.g. "Haveli"
+    district: str
+    pincode: str
+    last_modified: str  # YYYY-MM-DD, or ""
+    url: str
+
+
+@dataclass(frozen=True)
 class Relevance:
     keep: bool
     pillar: Optional[str] = None  # one of PILLARS when keep

@@ -3,8 +3,10 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def no_retry_delay(monkeypatch):
+    from app.modules.newsroom.sources import maharera
     from app.modules.newsroom.stages import draft
     monkeypatch.setattr(draft, "RETRY_DELAY", 0)
+    monkeypatch.setattr(maharera, "RETRY_DELAY", 0)
 
 
 @pytest.fixture(autouse=True)

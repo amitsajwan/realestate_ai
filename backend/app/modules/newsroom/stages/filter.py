@@ -50,6 +50,12 @@ def _pin_areas(text: str) -> List[str]:
     return [AREA_PINCODES[p] for p in _PIN.findall(text) if p in AREA_PINCODES]
 
 
+def named_areas(text: str) -> List[str]:
+    """Areas named in `text` (landmarks do not count), in AREAS order."""
+    low = (text or "").lower()
+    return [a for a, pats in _AREA_NAME_RE.items() if any(p.search(low) for p in pats)]
+
+
 def _no(reason: str) -> Relevance:
     return Relevance(keep=False, reason=reason)
 
@@ -72,7 +78,7 @@ def assess(item: RawItem, now: datetime) -> Relevance:
     # area only further down, so for those the whole text counts too, by name (a landmark alone is not enough), unless the
     # headline names another locality: "launches project in Hinjewadi ... 20 minutes from Kharadi" is Hinjewadi's story
     supply = (item.source.lower() == "maharera" or _hits(_PILLAR_RE["new_supply"], full) > 0) and not _hits(_OTHER_RE, head)
-    body_areas = _pin_areas(full) + ([a for a, pats in _AREA_NAME_RE.items() if any(p.search(full) for p in pats)] if supply else [])
+    body_areas = _pin_areas(full) + (named_areas(full) if supply else [])
     by_body = [a for a in dict.fromkeys(body_areas) if a not in areas]
     areas += by_body
     corridor = any(p.search(full) for p in _CORRIDOR_RE) and any(p.search(full) for p in _HINT_RE)

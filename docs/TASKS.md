@@ -60,6 +60,18 @@ Diagnosis (see chat, Oct 2026): 10 of 10 newest MahaRERA projects were dropped b
 - The newsroom writes to it whenever it sees a MahaRERA item; news items that name a registered project or our locality get linked.
 - Facts only, every field with source and date. No ratings, no opinions about builders.
 - **Done when:** after a newsroom run, `projects` holds every in-area MahaRERA project once, with no duplicates.
+- **Status:** done 2026-10-02 (`newsroom/register.py`, `tests/modules/newsroom/test_project_register.py`). As built:
+  projects are recorded when MahaRERA is read, before the news filter (so a project last modified months ago still counts);
+  news is linked only by registration number or by the full project name in a story about the same area (no fuzzy matches,
+  no "every Kharadi story to every Kharadi project"). MahaRERA's search answers "No Records Found" to about a third of
+  requests, so empty pages are asked for again (3 tries); a page still lost is picked up by a later run.
+
+### T1.2b Backfill older projects [B, spike]
+- The register only sees the newest ~150 Pune district registrations (about 10 days), so the many older projects in Kharadi
+  and Wagholi never appear, and the T2.2 area pages would look thin.
+- Find out whether the MahaRERA search can filter by pincode or location (`project_location=` exists in the search URL;
+  untested), or whether a one-off read of older pages is needed. Be polite: the site throttles bursts.
+- **Done when:** we know the method and its cost; then one run fills the register with every in-area project.
 
 ### T1.3 Monthly "New on MahaRERA" post [B]
 - From the register: "Projects listed or updated on MahaRERA in Kharadi and Wagholi this month" as an Instagram carousel
