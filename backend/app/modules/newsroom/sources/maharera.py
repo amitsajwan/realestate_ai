@@ -1,14 +1,16 @@
-"""MahaRERA newly registered projects (Pune district).
+"""MahaRERA projects listed or updated recently (Pune district).
 
 Reads the public search page https://www.maharera.maharashtra.gov.in/projects-search-result (no login, no captcha).
 Results are paged 10 per page in ascending registration order, so the newest projects sit on the LAST pages.
 We fetch page 0 only to learn the total count, then read the last `pages` pages. Anything unexpected gives [].
 See docs/handoff/N1a-sources.md for the verified limits.
+The only date a card gives is "Last Modified", so an item never claims the project is newly registered: it was listed or updated.
 """
 import re
 from datetime import datetime, timezone
 from typing import List, Optional
 
+from app.modules.newsroom.policy import MAHARERA_PAGES, MAHARERA_PHRASE
 from app.modules.newsroom.sources._util import canonical_url, item_id, now_utc, strip_html
 from app.modules.newsroom.types import Fetcher, RawItem
 
@@ -64,7 +66,7 @@ def parse_page(page: str, fetched_at: Optional[datetime] = None) -> List[RawItem
             if re.fullmatch(r"\d{4}-\d{2}-\d{2}", modified):
                 published = datetime.strptime(modified, "%Y-%m-%d").replace(tzinfo=timezone.utc)
             where = ", ".join(p for p in (location, f"{district} district" if district else "") if p)
-            parts = [f"MahaRERA registered project {title_name} (registration number {regno})."]
+            parts = [f"Project {title_name} (MahaRERA registration number {regno}) was {MAHARERA_PHRASE}."]
             if where:
                 parts.append(f"Location: {where}" + (f", pincode {pincode}." if pincode else "."))
             if promoter and _ORG.search(promoter):
@@ -73,7 +75,7 @@ def parse_page(page: str, fetched_at: Optional[datetime] = None) -> List[RawItem
                 parts.append(f"MahaRERA record last modified {modified}.")
             out.append(RawItem(
                 id=item_id(url), source="MahaRERA", url=canonical_url(url),
-                title=f"MahaRERA project registration: {title_name}" + (f", {location}" if location else ""),
+                title=f"{MAHARERA_PHRASE[0].upper()}{MAHARERA_PHRASE[1:]}: {title_name}" + (f", {location}" if location else ""),
                 text=" ".join(parts), published_at=published, fetched_at=fetched_at))
         except Exception:
             continue
@@ -83,7 +85,7 @@ def parse_page(page: str, fetched_at: Optional[datetime] = None) -> List[RawItem
 class MahaReraSource:
     name = "maharera"
 
-    def __init__(self, district: int = PUNE_DISTRICT, pages: int = 2):
+    def __init__(self, district: int = PUNE_DISTRICT, pages: int = MAHARERA_PAGES):
         self.district, self.pages = district, max(1, pages)
 
     async def fetch(self, get: Fetcher) -> List[RawItem]:

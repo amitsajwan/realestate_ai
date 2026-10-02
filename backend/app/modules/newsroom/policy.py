@@ -13,6 +13,12 @@ AREA_KEYWORDS = {
     "upper_kharadi": ["upper kharadi"],
     "wagholi": ["wagholi", "lohegaon", "bakori", "kesnand"],
 }
+# pincode -> area. MahaRERA gives the taluka ("Haveli"), not the locality, so the pincode is how its items find us.
+# 411014 also covers Upper Kharadi (Thite Nagar); 412207 also covers Kesnand and Bakori (verified 2026-10-02)
+AREA_PINCODES = {"411014": "kharadi", "412207": "wagholi", "411047": "wagholi"}
+MAHARERA_PAGES = 15  # newest 150 Pune district projects per run; the pincode filter keeps only ours
+# the only honest wording for a MahaRERA item: the date we have is "Last Modified", not the registration date
+MAHARERA_PHRASE = "listed or updated on MahaRERA"
 # corridor topics that affect our areas even when no area is named (matched together with a Pune hint)
 CORRIDOR_KEYWORDS = [
     "pune ring road", "nagar road", "ramwadi", "wagholi metro", "kharadi metro", "pune-ahmednagar", "shirur road",

@@ -57,6 +57,9 @@ FILLER = [re.compile(x, re.I) for x in (
     r"\bimportant (development|news) for (residents|buyers|anyone)\b",
 )]
 
+# a MahaRERA card only gives "Last Modified": we cannot know the project is new, so we never say so
+MAHARERA_NEW = re.compile(r"\b(newly|just|recently) registered\b|\bnew(ly)? launch\w*|\blaunch(ed|es)\b|\bnew registration", re.I)
+
 TRANSPORT = re.compile(r"\b(metro|railway|rail|station|line|flyover|bridge|road|highway|ring road|airport|corridor|bus|brts|tunnel)\b", re.I)
 # claims that something is running or has opened; the source must use the same word near a transport word
 TRANSPORT_CLAIMS = [
@@ -189,6 +192,11 @@ def check(draft: Draft, facts: Facts, item: RawItem, now: Optional[datetime] = N
         m = rx.search(full)
         if m:
             problems.append(f"{label}: '{m.group(0).strip()}'")
+
+    if (item.source or "").strip().lower() == "maharera":
+        m = MAHARERA_NEW.search(full)
+        if m:
+            problems.append(f"MahaRERA gives only a 'Last Modified' date: say '{policy.MAHARERA_PHRASE}', not '{m.group(0)}'")
 
     # 4. No long runs copied from the source, no copied headline
     n = policy.MAX_QUOTE_WORDS + 1

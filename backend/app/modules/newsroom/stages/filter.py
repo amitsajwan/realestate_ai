@@ -4,14 +4,14 @@ from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 from typing import Dict, List
 
-from ..policy import AREA_KEYWORDS, BANNED, CORRIDOR_KEYWORDS, MAX_AGE_DAYS, PILLAR_KEYWORDS, PUNE_HINT
+from ..policy import AREA_KEYWORDS, AREA_PINCODES, BANNED, CORRIDOR_KEYWORDS, MAX_AGE_DAYS, PILLAR_KEYWORDS, PUNE_HINT
 from ..types import RawItem, Relevance
 from . import topics
 
 
 def _phrase(p: str, plural: bool = False) -> "re.Pattern[str]":
     body = r"\s+".join(re.escape(w) for w in p.lower().split())
-    return re.compile(r"(?<![a-z0-9])" + body + (r"s?" if plural else "") + r"(?![a-z0-9])")
+    return re.compile(r"(?<![a-z0-9])" + body + (r"(?:e?s)?" if plural else "") + r"(?![a-z0-9])")  # launch(es), bus(es)
 
 
 _AREA_RE: Dict[str, List["re.Pattern[str]"]] = {a: [_phrase(k) for k in ks] for a, ks in AREA_KEYWORDS.items()}
@@ -22,6 +22,7 @@ _CORRIDOR_RE = [_phrase(k) for k in CORRIDOR_KEYWORDS]
 _HINT_RE = [_phrase(k) for k in PUNE_HINT]
 _PILLAR_RE: Dict[str, List["re.Pattern[str]"]] = {
     p: [_phrase(k, True) for k in list(ks) + topics.EXTRA_PILLAR_KEYWORDS.get(p, [])] for p, ks in PILLAR_KEYWORDS.items()}
+_PIN = re.compile(r"(?<!\d)(\d{6})(?!\d)")
 _EDU_RE = [_phrase(k, True) for k in topics.EDUCATION_KEYWORDS]
 
 _HOROSCOPE = re.compile(r"\b(horoscope|zodiac|rashifal|astrology|lucky number)\b", re.I)
@@ -45,6 +46,10 @@ def _hits(patterns, text: str) -> int:
     return sum(1 for p in patterns if p.search(text))
 
 
+def _pin_areas(text: str) -> List[str]:
+    return [AREA_PINCODES[p] for p in _PIN.findall(text) if p in AREA_PINCODES]
+
+
 def _no(reason: str) -> Relevance:
     return Relevance(keep=False, reason=reason)
 
@@ -63,6 +68,13 @@ def assess(item: RawItem, now: datetime) -> Relevance:
     areas = [a for a, pats in _AREA_RE.items() if any(p.search(head) for p in pats)]
     if areas and _hits(_OTHER_RE, head):  # a landmark alone does not make another locality's story ours
         areas = [a for a in areas if any(p.search(head) for p in _AREA_NAME_RE[a])]
+    # pincodes are exact, so they count anywhere; a new-project item (MahaRERA gives "Haveli" in its headline) may name the
+    # area only further down, so for those the whole text counts too, by name (a landmark alone is not enough), unless the
+    # headline names another locality: "launches project in Hinjewadi ... 20 minutes from Kharadi" is Hinjewadi's story
+    supply = (item.source.lower() == "maharera" or _hits(_PILLAR_RE["new_supply"], full) > 0) and not _hits(_OTHER_RE, head)
+    body_areas = _pin_areas(full) + ([a for a, pats in _AREA_NAME_RE.items() if any(p.search(full) for p in pats)] if supply else [])
+    by_body = [a for a in dict.fromkeys(body_areas) if a not in areas]
+    areas += by_body
     corridor = any(p.search(full) for p in _CORRIDOR_RE) and any(p.search(full) for p in _HINT_RE)
     if not areas and not corridor:
         mentioned = any(p.search(full) for pats in _AREA_RE.values() for p in pats)
@@ -93,6 +105,8 @@ def assess(item: RawItem, now: datetime) -> Relevance:
     if not scores:
         return _no("no buyer relevance: no pillar keyword evidence")
     pillar = max(scores, key=scores.get)
+    if by_body and supply and "new_supply" in scores and len(by_body) == len(areas):
+        pillar = "new_supply"  # the area was found only because it is a new-project item
     # buyer-relevance score: pillar evidence, plus the area being in the headline
     in_title = any(p.search(title.lower()) for pats in _AREA_RE.values() for p in pats) or any(p.search(title.lower()) for p in _CORRIDOR_RE)
     score = scores[pillar] + (2 if in_title else 1 if areas else 0)  # area in the first sentence counts for less than in the headline

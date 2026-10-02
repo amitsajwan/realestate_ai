@@ -40,11 +40,18 @@ SYSTEM_HEADLINE = (
     'question ending with ?).'
 )
 HEADLINE_CHECK = "Read the source and any official notice for the latest status before you decide."
+# MahaRERA cards carry only a "Last Modified" date, so we cannot say when a project was registered or launched
+MAHARERA_RULE = (f"This is a MahaRERA record. Say the project was '{policy.MAHARERA_PHRASE}'. Never say it was newly registered, "
+                 "just registered, launched or a new launch.")
 HEADLINE_MAX_WORDS = 25  # a source text shorter than this is treated as headline-only
 
 
 def _clean(s) -> str:
     return re.sub(r"\s+", " ", URL.sub("", str(s or ""))).strip()
+
+
+def is_maharera(item: RawItem) -> bool:
+    return (item.source or "").strip().lower() == "maharera"
 
 
 def headline_only(item: RawItem) -> bool:
@@ -156,7 +163,8 @@ async def draft(item: RawItem, facts: Facts, relevance: Relevance, fmt: str, llm
     if thin:
         fmt = "post"  # a headline alone never supports an article
     user = (f"Format: {fmt}\nArea: {where}\nPillar: {relevance.pillar or 'general'}\nAs of: {_as_of(facts, item) or 'unknown'}\n"
-            "Facts:\n" + "\n".join(f"- {_clean(f.text)}" for f in facts.facts))
+            + (MAHARERA_RULE + "\n" if is_maharera(item) else "")
+            + "Facts:\n" + "\n".join(f"- {_clean(f.text)}" for f in facts.facts))
     parts = None
     for attempt in range(LLM_TRIES):  # free models are flaky under a burst of calls: try again before giving up
         try:

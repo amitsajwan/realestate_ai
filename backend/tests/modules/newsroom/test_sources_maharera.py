@@ -18,7 +18,7 @@ def test_total_and_cards():
     items = parse_page(LAST)
     assert len(items) == 10
     it = items[0]
-    assert it.source == "MahaRERA" and it.title.startswith("MahaRERA project registration: Shantivan Homes Phase 8")
+    assert it.source == "MahaRERA" and it.title.startswith("Listed or updated on MahaRERA: Shantivan Homes Phase 8")
     assert "PP1260002601949" in it.text and "Pune district" in it.text
     assert it.url.startswith("https://maharerait.maharashtra.gov.in/public/project/view/")
     assert it.published_at.isoformat() == "2026-09-17T00:00:00+00:00"

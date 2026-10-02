@@ -44,7 +44,7 @@ Legend: **[B]** backend, **[F]** frontend, **[O]** ops / non-code.
 ### T1.1 Newsroom: stop dropping new projects [B]
 Diagnosis (see chat, Oct 2026): 10 of 10 newest MahaRERA projects were dropped by the filter.
 - MahaRERA gives the taluka ("Haveli"), not the locality. Match by **pincode** too: Kharadi 411014, Wagholi 412207,
-  Lohegaon 411047 (confirm the full list for Upper Kharadi, Kesnand, Bakori). Also match the project name.
+  Lohegaon 411047 (confirmed 2026-10-02: Upper Kharadi shares 411014; Kesnand and Bakori share 412207). Also match the project name.
 - For the `new_supply` pillar (and MahaRERA items), look for the area in the whole text, not only the title / first sentence.
 - Plural bug: `_phrase(p, plural=True)` adds only "s", so "launches" does not match "launch". Accept "es" as well.
 - Read more MahaRERA pages per run (the newest 20 across all of Pune district is too few once we filter by pincode).
@@ -52,6 +52,7 @@ Diagnosis (see chat, Oct 2026): 10 of 10 newest MahaRERA projects were dropped b
 - Files: `newsroom/policy.py`, `newsroom/stages/filter.py`, `newsroom/sources/maharera.py`, `newsroom/stages/draft.py`.
 - **Done when:** tests built from `tests/modules/newsroom/fixtures/sources/maharera_pune_last.html` keep the in-area projects
   and drop the rest; "Developer launches project in Pune" with Kharadi in sentence 2 is kept; "launches" counts.
+- **Status:** done 2026-10-02 (`tests/modules/newsroom/test_new_projects.py`).
 
 ### T1.2 Project register [B]
 - New collection `projects`: one document per MahaRERA registration number. Fields: name, reg no, promoter (organisations
