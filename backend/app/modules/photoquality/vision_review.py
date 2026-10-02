@@ -261,7 +261,11 @@ async def review(image_paths: Sequence[Any], context: Optional[Dict[str, Any]] =
         prompt = ("Review this finished post image" + ("s (slides in order)" if len(images) > 1 else "") + ".\n"
                   + (_context_text(context) or "No caption given."))
         for c in chain if images else []:
-            data = await c.review(images, prompt)
+            try:
+                data = await c.review(images, prompt)
+            except Exception:
+                log.info("vision client %s raised", getattr(c, "model", "?"), exc_info=True)
+                data = None
             ai = clean_ai(data) if data else None
             if ai:
                 # the AI judges the look; hard rule failures (critic errors, a dark or blurred photo) still pull the score down
