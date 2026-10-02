@@ -486,7 +486,8 @@ def caption(listing: dict, attribution: str) -> str:
     """Caption for posting the reel on the Avasetu pages: what and where, price, the 'Listed by' attribution, the brand."""
     f = Facts.from_docs(listing, None, "")
     bits = " · ".join(x for x in (f.price_text, f.area_text and f"{f.area_text} {f.area_kind}") if x)
-    lines = [f.title_line("en") + (f"\n{bits}" if bits else "")]
+    title = _ON_SALE.sub("", f.title_line("en")).strip() if f.sample else f.title_line("en")  # a sample is not for sale
+    lines = [title + (f"\n{bits}" if bits else "")]
     if f.sample:
         lines.append("Sample listing, shown for illustration. Not available.")
     if attribution:
