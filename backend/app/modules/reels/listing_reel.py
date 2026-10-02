@@ -96,7 +96,7 @@ def listed_by_line(profile: Optional[dict]) -> str:
 
 def reel_facts(listing: dict, profile: Optional[dict]) -> Tuple[str, List[str], Facts]:
     """(subject, fact lines, Facts): everything the script may say, from the listing and its `about` only."""
-    f = Facts.from_docs(listing, profile, "")
+    f = Facts.from_docs(listing, {k: v for k, v in (profile or {}).items() if k != "phone"}, "")  # the reel never needs his number
     about = listing.get("about") or {}
     subject = f.title_line("en") + (" (sample listing, shown for illustration, not available)" if f.sample else "")
     lines: List[str] = [f.title_line("en")]

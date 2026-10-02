@@ -6,7 +6,7 @@ from app.core import brand
 import time
 from collections import defaultdict, deque
 from pathlib import Path
-from typing import Callable, Deque, Dict, List, Optional
+from typing import Callable, Deque, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -70,10 +70,12 @@ def get_service() -> ConciergeService:
     async def no_token(user) -> str:  # the concierge never logs in as the agent
         raise RuntimeError("not used")
 
+    from app.modules.reels.router import get_jobs
     return ConciergeService(
         db, invites=invites, users=users, onboarding=OnboardingService(db, invites, users, no_token, settings.public_site_url),
         listings=ListingService(db), social=SocialService(db), site_url=settings.public_site_url,
-        marketing=MarketingService(db, Path(settings.upload_directory), settings.public_site_url, polish=default_polish()))
+        marketing=MarketingService(db, Path(settings.upload_directory), settings.public_site_url, polish=default_polish()),
+        reels=get_jobs())
 
 
 def _http(e: Exception) -> HTTPException:
@@ -185,6 +187,46 @@ async def captions(agent_id: str, listing_id: str, body: Optional[PostIn] = None
 async def post_listing(agent_id: str, listing_id: str, body: Optional[PostIn] = None, user: User = Depends(writer("post", 20)),
                        svc: ConciergeService = Depends(get_service)):
     return {"publications": await _run(svc.post_listing(str(user.id), agent_id, listing_id, (body or PostIn()).channels))}
+
+
+class ReelIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    lang: Literal["en", "hi", "mr"] = "en"
+    again: bool = False
+
+
+class ReelPostIn(PostIn):
+    lang: Literal["en", "hi", "mr"] = "en"
+
+
+def reel_worker() -> None:
+    from app.modules.reels.listing_reel import ensure_worker
+    ensure_worker()
+
+
+@router.post("/agents/{agent_id}/listings/{listing_id}/reel", status_code=202)
+async def make_reel(agent_id: str, listing_id: str, request: Request, body: Optional[ReelIn] = None,
+                    user: User = Depends(writer("reel", 10)), svc: ConciergeService = Depends(get_service),
+                    _w: None = Depends(reel_worker)):
+    from app.modules.reels.listing_reel import job_out
+    body = body or ReelIn()
+    doc, created = await _run(svc.make_reel(str(user.id), agent_id, listing_id, body.lang, body.again))
+    return {"job": job_out(doc, str(request.base_url)), "created": created}
+
+
+@router.get("/agents/{agent_id}/listings/{listing_id}/reel")
+async def get_reels(agent_id: str, listing_id: str, request: Request, user: User = Depends(owner_only),
+                    svc: ConciergeService = Depends(get_service), _w: None = Depends(reel_worker)):
+    from app.modules.reels.listing_reel import job_out
+    latest = await _run(svc.reels_for(agent_id, listing_id))
+    return {"jobs": {lang: job_out(d, str(request.base_url)) for lang, d in latest.items()}}
+
+
+@router.post("/agents/{agent_id}/listings/{listing_id}/reel/post")
+async def post_reel(agent_id: str, listing_id: str, body: Optional[ReelPostIn] = None, user: User = Depends(writer("post", 20)),
+                    svc: ConciergeService = Depends(get_service)):
+    body = body or ReelPostIn()
+    return {"publications": await _run(svc.post_reel(str(user.id), agent_id, listing_id, body.lang, body.channels))}
 
 
 @router.get("/agents/{agent_id}/branding")

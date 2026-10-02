@@ -56,7 +56,9 @@ def _iso(dt) -> Optional[str]:
 
 class ConciergeService:
     def __init__(self, db, *, invites, onboarding, users, listings, social=None, marketing=None, site_url: str = "",
-                 now: Callable[[], datetime] = datetime.utcnow):
+                 now: Callable[[], datetime] = datetime.utcnow, reels=None):
+        self.db = db
+        self.reels = reels  # app.modules.reels.listing_reel.ReelJobs (listing reels made on the agent's behalf)
         self.agents = db.get_collection("concierge_agents")
         self.audit_col = db.get_collection("concierge_audit")
         self.profiles = db.get_collection("agent_public_profiles")
@@ -251,6 +253,87 @@ class ConciergeService:
         await self._audit(owner_id, "listing.post", agent_id, ["publications"], listing_id=listing_id,
                           channels=list(channels), statuses=[p.status for p in pubs])
         return [p.model_dump(mode="json") for p in pubs]
+
+    # ---- listing reels on behalf -----------------------------------------------------------------------------
+    def _need_reels(self):
+        if not self.reels:
+            raise ConciergeError("Reels are not configured", 503)
+        return self.reels
+
+    async def make_reel(self, owner_id: str, agent_id: str, listing_id: str, lang: str = "en", again: bool = False):
+        from app.modules.reels.listing_reel import ReelJobError
+        await self._agent(agent_id)
+        try:
+            doc, created = await self._need_reels().create(agent_id, listing_id, lang, again)
+        except ReelJobError as e:
+            raise ConciergeError(e.detail, e.status_code)
+        if created:
+            await self._audit(owner_id, "reel.make", agent_id, ["reel"], listing_id=listing_id, lang=lang)
+        return doc, created
+
+    async def reels_for(self, agent_id: str, listing_id: str) -> dict:
+        from app.modules.reels.listing_reel import ReelJobError
+        await self._agent(agent_id)
+        try:
+            return await self._need_reels().latest(agent_id, listing_id)
+        except ReelJobError as e:
+            raise ConciergeError(e.detail, e.status_code)
+
+    async def post_reel(self, owner_id: str, agent_id: str, listing_id: str, lang: str, channels: List[str], publish_fn=None,
+                        config_loader=None) -> List[dict]:
+        """Post the finished listing reel on the Avasetu Instagram / Facebook Page as a Reel. Needs the recorded consent;
+        SOCIAL_DRY_RUN (the default) checks everything and publishes nothing. The caption carries the 'Listed by' line."""
+        from app.modules.reels import listing_reel
+        from app.modules.reels import publish as reel_publish
+        from app.modules.social.config import load as load_config
+        from app.modules.social.publisher import PublishError
+        from .attribution import attribution_text, register_hub_item
+        await self._agent(agent_id)
+        if not await self.has_consent(agent_id):
+            raise ConciergeError("Record the agent's consent before posting his listings", 409)
+        listing = await self.listing_docs.find_one({"_id": listing_id, "agent_id": agent_id})
+        if not listing:
+            raise ConciergeError("Listing not found", 404)
+        if listing.get("status") not in ("live", "under_offer"):
+            raise ConciergeError("Only live listings can be posted", 409)
+        job = await self._need_reels().latest_done(agent_id, listing_id, lang)
+        if not job or not job.get("video_path"):
+            raise ConciergeError("Make the reel first, then post it", 409)
+        cfg = (config_loader or load_config)()
+        publish_fn = publish_fn or reel_publish.publish_reel
+        name = job["video_path"].rsplit("/", 1)[-1]
+        file_path = self.reels.uploads_dir / "reels" / name
+        done = {p["channel"]: p for p in (job.get("posts") or []) if p.get("status") == "published"}
+        results = []
+        for ch in channels:
+            if ch in done:
+                results.append({**done[ch], "status": "already_posted"})
+                continue
+            text = listing_reel.caption(listing, await attribution_text(self.db, agent_id, listing, ch))
+            try:
+                try:
+                    url = reel_publish.public_url(cfg, name)
+                except PublishError:
+                    if not cfg.dry_run:
+                        raise
+                    url = job["video_path"]  # test mode never sends it anywhere
+                res = await publish_fn(ch, url, text, cfg=cfg, file_path=file_path if ch == "facebook_page" else None)
+                status = "dry_run" if cfg.dry_run else "published"
+                results.append({"channel": ch, "status": status, "external_id": res.external_id, "permalink": res.permalink,
+                                "error": None, "caption": text})
+                if status == "published" and ch == "instagram":
+                    try:
+                        await register_hub_item(self.db, agent_id, listing, {}, cfg.media_base_url, res.permalink or "")
+                    except Exception:
+                        pass  # the reel is out; the link-in-bio hub is best effort
+            except PublishError as e:
+                results.append({"channel": ch, "status": "failed", "external_id": None, "permalink": None, "error": str(e), "caption": text})
+        keep = [p for p in (job.get("posts") or []) if p["channel"] not in {r["channel"] for r in results if r["status"] != "already_posted"}]
+        await self.reels.jobs.update_one({"_id": job["_id"]}, {"$set": {"posts": keep + [
+            {k: r[k] for k in ("channel", "status", "external_id", "permalink", "error")} for r in results if r["status"] != "already_posted"]}})
+        await self._audit(owner_id, "reel.post", agent_id, ["reel"], listing_id=listing_id, lang=lang,
+                          channels=list(channels), statuses=[r["status"] for r in results])
+        return results
 
 
 def listing_http(e: ListingError):
