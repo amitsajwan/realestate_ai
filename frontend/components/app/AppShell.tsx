@@ -17,6 +17,7 @@ const TABS = [
 
 /** Owner only (the server answers 403 to anyone else, so the tab is simply not shown). */
 const AGENTS_TAB = { href: '/studio/agents', label: 'agents', icon: 'M16 11a4 4 0 10-8 0 4 4 0 008 0zM4 21a8 8 0 0116 0M18 8l2 2 3-3' } as const
+const ADMIN_TAB = { href: '/studio/admin', label: 'admin', icon: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4' } as const
 
 export function FixtureBanner() {
   const [on, setOn] = useState(false)
@@ -31,7 +32,7 @@ export function FixtureBanner() {
  */
 export function AppShell({ children, hideTabs = false }: { children: React.ReactNode; hideTabs?: boolean }) {
   const path = usePathname() || ''
-  const tabs = useIsOwner() ? [...TABS, AGENTS_TAB] : TABS
+  const tabs = useIsOwner() ? [...TABS, ADMIN_TAB, AGENTS_TAB] : TABS
   const active = (href: string) => (href === '/studio' ? path === '/studio' : path.startsWith(href))
   return (
     <div data-surface="v2" className="fixed inset-0 z-50 flex flex-col bg-gray-50 text-gray-900">
