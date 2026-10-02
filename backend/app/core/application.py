@@ -95,7 +95,11 @@ async def lifespan(app: FastAPI):
         # Content calendar: evergreen posts for Facebook and Instagram (idle unless CALENDAR_ENABLED=true)
         from app.modules.calendar.runner import loop as calendar_loop
         app.state.calendar_task = asyncio.create_task(calendar_loop())
-        
+
+        # Listing reels: renders the reels agents ask for from a listing (idle when the queue is empty)
+        from app.modules.reels.listing_reel import loop as listing_reel_loop
+        app.state.listing_reel_task = asyncio.create_task(listing_reel_loop())
+
     except Exception as e:
         logger.error(f"❌ Failed to connect to MongoDB: {e}")
         # Don't raise the exception - let the app start with mock database
@@ -104,7 +108,7 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    for name in ("engage_task", "newsroom_task", "calendar_task"):
+    for name in ("engage_task", "newsroom_task", "calendar_task", "listing_reel_task"):
         task = getattr(app.state, name, None)
         if task:
             task.cancel()

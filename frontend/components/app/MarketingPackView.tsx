@@ -141,7 +141,7 @@ function InstagramCard({ pack }: { pack: MarketingPack }) {
 
 /**
  * 'Make my reel': a real video from the listing's photos and facts, voiced in English, Hindi or Marathi. The server renders it
- * (about 1 to 2 minutes); this polls every 5 s, then shows the video with Download and Share on WhatsApp.
+ * (a few minutes); this polls every 5 s, then shows the video with Download and Share on WhatsApp.
  * `source` is the agent's own listing, or the owner acting for an agent (concierge).
  */
 export function ReelMaker({ source, caption, label = 'Make my reel', onDone }: {
@@ -211,7 +211,7 @@ export function ReelMaker({ source, caption, label = 'Make my reel', onDone }: {
       {active && (
         <div role="status" className="flex items-center gap-3 rounded-xl bg-blue-50 p-3 text-sm text-blue-900" data-testid="reel-progress">
           <span aria-hidden className="h-5 w-5 flex-none animate-spin rounded-full border-2 border-blue-200 border-t-blue-600" />
-          <span>Making your reel... about 1 to 2 minutes</span>
+          <span>Making your reel... this takes a few minutes. You can leave this page and come back.</span>
         </div>
       )}
 
