@@ -351,7 +351,7 @@ async def with_interest(db, doc: dict) -> dict:
         from app.modules.interest.service import interest_url
         from .footer import with_footer
         channel = "instagram" if doc["channel"] == "instagram" else "facebook"
-        agent = _owner_agent()
+        agent = doc.get("agent_id") or _owner_agent()  # an agent's own post (agentprojects) sends interest to that agent
         caption = doc["caption"]
         if agent:
             kind = "listing" if doc.get("kind") == "showcase" else "post"
