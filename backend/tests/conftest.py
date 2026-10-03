@@ -12,3 +12,13 @@ collect_ignore = [
     "test_post_management_api.py",
     "test_analytics_service.py",
 ]
+
+
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _production_wiring():
+    """Every test runs with the startup wiring production uses (app/wiring.py: callbacks passed into lower modules)."""
+    from app.wiring import wire
+    wire()

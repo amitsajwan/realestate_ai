@@ -169,3 +169,16 @@ def area_lines(h: Home) -> Tuple[str, str]:
 
 def label_text(h: Home) -> str:
     return f"{SAMPLE_LABEL}: {h.title}"
+
+
+# ---- the catalogue other modules get at startup (app/wiring.py; the buyers' interest hub shows these when it is empty) ----
+def catalogue_entry(slug: str) -> Optional[dict]:
+    home = BY_SLUG.get(slug)
+    if not home:
+        return None
+    return {"slug": home.slug, "title": home.title, "locality": home.locality, "possession": home.possession,
+            "label": SAMPLE_LABEL, "note": SAMPLE_NOTE, "image_file": home.exterior.path}
+
+
+def catalogue_slugs() -> List[str]:
+    return [h.slug for h in HOMES]

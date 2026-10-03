@@ -12,7 +12,7 @@ from app.core import brand
 import io
 import os
 import time
-from typing import Dict, Optional
+from typing import Callable, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
@@ -33,19 +33,25 @@ _hub_cache: Dict[str, object] = {"at": 0.0, "data": None}
 _image_cache: Dict[str, bytes] = {}
 
 
-# ---- tiny adapter over the showcase sample homes: the only place this module touches showcase ----
+# ---- the labelled sample homes, a catalogue passed in at startup (app/wiring.py: showcase's) ----
+# sample_entry(slug) -> {slug, title, locality, possession, label, note, image_file} or None; sample_slugs() -> [slug, ...]
+_catalogue: Dict[str, Callable] = {"entry": lambda slug: None, "slugs": lambda: []}
+
+
+def configure(sample_entry: Callable[[str], Optional[dict]], sample_slugs: Callable[[], list]) -> None:
+    _catalogue.update(entry=sample_entry, slugs=sample_slugs)
+
+
 def _sample_home(ref: str) -> Optional[dict]:
-    from app.modules.showcase import samples
-    home = samples.BY_SLUG.get(ref)
+    home = _catalogue["entry"](ref)
     if not home:
         return None
-    return {"title": f"{samples.SAMPLE_LABEL}: {home.title}", "locality": home.locality,
-            "subtitle": f"{home.possession}. {samples.SAMPLE_NOTE}", "image_url": SAMPLE_IMAGE_PATH + home.slug}
+    return {"title": f"{home['label']}: {home['title']}", "locality": home["locality"],
+            "subtitle": f"{home['possession']}. {home['note']}", "image_url": SAMPLE_IMAGE_PATH + home["slug"]}
 
 
 def _sample_slugs() -> list:
-    from app.modules.showcase import samples
-    return [h.slug for h in samples.HOMES]
+    return list(_catalogue["slugs"]())
 
 
 async def _owner_agent_id() -> Optional[str]:
@@ -99,12 +105,11 @@ class LinkIn(BaseModel):
 # ---- public ----
 @public_router.get("/interest/sample-image/{slug}")
 async def sample_image(slug: str):
-    from app.modules.showcase import samples
-    home = samples.BY_SLUG.get(slug)
+    home = _catalogue["entry"](slug)
     if not home:
         raise HTTPException(404, "Not found")
     if slug not in _image_cache:
-        raw = home.exterior.path.read_bytes()
+        raw = home["image_file"].read_bytes()
         try:
             from PIL import Image
             im = Image.open(io.BytesIO(raw)).convert("RGB")

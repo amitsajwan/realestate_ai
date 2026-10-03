@@ -49,7 +49,6 @@ ignore_imports =
     ; step 5: social builds marketing-pack payloads; content will hand distribution finished posts instead
     app.modules.social.service -> app.modules.marketing.content
     ; step 3: wrong-way dependencies, replaced by callbacks or the owner's query functions
-    app.modules.interest.router -> app.modules.showcase.samples
 
 [importlinter:contract:core-platform]
 name = The platform parts of core (config, database, auth, region, brand, indexes, User) import no business code
