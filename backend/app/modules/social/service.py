@@ -13,6 +13,7 @@ from app.modules.marketing.content import P as content_phrases, resolve_language
 from app.platform.meta_graph.config import BRAND, SocialConfig, load as load_config
 from app.platform.meta_graph.graph import GraphPublisher
 from app.platform.meta_graph.publisher import DryRunPublisher, Post, PublishError, Publisher, sanitize
+from .distribution import send
 from .schemas import Publication, PublishIn
 
 log = logging.getLogger(__name__)
@@ -128,8 +129,10 @@ class SocialService:
                     raise PublishError("channel not configured")
                 if payload["image_urls"] and not (cfg.media_url_ok and all(u.lower().startswith("https://") for u in payload["image_urls"])):
                     raise PublishError("PUBLIC_MEDIA_BASE_URL must be a public https address for real posts; media urls must be https")
-            res = await self.publisher_factory(cfg).publish(
-                Post(channel, payload["text"], list(payload["image_urls"]), payload.get("link")))
+            post = Post(channel, payload["text"], list(payload["image_urls"]), payload.get("link"))
+            publisher = self.publisher_factory(cfg)
+            # one publication record = one post, at most once (a failed record is retried under the same key; 'force' makes a new record)
+            res = await send(self.db, f"social:{doc['_id']}", lambda: publisher.publish(post), dry_run=cfg.dry_run)
             out = {"status": "dry_run" if cfg.dry_run else "published", "external_id": res.external_id,
                    "permalink": res.permalink, "error": None}
         except PublishError as e:
