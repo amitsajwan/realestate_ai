@@ -4,7 +4,7 @@ Rules (docs/NEWSROOM_PLAN.md, brand): no phone numbers, no invented facts, no pr
 """
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from .compose import Scene, TextLine, stretch
+from .compose import Scene, TextLine, distinct_photos, stretch
 
 CTA_WORD = "INTERESTED"
 HOOK_SECONDS = 2.2  # the opening scene: most viewers decide in the first 1-2 s, so the hook is short and on screen from frame one
@@ -34,9 +34,17 @@ def tip_reel(lines: Sequence[str], images: Optional[Sequence] = None, seed: str 
 def listing_tour(photos: Sequence, facts: Dict, sample: bool = False) -> Tuple[List[Scene], Dict]:
     """'Listing tour': photos plus key facts. facts keys: bhk (number), property_type (default 'apartment'), locality, city (default 'Pune'),
     area_sqft, possession ('ready' | 'under_construction' or free text), price_text (shown only when provided), furnishing.
-    `sample=True` adds a 'SAMPLE LISTING' label on every scene."""
+    `sample=True` adds a 'SAMPLE LISTING' label on every scene.
+    One photo per scene: with fewer distinct photos than facts, the least important fact scenes are left out (furnishing, then
+    possession, then area, then the price) rather than a photo shown twice; the opening and the call to action always stay."""
+    photos = distinct_photos(photos)
     if not photos:
         raise ValueError("a listing tour needs at least one photo")
+    poss = {"ready": "Ready to move", "under_construction": "Under construction"}.get(facts.get("possession") or "", facts.get("possession"))
+    optional = [k for k, v in (("price_text", facts.get("price_text")), ("area_sqft", facts.get("area_sqft")), ("possession", poss),
+                               ("furnishing", facts.get("furnishing"))) if v]          # most important first
+    keep = set(optional[:max(0, len(photos) - 2)])
+    facts = {k: v for k, v in facts.items() if k not in optional or k in keep}
     bhk = facts.get("bhk")
     ptype = facts.get("property_type") or "apartment"
     locality, city = facts.get("locality") or "", facts.get("city") or "Pune"
@@ -58,7 +66,7 @@ def listing_tour(photos: Sequence, facts: Dict, sample: bool = False) -> Tuple[L
         scenes.append(Scene(image=ph(n), lines=[TextLine(f"{int(facts['area_sqft']):,}", size=176), TextLine("sq ft of *usable* space" if False else "square feet", size=60)],
                             layout="lower", badge=badge, seconds=2.8, seed=f"tour-{n}"))
         n += 1
-    poss = {"ready": "Ready to move", "under_construction": "Under construction"}.get(facts.get("possession") or "", facts.get("possession"))
+    poss = poss if "possession" in keep else None
     if poss:
         scenes.append(Scene(image=ph(n), lines=[TextLine(poss, size=104), TextLine("Possession", size=56)], layout="lower", badge=badge,
                             seconds=2.8, seed=f"tour-{n}"))

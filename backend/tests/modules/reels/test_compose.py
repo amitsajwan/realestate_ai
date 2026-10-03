@@ -4,6 +4,8 @@ from PIL import Image
 from app.modules.reels import compose, ffmpeg, templates
 from app.modules.reels.compose import H, W, Scene, TextLine
 
+PHOTOS6 = [f"photo-{i}.jpg" for i in range(6)]
+
 
 # ---- timing maths (pure) -----------------------------------------------------------------------------------------
 def test_plan_overlaps_scenes_by_the_crossfade():
@@ -46,7 +48,7 @@ def test_easing_is_monotonic_and_bounded():
 def test_default_templates_stay_under_30_seconds():
     facts = {**templates.SAMPLE_FACTS["kharadi"], "furnishing": "Semi-furnished", "price_text": "Rs 85 Lakh"}
     for scenes, opts in (templates.tip_reel(templates.TIP_LINES), templates.agent_pitch(),
-                         templates.listing_tour(["a.jpg", "b.jpg"], facts, sample=True)):
+                         templates.listing_tour(PHOTOS6, facts, sample=True)):
         tl = compose.plan([s.seconds or 3.0 for s in scenes], opts.get("xfade", 0.45))   # no end card by default
         assert 8 < tl.total < 30
 
@@ -68,7 +70,7 @@ def _all_scenes():
     pitch, _ = templates.agent_pitch()
     facts = {**templates.SAMPLE_FACTS["wagholi"], "price_text": "Rs 1.2 Cr", "furnishing": "Semi-furnished"}
     tour, _ = templates.listing_tour([Image.new("RGB", (1600, 1000), "gray")], facts, sample=True)
-    plain, _ = templates.listing_tour(["a.jpg", "b.jpg"], templates.SAMPLE_FACTS["kharadi"])
+    plain, _ = templates.listing_tour(PHOTOS6, templates.SAMPLE_FACTS["kharadi"])
     # as rendered: the last scene of each reel carries the brand mark; the optional end card is checked too
     return [s for group in (tip, pitch, tour, plain) for s in compose.finish_scenes(group)] + [compose.end_scene()]
 
@@ -88,7 +90,7 @@ def test_every_text_box_of_every_template_is_inside_the_instagram_safe_zone():
 
 
 def test_lower_layout_text_and_the_cta_sit_above_the_caption_area():
-    sc, _ = templates.listing_tour(["a.jpg", "b.jpg"], templates.SAMPLE_FACTS["kharadi"])
+    sc, _ = templates.listing_tour(PHOTOS6, templates.SAMPLE_FACTS["kharadi"])
     cta = compose.layout_scene(compose.finish_scenes(sc)[-1])
     assert max(it.box[3] for it in cta) <= ZONE_BOTTOM and max(it.box[2] for it in cta) <= ZONE_RIGHT
 
@@ -119,7 +121,7 @@ def test_tour_shows_no_price_unless_given_and_labels_samples():
     text = " ".join(l.text if isinstance(l, TextLine) else l for s in sc for l in s.lines)
     assert "Price" not in text and "Rs" not in text and "₹" not in text
     assert all(s.badge == "Sample listing" for s in sc)
-    with_price, _ = templates.listing_tour(["p.jpg"], {**templates.SAMPLE_FACTS["kharadi"], "price_text": "Rs 85 Lakh"})
+    with_price, _ = templates.listing_tour(PHOTOS6, {**templates.SAMPLE_FACTS["kharadi"], "price_text": "Rs 85 Lakh"})
     assert any("Rs 85 Lakh" in (l.text if isinstance(l, TextLine) else l) for s in with_price for l in s.lines)
     assert all(s.badge is None for s in with_price)
 
@@ -170,7 +172,7 @@ def test_ffmpeg_errors_are_sanitised_and_music_path_checked(tmp_path):
 
 def test_tour_with_a_price_opens_with_guess_the_price_and_reveals_it_last():
     facts = {**templates.SAMPLE_FACTS["kharadi"], "price_text": "Rs 85 Lakh"}
-    sc, _ = templates.listing_tour(["p.jpg"], facts)
+    sc, _ = templates.listing_tour(PHOTOS6, facts)
     texts = [[l.text if isinstance(l, TextLine) else l for l in s.lines] for s in sc]
     assert "Guess the *price*" in texts[0] and not any("Rs" in t for t in texts[0])
     assert texts[-2][0] == "Rs 85 Lakh" and "Did you guess right?" in texts[-2]  # last scene before the call to action
@@ -219,3 +221,32 @@ def test_end_card_only_when_asked_and_never_twice():
     twice = compose.finish_scenes([Scene(lines=["a"]), compose.end_scene(), compose.end_scene()], end_card=True)
     assert [s.kind for s in twice] == ["scene", "end"]
     assert [s.kind for s in compose.finish_scenes([Scene(lines=["a"]), compose.end_scene(), compose.end_scene()])] == ["scene", "end"]
+
+
+
+# ---- no repeated photos ---------------------------------------------------------------------------------------------------
+def _images(scenes):
+    return [s.image for s in scenes]
+
+
+def test_tour_uses_each_photo_once_and_drops_fact_scenes_when_photos_run_out():
+    facts = {**templates.SAMPLE_FACTS["kharadi"], "furnishing": "Semi-furnished", "price_text": "Rs 85 Lakh"}
+    full, _ = templates.listing_tour(PHOTOS6, facts)
+    assert len(full) == 6 and _images(full) == PHOTOS6
+    four, _ = templates.listing_tour(PHOTOS6[:4] + PHOTOS6[:2], facts)   # duplicates in the input count once
+    texts = [s.lines[0].text for s in four]
+    assert _images(four) == PHOTOS6[:4] and len(set(_images(four))) == 4
+    assert texts[0] == "Guess the *price*" and "Rs 85 Lakh" in texts and "1,050" in texts   # price and area kept
+    assert "Semi-furnished" not in texts and "Ready to move" not in texts                   # the least important dropped
+    two, _ = templates.listing_tour(PHOTOS6[:2], facts)
+    assert _images(two) == PHOTOS6[:2] and two[0].lines[0].text != "Guess the *price*"     # opening + CTA; no price hook
+    one, _ = templates.listing_tour(PHOTOS6[:1], facts)                                      # the minimum still works
+    assert len(one) == 2
+
+
+def test_photo_plan_never_repeats_when_there_are_enough_photos():
+    assert compose.photo_plan(5, ["a", "b", "c", "d", "e", "f"], 3) == ["a", "b", "c", "d", "e"]
+    assert compose.photo_plan(5, ["a", "b", "a", "c"], 3) == ["a", "b", "c"]
+    assert compose.photo_plan(5, ["a", "b"], 3) == ["a", "b", "a"]
+    img = Image.new("RGB", (4, 4))
+    assert compose.photo_plan(3, [img, img], 1) == [img]

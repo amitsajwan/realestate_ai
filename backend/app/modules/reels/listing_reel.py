@@ -29,7 +29,7 @@ from app.modules.marketing.images import latin, local_upload_path
 
 from . import ffmpeg, voice
 from .compose import Scene, TextLine, make_reel, plan, stretch
-from .director import XFADE, _valid
+from .director import XFADE, _valid, fit_beats
 
 log = logging.getLogger(__name__)
 
@@ -248,8 +248,9 @@ async def write_script(subject: str, facts: Sequence[str], lang: str, llm, fallb
 # ---- rendering (blocking; runs in a worker thread) -----------------------------------------------------------------
 def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Optional[str] = None, kicker: Optional[str] = None,
            closing: str = "", voiced: bool = True) -> Dict:
-    """Render the reel. Returns {"audio": "voice+music"|"music", "note": str}. Falls back to music only if the voice fails."""
-    beats = list(script["beats"]) + [{"screen": script["cta_screen"], "voice": script["cta_voice"]}]
+    """Render the reel. Returns {"audio": "voice+music"|"music", "note": str}. Falls back to music only if the voice fails.
+    One photo per scene: with fewer photos than beats the last beats are left out rather than a photo shown twice."""
+    beats, picks = fit_beats(script, photos)
     work = Path(tempfile.mkdtemp(prefix="listing-reel-"))
     note = ""
     try:
@@ -275,7 +276,7 @@ def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opt
             if last and closing:  # 'Listed by X · RERA Y' as two lines, so the separator never starts a wrapped line
                 for part in [p.strip() for p in closing.split(" · ") if p.strip()]:
                     lines.append(TextLine(part, size=44, weight="medium", max_lines=2))
-            scenes.append(Scene(image=photos[i % len(photos)], lines=lines, layout="lower", badge=badge,
+            scenes.append(Scene(image=picks[i], lines=lines, layout="lower", badge=badge,
                                 kicker=kicker if first else None, seconds=durs[i], seed=f"listing-{i}"))
         tl = plan(durs, XFADE)   # no end card: the closing scene carries the brand mark and the reel loops
         from .music import write as write_music

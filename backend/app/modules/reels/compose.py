@@ -114,6 +114,33 @@ def plan(durations: Sequence[float], xfade: float, max_total: float = MAX_SECOND
     return Timeline(starts, durs, xf, total)
 
 
+def distinct_photos(photos: Sequence) -> list:
+    """The photos in order without repeats (paths compared as resolved strings, images by identity)."""
+    seen, out = set(), []
+    for p in photos or []:
+        key = ("img", id(p)) if isinstance(p, Image.Image) else ("path", str(p))
+        if key not in seen:
+            seen.add(key)
+            out.append(p)
+    return out
+
+
+def photo_plan(n_scenes: int, photos: Sequence, min_scenes: int = 1) -> list:
+    """One photo per scene, no photo twice, for as many scenes as there are distinct photos (at most `n_scenes`, at least
+    `min_scenes`). Only when there are fewer photos than `min_scenes` does a photo come back, never on the next scene: the
+    closing scene reuses the opening photo, so the loop back to the hook is seamless."""
+    uniq = distinct_photos(photos)
+    if not uniq:
+        return []
+    n = max(min(n_scenes, len(uniq)), min(min_scenes, n_scenes))
+    picks = uniq[:n]
+    while len(picks) < n:
+        picks.append(uniq[(len(picks) - len(uniq)) % len(uniq)])
+    if len(picks) > len(uniq) and len(uniq) > 1 and picks[-1] is not picks[0]:
+        picks[-1] = picks[0]
+    return picks
+
+
 def stretch(durations: Sequence[float], xfade: float, min_total: float = MIN_SECONDS) -> List[float]:
     """Scale scene durations up (together) so the reel lasts at least `min_total` seconds; longer reels are unchanged."""
     durs = [float(d) for d in durations]
