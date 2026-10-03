@@ -151,3 +151,15 @@ async def test_endpoint_makes_carousel_and_post_for_review(client):
     item = next(i for i in q if i["id"] == body["id"])
     assert len(item["card"]["slides"]) == 7 and item["captions"]["facebook"]
     assert c.post("/newsroom/maharera-roundup").json() == {**body, "created": False}
+
+
+def test_link_follows_the_site_address(monkeypatch):
+    doc = roundup.compose(PROJECTS, NOW, "maharera-x")
+    assert doc["digest"]["link"] == "/localities"
+    monkeypatch.setenv("PUBLIC_SITE_URL", "https://new.test")
+    assert "Read more: https://new.test/localities" in captions.build(doc)["facebook"]
+
+
+async def test_captions_pass_the_check_with_our_own_name_in_the_footer():
+    doc = roundup.compose(PROJECTS, NOW, "maharera-x")
+    assert await captions.verify(doc, check) == {"facebook": [], "instagram": []}

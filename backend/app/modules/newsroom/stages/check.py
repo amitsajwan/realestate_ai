@@ -7,6 +7,7 @@ import re
 from datetime import datetime, timezone
 from typing import List, Optional, Set
 
+from app.core import brand
 from app.platform.text import HYPE, PHONE
 
 from .. import policy
@@ -26,6 +27,7 @@ DATE_MD = re.compile(r"\b(" + MON + r")\s+(\d{1,2})(?:st|nd|rd|th)?\b", re.I)
 
 # words that may be capitalised without being in the source (our voice, sentence starters, calendar words)
 ALLOW = {"pune", "property", "team", "facebook", "hub", "kharadi", "wagholi", "upper", "rera", "bhk", "i", "ok", "it", "pm", "am", "faq"}
+ALLOW |= {w.lower() for w in f"{brand.NAME} {brand.TEAM}".split()}  # our own name, in every caption footer
 ALLOW |= {m[:3] for m in MONTHS} | {"sept"} | set(MONTHS) | {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
 COMMON = set("""a about after all an and approved are as at be before buyers buyer can check comment did do does for from have here how
 if in is it its more most new no not now of on one or our renters she so some source sources tell that the their then there these

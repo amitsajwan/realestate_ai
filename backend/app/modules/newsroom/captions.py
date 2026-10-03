@@ -72,7 +72,9 @@ def story(doc: dict, channel: str) -> str:
 def digest(doc: dict, channel: str) -> str:
     text = (doc.get("draft") or {}).get("text", "").strip()
     dg = doc.get("digest") or {}
-    link = f"Read more: {dg.get('link') or pr.site_url() + '/news'}" if channel == "facebook" else "Read more: link in our bio."
+    path = dg.get("link") or "/news"  # a path, so a domain change never leaves a queued post on the old address
+    url = pr.site_url() + path if path.startswith("/") else path
+    link = f"Read more: {url}" if channel == "facebook" else "Read more: link in our bio."
     last = "#MahaRERA" if dg.get("kind") == "maharera" else "#PuneNews"
     tags = ["#Pune", brand.HASHTAG, "#Kharadi", "#Wagholi", last][:FB_TAGS if channel == "facebook" else IG_TAGS]
     return _assemble([text, link], tags, channel, DIGEST_MAX) or _assemble([text], [], channel, DIGEST_MAX) or ""

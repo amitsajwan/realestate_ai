@@ -77,7 +77,7 @@ def compose(projects: List[dict], now: datetime, item_id: str) -> Optional[dict]
     question = "Which of these would you like us to look into?"
     text = "\n\n".join([intro, lines, f"What to check: {CHECK}", f"Source: MahaRERA, as of {when}.", question])
     site = pr.site_url()
-    link = f"{site}/localities"
+    link = "/localities"  # a path: captions add the site address when they are built
     # the source text the check compares against: what the register holds for each project, as stated by MahaRERA
     basis = [f"Projects {policy.MAHARERA_PHRASE} in the last {WINDOW_DAYS} days in Kharadi and Wagholi: {n}."]
     for p in chosen:
@@ -85,9 +85,9 @@ def compose(projects: List[dict], now: datetime, item_id: str) -> Optional[dict]
         basis.append(f"{p['name']} ({p['_id']}) in {AREA_NAMES.get(p.get('locality', ''), '')}, pincode {p.get('pincode', '')}, "
                      f"was {policy.MAHARERA_PHRASE}; record last modified {_label(lm)}.")
     basis.append(_chunk(f"What to check: {CHECK}"))  # our own sentence: chunked so it is not read as copied
-    raw = RawItem(id=item_id, source="MahaRERA", url=link, title="Project register: MahaRERA records in our areas", text="\n".join(basis), published_at=ist, fetched_at=ist)
+    raw = RawItem(id=item_id, source="MahaRERA", url=site + link, title="Project register: MahaRERA records in our areas", text="\n".join(basis), published_at=ist, fetched_at=ist)
     facts = Facts([Fact(text=f"{p['name']} was {policy.MAHARERA_PHRASE}.", quote=p["name"]) for p in chosen], as_of=ist)
-    draft = Draft("digest", text, TITLE, link, ["MahaRERA"])
+    draft = Draft("digest", text, TITLE, site + link, ["MahaRERA"])
     more = n - len(shown)
     return {"_id": item_id, "status": "pending_review", "raw": codec.to_doc(raw),
             "relevance": {"keep": True, "pillar": "new_supply", "areas": areas, "reason": f"New on MahaRERA, last {WINDOW_DAYS} days"},
