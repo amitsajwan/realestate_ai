@@ -1,5 +1,5 @@
 # Avasetu on a single GCP VM: Caddy (auto-HTTPS) -> frontend + backend, MongoDB private.
-# Only Caddy publishes ports; Mongo, backend and frontend are reachable only on the internal network.
+# Only Caddy publishes ports; Mongo, backend, worker and frontend are reachable only on the internal network.
 services:
   mongo:
     image: mongo:7
@@ -19,17 +19,40 @@ services:
     build: ../../backend
     restart: unless-stopped
     env_file: .env
-    environment:
+    environment: &backend_env
       MONGODB_URL: mongodb://app:${MONGO_PASSWORD}@mongo:27017/?authSource=admin
       ENVIRONMENT: production
       DEBUG: "false"
       # the public site in captions, footers and links (app/core/brand.py); follows SITE_HOST unless set in .env
       PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-https://${SITE_HOST}}
+      # the worker service runs the background loops. Roll back: RUN_BACKGROUND_LOOPS=true in .env, then
+      # `docker compose up -d backend` (the API runs them again; leases keep it safe while the worker also runs)
+      RUN_BACKGROUND_LOOPS: ${RUN_BACKGROUND_LOOPS:-false}
     volumes:
       - uploads:/app/uploads
     depends_on:
       mongo:
         condition: service_healthy
+
+  # Background loops (comment assistant, newsroom, calendar, listing reels): same image and settings as the backend, its
+  # own process, so restarting the API does not interrupt them (docs/ARCHITECTURE.md §1). Runner leases keep one copy
+  # of each loop running even if the backend runs them too. Needs the uploads volume to render reels.
+  worker:
+    build: ../../backend
+    command: ["python", "-m", "app.worker"]
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      <<: *backend_env
+      RUN_BACKGROUND_LOOPS: "true"  # not read by the worker (it always runs the loops); stated so nobody copies "false"
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      disable: true  # the image's check calls the API on :8000; health_check.sh checks the loops' heartbeats instead
+    stop_grace_period: 30s  # time to cancel the loops and release their leases
 
   frontend:
     build:
