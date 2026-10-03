@@ -35,7 +35,7 @@ export const FOOTER = {
 }
 
 // ---------------------------------------------------------------------------------------------------------
-// Landing
+// Product screenshots (shown on /for-agents) and the home page
 // ---------------------------------------------------------------------------------------------------------
 export interface Shot { src: string; alt: string; caption: string; width: number; height: number }
 const SHOT_W = 780
@@ -65,152 +65,49 @@ export const SHOTS = {
 
 export const SAMPLE_NOTE = 'Screens show sample data.'
 
-export const LANDING = {
-  metaTitle: `${BRAND_NAME}: ${TAGLINE} | Free pilot for real estate agents in Pune`,
+/** Copy for the home page, which serves buyers first; the agent story lives on /for-agents. */
+export const HOME = {
+  metaTitle: `${BRAND_NAME}: Kharadi, Upper Kharadi and Wagholi property news, area guides and homes`,
   metaDescription:
-    'Post a property from your phone, get a website and share-ready posts, and see every buyer enquiry with a short summary of what they want. Free invite-only pilot for real estate agents in Pune.',
-  metaOrgDescription: 'A free, invite-only pilot that helps real estate agents in Pune get buyer enquiries and follow them up.',
+    'Plain-language property news with sources and dates, area guides and buyer checklists for Kharadi, Upper Kharadi and Wagholi in Pune, and homes from local agents as they are listed.',
+  metaOrgDescription:
+    'Plain-language property news, area guides and homes from local agents for buyers in Kharadi, Upper Kharadi and Wagholi, Pune.',
+  ogAlt: `${BRAND_NAME}: ${TAGLINE}. Property news, area guides and homes in Kharadi, Upper Kharadi and Wagholi, Pune.`,
   hero: {
-    eyebrow: 'For real estate agents in Pune',
-    pilot: 'Free, invite-only pilot',
-    title: 'A buyer comments "INTERESTED". Do you know who they are?',
+    eyebrow: 'For home buyers in east Pune',
+    title: 'Kharadi, Upper Kharadi and Wagholi, explained in plain words',
     lead:
-      'Post a property from your phone. We make the posts and your website, and every enquiry becomes a lead card: what the buyer wants and who to call first. Call or WhatsApp them in one tap.',
-    cta: 'Request an invite',
-    signIn: 'Already invited? Sign in',
-    facts: ['Free during the pilot', 'Invite-only', 'Pune', 'Works in your phone browser'],
+      `${BRAND_NAME} is ${TAGLINE.toLowerCase()}. Read local property news with the source and date on every item, area guides that say what to check before you buy, and homes from local agents.`,
+    cta: 'Tell us what you are looking for',
+    secondary: 'Explore area guides',
+    points: ['News with sources and dates', 'Area guides and checklists', 'Homes from local agents'],
   },
-  problem: {
-    heading: 'Sound familiar?',
-    items: [
-      { title: 'Comments with no names', body: 'People write "price?" or "interested" under your post, and you are left guessing who they are.' },
-      { title: 'Enquiries all over the place', body: 'Calls, WhatsApp, Instagram and Facebook: nothing in one list, so the warm buyer gets a late reply.' },
-      { title: 'Posts take your evening', body: 'Writing the same property up again in English, Hindi and Marathi is slow work.' },
-    ],
+  news: {
+    heading: 'Latest local news',
+    lead: 'Short summaries in our own words. Each one names its source and the date.',
+    all: 'All news',
   },
-  mock: {
-    heading: 'This is the whole idea',
-    lead: 'A comment on your post turns into a card you can act on. The example below is made-up sample data.',
-    postLabel: 'Comment on your property post',
-    comment: 'INTERESTED',
-    commenter: 'Sample buyer',
-    cardLabel: 'Lead card',
-    cardName: 'Sample buyer',
-    hot: 'HOT',
-    summary: 'Wants a 2 BHK in Baner, budget 80 lakh to 1.2 crore, ready in 1-3 months, will need a home loan.',
-    chips: ['2 BHK', '80 L - 1.2 Cr', 'Baner', '1-3 months', 'Home loan'],
-    call: 'Call',
-    whatsapp: 'WhatsApp',
-    next: 'Suggested next step: call today and offer a site visit.',
-    sample: 'Sample data',
+  areas: {
+    heading: 'Area guides',
+    lead: 'Who each area suits, how to get around and what to check before you visit or book.',
+    compareLabel: 'Comparing the three?',
+    all: 'All area guides',
   },
-  steps: {
-    id: 'what-it-does',
-    heading: 'Create, attract, qualify, close',
-    lead: 'Four steps, in plain words. All of this works today except where marked.',
-    items: [
-      {
-        key: 'create', label: 'Create', title: 'Photos in, posts out',
-        body: 'Take photos on your phone. We fill in the title and price for you to check, then make share-ready posts in English, Hindi and Marathi.',
-      },
-      {
-        key: 'attract', label: 'Attract', title: 'One link for every buyer',
-        body: 'Your property goes on your own website with an I\'m interested button. Share the link on WhatsApp, Instagram or Facebook. Your phone number is never shown publicly.',
-      },
-      {
-        key: 'qualify', label: 'Qualify', title: 'Every enquiry becomes a lead card',
-        body: 'Budget, bedrooms, area, timing and how warm the buyer is, in a few lines. Buyers tick a box to agree to be contacted.',
-      },
-      {
-        key: 'close', label: 'Close', title: 'Call the right person first',
-        body: 'Call or WhatsApp from the card. When you add a property, you see which of your buyers match it. Nothing is sent to a buyer unless you tap send.',
-      },
-    ],
+  homes: {
+    heading: 'Homes from local agents',
+    lead: 'Listed by local agents. Open a home for the details and to send an enquiry.',
+    empty: 'Homes from local agents appear here as they are listed. Tell us what you are looking for and we will send you options as they come.',
   },
-  screens: {
-    heading: 'The real screens',
-    lead: 'Screenshots from the product. Names and numbers are sample data.',
+  guides: {
+    heading: 'Buyer guides',
+    lead: 'Plain-language guides with sources. We do not guess prices.',
+    all: 'All guides',
   },
-  whatsapp: {
-    title: 'Built around the apps you already use',
-    body: 'Share posts and property links straight to WhatsApp, and reach buyers by call or WhatsApp from their lead card. No app to install.',
-  },
-  how: {
-    id: 'how-it-works',
-    heading: 'How it works for an agent',
-    lead: 'We are running an invite-only pilot with agents in Pune, so we can look after each agent properly.',
-    items: [
-      { title: 'Ask for an invite', body: 'Fill in the short form with your name, mobile number and city.' },
-      { title: 'We get in touch', body: 'We contact you on the number you gave and, when a place is available, send you a personal access code.' },
-      { title: 'Sign in and add your details', body: 'Sign in with your mobile number and code, tell us your name and city, and your website is created for you.' },
-    ],
-  },
-  cost: {
-    id: 'cost',
-    heading: 'What it costs',
-    title: 'Free during the pilot',
-    body: 'There is no charge to use it during the pilot. If that ever changes, we will tell you first.',
-  },
-  coming: {
-    id: 'whats-coming',
-    heading: 'What is coming, and what is not ready yet',
-    today: 'Works today',
-    todayItems: [
-      'Post properties and get your own website',
-      'Ready-to-share posts and WhatsApp messages',
-      'Enquiries with a summary of what each buyer wants',
-      'Matching your buyers to new properties',
-    ],
-    next: 'Coming later',
-    nextItems: [
-      'Posting to Instagram, Facebook and WhatsApp for you. This needs approval from those platforms, so until then you share the posts yourself.',
-      'Automatic follow-ups to buyers.',
-    ],
-  },
-  faq: {
-    id: 'faq',
-    heading: 'Questions',
-    items: [
-      {
-        q: 'What does it cost?',
-        a: 'Nothing during the pilot. If that ever changes, we will tell you first.',
-      },
-      {
-        q: 'Who sees my buyer leads?',
-        a: 'You do. Each enquiry goes to the agent the buyer contacted, and we handle it only to run the service. We do not sell it and we do not share it with other agents.',
-      },
-      {
-        q: 'What about RERA?',
-        a: 'We do not issue or verify RERA registration. You stay responsible for your own RERA details, and for showing them on a listing where the law asks. Our Pune guides explain how buyers can check a project.',
-      },
-      {
-        q: 'Who can see my listings?',
-        a: 'Only properties you post appear on your public website, and anyone with the link can see them. Drafts you have not posted stay private to you.',
-      },
-      {
-        q: 'What happens to my buyers\' details?',
-        a: 'When a buyer sends an enquiry they are asked to agree to be contacted. Their details are shown to you, the agent they contacted, and are handled by us only to run the service. We do not sell them.',
-      },
-      {
-        q: 'How is my consent handled when I request an invite?',
-        a: 'You tick a box to say it is OK for us to contact you about the pilot. We use your details only to reply to your request. You can ask us to delete them at any time.',
-      },
-      {
-        q: 'Do I need to install an app?',
-        a: 'No. It works in your phone\'s browser.',
-      },
-      {
-        q: 'How do I get my data deleted?',
-        a: 'Follow the steps on the data deletion page. We delete it within 30 days.',
-      },
-    ],
-    privacyLink: 'Read the privacy policy',
-    deletionLink: 'Data deletion',
-  },
-  finalCta: {
-    title: 'Want to see your own lead cards?',
-    body: 'Places in the pilot are limited to agents in Pune. Name and mobile number is all we need, and we will get back to you.',
-    cta: 'Request an invite',
+  agents: {
+    title: 'Are you a real estate agent in Pune?',
+    body: `See what ${BRAND_NAME} does for agents: posts, your own page, and every enquiry in one place.`,
+    cta: 'What we do for agents',
+    demo: 'See a demo agent page',
   },
 }
 
