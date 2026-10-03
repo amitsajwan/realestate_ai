@@ -99,7 +99,7 @@ class GraphPublisher:
             body = await self._call("POST", f"{page}/photos", {"url": post.image_urls[0], "caption": post.text, "published": "true"})
             post_id = body.get("post_id")
             ext = str(post_id) if post_id else self._need_id(body, "the photo")
-            link = f"https://www.facebook.com/{ext}" if post_id else None
+            link = await self._fb_permalink(ext) if post_id else None
             if not link:
                 try:
                     link = (await self._call("GET", ext, {"fields": "link"})).get("link")
@@ -111,7 +111,18 @@ class GraphPublisher:
             params["link"] = post.link
         body = await self._call("POST", f"{page}/feed", params)
         ext = self._need_id(body, "the post")
-        return Result(ext, f"https://www.facebook.com/{ext}")
+        return Result(ext, await self._fb_permalink(ext))
+
+    async def _fb_permalink(self, post_id: str) -> str:
+        """Facebook's own public link for a Page post (permalink_url). The bare 'facebook.com/<page>_<post>' form sends
+        logged-out visitors to the login screen, so it is only the fallback when Graph does not answer."""
+        try:
+            url = (await self._call("GET", post_id, {"fields": "permalink_url"})).get("permalink_url") or ""
+        except PublishError:
+            url = ""
+        if url.startswith("/"):
+            url = "https://www.facebook.com" + url
+        return url if url.startswith("https://") else f"https://www.facebook.com/{post_id}"
 
     # ---- Instagram -------------------------------------------------------------------------------------------
     async def _already_on_instagram(self, caption: str) -> Optional[Result]:

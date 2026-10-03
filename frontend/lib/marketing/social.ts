@@ -4,7 +4,7 @@
  * (the owner renames the Page and the Instagram handle to Avasetu by hand; the defaults are the current profile URLs).
  */
 import { BRAND_NAME } from '@/lib/brand'
-export const DEFAULT_FACEBOOK_URL = 'https://www.facebook.com/profile.php?id=61595137641524'
+export const DEFAULT_FACEBOOK_URL = 'https://www.facebook.com/profile.php?id=61594653947865'
 export const DEFAULT_INSTAGRAM_URL = 'https://www.instagram.com/avasetu_/'
 
 const https = (v: string | undefined, fallback: string) => (v && /^https:\/\/[^\s]+$/.test(v.trim()) ? v.trim() : fallback)

@@ -24,13 +24,16 @@ async def run(graph, *channels, images=("cover", "facts", "amenities", "cta"), c
 
 # ---- Facebook --------------------------------------------------------------------------------------------------
 async def test_facebook_photo_flow():
-    g = FakeGraph({("POST", f"{V}/PAGE1/photos"): (200, {"id": "555", "post_id": "PAGE1_555"})})
+    g = FakeGraph({("POST", f"{V}/PAGE1/photos"): (200, {"id": "555", "post_id": "PAGE1_555"}),
+                   ("GET", f"{V}/PAGE1_555"): (200, {"permalink_url": "https://www.facebook.com/122/posts/555"})})
     (p,) = await run(g, "facebook_page")
-    assert g.order() == [f"POST {V}/PAGE1/photos"]
+    assert g.order() == [f"POST {V}/PAGE1/photos", f"GET {V}/PAGE1_555"]
+    assert g.calls[1]["query"] == {"fields": "permalink_url", "access_token": TOKEN}
     form = g.calls[0]["form"]
     assert form == {"url": "https://media.test/uploads/marketing/L1/cover.jpg", "published": "true", "access_token": TOKEN,
                     "caption": "Ready 2 BHK in Baner\n\n\U0001F517 Details and photos: https://site.test/agent/rahul/listings/L1?src=whatsapp"}
-    assert (p.status, p.external_id, p.permalink, p.error) == ("published", "PAGE1_555", "https://www.facebook.com/PAGE1_555", None)
+    # Facebook's own permalink: the bare page_post form sends logged-out visitors to the login screen
+    assert (p.status, p.external_id, p.permalink, p.error) == ("published", "PAGE1_555", "https://www.facebook.com/122/posts/555", None)
     assert TOKEN not in p.model_dump_json()
 
 
@@ -45,9 +48,10 @@ async def test_facebook_photo_without_post_id_fetches_link_best_effort():
 
 
 async def test_facebook_feed_flow_when_no_image():
-    g = FakeGraph({("POST", f"{V}/PAGE1/feed"): (200, {"id": "PAGE1_9"})})
+    g = FakeGraph({("POST", f"{V}/PAGE1/feed"): (200, {"id": "PAGE1_9"}), ("GET", f"{V}/PAGE1_9"): (200, {"permalink_url": "/reel/9/"})})
     (p,) = await run(g, "facebook_page", images=())
-    assert g.order() == [f"POST {V}/PAGE1/feed"]
+    assert g.order() == [f"POST {V}/PAGE1/feed", f"GET {V}/PAGE1_9"]
+    assert p.permalink == "https://www.facebook.com/reel/9/"  # relative permalinks become absolute
     assert g.calls[0]["form"] == {"message": "Ready 2 BHK in Baner\n\n\U0001F517 Details and photos: https://site.test/agent/rahul/listings/L1?src=whatsapp",
                                   "link": "https://site.test/agent/rahul/listings/L1?src=whatsapp", "access_token": TOKEN}
     assert p.status == "published" and p.external_id == "PAGE1_9"
@@ -222,3 +226,10 @@ async def test_instagram_lookup_failure_still_publishes():
     g.recent = None  # the lookup itself is answered; an empty account means "not posted yet"
     (p,) = await run(g, "instagram")
     assert p.status == "published" and g.calls[-2]["path"].endswith("/media_publish")
+
+
+
+async def test_facebook_permalink_falls_back_when_graph_does_not_answer():
+    g = FakeGraph({("POST", f"{V}/PAGE1/feed"): (200, {"id": "PAGE1_9"})})
+    (p,) = await run(g, "facebook_page", images=())
+    assert p.status == "published" and p.permalink == "https://www.facebook.com/PAGE1_9"
