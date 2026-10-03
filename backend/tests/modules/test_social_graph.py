@@ -233,3 +233,25 @@ async def test_facebook_permalink_falls_back_when_graph_does_not_answer():
     g = FakeGraph({("POST", f"{V}/PAGE1/feed"): (200, {"id": "PAGE1_9"})})
     (p,) = await run(g, "facebook_page", images=())
     assert p.status == "published" and p.permalink == "https://www.facebook.com/PAGE1_9"
+
+
+async def test_facebook_several_images_become_one_multi_photo_post():
+    import json as _json
+    n = {"k": 0}
+
+    def photo(call):
+        n["k"] += 1
+        return (200, {"id": f"PH{n['k']}"})
+    g = FakeGraph({("POST", f"{V}/PAGE1/photos"): photo, ("POST", f"{V}/PAGE1/feed"): (200, {"id": "PAGE1_77"}),
+                   ("GET", f"{V}/PAGE1_77"): (200, {"permalink_url": "https://www.facebook.com/122/posts/77"})})
+    from app.platform.meta_graph.graph import GraphPublisher
+    from app.platform.meta_graph.publisher import Post
+    from .test_social_helpers import REAL
+    urls = [f"https://media.test/uploads/promo/agents-{k}.jpg" for k in range(1, 5)]
+    r = await GraphPublisher(REAL, transport=g.transport()).publish(Post("facebook_page", "Pune agents: join the pilot", urls))
+    assert g.order() == [f"POST {V}/PAGE1/photos"] * 4 + [f"POST {V}/PAGE1/feed", f"GET {V}/PAGE1_77"]
+    assert [c["form"]["url"] for c in g.calls[:4]] == urls and all(c["form"]["published"] == "false" for c in g.calls[:4])
+    feed = g.calls[4]["form"]
+    assert [_json.loads(feed[f"attached_media[{i}]"])["media_fbid"] for i in range(4)] == ["PH1", "PH2", "PH3", "PH4"]
+    assert feed["message"] == "Pune agents: join the pilot"
+    assert (r.external_id, r.permalink) == ("PAGE1_77", "https://www.facebook.com/122/posts/77")

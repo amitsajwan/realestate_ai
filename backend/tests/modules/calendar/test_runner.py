@@ -243,7 +243,7 @@ async def test_skipped_and_failed_rows_cannot_be_approved():
     assert await store.skip(i) and not await store.approve(i)
 
 
-async def test_instagram_carousel_goes_as_multi_image_and_facebook_gets_the_first_image():
+async def test_a_carousel_goes_with_every_slide_on_instagram_and_facebook():
     store, pub, render = make()
     for rel in ("calendar/w1/a-1.jpg", "calendar/w1/a-2.jpg", "calendar/w1/a-3.jpg"):
         (UPLOADS / rel).parent.mkdir(parents=True, exist_ok=True)
@@ -254,7 +254,7 @@ async def test_instagram_carousel_goes_as_multi_image_and_facebook_gets_the_firs
     await run(store, pub, render)
     by = {p.channel: p for p in pub.posts}
     assert by["instagram"].image_urls == [f"https://media.test/uploads/{p}" for p in imgs]
-    assert by["facebook_page"].image_urls == [f"https://media.test/uploads/{imgs[0]}"]
+    assert by["facebook_page"].image_urls == [f"https://media.test/uploads/{p}" for p in imgs]  # a multi-photo post
 
 
 async def test_missing_image_file_is_a_recorded_failure():

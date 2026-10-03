@@ -116,8 +116,6 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
             missing = [p for p in imgs if not (uploads / p).is_file()]
             if missing:
                 raise RuntimeError(f"image file missing: {missing[0]}")
-            if doc["channel"] == "facebook_page":
-                imgs = imgs[:1]  # a Facebook post carries one image
             urls = [f"{social.media_base_url}/uploads/{p}" for p in imgs]
             res = await _once(store, doc, lambda: publisher.publish(Post(doc["channel"], doc["caption"], urls)))
         await store.published(doc["_id"], res.external_id, res.permalink)

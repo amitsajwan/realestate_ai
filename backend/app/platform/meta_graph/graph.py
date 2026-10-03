@@ -1,5 +1,6 @@
 """Real Meta Graph API publisher (Facebook Page photo/feed post, Instagram single image or carousel)."""
 import asyncio
+import json
 import time
 from typing import Awaitable, Callable, Optional
 from urllib.parse import quote
@@ -95,6 +96,8 @@ class GraphPublisher:
     # ---- Facebook Page ---------------------------------------------------------------------------------------
     async def _facebook(self, post: Post) -> Result:
         page = self.cfg.page_id
+        if len(post.image_urls) > 1:
+            return await self._facebook_album(post)
         if post.image_urls:
             body = await self._call("POST", f"{page}/photos", {"url": post.image_urls[0], "caption": post.text, "published": "true"})
             post_id = body.get("post_id")
@@ -111,6 +114,19 @@ class GraphPublisher:
             params["link"] = post.link
         body = await self._call("POST", f"{page}/feed", params)
         ext = self._need_id(body, "the post")
+        return Result(ext, await self._fb_permalink(ext))
+
+    async def _facebook_album(self, post: Post) -> Result:
+        """Several photos in one Page post, like an Instagram carousel: each photo is uploaded unpublished, then one feed post
+        attaches them all in order with the caption."""
+        page, ids = self.cfg.page_id, []
+        for url in post.image_urls[:MAX_CAROUSEL]:
+            body = await self._call("POST", f"{page}/photos", {"url": url, "published": "false"})
+            ids.append(self._need_id(body, "a photo of the post"))
+        params = {"message": post.text}
+        for i, fbid in enumerate(ids):
+            params[f"attached_media[{i}]"] = json.dumps({"media_fbid": fbid})
+        ext = self._need_id(await self._call("POST", f"{page}/feed", params), "the post")
         return Result(ext, await self._fb_permalink(ext))
 
     async def _fb_permalink(self, post_id: str) -> str:

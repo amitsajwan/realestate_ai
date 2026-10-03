@@ -68,7 +68,7 @@ async def build_and_store(store: Store, start: date, weeks: int, uploads: Path, 
         if it.kind == "post":
             folder = uploads / "calendar" / f"w{it.week}"
             pack, how = await _pack(it, llm, recent[it.channel], folder)
-            images = [_rel(p, uploads) for p in (pack.images[:1] if it.channel == "facebook_page" else pack.images)]
+            images = [_rel(p, uploads) for p in pack.images]  # Facebook gets every slide too (multi-photo post)
             caption = pack.caption
             layout = pack.design.get("layout", "")
             recent[it.channel].append(layout)
