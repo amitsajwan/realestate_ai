@@ -458,7 +458,7 @@ def default_jobs() -> ReelJobs:
 
 
 async def loop(make_jobs: Callable[[], ReelJobs] = default_jobs, poll: float = 3.0) -> None:
-    """Render queued jobs one at a time, forever. Started once per process (ensure_worker, or the app lifespan)."""
+    """Render queued jobs one at a time, forever. Started only through ensure_worker, so one process renders at a time."""
     try:
         await make_jobs().fail_stale()
     except Exception:
@@ -475,10 +475,14 @@ async def loop(make_jobs: Callable[[], ReelJobs] = default_jobs, poll: float = 3
 
 
 def ensure_worker() -> asyncio.Task:
-    """Start the worker in this process if it is not running (idempotent; called by the reel routes)."""
+    """Start the worker if it is not running in this process (idempotent; called by the app lifespan and the reel routes).
+    The worker renders only while this process holds the 'listing_reels' runner lease, so with several processes one renders
+    and the others wait; its startup clean-up (fail_stale) therefore never fails a render another process is still running."""
     global _task
     if _task is None or _task.done():
-        _task = asyncio.get_running_loop().create_task(loop())
+        from app.core.database import get_database
+        from app.platform.leases import run_as_leader
+        _task = asyncio.get_running_loop().create_task(run_as_leader("listing_reels", loop, get_database))
     return _task
 
 

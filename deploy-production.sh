@@ -173,7 +173,8 @@ Group=$SERVICE_USER
 WorkingDirectory=$APP_DIR/backend
 Environment=PATH=$APP_DIR/backend/venv/bin
 EnvironmentFile=$APP_DIR/.env.production
-ExecStart=$APP_DIR/backend/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+# One process, like the Docker image: in-memory rate limits and caches assume it (background loops are also lease-guarded)
+ExecStart=$APP_DIR/backend/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
 Restart=always
 RestartSec=10
 StandardOutput=journal

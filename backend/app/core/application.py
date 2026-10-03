@@ -18,6 +18,7 @@ from app.core.logging_config import setup_logging, get_logger
 from app.core.security import SecurityMiddleware, get_security_headers
 from app.api.v1.endpoints.health import router as health_router
 from app.services.token_cleanup_service import start_token_cleanup, stop_token_cleanup
+import asyncio
 import logging
 import json
 from bson import ObjectId
@@ -69,49 +70,56 @@ async def lifespan(app: FastAPI):
     # Startup
     try:
         await init_database()
-        logger.info("🚀 MongoDB connected successfully")
-        
-        # Initialize database collections and indexes
-        from app.utils.database_init import initialize_database
-        await initialize_database()
-        logger.info("📊 Database collections and indexes initialized")
-        
-        # Analytics service will be initialized when needed
-        logger.info("📈 Analytics service ready")
-        
-        # Start token cleanup service
-        await start_token_cleanup()
-        logger.info("🧹 Token cleanup service started")
-
-        # Comment assistant (does nothing unless ENGAGE_ENABLED=true)
-        import asyncio
-        from app.modules.engage.runner import loop as engage_loop
-        app.state.engage_task = asyncio.create_task(engage_loop())
-
-        # Newsroom content agent (idle unless NEWSROOM_ENABLED=true)
-        from app.modules.newsroom.runner import loop as newsroom_loop
-        app.state.newsroom_task = asyncio.create_task(newsroom_loop())
-
-        # Content calendar: evergreen posts for Facebook and Instagram (idle unless CALENDAR_ENABLED=true)
-        from app.modules.calendar.runner import loop as calendar_loop
-        app.state.calendar_task = asyncio.create_task(calendar_loop())
-
-        # Listing reels: renders the reels agents ask for from a listing (idle when the queue is empty)
-        from app.modules.reels.listing_reel import loop as listing_reel_loop
-        app.state.listing_reel_task = asyncio.create_task(listing_reel_loop())
-
     except Exception as e:
         logger.error(f"❌ Failed to connect to MongoDB: {e}")
-        # Don't raise the exception - let the app start with mock database
-        logger.warning("⚠️ Continuing with mock database")
-    
+        if settings.environment == "production":
+            raise  # never serve production without its database: crash so the container restarts once Mongo is up
+        logger.warning("⚠️ Continuing without a database (development only)")
+    else:
+        try:
+            logger.info("🚀 MongoDB connected successfully")
+
+            # Initialize database collections and indexes
+            from app.utils.database_init import initialize_database
+            await initialize_database()
+            logger.info("📊 Database collections and indexes initialized")
+
+            # Analytics service will be initialized when needed
+            logger.info("📈 Analytics service ready")
+
+            # Start token cleanup service
+            await start_token_cleanup()
+            logger.info("🧹 Token cleanup service started")
+
+            # Background loops. Each runs in one process only, however many API processes start (app/platform/leases.py).
+            from app.core.database import get_database
+            from app.platform.leases import run_as_leader
+
+            # Comment assistant (does nothing unless ENGAGE_ENABLED=true)
+            from app.modules.engage.runner import loop as engage_loop
+            app.state.engage_task = asyncio.create_task(run_as_leader("engage", engage_loop, get_database))
+
+            # Newsroom content agent (idle unless NEWSROOM_ENABLED=true)
+            from app.modules.newsroom.runner import loop as newsroom_loop
+            app.state.newsroom_task = asyncio.create_task(run_as_leader("newsroom", newsroom_loop, get_database))
+
+            # Content calendar: evergreen posts for Facebook and Instagram (idle unless CALENDAR_ENABLED=true)
+            from app.modules.calendar.runner import loop as calendar_loop
+            app.state.calendar_task = asyncio.create_task(run_as_leader("calendar", calendar_loop, get_database))
+
+            # Listing reels: renders the reels agents ask for from a listing (idle when the queue is empty)
+            from app.modules.reels import listing_reel
+            app.state.listing_reel_task = listing_reel.ensure_worker()
+        except Exception as e:
+            logger.error(f"❌ Startup step failed after the database connected: {e}")
+
     yield
     
     # Shutdown
-    for name in ("engage_task", "newsroom_task", "calendar_task", "listing_reel_task"):
-        task = getattr(app.state, name, None)
-        if task:
-            task.cancel()
+    tasks = [t for t in (getattr(app.state, n, None) for n in ("engage_task", "newsroom_task", "calendar_task", "listing_reel_task")) if t]
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)  # let each loop release its runner lease before the database closes
     await stop_token_cleanup()
     logger.info("🧹 Token cleanup service stopped")
     
