@@ -4,7 +4,7 @@ POST /listings/{id}/reel {lang} queues a job; the worker renders ONE job at a ti
   * the listing's own photos (our uploads only, at least 2),
   * a script from the listing's facts and its `about` only (an LLM writes it, director._valid checks it: no invented numbers,
     no phone numbers, Roman on-screen text; otherwise a rules script built from the same facts),
-  * 'Listed by <business> · RERA <no>' on the closing scene (never a phone number), the Avasetu end card,
+  * 'Listed by <business> · RERA <no>' on the closing scene (never a phone number), with the small Avasetu mark (no end card),
   * a voiceover in English, Hindi or Marathi (Google TTS) with Hinglish/Roman on-screen text (the renderer cannot shape
     Devanagari), over our own generated music bed. Without the TTS key the reel is made with music only, and the job says so.
 Sample listings carry the 'Sample listing' badge on every scene.
@@ -28,8 +28,8 @@ from app.modules.marketing.facts import T, Facts
 from app.modules.marketing.images import latin, local_upload_path
 
 from . import ffmpeg, voice
-from .compose import Scene, TextLine, make_reel, plan
-from .director import END_SECONDS, XFADE, _valid
+from .compose import Scene, TextLine, make_reel, plan, stretch
+from .director import CTA_SCREEN, CTA_VOICE, XFADE, _valid, fit_beats
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +58,8 @@ SYSTEM = (
     "Use ONLY the facts given: never invent numbers, distances, prices, schools, builders, views or promises. "
     "Never mention phone numbers, names of people or the agent. If the facts say it is a sample listing, say it is a sample. "
     "Plain, calm words: no sales words such as only, just, best, hurry, grab or limited. "
-    "cta: invite them to message to book a visit (for a sample listing our own closing line replaces it)."
+    "cta: ask viewers to comment the word INTERESTED for details, with INTERESTED in Roman capitals on screen "
+    "(our own closing line replaces it, so every reel ends with the same comment keyword)."
 )
 
 
@@ -136,17 +137,20 @@ def reel_facts(listing: dict, profile: Optional[dict]) -> Tuple[str, List[str], 
 _UNIT = {"hi": {"Lakh": "लाख", "Cr": "करोड़", "/month": " महीना"}, "mr": {"Lakh": "लाख", "Cr": "कोटी", "/month": " दरमहा"}}
 _WORDS = {
     "en": {"price": "Price {p}.", "area": "{a} square feet {k} area", "sqft": "sq ft", "look": "Take a *look* inside",
-           "look_v": "Take a look inside.", "cta_s": "Message to book a *visit*", "cta_v": "Like it? Message us to book a visit.",
+           "look_v": "Take a look inside.", "cta_s": CTA_SCREEN["en"], "cta_v": CTA_VOICE["en"],
            "sample": "This is a sample listing, shown for illustration. ", "with": "with", "in": "{w} in {l}",
-           "cta_sample_s": "Tell us *what* you want", "cta_sample_v": "Tell us what you are looking for, and we will find a real one."},
+           "cta_sample_s": "Want a real one? Comment *INTERESTED*",
+           "cta_sample_v": "Want a real one like it? Comment interested, and we will find one for you."},
     "hi": {"price": "कीमत {p}।", "area": "{a} स्क्वेयर फीट {k} एरिया", "look": "Andar ek *nazar*", "look_v": "अंदर एक नज़र डालिए।",
-           "cta_s": "Visit ke liye *message* karein", "cta_v": "पसंद आया? विज़िट बुक करने के लिए मैसेज कीजिए।",
+           "cta_s": CTA_SCREEN["hi"], "cta_v": CTA_VOICE["hi"],
            "sample": "यह एक सैंपल लिस्टिंग है, सिर्फ़ दिखाने के लिए। ", "with": "साथ में", "in": "{l} mein {w}",
-           "cta_sample_s": "Batayein aapko *kya* chahiye", "cta_sample_v": "बताइए आपको कैसा घर चाहिए, हम असली घर ढूँढेंगे।"},
+           "cta_sample_s": "Asli ghar chahiye? *INTERESTED* comment karein",
+           "cta_sample_v": "असली घर चाहिए? कमेंट में इंटरेस्टेड लिखिए, हम आपके लिए ढूँढेंगे।"},
     "mr": {"price": "किंमत {p}.", "area": "{a} स्क्वेअर फूट {k} एरिया", "look": "Aat ek *nazar*", "look_v": "आत एक नजर टाका.",
-           "cta_s": "Visit sathi *message* kara", "cta_v": "आवडलं? व्हिजिट बुक करण्यासाठी मेसेज करा.",
+           "cta_s": CTA_SCREEN["mr"], "cta_v": CTA_VOICE["mr"],
            "sample": "ही एक सॅम्पल लिस्टिंग आहे, फक्त दाखवण्यासाठी. ", "with": "सोबत", "in": "{l} madhye {w}",
-           "cta_sample_s": "Sanga tumhala *kay* hava", "cta_sample_v": "तुम्हाला कसं घर हवं ते सांगा, आम्ही खरं घर शोधू."},
+           "cta_sample_s": "Khara ghar hava? *INTERESTED* comment kara",
+           "cta_sample_v": "खरं घर हवं? कमेंटमध्ये इंटरेस्टेड लिहा, आम्ही शोधून देऊ."},
 }
 _KIND = {"hi": {"carpet": "कार्पेट", "super built-up": "सुपर बिल्ट-अप"}, "mr": {"carpet": "कार्पेट", "super built-up": "सुपर बिल्ट-अप"}}
 
@@ -174,7 +178,7 @@ def _short(text: str, words: int = 6) -> str:
 
 
 def rules_script(f: Facts, lang: str) -> Dict:
-    """A plain script from the facts alone: hook, price, size and floor, features (3 to 4 beats) and the visit call."""
+    """A plain script from the facts alone: hook, price, size and floor, features (3 to 4 beats) and the comment call."""
     w = _WORDS[lang]
     what = latin(f.bhk_text or f.type_text("en").title())
     place = _short(f.locality or f.city or "", 3)
@@ -222,6 +226,12 @@ def pushy(script: Dict) -> bool:
 _ON_SALE = re.compile(r"\s*(for sale|for rent|on sale|बिक्री के लिए( उपलब्ध)?|किराये के लिए|विक्रीसाठी|भाड्याने)", re.I)
 
 
+def with_cta(script: Dict, lang: str) -> Dict:
+    """Every listing reel closes with the same call to action: comment INTERESTED (the comment assistant answers it)."""
+    w = _WORDS[lang]
+    return {**script, "cta_screen": w["cta_s"], "cta_voice": w["cta_v"]}
+
+
 def for_sample(script: Dict, lang: str) -> Dict:
     """A sample home is not for sale and cannot be visited: no 'for sale' wording, and the closing says it is a sample and
     asks what the viewer wants instead of offering a visit (the badge is on every scene too)."""
@@ -248,8 +258,9 @@ async def write_script(subject: str, facts: Sequence[str], lang: str, llm, fallb
 # ---- rendering (blocking; runs in a worker thread) -----------------------------------------------------------------
 def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Optional[str] = None, kicker: Optional[str] = None,
            closing: str = "", voiced: bool = True) -> Dict:
-    """Render the reel. Returns {"audio": "voice+music"|"music", "note": str}. Falls back to music only if the voice fails."""
-    beats = list(script["beats"]) + [{"screen": script["cta_screen"], "voice": script["cta_voice"]}]
+    """Render the reel. Returns {"audio": "voice+music"|"music", "note": str}. Falls back to music only if the voice fails.
+    One photo per scene: with fewer photos than beats the last beats are left out rather than a photo shown twice."""
+    beats, picks = fit_beats(script, photos)
     work = Path(tempfile.mkdtemp(prefix="listing-reel-"))
     note = ""
     try:
@@ -267,6 +278,7 @@ def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opt
         if not voiced:
             note = note or NO_VOICE_NOTE
             durs = [SILENT_SECONDS + (0.4 if i == 0 else 0.0) for i in range(len(beats))]
+        durs = stretch(durs, XFADE)
         scenes = []
         for i, b in enumerate(beats):
             first, last = i == 0, i == len(beats) - 1
@@ -274,9 +286,9 @@ def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opt
             if last and closing:  # 'Listed by X · RERA Y' as two lines, so the separator never starts a wrapped line
                 for part in [p.strip() for p in closing.split(" · ") if p.strip()]:
                     lines.append(TextLine(part, size=44, weight="medium", max_lines=2))
-            scenes.append(Scene(image=photos[i % len(photos)], lines=lines, layout="lower", badge=badge,
+            scenes.append(Scene(image=picks[i], lines=lines, layout="lower", badge=badge,
                                 kicker=kicker if first else None, seconds=durs[i], seed=f"listing-{i}"))
-        tl = plan(durs + [END_SECONDS], XFADE)
+        tl = plan(durs, XFADE)   # no end card: the closing scene carries the brand mark and the reel loops
         from .music import write as write_music
         bed = write_music(work / "bed.wav", seconds=tl.total + 1.0)
         if voiced:
@@ -422,8 +434,7 @@ class ReelJobs:
             subject, facts, f = reel_facts(listing, profile)
             llm = self.llm_factory() if self.llm_factory else None
             script = await write_script(subject, facts, job["lang"], llm, rules_script(f, job["lang"]))
-            if f.sample:
-                script = for_sample(script, job["lang"])
+            script = for_sample(script, job["lang"]) if f.sample else with_cta(script, job["lang"])
             await self.jobs.update_one({"_id": jid}, {"$set": {"script": script}})
             name = f"listing-{_safe_id(job['listing_id'])}-{job['lang']}-{jid[:8]}.mp4"
             out = self.uploads_dir / "reels" / name

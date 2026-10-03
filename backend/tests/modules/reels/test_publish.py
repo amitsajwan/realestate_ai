@@ -228,3 +228,35 @@ def test_public_url_and_stage(tmp_path):
     src.write_bytes(b"abc")
     name = publish.stage(src, tmp_path / "uploads")
     assert re.fullmatch(r"reel-[0-9a-f]{12}\.mp4", name) and (tmp_path / "uploads" / "reels" / name).read_bytes() == b"abc"
+
+
+# ---- cover image ----------------------------------------------------------------------------------------------------
+COVER = "https://media.test/uploads/reels/reel-abc-cover.jpg"
+
+
+def ig_ok():
+    return {("POST", f"{V}/IG1/media"): (200, {"id": "C1"}), ("GET", f"{V}/C1"): (200, {"status_code": "FINISHED"}),
+            ("POST", f"{V}/IG1/media_publish"): (200, {"id": "M1"}), ("GET", f"{V}/M1"): (200, {"permalink": "p"})}
+
+
+async def test_instagram_container_carries_the_cover_url_only_when_there_is_a_cover():
+    f = Fake(ig_ok())
+    await pub(f).publish_reel("instagram", URL, "c", cover_url=COVER)
+    assert f.calls[0]["form"]["cover_url"] == COVER
+    f2 = Fake(ig_ok())
+    await pub(f2).publish_reel("instagram", URL, "c")
+    assert "cover_url" not in f2.calls[0]["form"]
+
+
+def test_cover_staging_and_urls(tmp_path):
+    mp4 = tmp_path / "src" / "reel-abc.mp4"
+    mp4.parent.mkdir()
+    mp4.write_bytes(b"mp4")
+    assert publish.cover_file(mp4) is None and publish.staged_cover_url(CFG, mp4, tmp_path, "reel-abc.mp4") is None
+    (tmp_path / "src" / "reel-abc-cover.jpg").write_bytes(b"jpg")
+    assert publish.staged_cover_url(CFG, mp4, tmp_path, "reel-abc.mp4") == COVER
+    assert (tmp_path / "reels" / "reel-abc-cover.jpg").read_bytes() == b"jpg"
+    with pytest.raises(PublishError):
+        publish.public_cover_url(CFG, "x/y-cover.jpg")
+    with pytest.raises(PublishError):
+        publish.public_cover_url(SocialConfig(dry_run=False, media_base_url="http://insecure.test"), "reel-abc-cover.jpg")

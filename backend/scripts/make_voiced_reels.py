@@ -28,12 +28,12 @@ HOME_FALLBACK = {
                      {"screen": "*780* sq ft carpet", "voice": "Seven hundred and eighty square feet of carpet area."},
                      {"screen": "Floor *7* of 22", "voice": "Seventh floor, ready to move, semi-furnished."},
                      {"screen": "Parking · Gym · *Lift*", "voice": "With parking, a gym, lifts, security and power backup."}],
-           "cta_screen": "Tap *interested* · link in bio", "cta_voice": "This is a sample home. Tap interested in our bio and we will find you a real one."},
+           "cta_screen": "Comment *INTERESTED* for details", "cta_voice": "This is a sample home. Comment interested and we will find you a real one."},
     "hi": {"beats": [{"screen": "Kharadi mein *2BHK*?", "voice": "खराडी में टू बीएचके ढूंढ रहे हैं? देखिए असल में क्या मिलता है।"},
                      {"screen": "*780* sq ft carpet", "voice": "सात सौ अस्सी स्क्वेयर फीट का कार्पेट एरिया।"},
                      {"screen": "Floor *7* of 22", "voice": "सातवीं मंज़िल, रेडी टू मूव, सेमी फर्निश्ड।"},
                      {"screen": "Parking · Gym · *Lift*", "voice": "पार्किंग, जिम, लिफ्ट, सिक्योरिटी और पावर बैकअप के साथ।"}],
-           "cta_screen": "Tap *interested* · link in bio", "cta_voice": "यह एक सैंपल घर है। बायो में इंटरेस्टेड दबाइए, हम आपके लिए असली घर ढूंढेंगे।"},
+           "cta_screen": "Details ke liye *INTERESTED* comment karein", "cta_voice": "यह एक सैंपल घर है। कमेंट में इंटरेस्टेड लिखिए, हम आपके लिए असली घर ढूंढेंगे।"},
 }
 
 TIP_FACTS = ("Site visit tip: water and power questions before you book a flat in Pune",

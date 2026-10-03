@@ -1,13 +1,16 @@
 """Compose a vertical MP4 from still images and text, with no video editor: every frame is drawn with Pillow (slow drift on the
-photo, eased text animation, cross-fade or slide transitions, progress bar, brand end card) and piped to ffmpeg.
+photo, eased text animation, cross-fade or slide transitions, progress bar, a small brand mark on the last scene) and piped to ffmpeg.
+No separate end card by default: a 'Follow for more' card is a dead end that breaks the loop (pass end_card=True to get one).
 
 Output: H.264 (yuv420p, High profile), 1080x1920, 30 fps, AAC stereo audio (silent unless `music` is given), faststart, < 30 s.
-Text stays inside the Instagram safe zone: nothing in the top 10% or bottom 20% of the frame (see SAFE_TOP / SAFE_BOTTOM).
+Text stays inside the Instagram safe zone: every text line and the CTA between 14% and 72% of the height (TEXT_TOP / TEXT_BOTTOM;
+Instagram's caption, account row and the bottom bar cover roughly the last 20-28%) and left of the right 12% (TEXT_RIGHT: the like,
+comment and share buttons). Only the thin progress bar sits above TEXT_TOP.
 """
 from app.core import brand
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Iterator, List, Optional, Sequence, Tuple, Union
 
@@ -20,11 +23,16 @@ from . import ffmpeg
 W, H = STORY
 FPS = 30
 MAX_SECONDS = 29.0            # Reels may be longer; we stay under 30 s on purpose
+MIN_SECONDS = 8.0             # shorter than this and a tour/tip reel feels like a flash; scenes are stretched up to it
 MAX_BYTES = 20 * 1024 * 1024
 SAFE_TOP = int(H * 0.10)      # 192: Instagram's top bar
 SAFE_BOTTOM = int(H * 0.80)   # 1536: caption, account name, buttons
+TEXT_TOP = -(-H * 14 // 100)   # 269: no text above (the top bar and its icons)
+TEXT_BOTTOM = int(H * 0.72)   # 1382: no text below (caption, account row, audio line, bottom bar)
+TEXT_RIGHT = int(W * 0.88)    # 950: no text right of this (like / comment / share / remix buttons)
 SIDE = 72
-TEXT_W = W - 2 * SIDE
+TEXT_W = TEXT_RIGHT - SIDE                 # 878: left-aligned lines run from SIDE to TEXT_RIGHT
+TEXT_W_CENTER = W - 2 * (W - TEXT_RIGHT)   # 820: centred lines keep the same margin on both sides
 WHITE = (255, 255, 255)
 SOFT = (226, 232, 243)
 INK = (24, 30, 44)
@@ -34,7 +42,8 @@ TAGLINE = brand.TAGLINE
 # a run of 9+ digits that does not start inside a word: 'A51800012345' (a MahaRERA agent number) is not a phone number
 PHONE_RE = re.compile(r"(?<![A-Za-z0-9])(?:\+?\d[\s\-]?){9,}")
 PAD = 28
-CONTENT_TOP = SAFE_TOP + 150   # below the brand tag row
+TAG_Y = TEXT_TOP               # the brand tag row (logo + name), under the progress bar
+CONTENT_TOP = TAG_Y + 94       # 362: below the brand tag row
 
 
 class ReelError(Exception):
@@ -63,6 +72,7 @@ class Scene:
     seconds: Optional[float] = None
     seed: str = "reel"
     kind: str = "scene"                                 # scene | end
+    brand_mark: bool = False                            # small logo + name above the text (set on the last scene by Renderer)
 
 
 def end_scene(seconds: float = 2.6) -> Scene:
@@ -102,6 +112,46 @@ def plan(durations: Sequence[float], xfade: float, max_total: float = MAX_SECOND
         starts.append(t)
         t += d - xf
     return Timeline(starts, durs, xf, total)
+
+
+def distinct_photos(photos: Sequence) -> list:
+    """The photos in order without repeats (paths compared as resolved strings, images by identity)."""
+    seen, out = set(), []
+    for p in photos or []:
+        key = ("img", id(p)) if isinstance(p, Image.Image) else ("path", str(p))
+        if key not in seen:
+            seen.add(key)
+            out.append(p)
+    return out
+
+
+def photo_plan(n_scenes: int, photos: Sequence, min_scenes: int = 1) -> list:
+    """One photo per scene, no photo twice, for as many scenes as there are distinct photos (at most `n_scenes`, at least
+    `min_scenes`). Only when there are fewer photos than `min_scenes` does a photo come back, never on the next scene: the
+    closing scene reuses the opening photo, so the loop back to the hook is seamless."""
+    uniq = distinct_photos(photos)
+    if not uniq:
+        return []
+    n = max(min(n_scenes, len(uniq)), min(min_scenes, n_scenes))
+    picks = uniq[:n]
+    while len(picks) < n:
+        picks.append(uniq[(len(picks) - len(uniq)) % len(uniq)])
+    if len(picks) > len(uniq) and len(uniq) > 1 and picks[-1] is not picks[0]:
+        picks[-1] = picks[0]
+    return picks
+
+
+def stretch(durations: Sequence[float], xfade: float, min_total: float = MIN_SECONDS) -> List[float]:
+    """Scale scene durations up (together) so the reel lasts at least `min_total` seconds; longer reels are unchanged."""
+    durs = [float(d) for d in durations]
+    if not durs:
+        return durs
+    total = plan(durs, xfade).total
+    if total >= min_total:
+        return durs
+    xf = plan(durs, xfade).xfade
+    k = (min_total + xf * (len(durs) - 1)) / sum(durs)
+    return [d * k for d in durs]
 
 
 def clamp01(x: float) -> float:
@@ -249,6 +299,30 @@ def _default_spec(i: int, layout: str):
     return 58, "medium", SOFT, 3
 
 
+MARK_D = 84
+
+
+def _mark_item(y: int, align: str) -> Item:
+    """The brand mark on the last scene: the round logo with the name and tagline beside it."""
+    name_f, tag_f = load_font(46, "bold"), load_font(30, "medium")
+    tw = int(max(_DRAW.textlength(BRAND, font=name_f), _DRAW.textlength(TAGLINE, font=tag_f)))
+    w, h = MARK_D + 22 + tw, MARK_D
+    logo = _logo(MARK_D)
+
+    def paint(d, dx, dy, mode):
+        if mode == "shadow":
+            d.ellipse([dx, dy, dx + MARK_D, dy + MARK_D], fill=255)
+        tx = dx + MARK_D + 22
+        d.text((tx, dy + 2), BRAND, font=name_f, fill=255 if mode == "shadow" else (*WHITE, 255))
+        d.text((tx, dy + 52), TAGLINE, font=tag_f, fill=255 if mode == "shadow" else (*GOLD, 255))
+
+    img = _shadowed(w, h, paint, strength=0.45)
+    if logo is not None:
+        img.alpha_composite(logo, (PAD, PAD))
+    x0 = SIDE if align == "left" else (W - w) // 2
+    return Item(img, x0 - PAD, y - PAD, (x0, y, x0 + w, y + h))
+
+
 def layout_scene(scene: Scene) -> List[Item]:
     """All text items for a scene, positioned inside the safe zone (type shrinks if it would not fit)."""
     if scene.kind == "end":
@@ -256,8 +330,9 @@ def layout_scene(scene: Scene) -> List[Item]:
     align = scene.align or ("center" if scene.layout == "center" else "left")
     lines = [l if isinstance(l, TextLine) else TextLine(l) for l in scene.lines]
     lines = [l for l in lines if l.text]
-    bottom = SAFE_BOTTOM - 56
+    bottom = TEXT_BOTTOM
     avail = bottom - CONTENT_TOP
+    max_w = TEXT_W if align == "left" else TEXT_W_CENTER
     shrink = 1.0
     for _ in range(10):
         blocks = []
@@ -267,20 +342,27 @@ def layout_scene(scene: Scene) -> List[Item]:
             weight, color, mx = tl.weight or weight, tl.color or color, tl.max_lines or mx
             fnt = load_font(size, weight)
             toks = _tokens(tl.text)
-            wr = _wrap_balanced(toks, fnt, TEXT_W)
+            wr = _wrap_balanced(toks, fnt, max_w)
             while len(wr) > mx and size > 34:
                 size -= 4
                 fnt = load_font(size, weight)
-                wr = _wrap_balanced(toks, fnt, TEXT_W)
+                wr = _wrap_balanced(toks, fnt, max_w)
             blocks.append([(ln, fnt, color) for ln in wr])
         chip_h = 64 + 36 if scene.kicker else 0
-        total = chip_h + sum(len(b) * int(b[0][1].size * 1.17) + 30 for b in blocks) - (30 if blocks else 0)
+        mark_h = MARK_D + 40 if scene.brand_mark else 0
+        total = mark_h + chip_h + sum(len(b) * int(b[0][1].size * 1.17) + 30 for b in blocks) - (30 if blocks else 0)
+        if blocks:  # the last line's glyph box (ascent + descent) can reach below its line step
+            last = blocks[-1][-1][1]
+            total += max(0, sum(last.getmetrics()) - int(last.size * 1.17))
         if total <= avail:
             break
         shrink *= 0.9
     y = bottom - total if scene.layout == "lower" else CONTENT_TOP + (avail - total) // 2 + 20
     y = max(y, CONTENT_TOP)
     items: List[Item] = []
+    if scene.brand_mark:
+        items.append(_mark_item(y, align))
+        y += mark_h
     if scene.kicker:
         items.append(_chip_item(scene.kicker, y, align))
         y += chip_h
@@ -367,8 +449,10 @@ class _Prepared:
         self.solid = Image.new("RGB", (W, H), NAVY_BLACK)
         self.items = layout_scene(scene)
         self.badge = _chip_item(scene.badge, CONTENT_TOP - 4, "left", filled=False) if scene.badge else None
-        # The opening scene's text is already (almost) in place on frame one, so the hook is readable before anyone swipes away.
-        self.delay, self.fade, self.stagger = (-0.2, 0.3, 0.08) if is_first else (0.30, 0.6, 0.16)
+        # The opening scene has no entrance animation: frame one already shows the whole hook, so it is readable before anyone
+        # swipes away (and the cover image, a still of that frame, shows it too). Later scenes ease their text in.
+        self.animate = not is_first
+        self.delay, self.fade, self.stagger = 0.30, 0.6, 0.16
 
     def _scrim_mask(self) -> Image.Image:
         grad = Image.linear_gradient("L").resize((W, H))
@@ -398,12 +482,19 @@ class _Prepared:
         from .depth import parallax
         return parallax(view, d, shift_x=34 * swing, shift_y=-10 * swing)
 
+    def badge_alpha(self, lt: float) -> float:
+        return ease_out_cubic((lt - 0.1) / 0.5) if self.animate else 1.0
+
+    def item_alpha(self, k: int, lt: float) -> float:
+        """Opacity (and so the rise offset) of the k-th text item at scene time lt: 1.0 means in its final place."""
+        return ease_out_cubic((lt - self.delay - self.stagger * k) / self.fade) if self.animate else 1.0
+
     def frame(self, lt: float, p: float) -> Image.Image:
         img = Image.composite(self.solid, self.background(p), self.mask)
         if self.badge:
-            _blit(img, self.badge, ease_out_cubic((lt - 0.1) / 0.5), rise=0)
+            _blit(img, self.badge, self.badge_alpha(lt), rise=0)
         for k, it in enumerate(self.items):
-            _blit(img, it, ease_out_cubic((lt - self.delay - self.stagger * k) / self.fade), rise=46)
+            _blit(img, it, self.item_alpha(k, lt), rise=46)
         return img
 
 
@@ -427,15 +518,17 @@ def _tag_item() -> Item:
         img.alpha_composite(badge, (PAD, PAD))
     shadow = _shadowed(tw, 40, lambda d, dx, dy, m: d.text((dx, dy), BRAND, font=font, fill=255 if m == "shadow" else (*WHITE, 255)))
     img.alpha_composite(shadow, (64 + 18, PAD + 10 - PAD))
-    y = SAFE_TOP + 40
+    y = TAG_Y
     return Item(img, SIDE - PAD, y - PAD, (SIDE, y, SIDE + w, y + h))
 
 
-def _chrome(img: Image.Image, tag: Item, progress: float, alpha: float) -> None:
+def _chrome(img: Image.Image, tag: Item, progress: float, alpha: float, bar: bool = True) -> None:
     if alpha <= 0.004:
         return
     over = img.copy() if alpha < 0.999 else img
     _blit(over, tag, 1.0, rise=0)
+    if not bar:
+        return
     d = ImageDraw.Draw(over)
     y, h = SAFE_TOP + 4, 7
     d.rounded_rectangle([SIDE, y, W - SIDE, y + h], radius=h // 2, fill=(92, 100, 118))
@@ -455,12 +548,25 @@ def _no_phone_numbers(scenes: Sequence[Scene]) -> None:
             raise ReelError("reel text must not contain a phone number")
 
 
+def finish_scenes(scenes: Sequence[Scene], end_card: bool = False) -> List[Scene]:
+    """The scenes as rendered: never two end cards in a row; with end_card=True exactly one end card closes the reel; otherwise
+    the last content scene carries the brand mark (the reel loops straight back to the hook, no dead end)."""
+    out: List[Scene] = []
+    for s in scenes:
+        if s.kind == "end" and out and out[-1].kind == "end":
+            continue  # a duplicated end card
+        out.append(s)
+    if end_card and not (out and out[-1].kind == "end"):
+        out.append(end_scene())
+    if out and out[-1].kind != "end" and not end_card:
+        out[-1] = replace(out[-1], brand_mark=True)
+    return out
+
+
 class Renderer:
     def __init__(self, scenes: Sequence[Scene], seconds_per_scene: float = 3.0, transition: str = "fade", xfade: float = 0.45,
-                 progress: bool = True, end_card: bool = True):
-        scenes = list(scenes)
-        if end_card and not (scenes and scenes[-1].kind == "end"):
-            scenes.append(end_scene())
+                 progress: bool = True, end_card: bool = False):
+        scenes = finish_scenes(scenes, end_card)
         _no_phone_numbers(scenes)
         if transition not in ("fade", "slide"):
             raise ReelError("transition must be 'fade' or 'slide'")
@@ -495,14 +601,33 @@ class Renderer:
         _chrome(img, self.tag, t / self.tl.total if self.progress else 0.0, chrome_a)
         return img
 
+    def cover(self) -> Image.Image:
+        """The cover: the hook scene as a still with all its text in place (no progress bar, it is not playing)."""
+        img = self._scene_frame(0, 0.0)
+        _chrome(img, self.tag, 0.0, 0.0 if self.prep[0].scene.kind == "end" else 1.0, bar=False)
+        return img
+
     def frames(self) -> Iterator[bytes]:
         for k in range(self.tl.frames):
             yield self.frame_at(k / FPS).tobytes()
 
 
+def cover_path(video) -> Path:
+    """Where the cover of `video` lives: next to it, same name + '-cover.jpg' (reel.mp4 -> reel-cover.jpg)."""
+    v = Path(video)
+    return v.with_name(f"{v.stem}-cover.jpg")
+
+
+def write_cover(renderer: "Renderer", video) -> Path:
+    out = cover_path(video)
+    renderer.cover().save(out, "JPEG", quality=86, optimize=True, progressive=True)
+    return out
+
+
 def make_reel(scenes: Sequence[Scene], out_path, seconds_per_scene: float = 3.0, music=None, transition: str = "fade",
-              xfade: float = 0.45, progress: bool = True, end_card: bool = True, timeout: float = 900.0) -> Path:
-    """Render `scenes` (plus the brand end card) to an MP4 at `out_path` and return the path.
+              xfade: float = 0.45, progress: bool = True, end_card: bool = False, timeout: float = 900.0) -> Path:
+    """Render `scenes` (plus the brand end card only when end_card=True) to an MP4 at `out_path` and return the path. A 1080x1920 cover JPG (the hook
+    scene as a still, see `cover_path`) is written next to it, for Instagram's `cover_url`.
 
     `music` is an optional path to a royalty-free audio file that YOU have the rights to; nothing is bundled or downloaded.
     Without it the reel has a silent stereo AAC track (some players need an audio stream)."""
@@ -529,6 +654,7 @@ def make_reel(scenes: Sequence[Scene], out_path, seconds_per_scene: float = 3.0,
     if out.stat().st_size > MAX_BYTES:
         out.unlink(missing_ok=True)
         raise ReelError("the reel came out larger than 20 MB")
+    write_cover(r, out)
     return out
 
 

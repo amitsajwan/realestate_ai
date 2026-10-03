@@ -275,12 +275,13 @@ def _script():
 
 
 def test_render_voiced_mixes_voice_and_music_and_closes_with_listed_by(tmp_path, stubs):
-    out = lr.render(_script(), ["a.jpg", "b.jpg"], "hi", tmp_path / "r.mp4", badge="Sample listing", kicker="KHARADI",
+    photos = ["a.jpg", "b.jpg", "c.jpg", "d.jpg", "e.jpg"]
+    out = lr.render(_script(), photos, "hi", tmp_path / "r.mp4", badge="Sample listing", kicker="KHARADI",
                     closing="Listed by Rahul Homes · RERA A51800012345", voiced=True)
     assert out == {"audio": "voice+music", "note": ""}
     scenes = stubs["scenes"]
     assert len(scenes) == 5 and all(s.badge == "Sample listing" for s in scenes)
-    assert [s.image for s in scenes] == ["a.jpg", "b.jpg", "a.jpg", "b.jpg", "a.jpg"]
+    assert [s.image for s in scenes] == photos   # one photo per scene, none twice
     assert scenes[0].kicker == "KHARADI" and scenes[1].kicker is None
     assert [l.text for l in scenes[-1].lines[1:]] == ["Listed by Rahul Homes", "RERA A51800012345"]
     assert all(s.seconds == pytest.approx(3.05) for s in scenes)
@@ -410,3 +411,71 @@ def test_a_sample_home_is_never_called_for_sale():
           "cta_screen": "x", "cta_voice": "y"}
     s = for_sample(en, "en")
     assert s["beats"][0]["voice"] == "This is a sample 2 BHK apartment in Upper Kharadi." and "visit" not in s["cta_voice"]
+
+
+async def test_concierge_reel_post_sends_the_cover_to_instagram_when_the_reel_has_one(tmp_path):
+    from app.modules.listings.schemas import ListingCreate
+    from app.platform.meta_graph.config import SocialConfig
+    from ..concierge.helpers import FULL, PHONE, make
+
+    svc, db, _ = make()
+    aid = (await svc.create_agent("OWNER", "Rahul Sharma", PHONE, "Rahul"))["agent"]["id"]
+    media = [{"url": photo(tmp_path, f"c{i}.jpg"), "kind": "image", "order": i} for i in range(2)]
+    lid = (await svc.create_listing("OWNER", aid, ListingCreate(**FULL, media=media)))["id"]
+    await svc.publish_listing("OWNER", aid, lid)
+
+    class WithCover(Renderer):
+        def __call__(self, script, photos, lang, out, **kw):
+            res = super().__call__(script, photos, lang, out, **kw)
+            Path(out).with_name(Path(out).stem + "-cover.jpg").write_bytes(b"jpg")
+            return res
+
+    svc.reels = lr.ReelJobs(db, tmp_path, renderer=WithCover(), voice_available=lambda: False)
+    await svc.make_reel("OWNER", aid, lid, "en")
+    await svc.record_consent("OWNER", aid)
+    await svc.reels.run_once()
+    sent = []
+
+    async def publish_fn(ch, url, text, cfg=None, file_path=None, **kw):
+        sent.append((ch, url, kw.get("cover_url")))
+        return SimpleNamespace(external_id="dryrun_1", permalink=None)
+
+    dry = lambda: SocialConfig(dry_run=True, media_base_url="https://media.test")
+    await svc.post_reel("OWNER", aid, lid, "en", ["instagram", "facebook_page"], publish_fn=publish_fn, config_loader=dry)
+    (_, ig_url, ig_cover), (_, _, fb_cover) = sent
+    assert ig_cover == ig_url[:-4] + "-cover.jpg" and ig_cover.startswith("https://media.test/uploads/reels/listing-")
+    assert fb_cover is None
+
+
+
+def test_render_leaves_out_beats_rather_than_repeating_photos(tmp_path, stubs):
+    script = _script()   # 4 beats + the call to action
+    lr.render(script, ["a.jpg", "b.jpg", "c.jpg"], "en", tmp_path / "r.mp4", voiced=False)
+    scenes = stubs["scenes"]
+    assert [s.image for s in scenes] == ["a.jpg", "b.jpg", "c.jpg"]
+    assert scenes[0].lines[0].text == script["beats"][0]["screen"] and scenes[-1].lines[0].text == script["cta_screen"]
+    # two photos (the minimum): hook, one beat and the CTA; the CTA reuses the hook photo, never the one just shown
+    lr.render(script, ["a.jpg", "b.jpg"], "en", tmp_path / "r2.mp4", voiced=False)
+    assert [s.image for s in stubs["scenes"]] == ["a.jpg", "b.jpg", "a.jpg"]
+    total = compose.plan([s.seconds for s in stubs["scenes"]], lr.XFADE).total
+    assert total >= compose.MIN_SECONDS - 1e-6
+
+
+# ---- the call to action is a comment the comment assistant answers ----------------------------------------------------------
+def test_every_reel_cta_asks_for_the_interested_comment_in_roman_letters():
+    import re as _re
+    from app.modules.engage.brain import INTERESTED
+    from app.modules.reels import director, templates
+    from app.modules.reels.listing_reel import _WORDS, for_sample, with_cta
+    llm_cta = {**GOOD, "cta_screen": "Message to book a *visit*", "cta_voice": "Message us."}
+    for lang in ("en", "hi", "mr"):
+        for s in (with_cta(llm_cta, lang), for_sample(llm_cta, lang)):
+            screen = s["cta_screen"].replace("*", "")
+            assert "INTERESTED" in screen and INTERESTED.search(screen) and not _re.search(r"[\u0900-\u097f]", screen)
+            assert INTERESTED.search(s["cta_voice"]) and "bio" not in screen.lower() + s["cta_voice"].lower()
+            assert director._valid({**s, "beats": GOOD["beats"]}, "2 BHK in Kharadi 780 7 22")
+        assert "visit" not in _WORDS[lang]["cta_s"].lower()
+    assert director.CTA_SCREEN["en"] == "Comment *INTERESTED* for details"
+    assert "comment the word INTERESTED" in director.SYSTEM and "tap 'interested'" not in director.SYSTEM
+    tour, _ = templates.listing_tour(["a.jpg", "b.jpg"], templates.SAMPLE_FACTS["kharadi"])
+    assert tour[-1].lines[0].text == "Comment *INTERESTED* for details"
