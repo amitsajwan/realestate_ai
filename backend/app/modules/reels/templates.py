@@ -5,8 +5,7 @@ Rules (docs/NEWSROOM_PLAN.md, brand): no phone numbers, no invented facts, no pr
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .compose import Scene, TextLine, distinct_photos, stretch
-
-CTA_WORD = "INTERESTED"
+from .director import CTA_SCREEN, CTA_WORD  # noqa: F401  (CTA_WORD re-exported: the comment keyword)
 HOOK_SECONDS = 2.2  # the opening scene: most viewers decide in the first 1-2 s, so the hook is short and on screen from frame one
 
 
@@ -79,7 +78,7 @@ def listing_tour(photos: Sequence, facts: Dict, sample: bool = False) -> Tuple[L
         scenes.append(Scene(image=ph(n), lines=[TextLine(str(facts["price_text"]), size=150), TextLine("Did you guess right?", size=56)], layout="lower",
                             badge=badge, seconds=2.8, seed=f"tour-{n}"))
         n += 1
-    scenes.append(Scene(image=ph(n), lines=[TextLine(f"Want the details?", size=100), TextLine(f"Comment *{CTA_WORD}*", size=72, weight="semibold")],
+    scenes.append(Scene(image=ph(n), lines=[TextLine(CTA_SCREEN["en"], size=100, max_lines=3)],
                         layout="lower", badge=badge, seconds=2.8, seed=f"tour-{n}"))
     return _at_least_min(scenes, 0.5), {"transition": "slide", "xfade": 0.5}
 

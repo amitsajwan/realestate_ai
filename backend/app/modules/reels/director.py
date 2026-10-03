@@ -14,6 +14,13 @@ END_SECONDS = 2.6   # length of the optional end card (reels have none by defaul
 XFADE = 0.4
 NUM = re.compile(r"\d[\d,.]*")
 MIN_SCENES = 3   # hook, one beat, the call to action
+# The reel's call to action is a comment our comment assistant answers (engage.brain matches 'interested' / 'details' /
+# इंटरेस्टेड): the keyword stays INTERESTED in Roman capitals on screen in every language; the voice may say it in Devanagari.
+CTA_WORD = "INTERESTED"
+CTA_SCREEN = {"en": "Comment *INTERESTED* for details", "hi": "Details ke liye *INTERESTED* comment karein",
+              "mr": "Details sathi *INTERESTED* comment kara"}
+CTA_VOICE = {"en": "Like it? Comment interested for the details.", "hi": "पसंद आया? पूरी जानकारी के लिए कमेंट में इंटरेस्टेड लिखिए।",
+             "mr": "आवडलं? पूर्ण माहितीसाठी कमेंटमध्ये इंटरेस्टेड लिहा."}
 
 SYSTEM = (
     "You direct a 12 to 16 second vertical property reel for Pune home buyers. Write JSON only: "
@@ -22,7 +29,10 @@ SYSTEM = (
     "screen: at most 6 words, Roman letters only (English or Hinglish), wrap ONE key word in *stars* for gold. "
     "voice: one natural spoken sentence of at most 16 words in the requested voice language (Hindi = Devanagari script, Marathi = Devanagari, "
     "English = English). Use ONLY the facts given: never invent numbers, distances, prices, schools, builders or promises. "
-    "Never mention phone numbers. If the subject is a sample home say it is a sample. cta: invite them to tap 'interested' via the link in bio."
+    "Never mention phone numbers. If the subject is a sample home say it is a sample. "
+    "cta: ask viewers to comment the word INTERESTED for details (never a link in bio, never 'tap'). cta_screen: "
+    "'Comment *INTERESTED* for details' in English, or Hinglish with INTERESTED in Roman capitals such as "
+    "'Details ke liye *INTERESTED* comment karein'; cta_voice says the same in the voice language (Hindi/Marathi: इंटरेस्टेड)."
 )
 
 

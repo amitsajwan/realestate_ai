@@ -459,3 +459,23 @@ def test_render_leaves_out_beats_rather_than_repeating_photos(tmp_path, stubs):
     assert [s.image for s in stubs["scenes"]] == ["a.jpg", "b.jpg", "a.jpg"]
     total = compose.plan([s.seconds for s in stubs["scenes"]], lr.XFADE).total
     assert total >= compose.MIN_SECONDS - 1e-6
+
+
+# ---- the call to action is a comment the comment assistant answers ----------------------------------------------------------
+def test_every_reel_cta_asks_for_the_interested_comment_in_roman_letters():
+    import re as _re
+    from app.modules.engage.brain import INTERESTED
+    from app.modules.reels import director, templates
+    from app.modules.reels.listing_reel import _WORDS, for_sample, with_cta
+    llm_cta = {**GOOD, "cta_screen": "Message to book a *visit*", "cta_voice": "Message us."}
+    for lang in ("en", "hi", "mr"):
+        for s in (with_cta(llm_cta, lang), for_sample(llm_cta, lang)):
+            screen = s["cta_screen"].replace("*", "")
+            assert "INTERESTED" in screen and INTERESTED.search(screen) and not _re.search(r"[\u0900-\u097f]", screen)
+            assert INTERESTED.search(s["cta_voice"]) and "bio" not in screen.lower() + s["cta_voice"].lower()
+            assert director._valid({**s, "beats": GOOD["beats"]}, "2 BHK in Kharadi 780 7 22")
+        assert "visit" not in _WORDS[lang]["cta_s"].lower()
+    assert director.CTA_SCREEN["en"] == "Comment *INTERESTED* for details"
+    assert "comment the word INTERESTED" in director.SYSTEM and "tap 'interested'" not in director.SYSTEM
+    tour, _ = templates.listing_tour(["a.jpg", "b.jpg"], templates.SAMPLE_FACTS["kharadi"])
+    assert tour[-1].lines[0].text == "Comment *INTERESTED* for details"

@@ -29,7 +29,7 @@ from app.modules.marketing.images import latin, local_upload_path
 
 from . import ffmpeg, voice
 from .compose import Scene, TextLine, make_reel, plan, stretch
-from .director import XFADE, _valid, fit_beats
+from .director import CTA_SCREEN, CTA_VOICE, XFADE, _valid, fit_beats
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +58,8 @@ SYSTEM = (
     "Use ONLY the facts given: never invent numbers, distances, prices, schools, builders, views or promises. "
     "Never mention phone numbers, names of people or the agent. If the facts say it is a sample listing, say it is a sample. "
     "Plain, calm words: no sales words such as only, just, best, hurry, grab or limited. "
-    "cta: invite them to message to book a visit (for a sample listing our own closing line replaces it)."
+    "cta: ask viewers to comment the word INTERESTED for details, with INTERESTED in Roman capitals on screen "
+    "(our own closing line replaces it, so every reel ends with the same comment keyword)."
 )
 
 
@@ -136,17 +137,20 @@ def reel_facts(listing: dict, profile: Optional[dict]) -> Tuple[str, List[str], 
 _UNIT = {"hi": {"Lakh": "लाख", "Cr": "करोड़", "/month": " महीना"}, "mr": {"Lakh": "लाख", "Cr": "कोटी", "/month": " दरमहा"}}
 _WORDS = {
     "en": {"price": "Price {p}.", "area": "{a} square feet {k} area", "sqft": "sq ft", "look": "Take a *look* inside",
-           "look_v": "Take a look inside.", "cta_s": "Message to book a *visit*", "cta_v": "Like it? Message us to book a visit.",
+           "look_v": "Take a look inside.", "cta_s": CTA_SCREEN["en"], "cta_v": CTA_VOICE["en"],
            "sample": "This is a sample listing, shown for illustration. ", "with": "with", "in": "{w} in {l}",
-           "cta_sample_s": "Tell us *what* you want", "cta_sample_v": "Tell us what you are looking for, and we will find a real one."},
+           "cta_sample_s": "Want a real one? Comment *INTERESTED*",
+           "cta_sample_v": "Want a real one like it? Comment interested, and we will find one for you."},
     "hi": {"price": "कीमत {p}।", "area": "{a} स्क्वेयर फीट {k} एरिया", "look": "Andar ek *nazar*", "look_v": "अंदर एक नज़र डालिए।",
-           "cta_s": "Visit ke liye *message* karein", "cta_v": "पसंद आया? विज़िट बुक करने के लिए मैसेज कीजिए।",
+           "cta_s": CTA_SCREEN["hi"], "cta_v": CTA_VOICE["hi"],
            "sample": "यह एक सैंपल लिस्टिंग है, सिर्फ़ दिखाने के लिए। ", "with": "साथ में", "in": "{l} mein {w}",
-           "cta_sample_s": "Batayein aapko *kya* chahiye", "cta_sample_v": "बताइए आपको कैसा घर चाहिए, हम असली घर ढूँढेंगे।"},
+           "cta_sample_s": "Asli ghar chahiye? *INTERESTED* comment karein",
+           "cta_sample_v": "असली घर चाहिए? कमेंट में इंटरेस्टेड लिखिए, हम आपके लिए ढूँढेंगे।"},
     "mr": {"price": "किंमत {p}.", "area": "{a} स्क्वेअर फूट {k} एरिया", "look": "Aat ek *nazar*", "look_v": "आत एक नजर टाका.",
-           "cta_s": "Visit sathi *message* kara", "cta_v": "आवडलं? व्हिजिट बुक करण्यासाठी मेसेज करा.",
+           "cta_s": CTA_SCREEN["mr"], "cta_v": CTA_VOICE["mr"],
            "sample": "ही एक सॅम्पल लिस्टिंग आहे, फक्त दाखवण्यासाठी. ", "with": "सोबत", "in": "{l} madhye {w}",
-           "cta_sample_s": "Sanga tumhala *kay* hava", "cta_sample_v": "तुम्हाला कसं घर हवं ते सांगा, आम्ही खरं घर शोधू."},
+           "cta_sample_s": "Khara ghar hava? *INTERESTED* comment kara",
+           "cta_sample_v": "खरं घर हवं? कमेंटमध्ये इंटरेस्टेड लिहा, आम्ही शोधून देऊ."},
 }
 _KIND = {"hi": {"carpet": "कार्पेट", "super built-up": "सुपर बिल्ट-अप"}, "mr": {"carpet": "कार्पेट", "super built-up": "सुपर बिल्ट-अप"}}
 
@@ -174,7 +178,7 @@ def _short(text: str, words: int = 6) -> str:
 
 
 def rules_script(f: Facts, lang: str) -> Dict:
-    """A plain script from the facts alone: hook, price, size and floor, features (3 to 4 beats) and the visit call."""
+    """A plain script from the facts alone: hook, price, size and floor, features (3 to 4 beats) and the comment call."""
     w = _WORDS[lang]
     what = latin(f.bhk_text or f.type_text("en").title())
     place = _short(f.locality or f.city or "", 3)
@@ -220,6 +224,12 @@ def pushy(script: Dict) -> bool:
 
 
 _ON_SALE = re.compile(r"\s*(for sale|for rent|on sale|बिक्री के लिए( उपलब्ध)?|किराये के लिए|विक्रीसाठी|भाड्याने)", re.I)
+
+
+def with_cta(script: Dict, lang: str) -> Dict:
+    """Every listing reel closes with the same call to action: comment INTERESTED (the comment assistant answers it)."""
+    w = _WORDS[lang]
+    return {**script, "cta_screen": w["cta_s"], "cta_voice": w["cta_v"]}
 
 
 def for_sample(script: Dict, lang: str) -> Dict:
@@ -424,8 +434,7 @@ class ReelJobs:
             subject, facts, f = reel_facts(listing, profile)
             llm = self.llm_factory() if self.llm_factory else None
             script = await write_script(subject, facts, job["lang"], llm, rules_script(f, job["lang"]))
-            if f.sample:
-                script = for_sample(script, job["lang"])
+            script = for_sample(script, job["lang"]) if f.sample else with_cta(script, job["lang"])
             await self.jobs.update_one({"_id": jid}, {"$set": {"script": script}})
             name = f"listing-{_safe_id(job['listing_id'])}-{job['lang']}-{jid[:8]}.mp4"
             out = self.uploads_dir / "reels" / name
