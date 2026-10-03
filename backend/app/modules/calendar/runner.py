@@ -4,6 +4,8 @@ The approval gate: only rows the owner approved (status `approved`, or the legac
 One pass (`run_once`): at most one post per channel; SOCIAL_DRY_RUN marks the post published with a fake id and no network;
 a failure is recorded with a sanitised reason and retried at most twice; a post far overdue (server was down) is skipped, not burst out.
 Kinds: post (1 image, or an Instagram carousel), showcase (through showcase.publish), reel (video staged, then Instagram Reel or Page Reel).
+A carousel's Facebook copy goes out as a Page Reel of its slides (Facebook shows a multi-photo post as a grid, not a swipe), unless
+CALENDAR_FB_CAROUSEL_AS_REEL=off; if that reel cannot be made, the slides go out as one multi-photo post as before.
 Reels take about a minute to render, so `prerender_reels` renders them in the background up to two hours before they are due.
 """
 import asyncio
@@ -53,7 +55,8 @@ async def prerender_reels(store: Store, now: datetime, uploads: Optional[Path] =
 
 async def run_once(store: Store, publisher, social: SocialConfig, cfg: CalendarConfig, now: datetime, uploads: Optional[Path] = None,
                    render_reel: Callable = adapters.render_reel_for, publish_reel: Callable = adapters.publish_reel,
-                   publish_showcase: Callable = adapters.publish_showcase) -> Dict[str, int]:
+                   publish_showcase: Callable = adapters.publish_showcase,
+                   render_slides_reel: Callable = adapters.render_slides_reel_for) -> Dict[str, int]:
     """Publish what is due and approved. `publisher` is used only when SOCIAL_DRY_RUN is off. Returns counts and records them in calendar_status."""
     counts = {"published": 0, "failed": 0, "retry": 0, "skipped": 0, "waiting": 0}
     uploads = uploads or uploads_dir()
@@ -74,7 +77,8 @@ async def run_once(store: Store, publisher, social: SocialConfig, cfg: CalendarC
             counts["waiting"] += 1
             continue
         seen.add(ch)
-        outcome = await _publish_one(store, publisher, social, doc, uploads, render_reel, publish_reel, publish_showcase)
+        outcome = await _publish_one(store, publisher, social, doc, uploads, render_reel, publish_reel, publish_showcase,
+                                     render_slides_reel if cfg.fb_carousel_as_reel else None)
         counts[outcome] += 1
     await store.set_run(last_run_at=now, last_counts=counts, last_error=None if not counts["failed"] and not counts["retry"] else "see items")
     return counts
@@ -89,8 +93,23 @@ def _once(store: Store, doc: dict, publish: Callable):
     return send(store.db, f"calendar:{doc['_id']}", publish, paused_flag="posting_paused")
 
 
+async def _slides_reel(store: Store, doc: dict, uploads: Path, render: Callable) -> Optional[dict]:
+    """The row with `video` set to the Reel of its slides, or None when it cannot be made (the caller then posts the photos)."""
+    if doc.get("video"):
+        return doc
+    try:
+        video = await asyncio.to_thread(render, doc, uploads)
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:
+        log.warning("calendar: slides reel for %s failed, posting the photos instead: %s", doc["slug"], sanitize(str(e)))
+        return None
+    await store.set_video(doc["_id"], video)
+    return {**doc, "video": video}
+
+
 async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict, uploads: Path, render_reel: Callable, publish_reel: Callable,
-                       publish_showcase: Callable) -> str:
+                       publish_showcase: Callable, render_slides_reel: Optional[Callable] = None) -> str:
     attempts = int(doc.get("attempts") or 0) + 1
     try:
         kind = doc.get("kind") or "post"
@@ -116,8 +135,14 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
             missing = [p for p in imgs if not (uploads / p).is_file()]
             if missing:
                 raise RuntimeError(f"image file missing: {missing[0]}")
-            urls = [f"{social.media_base_url}/uploads/{p}" for p in imgs]
-            res = await _once(store, doc, lambda: publisher.publish(Post(doc["channel"], doc["caption"], urls)))
+            reel = None
+            if render_slides_reel and doc["channel"] == "facebook_page" and len(imgs) > 1:
+                reel = await _slides_reel(store, doc, uploads, render_slides_reel)
+            if reel:
+                res = await _once(store, reel, lambda: publish_reel(reel, social, uploads, name=f"{doc['_id']}-slides.mp4"))
+            else:
+                urls = [f"{social.media_base_url}/uploads/{p}" for p in imgs]
+                res = await _once(store, doc, lambda: publisher.publish(Post(doc["channel"], doc["caption"], urls)))
         await store.published(doc["_id"], res.external_id, res.permalink)
         await adapters.register_hub(store.db, doc, res.permalink or "")
         return "published"

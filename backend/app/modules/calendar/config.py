@@ -28,6 +28,8 @@ class CalendarConfig:
     interval_s: int = 300
     stale_hours: int = 48            # a post this long overdue is skipped, never burst out late
     owner_ids: Tuple[str, ...] = ()  # user ids allowed to use the owner endpoints; empty = superusers only
+    # Facebook shows a multi-photo post as a grid, not a swipeable carousel: its copy of a carousel goes out as a Reel of the slides
+    fb_carousel_as_reel: bool = True
 
 
 def load() -> CalendarConfig:
@@ -35,7 +37,8 @@ def load() -> CalendarConfig:
         enabled=_env("CALENDAR_ENABLED").lower() in TRUE,
         interval_s=max(30, _int("CALENDAR_INTERVAL_SECONDS", 300)),
         stale_hours=max(1, _int("CALENDAR_STALE_HOURS", 48)),
-        owner_ids=tuple(s.strip() for s in _env("CALENDAR_OWNER_IDS").split(",") if s.strip()))
+        owner_ids=tuple(s.strip() for s in _env("CALENDAR_OWNER_IDS").split(",") if s.strip()),
+        fb_carousel_as_reel=_env("CALENDAR_FB_CAROUSEL_AS_REEL", "on").lower() in TRUE)
 
 
 def uploads_dir() -> Path:
