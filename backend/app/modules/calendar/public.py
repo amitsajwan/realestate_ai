@@ -58,9 +58,22 @@ def _excerpt(caption: str) -> str:
     return (cut[:sp] if sp > EXCERPT_MAX * 0.6 else cut).rstrip(" ,;:.-") + "…"
 
 
+def _reel_still(video: str) -> Optional[str]:
+    """A picture for a reel card: its cover ('x-cover.jpg') or the first carousel slide made beside it ('x-1.jpg')."""
+    from .config import uploads_dir
+    stem = str(video).lstrip("/")[:-4] if str(video).endswith(".mp4") else ""
+    for rel in (f"{stem}-cover.jpg", f"{stem}-1.jpg") if stem else ():
+        if (uploads_dir() / rel).is_file():
+            return rel
+    return None
+
+
 def _image_url(doc: dict) -> Optional[str]:
     base = (os.environ.get("PUBLIC_MEDIA_BASE_URL") or "").strip().rstrip("/")
     images = doc.get("images") or ([doc["image_path"]] if doc.get("image_path") else [])
+    if not images and doc.get("video"):
+        still = _reel_still(doc["video"])
+        images = [still] if still else []
     if not base or not images:
         return None
     return f"{base}/uploads/{str(images[0]).lstrip('/')}"

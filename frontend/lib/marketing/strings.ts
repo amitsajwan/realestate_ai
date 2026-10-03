@@ -68,17 +68,17 @@ export const SAMPLE_NOTE = 'Screens show sample data.'
 export const LANDING = {
   metaTitle: `${BRAND_NAME}: ${TAGLINE} | Free pilot for real estate agents in Pune`,
   metaDescription:
-    'Post a property from your phone, get a website and share-ready posts, and see every buyer enquiry with a short summary of what they want. Free invite-only pilot for real estate agents in Pune.',
+    'Your own website, builder projects checked on MahaRERA, posts and reels made for you, and every enquiry as a lead card that says who to call first. Free invite-only pilot for real estate agents in Pune.',
   metaOrgDescription: 'A free, invite-only pilot that helps real estate agents in Pune get buyer enquiries and follow them up.',
   hero: {
     eyebrow: 'For real estate agents in Pune',
     pilot: 'Free, invite-only pilot',
-    title: 'A buyer comments "INTERESTED". Do you know who they are?',
+    title: 'We post your properties. You call the right buyers.',
     lead:
-      'Post a property from your phone. We make the posts and your website, and every enquiry becomes a lead card: what the buyer wants and who to call first. Call or WhatsApp them in one tap.',
+      'Avasetu gives you your own website, checks your builder projects on MahaRERA, makes the posts and reels, and turns every enquiry into a lead card: what the buyer wants and who to call first.',
     cta: 'Request an invite',
     signIn: 'Already invited? Sign in',
-    facts: ['Free during the pilot', 'Invite-only', 'Pune', 'Works in your phone browser'],
+    facts: ['Free during the pilot', 'Invite-only', 'Pune', 'No app to install'],
   },
   problem: {
     heading: 'Sound familiar?',
@@ -107,15 +107,15 @@ export const LANDING = {
   steps: {
     id: 'what-it-does',
     heading: 'Create, attract, qualify, close',
-    lead: 'Four steps, in plain words. All of this works today except where marked.',
+    lead: 'Four steps, in plain words. All of this works today.',
     items: [
       {
-        key: 'create', label: 'Create', title: 'Photos in, posts out',
-        body: 'Take photos on your phone. We fill in the title and price for you to check, then make share-ready posts in English, Hindi and Marathi.',
+        key: 'create', label: 'Create', title: 'Your homes and projects, checked',
+        body: 'Add a home from your phone, or a builder project by its MahaRERA number. We fill in the details for you to check, and for projects we read the MahaRERA record: completion date and homes booked.',
       },
       {
-        key: 'attract', label: 'Attract', title: 'One link for every buyer',
-        body: 'Your property goes on your own website with an I\'m interested button. Share the link on WhatsApp, Instagram or Facebook. Your phone number is never shown publicly.',
+        key: 'attract', label: 'Attract', title: 'Posts and reels, made for you',
+        body: 'Your own website, plus carousels and reels on Avasetu\'s Facebook and Instagram marked "Listed by" you, after you approve each one. Every post links back to your page.',
       },
       {
         key: 'qualify', label: 'Qualify', title: 'Every enquiry becomes a lead card',
@@ -156,15 +156,16 @@ export const LANDING = {
     heading: 'What is coming, and what is not ready yet',
     today: 'Works today',
     todayItems: [
-      'Post properties and get your own website',
-      'Ready-to-share posts and WhatsApp messages',
+      'Your own website with your homes and builder projects',
+      'Builder projects checked on MahaRERA, with the date we read the record',
+      'Carousels and reels on Avasetu\'s Facebook and Instagram, after you approve each one',
       'Enquiries with a summary of what each buyer wants',
       'Matching your buyers to new properties',
     ],
     next: 'Coming later',
     nextItems: [
-      'Posting to Instagram, Facebook and WhatsApp for you. This needs approval from those platforms, so until then you share the posts yourself.',
-      'Automatic follow-ups to buyers.',
+      'Posting to your own Facebook Page and Instagram. This needs approval from Meta.',
+      'WhatsApp Business messages and automatic follow-ups to buyers.',
     ],
   },
   faq: {
@@ -181,7 +182,11 @@ export const LANDING = {
       },
       {
         q: 'What about RERA?',
-        a: 'We do not issue or verify RERA registration. You stay responsible for your own RERA details, and for showing them on a listing where the law asks. Our Pune guides explain how buyers can check a project.',
+        a: 'For builder projects we read the public MahaRERA record and show it with the date we read it, next to the builder\'s own claims, so buyers see both. We do not issue or verify agent registration: you stay responsible for your own RERA details.',
+      },
+      {
+        q: 'Do you post on my own Facebook and Instagram?',
+        a: 'Not yet. Today we post on Avasetu\'s Facebook Page and Instagram, marked "Listed by" you, after you approve each post. Posting to your own accounts needs Meta\'s approval and is coming.',
       },
       {
         q: 'Who can see my listings?',
@@ -530,4 +535,30 @@ export function deletionDoc(cfg: MarketingConfig): LegalDoc {
       },
     ],
   }
+}
+
+/** A real agent on Avasetu today (featured with their consent). Images are their published carousel slides. */
+export const LIVE = {
+  id: 'live',
+  eyebrow: 'Live today',
+  heading: 'House Deal, Upper Kharadi',
+  lead: 'Five builder projects in Wagholi and Upper Kharadi, each checked on MahaRERA, on House Deal\'s own Avasetu page, with carousels and reels on our Facebook and Instagram.',
+  consent: 'Shown with House Deal\'s permission.',
+  cards: [
+    { src: '/landing/live/maharera.jpg', alt: 'Carousel slide: Checked on MahaRERA, 71% of 143 homes booked, registration P52100078796, completion date filed 30 Apr 2029.',
+      title: 'Checked on MahaRERA', body: 'Completion date filed and homes booked, read from the public record, with the date we read it.' },
+    { src: '/landing/live/possession.jpg', alt: 'Carousel slide: When could you move in? Builder\'s target Dec 2028 next to the MahaRERA date 30 Aug 2030.',
+      title: 'Both dates, explained', body: 'The builder\'s target next to the date filed with MahaRERA, in plain words, so buyers plan around the right one.' },
+    { src: '/landing/live/posts.jpg', alt: 'Carousel cover: 5 projects, 59.99 lakh to 1.25 crore, checked on MahaRERA, House Deal.',
+      title: 'Posts in the agent\'s name', body: 'Carousels and reels for every project, marked "Listed by House Deal", linking back to their page.' },
+  ],
+  links: { page: '/agent/house-deal', pageLabel: 'Open House Deal\'s page', compare: '/agent/house-deal/projects/compare', compareLabel: 'Compare the 5 projects' },
+}
+
+/** One line for buyers who land on the agent-facing home page. */
+export const BUYERS = {
+  title: 'Buying a home in Kharadi or Wagholi?',
+  body: 'Every project on Avasetu shows its MahaRERA record and the date we read it. Start with the area guides or the latest news.',
+  guides: 'Area guides',
+  news: 'News',
 }

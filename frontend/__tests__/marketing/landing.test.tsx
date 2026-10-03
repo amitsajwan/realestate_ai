@@ -39,13 +39,13 @@ describe('landing page', () => {
   it('says what is coming and that screens are sample data', () => {
     render(<LandingPage />)
     expect(screen.getByRole('heading', { name: /what is coming/i })).toBeInTheDocument()
-    expect(screen.getByText(/needs approval from those platforms/i)).toBeInTheDocument()
+    expect(screen.getByText(/needs approval from meta/i)).toBeInTheDocument()
     expect(screen.getByText(/screens show sample data/i)).toBeInTheDocument()
   })
 
   it('uses the six real screenshots, lazy loaded, with alt text and dimensions', () => {
     const { container } = render(<LandingPage />)
-    const shots = Array.from(container.querySelectorAll('img')).filter((i) => (i.getAttribute('src') || '').startsWith('/landing/'))
+    const shots = Array.from(container.querySelectorAll('img')).filter((i) => /^\/landing\/[^/]+$/.test(i.getAttribute('src') || ''))
     expect(shots.map((i) => i.getAttribute('src')).sort()).toEqual(Object.values(SHOTS).map((s) => s.src).sort())
     shots.forEach((i) => {
       expect(i.getAttribute('alt')!.length).toBeGreaterThan(20)
@@ -57,10 +57,28 @@ describe('landing page', () => {
 
   it('leads with the agent problem and an HTML phone mock of the lead card, labelled as sample', () => {
     render(<LandingPage />)
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/interested/i)
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/right buyers/i)
     expect(screen.getAllByText('INTERESTED').length).toBeGreaterThan(0)
     expect(screen.getByText('HOT')).toBeInTheDocument()
     expect(screen.getByText('Sample data')).toBeInTheDocument()
+  })
+
+  it('shows a real agent live today, with their pages and real slides, and says it is with their permission', () => {
+    const { container } = render(<LandingPage />)
+    expect(screen.getByRole('heading', { name: /house deal, upper kharadi/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /open house deal's page/i })).toHaveAttribute('href', '/agent/house-deal')
+    expect(screen.getByRole('link', { name: /compare the 5 projects/i })).toHaveAttribute('href', '/agent/house-deal/projects/compare')
+    expect(screen.getByText(/with house deal's permission/i)).toBeInTheDocument()
+    const live = Array.from(container.querySelectorAll('img')).filter((i) => (i.getAttribute('src') || '').startsWith('/landing/live/'))
+    expect(live).toHaveLength(3)
+    live.forEach((i) => expect(i.getAttribute('alt')!.length).toBeGreaterThan(30))
+  })
+
+  it('gives buyers two doors: area guides and news', () => {
+    render(<LandingPage />)
+    const strip = screen.getByRole('heading', { name: /buying a home in kharadi or wagholi/i }).closest('section')!
+    expect(within(strip).getByRole('link', { name: 'Area guides' })).toHaveAttribute('href', '/localities')
+    expect(within(strip).getByRole('link', { name: 'News' })).toHaveAttribute('href', '/news')
   })
 
   it('tells the create, attract, qualify, close story in order', () => {

@@ -9,7 +9,7 @@ import RequestInviteForm from '@/components/marketing/RequestInviteForm'
 import { socialLinks } from '@/lib/marketing/social'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { jsonLdString, organizationJsonLd, pageMetadata } from '@/lib/marketing/seo'
-import { LANDING as L, PATHS, SAMPLE_NOTE, SHOTS } from '@/lib/marketing/strings'
+import { BUYERS, LANDING as L, LIVE, PATHS, SAMPLE_NOTE, SHOTS } from '@/lib/marketing/strings'
 import { BRAND_NAME, TAGLINE, demoAgentPath } from '@/lib/brand'
 
 export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
@@ -69,6 +69,39 @@ export default function LandingPage() {
               </li>
             ))}
           </ul>
+        </div>
+      </section>
+
+      {/* A real agent, live today: the proof before the explanation */}
+      <section id={LIVE.id} aria-labelledby="live-title" className="scroll-mt-16 py-12 sm:py-16">
+        <div className={wrap}>
+          <p className="text-xs font-bold uppercase tracking-wide text-[#8a5d00]">{LIVE.eyebrow}</p>
+          <h2 id="live-title" className={h2 + ' mt-1'}>{LIVE.heading}</h2>
+          <p className="mt-2 max-w-3xl text-lg text-slate-700">{LIVE.lead}</p>
+          <ul className="mt-8 flex snap-x gap-4 overflow-x-auto pb-3 sm:grid sm:grid-cols-3 sm:gap-5 sm:overflow-visible" tabIndex={0} aria-label={LIVE.heading}>
+            {LIVE.cards.map((c) => (
+              <li key={c.src} className="w-[72%] flex-none snap-start list-none sm:w-auto">
+                <figure className="m-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={c.src} alt={c.alt} width={720} height={900} loading="lazy"
+                    className="aspect-[4/5] h-auto w-full rounded-2xl border border-slate-200 object-cover shadow-sm" />
+                  <figcaption className="mt-3">
+                    <span className="block text-lg font-bold text-[#0f2340]">{c.title}</span>
+                    <span className="mt-1 block leading-relaxed text-slate-700">{c.body}</span>
+                  </figcaption>
+                </figure>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <Link href={LIVE.links.page} className="inline-flex min-h-[48px] items-center justify-center rounded-xl bg-[#0f2340] px-6 font-bold text-white no-underline hover:bg-[#183a5d]">
+              {LIVE.links.pageLabel}
+            </Link>
+            <Link href={LIVE.links.compare} className="inline-flex min-h-[48px] items-center justify-center rounded-xl border-2 border-[#0f2340] px-6 font-bold text-[#0f2340] no-underline hover:bg-slate-50">
+              {LIVE.links.compareLabel}
+            </Link>
+            <span className="text-sm text-slate-600">{LIVE.consent}</span>
+          </div>
         </div>
       </section>
 
@@ -157,6 +190,20 @@ export default function LandingPage() {
                 </ul>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Buyers who land here: one line and two doors */}
+      <section aria-labelledby="buyers-title" className="border-y border-[#ead9ae] bg-[#fbf6ea] py-8">
+        <div className={wrap + ' flex flex-wrap items-center justify-between gap-4'}>
+          <div className="max-w-2xl">
+            <h2 id="buyers-title" className="text-xl font-extrabold text-[#0f2340]">{BUYERS.title}</h2>
+            <p className="mt-1 text-slate-700">{BUYERS.body}</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/localities" className="inline-flex min-h-[44px] items-center rounded-xl border-2 border-[#0f2340] px-5 font-bold text-[#0f2340] no-underline">{BUYERS.guides}</Link>
+            <Link href="/news" className="inline-flex min-h-[44px] items-center rounded-xl border-2 border-[#0f2340] px-5 font-bold text-[#0f2340] no-underline">{BUYERS.news}</Link>
           </div>
         </div>
       </section>

@@ -103,3 +103,17 @@ async def test_no_image_base_gives_null_and_cache_holds(monkeypatch):
     assert len(c.get("/public/posts").json()) == 1   # cached
     public.clear_cache()
     assert len(c.get("/public/posts").json()) == 2
+
+
+def test_a_reel_card_uses_its_cover_or_first_slide(tmp_path, monkeypatch):
+    from app.modules.calendar import config as cal_config
+    from app.modules.calendar import public
+    monkeypatch.setenv("PUBLIC_MEDIA_BASE_URL", "https://avasetu.in")
+    monkeypatch.setattr(cal_config, "uploads_dir", lambda: tmp_path)
+    (tmp_path / "agentprojects" / "hd").mkdir(parents=True)
+    doc = {"kind": "reel", "images": [], "video": "agentprojects/hd/amco.mp4"}
+    assert public._image_url(doc) is None
+    (tmp_path / "agentprojects" / "hd" / "amco-1.jpg").write_bytes(b"x")
+    assert public._image_url(doc) == "https://avasetu.in/uploads/agentprojects/hd/amco-1.jpg"
+    (tmp_path / "agentprojects" / "hd" / "amco-cover.jpg").write_bytes(b"x")
+    assert public._image_url(doc).endswith("/amco-cover.jpg")
