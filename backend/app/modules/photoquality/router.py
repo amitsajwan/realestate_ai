@@ -50,9 +50,17 @@ def _news_owner(user: User) -> bool:
     return _is_owner(user, load().owner_ids)
 
 
-def _concierge_owner(user: User) -> bool:
-    from app.modules.concierge import config
-    return _is_owner(user, config.owner_ids())
+_hooks: Dict[str, Callable[[User], bool]] = {"is_operator": lambda user: False}
+
+
+def configure(is_operator: Callable[[User], bool]) -> None:
+    """Called once by the route list (api/v1/router.py) with the operator console's check: an operator may review any
+    agent's listing cards."""
+    _hooks["is_operator"] = is_operator
+
+
+def _operator(user: User) -> bool:
+    return bool(getattr(user, "is_superuser", False)) or _hooks["is_operator"](user)
 
 
 async def resolve(body: ReviewIn, user: User, db) -> tuple:
@@ -73,7 +81,7 @@ async def resolve(body: ReviewIn, user: User, db) -> tuple:
             raise HTTPException(404, "Item not found")
         return targets.news_target(doc)
     listing = await db.get_collection("listings").find_one({"_id": body.id})
-    if not listing or (str(listing.get("agent_id")) != str(user.id) and not _concierge_owner(user)):
+    if not listing or (str(listing.get("agent_id")) != str(user.id) and not _operator(user)):
         raise HTTPException(404, "Listing not found")
     pack = await db.get_collection("marketing_packs").find_one({"_id": body.id}) or {}
     return targets.listing_target(pack, listing)
