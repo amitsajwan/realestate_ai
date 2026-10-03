@@ -180,3 +180,9 @@ def test_a_question_starting_with_has_is_not_a_name():
     res = check(_draft("VIKRAM MARQUEE in Kharadi was listed or updated on MahaRERA.\n\nHas anyone visited the site?"),
                 MAHA_FACTS, MAHA, NOW)
     assert not any("Names not in the source" in p for p in res.problems), res.problems
+
+
+def test_iso_dates_are_not_taken_for_phone_numbers():
+    from app.modules.newsroom import presentation as pr
+    assert pr.PHONE.findall("last modified on 2026-10-01.") == []
+    assert pr.PHONE.findall("call 98765 43210 or +91 98765-43210") == ["98765 43210", "+91 98765-43210"]

@@ -13,7 +13,7 @@ from . import policy
 
 URL = re.compile(r"https?://\S+|www\.\S+", re.I)
 TAG = re.compile(r"#\w+")
-PHONE = re.compile(r"(?<!\w)\+?\d[\d\s\-]{8,}\d(?!\w)")
+PHONE = re.compile(r"(?<!\w)(?!\d{4}-\d{2}-\d{2}(?!\d))\+?\d[\d\s\-]{8,}\d(?!\w)")  # a date like 2026-10-01 is not a phone
 BRAND = brand.TEAM
 SPACE = re.compile(r"\s+")
 AREA_NAMES = {"kharadi": "Kharadi", "upper_kharadi": "Upper Kharadi", "wagholi": "Wagholi"}
