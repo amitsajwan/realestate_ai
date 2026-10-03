@@ -5,7 +5,7 @@ import { NEWS_TEXT } from '@/lib/news/data'
 
 export default function Loading() {
   return (
-    <MarketingShell showInviteCta={false}>
+    <MarketingShell>
       <section className="py-8 sm:py-14">
         <div className="mx-auto max-w-3xl px-4">
           <h1 className="text-3xl font-extrabold tracking-tight text-[#0f2340] sm:text-4xl">{NEWS_TEXT.heading}</h1>

@@ -25,7 +25,7 @@ export default async function NewsItemPage({ params }: Props) {
   if (!res.ok && res.notFound) notFound()
   const cfg = getMarketingConfig()
   return (
-    <MarketingShell showInviteCta={false}>
+    <MarketingShell>
       {res.ok ? (
         <>
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(newsJsonLd(cfg, res.item)) }} />

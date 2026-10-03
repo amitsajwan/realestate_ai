@@ -87,7 +87,7 @@ export default function ForAgentsPage() {
     { label: 'Pune property news', note: 'Plain-language news, with sources', href: '/news', url: site + '/news' },
   ]
   return (
-    <MarketingShell>
+    <MarketingShell cta="agent">
       <style dangerouslySetInnerHTML={{ __html: PRINT_CSS }} />
       <article className="fa-root" aria-labelledby="fa-title">
         {/* Hero */}

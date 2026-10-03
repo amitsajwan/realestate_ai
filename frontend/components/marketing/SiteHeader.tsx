@@ -2,7 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import { NAV, PATHS } from '@/lib/marketing/strings'
 import { LOGO } from '@/lib/brand'
-import { siteLinks, type SiteLink } from './siteLinks'
+import { siteLinks, type Audience, type SiteLink } from './siteLinks'
 
 function NavLink({ l, className }: { l: SiteLink; className: string }) {
   return l.external ? (
@@ -14,8 +14,14 @@ function NavLink({ l, className }: { l: SiteLink; className: string }) {
   )
 }
 
-/** Navy header: mark + name, the main links on wide screens, a Menu disclosure on phones (no JavaScript needed), and the invite button. */
-export default function SiteHeader({ businessName, showInviteCta = true }: { businessName: string; showInviteCta?: boolean }) {
+/** Which button the header shows: the buyer's 'Tell us what you need', the agent's 'Request an invite', or none (the invite page itself). */
+export type HeaderCta = Audience | 'none'
+
+const button = 'flex min-h-[44px] items-center whitespace-nowrap rounded-lg bg-[#f0b440] px-3 font-bold text-[#0f2340] no-underline hover:bg-[#f5c75e] sm:px-4'
+
+/** Navy header: mark + name, the main links on wide screens, a Menu disclosure on phones (no JavaScript needed), and one gold button
+ *  chosen by the page's audience: buyer pages (the default) ask what the visitor needs, agent pages offer the invite. */
+export default function SiteHeader({ businessName, cta = 'buyer' }: { businessName: string; cta?: HeaderCta }) {
   const s = siteLinks()
   const wide = 'hidden min-h-[44px] items-center whitespace-nowrap px-2 font-medium text-white/90 no-underline hover:text-white lg:flex xl:px-3'
   const item = 'flex min-h-[48px] items-center border-b border-white/10 px-1 font-medium text-white no-underline last:border-b-0'
@@ -28,13 +34,16 @@ export default function SiteHeader({ businessName, showInviteCta = true }: { bus
           {businessName}
         </Link>
         <nav aria-label={NAV.primaryLabel} className="flex items-center gap-1 text-sm">
-          {s.headerWide.map((l) => <NavLink key={l.href} l={l} className={wide} />)}
+          {s.headerWide[cta === 'agent' ? 'agent' : 'buyer'].map((l) => <NavLink key={l.href} l={l} className={wide} />)}
           <NavLink l={s.signIn} className={wide} />
-          {showInviteCta && (
-            <Link href={s.invite.href}
-              className="flex min-h-[44px] items-center whitespace-nowrap rounded-lg bg-[#f0b440] px-3 font-bold text-[#0f2340] no-underline hover:bg-[#f5c75e] sm:px-4">
-              {NAV.requestInvite}
-            </Link>
+          {cta === 'buyer' && (
+            // the short words on phones are the start of the full name, so voice control users can say what they see
+            <a href={s.need.href} aria-label={s.need.label} data-testid="header-cta" className={button}>
+              <span className="sm:hidden">Tell us</span><span className="hidden sm:inline">{s.need.label}</span>
+            </a>
+          )}
+          {cta === 'agent' && (
+            <Link href={s.invite.href} data-testid="header-cta" className={button}>{NAV.requestInvite}</Link>
           )}
           <details className="group relative lg:hidden">
             <summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-1.5 rounded-lg px-2 font-semibold text-white [&::-webkit-details-marker]:hidden">

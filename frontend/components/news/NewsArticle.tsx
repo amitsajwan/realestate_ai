@@ -2,12 +2,13 @@ import React from 'react'
 import Link from 'next/link'
 import { formatNewsDate, NEWS_TEXT, type NewsItem } from '@/lib/news/data'
 import { policyDisclaimer } from '@/lib/news/disclaimer'
+import BuyerLine from './BuyerLine'
 import InterestStrip from './InterestStrip'
 import { TEAM } from '@/lib/brand'
 
 const CHANNEL = { facebook: 'Facebook', instagram: 'Instagram' } as const
 
-/** The detail view of one news item: headline, our summary, our labelled view, what to check, the source (as a named link, never a bare URL),
+/** The detail view of one news item: headline, our summary and its 'Worth checking' line, our labelled view, what to check, the source (as a named link, never a bare URL),
  *  the standing disclaimer and the interest strip. */
 export default function NewsArticle({ item }: { item: NewsItem }) {
   const date = formatNewsDate(item.as_of)
@@ -52,6 +53,7 @@ export default function NewsArticle({ item }: { item: NewsItem }) {
         <>
           <p className="mt-8 text-lg leading-relaxed text-slate-900" data-testid="news-summary">{item.summary}</p>
           <p className="mt-2 text-xs text-slate-600">{NEWS_TEXT.summaryNote}</p>
+          <BuyerLine line={item.buyer_line} />
 
           {item.our_view && (
             <section className="mt-6 rounded-xl bg-slate-50 p-4" data-testid="news-our-view" aria-labelledby="view-h">

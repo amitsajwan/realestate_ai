@@ -29,7 +29,7 @@ export const NAV = {
 }
 
 export const FOOTER = {
-  tagline: TAGLINE + '. A free pilot for real estate agents in Pune.',
+  tagline: TAGLINE + '. Plain-language property news, area guides and homes for Kharadi, Upper Kharadi and Wagholi, Pune.',
   contactUnset: 'Contact details are shared when you request an invite.',
   contactHeading: 'Contact',
 }

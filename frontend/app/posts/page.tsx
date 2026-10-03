@@ -17,7 +17,7 @@ export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
 export default async function PostsPage() {
   const res = await fetchPosts(24)
   return (
-    <MarketingShell showInviteCta={false}>
+    <MarketingShell>
       <section aria-labelledby="posts-page-title" className="py-10 sm:py-14">
         <div className="mx-auto max-w-5xl px-4">
           <h1 id="posts-page-title" className="text-3xl font-extrabold tracking-tight text-[#0f2340] sm:text-4xl">{POSTS_TEXT.heading}</h1>

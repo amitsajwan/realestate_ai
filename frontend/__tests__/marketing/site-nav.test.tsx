@@ -24,14 +24,34 @@ function hrefOf(scope: HTMLElement, name: RegExp): string | null {
 }
 
 describe('site header', () => {
-  it('links to every main page, the invite form and the social profiles', () => {
+  it('links to every main page and the social profiles', () => {
     render(<SiteHeader businessName="Avasetu" />)
     const header = screen.getByRole('banner')
     for (const [name, href] of EXPECTED) expect(hrefOf(header, name)).toBe(href)
-    expect(hrefOf(header, /request an invite/i)).toBe('/request-invite')
     expect(hrefOf(header, /^instagram/i)).toBe(socialLinks().instagram)
     expect(hrefOf(header, /^facebook/i)).toBe(socialLinks().facebook)
     expect(header).toHaveAttribute('data-print', 'hide')
+  })
+
+  it('buyer pages (the default) get the buyer button, to the existing enquiry form, and no invite button', () => {
+    render(<SiteHeader businessName="Avasetu" />)
+    const header = screen.getByRole('banner')
+    const cta = within(header).getByTestId('header-cta')
+    expect(cta).toHaveAccessibleName('Tell us what you need')
+    expect(cta).toHaveAttribute('href', '/agent/avasetu#enquire')
+    expect(within(header).queryByRole('link', { name: /request an invite/i })).toBeNull()
+    expect(hrefOf(header, /^for agents$/i)).toBe('/for-agents')  // still a normal link
+  })
+
+  it('agent pages get "Request an invite"; the invite page itself gets no button', () => {
+    const { unmount } = render(<SiteHeader businessName="Avasetu" cta="agent" />)
+    const cta = within(screen.getByRole('banner')).getByTestId('header-cta')
+    expect(cta).toHaveTextContent('Request an invite')
+    expect(cta).toHaveAttribute('href', '/request-invite')
+    expect(within(screen.getByRole('banner')).queryByRole('link', { name: /tell us what you need/i })).toBeNull()
+    unmount()
+    render(<SiteHeader businessName="Avasetu" cta="none" />)
+    expect(within(screen.getByRole('banner')).queryByTestId('header-cta')).toBeNull()
   })
 
   it('takes the demo slug from NEXT_PUBLIC_DEMO_AGENT_SLUG', () => {
@@ -60,6 +80,15 @@ describe('site footer', () => {
     expect(hrefs).toEqual(expect.arrayContaining([socialLinks().instagram, socialLinks().facebook]))
     expect(footer.textContent).not.toMatch(/(?:\+?\d[\s\-().]*){10,}/)
     expect(footer.querySelector('a[href^="tel:"], a[href*="wa.me"]')).toBeNull()
+  })
+
+  it('describes the site to buyers, not as an agent pilot, and keeps the agent links in their own column', () => {
+    render(<SiteFooter cfg={cfg} />)
+    const footer = screen.getByRole('contentinfo')
+    expect(footer).toHaveTextContent('Your bridge to the right home. Plain-language property news, area guides and homes for Kharadi, Upper Kharadi and Wagholi, Pune.')
+    expect(footer.textContent).not.toMatch(/pilot/i)
+    const agents = within(footer).getByRole('heading', { name: /^for agents$/i }).parentElement as HTMLElement
+    expect(within(agents).getAllByRole('link').map((a) => a.textContent)).toEqual(['For agents', 'See a demo page', 'Request an invite', 'Sign in'])
   })
 })
 

@@ -53,12 +53,20 @@ export function ChatHomeCard({ card }: { card: ChatCard }) {
   )
 }
 
+/** Where the bubble sits: above the agent site's mobile StickyBar (in the corner from md up), or in the corner; both clear the iPhone home bar. */
+const CHAT_BOTTOM = {
+  withBar: 'bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] md:bottom-6',
+  withoutBar: 'bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:bottom-6',
+}
+
 /**
  * Floating "Chat with us" for public pages. Answers basic questions, shows matching homes as cards, and, step by step, collects the visitor's
  * requirement and (with consent) a phone number. All logic is on the server; this component only shows the conversation.
- * `agentSlug` decides whose inbox a lead lands in.
+ * `agentSlug` decides whose inbox a lead lands in. `bottomBar` (default true: agent sites) lifts the bubble above the mobile
+ * WhatsApp / Call / Enquire bar; pages without that bar pass false so it sits in the corner. On phones the closed bubble is a small round
+ * icon button (named "Chat with us" for screen readers) so it covers as little of the page as possible; from 640 px up it shows the words.
  */
-export default function ChatWidget({ agentSlug }: { agentSlug: string }) {
+export default function ChatWidget({ agentSlug, bottomBar = true }: { agentSlug: string; bottomBar?: boolean }) {
   const [open, setOpen] = useState(false)
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [quick, setQuick] = useState<string[]>([])
@@ -117,7 +125,7 @@ export default function ChatWidget({ agentSlug }: { agentSlug: string }) {
   }
 
   return (
-    <div className="fixed bottom-20 right-4 z-40 md:bottom-6" data-testid="chat-widget">
+    <div className={'fixed right-3 z-40 sm:right-4 ' + (bottomBar ? CHAT_BOTTOM.withBar : CHAT_BOTTOM.withoutBar)} data-testid="chat-widget">
       {open && (
         <section aria-label={`Chat with ${BRAND_NAME}`} className="mb-3 flex h-[78vh] max-h-[640px] w-[min(92vw,380px)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
           <header className="flex items-center justify-between bg-[var(--site-primary,#102340)] px-4 py-3 text-white">
@@ -161,8 +169,12 @@ export default function ChatWidget({ agentSlug }: { agentSlug: string }) {
         </section>
       )}
       {!open && (
-        <button type="button" onClick={toggle} className="flex min-h-[52px] items-center gap-2 rounded-full bg-[#102340] px-5 font-bold text-white shadow-xl">
-          <span aria-hidden>💬</span> Chat with us
+        <button type="button" onClick={toggle} aria-label="Chat with us" data-testid="chat-open"
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-[#102340] font-bold text-white shadow-xl ring-2 ring-white/80 focus:outline-none focus-visible:ring-[#f0b440] sm:h-auto sm:min-h-[52px] sm:w-auto sm:gap-2 sm:px-5">
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z" />
+          </svg>
+          <span aria-hidden="true" className="hidden sm:inline">Chat with us</span>
         </button>
       )}
     </div>
