@@ -5,6 +5,7 @@ import { FOR_AGENTS } from '@/app/for-agents/content'
 import { encodeQr } from '@/lib/qr'
 import { siteUrl } from '@/lib/brand'
 import { socialLinks } from '@/lib/marketing/social'
+import { SHOTS } from '@/lib/marketing/strings'
 
 const PHONE = /(?:\+?\d[\s\-().]*){10,}/
 
@@ -52,6 +53,30 @@ describe('/for-agents brochure', () => {
     expect(css).toMatch(/@media print/)
     expect(css).toMatch(/size: A4/)
     expect(css).toContain('.fa-root .bg-\\[\\#0f2340\\] { background-color: #0f2340 !important; }')
+  })
+
+  it('shows the six real screenshots on screen only, lazy loaded, with alt text, dimensions and a sample-data note', () => {
+    const { container } = render(<ForAgentsPage />)
+    const shots = Array.from(container.querySelectorAll('img')).filter((i) => (i.getAttribute('src') || '').startsWith('/landing/'))
+    expect(shots.map((i) => i.getAttribute('src')).sort()).toEqual(Object.values(SHOTS).map((s) => s.src).sort())
+    shots.forEach((i) => {
+      expect(i.getAttribute('alt')!.length).toBeGreaterThan(20)
+      expect(i).toHaveAttribute('width', '780')
+      expect(i).toHaveAttribute('height', '1688')
+      expect(i).toHaveAttribute('loading', 'lazy')
+    })
+    expect(screen.getByText(/screens show sample data/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /the real screens/i }).closest('section')).toHaveClass('print:hidden')
+  })
+
+  it('answers cost, lead visibility, RERA and data in the FAQ, with privacy and deletion links', () => {
+    render(<ForAgentsPage />)
+    for (const q of [/what does it cost/i, /who sees my buyer leads/i, /what about rera/i, /what happens to my buyers/i, /how do i get my data deleted/i]) {
+      expect(screen.getByText(q)).toBeInTheDocument()
+    }
+    expect(screen.getByRole('link', { name: /read the privacy policy/i })).toHaveAttribute('href', '/privacy')
+    expect(within(screen.getByRole('article')).getByRole('link', { name: /^data deletion$/i })).toHaveAttribute('href', '/data-deletion')
+    expect(screen.getByRole('heading', { name: /questions agents ask/i }).closest('section')).toHaveClass('print:hidden')
   })
 
   it('has a QR code for the invite page URL built from the site setting', () => {
