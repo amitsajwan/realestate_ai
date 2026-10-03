@@ -7,6 +7,7 @@ def no_retry_delay(monkeypatch):
     from app.modules.newsroom.stages import draft
     monkeypatch.setattr(draft, "RETRY_DELAY", 0)
     monkeypatch.setattr(maharera, "RETRY_DELAY", 0)
+    monkeypatch.setattr(maharera, "LATE_PAUSE", 0)
 
 
 @pytest.fixture(autouse=True)

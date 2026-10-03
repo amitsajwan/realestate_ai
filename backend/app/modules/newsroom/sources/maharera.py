@@ -27,6 +27,10 @@ PUNE_DISTRICT = 521  # value of the site's district filter for Pune (verified 20
 PAGE_SIZE = 10
 TRIES = 3
 RETRY_DELAY = 2.0  # seconds, grows per try; tests set it to 0
+# the site's failures come in bursts of several seconds (verified live 2026-10-03: pages 1291 and 1290, where the newest
+# in-area projects were, failed all 3 quick tries), so pages still missing after the pass are asked again after a pause
+LATE_ROUNDS = 2
+LATE_PAUSE = 20.0  # seconds before each late round; tests set it to 0
 DETAIL = "https://maharerait.maharashtra.gov.in/public/project/view/"
 
 _TOTAL = re.compile(r'Showing Final\s*<span[^>]*>\s*(\d+)\s*</span>', re.I)
@@ -129,18 +133,23 @@ class MahaReraSource:
                 log.warning("newsroom: MahaRERA gave no result count after %d tries", TRIES)
                 return []
             last = (total - 1) // PAGE_SIZE
-            seen, missed = set(), []
-            for page in range(last, max(last - self.pages, -1), -1):
-                body = await _ask(get, SEARCH.format(district=self.district, page=page), lambda b: parse_projects(b))
-                if body is None:
-                    missed.append(page)
-                    continue
-                for p in parse_projects(body):
-                    if p.regno not in seen:
-                        seen.add(p.regno)
-                        self.projects.append(p)
-            if missed:
-                log.warning("newsroom: MahaRERA pages %s stayed empty after %d tries", missed, TRIES)
+            seen, missed = set(), list(range(last, max(last - self.pages, -1), -1))
+            for rnd in range(1 + LATE_ROUNDS):
+                if rnd and missed:
+                    await asyncio.sleep(LATE_PAUSE)
+                still = []
+                for page in missed:
+                    body = await _ask(get, SEARCH.format(district=self.district, page=page), lambda b: parse_projects(b))
+                    if body is None:
+                        still.append(page)
+                        continue
+                    for p in parse_projects(body):
+                        if p.regno not in seen:
+                            seen.add(p.regno)
+                            self.projects.append(p)
+                missed = still
+            if missed:  # the count's last page is often empty for good; any other page here means projects were lost this run
+                log.warning("newsroom: MahaRERA pages %s stayed empty after %d rounds", missed, 1 + LATE_ROUNDS)
             fetched_at = now_utc()
             return [to_item(p, fetched_at) for p in self.projects]
         except Exception:

@@ -141,8 +141,24 @@ async def test_flaky_pages_are_asked_again(caplog):
     with caplog.at_level(logging.WARNING):
         await run(store, get)
     assert await store.projects.count_documents({}) == 3
-    assert sum("page=1290&" in u for u in calls) == 3
+    assert sum("page=1290&" in u for u in calls) == 3 * 3  # 3 tries in the pass, 3 in each of 2 late rounds
     assert "[1290, 1289]" in caplog.text
+
+
+async def test_a_page_lost_to_a_burst_of_failures_is_recovered_later():
+    """What happened live on 2026-10-03: the page with the newest in-area projects failed all 3 quick tries."""
+    answers = {}
+
+    async def get(url):
+        if "page=0&" in url:
+            return FIRST
+        if "page=1291&" in url:
+            answers["n"] = answers.get("n", 0) + 1
+            return EMPTY if answers["n"] <= 4 else PAGE_1291  # down for the whole first pass and the first late try
+        return EMPTY
+    store = Store(FakeDb())
+    await run(store, get)
+    assert await store.projects.count_documents({}) == 3
 
 
 async def test_register_failure_never_stops_the_news():
