@@ -7,6 +7,7 @@ import { buildMarketingConfig } from '@/lib/marketing/config'
 import { socialLinks } from '@/lib/marketing/social'
 
 jest.mock('@/components/site/PostsSection', () => ({ __esModule: true, default: () => null }))
+jest.mock('@/components/news/NewsSection', () => ({ __esModule: true, default: () => null }))
 
 const cfg = buildMarketingConfig({})
 const EXPECTED: Array<[RegExp, string]> = [
@@ -64,9 +65,9 @@ describe('site footer', () => {
 })
 
 describe('landing hero', () => {
-  it('leads with "Join the free pilot" and offers "See a live agent example" second', () => {
+  it('leads with "Join the free pilot" and offers "See an example agent page" second', () => {
     render(<LandingPage />)
     expect(screen.getAllByRole('link', { name: /^join the free pilot$/i })[0]).toHaveAttribute('href', '/request-invite')
-    expect(screen.getByRole('link', { name: /^see a live agent example$/i })).toHaveAttribute('href', '/agent/house-deal')
+    expect(screen.getByRole('link', { name: /^see an example agent page$/i })).toHaveAttribute('href', '/agent/house-deal')
   })
 })

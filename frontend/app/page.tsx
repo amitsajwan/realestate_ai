@@ -4,6 +4,8 @@ import type { Metadata } from 'next'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import LeadCardMock from '@/components/marketing/LeadCardMock'
 import RequestInviteForm from '@/components/marketing/RequestInviteForm'
+import NewsSection from '@/components/news/NewsSection'
+import PostsSection from '@/components/site/PostsSection'
 import { socialLinks } from '@/lib/marketing/social'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { jsonLdString, organizationJsonLd, pageMetadata } from '@/lib/marketing/seo'
@@ -99,7 +101,6 @@ export default function LandingPage() {
             <Link href={LIVE.links.compare} className="inline-flex min-h-[48px] items-center justify-center rounded-xl border-2 border-[#0f2340] px-6 font-bold text-[#0f2340] no-underline hover:bg-slate-50">
               {LIVE.links.compareLabel}
             </Link>
-            <span className="text-sm text-slate-600">{LIVE.consent}</span>
           </div>
         </div>
       </section>
@@ -127,6 +128,10 @@ export default function LandingPage() {
           </p>
         </div>
       </section>
+
+      {/* Content and news: proof that Avasetu publishes every day */}
+      <PostsSection />
+      <NewsSection />
 
       {/* Cost + status, honest */}
       <section id={L.cost.id} aria-labelledby="cost-title" className="scroll-mt-16 bg-slate-50 py-12 sm:py-16">

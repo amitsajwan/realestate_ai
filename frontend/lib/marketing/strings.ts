@@ -78,7 +78,7 @@ export const LANDING = {
       'Avasetu gives Pune agents their own property website, makes the posts and reels, and turns every enquiry into a lead card that says what the buyer wants and who to call first.',
     publishing: 'We create the content and publish it through Avasetu\'s Facebook and Instagram, marked "Listed by" you. Posting to your own Page and Instagram is coming.',
     cta: 'Join the free pilot',
-    secondary: 'See a live agent example',
+    secondary: 'See an example agent page',
     signIn: 'Already invited? Sign in',
     facts: ['Free during the pilot', 'Invite-only', 'Pune', 'No app to install'],
   },
@@ -151,7 +151,7 @@ export const LANDING = {
     id: 'cost',
     heading: 'What it costs',
     title: 'Free during the pilot',
-    body: 'There is no charge to use it during the pilot. If that ever changes, we will tell you first.',
+    body: 'No charge during the pilot. After the pilot, Avasetu will stay low-cost for agents: a small monthly fee, not a big subscription. We will tell you the price before anything changes, and you decide.',
   },
   coming: {
     id: 'whats-coming',
@@ -176,7 +176,7 @@ export const LANDING = {
     items: [
       {
         q: 'What does it cost?',
-        a: 'Nothing during the pilot. If that ever changes, we will tell you first.',
+        a: 'Nothing during the pilot. After it, Avasetu stays low-cost for agents: a small monthly fee, not a big subscription. We will tell you the price before anything changes, and you decide whether to continue.',
       },
       {
         q: 'Who sees my buyer leads?',
@@ -542,19 +542,18 @@ export function deletionDoc(cfg: MarketingConfig): LegalDoc {
 /** A real agent on Avasetu today (featured with their consent). Images are their published carousel slides. */
 export const LIVE = {
   id: 'live',
-  eyebrow: 'Live today: House Deal, Upper Kharadi',
-  heading: 'See what an Avasetu agent actually gets',
-  lead: 'Five builder projects in Wagholi and Upper Kharadi, each checked on MahaRERA, on House Deal\'s own Avasetu page, with carousels and reels on our Facebook and Instagram.',
-  consent: 'Shown with House Deal\'s permission.',
+  eyebrow: 'Example agent page',
+  heading: 'See what an Avasetu agent gets',
+  lead: 'A sample page we built for House Deal, Upper Kharadi: five builder projects in Wagholi and Upper Kharadi, each checked on MahaRERA, with carousels and reels made for each one.',
   cards: [
     { src: '/landing/live/maharera.jpg', alt: 'Carousel slide: Checked on MahaRERA, 71% of 143 homes booked, registration P52100078796, completion date filed 30 Apr 2029.',
       title: 'Checked on MahaRERA', body: 'Completion date filed and homes booked, read from the public record, with the date we read it.' },
     { src: '/landing/live/possession.jpg', alt: 'Carousel slide: When could you move in? Builder\'s target Dec 2028 next to the MahaRERA date 30 Aug 2030.',
       title: 'Both dates, explained', body: 'The builder\'s target next to the date filed with MahaRERA, in plain words, so buyers plan around the right one.' },
     { src: '/landing/live/posts.jpg', alt: 'Carousel cover: 5 projects, 59.99 lakh to 1.25 crore, checked on MahaRERA, House Deal.',
-      title: 'Posts in the agent\'s name', body: 'Carousels and reels for every project, marked "Listed by House Deal", linking back to their page.' },
+      title: 'Posts in the agent\'s name', body: 'Carousels and reels for every project, marked "Listed by" the agent, linking back to their page.' },
   ],
-  links: { page: '/agent/house-deal', pageLabel: 'Open House Deal\'s page', compare: '/agent/house-deal/projects/compare', compareLabel: 'Compare the 5 projects' },
+  links: { page: '/agent/house-deal', pageLabel: 'Open the example page', compare: '/agent/house-deal/projects/compare', compareLabel: 'Compare the 5 projects' },
 }
 
 /** One line for buyers who land on the agent-facing home page. */

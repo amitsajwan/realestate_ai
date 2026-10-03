@@ -6,6 +6,7 @@ import { SHOTS } from '@/lib/marketing/strings'
 
 // PostsSection is an async server component (fetches /public/posts); it is covered in __tests__/posts.
 jest.mock('@/components/site/PostsSection', () => ({ __esModule: true, default: () => null }))
+jest.mock('@/components/news/NewsSection', () => ({ __esModule: true, default: () => null }))
 
 describe('landing page', () => {
   it('has one h1 and a primary call to action to /request-invite', () => {
@@ -61,11 +62,11 @@ describe('landing page', () => {
 
   it('shows a real agent live today, with their pages and real slides, and says it is with their permission', () => {
     const { container } = render(<LandingPage />)
-    expect(screen.getByRole('heading', { name: /see what an avasetu agent actually gets/i })).toBeInTheDocument()
-    expect(screen.getByText(/live today: house deal, upper kharadi/i)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /open house deal's page/i })).toHaveAttribute('href', '/agent/house-deal')
+    expect(screen.getByRole('heading', { name: /see what an avasetu agent gets/i })).toBeInTheDocument()
+    expect(screen.getByText(/a sample page we built for house deal/i)).toBeInTheDocument()
+    expect(screen.queryByText(/live today/i)).toBeNull()
+    expect(screen.getByRole('link', { name: /open the example page/i })).toHaveAttribute('href', '/agent/house-deal')
     expect(screen.getByRole('link', { name: /compare the 5 projects/i })).toHaveAttribute('href', '/agent/house-deal/projects/compare')
-    expect(screen.getByText(/with house deal's permission/i)).toBeInTheDocument()
     const live = Array.from(container.querySelectorAll('img')).filter((i) => (i.getAttribute('src') || '').startsWith('/landing/live/'))
     expect(live).toHaveLength(3)
     live.forEach((i) => expect(i.getAttribute('alt')!.length).toBeGreaterThan(30))
