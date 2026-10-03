@@ -56,3 +56,13 @@ def test_caption_states_sources_and_dates():
 def test_money_and_dates():
     assert cards.lakh(5999000) == "₹59.99 L" and cards.lakh(12500000) == "₹1.25 Cr" and cards.lakh(10000000) == "₹1 Cr"
     assert cards.day("2029-04-30") == "30 Apr 2029" and cards.day("2028-03") == "Mar 2028" and cards.day(None) == ""
+
+
+def test_reel_scenes_carry_the_facts_and_no_phone_number():
+    from app.modules.agentprojects import reel
+    from app.modules.reels.compose import Renderer
+    sc = reel.scenes(doc(), AGENT)
+    text = " ".join((l if isinstance(l, str) else l.text) for s in sc for l in s.lines)
+    assert "*71%* of 143 homes booked" in text and "*30 Apr 2029*" in text and "Comment *PRICE*" in text
+    assert sc[0].badge == "AREA PHOTO, NOT THE PROJECT" and sc[0].image.name == "wtc-kharadi.jpg"
+    Renderer(sc, end_card=False)  # raises on any phone number
