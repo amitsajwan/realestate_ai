@@ -226,3 +226,17 @@ def test_vague_names_are_not_linked_by_name():
 def test_registration_numbers_found_in_text():
     assert register.regnos_in("see PR1260002601907 and P52100012345, again PR1260002601907") == ["PR1260002601907", "P52100012345"]
     assert register.regnos_in("PIN 411014, call 9876543210") == []
+
+
+async def test_the_count_page_gets_late_rounds_too():
+    """Live on 2026-10-03 the count page failed 3 quick tries and the whole MahaRERA read was skipped."""
+    answers = {}
+
+    async def get(url):
+        if "page=0&" in url:
+            answers["n"] = answers.get("n", 0) + 1
+            return EMPTY if answers["n"] <= 3 else FIRST
+        return PAGE_1291 if "page=1291&" in url else EMPTY
+    store = Store(FakeDb())
+    await run(store, get)
+    assert await store.projects.count_documents({}) == 3

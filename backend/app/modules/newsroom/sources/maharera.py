@@ -127,10 +127,16 @@ class MahaReraSource:
     async def fetch(self, get: Fetcher) -> List[RawItem]:
         self.projects = []
         try:
-            first = await _ask(get, SEARCH.format(district=self.district, page=0), lambda b: parse_total(b))
+            first = None
+            for rnd in range(1 + LATE_ROUNDS):  # without the count nothing else can be read: it gets the late rounds too
+                if rnd:
+                    await asyncio.sleep(LATE_PAUSE)
+                first = await _ask(get, SEARCH.format(district=self.district, page=0), lambda b: parse_total(b))
+                if first is not None:
+                    break
             total = parse_total(first or "")
             if not total or total < 1:
-                log.warning("newsroom: MahaRERA gave no result count after %d tries", TRIES)
+                log.warning("newsroom: MahaRERA gave no result count after %d rounds", 1 + LATE_ROUNDS)
                 return []
             last = (total - 1) // PAGE_SIZE
             seen, missed = set(), list(range(last, max(last - self.pages, -1), -1))
