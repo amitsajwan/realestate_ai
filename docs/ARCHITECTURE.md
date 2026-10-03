@@ -1,90 +1,148 @@
-# Architecture (v2 direction)
+# Avasetu: target architecture
 
-Status: proposal. Supersedes the scattered root-level *_PLAN / *_SUMMARY docs.
+Status: **agreed target**, October 2026. The plan for getting here, step by step, is `docs/MODERNIZATION.md`.
+Product decisions (governance, India requirements, business model, Facebook Marketplace limits) from the earlier proposal still
+stand: `docs/archive/ARCHITECTURE_v2_proposal.md`. Product direction: `docs/PRODUCT_PLAN.md` and `docs/TASKS.md`.
 
-## Product
-An India-focused real estate platform where:
-1. Agents post listings (in our app, or by publishing to social from our app).
-2. **Every agent-posted listing is captured into our marketplace** (the platform-owned pool).
-3. We track the buyer journey (views, clicks, comments, DMs, visits) and score leads.
-4. Agents with a buyer but no property can search the pool and reach the owning agent.
+## 1. Shape
 
-## Governance model (decided)
-- Agent owns their listing content and can edit/withdraw it. The platform holds the canonical marketplace record and a license to display/share it in the pool.
-- Default visibility on posting: `network` (all verified agents). Agent may narrow to `agency` or `private` per listing; `public` = buyer-facing pages.
-- Lead attribution: buyer contact on a listing routes through the platform (masked phone / WhatsApp deep link with tracking) so attribution and referral terms are enforceable.
-- Duplicate control: the same physical property is often posted by many agents. Listings are clustered by fingerprint (locality + building + area + BHK + price band + image hash); the cluster shows all listing agents, none can claim exclusivity without an explicit `exclusive` flag and proof.
-- Verification: RERA registration number (state-wise), agent KYC, listing freshness (auto-expire / re-confirm every N days).
+**One backend app, one database, clear internal modules (a modular monolith).** FastAPI + MongoDB + Next.js on one VM.
+Splitting into services is premature for a 3-10 agent pilot and a small team.
 
-## India-specific requirements
-- WhatsApp Business Cloud API is the primary channel (templates, opt-in, click-to-chat links with tracking id). Facebook/Instagram second.
-- INR with lakh/crore formatting; areas in sq ft with carpet / built-up / super built-up distinguished.
-- Location hierarchy: state > city > micro-market > locality > project/building.
-- Consent and retention per DPDP Act 2023: record buyer consent, purpose, and support erasure.
-- Languages: English + Hindi + Marathi first (existing multi-language content support).
+Two processes run from the same Docker image:
+- **api**: serves HTTP.
+- **worker**: runs the background loops (newsroom, calendar, comment assistant, listing reels, later freshness and the publish
+  queue). Until the worker exists (MODERNIZATION step 4) the loops run inside the api process, guarded by runner leases.
 
-## Modules (modular monolith: FastAPI + MongoDB + Redis + Celery)
+**Constraints we design for:** MongoDB is a single server (`mongo:7`, no replica set). No multi-document transactions, no change
+streams and no Atlas Vector Search. Nothing in this design may depend on them.
+
+## 2. Layers
+
+Three layers. Code may import from its own layer or a lower one, never a higher one.
+
 ```
-backend/app/modules/
-  identity/    users, agencies, roles (agent, agency_admin, buyer, platform_admin), agent KYC
-  listings/    core listing facts, media, RERA, freshness, fingerprint/dedupe
-  marketplace/ pool capture, visibility, listing clusters, intro requests, referral terms
-  crm/         contacts, requirements, pipeline stage, tasks, site visits
-  tracking/    append-only events, anonymous->known identity merge, lead scoring
-  social/      connectors: publish + ingest comments/DMs/leads (WhatsApp, FB, IG)
-  matching/    requirement <-> listing (rules first, AI ranking later)
-  messaging/   agent<->agent threads, notifications
-  ai/          single content service + single scoring service
-backend/app/platform/  config, db, outbox/events, jobs, rate limits, audit log
+apps / http   routers (one list, each module adds its own), operator console, public site API
+domains       identity, inventory, buyers, distribution, content, conversations
+platform      config, db, auth, runner leases, jobs, llm gateway, meta graph client, media, text, controls
 ```
-Rules: modules talk via service interfaces and events, never each other's collections. Every query is tenant/owner scoped.
 
-## Core data model (sketch)
-- Agent{agency_id, rera_no, kyc_status, languages, service_areas}
-- Listing{owner_agent_id, cluster_id, visibility, status, freshness_at, rera_no, facts..., media[]}
-- ListingCluster{fingerprint, listing_ids[], canonical_listing_id}
-- Contact{owner_agent_id, phones[], emails[], consent{}, anonymous_ids[]}
-- Requirement{contact_id, budget_min/max, localities[], bhk[], type, timeline}
-- Event{contact|anon_id, listing_id, agent_id, type, source, utm, ts, meta}  (append-only)
-- Visit{contact_id, listing_id, scheduled_at, status, outcome}
-- IntroRequest{from_agent, listing_id, requirement_id, status, referral_terms}
+Inside `domains` there is an order too (lower first). A domain may import the public API of a domain to its left, never to its right:
 
-## Business model (decided)
-- Goal is reach first, revenue second: free or minimal-fee for agents. Our value to agents is distribution + buyer tracking + agent network.
-- Monetization later, without gating the core: paid boosts / ad credits, premium lead tools, agency plans. Referral cut is optional and off by default.
+```
+identity < inventory < buyers < distribution < content
+                                             < conversations
+```
 
-## Distribution (our marketplace -> social reach)
-New module `distribution/` (replaces the old publish-only services). The pool is the source of truth; channels are outputs.
-- Instagram: Graph API publishing (feed, reels, stories) from a connected business account.
-- Facebook: Page posts via Graph API; Meta "Home Listings" catalog feeds for dynamic ads (eligibility to be verified).
-- WhatsApp: Business API broadcasts (opt-in only), Channels, click-to-chat links with tracking id.
-- Own SEO pages + shareable links per listing/agent (`/l/<slug>?src=..`) - the tracked landing surface for every channel.
-- IMPORTANT: Facebook Marketplace has no open API for individual real-estate listings (partner-only). Do not build on it; treat as manual/assisted or a partner-program application later.
-- Every outbound post carries a tracking id so views/comments/DMs come back as Events and attribute to listing + agent + channel.
+`content` and `conversations` are siblings: neither imports the other.
 
-## AI-driven listing creation (new model)
-Listing creation starts from the lowest-effort input agents already have, not a form:
-- Inputs: photos/video, a voice note, a WhatsApp message/forward, a pasted portal link.
-- AI extracts structured facts (BHK, area, locality, price, amenities), proposes missing fields for one-tap confirm, generates multilingual copy (En/Hi/Mr) and channel-specific creatives, flags duplicates (fingerprint) and RERA/price anomalies.
-- Human confirms before publish; the confirmed record enters the pool.
-- Prompting/vision lives in `ai/` behind one interface (Groq now; swappable).
+When a lower module needs something from a higher one (for example, Distribution needs the "Listed by" attribution that the
+operator console knows), the higher module **passes a callback in at wiring time**. There is no event bus.
+`newsroom/pipeline.py` (`default_stages`) and `newsroom/adapters.py` already work this way, and they are the pattern to copy.
 
-## Agent website in a few clicks (core feature)
-Every agent gets a site automatically at onboarding; posting a listing updates it with no extra step.
+## 3. Platform (`backend/app/platform/`)
 
-Existing code to build on (audited):
-- Backend `endpoints/agent_public.py` + `services/agent_public_service.py`: slug lookup, profile CRUD, agent's properties (filters/paging), posts, contact inquiry, view/contact counters. Collection `agent_public_profiles`.
-- Frontend `app/agent/[agentName]/{page,properties/[id],posts/[id],contact}` and `PublicWebsiteManagement.tsx`. Brand theme from `lib/theme.ts` (3 colors), AI branding suggestions from `endpoints/branding.py` and `agent_onboarding.py`.
-Gaps to close:
-- Site is a client-rendered page (`'use client'`, fetch in useEffect): no SSR/SEO, no OG tags, weak link previews on WhatsApp/Facebook. Move to server components with `generateMetadata`, sitemap, JSON-LD.
-- Slug path only (`/agent/<slug>`): add subdomain `<slug>.<ourdomain>` and optional custom domain later (wildcard DNS + host-based routing in Next middleware).
-- Branding is a temp-fix endpoint that saves an untyped dict; theme is stored in localStorage on the viewer's browser. Store a typed `SiteConfig{theme, logo, hero, sections[], languages}` on the agent and serve it to visitors.
-- Site shows the agent's own listings and posts only. Add "network picks" from the pool (agent can feature pool listings on their site, with attribution), which is the marketplace value for site owners.
-- No tracking: only counters. Site views/clicks/inquiries must emit `Event`s (tracking module) with source/UTM, and the contact form must create a Contact/lead.
-- Two-step onboarding is scattered across 3 endpoints (onboard, onboarding, agent_preferences). Collapse to one flow.
+Shared building blocks with no business knowledge. Nothing here imports from `app.modules`.
 
-Target "few clicks" flow: sign in with phone OTP/WhatsApp -> name, photo, city (prefill from Facebook/Instagram/WhatsApp profile) -> AI picks theme, tagline, bio (En/Hi/Mr) -> site is live at `<slug>.<domain>` -> first listing via AI creation (voice/photos/WhatsApp) -> posted to site, pool, and chosen social channels in one confirm.
+| Package | What | Comes from |
+|---|---|---|
+| `config` | One settings object; no `os.environ` reads elsewhere | `core/config.py`, the env reads in `ai_listing/llm.py` and module `config.py` files |
+| `db` | Connection, `get_database`, indexes | `core/database.py`, `core/indexes.py` |
+| `auth` | `current_active_user`, `User`, roles | `core/auth_backend.py`, `models/user.py` (moved as is; never rewritten during the refactor) |
+| `leases` | One runner per background loop | new, **done** (step 0) |
+| `jobs` | Worker entry point, heartbeats per loop | new (step 4) |
+| `llm` | AI model access: per-task model routing, schema-checked outputs, failover, call log | `ai_listing/llm.py` |
+| `meta_graph` | Facebook/Instagram Graph client, `sanitize`, publish errors | `social/graph.py`, `social/publisher.py` |
+| `media` | Upload storage, public URLs | `photoquality/store.py`, `endpoints/uploads.py` |
+| `text` | Copy guards (hype words, phone numbers), INR/lakh/crore, sq ft, BHK, Indian mobile numbers | `marketing/polish.py`, `marketing/facts.py`, `onboarding/phone.py` |
+| `controls` | Owner pause switches | `admin/controls.py` |
+| `region`, `brand` | Where we operate; the brand name and site URL | `core/region.py`, `core/brand.py` |
 
-## Known code-state issues found during audit
-- Two API routers are both mounted: `api/v1/router.py` (about 25 routers, mounted by `core/routes.py`) and `api/v1/api.py` (4 routers, mounted again in `main.py`). `/properties` and `/publishing` are registered twice. Pick one.
-- ~15 endpoint files are dead or duplicates (`facebook_mock`, `demo`, `unified_ai_unified`, two enhanced-post prefixes for one router, etc.).
+## 4. Domains
+
+Each domain is a package under `backend/app/modules/`. A domain is made of one or more of today's modules.
+
+| Domain | What it does | Today's modules | Owns (only writer) |
+|---|---|---|---|
+| **identity** | Users, phone OTP, invites, agent profile and site settings | onboarding, waitlist, old `agent_public` | `users`, `otp_codes`, `invites`, `invite_requests`, `agent_public_profiles` |
+| **inventory** | Listings, freshness, the MahaRERA project register, partner imports (T3) | listings, newsroom's `register.py`, the importer | `listings`, `projects` |
+| **buyers** | Contacts, requirements, events, scoring, matching, alerts (T2.4), agent reports | tracking, interest, report | `contacts`, `events`, `inquiry_log`, `interest_*`, `hub_items` |
+| **distribution** | One publish queue, one adapter per channel (Facebook, Instagram, WhatsApp, YouTube), publication log, tracked links | social; the Graph API code in newsroom, reels, showcase, calendar | `publications`, the publish queue |
+| **content** | Sources → drafts → review → ready to publish; the render kit (brand, layouts, cards, reels) | newsroom, calendar, showcase, marketing packs, creative, reels, photoquality | `newsroom_*`, `content_calendar`, `calendar_status`, `marketing_packs`, `reel_jobs` |
+| **conversations** | Comment replies, website chat, WhatsApp inbound, grounded answers, notifications | engage, chat, whatsapp, knowledge, notifications | `engage_*`, `chat_sessions`, `whatsapp_*`, `notifications` |
+
+**Apps** (top layer, may use any domain): operator console (concierge, admin), public site API, HTTP routers.
+The operator console owns `concierge_agents` and `concierge_audit`; the platform owns `admin_settings` (controls) and
+`worker_leases`.
+
+## 5. Module rules
+
+1. **Public API.** A module's `__init__.py` lists what other modules may use (functions and data types). Everything else in the
+   folder is private. Other modules import only from the package, never from its files.
+2. **One writer per collection.** Only the owning module inserts, updates or deletes. Others read through the owner's query
+   functions. We do not rename collections or reshape documents during the pilot.
+3. **No upward imports.** Use a callback passed in at wiring time.
+4. **No function-level imports to dodge a cycle.** They are allowed only for heavy optional libraries (ffmpeg, vision models).
+5. **Routes come from the module.** Each module exports its routers; `api/v1/router.py` is a short list.
+6. **Tests live with the module** under `backend/tests/modules/<module>/`, and every module has a test that imports it.
+
+Enforcement: `import-linter` in CI with today's violations recorded as a baseline that may only shrink (step 1).
+
+## 6. Background work
+
+- Every loop is started through `app.platform.leases.run_as_leader(name, loop, get_database)`: whichever process holds the lease
+  document `worker_leases/<name>` runs the loop; the others wait. A leader that cannot renew steps down before the lease can
+  expire, so two copies never run at once.
+- The loops are already status machines stored in Mongo (newsroom items, calendar slots, reel jobs). That is our durable workflow.
+  We do not add Temporal, Inngest or a general job framework.
+- Each loop records a heartbeat (last cycle start, last success, last error). The health check alerts when a heartbeat is older
+  than twice the loop's interval (step 4).
+
+## 7. Publishing
+
+All posts go through Distribution's queue:
+- one idempotency key per (item, channel), so a retry never posts twice;
+- the approval gate, daily caps and pause switches are enforced in the queue, not by callers;
+- dry run is the default outside production;
+- every post carries a tracked link back to a page on our site (TASKS T2.1);
+- **no AI agent ever publishes.** Publishing is deterministic.
+
+## 8. AI
+
+Today's design is right and stays: fixed pipelines, rules before the model, a guard on every output, a deterministic fallback when
+the model fails, and a human approving anything published.
+
+**Gateway (`platform/llm`):**
+- `llm.json(task, system, user, schema)`: the reply is validated against a Pydantic model, with one repair retry.
+- Model chosen per task in config: a small fast model for classifying comments and filtering news, a stronger one for drafts and
+  the critic. Provider failover as today.
+- Every call is logged to `llm_calls` (task, prompt version, model, provider, time, tokens, outcome, which guard rejected it and
+  why), with old rows expiring automatically. This is our tracing.
+- A quota outage, a timeout and a bad output are reported as different outcomes, never all as `None`.
+
+**Tests:** fixed-answer AI test sets run in CI for listing extraction (exists), engage replies (EN/HI/MR), the newsroom filter and
+check (MahaRERA fixtures exist), knowledge refusing to answer beyond its facts, and the creative critic.
+
+| Adopt now | Later, when the product needs it | Avoid |
+|---|---|---|
+| Schema-checked outputs, per-task models, `llm_calls` log, CI AI tests | Buyer advisor (Phase 3): a hand-written tool-calling loop with the grounding guard on its answer; LangGraph only if it branches more than about 3 ways | Agents or LangGraph in newsroom, calendar, creative, engage or chat |
+| | AI extraction for the partner importer (T3) and WhatsApp qualification (Phase 5) | Any agent allowed to publish |
+| | Langfuse cloud free tier; OpenTelemetry once there is a second service | Self-hosted Langfuse (needs ClickHouse, Redis, S3) |
+| | Vector search once there are hundreds of guides and projects (in-process embeddings or self-hosted Mongo search) | Retrieval search (RAG) for comment replies: closed, verified facts stay the source |
+| | An MCP server for the operator team (project register, review queue) | An AI model as the final judge: the rule-based critic blocks, the AI critique advises |
+| | | Temporal or Inngest |
+
+## 9. Frontend
+
+- The studio (`lib/app`, `app/studio`) and the public site (`app/agent`, `app/localities`, `app/news`, `app/insights`) use the
+  new API only.
+- Code is grouped by feature, matching the backend domains: `features/<domain>/{api, hooks, components}`.
+- The old pages (`/dashboard`, `/properties`, `/profile`, `/analytics`) and the three old API clients (`lib/api.ts`,
+  `lib/api/centralized-client.ts`, `lib/api/unified-client.ts`) are retired (step 7).
+- Fixtures move out of `lib/app` into test folders.
+
+## 10. Not doing
+
+- Microservices, an event bus, a second database.
+- Rewriting login during the refactor.
+- Moving data between collections or reshaping documents during the pilot.
