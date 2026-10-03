@@ -20,8 +20,8 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 
 | Measure | Today | Target |
 |---|---|---|
-| Modules caught in one import cycle | 16 of 22 | 0 |
-| Imports between modules / of them hidden inside functions | 165 / 100 | only from public APIs / 0 (except heavy optional libraries) |
+| Modules caught in one import cycle | 16 of 22; 10 after step 2 (calendar, concierge, creative, interest, marketing, newsroom, photoquality, reels, showcase, social) | 0 |
+| Imports between modules / of them hidden inside functions | 165 / 100; 109 / 68 after step 2 | only from public APIs / 0 (except heavy optional libraries) |
 | Modules touching `listings` / `agent_public_profiles` / `contacts` | 16 / 12 (+4 old services) / 7 | 1 writer each |
 | Old code (`services`, `api/v1`, `routers`, `schemas`, `repositories`, `models`, `utils`, `core`) | about 38,500 lines (26,000 after step 1) | platform keepers only |
 | … of which never imported | about 11,400 lines (40 files); 0 after step 1 | 0 |
