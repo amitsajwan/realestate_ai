@@ -85,6 +85,25 @@ describe('ChatWidget', () => {
   })
 })
 
+describe('ChatWidget bubble', () => {
+  it('is a small round icon button on phones, named "Chat with us", with the words only from 640 px up', () => {
+    render(<ChatWidget agentSlug="rahul" />)
+    const btn = screen.getByRole('button', { name: 'Chat with us' })
+    expect(btn.className).toMatch(/\bh-12\b/)
+    expect(btn.className).toMatch(/\bw-12\b/)
+    expect(btn.className).toMatch(/\brounded-full\b/)
+    expect(within(btn).getByText('Chat with us').className).toMatch(/\bhidden sm:inline\b/)
+  })
+
+  it('sits above the agent site bar by default, in the corner without one, clear of the phone home bar', () => {
+    const { unmount } = render(<ChatWidget agentSlug="rahul" />)
+    expect(screen.getByTestId('chat-widget').className).toContain('bottom-[calc(5rem+env(safe-area-inset-bottom,0px))]')
+    unmount()
+    render(<ChatWidget agentSlug="rahul" bottomBar={false} />)
+    expect(screen.getByTestId('chat-widget').className).toContain('bottom-[calc(1rem+env(safe-area-inset-bottom,0px))]')
+  })
+})
+
 describe('LeadAlertsBadge', () => {
   const { getNotifications } = jest.requireMock('@/lib/app/whatsapp') as { getNotifications: jest.Mock }
   it('counts website chat alerts as well as WhatsApp ones', async () => {

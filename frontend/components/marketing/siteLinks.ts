@@ -16,6 +16,11 @@ export const FOR_AGENTS_PATH = '/for-agents'
 export const INVITE_PATH = '/request-invite'
 /** Studio is the agent's app; it sends a signed-out visitor to the sign-in screen (/join). */
 export const SIGN_IN_PATH = '/studio'
+/** A buyer's 'tell us what you need': the house agent site's existing enquiry form (the same place the area guides send buyers). */
+export const buyerEnquirePath = (): string => `/agent/${process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'avasetu'}#enquire`
+
+/** Who a page is for: buyer pages (home, area guides, insights, news, posts) get the buyer button in the header, agent pages the invite. */
+export type Audience = 'buyer' | 'agent'
 
 export function siteLinks() {
   const { instagram, facebook } = socialLinks()
@@ -27,12 +32,13 @@ export function siteLinks() {
   const insights: SiteLink = { href: '/insights', label: 'Insights' }
   const invite: SiteLink = { href: INVITE_PATH, label: 'Join the free pilot' }
   const signIn: SiteLink = { href: SIGN_IN_PATH, label: 'Sign in' }
+  const need: SiteLink = { href: buyerEnquirePath(), label: 'Tell us what you need' }
   const ig: SiteLink = { href: instagram, label: 'Instagram', external: true }
   const fb: SiteLink = { href: facebook, label: 'Facebook', external: true }
   return {
-    forAgents, demo, news, posts, areas, insights, invite, signIn, instagram: ig, facebook: fb,
-    /** Header, wide screens (the invite button sits next to these). */
-    headerWide: [forAgents, demo, news, areas],
+    forAgents, demo, news, posts, areas, insights, invite, signIn, need, instagram: ig, facebook: fb,
+    /** Header, wide screens, by audience (the buyer or invite button sits next to these; 'For agents' is always there). */
+    headerWide: { buyer: [news, areas, insights, forAgents], agent: [forAgents, demo, news, areas] } as Record<Audience, SiteLink[]>,
     /** Header menu on phones: everything. */
     menu: [forAgents, demo, news, posts, areas, insights, signIn, ig, fb],
     footerAgents: [forAgents, demo, invite, signIn],

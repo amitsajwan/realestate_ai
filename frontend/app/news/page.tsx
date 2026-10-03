@@ -17,7 +17,7 @@ export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
 export default async function NewsPage() {
   const res = await fetchNews(24)
   return (
-    <MarketingShell showInviteCta={false}>
+    <MarketingShell>
       <section aria-labelledby="news-page-title" className="py-8 sm:py-14">
         <div className="mx-auto max-w-3xl px-4">
           <h1 id="news-page-title" className="text-3xl font-extrabold tracking-tight text-[#0f2340] sm:text-4xl">{NEWS_TEXT.heading}</h1>

@@ -95,7 +95,7 @@ describe('social strip and contact block', () => {
   it('contact block names the website, Facebook and Instagram and has no phone, email or person', () => {
     render(<ContactBlock />)
     const block = screen.getByTestId('contact-block')
-    expect(block.textContent).toContain('Contact Avasetu via this website (request an invite, or tap I am interested on any home), Facebook and Instagram.')
+    expect(block.textContent).toContain('Contact Avasetu via this website (tap I am interested on any home or use the chat; agents can request an invite), Facebook and Instagram.')
     expect(block.textContent).not.toMatch(/\d{5}|@|tel:|mailto:|whatsapp/i)
     expect(screen.getByRole('link', { name: 'request an invite' })).toHaveAttribute('href', expect.stringContaining('request-invite'))
   })

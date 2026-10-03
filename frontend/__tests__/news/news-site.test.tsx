@@ -37,6 +37,12 @@ describe('news data', () => {
     expect(cleanNewsItem(undefined)).toBeNull()
   })
 
+  it('carries the buyer line from the API, null when missing, blank or not text', () => {
+    const line = 'Worth checking: ask your bank how this applies to your loan before you decide.'
+    expect(cleanNewsItem({ id: '1', headline: 'H', buyer_line: line })!.buyer_line).toBe(line)
+    for (const v of [undefined, null, '', '  ', 7]) expect(cleanNewsItem({ id: '1', headline: 'H', buyer_line: v })!.buyer_line).toBeNull()
+  })
+
   it('formats dates in India time and recognises Google redirects', () => {
     expect(formatNewsDate('2026-09-29T06:30:00+00:00')).toBe('29 Sep 2026')
     expect(formatNewsDate('2026-09-29T20:00:00+00:00')).toBe('30 Sep 2026') // already tomorrow in India
@@ -62,6 +68,19 @@ describe('NewsGrid', () => {
     const { container } = render(<NewsGrid items={FIXTURE_NEWS} />)
     expect(container.innerHTML).not.toMatch(/news\.google\.com/)
     expect(container.textContent).not.toMatch(/https?:\/\//)
+  })
+
+  it('shows the "Worth checking" line under the summary when the item has one, and nothing when it does not', () => {
+    const noLine = { ...direct, id: 'x9', buyer_line: null }
+    render(<NewsGrid items={[ring, noLine, digest]} />)
+    const cards = screen.getAllByTestId('news-card')
+    expect(within(cards[0]).getByTestId('buyer-line')).toHaveTextContent(ring.buyer_line as string)
+    expect(ring.buyer_line).toMatch(/^Worth checking: /)
+    expect(within(cards[1]).queryByTestId('buyer-line')).toBeNull()
+    expect(within(cards[2]).queryByTestId('buyer-line')).toBeNull()  // digest
+    // under the summary, not above it
+    const summary = within(cards[0]).getByText(ring.summary)
+    expect(summary.compareDocumentPosition(within(cards[0]).getByTestId('buyer-line')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('is honest when empty or when the service is down', () => {
@@ -95,6 +114,17 @@ describe('NewsArticle', () => {
     expect(screen.getByText(/By the Avasetu team/)).toBeInTheDocument()
   })
 
+  it('shows the "Worth checking" line as a callout right under the summary, and none when the item has no line', () => {
+    const { unmount } = render(<NewsArticle item={ring} />)
+    const line = screen.getByTestId('buyer-line')
+    expect(line).toHaveTextContent('Worth checking: how far your shortlisted project is from this road or line.')
+    expect(screen.getByTestId('news-summary').compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(line.compareDocumentPosition(screen.getByTestId('what-to-check')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    unmount()
+    render(<NewsArticle item={{ ...ring, buyer_line: null }} />)
+    expect(screen.queryByTestId('buyer-line')).toBeNull()
+  })
+
   it('links to the Page post when there is one and works without an image', () => {
     render(<NewsArticle item={{ ...ring, image_url: null }} />)
     expect(screen.getByRole('link', { name: /Also on Facebook/ })).toHaveAttribute('href', 'https://www.facebook.com/PunePropertyHub/posts/1')
@@ -107,6 +137,7 @@ describe('NewsArticle', () => {
     expect(screen.getByText('Buyer tip')).toBeInTheDocument()
     expect(screen.queryByTestId('read-original')).toBeNull()
     expect(screen.queryByTestId('summary-badge')).toBeNull()
+    expect(screen.queryByTestId('buyer-line')).toBeNull()
   })
 })
 
@@ -162,6 +193,8 @@ describe('pages', () => {
     expect(screen.getAllByTestId('news-card').length).toBeGreaterThan(3)
     expect(screen.getByText('How we write news')).toBeInTheDocument()
     expect(screen.getByRole('contentinfo')).toBeInTheDocument()
+    // a buyer page: the header asks what the visitor needs, not for an agent invite
+    expect(within(screen.getByRole('banner')).getByTestId('header-cta')).toHaveAccessibleName('Enquire: tell us what you need')
   })
 
   it('the item page renders the article and the json-ld script; an unknown id is a 404', async () => {

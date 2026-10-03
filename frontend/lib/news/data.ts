@@ -22,6 +22,9 @@ export interface NewsItem {
   published_at: string | null
   our_view: string
   what_to_check: string
+  /** The fixed 'Worth checking: ...' line the social captions carry (chosen by the backend from a fixed list per pillar), or null when the
+   *  item has none (education and digest items). */
+  buyer_line: string | null
   disclaimer: string
   items: Array<{ id: string; headline: string; source_name: string; line: string }>
   tip: string
@@ -56,6 +59,7 @@ export function cleanNewsItem(raw: unknown): NewsItem | null {
     source_name: str(r.source_name), source_url: https(r.source_url) ? r.source_url : null,
     as_of: str(r.as_of) || null, image_url: https(r.image_url) ? r.image_url : null, permalinks: links,
     published_at: str(r.published_at) || null, our_view: str(r.our_view), what_to_check: str(r.what_to_check),
+    buyer_line: str(r.buyer_line).trim() || null,
     disclaimer: str(r.disclaimer), items, tip: str(r.tip),
   }
 }

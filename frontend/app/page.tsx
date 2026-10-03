@@ -27,7 +27,7 @@ const h2 = 'text-2xl font-extrabold tracking-tight text-[#0f2340] sm:text-3xl'
 export default function LandingPage() {
   const cfg = getMarketingConfig()
   return (
-    <MarketingShell>
+    <MarketingShell cta="agent">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(organizationJsonLd(cfg, L.metaOrgDescription, Object.values(socialLinks()))) }} />
 
       {/* Hero: the agent's problem, the product, one CTA */}

@@ -25,14 +25,34 @@ function hrefOf(scope: HTMLElement, name: RegExp): string | null {
 }
 
 describe('site header', () => {
-  it('links to every main page, the invite form and the social profiles', () => {
+  it('links to every main page and the social profiles', () => {
     render(<SiteHeader businessName="Avasetu" />)
     const header = screen.getByRole('banner')
     for (const [name, href] of EXPECTED) expect(hrefOf(header, name)).toBe(href)
-    expect(hrefOf(header, /request an invite/i)).toBe('/request-invite')
     expect(hrefOf(header, /^instagram/i)).toBe(socialLinks().instagram)
     expect(hrefOf(header, /^facebook/i)).toBe(socialLinks().facebook)
     expect(header).toHaveAttribute('data-print', 'hide')
+  })
+
+  it('buyer pages (the default) get the buyer button, to the existing enquiry form, and no invite button', () => {
+    render(<SiteHeader businessName="Avasetu" />)
+    const header = screen.getByRole('banner')
+    const cta = within(header).getByTestId('header-cta')
+    expect(cta).toHaveAccessibleName('Enquire: tell us what you need')
+    expect(cta).toHaveAttribute('href', '/agent/avasetu#enquire')
+    expect(within(header).queryByRole('link', { name: /request an invite/i })).toBeNull()
+    expect(hrefOf(header, /^for agents$/i)).toBe('/for-agents')  // still a normal link
+  })
+
+  it('agent pages get "Request an invite"; the invite page itself gets no button', () => {
+    const { unmount } = render(<SiteHeader businessName="Avasetu" cta="agent" />)
+    const cta = within(screen.getByRole('banner')).getByTestId('header-cta')
+    expect(cta).toHaveTextContent('Request an invite')
+    expect(cta).toHaveAttribute('href', '/request-invite')
+    expect(within(screen.getByRole('banner')).queryByRole('link', { name: /tell us what you need/i })).toBeNull()
+    unmount()
+    render(<SiteHeader businessName="Avasetu" cta="none" />)
+    expect(within(screen.getByRole('banner')).queryByTestId('header-cta')).toBeNull()
   })
 
   it('takes the demo slug from NEXT_PUBLIC_DEMO_AGENT_SLUG', () => {
