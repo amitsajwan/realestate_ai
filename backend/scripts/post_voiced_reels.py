@@ -8,7 +8,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from app.core import brand
-from app.modules.reels import publish
+from app.modules.social import reel_publish as publish
 from app.platform.meta_graph.config import load
 
 UP = Path(os.environ.get("UPLOAD_DIRECTORY", "uploads"))

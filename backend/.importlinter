@@ -106,3 +106,32 @@ forbidden_modules =
     app.modules.whatsapp
     app.modules.knowledge
     app.modules.notifications
+
+[importlinter:contract:one-way-out]
+name = Only distribution (social) talks to the Graph API to publish (docs/ARCHITECTURE.md §7)
+type = forbidden
+source_modules =
+    app.modules.admin
+    app.modules.ai_listing
+    app.modules.calendar
+    app.modules.chat
+    app.modules.concierge
+    app.modules.creative
+    app.modules.engage
+    app.modules.interest
+    app.modules.knowledge
+    app.modules.listings
+    app.modules.marketing
+    app.modules.newsroom
+    app.modules.notifications
+    app.modules.onboarding
+    app.modules.photoquality
+    app.modules.reels
+    app.modules.report
+    app.modules.showcase
+    app.modules.tracking
+    app.modules.waitlist
+    app.modules.whatsapp
+forbidden_modules =
+    app.platform.meta_graph.graph
+allow_indirect_imports = True

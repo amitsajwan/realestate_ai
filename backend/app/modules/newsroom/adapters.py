@@ -6,20 +6,20 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
-from urllib.parse import quote
 
 import httpx
 
 from app.platform.llm import default_llm as _default_llm
 from app.platform.meta_graph import config as social_config
-from app.platform.meta_graph.graph import GRAPH_HOST, REQUEST_TIMEOUT_S, GraphPublisher
 from app.core.database import get_database
-from app.modules.social.distribution import send as ledger_send
+from app.modules.social.distribution import graph_publisher, page_feed_post, send as ledger_send
 from app.platform.meta_graph.publisher import Post, PublishError, sanitize
 
 from . import captions, cards
 from . import presentation as pr
 from .pipeline import MAX_AHEAD, MIN_AHEAD
+
+FETCH_TIMEOUT_S = 20.0  # fetching news sources (was borrowed from the Graph client's request timeout, same value)
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ def default_llm():
 def make_fetcher(transport: Optional[httpx.AsyncBaseTransport] = None):
     """A `Fetcher` (url -> body text) for sources."""
     async def get(url: str) -> str:
-        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_S, transport=transport, follow_redirects=True,
+        async with httpx.AsyncClient(timeout=FETCH_TIMEOUT_S, transport=transport, follow_redirects=True,
                                      headers={"User-Agent": "AvasetuNewsroom/1.0"}) as c:
             r = await c.get(url)
             r.raise_for_status()
@@ -124,7 +124,7 @@ class SocialPublisher:
         problems = await captions.verify(doc, self.checker) if self.checker else {"facebook": [], "instagram": []}
         card = await self._card(doc)
         out: dict = {"card": card}
-        graph = GraphPublisher(cfg, transport=self.transport)
+        graph = graph_publisher(cfg, transport=self.transport)
 
         async def send(channel: str, key: str, post_channel: str, urls: list) -> dict:
             if problems.get(channel):
@@ -170,29 +170,4 @@ class SocialPublisher:
             return f"dry-run-{uuid.uuid4().hex[:12]}"
         if not cfg.configured("facebook_page"):
             raise PublishError("Facebook Page is not configured")
-        data = {"message": text, "access_token": cfg.page_token}
-        if link:
-            data["link"] = link
-        if when is not None:
-            data.update({"published": "false", "scheduled_publish_time": str(int(when.timestamp()))})
-        url = f"{GRAPH_HOST}/{cfg.graph_version}/{quote(cfg.page_id, safe='')}/feed"
-        try:
-            async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_S, transport=self.transport) as c:
-                resp = await c.post(url, data=data)
-        except httpx.TimeoutException:
-            raise PublishError("Graph API request timed out")
-        except httpx.HTTPError as e:
-            raise PublishError(sanitize(f"Graph API request failed ({type(e).__name__})", cfg.secrets))
-        try:
-            body = resp.json()
-        except ValueError:
-            body = None
-        if not isinstance(body, dict):
-            raise PublishError(f"Graph API returned HTTP {resp.status_code} with an unexpected body")
-        err = body.get("error")
-        if err or resp.status_code >= 400:
-            e = err if isinstance(err, dict) else {}
-            raise PublishError(sanitize(f"Graph API error {e.get('code', resp.status_code)}: {e.get('message') or 'unknown error'}", cfg.secrets))
-        if not body.get("id"):
-            raise PublishError("Graph API did not return a post id")
-        return str(body["id"])
+        return await page_feed_post(cfg, text, link, when, transport=self.transport)

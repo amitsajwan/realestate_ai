@@ -19,7 +19,7 @@ from app.modules.creative import make as _creative_make
 from app.modules.creative import samples as _creative_samples
 from app.modules.creative.models import Brief, CreativePack
 from app.modules.reels import compose as _reel_compose
-from app.modules.reels import publish as _reel_publish
+from app.modules.social import reel_publish as _reel_publish
 from app.modules.reels import templates as _reel_templates
 from app.modules.showcase import captions as _show_captions
 from app.modules.showcase import publish as _show_publish

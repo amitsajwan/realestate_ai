@@ -284,7 +284,7 @@ class ConciergeService:
         """Post the finished listing reel on the Avasetu Instagram / Facebook Page as a Reel. Needs the recorded consent;
         SOCIAL_DRY_RUN (the default) checks everything and publishes nothing. The caption carries the 'Listed by' line."""
         from app.modules.reels import listing_reel
-        from app.modules.reels import publish as reel_publish
+        from app.modules.social import reel_publish
         from app.platform.meta_graph.config import load as load_config
         from app.modules.social.distribution import send
         from app.platform.meta_graph.publisher import PublishError

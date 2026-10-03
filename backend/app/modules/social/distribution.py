@@ -20,12 +20,15 @@ import logging
 import os
 from datetime import datetime, timezone
 from typing import Awaitable, Callable, Optional
+from urllib.parse import quote
+
+import httpx
 
 from pymongo.errors import DuplicateKeyError
 
 from app.platform.controls import is_paused
 from app.platform.meta_graph.config import SocialConfig
-from app.platform.meta_graph.graph import GraphPublisher
+from app.platform.meta_graph.graph import GRAPH_HOST, REQUEST_TIMEOUT_S, GraphPublisher
 from app.platform.meta_graph.publisher import DryRunPublisher, PublishError, Publisher, Result, sanitize
 
 log = logging.getLogger(__name__)
@@ -49,6 +52,42 @@ def default_publisher(cfg: SocialConfig) -> Publisher:
     """The Graph publisher for real posts, the dry-run one otherwise. Modules outside distribution use this, never the Graph
     client directly."""
     return DryRunPublisher() if cfg.dry_run else GraphPublisher(cfg)
+
+
+def graph_publisher(cfg: SocialConfig, transport=None) -> GraphPublisher:
+    """The Graph publisher, for callers that inject a test transport (newsroom)."""
+    return GraphPublisher(cfg, transport=transport)
+
+
+async def page_feed_post(cfg: SocialConfig, text: str, link: Optional[str], when: Optional[datetime], transport=None) -> str:
+    """A text-first Facebook Page post, optionally scheduled (`when`, already checked by the caller); returns the post id.
+    Moved unchanged from the newsroom's original publisher, which still uses it."""
+    data = {"message": text, "access_token": cfg.page_token}
+    if link:
+        data["link"] = link
+    if when is not None:
+        data.update({"published": "false", "scheduled_publish_time": str(int(when.timestamp()))})
+    url = f"{GRAPH_HOST}/{cfg.graph_version}/{quote(cfg.page_id, safe='')}/feed"
+    try:
+        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_S, transport=transport) as c:
+            resp = await c.post(url, data=data)
+    except httpx.TimeoutException:
+        raise PublishError("Graph API request timed out")
+    except httpx.HTTPError as e:
+        raise PublishError(sanitize(f"Graph API request failed ({type(e).__name__})", cfg.secrets))
+    try:
+        body = resp.json()
+    except ValueError:
+        body = None
+    if not isinstance(body, dict):
+        raise PublishError(f"Graph API returned HTTP {resp.status_code} with an unexpected body")
+    err = body.get("error")
+    if err or resp.status_code >= 400:
+        e = err if isinstance(err, dict) else {}
+        raise PublishError(sanitize(f"Graph API error {e.get('code', resp.status_code)}: {e.get('message') or 'unknown error'}", cfg.secrets))
+    if not body.get("id"):
+        raise PublishError("Graph API did not return a post id")
+    return str(body["id"])
 
 
 def _now() -> datetime:
