@@ -410,3 +410,37 @@ def test_a_sample_home_is_never_called_for_sale():
           "cta_screen": "x", "cta_voice": "y"}
     s = for_sample(en, "en")
     assert s["beats"][0]["voice"] == "This is a sample 2 BHK apartment in Upper Kharadi." and "visit" not in s["cta_voice"]
+
+
+async def test_concierge_reel_post_sends_the_cover_to_instagram_when_the_reel_has_one(tmp_path):
+    from app.modules.listings.schemas import ListingCreate
+    from app.platform.meta_graph.config import SocialConfig
+    from ..concierge.helpers import FULL, PHONE, make
+
+    svc, db, _ = make()
+    aid = (await svc.create_agent("OWNER", "Rahul Sharma", PHONE, "Rahul"))["agent"]["id"]
+    media = [{"url": photo(tmp_path, f"c{i}.jpg"), "kind": "image", "order": i} for i in range(2)]
+    lid = (await svc.create_listing("OWNER", aid, ListingCreate(**FULL, media=media)))["id"]
+    await svc.publish_listing("OWNER", aid, lid)
+
+    class WithCover(Renderer):
+        def __call__(self, script, photos, lang, out, **kw):
+            res = super().__call__(script, photos, lang, out, **kw)
+            Path(out).with_name(Path(out).stem + "-cover.jpg").write_bytes(b"jpg")
+            return res
+
+    svc.reels = lr.ReelJobs(db, tmp_path, renderer=WithCover(), voice_available=lambda: False)
+    await svc.make_reel("OWNER", aid, lid, "en")
+    await svc.record_consent("OWNER", aid)
+    await svc.reels.run_once()
+    sent = []
+
+    async def publish_fn(ch, url, text, cfg=None, file_path=None, **kw):
+        sent.append((ch, url, kw.get("cover_url")))
+        return SimpleNamespace(external_id="dryrun_1", permalink=None)
+
+    dry = lambda: SocialConfig(dry_run=True, media_base_url="https://media.test")
+    await svc.post_reel("OWNER", aid, lid, "en", ["instagram", "facebook_page"], publish_fn=publish_fn, config_loader=dry)
+    (_, ig_url, ig_cover), (_, _, fb_cover) = sent
+    assert ig_cover == ig_url[:-4] + "-cover.jpg" and ig_cover.startswith("https://media.test/uploads/reels/listing-")
+    assert fb_cover is None

@@ -127,6 +127,10 @@ def test_tiny_reel_file_checks(tmp_path):
     assert data.find(b"moov") < data.find(b"mdat")      # faststart
     sheet = compose.contact_sheet(out, tmp_path / "s.png", frames=4, cols=2)
     assert sheet.stat().st_size > 1000
+    cover = tmp_path / "t-cover.jpg"   # the hook scene as a still, next to the mp4
+    assert compose.cover_path(out) == cover and cover.is_file()
+    with Image.open(cover) as im:
+        assert im.format == "JPEG" and im.size == (1080, 1920)
 
 
 @pytest.mark.skipif(not ffmpeg.available(), reason="ffmpeg cannot run here")
@@ -161,3 +165,11 @@ def test_frame_zero_shows_the_complete_hook_and_later_scenes_still_animate():
     crop0, crop1 = f0.crop((x0, y0, x1, y1)), f1.crop((x0, y0, x1, y1))
     assert max(p[0] for p in crop0.getdata()) >= 250   # pure white glyphs, not a half-faded grey
     assert crop0.getextrema() == crop1.getextrema()
+
+
+def test_cover_is_the_hook_scene_fully_visible_without_the_progress_bar():
+    r = compose.Renderer([Scene(lines=["HOOK"], seconds=2.0, seed="c"), Scene(lines=["Beat"], seconds=2.0, seed="d")], end_card=False)
+    cover, f0 = r.cover(), r.frame_at(0.0)
+    assert cover.size == (1080, 1920)
+    x0, y0, x1, y1 = r.prep[0].items[0].box
+    assert cover.crop((x0, y0, x1, y1)).tobytes() == f0.crop((x0, y0, x1, y1)).tobytes()

@@ -440,11 +440,13 @@ def _tag_item() -> Item:
     return Item(img, SIDE - PAD, y - PAD, (SIDE, y, SIDE + w, y + h))
 
 
-def _chrome(img: Image.Image, tag: Item, progress: float, alpha: float) -> None:
+def _chrome(img: Image.Image, tag: Item, progress: float, alpha: float, bar: bool = True) -> None:
     if alpha <= 0.004:
         return
     over = img.copy() if alpha < 0.999 else img
     _blit(over, tag, 1.0, rise=0)
+    if not bar:
+        return
     d = ImageDraw.Draw(over)
     y, h = SAFE_TOP + 4, 7
     d.rounded_rectangle([SIDE, y, W - SIDE, y + h], radius=h // 2, fill=(92, 100, 118))
@@ -504,14 +506,33 @@ class Renderer:
         _chrome(img, self.tag, t / self.tl.total if self.progress else 0.0, chrome_a)
         return img
 
+    def cover(self) -> Image.Image:
+        """The cover: the hook scene as a still with all its text in place (no progress bar, it is not playing)."""
+        img = self._scene_frame(0, 0.0)
+        _chrome(img, self.tag, 0.0, 0.0 if self.prep[0].scene.kind == "end" else 1.0, bar=False)
+        return img
+
     def frames(self) -> Iterator[bytes]:
         for k in range(self.tl.frames):
             yield self.frame_at(k / FPS).tobytes()
 
 
+def cover_path(video) -> Path:
+    """Where the cover of `video` lives: next to it, same name + '-cover.jpg' (reel.mp4 -> reel-cover.jpg)."""
+    v = Path(video)
+    return v.with_name(f"{v.stem}-cover.jpg")
+
+
+def write_cover(renderer: "Renderer", video) -> Path:
+    out = cover_path(video)
+    renderer.cover().save(out, "JPEG", quality=86, optimize=True, progressive=True)
+    return out
+
+
 def make_reel(scenes: Sequence[Scene], out_path, seconds_per_scene: float = 3.0, music=None, transition: str = "fade",
               xfade: float = 0.45, progress: bool = True, end_card: bool = True, timeout: float = 900.0) -> Path:
-    """Render `scenes` (plus the brand end card) to an MP4 at `out_path` and return the path.
+    """Render `scenes` (plus the brand end card) to an MP4 at `out_path` and return the path. A 1080x1920 cover JPG (the hook
+    scene as a still, see `cover_path`) is written next to it, for Instagram's `cover_url`.
 
     `music` is an optional path to a royalty-free audio file that YOU have the rights to; nothing is bundled or downloaded.
     Without it the reel has a silent stereo AAC track (some players need an audio stream)."""
@@ -538,6 +559,7 @@ def make_reel(scenes: Sequence[Scene], out_path, seconds_per_scene: float = 3.0,
     if out.stat().st_size > MAX_BYTES:
         out.unlink(missing_ok=True)
         raise ReelError("the reel came out larger than 20 MB")
+    write_cover(r, out)
     return out
 
 

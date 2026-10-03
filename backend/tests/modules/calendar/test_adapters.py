@@ -1,5 +1,6 @@
 """Adapters: library entry -> creative Brief -> pack; the guards keep invented facts out; showcase and reel items."""
 import re
+from types import SimpleNamespace
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -157,3 +158,25 @@ async def test_publish_reel_dry_run_and_live_call_shape(monkeypatch):
     await adapters.publish_reel(doc, live, uploads)
     assert sent == [("instagram", "https://media.test/uploads/reels/reel-w1-tip.mp4", "cap", "reel-w1-tip.mp4")]
     assert (uploads / "reels" / "reel-w1-tip.mp4").is_file()  # staged where /uploads serves it
+    assert not (uploads / "reels" / "reel-w1-tip-cover.jpg").exists()   # no cover rendered: published exactly as before
+
+
+async def test_publish_reel_sends_the_cover_to_instagram_only(monkeypatch):
+    uploads = Path(tempfile.mkdtemp(prefix="reel-"))
+    (uploads / "calendar" / "reels").mkdir(parents=True)
+    (uploads / "calendar" / "reels" / "reel-w1-tip.mp4").write_bytes(b"mp4")
+    (uploads / "calendar" / "reels" / "reel-w1-tip-cover.jpg").write_bytes(b"jpg")
+    sent = []
+
+    async def fake(channel, url, caption, cfg=None, file_path=None, **kw):
+        sent.append((channel, kw.get("cover_url")))
+        return SimpleNamespace(external_id="x", permalink=None)
+
+    monkeypatch.setattr(adapters._reel_publish, "publish_reel", fake)
+    live = SocialConfig(dry_run=False, page_id="P", ig_id="I", media_base_url="https://media.test", page_token="EAAB" + "x" * 30)
+    for ch in ("instagram", "facebook_page"):
+        doc = {"channel": ch, "caption": "cap", "video": "calendar/reels/reel-w1-tip.mp4", "slug": "reel-w1-tip",
+               "creative": {"reel_key": "reel-w1-tip"}}
+        await adapters.publish_reel(doc, live, uploads)
+    assert sent == [("instagram", "https://media.test/uploads/reels/reel-w1-tip-cover.jpg"), ("facebook_page", None)]
+    assert (uploads / "reels" / "reel-w1-tip-cover.jpg").read_bytes() == b"jpg"   # staged next to the mp4
