@@ -112,6 +112,15 @@ describe('LeadAlertsBadge', () => {
     render(<LeadAlertsBadge />)
     await waitFor(() => expect(screen.getByTestId('lead-alerts-badge')).toHaveTextContent('2New leads and chats'))
   })
+  it('shows website requests to join as their own badge to the admin queue', async () => {
+    getNotifications.mockResolvedValue({ unread: 3, items: [{ id: '1', kind: 'invite_request', summary: '', ref: {}, created_at: '', read: false },
+      { id: '2', kind: 'invite_request', summary: '', ref: {}, created_at: '', read: false },
+      { id: '3', kind: 'new_chat_lead', summary: '', ref: {}, created_at: '', read: false }] })
+    render(<LeadAlertsBadge />)
+    await waitFor(() => expect(screen.getByTestId('invite-alerts-badge')).toHaveTextContent('2New requests to join'))
+    expect(screen.getByTestId('invite-alerts-badge')).toHaveAttribute('href', '/studio/admin')
+    expect(screen.getByTestId('lead-alerts-badge')).toHaveTextContent('1New lead or chat from your website')
+  })
   it('names the channel when all alerts come from one', () => {
     expect(alertsLabel([{ id: '1', kind: 'chat_needs_you', summary: '', ref: {}, created_at: '', read: false }], 1)).toBe('New lead or chat from your website')
   })

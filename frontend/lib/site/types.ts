@@ -153,7 +153,7 @@ export interface PublicProject {
   nearby: { name: string; km?: number | null; source: FactSource }[]
   place?: { lat: number; lon: number; source: FactSource; note: string } | null
   maps_query: string
-  media: { url: string; caption: string; credit: string; artist_impression: boolean; kind: 'image' | 'video' }[]
+  media: { url: string; caption: string; credit: string; artist_impression: boolean; kind: 'image' | 'video'; slide?: boolean }[]
   rera?: ProjectRera | null
   booked_pct?: number | null
   completion_moved_months?: number | null

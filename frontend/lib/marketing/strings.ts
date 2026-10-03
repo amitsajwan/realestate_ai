@@ -29,13 +29,13 @@ export const NAV = {
 }
 
 export const FOOTER = {
-  tagline: TAGLINE + '. Plain-language property news, area guides and homes for Kharadi, Upper Kharadi and Wagholi, Pune.',
+  tagline: TAGLINE + '. A free pilot for real estate agents in Pune.',
   contactUnset: 'Contact details are shared when you request an invite.',
   contactHeading: 'Contact',
 }
 
 // ---------------------------------------------------------------------------------------------------------
-// Product screenshots (shown on /for-agents) and the home page
+// Landing
 // ---------------------------------------------------------------------------------------------------------
 export interface Shot { src: string; alt: string; caption: string; width: number; height: number }
 const SHOT_W = 780
@@ -65,54 +65,160 @@ export const SHOTS = {
 
 export const SAMPLE_NOTE = 'Screens show sample data.'
 
-/** Copy for the home page, which serves buyers first; the agent story lives on /for-agents. */
-export const HOME = {
-  metaTitle: `${BRAND_NAME}: Kharadi, Upper Kharadi and Wagholi property news, area guides and homes`,
+export const LANDING = {
+  metaTitle: `${BRAND_NAME}: ${TAGLINE} | Free pilot for real estate agents in Pune`,
   metaDescription:
-    'Plain-language property news with sources and dates, area guides and buyer checklists for Kharadi, Upper Kharadi and Wagholi in Pune, and homes from local agents as they are listed.',
-  metaOrgDescription:
-    'Plain-language property news, area guides and homes from local agents for buyers in Kharadi, Upper Kharadi and Wagholi, Pune.',
-  ogAlt: `${BRAND_NAME}: ${TAGLINE}. Property news, area guides and homes in Kharadi, Upper Kharadi and Wagholi, Pune.`,
+    'Your own website, builder projects checked on MahaRERA, posts and reels made for you, and every enquiry as a lead card that says who to call first. Free invite-only pilot for real estate agents in Pune.',
+  metaOrgDescription: 'A free, invite-only pilot that helps real estate agents in Pune get buyer enquiries and follow them up.',
   hero: {
-    eyebrow: 'For home buyers in east Pune',
-    title: 'Kharadi, Upper Kharadi and Wagholi, explained in plain words',
+    eyebrow: 'For real estate agents in Pune',
+    pilot: 'Free, invite-only pilot',
+    title: 'Get more property enquiries. Spend less time chasing them.',
     lead:
-      `${BRAND_NAME} is ${TAGLINE.toLowerCase()}. Read local property news with the source and date on every item, area guides that say what to check before you buy, and homes from local agents.`,
-    cta: 'Tell us what you are looking for',
-    secondary: 'Explore area guides',
-    points: ['News with sources and dates', 'Area guides and checklists', 'Homes from local agents'],
+      'Avasetu gives Pune agents their own property website, makes the posts and reels, and turns every enquiry into a lead card that says what the buyer wants and who to call first.',
+    publishing: 'We create the content and publish it on your own Instagram and Facebook Page, and on Avasetu\'s too. Buyers can reach you on your WhatsApp. We set it all up with you.',
+    cta: 'Join the free pilot',
+    secondary: 'See an example agent page',
+    signIn: 'Already invited? Sign in',
+    facts: ['Free during the pilot', 'Invite-only', 'Pune', 'No app to install'],
   },
-  news: {
-    heading: 'Latest local news',
-    lead: 'Short summaries in our own words. Each one names its source and the date.',
-    all: 'All news',
+  problem: {
+    heading: 'Sound familiar?',
+    items: [
+      { title: 'Comments with no names', body: 'People write "price?" or "interested" under your post, and you are left guessing who they are.' },
+      { title: 'Enquiries all over the place', body: 'Calls, WhatsApp, Instagram and Facebook: nothing in one list, so the warm buyer gets a late reply.' },
+      { title: 'Posts take your evening', body: 'Writing the same property up again in English, Hindi and Marathi is slow work.' },
+    ],
   },
-  areas: {
-    heading: 'Area guides',
-    lead: 'Who each area suits, how to get around and what to check before you visit or book.',
-    compareLabel: 'Comparing the three?',
-    all: 'All area guides',
+  mock: {
+    heading: 'This is the whole idea',
+    lead: 'A comment on your post turns into a card you can act on. The example below is made-up sample data.',
+    postLabel: 'Comment on your property post',
+    comment: 'INTERESTED',
+    commenter: 'Sample buyer',
+    cardLabel: 'Lead card',
+    cardName: 'Sample buyer',
+    hot: 'HOT',
+    summary: 'Wants a 2 BHK in Baner, budget 80 lakh to 1.2 crore, ready in 1-3 months, will need a home loan.',
+    chips: ['2 BHK', '80 L - 1.2 Cr', 'Baner', '1-3 months', 'Home loan'],
+    call: 'Call',
+    whatsapp: 'WhatsApp',
+    next: 'Suggested next step: call today and offer a site visit.',
+    sample: 'Sample data',
   },
-  projects: {
-    heading: 'New projects, checked on MahaRERA',
-    lead: 'Prices as quoted by local agents, with the completion date filed on MahaRERA and how many homes are booked.',
-    all: 'All projects',
+  steps: {
+    id: 'what-it-does',
+    heading: 'Create, get discovered, get qualified leads, close',
+    lead: 'Four steps, in plain words. All of this works today.',
+    items: [
+      {
+        key: 'create', label: 'Create', title: 'Your homes and projects, checked',
+        body: 'Add a home from your phone, or a builder project by its MahaRERA number. We fill in the details for you to check, and for projects we read the MahaRERA record: completion date and homes booked.',
+      },
+      {
+        key: 'attract', label: 'Get discovered', title: 'Posts and reels, made for you',
+        body: 'Your own website, plus carousels and reels on your own Instagram and Facebook Page, and on Avasetu\'s, after you approve each one. Every post links back to your page.',
+      },
+      {
+        key: 'qualify', label: 'Get qualified leads', title: 'Every enquiry becomes a lead card',
+        body: 'Budget, bedrooms, area, timing and how warm the buyer is, in a few lines. Buyers tick a box to agree to be contacted.',
+      },
+      {
+        key: 'close', label: 'Close', title: 'Call the right person first',
+        body: 'Call or WhatsApp from the card. When you add a property, you see which of your buyers match it. Nothing is sent to a buyer unless you tap send.',
+      },
+    ],
   },
-  homes: {
-    heading: 'Homes from local agents',
-    lead: 'Listed by local agents. Open a home for the details and to send an enquiry.',
-    empty: 'Homes from local agents appear here as they are listed. Tell us what you are looking for and we will send you options as they come.',
+  screens: {
+    heading: 'The real screens',
+    lead: 'Screenshots from the product. Names and numbers are sample data.',
   },
-  guides: {
-    heading: 'Buyer guides',
-    lead: 'Plain-language guides with sources. We do not guess prices.',
-    all: 'All guides',
+  whatsapp: {
+    title: 'Built around the apps you already use',
+    body: 'Share posts and property links straight to WhatsApp, and reach buyers by call or WhatsApp from their lead card. No app to install.',
   },
-  agents: {
-    title: 'Are you a real estate agent in Pune?',
-    body: `See what ${BRAND_NAME} does for agents: posts, your own page, and every enquiry in one place.`,
-    cta: 'What we do for agents',
-    demo: 'See a demo agent page',
+  how: {
+    id: 'how-it-works',
+    heading: 'How it works for an agent',
+    lead: 'We are running an invite-only pilot with agents in Pune, so we can look after each agent properly.',
+    items: [
+      { title: 'Ask for an invite', body: 'Fill in the short form with your name, mobile number and city.' },
+      { title: 'We get in touch', body: 'We contact you on the number you gave and, when a place is available, send you a personal access code.' },
+      { title: 'Sign in and add your details', body: 'Sign in with your mobile number and code, tell us your name and city, and your website is created for you.' },
+    ],
+  },
+  cost: {
+    id: 'cost',
+    heading: 'What it costs',
+    title: 'Free during the pilot',
+    body: 'No charge during the pilot. After the pilot, Avasetu will stay low-cost for agents: a small monthly fee, not a big subscription. We will tell you the price before anything changes, and you decide.',
+  },
+  coming: {
+    id: 'whats-coming',
+    heading: 'What you get, and what is next',
+    today: 'Works today',
+    todayItems: [
+      'Your own website with your homes and builder projects',
+      'Builder projects checked on MahaRERA, with the date we read the record',
+      'Carousels and reels on your own Instagram and Facebook Page (and Avasetu\'s), after you approve each one',
+      'Your WhatsApp number on every post and page, with ready-to-send replies',
+      'Enquiries with a summary of what each buyer wants',
+      'Matching your buyers to new properties',
+    ],
+    next: 'Next',
+    nextItems: [
+      'Automatic follow-ups to buyers, sent only when you say so.',
+      'More areas of Pune, and more languages.',
+    ],
+  },
+  faq: {
+    id: 'faq',
+    heading: 'Questions',
+    items: [
+      {
+        q: 'What does it cost?',
+        a: 'Nothing during the pilot. After it, Avasetu stays low-cost for agents: a small monthly fee, not a big subscription. We will tell you the price before anything changes, and you decide whether to continue.',
+      },
+      {
+        q: 'Who sees my buyer leads?',
+        a: 'You do. Each enquiry goes to the agent the buyer contacted, and we handle it only to run the service. We do not sell it and we do not share it with other agents.',
+      },
+      {
+        q: 'What about RERA?',
+        a: 'For builder projects we read the public MahaRERA record and show it with the date we read it, next to the builder\'s own claims, so buyers see both. We do not issue or verify agent registration: you stay responsible for your own RERA details.',
+      },
+      {
+        q: 'Do you post on my own Facebook and Instagram?',
+        a: 'Yes. When you join, we connect your Facebook Page and Instagram with you, and posts go out there after you approve each one. They also go out on Avasetu\'s accounts, marked "Listed by" you, for extra reach.',
+      },
+      {
+        q: 'Who can see my listings?',
+        a: 'Only properties you post appear on your public website, and anyone with the link can see them. Drafts you have not posted stay private to you.',
+      },
+      {
+        q: 'What happens to my buyers\' details?',
+        a: 'When a buyer sends an enquiry they are asked to agree to be contacted. Their details are shown to you, the agent they contacted, and are handled by us only to run the service. We do not sell them.',
+      },
+      {
+        q: 'How is my consent handled when I request an invite?',
+        a: 'You tick a box to say it is OK for us to contact you about the pilot. We use your details only to reply to your request. You can ask us to delete them at any time.',
+      },
+      {
+        q: 'Do I need to install an app?',
+        a: 'No. It works in your phone\'s browser.',
+      },
+      {
+        q: 'How do I get my data deleted?',
+        a: 'Follow the steps on the data deletion page. We delete it within 30 days.',
+      },
+    ],
+    privacyLink: 'Read the privacy policy',
+    deletionLink: 'Data deletion',
+  },
+  finalCta: {
+    title: 'Want to see your own lead cards?',
+    body: 'Places in the pilot are limited to agents in Pune. Name and mobile number is all we need, and we will get back to you.',
+    cta: 'Request an invite',
   },
 }
 
@@ -432,4 +538,29 @@ export function deletionDoc(cfg: MarketingConfig): LegalDoc {
       },
     ],
   }
+}
+
+/** A real agent on Avasetu today (featured with their consent). Images are their published carousel slides. */
+export const LIVE = {
+  id: 'live',
+  eyebrow: 'Example agent page',
+  heading: 'See what an Avasetu agent gets',
+  lead: 'A sample page we built for House Deal, Upper Kharadi: five builder projects in Wagholi and Upper Kharadi, each checked on MahaRERA, with carousels and reels made for each one.',
+  cards: [
+    { src: '/landing/live/maharera.jpg', alt: 'Carousel slide: Checked on MahaRERA, 71% of 143 homes booked, registration P52100078796, completion date filed 30 Apr 2029.',
+      title: 'Checked on MahaRERA', body: 'Completion date filed and homes booked, read from the public record, with the date we read it.' },
+    { src: '/landing/live/possession.jpg', alt: 'Carousel slide: When could you move in? Builder\'s target Dec 2028 next to the MahaRERA date 30 Aug 2030.',
+      title: 'Both dates, explained', body: 'The builder\'s target next to the date filed with MahaRERA, in plain words, so buyers plan around the right one.' },
+    { src: '/landing/live/posts.jpg', alt: 'Carousel cover: 5 projects, 59.99 lakh to 1.25 crore, checked on MahaRERA, House Deal.',
+      title: 'Posts in the agent\'s name', body: 'Carousels and reels for every project, marked "Listed by" the agent, linking back to their page.' },
+  ],
+  links: { page: '/agent/house-deal', pageLabel: 'Open the example page', compare: '/agent/house-deal/projects/compare', compareLabel: 'Compare the 5 projects' },
+}
+
+/** One line for buyers who land on the agent-facing home page. */
+export const BUYERS = {
+  title: 'Buying a home in Kharadi or Wagholi?',
+  body: 'Every project on Avasetu shows its MahaRERA record and the date we read it. Start with the area guides or the latest news.',
+  guides: 'Area guides',
+  news: 'News',
 }

@@ -7,8 +7,6 @@ import { siteLinks, FOR_AGENTS_PATH, INVITE_PATH } from '@/components/marketing/
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { pageMetadata } from '@/lib/marketing/seo'
 import { BRAND_NAME, LOGO, TAGLINE, demoAgentPath, siteUrl } from '@/lib/brand'
-import PhoneFrame from '@/components/marketing/PhoneFrame'
-import { PATHS, SAMPLE_NOTE, SHOTS } from '@/lib/marketing/strings'
 import InviteQr from './InviteQr'
 import { FOR_AGENTS as C } from './content'
 
@@ -183,24 +181,8 @@ export default function ForAgentsPage() {
           </div>
         </section>
 
-        {/* Real product screens: horizontal strip, lazy; on screen only (the printed brochure stays two pages) */}
-        <section aria-labelledby="fa-screens" className={'print:hidden ' + section}>
-          <div className={wrap}>
-            <h2 id="fa-screens" className={h2}>{C.screens.heading}</h2>
-            <p className="mt-1 text-slate-700">{C.screens.lead}</p>
-          </div>
-          <ul className="mx-auto mt-5 flex max-w-5xl snap-x gap-4 overflow-x-auto px-4 pb-4" tabIndex={0} aria-label={C.screens.heading}>
-            {Object.values(SHOTS).map((sh) => (
-              <li key={sh.src} className="w-44 flex-none snap-start list-none sm:w-52">
-                <PhoneFrame shot={sh} className="max-w-none" />
-              </li>
-            ))}
-          </ul>
-          <p className={wrap + ' text-sm text-slate-600'}>{SAMPLE_NOTE}</p>
-        </section>
-
-        {/* Cost, what is coming, trust */}
-        <section aria-label="Cost, what is coming and trust" className={section}>
+        {/* Cost, setup, trust */}
+        <section aria-label="Cost, setup and trust" className={section}>
           <div className={wrap + ' grid gap-4 md:grid-cols-3 print:!grid-cols-3 print:gap-[3mm]'}>
             <div className="fa-keep rounded-2xl border-2 border-[#f0b440] bg-[#fbf6ea] p-5 print:p-[3.5mm]">
               <h2 id="fa-cost" className="text-sm font-bold uppercase tracking-wide text-[#8a6410]">{C.cost.heading}</h2>
@@ -244,29 +226,6 @@ export default function ForAgentsPage() {
                 </li>
               ))}
             </ul>
-          </div>
-        </section>
-
-        {/* FAQ: on screen only */}
-        <section id="faq" aria-labelledby="fa-faq" className={'scroll-mt-16 print:hidden ' + section}>
-          <div className={wrap + ' max-w-3xl'}>
-            <h2 id="fa-faq" className={h2}>{C.faq.heading}</h2>
-            <div className="mt-5 divide-y divide-slate-200 border-y border-slate-200">
-              {C.faq.items.map((f) => (
-                <details key={f.q} className="group py-1">
-                  <summary className="flex min-h-[52px] cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-[#0f2340]">
-                    {f.q}
-                    <span aria-hidden="true" className="text-2xl text-[#b7791f] group-open:hidden">+</span>
-                    <span aria-hidden="true" className="hidden text-2xl text-[#b7791f] group-open:inline">&minus;</span>
-                  </summary>
-                  <p className="pb-4 leading-relaxed text-slate-700">{f.a}</p>
-                </details>
-              ))}
-            </div>
-            <p className="mt-4 flex flex-wrap gap-x-6 text-sm">
-              <Link href={PATHS.privacy} className="flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{C.faq.privacyLink}</Link>
-              <Link href={PATHS.deletion} className="flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{C.faq.deletionLink}</Link>
-            </p>
           </div>
         </section>
 

@@ -18,6 +18,7 @@ def wire() -> None:
     from app.modules.showcase import samples
     from app.modules.social import router as social_routes
     from app.modules.social import service as social_service
+    from app.modules.waitlist import router as waitlist_routes
 
     # social posts carry the "Listed by" lines and register the Instagram post as a hub item
     social_routes.configure(attribution=attribution_text, on_instagram_published=register_hub_item)
@@ -30,3 +31,20 @@ def wire() -> None:
     # grounded answers know the sample homes and the verified evergreen posts; comment replies show listing facts
     grounding.configure(sample_home=samples.get, icon_labels=samples.ICON_LABELS, evergreen_post=calendar_library.BY_SLUG.get)
     engage_service.configure(listing_facts=Facts.from_docs)
+    # a website request to join shows as an alert in the owner's Studio (it waits in Studio > Admin)
+    waitlist_routes.configure(on_new_request=_tell_owner_about_invite_request)
+
+
+async def _tell_owner_about_invite_request(name: str, city: str) -> None:
+    import logging
+
+    from app.core.database import get_database
+    from app.modules.concierge.config import owner_ids
+    from app.modules.notifications.service import notify
+
+    owners = owner_ids()
+    if not owners:
+        logging.getLogger(__name__).warning("invite request: no CONCIERGE_OWNER_IDS set, so nobody gets an alert (it waits in Studio > Admin)")
+    for owner in owners:
+        await notify(get_database(), owner, "invite_request", f"{name} ({city}) asked to join on the website",
+                     {"screen": "/studio/admin"})

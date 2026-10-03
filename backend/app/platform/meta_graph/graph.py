@@ -1,5 +1,6 @@
 """Real Meta Graph API publisher (Facebook Page photo/feed post, Instagram single image or carousel)."""
 import asyncio
+import json
 import time
 from typing import Awaitable, Callable, Optional
 from urllib.parse import quote
@@ -14,6 +15,7 @@ POLL_INTERVAL_S = 2.0
 POLL_TIMEOUT_S = 60.0
 REQUEST_TIMEOUT_S = 20.0
 MAX_CAROUSEL = 10
+DEDUP_WINDOW = 12  # recent Instagram posts checked for an identical caption before publishing
 
 
 class GraphPublisher:
@@ -94,11 +96,13 @@ class GraphPublisher:
     # ---- Facebook Page ---------------------------------------------------------------------------------------
     async def _facebook(self, post: Post) -> Result:
         page = self.cfg.page_id
+        if len(post.image_urls) > 1:
+            return await self._facebook_album(post)
         if post.image_urls:
             body = await self._call("POST", f"{page}/photos", {"url": post.image_urls[0], "caption": post.text, "published": "true"})
             post_id = body.get("post_id")
             ext = str(post_id) if post_id else self._need_id(body, "the photo")
-            link = f"https://www.facebook.com/{ext}" if post_id else None
+            link = await self._fb_permalink(ext) if post_id else None
             if not link:
                 try:
                     link = (await self._call("GET", ext, {"fields": "link"})).get("link")
@@ -110,14 +114,57 @@ class GraphPublisher:
             params["link"] = post.link
         body = await self._call("POST", f"{page}/feed", params)
         ext = self._need_id(body, "the post")
-        return Result(ext, f"https://www.facebook.com/{ext}")
+        return Result(ext, await self._fb_permalink(ext))
+
+    async def _facebook_album(self, post: Post) -> Result:
+        """Several photos in one Page post, like an Instagram carousel: each photo is uploaded unpublished, then one feed post
+        attaches them all in order with the caption."""
+        page, ids = self.cfg.page_id, []
+        for url in post.image_urls[:MAX_CAROUSEL]:
+            body = await self._call("POST", f"{page}/photos", {"url": url, "published": "false"})
+            ids.append(self._need_id(body, "a photo of the post"))
+        params = {"message": post.text}
+        for i, fbid in enumerate(ids):
+            params[f"attached_media[{i}]"] = json.dumps({"media_fbid": fbid})
+        ext = self._need_id(await self._call("POST", f"{page}/feed", params), "the post")
+        return Result(ext, await self._fb_permalink(ext))
+
+    async def _fb_permalink(self, post_id: str) -> str:
+        """Facebook's own public link for a Page post (permalink_url). The bare 'facebook.com/<page>_<post>' form sends
+        logged-out visitors to the login screen, so it is only the fallback when Graph does not answer."""
+        try:
+            url = (await self._call("GET", post_id, {"fields": "permalink_url"})).get("permalink_url") or ""
+        except PublishError:
+            url = ""
+        if url.startswith("/"):
+            url = "https://www.facebook.com" + url
+        return url if url.startswith("https://") else f"https://www.facebook.com/{post_id}"
 
     # ---- Instagram -------------------------------------------------------------------------------------------
+    async def _already_on_instagram(self, caption: str) -> Optional[Result]:
+        """The account's recent post with this exact caption, if any. Instagram sometimes publishes a post and still answers
+        media_publish with an error (seen live 2026-10-03: error 4/2207051, the carousel appeared twice after one retry), so a
+        retry first looks for its own post instead of publishing a copy. Best effort: no answer means "not found"."""
+        key = (caption or "").strip()
+        if not key:
+            return None
+        try:
+            body = await self._call("GET", f"{self.cfg.ig_id}/media", {"fields": "id,caption,permalink", "limit": DEDUP_WINDOW})
+        except PublishError:
+            return None
+        for m in body.get("data") or []:
+            if (m.get("caption") or "").strip() == key and m.get("id"):
+                return Result(str(m["id"]), m.get("permalink"))
+        return None
+
     async def _instagram(self, post: Post) -> Result:
         ig = self.cfg.ig_id
         urls = post.image_urls[:MAX_CAROUSEL]
         if not urls:
             raise PublishError("Instagram needs at least one image")
+        found = await self._already_on_instagram(post.text)
+        if found:
+            return found
         if len(urls) == 1:
             container = self._need_id(await self._call("POST", f"{ig}/media", {"image_url": urls[0], "caption": post.text}), "the container")
         else:

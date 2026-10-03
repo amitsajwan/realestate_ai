@@ -5,7 +5,6 @@ import { FOR_AGENTS } from '@/app/for-agents/content'
 import { encodeQr } from '@/lib/qr'
 import { siteUrl } from '@/lib/brand'
 import { socialLinks } from '@/lib/marketing/social'
-import { SHOTS } from '@/lib/marketing/strings'
 
 const PHONE = /(?:\+?\d[\s\-().]*){10,}/
 
@@ -13,7 +12,7 @@ describe('/for-agents brochure', () => {
   it('has one h1 and every section, in the brochure order', () => {
     const { container } = render(<ForAgentsPage />)
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-    const order = [/problem every agent knows/i, /four steps/i, /what you get/i, /what it costs/i, /what is coming/i, /keep it honest/i, /see it live/i, /request an invite/i]
+    const order = [/problem every agent knows/i, /four steps/i, /what you get/i, /what it costs/i, /set up with you/i, /keep it honest/i, /see it live/i, /request an invite/i]
     const h2s = Array.from(container.querySelectorAll('article h2')).map((h) => h.textContent || '')
     let at = -1
     for (const re of order) {
@@ -23,20 +22,13 @@ describe('/for-agents brochure', () => {
     }
   })
 
-  it('is an agent page: the header button is "Request an invite", not the buyer one', () => {
-    render(<ForAgentsPage />)
-    const cta = screen.getByTestId('header-cta')  // the site header (the brochure has its own print header too)
-    expect(cta).toHaveTextContent('Request an invite')
-    expect(cta).toHaveAttribute('href', '/request-invite')
-  })
-
   it('tells the create, attract, qualify, close story and what the agent gets', () => {
     const { container } = render(<ForAgentsPage />)
     const steps = Array.from(container.querySelectorAll('#how ol > li > p:first-child')).map((p) => (p.textContent || '').replace(/^\d/, '').trim())
     expect(steps).toEqual(['Create', 'Attract', 'Qualify', 'Close'])
     const text = container.textContent || ''
-    for (const must of [/hindi voice/i, /tap-to-show-interest/i, /BHK, budget, timing/i, /RERA agent number/i, /listed by/i, /weekly results/i,
-      /free during the pilot/i, /tell you before that changes/i, /own WhatsApp number/i, /once Meta approves/i,
+    for (const must of [/hindi voice/i, /tap-to-show-interest/i, /BHK, budget, timing/i, /RERA agent number/i, /your own instagram and facebook page/i, /weekly results/i,
+      /free during the pilot/i, /tell you the price before anything changes/i, /own WhatsApp number/i, /posts go out in your name/i,
       /nothing is sent to a buyer without you/i, /labelled as samples/i, /no invented AI percentages/i, /consent .* recorded/i]) {
       expect(text).toMatch(must)
     }
@@ -60,30 +52,6 @@ describe('/for-agents brochure', () => {
     expect(css).toMatch(/@media print/)
     expect(css).toMatch(/size: A4/)
     expect(css).toContain('.fa-root .bg-\\[\\#0f2340\\] { background-color: #0f2340 !important; }')
-  })
-
-  it('shows the six real screenshots on screen only, lazy loaded, with alt text, dimensions and a sample-data note', () => {
-    const { container } = render(<ForAgentsPage />)
-    const shots = Array.from(container.querySelectorAll('img')).filter((i) => (i.getAttribute('src') || '').startsWith('/landing/'))
-    expect(shots.map((i) => i.getAttribute('src')).sort()).toEqual(Object.values(SHOTS).map((s) => s.src).sort())
-    shots.forEach((i) => {
-      expect(i.getAttribute('alt')!.length).toBeGreaterThan(20)
-      expect(i).toHaveAttribute('width', '780')
-      expect(i).toHaveAttribute('height', '1688')
-      expect(i).toHaveAttribute('loading', 'lazy')
-    })
-    expect(screen.getByText(/screens show sample data/i)).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /the real screens/i }).closest('section')).toHaveClass('print:hidden')
-  })
-
-  it('answers cost, lead visibility, RERA and data in the FAQ, with privacy and deletion links', () => {
-    render(<ForAgentsPage />)
-    for (const q of [/what does it cost/i, /who sees my buyer leads/i, /what about rera/i, /what happens to my buyers/i, /how do i get my data deleted/i]) {
-      expect(screen.getByText(q)).toBeInTheDocument()
-    }
-    expect(screen.getByRole('link', { name: /read the privacy policy/i })).toHaveAttribute('href', '/privacy')
-    expect(within(screen.getByRole('article')).getByRole('link', { name: /^data deletion$/i })).toHaveAttribute('href', '/data-deletion')
-    expect(screen.getByRole('heading', { name: /questions agents ask/i }).closest('section')).toHaveClass('print:hidden')
   })
 
   it('has a QR code for the invite page URL built from the site setting', () => {
