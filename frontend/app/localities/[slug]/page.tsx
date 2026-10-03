@@ -8,8 +8,11 @@ import ListingCard from '@/components/site/ListingCard'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { INSIGHT_NOTE, getInsight } from '@/lib/marketing/insights'
 import { LOCALITIES, getLocality } from '@/lib/marketing/localities'
-import { pageMetadata } from '@/lib/marketing/seo'
-import { getLocalityListings } from '@/lib/site/api'
+import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
+import ProjectCard from '@/components/site/ProjectCard'
+import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
+import { getCatalog, getLocalityListings } from '@/lib/site/api'
+import { livePages } from '@/lib/site/filters'
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -33,7 +36,7 @@ const ENQUIRE = `/agent/${process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'avasetu
 export default async function LocalityPage({ params }: Props) {
   const l = getLocality((await params).slug)
   if (!l) notFound()
-  const listings = await getLocalityListings(l.listingName)
+  const [listings, projects] = await Promise.all([getLocalityListings(l.listingName), getCatalog(l.listingName)])
   const guides = l.guides.map((s) => getInsight(s)).filter((g): g is NonNullable<typeof g> => !!g)
   const faqLd = {
     '@context': 'https://schema.org', '@type': 'FAQPage',
@@ -42,7 +45,10 @@ export default async function LocalityPage({ params }: Props) {
   return (
     <MarketingShell>
       <article className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd).replace(/</g, '\\u003c') }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(faqLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(breadcrumbJsonLd(getMarketingConfig().siteUrl, [
+          { name: 'Home', path: '/' }, { name: 'Area guides', path: '/localities' }, { name: `${l.name}, Pune`, path: `/localities/${l.slug}` },
+        ])) }} />
         <p className="text-sm"><Link href="/localities" className="text-[#0f2340] underline underline-offset-2">All localities</Link></p>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{l.name}, Pune</h1>
         <p className="mt-1 font-semibold text-amber-700">{l.tagline}</p>
@@ -56,11 +62,28 @@ export default async function LocalityPage({ params }: Props) {
         <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Getting around</h2>
           {l.gettingAround.map((p) => <p key={p} className="mt-3 leading-relaxed text-slate-800">{p}</p>)}</section>
 
+        {projects.length > 0 && (
+          <section className="mt-9" style={AVASETU_SITE_VARS} aria-labelledby="projects-title">
+            <h2 id="projects-title" className="text-xl font-semibold text-slate-900">New projects in {l.name}</h2>
+            <p className="mt-1 text-sm text-slate-600">With the completion date filed on MahaRERA and how many homes are booked.</p>
+            <ul className="mt-4 grid list-none gap-4 p-0 sm:grid-cols-2">
+              {projects.map((p) => <li key={p.slug}><ProjectCard p={p} href={`/projects/${p.slug}`} /></li>)}
+            </ul>
+            {livePages(projects, [l]).length > 0 && (
+              <ul className="mt-4 flex list-none flex-wrap gap-2 p-0">
+                {livePages(projects, [l]).map((f) => (
+                  <li key={f.path}><Link href={f.path} className="inline-flex min-h-[44px] items-center rounded-full border border-slate-300 px-4 text-sm font-semibold text-[#0f2340] no-underline hover:border-[#0f2340]">{f.title.replace(/, Pune$/, '')} ({f.count})</Link></li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-3"><Link href="/projects" className="font-semibold text-[#0f2340] underline underline-offset-2">All projects</Link></p>
+          </section>
+        )}
         <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Homes in {l.name}</h2>
           {listings.length > 0 ? (
             <ul className="mt-4 grid list-none gap-4 p-0 sm:grid-cols-2">{listings.map((x) => x.agent?.slug ? <ListingCard key={x.id} slug={x.agent.slug} listing={x} /> : null)}</ul>
           ) : (
-            <p className="mt-3 rounded-xl bg-slate-50 p-4 text-slate-700">We do not have live listings here yet. Tell us your budget and preferred type and we will send you options as they come.</p>
+            <p className="mt-3 rounded-xl bg-slate-50 p-4 text-slate-700">{projects.length > 0 ? 'No individual homes are listed here yet; the new projects above have prices. ' : 'We do not have live listings here yet. '}Tell us your budget and preferred type and we will send you options as they come.</p>
           )}</section>
 
         <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Before you visit or book</h2>

@@ -191,6 +191,7 @@ All backend settings go in `~/app/deploy/gcp/.env` on the VM; Compose passes the
 | Variable | Default | What it does |
 |---|---|---|
 | `SITE_HOST` | none (required) | The public host name. Caddy serves and certifies it; `PUBLIC_SITE_URL` and the frontend's `NEXT_PUBLIC_SITE_URL` follow it. |
+| `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` | empty | Google Search Console's "HTML tag" code (only the `content="..."` value). Read at build time, so redeploy after setting it. Not needed if the domain is verified with a DNS TXT record. |
 | `MONGO_PASSWORD` | none (required) | Password of the `app` root user, used by Compose to build `MONGODB_URL`. Applies only when the database volume is first created. |
 | `MONGODB_URL` | set by Compose | Do not set by hand on the VM. |
 | `DATABASE_NAME` | `propertyai` | Database name (also used by `backup.sh` and `restore_test.sh`). |

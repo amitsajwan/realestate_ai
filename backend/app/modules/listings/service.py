@@ -24,6 +24,12 @@ CARPET_BUCKET = 50
 MAX_PUBLIC = 500  # public listings considered per agent site
 
 
+def indexable(profile: dict) -> bool:
+    """False for the fictional demo agent and for preview sites the agent has not agreed to publish (owner-only flags)."""
+    b = profile.get("branding_data") or {}
+    return not (b.get("demo") or b.get("preview"))
+
+
 class ListingError(Exception):
     def __init__(self, message: str, status_code: int = 400, detail=None):
         super().__init__(message)
@@ -178,6 +184,24 @@ class ListingService:
             if profiles[d["agent_id"]]:
                 items.append(PublicListing.model_validate({**d, "id": d["_id"], "agent": self._agent(profiles[d["agent_id"]])}))
         return items[:limit], len(items)
+
+    async def sitemap_entries(self, limit: int = 5000) -> List[dict]:
+        """Every listing a search engine may index: visible on a public agent site that is neither the fictional demo nor an
+        unpublished preview, and not a sample. Newest first, as {agent_slug, id, updated_at}."""
+        docs = await self.listings.find(self._public_flt()).sort("published_at", -1).to_list(limit)
+        now = self.now()
+        profiles: dict = {}
+        out = []
+        for d in docs:
+            if is_hidden(d, now) or (d.get("title") or "").strip().lower().startswith("sample"):
+                continue
+            if d["agent_id"] not in profiles:
+                profiles[d["agent_id"]] = await self.profiles.find_one({"agent_id": d["agent_id"], "is_public": True})
+            profile = profiles[d["agent_id"]]
+            if not profile or not indexable(profile):
+                continue
+            out.append({"agent_slug": profile["slug"], "id": d["_id"], "updated_at": d.get("updated_at")})
+        return out
 
     async def public_get(self, listing_id: str) -> PublicListing:
         doc = await self.listings.find_one(self._public_flt(_id=listing_id))

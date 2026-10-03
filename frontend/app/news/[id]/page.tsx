@@ -5,7 +5,7 @@ import MarketingShell from '@/components/marketing/MarketingShell'
 import NewsArticle from '@/components/news/NewsArticle'
 import { NewsEmpty } from '@/components/news/NewsGrid'
 import { getMarketingConfig } from '@/lib/marketing/config'
-import { jsonLdString } from '@/lib/marketing/seo'
+import { breadcrumbJsonLd, jsonLdString } from '@/lib/marketing/seo'
 import { fetchNewsItem } from '@/lib/news/data'
 import { newsJsonLd, newsMetadata } from '@/lib/news/seo'
 
@@ -29,6 +29,9 @@ export default async function NewsItemPage({ params }: Props) {
       {res.ok ? (
         <>
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(newsJsonLd(cfg, res.item)) }} />
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(breadcrumbJsonLd(cfg.siteUrl, [
+            { name: 'Home', path: '/' }, { name: 'News', path: '/news' }, { name: res.item.headline, path: `/news/${res.item.id}` },
+          ])) }} />
           <NewsArticle item={res.item} />
         </>
       ) : (

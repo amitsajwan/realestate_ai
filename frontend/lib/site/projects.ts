@@ -1,5 +1,5 @@
 import { formatPrice } from './format'
-import type { FactSource, PublicProject } from './types'
+import type { CatalogProject, FactSource, PublicProject } from './types'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -83,4 +83,19 @@ export function minPerSqft(p: Pick<PublicProject, 'configurations'>): number | n
 
 export function projectWhatsAppMessage(p: Pick<PublicProject, 'name' | 'locality'>, url?: string): string {
   return `Hi, I am interested in ${p.name}, ${p.locality}.` + (url ? ' ' + url : '') + ' Please share prices and a site visit time.'
+}
+
+/** Projects grouped by locality, in the order of first appearance (the catalog is already sorted by locality, then name). */
+export function byLocality(items: CatalogProject[]): Array<[string, CatalogProject[]]> {
+  const groups = new Map<string, CatalogProject[]>()
+  for (const p of items) {
+    const k = p.locality.trim()
+    groups.set(k, [...(groups.get(k) || []), p])
+  }
+  return [...groups]
+}
+
+/** The agent whose record the facts come from (their prices and dates are the ones quoted); enquiries go to them. */
+export function mainAgent(p: CatalogProject): CatalogProject['agents'][number] {
+  return p.agents.find((a) => a.project_slug === p.slug) ?? p.agents[0]
 }

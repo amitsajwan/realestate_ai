@@ -283,3 +283,18 @@ async def test_public_by_locality_lists_real_visible_listings_across_agents_and_
     assert [i.title for i in items] == ["2BHK in Baner"] and total == 1
     assert items[0].agent.slug == "rahul"
     assert await svc.public_by_locality("  ") == ([], 0) and (await svc.public_by_locality("Nowhere"))[1] == 0
+
+
+async def test_sitemap_entries_skip_samples_private_demo_and_preview_sites():
+    svc, db = await make()
+    profiles = db.get_collection("agent_public_profiles")
+    await profiles.insert_one({"slug": "demo", "agent_id": "A4", "is_public": True, "branding_data": {"demo": True}})
+    await profiles.insert_one({"slug": "prev", "agent_id": "A5", "is_public": True, "branding_data": {"preview": True}})
+    real = await live(svc)
+    await live(svc, title="Sample: 2 BHK in Baner")
+    await svc.create("A1", ListingCreate(title="draft only"))
+    for agent in ("A3", "A4", "A5"):
+        await live(svc, agent=agent)
+    entries = await svc.sitemap_entries()
+    assert [(e["agent_slug"], e["id"]) for e in entries] == [("rahul", real.id)]
+    assert entries[0]["updated_at"] is not None

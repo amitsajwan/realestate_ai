@@ -8,10 +8,22 @@ from datetime import datetime
 from typing import Callable, List, Optional
 
 from . import maharera
-from .schemas import OwnerProject, ProjectIn, PublicProject, Rera
+from .schemas import CatalogProject, OwnerProject, ProjectAgent, ProjectIn, PublicProject, Rera
 
 COLLECTION = "agent_projects"
 MAX_PER_AGENT = 200
+MAX_CATALOG = 2000  # live project records read to build the shared /projects pages
+
+
+def indexable(profile: dict) -> bool:
+    """A public agent site that is neither the fictional demo nor a preview the agent has not agreed to publish."""
+    b = profile.get("branding_data") or {}
+    return bool(profile.get("is_public")) and not (b.get("demo") or b.get("preview")) and bool(profile.get("agent_id"))
+
+
+def _agent_name(profile: dict) -> str:
+    b = profile.get("branding_data") or {}
+    return (b.get("business_name") or profile.get("agent_name") or profile.get("slug") or "").strip()
 
 
 class ProjectError(Exception):
@@ -126,9 +138,63 @@ class ProjectService:
         docs = await self.col.find({"agent_id": agent_id, "status": "live"}).sort("order", 1).to_list(MAX_PER_AGENT)
         return [PublicProject(**public_view(d)) for d in docs]
 
+    async def sitemap_entries(self) -> List[dict]:
+        """Live projects on public agent sites that are neither the fictional demo nor an unpublished preview,
+        as {agent_slug, slug, updated_at}."""
+        out = []
+        for profile in await self.profiles.find({"is_public": True}).to_list(None):
+            if not indexable(profile):
+                continue
+            docs = await self.col.find({"agent_id": profile["agent_id"], "status": "live"}).sort("order", 1).to_list(MAX_PER_AGENT)
+            out += [{"agent_slug": profile["slug"], "slug": d["slug"], "updated_at": d.get("updated_at")} for d in docs]
+        return out
+
+    # ---- Avasetu's shared project pages --------------------------------------------------------------------------
+    async def catalog(self, locality: Optional[str] = None) -> List[CatalogProject]:
+        """One entry per MahaRERA registration that some indexable agent has live and that at least one record has checked.
+        Two agents with the same project give one page: its facts come from the most recently checked record, and both
+        agents are listed for enquiries. Sorted by locality, then name."""
+        profiles = {p["agent_id"]: p for p in await self.profiles.find({"is_public": True}).to_list(None) if indexable(p)}
+        if not profiles:
+            return []
+        docs = await self.col.find({"status": "live", "agent_id": {"$in": list(profiles)}}).to_list(MAX_CATALOG)
+        groups: dict = {}
+        for d in docs:
+            groups.setdefault(d["rera_no"], []).append(d)
+        want = (locality or "").strip().lower()
+        out = []
+        for recs in groups.values():
+            def fresh(d):
+                u = d.get("updated_at")
+                return ((d.get("rera") or {}).get("checked_at") or "", u.isoformat() if isinstance(u, datetime) else str(u or ""))
+            checked = sorted((d for d in recs if d.get("rera")), key=fresh, reverse=True)
+            if not checked:  # nobody's copy has been read on MahaRERA yet: no shared page
+                continue
+            main = checked[0]
+            if want and main["locality"].strip().lower() != want:
+                continue
+            agents = []
+            for d in sorted(recs, key=lambda d: _agent_name(profiles[d["agent_id"]]).lower()):
+                pr = profiles[d["agent_id"]]
+                agents.append(ProjectAgent(slug=pr["slug"], name=_agent_name(pr), phone=pr.get("phone"), photo=pr.get("photo"),
+                                           project_slug=d["slug"]))
+            out.append(CatalogProject(**public_view(main), catalog_slug=main["slug"], agents=agents))
+        out.sort(key=lambda p: (p.locality.lower(), p.name.lower()))
+        return out
+
+    async def catalog_get(self, slug: str) -> CatalogProject:
+        """The shared page for `slug`. An agent's own slug for the same project also finds it (catalog_slug then says
+        which address is the real one, so the page can redirect)."""
+        for p in await self.catalog():
+            if p.slug == slug or any(a.project_slug == slug for a in p.agents):
+                return p
+        raise ProjectError("Project not found", 404)
+
     async def public_get(self, agent_slug: str, slug: str) -> PublicProject:
         agent_id = await self._agent_id(agent_slug)
         doc = await self.col.find_one({"agent_id": agent_id, "slug": slug, "status": "live"}) if agent_id else None
         if not doc:
             raise ProjectError("Project not found", 404)
-        return PublicProject(**public_view(doc))
+        shared = next((p.slug for p in await self.catalog() if p.rera_no == doc["rera_no"]
+                       and any(a.slug == agent_slug for a in p.agents)), None)
+        return PublicProject(**public_view(doc), catalog_slug=shared)

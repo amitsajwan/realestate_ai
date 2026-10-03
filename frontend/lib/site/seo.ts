@@ -26,8 +26,13 @@ function build(title: string, description: string, path: string, image?: string)
 /** A preview site (owner-only flag) must never be indexed: the agent has not agreed to publish it yet. */
 export const isPreviewAgent = (agent: Pick<AgentProfile, 'branding_data'> | null | undefined): boolean => agent?.branding_data?.preview === true
 
+/** The fictional demo agent: its sample homes must never show up in Google as if they were for sale. */
+export const isDemoAgent = (agent: Pick<AgentProfile, 'branding_data'> | null | undefined): boolean => agent?.branding_data?.demo === true
+
 export function withPreview(agent: AgentProfile, md: Metadata): Metadata {
-  return isPreviewAgent(agent) ? { ...md, robots: { index: false, follow: false } } : md
+  if (isPreviewAgent(agent)) return { ...md, robots: { index: false, follow: false } }
+  if (isDemoAgent(agent)) return { ...md, robots: { index: false, follow: true } }
+  return md
 }
 
 export function agentMetadata(agent: AgentProfile, listings: PublicListing[], city: string): Metadata {
@@ -93,6 +98,30 @@ export function jsonLdString(obj: Record<string, unknown>): string {
 export function projectMetadata(agent: AgentProfile, p: PublicProject, priceText: string): Metadata {
   const title = `${p.name}, ${p.locality} | ${agent.agent_name}`
   const description = truncate([priceText, p.positioning, 'MahaRERA ' + p.rera_no].filter(Boolean).join('. '), 160)
-  const image = p.media.find((m) => m.kind === 'image')?.url
-  return withPreview(agent, build(title, description, agentPath(agent.slug, 'projects/' + p.slug), image))
+  const image = p.media.find((m) => m.kind === 'image' && !m.slide)?.url
+  const md = build(title, description, agentPath(agent.slug, 'projects/' + p.slug), image)
+  // Avasetu's shared page is the one to rank: every agent's copy of the project names it as the canonical address
+  if (p.catalog_slug) md.alternates = { canonical: siteOrigin() + '/projects/' + p.catalog_slug }
+  return withPreview(agent, md)
+}
+
+/** Metadata for Avasetu's shared project page (/projects/<slug>). */
+export function catalogProjectMetadata(p: PublicProject, priceText: string): Metadata {
+  const title = `${p.name}, ${p.locality}, Pune: prices and MahaRERA dates`
+  const description = truncate([priceText, p.positioning, 'MahaRERA ' + p.rera_no + ', completion date and homes booked from the public record'].filter(Boolean).join('. '), 160)
+  const image = p.media.find((m) => m.kind === 'image' && !m.slide)?.url
+  return build(title, description, '/projects/' + p.slug, image ? absolute(image) : undefined)
+}
+
+const absolute = (u: string): string => (/^https?:/.test(u) ? u : siteOrigin() + u)
+
+/** ApartmentComplex data: only what the page shows. */
+export function projectJsonLd(p: PublicProject, url: string): Record<string, unknown> {
+  const photo = p.media.find((m) => m.kind === 'image' && !m.slide)
+  return {
+    '@context': 'https://schema.org', '@type': 'ApartmentComplex', name: p.name, url,
+    address: { '@type': 'PostalAddress', streetAddress: p.address || undefined, addressLocality: p.locality, addressRegion: 'Maharashtra', postalCode: p.pincode || undefined, addressCountry: 'IN' },
+    image: photo ? [absolute(photo.url)] : undefined,
+    numberOfAccommodationUnits: p.rera?.units_total ?? undefined,
+  }
 }

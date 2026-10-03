@@ -6,7 +6,7 @@ import AgentStrip from '@/components/marketing/AgentStrip'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { INSIGHT_NOTE, INSIGHTS, getInsight } from '@/lib/marketing/insights'
-import { pageMetadata } from '@/lib/marketing/seo'
+import { articleJsonLd, breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -26,9 +26,16 @@ export default async function InsightPage({ params }: Props) {
   const a = getInsight(slug)
   if (!a) notFound()
   const others = INSIGHTS.filter((x) => x.slug !== a.slug)
+  const cfg = getMarketingConfig()
+  const path = `/insights/${a.slug}`
+  const ld = [
+    articleJsonLd(cfg, { title: a.title, summary: a.summary, path, updated: a.updated }),
+    breadcrumbJsonLd(cfg.siteUrl, [{ name: 'Home', path: '/' }, { name: 'Insights', path: '/insights' }, { name: a.title, path }]),
+  ]
   return (
     <MarketingShell>
       <article className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
+        {ld.map((x, i) => <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(x) }} />)}
         <p className="text-sm"><Link href="/insights" className="text-[#0f2340] underline underline-offset-2">All insights</Link></p>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{a.title}</h1>
         <p className="mt-2 text-sm text-slate-600">Last updated: <time dateTime={a.updated}>{a.updatedLabel}</time></p>

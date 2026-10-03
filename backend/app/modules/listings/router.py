@@ -101,6 +101,12 @@ async def public_locality_listings(locality: str, limit: int = Query(12, ge=1, l
     return {"items": items, "total": total}
 
 
+@public_router.get("/sitemap/listings")
+async def sitemap_listings(svc: ListingService = Depends(get_service)):
+    """Indexable listing pages, for the website's sitemap.xml."""
+    return {"items": await svc.sitemap_entries()}
+
+
 @public_router.get("/listings/{listing_id}", response_model=PublicListing)
 async def public_listing(listing_id: str, svc: ListingService = Depends(get_service)):
     try:

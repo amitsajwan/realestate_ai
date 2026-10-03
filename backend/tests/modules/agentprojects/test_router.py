@@ -49,3 +49,17 @@ async def test_owner_writes_and_public_reads_over_http():
     assert one["configurations"][0]["price_per_sqft"] == 10051
     assert c.get("/public/agents/house-deal/projects/nope").status_code == 404
     assert c.get("/public/agents/nobody/projects").status_code == 404
+
+
+async def test_shared_project_pages_over_http():
+    from .test_service import _two_agents_same_project
+    svc, db, _ = make()
+    await _two_agents_same_project(svc, db)
+    c = client(OWNER, svc)
+    page = c.get("/public/projects").json()
+    assert page["total"] == 1 and page["items"][0]["slug"] == "goyal-my-home" and len(page["items"][0]["agents"]) == 2
+    assert "issues" not in page["items"][0]  # never public
+    assert c.get("/public/projects?locality=Wagholi").json()["total"] == 0
+    assert c.get("/public/projects/my-home-upper-kharadi").json()["catalog_slug"] == "goyal-my-home"
+    assert c.get("/public/projects/nope").status_code == 404
+    assert c.get("/public/projects/Not_A_Slug").status_code == 422

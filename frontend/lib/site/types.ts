@@ -158,4 +158,21 @@ export interface PublicProject {
   booked_pct?: number | null
   completion_moved_months?: number | null
   updated_at?: string | null
+  /** Avasetu's shared page for this project (/projects/<catalog_slug>), when it has one; the agent's copy points Google there. */
+  catalog_slug?: string | null
+}
+
+/** An agent who handles a project: where an enquiry on the shared page goes. */
+export interface ProjectAgent {
+  slug: string
+  name: string
+  phone?: string | null
+  photo?: string | null
+  /** The project's page on this agent's own site. */
+  project_slug: string
+}
+
+/** One project on Avasetu's shared pages (/projects/<slug>), with every public agent who handles it. */
+export interface CatalogProject extends PublicProject {
+  agents: ProjectAgent[]
 }
