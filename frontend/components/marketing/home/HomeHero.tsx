@@ -1,7 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
 import { HOME } from '@/lib/marketing/strings'
-import { BRAND_NAME, LOGO, TAGLINE } from '@/lib/brand'
 import { buyerEnquiryPath, wrap } from './shared'
 
 const goldBtn =
@@ -15,15 +14,7 @@ export default function HomeHero() {
   return (
     <section aria-labelledby="hero-title" className="bg-gradient-to-b from-[#0f2340] to-[#183a5d] text-white">
       <div className={wrap + ' py-10 sm:py-16'}>
-        <p className="flex items-center gap-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={LOGO.mark} alt="" width={40} height={40} className="h-10 w-10" />
-          <span className="leading-tight">
-            <span className="block text-xl font-extrabold tracking-tight">{BRAND_NAME}</span>
-            <span className="block text-sm font-medium text-[#f0b440]">{TAGLINE}</span>
-          </span>
-        </p>
-        <p className="mt-6 text-xs font-bold uppercase tracking-wide text-[#f0b440]">{H.eyebrow}</p>
+        <p className="text-xs font-bold uppercase tracking-wide text-[#f0b440]">{H.eyebrow}</p>
         <h1 id="hero-title" className="mt-2 max-w-3xl text-[2rem] font-extrabold leading-[1.15] tracking-tight sm:text-5xl">{H.title}</h1>
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-100 sm:text-lg">{H.lead}</p>
         <div className="mt-6 flex flex-wrap gap-3">

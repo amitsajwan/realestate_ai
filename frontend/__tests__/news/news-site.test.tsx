@@ -194,7 +194,7 @@ describe('pages', () => {
     expect(screen.getByText('How we write news')).toBeInTheDocument()
     expect(screen.getByRole('contentinfo')).toBeInTheDocument()
     // a buyer page: the header asks what the visitor needs, not for an agent invite
-    expect(within(screen.getByRole('banner')).getByTestId('header-cta')).toHaveAccessibleName('Tell us what you need')
+    expect(within(screen.getByRole('banner')).getByTestId('header-cta')).toHaveAccessibleName('Enquire: tell us what you need')
   })
 
   it('the item page renders the article and the json-ld script; an unknown id is a 404', async () => {

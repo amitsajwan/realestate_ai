@@ -26,8 +26,9 @@ describe('home page (buyers first)', () => {
     const h1s = screen.getAllByRole('heading', { level: 1 })
     expect(h1s).toHaveLength(1)
     expect(h1s[0].textContent).toMatch(/Kharadi, Upper Kharadi and Wagholi/)
-    expect(screen.getAllByText('Avasetu').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Your bridge to the right home').length).toBeGreaterThan(0)
+    // the header carries the logo; the hero says the brand and tagline once, in its lead sentence
+    const hero = h1s[0].closest('section')!
+    expect(hero.textContent).toMatch(/Avasetu is your bridge to the right home/)
   })
 
   it('puts the buyer requirement first and area guides second', async () => {

@@ -37,9 +37,10 @@ export default function SiteHeader({ businessName, cta = 'buyer' }: { businessNa
           {s.headerWide[cta === 'agent' ? 'agent' : 'buyer'].map((l) => <NavLink key={l.href} l={l} className={wide} />)}
           <NavLink l={s.signIn} className={wide} />
           {cta === 'buyer' && (
-            // the short words on phones are the start of the full name, so voice control users can say what they see
-            <a href={s.need.href} aria-label={s.need.label} data-testid="header-cta" className={button}>
-              <span className="sm:hidden">Tell us</span><span className="hidden sm:inline">{s.need.label}</span>
+            // the accessible name contains both visible labels ('Enquire' on phones, the full label on wider screens), so
+            // voice control users can say what they see
+            <a href={s.need.href} aria-label={`Enquire: ${s.need.label.toLowerCase()}`} data-testid="header-cta" className={button}>
+              <span className="sm:hidden">Enquire</span><span className="hidden sm:inline">{s.need.label}</span>
             </a>
           )}
           {cta === 'agent' && (
