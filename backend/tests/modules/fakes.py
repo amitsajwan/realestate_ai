@@ -2,6 +2,8 @@
 import copy
 import itertools
 
+from pymongo.errors import DuplicateKeyError
+
 _ids = itertools.count(1)
 
 
@@ -40,6 +42,11 @@ class _Cursor:
         return [copy.deepcopy(d) for d in self.docs]
 
 
+class _UpdateResult:
+    def __init__(self, n):
+        self.matched_count = self.modified_count = n
+
+
 class FakeCollection:
     def __init__(self):
         self.docs = []
@@ -47,6 +54,8 @@ class FakeCollection:
     async def insert_one(self, doc):
         doc = copy.deepcopy(doc)
         doc.setdefault("_id", f"id{next(_ids)}")
+        if any(d["_id"] == doc["_id"] for d in self.docs):  # like Mongo: _id is unique
+            raise DuplicateKeyError(f"E11000 duplicate key: {doc['_id']!r}")
         self.docs.append(doc)
         return type("R", (), {"inserted_id": doc["_id"]})
 
@@ -79,7 +88,8 @@ class FakeCollection:
         for d in self.docs:
             if _match(d, flt):
                 self._apply(d, update)
-                return
+                return _UpdateResult(1)
+        return _UpdateResult(0)
 
     async def update_many(self, flt, update):
         for d in self.docs:
