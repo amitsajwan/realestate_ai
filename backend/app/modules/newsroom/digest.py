@@ -41,6 +41,15 @@ def _chunk(text: str, n: int = 9) -> str:
     return " ".join(("pause " + w) if i and i % n == 0 else w for i, w in enumerate(ws))
 
 
+HOOK_MAX_CHARS = 125  # Instagram shows about this much of a caption before 'more'
+
+
+def hook(n: int) -> str:
+    """The cover headline and the caption's first line: says how much is inside, plainly ('4 updates from Kharadi and Wagholi this
+    week'). 'Updates', not 'things that changed': many stories are only approved or planned."""
+    return f"{n} update{'s' if n != 1 else ''} from {TITLE}"
+
+
 def week_id(now: datetime) -> str:
     iso = now.astimezone(IST).isocalendar()
     return f"digest-{iso[0]}-w{iso[1]:02d}"
@@ -93,7 +102,8 @@ def compose(docs: List[dict], now: datetime, tip: Optional[str] = None) -> Optio
     ist = now.astimezone(IST)  # the digest's own 'as of' day is the day the owner sees in India
     when = f"{ist.day} {pr.MONTHS[ist.month - 1]} {ist.year}"
     lines = "\n".join(f"• {s['hook']} ({s['source']})" for s in stories)
-    text = "\n\n".join([TITLE, lines, f"Buyer tip: {tip}", f"As of {when}."])
+    cover = hook(len(stories))
+    text = "\n\n".join([f"{cover}, plus one buyer tip.", lines, f"Buyer tip: {tip}", f"As of {when}."])
     sources = list(dict.fromkeys(s["source"] for s in stories if s["source"]))
     # The source text the check compares against: the stories' own checked facts, headlines and summaries, plus our tip. The tip and
     # headlines are chunked so the 'copied run of words' rule does not fire on our own wording.
@@ -101,7 +111,7 @@ def compose(docs: List[dict], now: datetime, tip: Optional[str] = None) -> Optio
     for d in chosen:
         basis += [f.get("text", "") for f in (d.get("facts") or {}).get("facts") or []]
         basis += [pr.headline(d), pr.split_text((d.get("draft") or {}).get("text", "")).summary]
-    basis += [_chunk(f"Buyer tip: {tip}"), f"Reported by {', '.join(sources)}."]
+    basis += [_chunk(f"Buyer tip: {tip}"), f"Reported by {', '.join(sources)}.", f"Stories in this digest: {len(stories)}."]
     wid = week_id(now)
     site = pr.site_url()
     raw = RawItem(id=wid, source=brand.TEAM, url=f"{site}/news", title="Weekly local news roundup", text="\n".join(basis),
@@ -111,7 +121,7 @@ def compose(docs: List[dict], now: datetime, tip: Optional[str] = None) -> Optio
     return {"_id": wid, "status": "pending_review", "raw": codec.to_doc(raw),
             "relevance": {"keep": True, "pillar": "digest", "areas": ["kharadi", "wagholi"], "reason": "weekly digest"},
             "facts": codec.to_doc(facts), "draft": codec.to_doc(draft), "check": None,
-            "digest": {"title": TITLE, "week": wid, "as_of": ist, "tip": tip, "items": stories}}
+            "digest": {"title": TITLE, "cover": cover, "cover_line": "Plus one buyer tip, each story with its source", "week": wid, "as_of": ist, "tip": tip, "items": stories}}
 
 
 async def build(store: Store, now: datetime, checker: Optional[Callable] = None, render: Optional[Callable] = None) -> Optional[dict]:
