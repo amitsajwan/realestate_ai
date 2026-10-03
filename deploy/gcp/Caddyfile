@@ -8,3 +8,9 @@
 		reverse_proxy frontend:3000
 	}
 }
+
+# Other names for the site (www, the old sslip.io address) send visitors to SITE_HOST, keeping the path, so old links in
+# posts and messages keep working. REDIRECT_HOSTS is a comma-separated list set in .env.
+{$REDIRECT_HOSTS} {
+	redir https://{$SITE_HOST}{uri} permanent
+}
