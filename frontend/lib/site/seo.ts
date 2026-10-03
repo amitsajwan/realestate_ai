@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { formatPrice, truncate, bhkLabel } from './format'
 import { agentPath, siteOrigin } from './slug'
-import type { AgentProfile, PublicListing } from './types'
+import type { AgentProfile, PublicListing, PublicProject } from './types'
 
 export function firstImage(l: PublicListing): string | undefined {
   const imgs = (l.media || []).filter((m) => m.kind === 'image').sort((a, b) => a.order - b.order)
@@ -23,12 +23,19 @@ function build(title: string, description: string, path: string, image?: string)
   }
 }
 
+/** A preview site (owner-only flag) must never be indexed: the agent has not agreed to publish it yet. */
+export const isPreviewAgent = (agent: Pick<AgentProfile, 'branding_data'> | null | undefined): boolean => agent?.branding_data?.preview === true
+
+export function withPreview(agent: AgentProfile, md: Metadata): Metadata {
+  return isPreviewAgent(agent) ? { ...md, robots: { index: false, follow: false } } : md
+}
+
 export function agentMetadata(agent: AgentProfile, listings: PublicListing[], city: string): Metadata {
   const tag = agent.branding_data && agent.branding_data.tagline
   const title = agent.agent_name + (city ? ' | Real estate in ' + city : ' | Real estate agent')
   const description = truncate(tag ? tag + '. ' + (agent.bio || '') : agent.bio || 'Browse properties from ' + agent.agent_name, 160)
   const image = agent.photo || (listings.length ? firstImage(listings[0]) : undefined) || undefined
-  return build(title, description, agentPath(agent.slug), image)
+  return withPreview(agent, build(title, description, agentPath(agent.slug), image))
 }
 
 export function listingMetadata(agent: AgentProfile, l: PublicListing): Metadata {
@@ -37,7 +44,7 @@ export function listingMetadata(agent: AgentProfile, l: PublicListing): Metadata
     [bhkLabel(l.bhk, l.property_type), l.locality + ', ' + l.city].join(' in ') + '. ' + listingDescription(l),
     160
   )
-  return build(title, description, agentPath(agent.slug, 'listings/' + l.id), firstImage(l) || agent.photo || undefined)
+  return withPreview(agent, build(title, description, agentPath(agent.slug, 'listings/' + l.id), firstImage(l) || agent.photo || undefined))
 }
 
 export function agentJsonLd(agent: AgentProfile, city: string): Record<string, unknown> {
@@ -81,4 +88,11 @@ export function listingJsonLd(agent: AgentProfile, l: PublicListing): Record<str
 /** JSON for a <script type="application/ld+json">; escapes "<" so content can't close the tag. */
 export function jsonLdString(obj: Record<string, unknown>): string {
   return JSON.stringify(obj).replace(/</g, '\\u003c')
+}
+
+export function projectMetadata(agent: AgentProfile, p: PublicProject, priceText: string): Metadata {
+  const title = `${p.name}, ${p.locality} | ${agent.agent_name}`
+  const description = truncate([priceText, p.positioning, 'MahaRERA ' + p.rera_no].filter(Boolean).join('. '), 160)
+  const image = p.media.find((m) => m.kind === 'image')?.url
+  return withPreview(agent, build(title, description, agentPath(agent.slug, 'projects/' + p.slug), image))
 }

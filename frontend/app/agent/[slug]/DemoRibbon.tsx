@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { BRAND_NAME } from '@/lib/brand'
+import { isPreviewAgent } from '@/lib/site/seo'
 import type { AgentProfile } from '@/lib/site/types'
 
 /** True only when the owner marked this profile as the demo (branding_data.demo, an owner-only flag agents cannot set). */
@@ -12,7 +13,8 @@ export const DEMO_NOTE = `This is a demo page showing what an agent's ${BRAND_NA
  * Demo marking for the fictional demo agent: a note under the header and a 'DEMO' ribbon pinned to the corner of the screen
  * (it ignores taps, so nothing under it is blocked). Renders nothing for real agents.
  */
-export default function DemoRibbon({ agent }: { agent: Pick<AgentProfile, 'branding_data'> }) {
+export default function DemoRibbon({ agent }: { agent: Pick<AgentProfile, 'branding_data'> & { agent_name?: string } }) {
+  if (isPreviewAgent(agent)) return <PreviewNote name={agent.branding_data?.business_name || agent.agent_name || 'this agent'} />
   if (!isDemoAgent(agent)) return null
   return (
     <>
@@ -29,5 +31,20 @@ export default function DemoRibbon({ agent }: { agent: Pick<AgentProfile, 'brand
         </span>
       </div>
     </>
+  )
+}
+
+export const previewNote = (name: string) =>
+  `Preview prepared by ${BRAND_NAME} for ${name}. Not published yet: prices and dates are being confirmed with ${name}.`
+
+/** A site the owner prepared for an agent who has not agreed to publish yet. The page is also noindex (lib/site/seo). */
+function PreviewNote({ name }: { name: string }) {
+  return (
+    <div role="note" aria-label="Preview page" data-testid="preview-note" className="border-b border-sky-300 bg-sky-50 text-sky-950">
+      <p className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm">
+        <span className="rounded bg-sky-700 px-2 py-0.5 text-xs font-extrabold tracking-widest text-white">PREVIEW</span>
+        <span>{previewNote(name)}</span>
+      </p>
+    </div>
   )
 }

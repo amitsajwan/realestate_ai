@@ -1,5 +1,5 @@
 import { fixtureAgent, fixtureListing, fixtureListings } from './fixtures'
-import type { AgentProfile, ListingsPage, PublicListing } from './types'
+import type { AgentProfile, ListingsPage, PublicListing, PublicProject } from './types'
 
 // Server-side data access for the public site. Server components need an ABSOLUTE url:
 // SITE_API_URL (server-only) > NEXT_PUBLIC_API_URL > http://localhost:8000.
@@ -70,6 +70,23 @@ export async function getListing(slug: string, id: string): Promise<PublicListin
     return owner && owner !== slug ? null : r.data
   }
   if (devFallback(r)) return fixtureListing(slug, id)
+  return r.notFound ? null : unavailable()
+}
+
+/** The agent's live builder projects (agentprojects module); empty for agents without any, or under fixtures. */
+export async function getProjects(slug: string): Promise<PublicProject[]> {
+  if (fixturesForced()) return []
+  const r = await getJson<{ items: PublicProject[] }>('/api/v1/public/agents/' + encodeURIComponent(slug) + '/projects')
+  if (r.ok) return r.data.items || []
+  if (devFallback(r)) return []
+  return r.notFound ? [] : unavailable()
+}
+
+export async function getProject(slug: string, project: string): Promise<PublicProject | null> {
+  if (fixturesForced()) return null
+  const r = await getJson<PublicProject>('/api/v1/public/agents/' + encodeURIComponent(slug) + '/projects/' + encodeURIComponent(project))
+  if (r.ok) return r.data
+  if (devFallback(r)) return null
   return r.notFound ? null : unavailable()
 }
 

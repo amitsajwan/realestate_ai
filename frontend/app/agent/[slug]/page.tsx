@@ -7,7 +7,8 @@ import Hero from '@/components/site/Hero'
 import ListingBrowser from '@/components/site/ListingBrowser'
 import SiteShell from '@/components/site/SiteShell'
 import TrackingBeacon from '@/components/site/TrackingBeacon'
-import { agentCity, getAgent, getListings } from '@/lib/site/api'
+import { agentCity, getAgent, getListings, getProjects } from '@/lib/site/api'
+import ProjectsSection from '@/components/site/ProjectsSection'
 import { whatsappMessage } from '@/lib/site/links'
 import { agentJsonLd, agentMetadata, jsonLdString } from '@/lib/site/seo'
 import { normalizeSlug } from '@/lib/site/slug'
@@ -33,8 +34,10 @@ export default async function AgentHomePage({ params }: Props) {
   const slug = normalizeSlug((await params).slug)
   const agent = slug ? await getAgent(slug) : null
   if (!slug || !agent) notFound()
-  const { items } = await getListings(slug)
+  const [{ items }, projects] = await Promise.all([getListings(slug), getProjects(slug)])
   const city = agentCity(agent, items)
+  // An agent with projects and no listings: the projects take the 'Properties' anchor the header links to.
+  const projectsOnly = projects.length > 0 && items.length === 0
   const msg = whatsappMessage(agent.agent_name)
 
   return (
@@ -45,10 +48,14 @@ export default async function AgentHomePage({ params }: Props) {
       <Hero agent={agent} city={city} />
 
       <div className="mx-auto max-w-5xl space-y-12 px-4 py-10">
-        <section id="listings" aria-labelledby="listings-title" className="scroll-mt-16">
-          <h2 id="listings-title" className="mb-4 text-2xl font-bold">Properties</h2>
-          <ListingBrowser slug={slug} items={items} />
-        </section>
+        <ProjectsSection agentSlug={slug} projects={projects} anchor={projectsOnly ? 'listings' : 'projects'} />
+
+        {!projectsOnly && (
+          <section id="listings" aria-labelledby="listings-title" className="scroll-mt-16">
+            <h2 id="listings-title" className="mb-4 text-2xl font-bold">Properties</h2>
+            <ListingBrowser slug={slug} items={items} />
+          </section>
+        )}
 
         <section id="guides" aria-labelledby="guides-title" className="scroll-mt-16">
           <h2 id="guides-title" className="mb-1 text-2xl font-bold">Guides for Pune home buyers</h2>

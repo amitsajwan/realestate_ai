@@ -37,6 +37,8 @@ interface Props {
   agentName: string
   agentPhone?: string | null
   listingId?: string
+  /** What the enquiry is about when there is no listing (a builder project): sent at the start of the message. */
+  topic?: string
   /** Pre-filled WhatsApp message offered after success. */
   waMessage: string
   id?: string
@@ -44,7 +46,7 @@ interface Props {
 
 type Errors = { name?: string; phone?: string; consent?: string; form?: string }
 
-export default function EnquiryForm({ agentSlug, agentName, agentPhone, listingId, waMessage, id = 'enquire' }: Props) {
+export default function EnquiryForm({ agentSlug, agentName, agentPhone, listingId, topic, waMessage, id = 'enquire' }: Props) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [message, setMessage] = useState('')
@@ -70,7 +72,7 @@ export default function EnquiryForm({ agentSlug, agentName, agentPhone, listingI
     if (Object.keys(errs).length || !n) return
     setBusy(true)
     const extra = buildQualificationFields(q, { askBhk })
-    const ok = await submitInquiry(agentSlug, listingId, { name: name.trim(), phone: n, message: message.trim() || undefined, consent, ...extra })
+    const ok = await submitInquiry(agentSlug, listingId, { name: name.trim(), phone: n, message: [topic ? 'About ' + topic : '', message.trim()].filter(Boolean).join(': ') || undefined, consent, ...extra })
     setBusy(false)
     if (ok) {
       setSaved(extra)

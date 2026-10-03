@@ -73,6 +73,8 @@ export interface AgentBranding {
   years_experience?: number | null
   /** Owner-only: the fictional demo agent page (shows a DEMO ribbon). Agents cannot set it. */
   demo?: boolean
+  /** Owner-only: a site prepared for an agent who has not agreed to publish yet (unlisted, shows a PREVIEW note). */
+  preview?: boolean
 }
 
 export interface AgentProfile {
@@ -99,4 +101,61 @@ export interface ListingsPage {
 export interface Attribution {
   source?: string
   utm: Record<string, string>
+}
+
+/** Where a project fact comes from (backend agentprojects Source). */
+export type FactSource = 'maharera' | 'builder' | 'agent' | 'avasetu' | 'osm'
+
+export interface ProjectConfiguration {
+  label: string
+  bhk: number
+  carpet_sqft: number
+  price_inr: number
+  price_per_sqft: number
+  source: FactSource
+}
+
+export interface ProjectRera {
+  regno: string
+  name: string
+  promoter: string
+  project_type: string
+  registered_on?: string | null
+  completion_at_registration?: string | null
+  completion_now?: string | null
+  units_total?: number | null
+  units_booked?: number | null
+  url: string
+  checked_at?: string | null
+}
+
+export interface PublicProject {
+  id: string
+  slug: string
+  name: string
+  builder: string
+  locality: string
+  address: string
+  pincode: string
+  rera_no: string
+  scope_note: string
+  configurations: ProjectConfiguration[]
+  price_min?: number | null
+  price_max?: number | null
+  bhk_options: number[]
+  possession_target?: string | null
+  positioning: string
+  who_it_suits: string[]
+  highlights: string[]
+  amenities: string[]
+  specs: Record<string, string>
+  provenance: Record<string, FactSource>
+  nearby: { name: string; km?: number | null; source: FactSource }[]
+  place?: { lat: number; lon: number; source: FactSource; note: string } | null
+  maps_query: string
+  media: { url: string; caption: string; credit: string; artist_impression: boolean; kind: 'image' | 'video' }[]
+  rera?: ProjectRera | null
+  booked_pct?: number | null
+  completion_moved_months?: number | null
+  updated_at?: string | null
 }
