@@ -1,4 +1,1 @@
-# Routers package
-from . import listings, user_profile
-
-__all__ = ['listings', 'user_profile']
+# Routers package (old layer; see docs/MODERNIZATION.md step 8)
