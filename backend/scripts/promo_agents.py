@@ -150,6 +150,61 @@ def join(n: int, qr_px: int = 300) -> Rendered:
     return c.finish()
 
 
+def all_in_one(size=(1080, 1350), url: str = JOIN_URL) -> Rendered:
+    """One picture that tells the whole story, for WhatsApp and Facebook groups (4:5) or Status/Stories (9:16)."""
+    W, H = size
+    tall = H > 1500
+    c = Canvas(size, palette("navy_gold"), "promo_single", 0)
+    y = c.top + (250 if tall else 10)  # stories: keep clear of the app's top and bottom controls
+    c.chip("Free pilot for Pune property agents", c.left, y, icon="star", size=28)
+    y += 110 if tall else 90
+    y = c.text("Get more property enquiries.", c.left, y, c.right - c.left, 92 if tall else 80, "bold", c.pal.ink, 3,
+               min_size=56, role="headline") + 18
+    y = c.text("Spend less time chasing them.", c.left, y, c.right - c.left, 60 if tall else 52, "bold", c.pal.accent, 2,
+               min_size=40, role="headline") + (70 if tall else 44)
+    for icon, line in (("home", "Your own property website"), ("star", "Posts and reels made for you"),
+                       ("check", "Projects checked on MahaRERA"), ("bubble", "Every enquiry: who to call first")):
+        c.circle((c.left + 30, y + 26), 30, c.pal.accent_fill)
+        c.icon(icon, (c.left + 30, y + 26), 32, c.pal.accent_ink)
+        c.text(line, c.left + 82, y + 6, c.right - c.left - 82, 38 if tall else 34, "semibold", c.pal.ink, 1, min_size=26,
+               role="body", balance=False)
+        y += 92 if tall else 78
+    y += 30 if tall else 16
+    qr = 300 if tall else 240
+    c.rrect((c.left, y, c.right, y + qr + 60), 30, c.pal.accent_fill)
+    qx, qy = c.left + 30, y + 30
+    c.rrect((qx - 8, qy - 8, qx + qr + 8, qy + qr + 8), 16, (255, 255, 255))
+    c.img.paste(_qr(url, qr), (qx, qy))
+    tx = qx + qr + 40
+    c.text("Free during the pilot.", tx, qy + 10, c.right - 30 - tx, 34, "bold", c.pal.accent_ink, 2, min_size=24, role="body",
+           bg_hint=c.pal.accent_fill)
+    c.text("Low-cost after.", tx, qy + (100 if tall else 90), c.right - 30 - tx, 30, "semibold", c.pal.accent_ink, 1, min_size=22,
+           role="body", balance=False, bg_hint=c.pal.accent_fill)
+    c.text(SITE, tx, qy + qr - 60, c.right - 30 - tx, 50, "bold", c.pal.accent_ink, 1, min_size=34, role="body", balance=False,
+           bg_hint=c.pal.accent_fill)
+    c.brand_bar(right="Scan to join")
+    r = c.finish()
+    check([r])
+    return r
+
+
+def reel(out: Path) -> Path:
+    """A 20-second vertical reel with the same story, in our brand (Avasetu end card), generated music, no phone number."""
+    from app.modules.reels import music
+    from app.modules.reels.compose import Scene, make_reel
+    scenes = [
+        Scene(kicker="FOR PUNE PROPERTY AGENTS", lines=["Get more property *enquiries*.", "Spend less time chasing them."], seconds=3.6, seed="pa-1"),
+        Scene(kicker="SOUND FAMILIAR?", lines=["Leads slip away", "“Price?” with no name", "Enquiries everywhere", "Evenings spent making posts"],
+              seconds=4.0, seed="pa-2"),
+        Scene(kicker="AVASETU DOES THE MARKETING", lines=["You do the *closing*", "Your own property website", "Posts and reels made for you",
+                                                          "Projects checked on MahaRERA"], seconds=4.2, seed="pa-3"),
+        Scene(kicker="THE BEST PART", lines=["Every enquiry, a *lead card*", "What the buyer wants", "and who to call *first*"], seconds=3.8, seed="pa-4"),
+        Scene(kicker="FREE PILOT · PUNE", lines=["Free during the pilot", "Low-cost after", "Join at *avasetu.in*"], seconds=3.8, seed="pa-5"),
+    ]
+    tune = music.write(out / "promo-music.wav", seconds=24)
+    return make_reel(scenes, out / "agents-reel.mp4", music=tune)
+
+
 def carousel() -> List[Rendered]:
     n = 5
     slides = [hook(n), problem(n), offer(n), lead_card(n), join(n)]
@@ -195,8 +250,13 @@ Dekhiye aur join kariye: https://avasetu.in"""
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--out", default="uploads/promo")
+    ap.add_argument("--reel", action="store_true", help="also render the 20-second promo reel")
     out = Path(ap.parse_args().out)
     files = save_all(carousel(), out, "agents")
+    save_all([all_in_one()], out, "group-post")            # WhatsApp / Facebook groups (4:5)
+    save_all([all_in_one((1080, 1920))], out, "story")      # WhatsApp Status / Instagram Stories (9:16)
+    if "--reel" in sys.argv:
+        print("reel:", reel(out))
     # WhatsApp: the hook slide works as a single image; the join slide carries the QR for anyone who wants to scan
     (out / "caption-instagram.txt").write_text(CAPTION_EN, encoding="utf-8")
     (out / "whatsapp-english.txt").write_text(WHATSAPP_EN, encoding="utf-8")

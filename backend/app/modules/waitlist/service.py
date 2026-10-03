@@ -63,7 +63,7 @@ class WaitlistService:
                 "name": data.name, "city": data.city, "message": data.message, "updated_at": now}})
             return False
         await self.col.insert_one({
-            "name": data.name, "phone": data.phone, "city": data.city, "message": data.message,
+            "name": data.name, "phone": data.phone, "city": data.city, "message": data.message, "source": data.source,
             "consent": {"given_at": now, "text": CONSENT_TEXT},
             "ip_hash": ip_hash, "status": "new", "created_at": now, "updated_at": now,
         })

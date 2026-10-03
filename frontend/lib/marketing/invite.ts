@@ -26,6 +26,12 @@ export function validateInvite(f: InviteFields): { errors: InviteErrors; phone: 
 
 export type SubmitResult = 'ok' | 'rate_limited' | 'invalid' | 'error'
 
+/** The ?src= tag of the link the visitor came in on (wa, fbgroup, ig...), so the owner sees which channel brings agents. */
+export function sourceTag(search: string = typeof window !== 'undefined' ? window.location.search : ''): string | undefined {
+  const v = (new URLSearchParams(search).get('src') || '').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40)
+  return v || undefined
+}
+
 /** POST the request. `website` is the honeypot: sent as-is (empty for real people). */
 export async function submitInviteRequest(f: InviteFields & { phone: string; website: string }): Promise<SubmitResult> {
   try {
@@ -39,6 +45,7 @@ export async function submitInviteRequest(f: InviteFields & { phone: string; web
         message: f.message.trim() || undefined,
         consent: f.consent,
         website: f.website,
+        source: sourceTag(),
       }),
     })
     if (res.ok) return 'ok'

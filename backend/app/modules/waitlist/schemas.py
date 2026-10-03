@@ -14,6 +14,14 @@ class InviteRequestIn(BaseModel):
     message: Optional[str] = Field(None, max_length=500)
     consent: bool
     website: Optional[str] = None  # honeypot: real people never see or fill this field
+    source: Optional[str] = Field(None, max_length=40)  # where the visitor came from (?src= on the link): wa, fbgroup, ig...
+
+    @field_validator("source", mode="before")
+    @classmethod
+    def _source(cls, v):
+        import re
+        v = re.sub(r"[^a-z0-9_-]", "", str(v or "").lower())[:40]
+        return v or None
 
     @field_validator("name", "city", mode="before")
     @classmethod
