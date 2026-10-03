@@ -3,8 +3,9 @@ import asyncio
 import pytest
 
 from app.modules.ai_listing.extract_numbers import parse_areas, parse_price
-from app.modules.ai_listing import llm as llm_mod
-from app.modules.ai_listing.llm import GroqLLM
+from app.modules.ai_listing.llm import ListingLLM
+from app.platform import llm as llm_mod
+from app.platform.llm import GroqLLM
 from app.modules.ai_listing.service import AIListingService, AudioInput, TranscriberUnavailable
 from app.modules.ai_listing.text_norm import normalise
 
@@ -123,7 +124,7 @@ async def test_groq_llm_returns_none_on_http_error():
     def handler(request):
         return httpx.Response(500, json={"error": "x"})
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    assert await GroqLLM("k", client=client).extract("2 bhk") is None
+    assert await ListingLLM(GroqLLM("k", client=client)).extract("2 bhk") is None
 
 
 async def test_groq_llm_parses_json_mode_reply():
@@ -134,7 +135,7 @@ async def test_groq_llm_parses_json_mode_reply():
         assert body["response_format"] == {"type": "json_object"} and body["model"] == llm_mod.LLM_MODEL
         return httpx.Response(200, json={"choices": [{"message": {"content": '{"bhk": 2}'}}]})
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    assert await GroqLLM("k", client=client).extract("2 bhk") == {"bhk": 2}
+    assert await ListingLLM(GroqLLM("k", client=client)).extract("2 bhk") == {"bhk": 2}
 
 
 def _gemini_reply(speech, transcript=""):
@@ -149,7 +150,7 @@ async def test_gemini_transcriber_sends_inline_audio_and_key_header_not_url():
     import base64
     import httpx
     import json
-    from app.modules.ai_listing.llm import GeminiTranscriber
+    from app.platform.llm import GeminiTranscriber
 
     seen = {}
 
@@ -167,7 +168,7 @@ async def test_gemini_transcriber_sends_inline_audio_and_key_header_not_url():
 
 async def test_gemini_transcriber_error_is_a_clean_transcription_error():
     import httpx
-    from app.modules.ai_listing.llm import GeminiTranscriber, TranscriptionError
+    from app.platform.llm import GeminiTranscriber, TranscriptionError
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(429, json={"error": "quota"})))
     with pytest.raises(TranscriptionError) as e:
@@ -177,7 +178,7 @@ async def test_gemini_transcriber_error_is_a_clean_transcription_error():
 
 async def test_gemini_transcriber_retries_once_when_the_model_is_busy():
     import httpx
-    from app.modules.ai_listing.llm import GeminiTranscriber
+    from app.platform.llm import GeminiTranscriber
 
     calls = []
 
@@ -192,7 +193,7 @@ async def test_gemini_transcriber_retries_once_when_the_model_is_busy():
 
 async def test_gemini_fails_over_to_the_next_model_when_quota_or_capacity_is_gone():
     import httpx
-    from app.modules.ai_listing.llm import GeminiTranscriber
+    from app.platform.llm import GeminiTranscriber
 
     urls = []
 
@@ -207,7 +208,7 @@ async def test_gemini_fails_over_to_the_next_model_when_quota_or_capacity_is_gon
 
 async def test_gemini_all_models_failing_is_a_transcription_error():
     import httpx
-    from app.modules.ai_listing.llm import GeminiTranscriber, TranscriptionError
+    from app.platform.llm import GeminiTranscriber, TranscriptionError
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(429, json={"error": "quota"})))
     with pytest.raises(TranscriptionError):
@@ -217,7 +218,7 @@ async def test_gemini_all_models_failing_is_a_transcription_error():
 @pytest.mark.parametrize("reply", [(False, ""), (False, "How are you I hope you are doing well"), (True, "")])
 async def test_gemini_no_speech_gives_empty_transcript_even_if_the_model_invented_words(reply):
     import httpx
-    from app.modules.ai_listing.llm import GeminiTranscriber
+    from app.platform.llm import GeminiTranscriber
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: _gemini_reply(*reply)))
     assert await GeminiTranscriber("k", client=client).transcribe(b"a", "n.webm", "audio/webm") == ""
@@ -225,7 +226,7 @@ async def test_gemini_no_speech_gives_empty_transcript_even_if_the_model_invente
 
 async def test_silent_recording_never_invents_a_listing():
     import httpx
-    from app.modules.ai_listing.llm import GeminiTranscriber
+    from app.platform.llm import GeminiTranscriber
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(lambda r: _gemini_reply(False, "1 BHK 2 BHK rent")))
     res = await AIListingService(transcriber=GeminiTranscriber("k", client=client)).create_draft(
@@ -244,7 +245,7 @@ async def test_text_llm_retries_once_when_busy():
             return httpx.Response(503, json={"error": "busy"})
         return httpx.Response(200, json={"choices": [{"message": {"content": '{"bhk": 3}'}}]})
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    assert await GroqLLM("k", client=client).extract("3 bhk") == {"bhk": 3} and len(calls) == 2
+    assert await ListingLLM(GroqLLM("k", client=client)).extract("3 bhk") == {"bhk": 3} and len(calls) == 2
 
 
 async def test_a_model_that_hangs_or_drops_the_connection_fails_over_too():
@@ -261,7 +262,7 @@ async def test_a_model_that_hangs_or_drops_the_connection_fails_over_too():
             raise httpx.ConnectError("no route", request=request)
         return httpx.Response(200, json={"choices": [{"message": {"content": '{"bhk": 1}'}}]})
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    assert await GroqLLM("k", model="slow,down,ok", client=client).extract("1 bhk") == {"bhk": 1}
+    assert await ListingLLM(GroqLLM("k", model="slow,down,ok", client=client)).extract("1 bhk") == {"bhk": 1}
     assert seen == ["slow", "down", "ok"]
 
 
@@ -292,14 +293,14 @@ async def test_text_llm_fails_over_across_models():
             return httpx.Response(429, json={"error": "daily quota"})
         return httpx.Response(200, json={"choices": [{"message": {"content": '{"bhk": 4}'}}]})
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    assert await GroqLLM("k", model="bad1,bad2,good", client=client).extract("4 bhk") == {"bhk": 4}
+    assert await ListingLLM(GroqLLM("k", model="bad1,bad2,good", client=client)).extract("4 bhk") == {"bhk": 4}
     assert seen == ["bad1", "bad2", "good"]
 
 
 async def test_provider_fallback_runs_after_primary_quota_exhaustion():
     import httpx
     import json
-    from app.modules.ai_listing.llm import FallbackLLM
+    from app.platform.llm import FallbackLLM
 
     primary_models = []
     backup_calls = []
@@ -317,13 +318,13 @@ async def test_provider_fallback_runs_after_primary_quota_exhaustion():
     primary = GroqLLM("openrouter-key", model="or-a,or-b", client=primary_client, url="https://openrouter.test/chat/completions")
     backup = GroqLLM("groq-key", model="gpt-oss", client=backup_client, url="https://api.groq.test/chat/completions")
 
-    assert await FallbackLLM([primary, backup]).extract("2 bhk") == {"bhk": 2}
+    assert await ListingLLM(FallbackLLM([primary, backup])).extract("2 bhk") == {"bhk": 2}
     assert primary_models == ["or-a", "or-b"]
     assert backup_calls == [("api.groq.test", "Bearer groq-key")]
 
 
 def test_provider_switch(monkeypatch):
-    from app.modules.ai_listing.llm import GeminiTranscriber, GroqTranscriber, default_transcriber
+    from app.platform.llm import GeminiTranscriber, GroqTranscriber, default_transcriber
 
     for k in ("AI_STT_PROVIDER", "AI_STT_API_KEY", "GEMINI_API_KEY", "AI_LLM_API_KEY", "GROQ_API_KEY"):
         monkeypatch.delenv(k, raising=False)
@@ -336,7 +337,7 @@ def test_provider_switch(monkeypatch):
 
 
 def test_default_llm_configures_a_separate_provider_fallback(monkeypatch):
-    from app.modules.ai_listing.llm import FallbackLLM, default_llm
+    from app.platform.llm import FallbackLLM, default_llm
 
     for name in ("AI_LLM_API_KEY", "AI_LLM_BASE_URL", "AI_LISTING_LLM_MODEL", "GROQ_API_KEY", "GEMINI_API_KEY",
                  "AI_LLM_FALLBACK_API_KEY", "AI_LLM_FALLBACK_BASE_URL", "AI_LLM_PROVIDER_FALLBACK_MODEL"):
@@ -361,7 +362,7 @@ def test_default_llm_configures_a_separate_provider_fallback(monkeypatch):
 
 
 def test_groq_transcriber_uses_dedicated_stt_key(monkeypatch):
-    from app.modules.ai_listing.llm import GroqTranscriber, default_transcriber
+    from app.platform.llm import GroqTranscriber, default_transcriber
 
     monkeypatch.delenv("AI_STT_PROVIDER", raising=False)
     monkeypatch.setenv("AI_STT_API_KEY", "stt-groq-key")
@@ -432,7 +433,7 @@ async def test_silent_audio_warns():
 
 
 async def test_fallback_llm_uses_the_next_provider_when_the_first_has_no_answer():
-    from app.modules.ai_listing.llm import FallbackLLM
+    from app.platform.llm import FallbackLLM
 
     class P:
         def __init__(self, out): self.out = out
@@ -442,3 +443,14 @@ async def test_fallback_llm_uses_the_next_provider_when_the_first_has_no_answer(
     assert await FallbackLLM([P(None), P({"ok": 1})]).json("s", "u") == {"ok": 1}
     assert await FallbackLLM([P({"a": 1}), P({"b": 2})]).json("s", "u") == {"a": 1}
     assert await FallbackLLM([P(None), P(None)]).text("s", "u") is None
+
+
+async def test_listing_llm_passes_the_gateway_calls_through():
+    """The about-suggest endpoint calls json() on the same client that extracts listings."""
+    class Gateway:
+        async def json(self, s, u): return {"json": u}
+        async def text(self, s, u, timeout=None): return f"text {u} {timeout}"
+
+    llm = ListingLLM(Gateway())
+    assert await llm.json("s", "u") == {"json": "u"}
+    assert await llm.text("s", "u", 5) == "text u 5"

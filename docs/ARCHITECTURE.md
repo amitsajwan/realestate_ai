@@ -51,7 +51,7 @@ Shared building blocks with no business knowledge. Nothing here imports from `ap
 | `auth` | `current_active_user`, `User`, roles | `core/auth_backend.py`, `models/user.py` (moved as is; never rewritten during the refactor) |
 | `leases` | One runner per background loop | new, **done** (step 0) |
 | `jobs` | Worker entry point, heartbeats per loop | new (step 4) |
-| `llm` | AI model access: per-task model routing, schema-checked outputs, failover, call log | `ai_listing/llm.py` |
+| `llm` | AI model access: per-task model routing, schema-checked outputs, failover, call log | `ai_listing/llm.py` (gateway moved, **done** step 2; routing, schemas and call log still to come) |
 | `meta_graph` | Facebook/Instagram Graph client, `sanitize`, publish errors | `social/graph.py`, `social/publisher.py` |
 | `media` | Upload storage, public URLs | `photoquality/store.py` (URL helpers **done**, step 2), `endpoints/uploads.py` |
 | `text` | Copy guards (hype words, phone numbers), INR/lakh/crore, sq ft, BHK, Indian mobile numbers, LLM output clean-up | `marketing/polish.py`, `marketing/facts.py`, `onboarding/phone.py`, **done** (step 2) |

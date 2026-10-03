@@ -27,7 +27,7 @@ router = APIRouter()
 
 def _llm():
     try:
-        from app.modules.ai_listing.llm import default_llm
+        from app.platform.llm import default_llm
         return default_llm()
     except Exception:
         return None

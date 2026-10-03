@@ -67,7 +67,7 @@ def default_polish() -> Optional[Polish]:
 
     if (os.environ.get("MARKETING_POLISH") or "").strip().lower() not in ("1", "true", "yes", "on"):
         return None
-    from app.modules.ai_listing.llm import default_llm
+    from app.platform.llm import default_llm
     llm = default_llm()
     return make_llm_polish(llm) if llm is not None else None
 

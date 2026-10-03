@@ -10,7 +10,7 @@ from urllib.parse import quote
 
 import httpx
 
-from app.modules.ai_listing.llm import default_llm as _default_llm
+from app.platform.llm import default_llm as _default_llm
 from app.modules.social import config as social_config
 from app.modules.social.graph import GRAPH_HOST, REQUEST_TIMEOUT_S, GraphPublisher
 from app.modules.social.publisher import Post, PublishError, sanitize

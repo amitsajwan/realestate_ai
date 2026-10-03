@@ -4,7 +4,7 @@ import logging
 
 from app.core.database import get_database
 from app.platform.controls import is_paused
-from app.modules.ai_listing.llm import default_llm
+from app.platform.llm import default_llm
 
 from .config import load
 from .graph import EngageGraph

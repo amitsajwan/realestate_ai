@@ -56,7 +56,7 @@ async def _store():
 def _llm(use: bool):
     if not use:
         return None
-    from app.modules.ai_listing.llm import default_llm
+    from app.platform.llm import default_llm
     llm = default_llm()
     if llm is None:
         print("no LLM key configured (GROQ_API_KEY): using the deterministic path for every item")

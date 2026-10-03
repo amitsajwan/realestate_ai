@@ -46,7 +46,7 @@ layers =
 unmatched_ignore_imports_alerting = error
 ; Baseline, 2026-10-03. Each line goes away in a MODERNIZATION step:
 ignore_imports =
-    ; step 2: language phrases and resolve_language move to platform.text
+    ; step 5: social builds marketing-pack payloads; content will hand distribution finished posts instead
     app.modules.social.service -> app.modules.marketing.content
     ; step 3: wrong-way dependencies, replaced by callbacks or the owner's query functions
     app.modules.social.service -> app.modules.concierge.attribution

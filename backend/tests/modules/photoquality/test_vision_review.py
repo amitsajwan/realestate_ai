@@ -98,10 +98,10 @@ def test_provider_chain_from_env(monkeypatch):
     for k in ("AI_VISION_API_KEY", "AI_LLM_API_KEY", "GROQ_API_KEY", "AI_VISION_MODEL", "AI_VISION_FALLBACK_MODEL", "AI_VISION_REVIEW",
               "AI_VISION_FALLBACK_API_KEY", "AI_LLM_FALLBACK_API_KEY", "AI_VISION_FALLBACK_BASE_URL", "AI_LLM_FALLBACK_BASE_URL"):
         monkeypatch.delenv(k, raising=False)
-    monkeypatch.setattr("app.modules.ai_listing.llm.groq_api_key", lambda: None)
+    monkeypatch.setattr("app.platform.llm.groq_api_key", lambda: None)
     assert vr.default_clients() == []
     monkeypatch.setenv("AI_LLM_API_KEY", "k")
-    monkeypatch.setattr("app.modules.ai_listing.llm.groq_api_key", lambda: "k")
+    monkeypatch.setattr("app.platform.llm.groq_api_key", lambda: "k")
     chain = vr.default_clients()
     assert [c.model for c in chain] == [vr.DEFAULT_VISION_MODEL] and chain[0].url.startswith("https://api.groq.com/")
     monkeypatch.setenv("AI_VISION_FALLBACK_MODEL", "some/vision:free")

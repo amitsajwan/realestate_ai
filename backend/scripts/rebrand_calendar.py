@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.core.database import get_database, init_database
-from app.modules.ai_listing.llm import default_llm
+from app.platform.llm import default_llm
 from app.modules.calendar.builder import build_and_store
 from app.modules.calendar.store import Store
 

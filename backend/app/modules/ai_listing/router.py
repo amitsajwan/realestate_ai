@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.core.auth_backend import current_active_user
 from app.models.user import User
 
-from .llm import LLMClient, Transcriber, TranscriptionError, default_llm, default_transcriber
+from .llm import LLMClient, Transcriber, TranscriptionError, default_listing_llm, default_transcriber
 from .about import suggest_about
 from .schemas import AIDraft
 from .service import AIListingService, AudioInput, TranscriberUnavailable
@@ -31,7 +31,7 @@ def voice_enabled() -> bool:
 
 
 def get_llm() -> Optional[LLMClient]:
-    return default_llm()
+    return default_listing_llm()
 
 
 def get_transcriber() -> Optional[Transcriber]:

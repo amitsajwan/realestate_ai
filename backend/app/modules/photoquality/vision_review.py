@@ -163,7 +163,7 @@ def default_clients() -> List[VisionClient]:
     out: List[VisionClient] = []
     key = os.environ.get("AI_VISION_API_KEY")
     if not key:
-        from app.modules.ai_listing.llm import groq_api_key
+        from app.platform.llm import groq_api_key
         key = groq_api_key()
     base = os.environ.get("AI_VISION_BASE_URL") or os.environ.get("AI_LLM_BASE_URL") or "https://api.groq.com/openai/v1"
     if key:

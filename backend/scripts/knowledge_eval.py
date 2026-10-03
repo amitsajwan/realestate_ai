@@ -7,7 +7,7 @@ nothing appears that is not in the facts printed under each heading.
 import argparse
 import asyncio
 
-from app.modules.ai_listing.llm import default_llm
+from app.platform.llm import default_llm
 from app.modules.knowledge import Ref, answer, facts_for
 from app.modules.knowledge.grounding import listing_grounding
 

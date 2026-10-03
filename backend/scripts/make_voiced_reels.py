@@ -6,7 +6,7 @@ import json
 import os
 from pathlib import Path
 
-from app.modules.ai_listing.llm import default_llm
+from app.platform.llm import default_llm
 from app.modules.reels import director
 from app.modules.showcase.samples import get
 

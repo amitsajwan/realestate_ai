@@ -30,7 +30,7 @@ class ReelIn(BaseModel):
 
 
 def get_jobs() -> ReelJobs:
-    from app.modules.ai_listing.llm import default_llm
+    from app.platform.llm import default_llm
     return ReelJobs(get_database(), Path(settings.upload_directory), llm_factory=default_llm)
 
 

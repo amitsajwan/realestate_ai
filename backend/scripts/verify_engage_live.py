@@ -15,7 +15,7 @@ import httpx
 
 from app.core import brand
 from app.core import database as dbmod
-from app.modules.ai_listing.llm import default_llm
+from app.platform.llm import default_llm
 from app.modules.engage.config import load
 from app.modules.engage.graph import EngageGraph
 from app.modules.engage.ig_graph import IgGraph
