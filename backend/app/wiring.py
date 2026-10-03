@@ -5,20 +5,23 @@
 
 def wire() -> None:
     from app.modules.calendar import library as calendar_library
+    from app.modules.calendar import quality as calendar_quality
     from app.modules.concierge.attribution import attribution_text, register_hub_item
     from app.modules.concierge.config import is_operator
     from app.modules.engage import service as engage_service
     from app.modules.interest import router as interest_routes
     from app.modules.knowledge import grounding
     from app.modules.marketing.facts import Facts
+    from app.modules.newsroom import quality as news_quality
     from app.modules.photoquality import router as quality_routes
     from app.modules.showcase import samples
     from app.modules.social import router as social_routes
 
     # social posts carry the "Listed by" lines and register the Instagram post as a hub item
     social_routes.configure(attribution=attribution_text, on_instagram_published=register_hub_item)
-    # the operator may review any agent's listing cards on the quality route
-    quality_routes.configure(is_operator=is_operator)
+    # the quality route: the operator may review any agent's listing cards; calendar and news items are found by their owners
+    quality_routes.configure(is_operator=is_operator,
+                             resolvers={"calendar": calendar_quality.review_target, "news": news_quality.review_target})
     # the interest hub shows the labelled sample homes while nothing real is published
     interest_routes.configure(sample_entry=samples.catalogue_entry, sample_slugs=samples.catalogue_slugs)
     # grounded answers know the sample homes and the verified evergreen posts; comment replies show listing facts
