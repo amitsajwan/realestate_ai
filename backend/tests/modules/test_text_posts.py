@@ -2,7 +2,7 @@ import re
 
 import pytest
 
-from app.modules.marketing.polish import HYPE, PHONE
+from app.platform.text import HYPE, PHONE
 from app.modules.marketing.text_posts import SITE, TEXT_POSTS
 
 

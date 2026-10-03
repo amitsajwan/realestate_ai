@@ -270,7 +270,7 @@ def test_polish_is_off_unless_switched_on(monkeypatch):
     ("Lovely 2 BHK.\nHere is the floor plan link.", "Lovely 2 BHK.\nHere is the floor plan link."),  # only the FIRST lines are chatter
 ])
 def test_chatty_model_wrappers_are_stripped(raw, clean):
-    from app.modules.marketing.polish import clean_llm_text
+    from app.platform.text import clean_llm_text
 
     assert clean_llm_text(raw) == clean
 

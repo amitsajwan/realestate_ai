@@ -2,7 +2,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.modules.onboarding.phone import normalize_indian_mobile
+from app.platform.text import normalize_indian_mobile
 
 CONSENT_TEXT = "OK to contact me about the pilot"
 

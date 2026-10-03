@@ -17,7 +17,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Set, Tuple
 
-from app.modules.marketing.polish import HYPE, PHONE
+from app.platform.text import HYPE, PHONE
 
 from .grounding import INTEREST, URL, Grounding
 

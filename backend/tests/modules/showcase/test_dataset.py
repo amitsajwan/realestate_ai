@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from app.modules.marketing.polish import PHONE
+from app.platform.text import PHONE
 from app.modules.showcase import samples
 from app.modules.showcase.samples import AREA_LINES, HOMES, ICON_LABELS, PHOTO_DIR
 

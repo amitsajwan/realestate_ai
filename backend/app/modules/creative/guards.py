@@ -2,7 +2,7 @@
 import re
 from typing import List
 
-from app.modules.marketing.polish import HYPE, PHONE
+from app.platform.text import HYPE, PHONE
 
 URL = re.compile(r"https?://|www\.|\b[\w-]+\.(?:com|in|io|co|app|org|net)\b", re.I)
 PRICE = re.compile(r"₹|\brs\.?\s*\d|\binr\b|\blakhs?\b|\bcrores?\b|\bper\s*sq\.?\s*(?:ft|feet)\b|\bsq\.?\s?ft\b", re.I)

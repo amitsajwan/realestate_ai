@@ -4,9 +4,7 @@ Recorded from the code before it moved into the platform (MODERNIZATION step 2);
 """
 import pytest
 
-from app.modules.marketing.facts import bhk_label, money, sqft
-from app.modules.marketing.polish import HYPE, PHONE, clean_llm_text
-from app.modules.onboarding.phone import normalize_indian_mobile
+from app.platform.text import HYPE, PHONE, bhk_label, clean_llm_text, money, normalize_indian_mobile, sqft
 
 
 @pytest.mark.parametrize("n, sale, rent", [

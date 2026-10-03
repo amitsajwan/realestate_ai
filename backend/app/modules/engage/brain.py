@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from app.modules.knowledge.reply import answer as grounded_answer, has_topic
-from app.modules.marketing.polish import HYPE, PHONE
+from app.platform.text import HYPE, PHONE
 
 INTENTS = ("interested", "question", "praise", "greeting", "complaint", "spam", "other")
 GREETING = re.compile(r"^\W*(hi+|hello+|hey+|hii+|namaste|namaskar|good (morning|afternoon|evening)|hello you there)\W*$", re.I)

@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from app.modules.marketing.facts import bhk_label, money, sqft
+from app.platform.text import bhk_label, money, sqft
 
 PHOTO_DIR = Path(__file__).parent / "assets" / "photos"
 

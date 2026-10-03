@@ -3,7 +3,7 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
 from . import branding as bd
-from .phone import normalize_indian_mobile
+from app.platform.text import normalize_indian_mobile
 
 
 class OTPRequest(BaseModel):

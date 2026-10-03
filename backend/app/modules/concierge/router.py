@@ -17,7 +17,7 @@ from app.core.database import get_database
 from app.models.user import User
 from app.modules.listings.schemas import ListingCreate, ListingUpdate
 from app.modules.listings.service import ListingError, ListingService
-from app.modules.onboarding.phone import normalize_indian_mobile
+from app.platform.text import normalize_indian_mobile
 
 from . import config
 from .service import ConciergeError, ConciergeService

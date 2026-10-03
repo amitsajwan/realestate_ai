@@ -101,6 +101,7 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 
 | Date | Step | Change |
 |---|---|---|
+| 2026-10-03 | 2 | Text helpers moved to `platform.text` (copy guards, INR/sq ft/BHK formatting, Indian mobile numbers, LLM output clean-up), pinned first by 48 tests; 14 modules and 2 scripts import them from there; `onboarding/phone.py` deleted. Note: `money(9_999_999)` gives '₹100 Lakh', pinned as is, to fix separately |
 | 2026-10-03 | 2 | Pause switches moved to `platform.controls` (the 3 runners and admin now import them from there): 3 import-rule exceptions removed |
 | 2026-10-03 | 1 | Deleted 40 never-imported files, the demo and mock Facebook endpoints, `backend/modules/auth` and 12 debug scripts (14,568 lines); import rules in CI with 8 baseline exceptions |
 | 2026-10-03 | 0 | Runner leases for the 4 background loops; production needs its database; one process in `deploy-production.sh`; target and plan written |

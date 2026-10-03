@@ -6,7 +6,7 @@ import pytest
 from app.modules.knowledge import Ref, answer, facts_for
 from app.modules.knowledge.grounding import listing_grounding
 from app.modules.knowledge.reply import detect_language, has_topic, topics_in, valid_text
-from app.modules.marketing.polish import HYPE, PHONE
+from app.platform.text import HYPE, PHONE
 
 pytestmark = pytest.mark.asyncio
 

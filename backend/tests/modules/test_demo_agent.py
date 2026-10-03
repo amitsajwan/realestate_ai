@@ -77,7 +77,7 @@ async def test_creates_demo_profile_with_flag_images_and_no_contact_details(tmp_
     user = users.users[cda.DEMO_PHONE]
     assert user.is_active is False and out["user_id"] == user.id
     with pytest.raises(ValueError):  # the placeholder cannot be used to sign in
-        from app.modules.onboarding.phone import normalize_indian_mobile
+        from app.platform.text import normalize_indian_mobile
         normalize_indian_mobile(cda.DEMO_PHONE)
 
     p = await db.get_collection("agent_public_profiles").find_one({"slug": "demo"})

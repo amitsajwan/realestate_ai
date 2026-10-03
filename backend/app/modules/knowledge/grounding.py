@@ -14,8 +14,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
-from app.modules.marketing.facts import money, sqft
-from app.modules.marketing.polish import HYPE, PHONE
+from app.platform.text import HYPE, PHONE, money, sqft
 
 from .areas import AreaFacts, area_facts
 

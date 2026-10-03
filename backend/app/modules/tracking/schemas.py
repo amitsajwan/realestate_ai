@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Dict, Literal, Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.modules.onboarding.phone import normalize_indian_mobile
+from app.platform.text import normalize_indian_mobile
 
 from .requirement import Financing, Timeline
 

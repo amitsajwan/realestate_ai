@@ -9,7 +9,7 @@ import os
 import re
 from typing import List, Optional
 
-from app.modules.marketing.polish import HYPE, PHONE, clean_llm_text
+from app.platform.text import HYPE, PHONE, clean_llm_text
 
 from .samples import AGENTS_CTA, RERA_LINE, SAMPLE_LABEL, SAMPLE_NOTE, ICON_LABELS, Home, area_lines
 
