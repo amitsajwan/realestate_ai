@@ -17,10 +17,10 @@ from urllib.parse import urlparse
 
 import httpx
 
-from app.modules.social.config import SocialConfig
-from app.modules.social.config import load as load_config
-from app.modules.social.graph import REQUEST_TIMEOUT_S, GraphPublisher
-from app.modules.social.publisher import PublishError, Result
+from app.platform.meta_graph.config import SocialConfig
+from app.platform.meta_graph.config import load as load_config
+from app.platform.meta_graph.graph import REQUEST_TIMEOUT_S, GraphPublisher
+from app.platform.meta_graph.publisher import PublishError, Result
 
 REEL_POLL_INTERVAL_S = 5.0
 REEL_POLL_TIMEOUT_S = 300.0     # reels take longer than photos to process

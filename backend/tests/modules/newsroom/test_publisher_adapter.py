@@ -5,8 +5,8 @@ import httpx
 import pytest
 
 from app.modules.newsroom.adapters import SocialPublisher
-from app.modules.social.config import SocialConfig
-from app.modules.social.publisher import PublishError
+from app.platform.meta_graph.config import SocialConfig
+from app.platform.meta_graph.publisher import PublishError
 
 from .helpers import NOW
 

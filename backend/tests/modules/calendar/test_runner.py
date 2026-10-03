@@ -7,8 +7,8 @@ import pytest
 from app.modules.calendar import library, runner
 from app.modules.calendar.config import CalendarConfig
 from app.modules.calendar.store import Store
-from app.modules.social.config import SocialConfig
-from app.modules.social.publisher import PublishError, Result
+from app.platform.meta_graph.config import SocialConfig
+from app.platform.meta_graph.publisher import PublishError, Result
 
 from ..fakes import FakeDb
 

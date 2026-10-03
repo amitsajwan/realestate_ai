@@ -6,8 +6,8 @@ from urllib.parse import parse_qs
 import httpx
 import pytest
 
-from app.modules.social.config import SocialConfig
-from app.modules.social.graph import GraphPublisher
+from app.platform.meta_graph.config import SocialConfig
+from app.platform.meta_graph.graph import GraphPublisher
 from app.modules.showcase import captions, plan, publish, samples
 from app.modules.showcase.samples import HOMES
 

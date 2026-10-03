@@ -53,7 +53,7 @@ async def cycle(store: Store, cfg) -> dict:
     except Exception as e:
         log.exception("newsroom: cycle failed")
         try:
-            from app.modules.social.publisher import sanitize
+            from app.platform.meta_graph.publisher import sanitize
             await store.set_run(last_run_at=now, last_error=sanitize(f"{type(e).__name__}: {e}"))
         except Exception:
             pass

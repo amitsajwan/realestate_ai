@@ -6,8 +6,8 @@ import pytest
 
 from app.modules.reels import publish
 from app.modules.reels.publish import ReelPublisher
-from app.modules.social.config import SocialConfig
-from app.modules.social.publisher import PublishError
+from app.platform.meta_graph.config import SocialConfig
+from app.platform.meta_graph.publisher import PublishError
 
 pytestmark = pytest.mark.asyncio
 

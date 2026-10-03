@@ -18,8 +18,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.modules.reels import compose, ffmpeg, publish, templates  # noqa: E402
-from app.modules.social.config import load as load_config  # noqa: E402
-from app.modules.social.publisher import PublishError  # noqa: E402
+from app.platform.meta_graph.config import load as load_config  # noqa: E402
+from app.platform.meta_graph.publisher import PublishError  # noqa: E402
 
 CHANNEL_MAP = {"instagram": "instagram", "facebook": "facebook_page"}
 

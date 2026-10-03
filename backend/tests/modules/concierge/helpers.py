@@ -6,7 +6,7 @@ from app.modules.concierge.service import ConciergeService
 from app.modules.listings.service import ListingService
 from app.modules.onboarding.invites import InviteService
 from app.modules.onboarding.service import OnboardingService
-from app.modules.social.config import SocialConfig
+from app.platform.meta_graph.config import SocialConfig
 from app.modules.social.service import SocialService
 
 from ..listings_fakes import ListingsDb

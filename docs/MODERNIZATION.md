@@ -101,6 +101,7 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 
 | Date | Step | Change |
 |---|---|---|
+| 2026-10-03 | 2 | Meta Graph client moved to `platform.meta_graph` (`config`, `graph`, `publisher`, files moved unchanged with history); 35 files across modules, tests and scripts import it from there; `social` keeps only its publish service and routes |
 | 2026-10-03 | 2 | AI gateway moved to `platform.llm` (providers, model failover, json/text, speech-to-text, `default_llm`); the listing prompts stay in `ai_listing` as `ListingLLM` on top of it. 9 modules and 6 scripts use the gateway from the platform. Every kept definition is identical to before (checked by comparing the code); one new test covers the about-suggest endpoint's use of the same client. The `social -> marketing.content` exception is re-labelled to step 5 (it is pack building, not a shared helper) |
 | 2026-10-03 | 2 | Media URL helpers moved to `platform.media` (`upload_path`, `display_url`, `public_media`, enhanced-copy names), pinned first by 24 tests; listings and marketing use them from there; photo analysis stays in photoquality. 1 import-rule exception removed |
 | 2026-10-03 | 2 | Text helpers moved to `platform.text` (copy guards, INR/sq ft/BHK formatting, Indian mobile numbers, LLM output clean-up), pinned first by 48 tests; 14 modules and 2 scripts import them from there; `onboarding/phone.py` deleted. Note: `money(9_999_999)` gives '₹100 Lakh', pinned as is, to fix separately |

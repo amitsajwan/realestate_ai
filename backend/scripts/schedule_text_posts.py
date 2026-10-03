@@ -14,8 +14,8 @@ from datetime import datetime, timedelta, timezone
 import httpx
 
 from app.modules.marketing.text_posts import TEXT_POSTS
-from app.modules.social.config import load
-from app.modules.social.publisher import sanitize
+from app.platform.meta_graph.config import load
+from app.platform.meta_graph.publisher import sanitize
 
 
 def body(p: dict) -> dict:

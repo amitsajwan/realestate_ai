@@ -52,7 +52,7 @@ Shared building blocks with no business knowledge. Nothing here imports from `ap
 | `leases` | One runner per background loop | new, **done** (step 0) |
 | `jobs` | Worker entry point, heartbeats per loop | new (step 4) |
 | `llm` | AI model access: per-task model routing, schema-checked outputs, failover, call log | `ai_listing/llm.py` (gateway moved, **done** step 2; routing, schemas and call log still to come) |
-| `meta_graph` | Facebook/Instagram Graph client, `sanitize`, publish errors | `social/graph.py`, `social/publisher.py` |
+| `meta_graph` | Facebook/Instagram Graph client and settings, `sanitize`, publish errors | `social/graph.py`, `social/publisher.py`, `social/config.py`, **done** (step 2) |
 | `media` | Upload storage, public URLs | `photoquality/store.py` (URL helpers **done**, step 2), `endpoints/uploads.py` |
 | `text` | Copy guards (hype words, phone numbers), INR/lakh/crore, sq ft, BHK, Indian mobile numbers, LLM output clean-up | `marketing/polish.py`, `marketing/facts.py`, `onboarding/phone.py`, **done** (step 2) |
 | `controls` | Owner pause switches | `admin/controls.py`, **done** (step 2) |

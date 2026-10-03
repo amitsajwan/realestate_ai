@@ -3,7 +3,7 @@ already run through the check stage. Pure except for reading the social settings
 import os
 from typing import Callable, Dict, List, Optional
 
-from app.modules.social import config as social_config
+from app.platform.meta_graph import config as social_config
 
 from . import captions
 

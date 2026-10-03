@@ -330,7 +330,7 @@ async def test_routes_create_and_list_jobs(tmp_path):
 async def test_concierge_reel_post_needs_consent_and_a_finished_reel_and_uses_attribution(tmp_path):
     from app.modules.concierge.service import ConciergeError
     from app.modules.listings.schemas import ListingCreate
-    from app.modules.social.config import SocialConfig
+    from app.platform.meta_graph.config import SocialConfig
     from ..concierge.helpers import FULL, PHONE, make
 
     svc, db, _ = make()

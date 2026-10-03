@@ -3,8 +3,8 @@ from urllib.parse import parse_qsl
 
 import httpx
 
-from app.modules.social.config import SocialConfig
-from app.modules.social.graph import GraphPublisher
+from app.platform.meta_graph.config import SocialConfig
+from app.platform.meta_graph.graph import GraphPublisher
 from app.modules.social.service import SocialService
 
 from .fakes import FakeDb

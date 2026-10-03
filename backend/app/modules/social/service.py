@@ -10,9 +10,9 @@ from typing import Callable, List, Optional
 
 from app.modules.marketing.content import P as content_phrases, resolve_language
 
-from .config import BRAND, SocialConfig, load as load_config
-from .graph import GraphPublisher
-from .publisher import DryRunPublisher, Post, PublishError, Publisher, sanitize
+from app.platform.meta_graph.config import BRAND, SocialConfig, load as load_config
+from app.platform.meta_graph.graph import GraphPublisher
+from app.platform.meta_graph.publisher import DryRunPublisher, Post, PublishError, Publisher, sanitize
 from .schemas import Publication, PublishIn
 
 log = logging.getLogger(__name__)

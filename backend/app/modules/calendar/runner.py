@@ -14,9 +14,9 @@ from typing import Callable, Dict, Optional
 
 from app.core.database import get_database
 from app.platform.controls import is_paused
-from app.modules.social.config import SocialConfig
-from app.modules.social.config import load as load_social
-from app.modules.social.publisher import DryRunPublisher, Post, sanitize
+from app.platform.meta_graph.config import SocialConfig
+from app.platform.meta_graph.config import load as load_social
+from app.platform.meta_graph.publisher import DryRunPublisher, Post, sanitize
 
 from . import adapters
 from .config import MAX_ATTEMPTS, RETRY_AFTER_S, CalendarConfig, load, uploads_dir
@@ -135,7 +135,7 @@ async def loop() -> None:
             if cfg.enabled and await is_paused(get_database(), "posting_paused"):
                 log.info("calendar: paused by owner, cycle skipped")
             elif cfg.enabled:
-                from app.modules.social.graph import GraphPublisher
+                from app.platform.meta_graph.graph import GraphPublisher
                 social = load_social()
                 store = Store(get_database())
                 now = datetime.now(timezone.utc)

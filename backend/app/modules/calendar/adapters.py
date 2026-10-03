@@ -26,8 +26,8 @@ from app.modules.showcase import publish as _show_publish
 from app.modules.showcase import render as _show_render
 from app.modules.showcase.samples import HOMES, Home
 from app.modules.showcase.samples import get as get_home
-from app.modules.social.config import SocialConfig
-from app.modules.social.publisher import PublishError, Result
+from app.platform.meta_graph.config import SocialConfig
+from app.platform.meta_graph.publisher import PublishError, Result
 
 from . import render as _cards
 from .library import SITE, Entry

@@ -12,7 +12,7 @@ from app.modules.newsroom.pipeline import run_once
 from app.modules.newsroom.samples import SAMPLES, make_doc
 from app.modules.newsroom.store import Store
 from app.modules.newsroom.types import CheckResult
-from app.modules.social.config import SocialConfig
+from app.platform.meta_graph.config import SocialConfig
 
 from ..fakes import FakeDb
 from .helpers import NOW

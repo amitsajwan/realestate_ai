@@ -101,7 +101,7 @@ async def skip(store, id: str) -> None:
 
 async def status(store) -> None:
     cfg = load_config()
-    from app.modules.social.config import load as load_social
+    from app.platform.meta_graph.config import load as load_social
     run = await store.get_run()
     print(f"enabled={cfg.enabled} dry_run={load_social().dry_run} counts={await store.counts()}")
     print(f"last_run_at={run.get('last_run_at')} last_counts={run.get('last_counts')} last_error={run.get('last_error')}")

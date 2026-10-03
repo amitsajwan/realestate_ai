@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Callable, Dict, Optional
 
-from app.modules.social.publisher import sanitize
+from app.platform.meta_graph.publisher import sanitize
 
 from . import codec, policy, register
 from .config import NewsroomConfig, load

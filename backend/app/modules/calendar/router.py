@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.core.auth_backend import current_active_user
 from app.core.database import get_database
 from app.models.user import User
-from app.modules.social.config import load as load_social
+from app.platform.meta_graph.config import load as load_social
 
 from .config import load
 from .store import Store

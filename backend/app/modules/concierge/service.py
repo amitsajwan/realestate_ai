@@ -285,8 +285,8 @@ class ConciergeService:
         SOCIAL_DRY_RUN (the default) checks everything and publishes nothing. The caption carries the 'Listed by' line."""
         from app.modules.reels import listing_reel
         from app.modules.reels import publish as reel_publish
-        from app.modules.social.config import load as load_config
-        from app.modules.social.publisher import PublishError
+        from app.platform.meta_graph.config import load as load_config
+        from app.platform.meta_graph.publisher import PublishError
         from .attribution import attribution_text, register_hub_item
         await self._agent(agent_id)
         if not await self.has_consent(agent_id):
