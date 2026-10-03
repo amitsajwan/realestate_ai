@@ -63,9 +63,14 @@ describe('site footer', () => {
   })
 })
 
-describe('landing hero', () => {
-  it('offers a secondary "See a demo agent page" call to action', () => {
-    render(<LandingPage />)
+describe('home page', () => {
+  it('offers agents a "See a demo agent page" link', async () => {
+    process.env.SITE_USE_FIXTURES = '1' // news from fixtures, no network
+    try {
+      render(await LandingPage())
+    } finally {
+      delete process.env.SITE_USE_FIXTURES
+    }
     expect(screen.getByRole('link', { name: /^see a demo agent page$/i })).toHaveAttribute('href', '/agent/demo')
   })
 })
