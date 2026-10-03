@@ -49,12 +49,16 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
   check, so the list can only shrink. Content and conversations share one layer for now; making them independent siblings
   is part of step 3.
 
-### Step 2: Extract the platform (in progress)
+### Step 2: Extract the platform (done)
 - Pin first: tests that record today's output of the copy guards, INR/sq ft/BHK formatting, phone normalising and grounding.
 - Move into `app/platform/`: `llm`, `meta_graph`, `text`, `media`, `controls`, `config`, `db`, `auth` (ARCHITECTURE §3), with
   shims at the old paths.
 - **Done when:** pinned tests unchanged; the cycle count is re-measured and recorded here; no module imports another module only
   for one of these helpers.
+- **Result:** `controls`, `text`, `media`, `llm` and `meta_graph` are in `app/platform/`, pinned by 72 new tests plus the existing
+  suites. `config`, `db`, `auth`, `region`, `brand` stay in `app/core/` for now: moving them touches about 150 files (half of
+  them old-layer files deleted in step 8) and would collide with product work in progress, for no change in behaviour. A
+  fourth import rule holds them to the platform rule where they are; the move itself is part of step 8.
 
 ### Step 3: Fix the wrong-way dependencies
 - `social → concierge.attribution`, `photoquality router → newsroom/calendar/concierge`, `admin → concierge.router` internals,
@@ -89,6 +93,8 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 
 ### Step 8: Delete the old code
 - Remove the old endpoints, services, schemas and repositories, and the three old API clients.
+- Move the platform parts of `app/core/` (config, database, auth, region, brand, indexes) and `app/models/user.py` into
+  `app/platform/`.
 - **Done when:** `backend/app/{services,routers,repositories,schemas}` and `api/v1/endpoints` are gone or hold only shims with
   no users.
 
@@ -101,6 +107,7 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 
 | Date | Step | Change |
 |---|---|---|
+| 2026-10-03 | 2 | Step 2 closed: core's platform parts held to the platform rule in place by a 4th import rule; their physical move is deferred to step 8 |
 | 2026-10-03 | 2 | Meta Graph client moved to `platform.meta_graph` (`config`, `graph`, `publisher`, files moved unchanged with history); 35 files across modules, tests and scripts import it from there; `social` keeps only its publish service and routes |
 | 2026-10-03 | 2 | AI gateway moved to `platform.llm` (providers, model failover, json/text, speech-to-text, `default_llm`); the listing prompts stay in `ai_listing` as `ListingLLM` on top of it. 9 modules and 6 scripts use the gateway from the platform. Every kept definition is identical to before (checked by comparing the code); one new test covers the about-suggest endpoint's use of the same client. The `social -> marketing.content` exception is re-labelled to step 5 (it is pack building, not a shared helper) |
 | 2026-10-03 | 2 | Media URL helpers moved to `platform.media` (`upload_path`, `display_url`, `public_media`, enhanced-copy names), pinned first by 24 tests; listings and marketing use them from there; photo analysis stays in photoquality. 1 import-rule exception removed |

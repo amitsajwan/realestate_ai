@@ -52,3 +52,22 @@ ignore_imports =
     app.modules.social.service -> app.modules.concierge.attribution
     app.modules.photoquality.router -> app.modules.concierge.config
     app.modules.interest.router -> app.modules.showcase.samples
+
+[importlinter:contract:core-platform]
+name = The platform parts of core (config, database, auth, region, brand, indexes, User) import no business code
+type = forbidden
+source_modules =
+    app.core.config
+    app.core.database
+    app.core.auth_backend
+    app.core.region
+    app.core.brand
+    app.core.indexes
+    app.models.user
+forbidden_modules =
+    app.modules
+    app.api
+    app.routers
+    app.services
+    app.repositories
+    app.schemas

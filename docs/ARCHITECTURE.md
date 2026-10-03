@@ -44,6 +44,9 @@ operator console knows), the higher module **passes a callback in at wiring time
 
 Shared building blocks with no business knowledge. Nothing here imports from `app.modules`.
 
+`config`, `db`, `auth`, `region` and `brand` are platform code that still lives in `app/core/` and `app/models/user.py`; CI already
+holds them to the platform rule. They move into `app/platform/` in step 8, when the old layer that also imports them is gone.
+
 | Package | What | Comes from |
 |---|---|---|
 | `config` | One settings object; no `os.environ` reads elsewhere | `core/config.py`, the env reads in `ai_listing/llm.py` and module `config.py` files |
