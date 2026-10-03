@@ -205,6 +205,52 @@ def reel(out: Path) -> Path:
     return make_reel(scenes, out / "agents-reel.mp4", music=tune)
 
 
+def group_post_lead(url: str = JOIN_URL) -> Rendered:
+    """The single group post with the lead card as the hero: what an agent gets, in one look (4:5)."""
+    c = Canvas(SIZE, palette("navy_gold"), "promo_group_lead", 0)
+    c.chip("Free pilot for Pune property agents", c.left, c.top + 4, icon="star", size=26)
+    y = c.text("Stop chasing “Price?” comments.", c.left, c.top + 84, c.right - c.left, 66, "bold", c.pal.ink, 2, min_size=46,
+               role="headline") + 14
+    y = c.text("Get buyers you can call.", c.left, y, c.right - c.left, 50, "bold", c.pal.accent, 1, min_size=38, role="headline",
+               balance=False) + 30
+    white, ink, grey = (255, 255, 255), (16, 35, 64), (90, 102, 124)
+    x0, x1 = c.left, c.right
+    c.rrect((x0, y, x1, y + 380), 30, white, shadow=True)
+    c.text("EVERY ENQUIRY BECOMES A LEAD CARD · SAMPLE", x0 + 32, y + 30, x1 - x0 - 200, 20, "bold", grey, 1, min_size=16,
+           role="mock", balance=False, bg_hint=white)
+    c.chip("HOT", x1 - 32, y + 20, fill=(196, 48, 52), ink=white, size=24, align_right=True)
+    c.text("Sample buyer: 2 BHK in Kharadi", x0 + 32, y + 78, x1 - x0 - 64, 38, "bold", ink, 1, min_size=28, role="mock",
+           balance=False, bg_hint=white)
+    cx, cy = x0 + 32, y + 140
+    for label in ("₹80 L – 1.2 Cr", "Moving in 1–3 months", "Home loan"):
+        box = c.chip(label, cx, cy, fill=(230, 244, 241), ink=(11, 63, 58), size=24)
+        cx = box[2] + 12
+    c.text("Next step: call today and offer a site visit.", x0 + 32, y + 228, x1 - x0 - 64, 28, "semibold", ink, 1, min_size=22,
+           role="mock", balance=False, bg_hint=white)
+    bw = (x1 - x0 - 84) // 2
+    c.rrect((x0 + 32, y + 290, x0 + 32 + bw, y + 346), 16, ink)
+    c.text("Call", x0 + 32, y + 306, bw, 26, "bold", white, 1, align="center", role="mock", balance=False, bg_hint=ink)
+    c.rrect((x1 - 32 - bw, y + 290, x1 - 32, y + 346), 16, GREEN)
+    c.text("WhatsApp", x1 - 32 - bw, y + 306, bw, 26, "bold", white, 1, align="center", role="mock", balance=False, bg_hint=GREEN)
+    y += 410
+    c.text("Plus your own property website, and posts and reels made for you.", c.left, y, c.right - c.left, 30, "semibold",
+           c.pal.ink, 2, min_size=24, role="support")
+    qr = 190
+    qy = c.bottom - 150 - qr
+    c.rrect((c.left, qy - 24, c.right, qy + qr + 24), 26, c.pal.accent_fill)
+    c.rrect((c.left + 18, qy - 6, c.left + 30 + qr, qy + qr + 6), 12, (255, 255, 255))
+    c.img.paste(_qr(url, qr), (c.left + 24, qy))
+    tx = c.left + 60 + qr
+    c.text("Free during the pilot. Low-cost after.", tx, qy + 14, c.right - 24 - tx, 30, "bold", c.pal.accent_ink, 2, min_size=22,
+           role="body", bg_hint=c.pal.accent_fill)
+    c.text("Scan or open " + SITE, tx, qy + qr - 54, c.right - 24 - tx, 34, "bold", c.pal.accent_ink, 1, min_size=24, role="body",
+           balance=False, bg_hint=c.pal.accent_fill)
+    c.brand_bar(right="Pune agents")
+    r = c.finish()
+    check([r])
+    return r
+
+
 def carousel() -> List[Rendered]:
     n = 5
     slides = [hook(n), problem(n), offer(n), lead_card(n), join(n)]
@@ -254,6 +300,7 @@ def main() -> None:
     out = Path(ap.parse_args().out)
     files = save_all(carousel(), out, "agents")
     save_all([all_in_one()], out, "group-post")            # WhatsApp / Facebook groups (4:5)
+    save_all([group_post_lead()], out, "group-lead")        # the same, with the lead card as the hero
     save_all([all_in_one((1080, 1920))], out, "story")      # WhatsApp Status / Instagram Stories (9:16)
     if "--reel" in sys.argv:
         print("reel:", reel(out))
