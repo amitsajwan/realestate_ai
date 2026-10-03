@@ -367,8 +367,10 @@ class _Prepared:
         self.solid = Image.new("RGB", (W, H), NAVY_BLACK)
         self.items = layout_scene(scene)
         self.badge = _chip_item(scene.badge, CONTENT_TOP - 4, "left", filled=False) if scene.badge else None
-        # The opening scene's text is already (almost) in place on frame one, so the hook is readable before anyone swipes away.
-        self.delay, self.fade, self.stagger = (-0.2, 0.3, 0.08) if is_first else (0.30, 0.6, 0.16)
+        # The opening scene has no entrance animation: frame one already shows the whole hook, so it is readable before anyone
+        # swipes away (and the cover image, a still of that frame, shows it too). Later scenes ease their text in.
+        self.animate = not is_first
+        self.delay, self.fade, self.stagger = 0.30, 0.6, 0.16
 
     def _scrim_mask(self) -> Image.Image:
         grad = Image.linear_gradient("L").resize((W, H))
@@ -398,12 +400,19 @@ class _Prepared:
         from .depth import parallax
         return parallax(view, d, shift_x=34 * swing, shift_y=-10 * swing)
 
+    def badge_alpha(self, lt: float) -> float:
+        return ease_out_cubic((lt - 0.1) / 0.5) if self.animate else 1.0
+
+    def item_alpha(self, k: int, lt: float) -> float:
+        """Opacity (and so the rise offset) of the k-th text item at scene time lt: 1.0 means in its final place."""
+        return ease_out_cubic((lt - self.delay - self.stagger * k) / self.fade) if self.animate else 1.0
+
     def frame(self, lt: float, p: float) -> Image.Image:
         img = Image.composite(self.solid, self.background(p), self.mask)
         if self.badge:
-            _blit(img, self.badge, ease_out_cubic((lt - 0.1) / 0.5), rise=0)
+            _blit(img, self.badge, self.badge_alpha(lt), rise=0)
         for k, it in enumerate(self.items):
-            _blit(img, it, ease_out_cubic((lt - self.delay - self.stagger * k) / self.fade), rise=46)
+            _blit(img, it, self.item_alpha(k, lt), rise=46)
         return img
 
 

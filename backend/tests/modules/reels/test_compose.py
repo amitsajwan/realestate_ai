@@ -147,8 +147,17 @@ def test_tour_with_a_price_opens_with_guess_the_price_and_reveals_it_last():
     assert sc[0].seconds <= 2.5
 
 
-def test_the_hook_is_readable_on_the_first_frame_but_later_scenes_still_animate_in():
-    first, later = compose._Prepared(Scene(lines=["Hook"]), 0, True), compose._Prepared(Scene(lines=["Beat"]), 1, False)
-    a = lambda p, k=0: compose.ease_out_cubic((0.0 - p.delay - p.stagger * k) / p.fade)
-    assert a(first) > 0.9 and a(first, 1) > 0.7
-    assert a(later) == 0.0
+# ---- the hook frame -----------------------------------------------------------------------------------------------------------
+def test_frame_zero_shows_the_complete_hook_and_later_scenes_still_animate():
+    scenes = [Scene(lines=["HOOK HERE", "second line"], kicker="Quick tip", badge="Sample", seconds=2.0, seed="h"),
+              Scene(lines=["Beat"], seconds=2.0, seed="b")]
+    r = compose.Renderer(scenes, end_card=False)
+    first, second = r.prep
+    assert all(first.item_alpha(k, 0.0) == 1.0 for k in range(len(first.items))) and first.badge_alpha(0.0) == 1.0
+    assert second.item_alpha(0, 0.0) == 0.0 < second.item_alpha(0, 0.5) < 1.0   # later scenes keep their entrance
+    # the rendered pixels: the hook's white headline is fully painted on frame 0 (identical to a frame later in the scene)
+    f0, f1 = r.frame_at(0.0), r.frame_at(1.0)
+    x0, y0, x1, y1 = first.items[1].box     # items[0] is the kicker chip
+    crop0, crop1 = f0.crop((x0, y0, x1, y1)), f1.crop((x0, y0, x1, y1))
+    assert max(p[0] for p in crop0.getdata()) >= 250   # pure white glyphs, not a half-faded grey
+    assert crop0.getextrema() == crop1.getextrema()
