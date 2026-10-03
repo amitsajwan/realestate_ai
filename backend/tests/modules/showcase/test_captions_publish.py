@@ -29,6 +29,17 @@ def test_deterministic_captions_pass_their_own_guards(h):
     assert "/localities" in fb and not captions.HASHTAG.findall(fb)
 
 
+@pytest.mark.parametrize("h", HOMES, ids=lambda h: h.slug)
+def test_first_line_is_a_hook_with_what_where_a_fact_and_the_sample_word(h):
+    """Instagram shows about 125 characters before '... more': that line says what, where, a standout fact and that it is a sample."""
+    from app.modules.calendar.guards import hook_problems
+
+    for text in (captions.instagram_caption(h), captions.facebook_caption(h)):
+        line = text.splitlines()[0]
+        assert hook_problems(text) == [], line
+        assert f"{h.bhk} BHK" in line and h.locality in line and h.carpet_text in line and "sample" in line.lower()
+
+
 def test_hooks_vary_across_homes():
     assert len({captions.hook(h).split(":")[0].split(" in ")[0] for h in HOMES}) >= 2
 

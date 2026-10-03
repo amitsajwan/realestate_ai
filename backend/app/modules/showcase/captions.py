@@ -24,12 +24,20 @@ def site_url() -> str:
     return brand.site()
 
 
+def possession_short(h: Home) -> str:
+    """'ready to move', or for an under-construction home the stated date ('possession Dec 2027')."""
+    head, _, rest = h.possession.partition(",")
+    return rest.strip() if rest.strip() else head.strip().lower()
+
+
 def hook(h: Home) -> str:
-    """One of a few hook lines, chosen deterministically per home so a run of posts does not repeat the same opening."""
+    """The caption's first line: what and where plus a standout fact, and that it is a sample, inside Instagram's visible ~125
+    characters. One of a few phrasings, chosen deterministically per home so a run of posts does not repeat the same opening."""
+    status = possession_short(h)
     opts = [
-        f"{h.bhk} BHK in {h.locality}, {h.carpet_text} carpet: here is how a home looks on {brand.NAME}.",
-        f"What does a {h.bhk} BHK in {h.locality} look like? Swipe to see this sample home.",
-        f"A {h.bhk} BHK in {h.locality}, {h.possession.split(',')[0].lower()}: take a look inside this sample.",
+        f"{h.bhk} BHK in {h.locality}, {h.carpet_text} carpet, {status}: a sample home on {brand.NAME}.",
+        f"What does a {h.carpet_text} {h.bhk} BHK in {h.locality} look like? Swipe through this sample home.",
+        f"A {h.bhk} BHK in {h.locality}, {status}, {h.carpet_text} carpet: take a look inside this sample.",
     ]
     return opts[int(hashlib.md5(h.slug.encode()).hexdigest(), 16) % len(opts)]
 

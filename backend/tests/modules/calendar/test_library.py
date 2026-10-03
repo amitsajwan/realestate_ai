@@ -121,3 +121,20 @@ def test_image_path_per_channel():
 def test_devanagari_pitches_reuse_the_prerendered_cards(slug):
     assert library.BY_SLUG[slug].card_from == slug.replace("agent-", "agents-")
     assert (render.STATIC_DIR / f"{slug.replace('agent-', 'agents-')}.jpg").is_file()
+
+
+def test_every_caption_opens_with_a_hook_not_a_label():
+    """Instagram shows about 125 characters before '... more': the first line states the post's point, the card carries the label."""
+    for e in ENTRIES:
+        line = guards.first_line(e.body)
+        assert guards.hook_problems(e.body, guards.HOOK_TARGET) == [], (e.slug, line)
+        assert len(line) <= guards.HOOK_TARGET <= guards.HOOK_MAX, e.slug
+        assert guards.first_line(e.ig_caption) == line and guards.first_line(e.fb_caption) == line, e.slug
+        assert not re.fullmatch(r"\W*" + re.escape(e.kicker.lower()) + r"\W*", line.lower()), (e.slug, "first line is the card label")
+        assert not line.lower().split(None, 1)[-1].startswith("myth vs fact"), e.slug
+
+
+def test_hook_guard_catches_a_label_first_line():
+    bad = library.Entry("x", "myth", "MYTH VS FACT", "T", ("p",), "\U0001F914 Myth vs fact\n\nMyth: x.\n\nFact: y. Share this.",
+                        ("#a", "#b", "#c"), "review note long enough")
+    assert any(p.startswith("hook:") for p in guards.check_entry(bad, guards.site_paths()))

@@ -9,6 +9,37 @@ import re
 HYPE = re.compile(r"\b(best|guarantee\w*|lowest|cheapest|perfect|dream|unbeatable|no\.? ?1|luxurious)\b", re.I)
 PHONE = re.compile(r"(?<!\d)(?:\+?91[\s-]?)?[6-9]\d{9}(?!\d)")
 
+# ---- caption hooks: the first line is what Instagram shows before '... more' -----------------------------------------
+HOOK_MAX = 125  # Instagram cuts the caption at about this many characters
+# A first line that is only a section label or a greeting wastes the visible part of the caption (the card already carries the label).
+_LABEL_ONLY = re.compile(r"^(myth vs\.? fact|fact check|did you know|quick tip|tip of the day|explainer|checklist|poll|"
+                         r"sample listing|new listing|just listed|hi|hello|hey|namaste|नमस्ते|नमस्कार)\W*$", re.I)
+_GREETING = re.compile(r"^(hi|hello|hey|namaste|नमस्ते|नमस्कार)\b", re.I)
+
+
+def first_line(caption: str) -> str:
+    """The caption's opening line (text before the first line break), stripped."""
+    return (caption or "").strip().split("\n", 1)[0].strip()
+
+
+def hook_problems(caption: str, limit: int = HOOK_MAX) -> list:
+    """Why the caption's first line is not a usable hook (empty list = fine): it must fit before Instagram's '... more'
+    (<= `limit` characters), have at least 3 words, and not be only a label, an emoji or a greeting."""
+    line = first_line(caption)
+    out = []
+    if len(line) > limit:
+        out.append(f"first line is {len(line)} characters (limit {limit})")
+    words = [w for w in line.split() if any(c.isalpha() for c in w)]
+    if len(words) < 3:
+        out.append(f"first line has {len(words)} words (want at least 3)")
+    bare = re.sub(r"^[^\wऀ-ॿ]+|[^\wऀ-ॿ]+$", "", line)
+    if _LABEL_ONLY.match(bare) or (bare.isupper() and len(words) < 6) or line.rstrip(" \U0001F447⬇️").endswith(":"):
+        out.append(f"first line is only a label: '{line}'")
+    if _GREETING.match(bare):
+        out.append(f"first line opens with a greeting: '{line}'")
+    return out
+
+
 # ---- LLM output clean-up ----------------------------------------------------------------------------------------------
 CHATTER = re.compile(r"^(of course|sure|certainly|absolutely|okay|ok|here(?:'s| is| are)|rewritten|below is)\b[^\n]*$", re.I)
 
