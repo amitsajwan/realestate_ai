@@ -107,7 +107,10 @@ async def _each(store: Store, status: str, stage: str, counts: dict, step) -> No
 async def _filter(store, stages, now, doc):
     rel = await _call(stages["filter"], codec.raw_item(doc), now)
     same = stages.get("same_story")
-    if rel.keep and same is not None:
+    # each MahaRERA record is its own project (one registration number), and their titles share most words
+    # ("Listed or updated on MahaRERA: <name>, Haveli"), so the same-story check would drop all but the first
+    maharera = ((doc.get("raw") or {}).get("source") or "").strip().lower() == "maharera"
+    if rel.keep and same is not None and not maharera:
         title = (doc.get("raw") or {}).get("title", "")
         if any(same(title, other) for other in await store.live_titles(doc["_id"])):
             await store.move(doc["_id"], "dropped", "same story as an item already in the pipeline")

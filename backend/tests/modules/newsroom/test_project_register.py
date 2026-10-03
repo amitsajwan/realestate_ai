@@ -240,3 +240,12 @@ async def test_the_count_page_gets_late_rounds_too():
     store = Store(FakeDb())
     await run(store, get)
     assert await store.projects.count_documents({}) == 3
+
+
+async def test_two_maharera_projects_are_not_the_same_story():
+    """Live on 2026-10-03: 'The Element' and 'Belmont Skyone' were dropped as the same story as another MahaRERA item."""
+    store = Store(FakeDb())
+    page = PAGE_1291.replace("2026-09-01", "2026-09-28").replace("2026-09-24", "2026-09-29")  # recent enough to be news
+    await run(store, site({1291: page}))
+    kept = await store.items.find({"status": "relevant"}).to_list(None)
+    assert sorted(d["raw"]["title"].split(": ")[1].split(",")[0] for d in kept) == ["AARAMBH PHASE 1", "Satvam Kharadi Heights", "VIKRAM MARQUEE"]
