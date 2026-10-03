@@ -99,6 +99,11 @@ api_router.include_router(ai_listing_router, prefix="/listings", tags=["listings
 api_router.include_router(listings_router, prefix="/listings", tags=["listings"])
 api_router.include_router(marketing_router, prefix="/listings", tags=["marketing"])
 api_router.include_router(social_router, prefix="/social", tags=["social"])
+# Wiring (docs/ARCHITECTURE.md §2): social posts carry the operator console's "Listed by" lines and register the
+# Instagram post as a hub item; the callbacks are passed in here so social never imports the operator console.
+from app.modules.concierge.attribution import attribution_text, register_hub_item  # noqa: E402
+from app.modules.social import router as social_routes  # noqa: E402
+social_routes.configure(attribution=attribution_text, on_instagram_published=register_hub_item)
 api_router.include_router(engage_router, prefix="/engage", tags=["engage"])
 api_router.include_router(newsroom_router, prefix="/newsroom", tags=["newsroom"])
 api_router.include_router(concierge_router, prefix="/concierge", tags=["concierge"])

@@ -6,7 +6,7 @@ from app.core import brand
 import logging
 import uuid
 from datetime import datetime, timedelta
-from typing import Callable, List, Optional
+from typing import Any, Awaitable, Callable, List, Optional
 
 from app.modules.marketing.content import P as content_phrases, resolve_language
 
@@ -62,10 +62,19 @@ def build_payload(pack: dict, channel: str, base: str, attribution: str = "") ->
     return {"text": f"{caption}\n\n{tags}".strip(), "image_urls": urls(IG_ORDER)[:10], "link": None}
 
 
+# Callbacks passed in at wiring time by the operator console (concierge), which knows who listed what:
+#   attribution(db, agent_id, listing, channel) -> 'Listed by ...' lines ('' for none), placed between caption and link;
+#   on_instagram_published(db, agent_id, listing, pack, media_base_url, permalink) -> runs after an Instagram post went live.
+Attribution = Callable[[Any, str, dict, str], Awaitable[str]]
+OnInstagramPublished = Callable[[Any, str, dict, dict, str, str], Awaitable[None]]
+
+
 class SocialService:
     def __init__(self, db, publisher_factory: Callable[[SocialConfig], Publisher] = default_publisher,
-                 config_loader: Callable[[], SocialConfig] = load_config, now: Callable[[], datetime] = datetime.utcnow):
+                 config_loader: Callable[[], SocialConfig] = load_config, now: Callable[[], datetime] = datetime.utcnow,
+                 attribution: Optional[Attribution] = None, on_instagram_published: Optional[OnInstagramPublished] = None):
         self.db = db
+        self.attribution_hook, self.on_instagram_published = attribution, on_instagram_published
         self.listings = db.get_collection("listings")
         self.packs = db.get_collection("marketing_packs")
         self.pubs = db.get_collection("publications")
@@ -139,9 +148,10 @@ class SocialService:
         return self._out(await self._attempt(cfg, {**doc, "status": "queued"}))
 
     async def _attribution(self, agent_id: str, listing: dict, channel: str) -> str:
-        """Concierge attribution lines for an agent's listing on the Avasetu pages ('' for the owner's own)."""
-        from app.modules.concierge.attribution import attribution_text
-        return await attribution_text(self.db, agent_id, listing, channel)
+        """Attribution lines for an agent's listing on the Avasetu pages ('' when none is wired, or for the owner's own)."""
+        if self.attribution_hook is None:
+            return ""
+        return await self.attribution_hook(self.db, agent_id, listing, channel)
 
     async def captions(self, agent_id: str, listing_id: str, channels: List[str]) -> dict:
         """The exact text each channel would post, without posting or recording anything."""
@@ -188,9 +198,8 @@ class SocialService:
                        "approved_at": now, "created_at": now, "updated_at": now, "attempts": 0, "payload": payloads[c]}
                 await self.pubs.insert_one(doc)
             res = await self._start(doc, cfg)
-            if c == "instagram" and res.status == "published":
-                from app.modules.concierge.attribution import register_hub_item
-                await register_hub_item(self.db, agent_id, listing, pack, cfg.media_base_url, res.permalink or "")
+            if c == "instagram" and res.status == "published" and self.on_instagram_published is not None:
+                await self.on_instagram_published(self.db, agent_id, listing, pack, cfg.media_base_url, res.permalink or "")
             results.append(res)
         return results
 

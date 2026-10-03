@@ -6,13 +6,19 @@ from app.core.database import get_database
 from app.models.user import User
 
 from .schemas import ListOut, Publication, PublishIn, PublishOut, StatusOut
-from .service import SocialError, SocialService
+from .service import Attribution, OnInstagramPublished, SocialError, SocialService
 
 router = APIRouter()
+_hooks: dict = {}
+
+
+def configure(attribution: Attribution, on_instagram_published: OnInstagramPublished) -> None:
+    """Called once by the composition root (app/core/routes.py) with the operator console's callbacks."""
+    _hooks.update(attribution=attribution, on_instagram_published=on_instagram_published)
 
 
 def get_service() -> SocialService:
-    return SocialService(get_database())
+    return SocialService(get_database(), **_hooks)
 
 
 def _http(e: SocialError) -> HTTPException:
