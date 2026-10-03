@@ -23,6 +23,13 @@ describe('/for-agents brochure', () => {
     }
   })
 
+  it('is an agent page: the header button is "Request an invite", not the buyer one', () => {
+    render(<ForAgentsPage />)
+    const cta = screen.getByTestId('header-cta')  // the site header (the brochure has its own print header too)
+    expect(cta).toHaveTextContent('Request an invite')
+    expect(cta).toHaveAttribute('href', '/request-invite')
+  })
+
   it('tells the create, attract, qualify, close story and what the agent gets', () => {
     const { container } = render(<ForAgentsPage />)
     const steps = Array.from(container.querySelectorAll('#how ol > li > p:first-child')).map((p) => (p.textContent || '').replace(/^\d/, '').trim())

@@ -15,7 +15,7 @@ export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
 
 export default function RequestInvitePage() {
   return (
-    <MarketingShell showInviteCta={false}>
+    <MarketingShell cta="none">
       <section aria-labelledby="invite-title" className="mx-auto max-w-xl px-4 py-10 sm:py-14">
         <h1 id="invite-title" className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{INVITE.title}</h1>
         <p className="mt-3 text-lg leading-relaxed text-slate-700">{INVITE.lead}</p>

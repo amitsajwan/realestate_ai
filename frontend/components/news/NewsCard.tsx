@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { formatNewsDate, NEWS_TEXT, type NewsItem } from '@/lib/news/data'
+import BuyerLine from './BuyerLine'
 
 function Meta({ item }: { item: NewsItem }) {
   const date = formatNewsDate(item.as_of)
@@ -39,6 +40,7 @@ export default function NewsCard({ item, featured = false }: { item: NewsItem; f
             <Link href={href} className="text-[#0f2340] no-underline hover:underline">{item.headline}</Link>
           </h2>
           {item.summary && item.kind !== 'digest' && <p className="mt-3 line-clamp-3 leading-relaxed text-slate-800">{item.summary}</p>}
+          <BuyerLine line={item.buyer_line} />
           <Meta item={item} />
         </div>
       </li>
@@ -52,6 +54,7 @@ export default function NewsCard({ item, featured = false }: { item: NewsItem; f
           <Link href={href} className="text-[#0f2340] no-underline hover:underline">{item.headline}</Link>
         </h3>
         {item.summary && item.kind !== 'digest' && <p className="mt-1 line-clamp-2 text-sm text-slate-700">{item.summary}</p>}
+        <BuyerLine line={item.buyer_line} compact />
         <Meta item={item} />
       </div>
       {img && <Link href={href} tabIndex={-1} aria-hidden="true">{img}</Link>}

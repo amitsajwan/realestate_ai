@@ -30,7 +30,8 @@ function Column({ title, links }: { title: string; links: SiteLink[] }) {
 export default function SiteFooter({ cfg }: { cfg: MarketingConfig }) {
   const s = siteLinks()
   return (
-    <footer data-print="hide" className="border-t border-[#ead9ae] bg-[#fbf6ea] px-4 py-10 text-sm">
+    // the extra bottom padding on phones keeps the last line clear of the round chat button in the corner
+    <footer data-print="hide" className="border-t border-[#ead9ae] bg-[#fbf6ea] px-4 pb-24 pt-10 text-sm sm:pb-10">
       <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-[1.3fr_2fr]">
         <div>
           <p className="text-base font-bold text-slate-900">{cfg.businessName}</p>
