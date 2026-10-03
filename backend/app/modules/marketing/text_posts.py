@@ -20,7 +20,7 @@ TEXT_POSTS: List[Dict] = [
     {
         "slug": "metro-myth", "link": f"{SITE}/insights/metro-kharadi-wagholi-approved-not-running",
         "text": (
-            "Myth vs fact \U0001F687\n\n"
+            "\U0001F687 A metro line on the plan is not a metro you can ride. Here is why that matters before you pay more \U0001F447\n\n"
             "Myth: a metro line on the plan means I should pay more for a flat near it.\n"
             "Fact: approved is not the same as running. Lines take years to build, so judge a flat on how you would live in it if the metro arrives late.\n\n"
             "Did a planned metro ever change how you picked a home? Tell us in the comments.\n\n"
