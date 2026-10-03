@@ -36,28 +36,24 @@ describe('landing page', () => {
     expect(container.textContent).toMatch(/invite-only/i)
   })
 
-  it('says what is coming and that screens are sample data', () => {
+  it('says what is coming, and makes clear early that posts go out through Avasetu, not the agent\'s own accounts', () => {
     render(<LandingPage />)
     expect(screen.getByRole('heading', { name: /what is coming/i })).toBeInTheDocument()
     expect(screen.getByText(/needs approval from meta/i)).toBeInTheDocument()
-    expect(screen.getByText(/screens show sample data/i)).toBeInTheDocument()
+    const hero = screen.getByRole('heading', { level: 1 }).closest('section')!
+    expect(within(hero).getByText(/publish it through avasetu/i)).toBeInTheDocument()
+    expect(within(hero).getByText(/posting to your own page and instagram is coming/i)).toBeInTheDocument()
   })
 
-  it('uses the six real screenshots, lazy loaded, with alt text and dimensions', () => {
+  it('keeps the page short: no screenshot strip, no posts feed (they live on /posts)', () => {
     const { container } = render(<LandingPage />)
-    const shots = Array.from(container.querySelectorAll('img')).filter((i) => /^\/landing\/[^/]+$/.test(i.getAttribute('src') || ''))
-    expect(shots.map((i) => i.getAttribute('src')).sort()).toEqual(Object.values(SHOTS).map((s) => s.src).sort())
-    shots.forEach((i) => {
-      expect(i.getAttribute('alt')!.length).toBeGreaterThan(20)
-      expect(i).toHaveAttribute('width', '780')
-      expect(i).toHaveAttribute('height', '1688')
-      expect(i).toHaveAttribute('loading', 'lazy')
-    })
+    expect(container.querySelector('#screens-title')).toBeNull()
+    expect(screen.queryByTestId('post-card')).toBeNull()
   })
 
   it('leads with the agent problem and an HTML phone mock of the lead card, labelled as sample', () => {
     render(<LandingPage />)
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/right buyers/i)
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/more property enquiries/i)
     expect(screen.getAllByText('INTERESTED').length).toBeGreaterThan(0)
     expect(screen.getByText('HOT')).toBeInTheDocument()
     expect(screen.getByText('Sample data')).toBeInTheDocument()
@@ -65,7 +61,8 @@ describe('landing page', () => {
 
   it('shows a real agent live today, with their pages and real slides, and says it is with their permission', () => {
     const { container } = render(<LandingPage />)
-    expect(screen.getByRole('heading', { name: /house deal, upper kharadi/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /see what an avasetu agent actually gets/i })).toBeInTheDocument()
+    expect(screen.getByText(/live today: house deal, upper kharadi/i)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /open house deal's page/i })).toHaveAttribute('href', '/agent/house-deal')
     expect(screen.getByRole('link', { name: /compare the 5 projects/i })).toHaveAttribute('href', '/agent/house-deal/projects/compare')
     expect(screen.getByText(/with house deal's permission/i)).toBeInTheDocument()
@@ -81,11 +78,11 @@ describe('landing page', () => {
     expect(within(strip).getByRole('link', { name: 'News' })).toHaveAttribute('href', '/news')
   })
 
-  it('tells the create, attract, qualify, close story in order', () => {
+  it('tells the create, get discovered, get qualified leads, close story in order', () => {
     const { container } = render(<LandingPage />)
     const steps = container.querySelector('#what-it-does')!
     const labels = Array.from(steps.querySelectorAll('ol > li > p:first-child')).map((p) => (p.textContent || '').replace(/^\d/, '').trim())
-    expect(labels).toEqual(['Create', 'Attract', 'Qualify', 'Close'])
+    expect(labels).toEqual(['Create', 'Get discovered', 'Get qualified leads', 'Close'])
   })
 
   it('answers cost, lead visibility, RERA and data in the FAQ, and puts the short form on the page', () => {

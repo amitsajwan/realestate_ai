@@ -1,16 +1,14 @@
 import React from 'react'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import PostsSection from '@/components/site/PostsSection'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import LeadCardMock from '@/components/marketing/LeadCardMock'
-import PhoneFrame from '@/components/marketing/PhoneFrame'
 import RequestInviteForm from '@/components/marketing/RequestInviteForm'
 import { socialLinks } from '@/lib/marketing/social'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { jsonLdString, organizationJsonLd, pageMetadata } from '@/lib/marketing/seo'
-import { BUYERS, LANDING as L, LIVE, PATHS, SAMPLE_NOTE, SHOTS } from '@/lib/marketing/strings'
-import { BRAND_NAME, TAGLINE, demoAgentPath } from '@/lib/brand'
+import { BUYERS, LANDING as L, LIVE, PATHS } from '@/lib/marketing/strings'
+import { BRAND_NAME, TAGLINE } from '@/lib/brand'
 
 export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
   title: L.metaTitle,
@@ -40,10 +38,11 @@ export default function LandingPage() {
             </p>
             <h1 id="hero-title" className="mt-4 text-[2rem] font-extrabold leading-[1.15] tracking-tight sm:text-5xl">{L.hero.title}</h1>
             <p className="mt-4 text-base leading-relaxed text-slate-100 sm:text-lg">{L.hero.lead}</p>
+            <p className="mt-3 rounded-xl border border-white/25 bg-white/5 px-4 py-3 text-sm leading-relaxed text-slate-100">{L.hero.publishing}</p>
             <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-3">
               <Link href={PATHS.invite} className={goldBtn + ' w-full sm:w-auto'}>{L.hero.cta}</Link>
-              <Link href={demoAgentPath()} className="inline-flex min-h-[52px] w-full items-center justify-center rounded-xl border-2 border-white/70 px-5 text-lg font-bold text-white no-underline hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-auto">
-                See a demo agent page
+              <Link href={LIVE.links.page} className="inline-flex min-h-[52px] w-full items-center justify-center rounded-xl border-2 border-white/70 px-5 text-lg font-bold text-white no-underline hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-auto">
+                {L.hero.secondary}
               </Link>
               <Link href={PATHS.signIn} className="flex min-h-[44px] items-center font-medium text-white underline underline-offset-4">{L.hero.signIn}</Link>
             </div>
@@ -78,9 +77,9 @@ export default function LandingPage() {
           <p className="text-xs font-bold uppercase tracking-wide text-[#8a5d00]">{LIVE.eyebrow}</p>
           <h2 id="live-title" className={h2 + ' mt-1'}>{LIVE.heading}</h2>
           <p className="mt-2 max-w-3xl text-lg text-slate-700">{LIVE.lead}</p>
-          <ul className="mt-8 flex snap-x gap-4 overflow-x-auto pb-3 sm:grid sm:grid-cols-3 sm:gap-5 sm:overflow-visible" tabIndex={0} aria-label={LIVE.heading}>
+          <ul className="mt-8 gap-5 [display:grid] [grid-template-columns:repeat(3,minmax(0,1fr))] max-sm:snap-x max-sm:gap-4 max-sm:overflow-x-auto max-sm:pb-3 max-sm:[display:flex]" tabIndex={0} aria-label={LIVE.heading}>
             {LIVE.cards.map((c) => (
-              <li key={c.src} className="w-[72%] flex-none snap-start list-none sm:w-auto">
+              <li key={c.src} className="list-none max-sm:w-[72%] max-sm:flex-none max-sm:snap-start">
                 <figure className="m-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={c.src} alt={c.alt} width={720} height={900} loading="lazy"
@@ -126,41 +125,6 @@ export default function LandingPage() {
             <span aria-hidden="true" className="mt-0.5 text-xl">&#10003;</span>
             <span><strong>{L.whatsapp.title}.</strong> {L.whatsapp.body}</span>
           </p>
-        </div>
-      </section>
-
-      {/* Real product screens: horizontal strip, lazy */}
-      <section aria-labelledby="screens-title" className="bg-slate-50 py-12 sm:py-16">
-        <div className={wrap}>
-          <h2 id="screens-title" className={h2}>{L.screens.heading}</h2>
-          <p className="mt-2 text-slate-700">{L.screens.lead}</p>
-        </div>
-        <ul className="mx-auto mt-6 flex max-w-5xl snap-x gap-4 overflow-x-auto px-4 pb-4 p-0" tabIndex={0} aria-label={L.screens.heading}>
-          {Object.values(SHOTS).map((sh) => (
-            <li key={sh.src} className="w-44 flex-none snap-start list-none sm:w-52">
-              <PhoneFrame shot={sh} className="max-w-none" />
-            </li>
-          ))}
-        </ul>
-        <p className={wrap + ' text-sm text-slate-600'}>{SAMPLE_NOTE}</p>
-      </section>
-
-      <PostsSection />
-
-      {/* How it works for an agent */}
-      <section id={L.how.id} aria-labelledby="how-title" className="scroll-mt-16 py-12 sm:py-16">
-        <div className={wrap}>
-          <h2 id="how-title" className={h2}>{L.how.heading}</h2>
-          <p className="mt-2 max-w-2xl text-lg text-slate-700">{L.how.lead}</p>
-          <ol className="mt-8 grid gap-5 p-0 md:grid-cols-3">
-            {L.how.items.map((s, i) => (
-              <li key={s.title} className="list-none rounded-2xl border border-[#ead9ae] bg-[#fbf6ea] p-5">
-                <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0f2340] font-bold text-white">{i + 1}</span>
-                <h3 className="mt-3 text-lg font-bold text-[#0f2340]">{s.title}</h3>
-                <p className="mt-2 leading-relaxed text-slate-700">{s.body}</p>
-              </li>
-            ))}
-          </ol>
         </div>
       </section>
 

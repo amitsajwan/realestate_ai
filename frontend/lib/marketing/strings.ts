@@ -73,10 +73,12 @@ export const LANDING = {
   hero: {
     eyebrow: 'For real estate agents in Pune',
     pilot: 'Free, invite-only pilot',
-    title: 'We post your properties. You call the right buyers.',
+    title: 'Get more property enquiries. Spend less time chasing them.',
     lead:
-      'Avasetu gives you your own website, checks your builder projects on MahaRERA, makes the posts and reels, and turns every enquiry into a lead card: what the buyer wants and who to call first.',
-    cta: 'Request an invite',
+      'Avasetu gives Pune agents their own property website, makes the posts and reels, and turns every enquiry into a lead card that says what the buyer wants and who to call first.',
+    publishing: 'We create the content and publish it through Avasetu\'s Facebook and Instagram, marked "Listed by" you. Posting to your own Page and Instagram is coming.',
+    cta: 'Join the free pilot',
+    secondary: 'See a live agent example',
     signIn: 'Already invited? Sign in',
     facts: ['Free during the pilot', 'Invite-only', 'Pune', 'No app to install'],
   },
@@ -106,7 +108,7 @@ export const LANDING = {
   },
   steps: {
     id: 'what-it-does',
-    heading: 'Create, attract, qualify, close',
+    heading: 'Create, get discovered, get qualified leads, close',
     lead: 'Four steps, in plain words. All of this works today.',
     items: [
       {
@@ -114,11 +116,11 @@ export const LANDING = {
         body: 'Add a home from your phone, or a builder project by its MahaRERA number. We fill in the details for you to check, and for projects we read the MahaRERA record: completion date and homes booked.',
       },
       {
-        key: 'attract', label: 'Attract', title: 'Posts and reels, made for you',
+        key: 'attract', label: 'Get discovered', title: 'Posts and reels, made for you',
         body: 'Your own website, plus carousels and reels on Avasetu\'s Facebook and Instagram marked "Listed by" you, after you approve each one. Every post links back to your page.',
       },
       {
-        key: 'qualify', label: 'Qualify', title: 'Every enquiry becomes a lead card',
+        key: 'qualify', label: 'Get qualified leads', title: 'Every enquiry becomes a lead card',
         body: 'Budget, bedrooms, area, timing and how warm the buyer is, in a few lines. Buyers tick a box to agree to be contacted.',
       },
       {
@@ -540,8 +542,8 @@ export function deletionDoc(cfg: MarketingConfig): LegalDoc {
 /** A real agent on Avasetu today (featured with their consent). Images are their published carousel slides. */
 export const LIVE = {
   id: 'live',
-  eyebrow: 'Live today',
-  heading: 'House Deal, Upper Kharadi',
+  eyebrow: 'Live today: House Deal, Upper Kharadi',
+  heading: 'See what an Avasetu agent actually gets',
   lead: 'Five builder projects in Wagholi and Upper Kharadi, each checked on MahaRERA, on House Deal\'s own Avasetu page, with carousels and reels on our Facebook and Instagram.',
   consent: 'Shown with House Deal\'s permission.',
   cards: [
