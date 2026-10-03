@@ -141,7 +141,7 @@ class GraphPublisher:
         return url if url.startswith("https://") else f"https://www.facebook.com/{post_id}"
 
     # ---- Instagram -------------------------------------------------------------------------------------------
-    async def _already_on_instagram(self, caption: str) -> Optional[Result]:
+    async def _already_on_instagram(self, caption: str, video: bool = False) -> Optional[Result]:
         """The account's recent post with this exact caption, if any. Instagram sometimes publishes a post and still answers
         media_publish with an error (seen live 2026-10-03: error 4/2207051, the carousel appeared twice after one retry), so a
         retry first looks for its own post instead of publishing a copy. Best effort: no answer means "not found"."""
@@ -149,10 +149,13 @@ class GraphPublisher:
         if not key:
             return None
         try:
-            body = await self._call("GET", f"{self.cfg.ig_id}/media", {"fields": "id,caption,permalink", "limit": DEDUP_WINDOW})
+            body = await self._call("GET", f"{self.cfg.ig_id}/media", {"fields": "id,caption,permalink,media_type", "limit": DEDUP_WINDOW})
         except PublishError:
             return None
         for m in body.get("data") or []:
+            # a reel and a carousel of the same project share their caption: only the same kind counts as already posted
+            if m.get("media_type") and (m["media_type"] == "VIDEO") != video:
+                continue
             if (m.get("caption") or "").strip() == key and m.get("id"):
                 return Result(str(m["id"]), m.get("permalink"))
         return None

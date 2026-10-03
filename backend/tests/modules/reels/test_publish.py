@@ -271,3 +271,11 @@ async def test_instagram_reel_retry_finds_its_own_post_and_does_not_publish_agai
     r = await pub(fake).publish_reel("instagram", URL, "c")
     assert (r.external_id, r.permalink) == ("M9", "https://www.instagram.com/reel/X/")
     assert fake.lookups == 1 and fake.calls == []  # nothing created, nothing published
+
+
+
+async def test_instagram_reel_is_not_skipped_because_a_carousel_has_its_caption():
+    fake = Fake({}, recent=[{"id": "C1", "caption": "c", "media_type": "CAROUSEL_ALBUM", "permalink": "https://www.instagram.com/p/C/"}])
+    with pytest.raises(PublishError):  # no routes for a real publish: it tried to publish instead of returning the carousel
+        await pub(fake).publish_reel("instagram", URL, "c")
+    assert fake.lookups == 1

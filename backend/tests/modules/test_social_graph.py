@@ -255,3 +255,11 @@ async def test_facebook_several_images_become_one_multi_photo_post():
     assert [_json.loads(feed[f"attached_media[{i}]"])["media_fbid"] for i in range(4)] == ["PH1", "PH2", "PH3", "PH4"]
     assert feed["message"] == "Pune agents: join the pilot"
     assert (r.external_id, r.permalink) == ("PAGE1_77", "https://www.facebook.com/122/posts/77")
+
+
+
+async def test_a_reel_with_the_same_caption_does_not_count_as_the_carousel():
+    """Live 2026-10-03: each project's carousel and reel share a caption; the guard skipped the second one as a duplicate."""
+    g = FakeGraph(ig_routes(), recent=[{"id": "R1", "caption": CAPTION, "media_type": "VIDEO", "permalink": "https://instagram.com/reel/r"}])
+    (p,) = await run(g, "instagram")
+    assert p.status == "published" and p.external_id != "R1" and any(c["path"].endswith("/media_publish") for c in g.calls)
