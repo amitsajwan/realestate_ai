@@ -4,7 +4,8 @@
   GET  /listings/{listing_id}/reel                                  -> {jobs: {lang: job}}  (latest job per language)
 
 Two segments ending in "reel", so they cannot shadow "/{listing_id}" or the marketing routes. Both start the render worker
-in this process if it is not running yet (listing_reel.ensure_worker); the app lifespan starts it too.
+in this process if it is not running yet (listing_reel.ensure_worker); the app lifespan starts it too. With
+RUN_BACKGROUND_LOOPS=false neither does: the worker process (app/worker.py) renders the queued jobs.
 """
 from pathlib import Path
 from typing import Literal, Optional

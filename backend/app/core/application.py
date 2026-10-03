@@ -91,25 +91,12 @@ async def lifespan(app: FastAPI):
             await start_token_cleanup()
             logger.info("🧹 Token cleanup service started")
 
-            # Background loops. Each runs in one process only, however many API processes start (app/platform/leases.py).
-            from app.core.database import get_database
-            from app.platform.leases import run_as_leader
-
-            # Comment assistant (does nothing unless ENGAGE_ENABLED=true)
-            from app.modules.engage.runner import loop as engage_loop
-            app.state.engage_task = asyncio.create_task(run_as_leader("engage", engage_loop, get_database))
-
-            # Newsroom content agent (idle unless NEWSROOM_ENABLED=true)
-            from app.modules.newsroom.runner import loop as newsroom_loop
-            app.state.newsroom_task = asyncio.create_task(run_as_leader("newsroom", newsroom_loop, get_database))
-
-            # Content calendar: evergreen posts for Facebook and Instagram (idle unless CALENDAR_ENABLED=true)
-            from app.modules.calendar.runner import loop as calendar_loop
-            app.state.calendar_task = asyncio.create_task(run_as_leader("calendar", calendar_loop, get_database))
-
-            # Listing reels: renders the reels agents ask for from a listing (idle when the queue is empty)
-            from app.modules.reels import listing_reel
-            app.state.listing_reel_task = listing_reel.ensure_worker()
+            # Background loops. Each runs in one process only, however many processes start it (app/platform/leases.py).
+            # With RUN_BACKGROUND_LOOPS=false the worker process runs them instead (python -m app.worker).
+            if settings.run_background_loops:
+                start_background_loops(app)
+            else:
+                logger.info("Background loops are left to the worker process (RUN_BACKGROUND_LOOPS=false)")
         except Exception as e:
             logger.error(f"❌ Startup step failed after the database connected: {e}")
 
@@ -125,6 +112,28 @@ async def lifespan(app: FastAPI):
     
     await close_database()
     logger.info("📊 Database connection closed")
+
+
+def start_background_loops(app: FastAPI) -> None:
+    """Start the 4 background loops in this (API) process, each under its runner lease."""
+    from app.core.database import get_database
+    from app.platform.leases import run_as_leader
+
+    # Comment assistant (does nothing unless ENGAGE_ENABLED=true)
+    from app.modules.engage.runner import loop as engage_loop
+    app.state.engage_task = asyncio.create_task(run_as_leader("engage", engage_loop, get_database))
+
+    # Newsroom content agent (idle unless NEWSROOM_ENABLED=true)
+    from app.modules.newsroom.runner import loop as newsroom_loop
+    app.state.newsroom_task = asyncio.create_task(run_as_leader("newsroom", newsroom_loop, get_database))
+
+    # Content calendar: evergreen posts for Facebook and Instagram (idle unless CALENDAR_ENABLED=true)
+    from app.modules.calendar.runner import loop as calendar_loop
+    app.state.calendar_task = asyncio.create_task(run_as_leader("calendar", calendar_loop, get_database))
+
+    # Listing reels: renders the reels agents ask for from a listing (idle when the queue is empty)
+    from app.modules.reels import listing_reel
+    app.state.listing_reel_task = listing_reel.ensure_worker()
 
 
 def create_application() -> FastAPI:

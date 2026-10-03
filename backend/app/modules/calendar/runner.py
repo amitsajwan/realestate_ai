@@ -14,6 +14,7 @@ from typing import Callable, Dict, Optional
 
 from app.core.database import get_database
 from app.platform.controls import is_paused
+from app.platform.heartbeats import heartbeat
 from app.platform.meta_graph.config import SocialConfig
 from app.platform.meta_graph.config import load as load_social
 from app.platform.meta_graph.publisher import DryRunPublisher, Post, sanitize
@@ -132,18 +133,19 @@ async def loop() -> None:
     while True:
         cfg = load()
         try:
-            if cfg.enabled and await is_paused(get_database(), "posting_paused"):
-                log.info("calendar: paused by owner, cycle skipped")
-            elif cfg.enabled:
-                from app.platform.meta_graph.graph import GraphPublisher
-                social = load_social()
-                store = Store(get_database())
-                now = datetime.now(timezone.utc)
-                if rendering is None or rendering.done():  # reels render in the background so a pass is never held up for a minute
-                    rendering = asyncio.create_task(prerender_reels(store, now))
-                counts = await run_once(store, GraphPublisher(social), social, cfg, now)
-                if any(counts.values()):
-                    log.info("calendar: cycle done %s (dry_run=%s)", counts, social.dry_run)
+            async with heartbeat("calendar", get_database, on=cfg.enabled):
+                if cfg.enabled and await is_paused(get_database(), "posting_paused"):
+                    log.info("calendar: paused by owner, cycle skipped")
+                elif cfg.enabled:
+                    from app.platform.meta_graph.graph import GraphPublisher
+                    social = load_social()
+                    store = Store(get_database())
+                    now = datetime.now(timezone.utc)
+                    if rendering is None or rendering.done():  # reels render in the background so a pass is never held up
+                        rendering = asyncio.create_task(prerender_reels(store, now))
+                    counts = await run_once(store, GraphPublisher(social), social, cfg, now)
+                    if any(counts.values()):
+                        log.info("calendar: cycle done %s (dry_run=%s)", counts, social.dry_run)
         except asyncio.CancelledError:
             if rendering and not rendering.done():
                 rendering.cancel()

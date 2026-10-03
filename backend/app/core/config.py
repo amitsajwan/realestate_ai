@@ -16,7 +16,10 @@ class Settings(BaseSettings):
     app_version: str = "1.0.0"
     debug: bool = False
     environment: str = "development"
-    
+    # RUN_BACKGROUND_LOOPS: the API process starts the background loops (engage, newsroom, calendar, listing reels).
+    # Set false where `python -m app.worker` runs them (deploy/gcp/docker-compose.yml). Leases keep it safe if both run.
+    run_background_loops: bool = True
+
     # Demo/Sample data settings
     enable_sample_data: bool = False
     create_demo_posts: bool = False

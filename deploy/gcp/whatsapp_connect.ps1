@@ -104,9 +104,9 @@ sed -i -e '$a\' .env
 cat ~/wa.env >> .env
 chmod 600 .env
 rm -f ~/wa.env
-sudo docker compose up -d backend
+sudo docker compose up -d backend worker  # the worker reads the same .env (background loops)
 sleep 15
-sudo docker compose ps backend --format '{{.Name}} {{.Status}}'
+sudo docker compose ps backend worker --format '{{.Name}} {{.Status}}'
 grep -c '^WHATSAPP_ACCESS_TOKEN=' .env | sed 's/^/token lines in .env: /'
 grep '^WHATSAPP_DRY_RUN=' .env
 grep -q '^WHATSAPP_OWNER_AGENT_ID=' .env || echo 'NOTE: WHATSAPP_OWNER_AGENT_ID is not set; chats will use INTEREST_OWNER_AGENT_ID / ENGAGE_OWNER_AGENT_ID'

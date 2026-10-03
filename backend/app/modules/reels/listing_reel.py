@@ -457,15 +457,28 @@ def default_jobs() -> ReelJobs:
     return ReelJobs(get_database(), Path(settings.upload_directory), llm_factory=default_llm)
 
 
-async def loop(make_jobs: Callable[[], ReelJobs] = default_jobs, poll: float = 3.0) -> None:
-    """Render queued jobs one at a time, forever. Started only through ensure_worker, so one process renders at a time."""
+HEARTBEAT_EVERY_S = 60.0  # the loop polls every few seconds; its heartbeat is written at most once a minute
+HEARTBEAT_INTERVAL_S = STALE_AFTER.total_seconds()  # a render may take this long without a heartbeat (app/worker.py --check)
+
+
+def _get_database():
+    from app.core.database import get_database
+    return get_database()
+
+
+async def loop(make_jobs: Callable[[], ReelJobs] = default_jobs, poll: float = 3.0, get_db: Callable = _get_database) -> None:
+    """Render queued jobs one at a time, forever. Started only under the 'listing_reels' runner lease (ensure_worker in the
+    API, or app/worker.py), so one process renders at a time."""
+    from app.platform.heartbeats import heartbeat
     try:
         await make_jobs().fail_stale()
     except Exception:
         log.exception("reel worker: could not clean up stale jobs")
     while True:
         try:
-            if await make_jobs().run_once():
+            async with heartbeat("listing_reels", get_db, every_s=HEARTBEAT_EVERY_S):
+                busy = await make_jobs().run_once()
+            if busy:
                 continue
         except asyncio.CancelledError:
             raise
@@ -474,11 +487,16 @@ async def loop(make_jobs: Callable[[], ReelJobs] = default_jobs, poll: float = 3
         await asyncio.sleep(poll)
 
 
-def ensure_worker() -> asyncio.Task:
+def ensure_worker() -> Optional[asyncio.Task]:
     """Start the worker if it is not running in this process (idempotent; called by the app lifespan and the reel routes).
     The worker renders only while this process holds the 'listing_reels' runner lease, so with several processes one renders
-    and the others wait; its startup clean-up (fail_stale) therefore never fails a render another process is still running."""
+    and the others wait; its startup clean-up (fail_stale) therefore never fails a render another process is still running.
+    With RUN_BACKGROUND_LOOPS=false the API starts nothing (returns None): the worker process (app/worker.py) renders the
+    jobs the API queues in `reel_jobs`."""
     global _task
+    from app.core.config import settings
+    if not settings.run_background_loops:
+        return None
     if _task is None or _task.done():
         from app.core.database import get_database
         from app.platform.leases import run_as_leader
