@@ -12,7 +12,7 @@ from bson import ObjectId
 
 from app.modules.concierge.service import mask_phone
 
-from . import controls
+from app.platform import controls
 
 IST = timezone(timedelta(hours=5, minutes=30))
 CAP = 5000  # documents read per collection for a 7-day window

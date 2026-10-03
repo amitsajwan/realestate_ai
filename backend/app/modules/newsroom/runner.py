@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timezone
 
 from app.core.database import get_database
-from app.modules.admin.controls import is_paused
+from app.platform.controls import is_paused
 
 from . import adapters, digest
 from .config import load

@@ -46,10 +46,6 @@ layers =
 unmatched_ignore_imports_alerting = error
 ; Baseline, 2026-10-03. Each line goes away in a MODERNIZATION step:
 ignore_imports =
-    ; step 2: the pause switch moves to platform.controls
-    app.modules.calendar.runner -> app.modules.admin.controls
-    app.modules.engage.runner -> app.modules.admin.controls
-    app.modules.newsroom.runner -> app.modules.admin.controls
     ; step 2: media storage moves to platform.media
     app.modules.listings.schemas -> app.modules.photoquality.store
     ; step 2: language phrases and resolve_language move to platform.text

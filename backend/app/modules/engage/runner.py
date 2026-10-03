@@ -3,7 +3,7 @@ import asyncio
 import logging
 
 from app.core.database import get_database
-from app.modules.admin.controls import is_paused
+from app.platform.controls import is_paused
 from app.modules.ai_listing.llm import default_llm
 
 from .config import load

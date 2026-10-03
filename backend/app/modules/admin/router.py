@@ -16,7 +16,8 @@ from app.modules.concierge import config as concierge_config
 from app.modules.concierge.router import get_service as get_concierge, limiter
 from app.modules.concierge.service import ConciergeError
 
-from . import controls, health
+from app.platform import controls
+from . import health
 from .service import AdminError, AdminService
 
 router = APIRouter()

@@ -55,7 +55,7 @@ Shared building blocks with no business knowledge. Nothing here imports from `ap
 | `meta_graph` | Facebook/Instagram Graph client, `sanitize`, publish errors | `social/graph.py`, `social/publisher.py` |
 | `media` | Upload storage, public URLs | `photoquality/store.py`, `endpoints/uploads.py` |
 | `text` | Copy guards (hype words, phone numbers), INR/lakh/crore, sq ft, BHK, Indian mobile numbers | `marketing/polish.py`, `marketing/facts.py`, `onboarding/phone.py` |
-| `controls` | Owner pause switches | `admin/controls.py` |
+| `controls` | Owner pause switches | `admin/controls.py`, **done** (step 2) |
 | `region`, `brand` | Where we operate; the brand name and site URL | `core/region.py`, `core/brand.py` |
 
 ## 4. Domains

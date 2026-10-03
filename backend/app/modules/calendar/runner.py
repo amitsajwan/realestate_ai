@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Callable, Dict, Optional
 
 from app.core.database import get_database
-from app.modules.admin.controls import is_paused
+from app.platform.controls import is_paused
 from app.modules.social.config import SocialConfig
 from app.modules.social.config import load as load_social
 from app.modules.social.publisher import DryRunPublisher, Post, sanitize

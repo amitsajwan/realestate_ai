@@ -25,7 +25,7 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 | Modules touching `listings` / `agent_public_profiles` / `contacts` | 16 / 12 (+4 old services) / 7 | 1 writer each |
 | Old code (`services`, `api/v1`, `routers`, `schemas`, `repositories`, `models`, `utils`, `core`) | about 38,500 lines (26,000 after step 1) | platform keepers only |
 | … of which never imported | about 11,400 lines (40 files); 0 after step 1 | 0 |
-| Import-rule exceptions in `backend/.importlinter` | 8 (step 1) | 0 |
+| Import-rule exceptions in `backend/.importlinter` | 8 (step 1); 5 now | 0 |
 | Background loops guarded against running twice | 0 of 4 | 4 of 4 (step 0) |
 
 ## Steps
@@ -49,7 +49,7 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
   check, so the list can only shrink. Content and conversations share one layer for now; making them independent siblings
   is part of step 3.
 
-### Step 2: Extract the platform
+### Step 2: Extract the platform (in progress)
 - Pin first: tests that record today's output of the copy guards, INR/sq ft/BHK formatting, phone normalising and grounding.
 - Move into `app/platform/`: `llm`, `meta_graph`, `text`, `media`, `controls`, `config`, `db`, `auth` (ARCHITECTURE §3), with
   shims at the old paths.
@@ -101,5 +101,6 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 
 | Date | Step | Change |
 |---|---|---|
+| 2026-10-03 | 2 | Pause switches moved to `platform.controls` (the 3 runners and admin now import them from there): 3 import-rule exceptions removed |
 | 2026-10-03 | 1 | Deleted 40 never-imported files, the demo and mock Facebook endpoints, `backend/modules/auth` and 12 debug scripts (14,568 lines); import rules in CI with 8 baseline exceptions |
 | 2026-10-03 | 0 | Runner leases for the 4 background loops; production needs its database; one process in `deploy-production.sh`; target and plan written |
