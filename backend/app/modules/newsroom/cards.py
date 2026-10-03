@@ -188,7 +188,8 @@ def problems(r: Rendered) -> List[str]:
 def render_card(doc: dict, channel: str, variant: Optional[str] = None, counter: str = "", over: Optional[dict] = None) -> Tuple[Image.Image, Rendered, str]:
     """One card. Tries the full hook first, then shorter ones, until every line fits. Returns (image, layout record, variant)."""
     variant = variant or choose_variant(doc)
-    base_hook, support = pr.hook(doc), pr.support_line(doc)
+    # the subtitle is another checked fact; only when there is none does the fixed buyer line take the slot (dropped if it does not fit)
+    base_hook, support = pr.hook(doc), pr.support_line(doc) or pr.buyer_line(doc)
     fig = pr.figure(doc) if variant == "figure" else None
     if variant == "figure" and not fig:
         variant = "headline"
@@ -263,7 +264,7 @@ def digest_slides(dg: dict, channel: str = "ig") -> List[Image.Image]:
     base = {"_id": "digest", "relevance": {"pillar": "digest", "areas": ["kharadi", "wagholi"]}, "draft": {"format": "digest"}}
     n = len(items)
     cover_sup = (dg.get("cover_line") or f"{n} local updates and one buyer tip") + (". Swipe." if channel == "ig" else "")
-    slides = [_hl(base, channel, dg.get("title", "Kharadi and Wagholi this week"), cover_sup, "",
+    slides = [_hl(base, channel, dg.get("cover") or dg.get("title", "Kharadi and Wagholi this week"), cover_sup, "",
                                _digest_over(dg.get("kicker") or "NEWS · THIS WEEK", meta=meta))]
     if channel != "ig":
         return slides

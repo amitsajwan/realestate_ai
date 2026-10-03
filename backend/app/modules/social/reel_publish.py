@@ -1,6 +1,6 @@
 """Publish a finished reel MP4 to Instagram (Reels) and the Facebook Page (Reels) through the Graph API.
 
-Instagram:  POST {ig}/media (media_type=REELS, video_url, caption, share_to_feed) -> poll status_code until FINISHED -> POST {ig}/media_publish.
+Instagram:  POST {ig}/media (media_type=REELS, video_url, caption, share_to_feed[, cover_url]) -> poll status_code until FINISHED -> POST {ig}/media_publish.
 Facebook:   POST {page}/video_reels upload_phase=start -> upload to rupload.facebook.com (file_url header = public https url of the mp4,
             or the binary body) -> poll the video status -> POST {page}/video_reels upload_phase=finish, video_state=PUBLISHED, description.
 Both need the file at a public https URL: PUBLIC_MEDIA_BASE_URL + /uploads/reels/<name>.mp4 (see `stage`).
@@ -27,6 +27,8 @@ REEL_POLL_TIMEOUT_S = 300.0     # reels take longer than photos to process
 UPLOAD_TIMEOUT_S = 180.0
 RUPLOAD_HOST = "rupload.facebook.com"
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,80}\.mp4$")
+COVER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,80}-cover\.jpg$")
+COVER_SUFFIX = "-cover.jpg"     # the renderer writes <name>-cover.jpg next to <name>.mp4 (reels.compose.cover_path)
 CHANNELS = ("instagram", "facebook_page")
 
 
@@ -37,6 +39,39 @@ def public_url(cfg: SocialConfig, name: str) -> str:
     if not cfg.media_url_ok:
         raise PublishError("Set PUBLIC_MEDIA_BASE_URL to a public https address so Meta can fetch the video")
     return f"{cfg.media_base_url}/uploads/reels/{name}"
+
+
+def cover_name(name: str) -> str:
+    """'reel-x.mp4' -> 'reel-x-cover.jpg'."""
+    return name[:-4] + COVER_SUFFIX
+
+
+def cover_file(mp4: Path) -> Optional[Path]:
+    """The cover JPG rendered next to `mp4`, or None when there is none (older reels)."""
+    p = Path(mp4).with_name(Path(mp4).stem + COVER_SUFFIX)
+    return p if p.is_file() and p.stat().st_size > 0 else None
+
+
+def public_cover_url(cfg: SocialConfig, name: str) -> str:
+    """https URL of a staged cover under /uploads/reels/ (built like `public_url`)."""
+    if not COVER_RE.match(name or ""):
+        raise PublishError("Invalid reel cover file name")
+    if not cfg.media_url_ok:
+        raise PublishError("Set PUBLIC_MEDIA_BASE_URL to a public https address so Meta can fetch the cover")
+    return f"{cfg.media_base_url}/uploads/reels/{name}"
+
+
+def staged_cover_url(cfg: SocialConfig, mp4: Path, uploads_dir: Path, name: str) -> Optional[str]:
+    """Copy the cover of `mp4` (if it has one) to <uploads>/reels/<name minus .mp4>-cover.jpg and return its public url; None
+    when there is no cover, so the reel is published exactly as before."""
+    src = cover_file(mp4)
+    if src is None or not NAME_RE.match(name or ""):
+        return None
+    dest = Path(uploads_dir) / "reels" / cover_name(name)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if src.resolve() != dest.resolve():
+        shutil.copyfile(src, dest)
+    return public_cover_url(cfg, dest.name)
 
 
 def stage(mp4: Path, uploads_dir: Path, name: Optional[str] = None) -> str:
@@ -58,7 +93,8 @@ class ReelPublisher(GraphPublisher):
                  poll_interval: float = REEL_POLL_INTERVAL_S, poll_timeout: float = REEL_POLL_TIMEOUT_S):
         super().__init__(cfg, transport, sleep, clock, poll_interval, poll_timeout)
 
-    async def publish_reel(self, channel: str, video_url: str, caption: str, file_path: Optional[Path] = None) -> Result:
+    async def publish_reel(self, channel: str, video_url: str, caption: str, file_path: Optional[Path] = None,
+                           cover_url: Optional[str] = None) -> Result:
         if channel not in CHANNELS:
             raise PublishError(f"Unknown channel {channel}")
         if not self.cfg.configured(channel):
@@ -69,16 +105,18 @@ class ReelPublisher(GraphPublisher):
             self._client = client
             try:
                 if channel == "instagram":
-                    return await self._instagram_reel(video_url, caption)
+                    return await self._instagram_reel(video_url, caption, cover_url)
                 return await self._facebook_reel(video_url, caption, file_path)
             finally:
                 self._client = None
 
     # ---- Instagram -------------------------------------------------------------------------------------------
-    async def _instagram_reel(self, video_url: str, caption: str) -> Result:
+    async def _instagram_reel(self, video_url: str, caption: str, cover_url: Optional[str] = None) -> Result:
         ig = self.cfg.ig_id
-        body = await self._call("POST", f"{ig}/media", {"media_type": "REELS", "video_url": video_url, "caption": caption,
-                                                        "share_to_feed": "true"})
+        params = {"media_type": "REELS", "video_url": video_url, "caption": caption, "share_to_feed": "true"}
+        if cover_url and str(cover_url).lower().startswith("https://"):
+            params["cover_url"] = cover_url   # the hook still as the grid/feed cover (else Instagram picks a frame)
+        body = await self._call("POST", f"{ig}/media", params)
         container = self._need_id(body, "the reel container")
         await self._wait_finished(container)
         media_id = self._need_id(await self._call("POST", f"{ig}/media_publish", {"creation_id": container}), "the published reel")
@@ -152,11 +190,12 @@ class ReelPublisher(GraphPublisher):
 
 
 async def publish_reel(channel: str, video_url: str, caption: str, cfg: Optional[SocialConfig] = None, file_path: Optional[Path] = None,
-                       dry_run: Optional[bool] = None, **kwargs) -> Result:
-    """Entry point. Dry run (SOCIAL_DRY_RUN, the default) returns a fake id without any network call."""
+                       dry_run: Optional[bool] = None, cover_url: Optional[str] = None, **kwargs) -> Result:
+    """Entry point. Dry run (SOCIAL_DRY_RUN, the default) returns a fake id without any network call.
+    `cover_url` (Instagram only): public https url of the cover JPG; the Facebook path ignores it."""
     cfg = cfg or load_config()
     if channel not in CHANNELS:
         raise PublishError(f"Unknown channel {channel}")
     if (cfg.dry_run if dry_run is None else dry_run):
         return Result(external_id=f"dryrun_{uuid.uuid4().hex[:12]}")
-    return await ReelPublisher(cfg, **kwargs).publish_reel(channel, video_url, caption, file_path)
+    return await ReelPublisher(cfg, **kwargs).publish_reel(channel, video_url, caption, file_path, cover_url=cover_url)

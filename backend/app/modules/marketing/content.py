@@ -2,7 +2,9 @@
 from app.core import brand
 import re
 import unicodedata
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
+
+from app.platform.text import HOOK_MAX
 
 from .facts import SUPPORTED, T, Facts
 
@@ -12,6 +14,7 @@ HASHTAGS_MAX = 12
 FB_MAX = 2000
 WA_MAX = 600
 STATUS_MAX = 200
+HOOK_TARGET = HOOK_MAX - 15  # first caption line: what and where + a standout fact, inside Instagram's visible ~125 characters
 
 # language -> phrases that are not facts (calls to action, reel directions).
 # No phone numbers anywhere: buyers comment INTERESTED, message, or use the listing link; the agent's tools answer them.
@@ -19,7 +22,7 @@ P = {
     "en": {
         "cta": "💬 Interested? Comment INTERESTED and {agent} will share the details and plan a site visit.",
         "cta_anon": "💬 Interested? Comment INTERESTED and we will share the details and plan a site visit.",
-        "wa_hi": "Hi! ", "wa_link": "Details and photos: {url}", "wa_ask": "Reply here to plan a visit.",
+        "wa_link": "Details and photos: {url}", "wa_ask": "Reply here to plan a visit.",
         "status_cta": "Reply INTERESTED for details", "reel_cta": "Comment INTERESTED for a site visit",
         "v_hook": "Cover photo with the headline text", "v_prop": "Photo of the main room, text overlay",
         "v_loc": "Photo or map pin of the locality", "v_price": "Price on a plain card", "v_cta": "Agent name card",
@@ -31,7 +34,7 @@ P = {
     "hi": {
         "cta": "💬 रुचि है? कमेंट में INTERESTED लिखें, {agent} विवरण भेजेंगे और साइट विज़िट तय करेंगे।",
         "cta_anon": "💬 रुचि है? कमेंट में INTERESTED लिखें, हम विवरण भेजेंगे और साइट विज़िट तय करेंगे।",
-        "wa_hi": "नमस्ते! ", "wa_link": "विवरण और फोटो: {url}", "wa_ask": "साइट विज़िट के लिए यहीं जवाब दें।",
+        "wa_link": "विवरण और फोटो: {url}", "wa_ask": "साइट विज़िट के लिए यहीं जवाब दें।",
         "status_cta": "विवरण के लिए INTERESTED लिखकर जवाब दें",
         "reel_cta": "साइट विज़िट के लिए INTERESTED लिखें",
         "v_hook": "कवर फोटो और हेडलाइन टेक्स्ट", "v_prop": "मुख्य कमरे की फोटो, ऊपर टेक्स्ट",
@@ -44,7 +47,7 @@ P = {
     "mr": {
         "cta": "💬 आवड आहे? कमेंटमध्ये INTERESTED लिहा, {agent} तपशील पाठवतील आणि साइट व्हिजिट ठरवतील.",
         "cta_anon": "💬 आवड आहे? कमेंटमध्ये INTERESTED लिहा, आम्ही तपशील पाठवू आणि साइट व्हिजिट ठरवू.",
-        "wa_hi": "नमस्कार! ", "wa_link": "तपशील आणि फोटो: {url}", "wa_ask": "साइट व्हिजिटसाठी इथेच उत्तर द्या.",
+        "wa_link": "तपशील आणि फोटो: {url}", "wa_ask": "साइट व्हिजिटसाठी इथेच उत्तर द्या.",
         "status_cta": "तपशिलासाठी INTERESTED लिहून उत्तर द्या",
         "reel_cta": "साइट व्हिजिटसाठी INTERESTED लिहा",
         "v_hook": "कव्हर फोटो आणि हेडलाइन मजकूर", "v_prop": "मुख्य खोलीचा फोटो, वर मजकूर",
@@ -102,9 +105,20 @@ def hashtags(f: Facts) -> List[str]:
     return out[:HASHTAGS_MAX]
 
 
-def _summary_line(f: Facts, lang: str) -> str:
+def _summary_line(f: Facts, lang: str, skip: Tuple[str, ...] = ()) -> str:
     bits = [f.price_text, f.area_text, f.possession_text(lang)]
-    return " · ".join(b for b in bits if b)
+    return " · ".join(b for b in bits if b and b not in skip)
+
+
+def hook_line(f: Facts, lang: str) -> Tuple[str, Tuple[str, ...]]:
+    """The caption's first line, which is all Instagram shows before '... more': what and where plus the standout facts
+    (area, then possession), e.g. '🏡 2 BHK apartment for sale in Baner, Pune · 1,100 sq ft · Ready to move'. A sample listing
+    says so up front. Facts that do not fit are left for the next line. Returns (line, facts used)."""
+    head = "\U0001F3E1 " + ("SAMPLE LISTING: " if f.sample else "") + f.title_line(lang)
+    extras = tuple(x for x in (f.area_text, f.possession_text(lang)) if x)
+    while extras and len(" · ".join((head,) + extras)) > HOOK_TARGET:
+        extras = extras[:-1]
+    return clip(" · ".join((head,) + extras), HOOK_TARGET), extras
 
 
 def headline(f: Facts, lang: str) -> str:
@@ -134,9 +148,9 @@ SAMPLE_LINE = f"SAMPLE LISTING (an illustration of how a listing looks on {brand
 
 
 def instagram_caption(f: Facts, lang: str) -> str:
-    """Short and visual, one emoji, ends with the call to action."""
-    head = f"\U0001F3E1 {f.title_line(lang)}"
-    must = ([SAMPLE_LINE] if f.sample else []) + [head, _summary_line(f, lang)]
+    """Short and visual, opens with the hook line, ends with the call to action."""
+    head, used = hook_line(f, lang)
+    must = [head] + ([SAMPLE_LINE] if f.sample else []) + [_summary_line(f, lang, used)]
     if f.rera:
         must.append(f"RERA: {f.rera}")
     optional = [_amen(f, lang, 4), f.project, _highlights(f)]
@@ -154,9 +168,11 @@ def instagram_caption(f: Facts, lang: str) -> str:
 def facebook_post(f: Facts, lang: str) -> str:
     """More detail, short paragraphs."""
     t = T[lang]
-    p1 = (SAMPLE_LINE + "\n\n" if f.sample else "") + f"\U0001F3E1 {f.title_line(lang)}" + (f"\n{f.price_text}" if f.price_text else "")
+    p1 = hook_line(f, lang)[0] + (f"\n{f.price_text}" if f.price_text else "")
     if f.project:
         p1 += f"\n{f.project}"
+    if f.sample:
+        p1 += "\n\n" + SAMPLE_LINE
     details = []
     if f.area_text:
         kind = f" ({f.area_kind})" if lang == "en" and f.area_kind else ""
@@ -186,9 +202,9 @@ def group_post(f: Facts, lang: str) -> str:
     """Short, photo-first text for WhatsApp / Facebook groups. The agent adds their own contact line in the app; nothing personal is generated here.
     Groups punish stale posts, so the 'available as of' date is part of it. Enquiries from it are tracked as source 'fbgroup'."""
     p = P[lang]
-    lines = [SAMPLE_LINE] if f.sample else []
-    lines.append(f"\U0001F3E1 {f.title_line(lang)}")
-    facts_line = _summary_line(f, lang)
+    head, used = hook_line(f, lang)
+    lines = [head] + ([SAMPLE_LINE] if f.sample else [])
+    facts_line = _summary_line(f, lang, used)
     if facts_line:
         lines.append(facts_line)
     if f.loc:
@@ -205,14 +221,14 @@ def group_post(f: Facts, lang: str) -> str:
 
 
 def whatsapp_message(f: Facts, lang: str) -> str:
-    """2-3 short conversational lines including the listing link."""
+    """2-4 short lines including the listing link. The first line is the hook (what, where, price), not a greeting."""
     p = P[lang]
-    line1 = ("SAMPLE LISTING (not available). " if f.sample else "") + p["wa_hi"] + f.title_line(lang) + (f" - {f.price_text}" if f.price_text else "")
+    line1 = ("SAMPLE LISTING (not available): " if f.sample else "") + f.title_line(lang) + (f" - {f.price_text}" if f.price_text else "")
     extra = ", ".join(x for x in (f.area_text, f.possession_text(lang)) if x)
     if extra:
-        line1 += f" ({extra})"
+        line1 += (" " if len(f"{line1} ({extra})") <= HOOK_TARGET else "\n") + f"({extra})"
     if f.rera:
-        line1 += f". RERA: {f.rera}"
+        line1 += f"\nRERA: {f.rera}"
     return clip(line1, WA_MAX - len(p["wa_link"]) - len(f.share_url) - 4) + "\n" + \
         p["wa_link"].format(url=f.share_url) + "\n" + p["wa_ask"]
 

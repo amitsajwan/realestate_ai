@@ -52,3 +52,26 @@ BANNED = re.compile(
 DISCLAIMER = ("Approvals and project status change, so check the sources before you decide. "
               "This is general information, not investment or legal advice.")
 SITE = brand.SITE
+
+# 'Why it matters' for a buyer: one fixed house line per pillar and sub-type, chosen by code (presentation.buyer_line), never written by
+# the LLM. Practical things to verify only: no prediction, no 'will', no price, date or investment talk. These exact strings are the
+# only text the check stage reads as ours rather than the source's (check._without_house_lines); an edited copy is checked like any
+# other text.
+BUYER_LINES = {
+    ("infrastructure", "transport"): "Worth checking: how far your shortlisted project is from this road or line.",
+    ("infrastructure", "other"): "Worth checking: how close your shortlisted project is to this work.",
+    ("new_supply", "maharera"): "Worth checking: before a visit, open the project's MahaRERA page and match the possession date.",
+    ("new_supply", "other"): "Worth checking: before a visit, ask for the project's MahaRERA number and look it up on the MahaRERA website.",
+    ("rules_money", "loan"): "Worth checking: ask your bank how this applies to your loan before you decide.",
+    ("rules_money", "cost"): "Worth checking: ask the seller or your lawyer how this changes your total cost before you decide.",
+    ("rules_money", "other"): "Worth checking: ask your lawyer how this applies to your purchase before you decide.",
+    ("locality_life", ""): "Worth checking on a weekday visit: traffic and water at the times you would use them.",
+}  # education items are already a tip and the digest carries its own: neither gets a line
+# pillar -> [(sub-type, words that select it)], first match wins; no match falls back to the pillar's "other" line
+BUYER_SUBTYPES = {
+    "infrastructure": [("transport", ("metro", "road", "roads", "flyover", "bridge", "rail", "railway", "station", "corridor", "highway",
+                                      "bus", "brts", "line", "bypass", "underpass", "tunnel"))],
+    "new_supply": [("maharera", ("maharera",))],
+    "rules_money": [("loan", ("home loan", "home-loan", "repo", "interest rate", "emi", "bank", "banks", "lending rate")),
+                    ("cost", ("stamp duty", "registration fee", "ready reckoner", "gst", "circle rate", "property tax"))],
+}

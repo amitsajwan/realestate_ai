@@ -31,3 +31,9 @@ def test_no_phone_hype_prices_or_foreign_links(p):
 def test_metro_wording_never_promises_more_than_approval():
     t = " ".join(rendered(p) for p in TEXT_POSTS if "metro" in p["slug"]).lower()
     assert "approved is not the same as running" in t
+
+
+@pytest.mark.parametrize("post", TEXT_POSTS, ids=lambda p: p["slug"])
+def test_every_text_post_opens_with_a_hook(post):
+    from app.platform.text import hook_problems
+    assert hook_problems(post["text"]) == []

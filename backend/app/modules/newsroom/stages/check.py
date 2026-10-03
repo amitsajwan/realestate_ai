@@ -151,9 +151,17 @@ def _unknown_names(text: str, known: Set[str], allowed: Set[str]) -> List[str]:
     return bad
 
 
+def _without_house_lines(text: str) -> str:
+    """The text minus our fixed buyer lines (policy.BUYER_LINES), matched exactly and only as a whole paragraph or line. They are
+    house text, not claims from the source (e.g. 'MahaRERA' in a line under a news story that does not name it); everything else,
+    including a house line someone edited, is checked as usual. The lines themselves are kept clean by tests."""
+    lines = set(policy.BUYER_LINES.values())
+    return "\n".join(" " if ln.strip() in lines else ln for ln in text.split("\n"))
+
+
 def check(draft: Draft, facts: Facts, item: RawItem, now: Optional[datetime] = None) -> CheckResult:
     problems: List[str] = []
-    full = ((draft.title or "") + "\n" + draft.text).strip()
+    full = _without_house_lines(((draft.title or "") + "\n" + draft.text).strip())
     source = (item.title or "") + "\n" + (item.text or "")
     now = now or datetime.now(timezone.utc)
 

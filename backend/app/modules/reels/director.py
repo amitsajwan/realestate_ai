@@ -8,11 +8,19 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
 from . import ffmpeg, voice
-from .compose import Scene, TextLine, make_reel, plan
+from .compose import Scene, TextLine, make_reel, photo_plan, plan, stretch
 
-END_SECONDS = 2.6
+END_SECONDS = 2.6   # length of the optional end card (reels have none by default)
 XFADE = 0.4
 NUM = re.compile(r"\d[\d,.]*")
+MIN_SCENES = 3   # hook, one beat, the call to action
+# The reel's call to action is a comment our comment assistant answers (engage.brain matches 'interested' / 'details' /
+# इंटरेस्टेड): the keyword stays INTERESTED in Roman capitals on screen in every language; the voice may say it in Devanagari.
+CTA_WORD = "INTERESTED"
+CTA_SCREEN = {"en": "Comment *INTERESTED* for details", "hi": "Details ke liye *INTERESTED* comment karein",
+              "mr": "Details sathi *INTERESTED* comment kara"}
+CTA_VOICE = {"en": "Like it? Comment interested for the details.", "hi": "पसंद आया? पूरी जानकारी के लिए कमेंट में इंटरेस्टेड लिखिए।",
+             "mr": "आवडलं? पूर्ण माहितीसाठी कमेंटमध्ये इंटरेस्टेड लिहा."}
 
 SYSTEM = (
     "You direct a 12 to 16 second vertical property reel for Pune home buyers. Write JSON only: "
@@ -21,7 +29,10 @@ SYSTEM = (
     "screen: at most 6 words, Roman letters only (English or Hinglish), wrap ONE key word in *stars* for gold. "
     "voice: one natural spoken sentence of at most 16 words in the requested voice language (Hindi = Devanagari script, Marathi = Devanagari, "
     "English = English). Use ONLY the facts given: never invent numbers, distances, prices, schools, builders or promises. "
-    "Never mention phone numbers. If the subject is a sample home say it is a sample. cta: invite them to tap 'interested' via the link in bio."
+    "Never mention phone numbers. If the subject is a sample home say it is a sample. "
+    "cta: ask viewers to comment the word INTERESTED for details (never a link in bio, never 'tap'). cta_screen: "
+    "'Comment *INTERESTED* for details' in English, or Hinglish with INTERESTED in Roman capitals such as "
+    "'Details ke liye *INTERESTED* comment karein'; cta_voice says the same in the voice language (Hindi/Marathi: इंटरेस्टेड)."
 )
 
 
@@ -55,9 +66,18 @@ async def write_script(subject: str, facts: Sequence[str], lang: str, llm, fallb
     return {**fallback, "made_by": "rules"}
 
 
+def fit_beats(script: Dict, photos: Sequence) -> tuple:
+    """(scene beats, one photo per scene): the hook, as many beats as there are distinct photos for, and the call to action.
+    Beats are dropped from the end rather than a photo shown twice; the minimum is the hook, one beat and the CTA."""
+    beats = list(script["beats"])
+    cta = {"screen": script["cta_screen"], "voice": script["cta_voice"]}
+    picks = photo_plan(len(beats) + 1, photos, MIN_SCENES)
+    return beats[:max(1, len(picks) - 1)] + [cta], picks
+
+
 def build(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Optional[str] = None, kicker: Optional[str] = None,
           with_music: bool = True) -> Path:
-    beats = list(script["beats"]) + [{"screen": script["cta_screen"], "voice": script["cta_voice"]}]
+    beats, picks = fit_beats(script, photos)
     work = Path(tempfile.mkdtemp(prefix="reel-"))
     clips, durs = [], []
     for i, b in enumerate(beats):
@@ -66,13 +86,14 @@ def build(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opti
         d = ffmpeg.probe(mp3).duration
         clips.append(mp3)
         durs.append(max(2.2, d + 0.55))
+    durs = stretch(durs, XFADE)
     scenes = []
     for i, b in enumerate(beats):
         first = i == 0
         lines = [TextLine(b["screen"], size=104 if first else 96)]
-        scenes.append(Scene(image=photos[i % len(photos)], lines=lines, layout="lower", badge=badge,
+        scenes.append(Scene(image=picks[i], lines=lines, layout="lower", badge=badge,
                             kicker=kicker if first else None, seconds=durs[i], seed=f"dir-{i}"))
-    tl = plan(durs + [END_SECONDS], XFADE)
+    tl = plan(durs, XFADE)   # no end card: the last scene (with the brand mark) loops back to the hook
     # narration: each line starts just after its scene appears; one track as long as the whole reel
     inputs, filters = [], []
     for i, c in enumerate(clips):

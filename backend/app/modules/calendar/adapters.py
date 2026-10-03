@@ -335,7 +335,12 @@ async def publish_reel(doc: dict, social: SocialConfig, uploads: Path) -> Result
         return await _reel_publish.publish_reel(doc["channel"], "https://dry.run/reel.mp4", doc["caption"], cfg=social)
     name = _reel_publish.stage(mp4, Path(uploads), f"{spec_of(doc).key}.mp4")
     url = _reel_publish.public_url(social, name)
-    return await _reel_publish.publish_reel(doc["channel"], url, doc["caption"], cfg=social, file_path=mp4)
+    extra = {}
+    if doc["channel"] == "instagram":  # the hook still rendered next to the mp4, when there is one, as the reel's cover
+        cover = _reel_publish.staged_cover_url(social, mp4, Path(uploads), name)
+        if cover:
+            extra["cover_url"] = cover
+    return await _reel_publish.publish_reel(doc["channel"], url, doc["caption"], cfg=social, file_path=mp4, **extra)
 
 
 # ---- interest links, footer and the link-in-bio hub ----------------------------------------------------------------------------------------

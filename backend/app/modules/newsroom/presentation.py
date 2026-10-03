@@ -191,6 +191,24 @@ def figure(doc: dict) -> Optional[Tuple[str, str]]:
     return m.group(0).strip(), h
 
 
+def buyer_line(doc: dict) -> str:
+    """The fixed 'Worth checking' house line for the item's pillar and sub-type (policy.BUYER_LINES), or "" (education, digest, unknown
+    pillar). Chosen by code from the item's own source, title and facts; never generated, never a prediction."""
+    p = pillar(doc)
+    if (doc.get("draft") or {}).get("format") == "digest":
+        return ""
+    keys = [k for k in policy.BUYER_LINES if k[0] == p]
+    if len(keys) <= 1:
+        return policy.BUYER_LINES[keys[0]] if keys else ""
+    raw = doc.get("raw") or {}
+    hay = " ".join([raw.get("source") or "", raw.get("title") or "", raw.get("text") or ""]
+                   + [f.get("text", "") for f in (doc.get("facts") or {}).get("facts") or []]).lower()
+    for sub, cues in policy.BUYER_SUBTYPES.get(p, []):
+        if any(re.search(r"(?<!\w)" + re.escape(w) + r"(?!\w)", hay) for w in cues):
+            return policy.BUYER_LINES[(p, sub)]
+    return policy.BUYER_LINES.get((p, "other"), "")
+
+
 HASHTAGS_BASE = ["#Pune", brand.HASHTAG]
 HASHTAG_BY_PILLAR = {"infrastructure": "#PuneInfrastructure", "new_supply": "#MahaRERA", "rules_money": "#HomeBuyerTips",
                      "locality_life": "#PuneLife", "education": "#HomeBuyerTips", "digest": "#PuneNews"}

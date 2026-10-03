@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 from typing import Iterable, List, Optional, Set
 
-from app.platform.text import HYPE, PHONE
+from app.platform.text import HOOK_MAX, HYPE, PHONE, first_line, hook_problems
 
 from .library import SITE, Entry
 
@@ -11,6 +11,7 @@ FB_MAX = 900
 IG_MAX = 2000
 IG_TAGS_MIN, IG_TAGS_MAX = 3, 8
 IG_TAGS_HARD_MAX = 10
+HOOK_TARGET = 110  # library hooks aim below Instagram's ~125 visible characters (HOOK_MAX), leaving room for the emoji
 URL = re.compile(r"https?://|www\.", re.I)
 HASHTAG = re.compile(r"#\w+")
 PRICE = re.compile(r"₹|\brs\.?\s*\d|\binr\b|\blakhs?\b|\bcrores?\b|\bper\s*sq\.?\s*(?:ft|feet)\b|\bsqft\b", re.I)
@@ -66,6 +67,7 @@ def check_entry(e: Entry, paths: Optional[Set[str]] = None) -> List[str]:
     last = [ln for ln in e.body.splitlines() if ln.strip()][-1]
     if not PROMPT.search(last):
         out.append("body does not end with a question or a save/share prompt")
+    out += [f"hook: {p}" for p in hook_problems(e.body, HOOK_TARGET)]
     if not e.review.strip():
         out.append("review note is empty")
     if not (e.kicker and e.title and e.points):

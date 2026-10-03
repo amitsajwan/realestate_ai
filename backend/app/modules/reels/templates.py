@@ -4,9 +4,8 @@ Rules (docs/NEWSROOM_PLAN.md, brand): no phone numbers, no invented facts, no pr
 """
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from .compose import Scene, TextLine
-
-CTA_WORD = "INTERESTED"
+from .compose import Scene, TextLine, distinct_photos, stretch
+from .director import CTA_SCREEN, CTA_WORD  # noqa: F401  (CTA_WORD re-exported: the comment keyword)
 HOOK_SECONDS = 2.2  # the opening scene: most viewers decide in the first 1-2 s, so the hook is short and on screen from frame one
 
 
@@ -28,15 +27,23 @@ def tip_reel(lines: Sequence[str], images: Optional[Sequence] = None, seed: str 
         scenes.append(Scene(image=img(i + 1), lines=[TextLine(b, size=110, max_lines=5)], kicker=f"Tip {i + 1} of {len(beats)}",
                             seconds=3.3, seed=f"{seed}-{i + 1}"))
     scenes.append(Scene(image=img(len(beats) + 1), lines=[TextLine(cta, size=96, max_lines=4)], seconds=2.8, seed=f"{seed}-cta"))
-    return scenes, {"transition": "fade"}
+    return _at_least_min(scenes, 0.45), {"transition": "fade"}
 
 
 def listing_tour(photos: Sequence, facts: Dict, sample: bool = False) -> Tuple[List[Scene], Dict]:
     """'Listing tour': photos plus key facts. facts keys: bhk (number), property_type (default 'apartment'), locality, city (default 'Pune'),
     area_sqft, possession ('ready' | 'under_construction' or free text), price_text (shown only when provided), furnishing.
-    `sample=True` adds a 'SAMPLE LISTING' label on every scene."""
+    `sample=True` adds a 'SAMPLE LISTING' label on every scene.
+    One photo per scene: with fewer distinct photos than facts, the least important fact scenes are left out (furnishing, then
+    possession, then area, then the price) rather than a photo shown twice; the opening and the call to action always stay."""
+    photos = distinct_photos(photos)
     if not photos:
         raise ValueError("a listing tour needs at least one photo")
+    poss = {"ready": "Ready to move", "under_construction": "Under construction"}.get(facts.get("possession") or "", facts.get("possession"))
+    optional = [k for k, v in (("price_text", facts.get("price_text")), ("area_sqft", facts.get("area_sqft")), ("possession", poss),
+                               ("furnishing", facts.get("furnishing"))) if v]          # most important first
+    keep = set(optional[:max(0, len(photos) - 2)])
+    facts = {k: v for k, v in facts.items() if k not in optional or k in keep}
     bhk = facts.get("bhk")
     ptype = facts.get("property_type") or "apartment"
     locality, city = facts.get("locality") or "", facts.get("city") or "Pune"
@@ -58,7 +65,7 @@ def listing_tour(photos: Sequence, facts: Dict, sample: bool = False) -> Tuple[L
         scenes.append(Scene(image=ph(n), lines=[TextLine(f"{int(facts['area_sqft']):,}", size=176), TextLine("sq ft of *usable* space" if False else "square feet", size=60)],
                             layout="lower", badge=badge, seconds=2.8, seed=f"tour-{n}"))
         n += 1
-    poss = {"ready": "Ready to move", "under_construction": "Under construction"}.get(facts.get("possession") or "", facts.get("possession"))
+    poss = poss if "possession" in keep else None
     if poss:
         scenes.append(Scene(image=ph(n), lines=[TextLine(poss, size=104), TextLine("Possession", size=56)], layout="lower", badge=badge,
                             seconds=2.8, seed=f"tour-{n}"))
@@ -71,9 +78,9 @@ def listing_tour(photos: Sequence, facts: Dict, sample: bool = False) -> Tuple[L
         scenes.append(Scene(image=ph(n), lines=[TextLine(str(facts["price_text"]), size=150), TextLine("Did you guess right?", size=56)], layout="lower",
                             badge=badge, seconds=2.8, seed=f"tour-{n}"))
         n += 1
-    scenes.append(Scene(image=ph(n), lines=[TextLine(f"Want the details?", size=100), TextLine(f"Comment *{CTA_WORD}*", size=72, weight="semibold")],
+    scenes.append(Scene(image=ph(n), lines=[TextLine(CTA_SCREEN["en"], size=100, max_lines=3)],
                         layout="lower", badge=badge, seconds=2.8, seed=f"tour-{n}"))
-    return scenes, {"transition": "slide", "xfade": 0.5}
+    return _at_least_min(scenes, 0.5), {"transition": "slide", "xfade": 0.5}
 
 
 def agent_pitch(problem: str = "Buyers message you all day. *Same* questions. Every time.",
@@ -95,6 +102,14 @@ def agent_pitch(problem: str = "Buyers message you all day. *Same* questions. Ev
         scenes.append(Scene(image=img(i + 2), lines=[TextLine(p, size=108)], kicker="What you get", seconds=2.4, seed=f"pitch-proof-{i}"))
     scenes.append(Scene(image=img(4), lines=[TextLine(cta, size=104)], seconds=2.6, seed="pitch-cta"))
     return scenes, {"transition": "fade"}
+
+
+def _at_least_min(scenes: List[Scene], xfade: float) -> List[Scene]:
+    """Stretch short reels (few scenes) to compose.MIN_SECONDS, so a two-scene tour is not over in five seconds."""
+    durs = stretch([s.seconds or 3.0 for s in scenes], xfade)
+    for s, d in zip(scenes, durs):
+        s.seconds = d
+    return scenes
 
 
 # Sample listing facts (labelled samples only; same localities as scripts/seed_samples.py)

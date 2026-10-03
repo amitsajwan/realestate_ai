@@ -318,9 +318,17 @@ class ConciergeService:
                     if not cfg.dry_run:
                         raise
                     url = job["video_path"]  # test mode never sends it anywhere
+                extra = {}
+                if ch == "instagram" and reel_publish.cover_file(file_path) is not None:  # the hook still as the reel's cover
+                    try:
+                        extra["cover_url"] = reel_publish.staged_cover_url(cfg, file_path, self.reels.uploads_dir, name)
+                    except PublishError:
+                        if not cfg.dry_run:
+                            raise
+                        extra["cover_url"] = job["video_path"].rsplit("/", 1)[0] + "/" + reel_publish.cover_name(name)
                 # one reel job is posted at most once per channel, even if saving the outcome fails and it is posted again
                 res = await send(self.db, f"reel:{job['_id']}:{ch}",
-                                 lambda: publish_fn(ch, url, text, cfg=cfg, file_path=file_path if ch == "facebook_page" else None),
+                                 lambda: publish_fn(ch, url, text, cfg=cfg, file_path=file_path if ch == "facebook_page" else None, **extra),
                                  dry_run=cfg.dry_run)
                 status = "dry_run" if cfg.dry_run else "published"
                 results.append({"channel": ch, "status": status, "external_id": res.external_id, "permalink": res.permalink,

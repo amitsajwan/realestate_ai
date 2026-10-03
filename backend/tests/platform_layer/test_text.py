@@ -78,3 +78,35 @@ def test_indian_mobile_is_normalised(raw):
 def test_invalid_indian_mobile_is_refused(raw):
     with pytest.raises(ValueError, match="Enter a valid 10-digit Indian mobile number"):
         normalize_indian_mobile(raw)
+
+
+# ---- caption hooks (first line before Instagram's '... more') ----------------------------------------------------------
+@pytest.mark.parametrize("caption", [
+    "\U0001F914 A RERA number does not mean you can stop checking. Here is what it really tells you \U0001F447\n\nMore text.",
+    "2 BHK in Kharadi, 780 sq ft, ready to move\n\nDetails",
+    "\U0001F91D पुणे के प्रॉपर्टी एजेंट, एक सवाल: कितने खरीदार कमेंट में खो जाते हैं?",
+])
+def test_hook_problems_accepts_a_real_hook(caption):
+    from app.platform.text import hook_problems
+
+    assert hook_problems(caption) == []
+
+
+@pytest.mark.parametrize("caption, needle", [
+    ("\U0001F914 Myth vs fact\n\nMyth: \"It has a RERA number, so I can relax.\"", "label"),
+    ("MYTH VS FACT\n\nMore", "label"),
+    ("\U0001F4B3 Pay against progress\n\nBefore every instalment:", ""),  # 3 words: allowed by the helper, the library still rewrote it
+    ("\U0001F3E1\n\n2 BHK in Baner", "words"),
+    ("Before you sign:\n\n1. Read it", "label"),
+    ("Hi! 2 BHK apartment for sale in Baner", "greeting"),
+    ("word " * 30 + "\n\nrest", "characters"),
+])
+def test_hook_problems_flags_labels_emoji_greetings_and_long_lines(caption, needle):
+    from app.platform.text import first_line, hook_problems
+
+    problems = " | ".join(hook_problems(caption))
+    assert first_line(caption) == caption.strip().split("\n")[0].strip()
+    if needle:
+        assert needle in problems, problems
+    else:
+        assert problems == ""
