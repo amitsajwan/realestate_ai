@@ -17,7 +17,7 @@ HASHTAG = "#Avasetu"
 NAVY = "#102340"
 GOLD = "#F0B13B"
 
-DEFAULT_SITE = "https://34-180-39-243.sslip.io"
+DEFAULT_SITE = "https://avasetu.in"
 SITE = (os.environ.get("PUBLIC_SITE_URL") or DEFAULT_SITE).rstrip("/")
 
 # Social profiles: the owner renames the Page and the Instagram handle by hand, so the URLs stay settings.

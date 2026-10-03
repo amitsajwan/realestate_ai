@@ -23,7 +23,7 @@ param(
   [string]$Zone      = "asia-south1-a",
   [string]$Instance  = "pune-property",
   [string]$RemoteDir = "app",
-  [string]$MediaBase = "https://34-180-39-243.sslip.io",
+  [string]$MediaBase = "https://avasetu.in",
   [string]$Version   = "v23.0",
   [switch]$Iap
 )

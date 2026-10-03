@@ -38,4 +38,4 @@ if ($Revoke) {
 $safe = ($Label -replace '[^A-Za-z0-9 ,.\-]', '')
 $cmd = "$run scripts/invite.py issue $digits" + $(if ($safe) { " --label '$safe'" } else { "" })
 & gcloud compute ssh $Instance @common --command $cmd 2>&1 | Out-String | Write-Host
-Write-Host "Sign-in page: https://34-180-39-243.sslip.io/join  (mobile number + the code above)" -ForegroundColor Green
+Write-Host "Sign-in page: https://avasetu.in/join  (mobile number + the code above)" -ForegroundColor Green

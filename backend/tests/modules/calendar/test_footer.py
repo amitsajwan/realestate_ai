@@ -2,7 +2,7 @@ from app.modules.calendar.footer import FACEBOOK_FOOTER, INSTAGRAM_FOOTER, with_
 
 
 def test_footers_are_the_agreed_text():
-    assert FACEBOOK_FOOTER == "Avasetu · https://34-180-39-243.sslip.io"
+    assert FACEBOOK_FOOTER == "Avasetu · https://avasetu.in"
     assert INSTAGRAM_FOOTER == "Avasetu · link in our bio"
 
 
@@ -41,6 +41,6 @@ def test_empty_caption():
 
 
 def test_pre_rebrand_footer_is_replaced_not_doubled():
-    old = "Body text\n\nPUNE Property · https://34-180-39-243.sslip.io"
+    old = "Body text\n\nPUNE Property · https://avasetu.in"
     out = with_footer(old, "facebook_page")
     assert "PUNE Property" not in out and out.count("Avasetu ·") == 1 and out.endswith(FACEBOOK_FOOTER)

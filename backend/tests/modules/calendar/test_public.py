@@ -77,7 +77,7 @@ async def test_same_slug_far_apart_is_not_merged_and_showcase_is_sample():
 
 async def test_excerpt_strips_tags_links_footer_and_phones_and_is_short():
     c, store, clock = setup()
-    cap = "Heading line\n" + "word " * 120 + "\nCall +91 98765 43210 or 9876543210\nPUNE Property · https://34-180-39-243.sslip.io\n#a #b"
+    cap = "Heading line\n" + "word " * 120 + "\nCall +91 98765 43210 or 9876543210\nPUNE Property · https://avasetu.in\n#a #b"
     await post(store, clock, "l", "facebook_page", cap, when=NOW)
     p = c.get("/public/posts").json()[0]
     assert len(p["excerpt"]) <= 220 and p["excerpt"].endswith("…")

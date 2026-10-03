@@ -21,7 +21,7 @@ param(
   [string]$Zone      = "asia-south1-a",
   [string]$Instance  = "pune-property",
   [string]$RemoteDir = "app",
-  [string]$HealthUrl = "https://34-180-39-243.sslip.io/api/v1/health",
+  [string]$HealthUrl = "https://avasetu.in/api/v1/health",
   [string]$ContactEmail = "",
   [switch]$Iap,
   [switch]$DryRun

@@ -32,7 +32,7 @@ export const LOGO = {
 }
 
 /** Production site origin while there is no domain; set NEXT_PUBLIC_SITE_URL to change it (one setting). */
-export const DEFAULT_SITE_URL = 'https://34-180-39-243.sslip.io'
+export const DEFAULT_SITE_URL = 'https://avasetu.in'
 
 /** The public site origin (no trailing slash): NEXT_PUBLIC_SITE_URL, else the production default. Printed links and QR codes use it. */
 export const siteUrl = (): string => ((process.env.NEXT_PUBLIC_SITE_URL || '').trim() || DEFAULT_SITE_URL).replace(/\/+$/, '')

@@ -29,7 +29,7 @@ param(
   [string]$Zone      = "asia-south1-a",
   [string]$Instance  = "pune-property",
   [string]$RemoteDir = "app",
-  [string]$SiteHost  = "34-180-39-243.sslip.io",
+  [string]$SiteHost  = "avasetu.in",
   [string]$Version   = "v23.0",
   [switch]$Live,
   [switch]$Iap
