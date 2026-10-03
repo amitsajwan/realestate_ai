@@ -11,7 +11,9 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
    its current output.
 3. **Old import paths keep working while a move is in progress.** A shim at the old path re-exports from the new one and is
    deleted once nothing uses it.
-4. **The full backend suite stays green on every commit** (`cd backend && python -m pytest tests/`).
+4. **The full backend suite and the import rules stay green on every commit.** From `backend/`:
+   `python -m pytest tests/` and `PYTHONPATH=. lint-imports` (rules in `backend/.importlinter`). Both run on every pull
+   request (`.github/workflows/architecture.yml`).
 5. **Login is not rewritten.** `core/auth_backend.py` moves into the platform as is.
 
 ## Baseline (3 October 2026)
@@ -21,8 +23,9 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 | Modules caught in one import cycle | 16 of 22 | 0 |
 | Imports between modules / of them hidden inside functions | 165 / 100 | only from public APIs / 0 (except heavy optional libraries) |
 | Modules touching `listings` / `agent_public_profiles` / `contacts` | 16 / 12 (+4 old services) / 7 | 1 writer each |
-| Old code (`services`, `api/v1`, `routers`, `schemas`, `repositories`, `models`, `utils`, `core`) | about 38,500 lines | platform keepers only |
-| … of which never imported | about 11,400 lines (40 files) | 0 |
+| Old code (`services`, `api/v1`, `routers`, `schemas`, `repositories`, `models`, `utils`, `core`) | about 38,500 lines (26,000 after step 1) | platform keepers only |
+| … of which never imported | about 11,400 lines (40 files); 0 after step 1 | 0 |
+| Import-rule exceptions in `backend/.importlinter` | 8 (step 1) | 0 |
 | Background loops guarded against running twice | 0 of 4 | 4 of 4 (step 0) |
 
 ## Steps
@@ -35,11 +38,16 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 - **Done when:** lease tests pass (two runners, one loop; step-down before expiry; hand-over on shutdown); the startup test
   passes; after deploy, `worker_leases` shows one holder per loop and no post ID appears twice in a week.
 
-### Step 1: Delete dead code, turn on the import check
+### Step 1: Delete dead code, turn on the import check (done)
 - Delete the 40 never-imported files (list in the review, regenerate before deleting), `backend/modules/auth/`, the
   `*.fragment` file, the one-off scripts in `backend/` root, the mock Facebook and demo endpoints.
 - Add `import-linter` to CI with the three layers and the domain order; record today's violations as the baseline.
 - **Done when:** the app starts and the suite is green; CI fails on any new violation.
+- **Result:** 14,568 lines deleted, every route except the 17 demo and mock ones unchanged. Three rules in
+  `backend/.importlinter`: the platform imports no business code; new modules never import the old layer; domains import only
+  downward. 8 baseline exceptions, each labelled with the step that removes it. A baseline line that no longer matches fails the
+  check, so the list can only shrink. Content and conversations share one layer for now; making them independent siblings
+  is part of step 3.
 
 ### Step 2: Extract the platform
 - Pin first: tests that record today's output of the copy guards, INR/sq ft/BHK formatting, phone normalising and grounding.
@@ -93,4 +101,5 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 
 | Date | Step | Change |
 |---|---|---|
+| 2026-10-03 | 1 | Deleted 40 never-imported files, the demo and mock Facebook endpoints, `backend/modules/auth` and 12 debug scripts (14,568 lines); import rules in CI with 8 baseline exceptions |
 | 2026-10-03 | 0 | Runner leases for the 4 background loops; production needs its database; one process in `deploy-production.sh`; target and plan written |
