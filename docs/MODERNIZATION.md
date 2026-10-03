@@ -25,9 +25,10 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 | Modules touching `listings` / `agent_public_profiles` / `contacts` | 16 / 12 (+4 old services) / 7 | 1 writer each |
 | Old code (`services`, `api/v1`, `routers`, `schemas`, `repositories`, `models`, `utils`, `core`) | about 38,500 lines (26,000 after step 1) | platform keepers only |
 | … of which never imported | about 11,400 lines (40 files); 0 after step 1 | 0 |
-| Import-rule exceptions in `backend/.importlinter` | 8 (step 1); 4 after step 2; 1 after step 3 (step 5's) | 0 |
+| Import-rule exceptions in `backend/.importlinter` | 8 (step 1); 4 after step 2; 1 after step 3; **0 after step 5** | 0 |
 | Background loops guarded against running twice | 0 of 4 | 4 of 4 (step 0) |
 | Background loops in their own process, with heartbeats | 0 of 4 | 4 of 4 (step 4, once deployed) |
+| Publishing paths that post each item at most once | 0 of 5 | 5 of 5 (step 5) |
 
 ## Steps
 
@@ -91,12 +92,31 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
   runs `python -m app.worker --check` in the backend container, alerting when a loop switched on in `.env` has had no
   heartbeat for twice its interval (for reels, twice the 15-minute render limit). Not yet run on the VM.
 
-### Step 5: One publishing path
+### Step 5: One publishing path (done in code; verify after deploy)
 - Distribution owns the queue and the publication log; newsroom, calendar, showcase and reels hand it posts instead of calling
   the Graph API.
 - Idempotency key per (item, channel); approval, daily caps and pause switches enforced in the queue; dry run outside production.
 - **Done when:** a dry-run replay of a week of calendar and newsroom data makes the same decisions as today; rollback is a flag;
   no module other than distribution imports `platform.meta_graph` for publishing.
+- **Result:** `app/modules/social/distribution.py` is the one way out. `send(db, key, publish)` posts each key at most once,
+  recorded in `publish_ledger`: the claim is a unique document, a key already `sent` returns its post without posting, a
+  `failed` key is retried, and a key still `sending` (an earlier attempt never finished) is refused with "may already be
+  live". All five paths use it: listing packs (`social:<publication>`), calendar slots incl. reels and showcase posts
+  (`calendar:<slot>`, with the posting pause), news (`news:<item>:<channel>`) and concierge reels (`reel:<job>:<channel>`).
+  The reel publisher moved into social; newsroom, showcase and the calendar get their publisher from distribution; a 7th
+  import rule forbids any other module from importing the Graph client. Social takes marketing's link line by wiring, which
+  cleared the last import-rule exception. A calendar test shows the case this closes: the post went out, saving
+  'published' failed, and the retry posted it again; with the ledger it does not.
+  - **Rollback:** `PUBLISH_LEDGER=off` in `.env` (send posts directly, as before).
+  - **When a post is refused with "may already be live":** check the Page / Instagram. If the post is there, nothing to
+    do: mark the item done in its screen. If not, delete its document from `publish_ledger` (the key is in the error)
+    and retry.
+  - **Not moved, on purpose:** each caller keeps its own decision rules (approval, consent, the newsroom's daily cap, the
+    calendar's one-post-per-channel-per-run). They already work and are tested; distribution guarantees at-most-once,
+    dry-run and the pause on top. Newsroom does not pass its pause to `send`, because a failed news item is final (its
+    runner checks the pause every cycle). The dry-run replay is not needed for this change: no decision rule moved.
+  - **Still outside the ledger:** the operator scripts in `backend/scripts/` (`post_samples.py`, `brand_posts.py`,
+    `schedule_text_posts.py`, `post_voiced_reels.py`), run by hand.
 
 ### Step 6: One writer per collection
 - One collection at a time, starting with `listings` (inventory) and `agent_public_profiles` (identity). The owner gets query
@@ -126,6 +146,7 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 
 | Date | Step | Change |
 |---|---|---|
+| 2026-10-03 | 5 | Publish ledger (`distribution.send`): every post at most once per key, across all 5 publishing paths; only distribution imports the Graph client (7th import rule); last import-rule exception cleared; rollback `PUBLISH_LEDGER=off` |
 | 2026-10-03 | 3 | No import cycles left: wrong-way imports replaced by callbacks and data passed in by `app/wiring.py`; content and conversations independent (2 new import rules); every module and function-level import checked by a test, which found and removed an unmounted broken router. Exceptions 4 -> 1 |
 | 2026-10-03 | 4 | Worker process (`python -m app.worker`), `RUN_BACKGROUND_LOOPS` flag (API default unchanged; false in deploy/gcp), per-loop heartbeats in `worker_heartbeats`, stale-heartbeat alert in `health_check.sh`; built in parallel with step 3, merged, and fixed so the worker applies the startup wiring |
 | 2026-10-03 | 2 | Step 2 closed: core's platform parts held to the platform rule in place by a 4th import rule; their physical move is deferred to step 8 |
