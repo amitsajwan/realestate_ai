@@ -3,7 +3,8 @@
 Only items the owner approved (status approved, scheduled or published) are returned; drafts, pending, rejected, dropped and failed items
 never are. Each item carries our own plain headline, a summary without hashtags, link line or footer, the source name, the original link
 (which may be a Google redirect: the site shows it only as 'Read the original at <source>'), the 'as of' date, the card image and the
-Facebook / Instagram permalinks when published. No phone numbers, ever."""
+Facebook / Instagram permalinks when published, and the fixed 'Worth checking' buyer line the captions carry (`buyer_line`, None when
+the item has none: education and digest items). No phone numbers, ever."""
 from datetime import datetime
 from typing import List, Optional
 
@@ -67,6 +68,8 @@ def view(doc: dict, full: bool = True) -> dict:
         "source_is_redirect": pr.is_google_redirect(url),
         "as_of": _iso(pr.as_of(doc)), "image_url": _media(doc), "permalinks": _permalinks(doc),
         "published_at": _iso(doc.get("published_at") or doc.get("updated_at")),
+        # the same fixed line the captions carry (presentation.buyer_line over policy.BUYER_LINES), never generated
+        "buyer_line": _clean(pr.buyer_line(doc)) or None,
     }
     if full:
         out.update({"our_view": _clean(parts.our_view), "what_to_check": _clean(parts.what_to_check), "disclaimer": policy.DISCLAIMER})

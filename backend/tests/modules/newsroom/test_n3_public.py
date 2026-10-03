@@ -89,3 +89,21 @@ async def test_digest_item_lists_its_stories_and_tip():
     r = c.get(f"/public/news/{dg['_id']}").json()
     assert r["kind"] == "digest" and r["headline"] == "Kharadi and Wagholi this week" and len(r["items"]) == 5
     assert r["items"][0]["id"] and r["tip"].startswith("Ask for the project") and r["source_url"] is None
+    assert "buyer_line" in r and r["buyer_line"] is None  # the digest carries its own tip, never a buyer line
+
+
+async def test_buyer_line_is_the_caption_line_per_pillar_and_none_without_one():
+    from app.modules.newsroom import policy
+    from app.modules.newsroom import presentation as pr
+    c, store = setup()
+    for d in SAMPLES:
+        await put(store, d, "approved")
+    listed = {r["id"]: r for r in c.get("/public/news").json()}
+    for d in SAMPLES:
+        expected = pr.buyer_line(d) or None
+        assert c.get(f"/public/news/{d['_id']}").json()["buyer_line"] == expected
+        assert listed[d["_id"]]["buyer_line"] == expected
+    assert listed["a1b2c3d4e5"]["buyer_line"] == policy.BUYER_LINES[("infrastructure", "transport")]  # ring road
+    assert listed["d4e5f6a7b8"]["buyer_line"] == policy.BUYER_LINES[("new_supply", "maharera")]
+    assert listed["e5f6a7b8c9"]["buyer_line"] == policy.BUYER_LINES[("rules_money", "loan")]  # repo rate
+    assert listed["b8c9d0e1f2"]["buyer_line"] is None  # education: already a tip
