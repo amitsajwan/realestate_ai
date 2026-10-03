@@ -12,6 +12,9 @@ INDEXES: Iterable[Tuple[str, list, dict]] = [
     ("listings", [("agent_id", ASC), ("created_at", DESC)], {}),
     ("listings", [("agent_id", ASC), ("status", ASC), ("visibility", ASC), ("published_at", DESC)], {}),
     ("listings", [("fingerprint", ASC)], {"sparse": True}),
+    # agent projects: one per (agent, slug); public site reads live ones in order
+    ("agent_projects", [("agent_id", ASC), ("slug", ASC)], {"unique": True}),
+    ("agent_projects", [("agent_id", ASC), ("status", ASC), ("order", ASC)], {}),
     # public agent sites: looked up by slug on every visit
     ("agent_public_profiles", [("slug", ASC)], {"unique": True, "sparse": True}),
     ("agent_public_profiles", [("agent_id", ASC)], {}),
