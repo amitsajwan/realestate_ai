@@ -311,3 +311,32 @@ async def test_reel_loop_records_a_heartbeat(monkeypatch):
 
 async def _noop_counts(*a, **k):
     return {}
+
+
+async def test_worker_applies_the_startup_wiring_before_its_loops_run(events, monkeypatch):
+    """The loops use callbacks wired at startup (app/wiring.py): the comment assistant's listing facts, the grounded
+    answers' sample homes. The API wires them when its route list loads; the worker must wire them itself."""
+    from app.modules.engage import service as engage_service
+    from app.modules.knowledge import grounding
+
+    monkeypatch.setattr(engage_service, "_listing_facts", {"from_docs": None})  # as in a fresh worker process
+    monkeypatch.setattr(grounding, "_sources", {**grounding._sources, "evergreen_post": lambda slug: None})
+    seen = {}
+
+    async def loop():
+        seen["listing_facts"] = engage_service._listing_facts["from_docs"]
+        seen["evergreen_post"] = grounding._sources["evergreen_post"]
+        await asyncio.Event().wait()
+
+    stop = asyncio.Event()
+    task = asyncio.create_task(worker.run(stop, table={"engage": loop}, get_db=lambda: LeaseDb()))
+    for _ in range(50):
+        await asyncio.sleep(0.01)
+        if seen:
+            break
+    stop.set()
+    await asyncio.wait_for(task, 5)
+    from app.modules.calendar.library import BY_SLUG
+    from app.modules.marketing.facts import Facts
+    assert seen["listing_facts"] == Facts.from_docs
+    assert seen["evergreen_post"] == BY_SLUG.get

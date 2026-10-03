@@ -54,6 +54,8 @@ async def run(stop: asyncio.Event, table: Optional[LoopTable] = None, get_db: Ca
         if settings.environment == "production":
             raise  # never run production loops without the database: crash so the container restarts once Mongo is up
         logger.warning("worker: continuing without a database (development only); the loops wait for their leases")
+    from app.wiring import wire
+    wire()  # the callbacks the loops use; the API applies them when its route list loads (app/api/v1/router.py)
     tasks = start_loops(loops() if table is None else table, get_db)
     logger.info("worker: started %s", ", ".join(tasks))
     try:
