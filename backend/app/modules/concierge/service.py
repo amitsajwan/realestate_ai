@@ -286,6 +286,7 @@ class ConciergeService:
         from app.modules.reels import listing_reel
         from app.modules.reels import publish as reel_publish
         from app.platform.meta_graph.config import load as load_config
+        from app.modules.social.distribution import send
         from app.platform.meta_graph.publisher import PublishError
         from .attribution import attribution_text, register_hub_item
         await self._agent(agent_id)
@@ -317,7 +318,10 @@ class ConciergeService:
                     if not cfg.dry_run:
                         raise
                     url = job["video_path"]  # test mode never sends it anywhere
-                res = await publish_fn(ch, url, text, cfg=cfg, file_path=file_path if ch == "facebook_page" else None)
+                # one reel job is posted at most once per channel, even if saving the outcome fails and it is posted again
+                res = await send(self.db, f"reel:{job['_id']}:{ch}",
+                                 lambda: publish_fn(ch, url, text, cfg=cfg, file_path=file_path if ch == "facebook_page" else None),
+                                 dry_run=cfg.dry_run)
                 status = "dry_run" if cfg.dry_run else "published"
                 results.append({"channel": ch, "status": status, "external_id": res.external_id, "permalink": res.permalink,
                                 "error": None, "caption": text})
