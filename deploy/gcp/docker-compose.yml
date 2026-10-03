@@ -80,6 +80,8 @@ services:
       SITE_HOST: ${SITE_HOST}
       # other names that redirect to SITE_HOST, e.g. "www.avasetu.in, 34-180-39-243.sslip.io"
       REDIRECT_HOSTS: ${REDIRECT_HOSTS:-www.${SITE_HOST}}
+      # names served like SITE_HOST without redirecting, e.g. a new domain while its certificate is issued
+      EXTRA_HOSTS: ${EXTRA_HOSTS:-localhost}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
