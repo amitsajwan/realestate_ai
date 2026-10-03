@@ -8,9 +8,9 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
 from . import ffmpeg, voice
-from .compose import Scene, TextLine, make_reel, plan
+from .compose import Scene, TextLine, make_reel, plan, stretch
 
-END_SECONDS = 2.6
+END_SECONDS = 2.6   # length of the optional end card (reels have none by default)
 XFADE = 0.4
 NUM = re.compile(r"\d[\d,.]*")
 
@@ -66,13 +66,14 @@ def build(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opti
         d = ffmpeg.probe(mp3).duration
         clips.append(mp3)
         durs.append(max(2.2, d + 0.55))
+    durs = stretch(durs, XFADE)
     scenes = []
     for i, b in enumerate(beats):
         first = i == 0
         lines = [TextLine(b["screen"], size=104 if first else 96)]
         scenes.append(Scene(image=photos[i % len(photos)], lines=lines, layout="lower", badge=badge,
                             kicker=kicker if first else None, seconds=durs[i], seed=f"dir-{i}"))
-    tl = plan(durs + [END_SECONDS], XFADE)
+    tl = plan(durs, XFADE)   # no end card: the last scene (with the brand mark) loops back to the hook
     # narration: each line starts just after its scene appears; one track as long as the whole reel
     inputs, filters = [], []
     for i, c in enumerate(clips):

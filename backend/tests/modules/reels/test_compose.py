@@ -47,8 +47,14 @@ def test_default_templates_stay_under_30_seconds():
     facts = {**templates.SAMPLE_FACTS["kharadi"], "furnishing": "Semi-furnished", "price_text": "Rs 85 Lakh"}
     for scenes, opts in (templates.tip_reel(templates.TIP_LINES), templates.agent_pitch(),
                          templates.listing_tour(["a.jpg", "b.jpg"], facts, sample=True)):
-        tl = compose.plan([s.seconds or 3.0 for s in scenes + [compose.end_scene()]], opts.get("xfade", 0.45))
+        tl = compose.plan([s.seconds or 3.0 for s in scenes], opts.get("xfade", 0.45))   # no end card by default
         assert 8 < tl.total < 30
+
+
+def test_short_tours_and_tips_are_stretched_to_the_minimum_length():
+    for scenes, opts in (templates.listing_tour(["a.jpg"], {"locality": "Kharadi"}), templates.tip_reel(["Hook", "One beat"])):
+        assert compose.plan([s.seconds for s in scenes], opts.get("xfade", 0.45)).total == pytest.approx(compose.MIN_SECONDS)
+    assert compose.stretch([5.0, 5.0], 0.5) == [5.0, 5.0]   # long enough already: unchanged
 
 
 # ---- layout: safe zones, text rules ------------------------------------------------------------------------------------
@@ -120,7 +126,7 @@ def test_tiny_reel_file_checks(tmp_path):
     assert (p.width, p.height) == (1080, 1920)
     assert p.video_codec == "h264" and p.pix_fmt == "yuv420p" and p.fps == 30
     assert p.has_audio and p.audio_codec == "aac"
-    assert 2.5 < p.duration < 4.5 and p.duration < 30
+    assert 1.8 < p.duration < 2.6   # two 1.2 s scenes overlapping by 0.3 s, no end card
     assert 0 < p.size_bytes < 20 * 1024 * 1024
     data = out.read_bytes()
     assert b"ftyp" in data[:64]
@@ -173,3 +179,22 @@ def test_cover_is_the_hook_scene_fully_visible_without_the_progress_bar():
     assert cover.size == (1080, 1920)
     x0, y0, x1, y1 = r.prep[0].items[0].box
     assert cover.crop((x0, y0, x1, y1)).tobytes() == f0.crop((x0, y0, x1, y1)).tobytes()
+
+
+
+# ---- no dead end card ---------------------------------------------------------------------------------------------------------
+def test_no_end_card_by_default_and_the_last_scene_carries_the_brand_mark():
+    r = compose.Renderer([Scene(lines=["Hook"], seconds=2.0), Scene(lines=["Comment *INTERESTED*"], seconds=2.0)])
+    kinds = [p.scene.kind for p in r.prep]
+    assert kinds == ["scene", "scene"] and r.tl.total == pytest.approx(3.55)
+    assert r.prep[-1].scene.brand_mark and not r.prep[0].scene.brand_mark
+    mark = r.prep[-1].items[0]
+    assert mark.box[3] - mark.box[1] == compose.MARK_D and mark.box[3] <= r.prep[-1].items[1].box[1]   # above the text
+
+
+def test_end_card_only_when_asked_and_never_twice():
+    on = compose.finish_scenes([Scene(lines=["a"])], end_card=True)
+    assert [s.kind for s in on] == ["scene", "end"] and not on[0].brand_mark
+    twice = compose.finish_scenes([Scene(lines=["a"]), compose.end_scene(), compose.end_scene()], end_card=True)
+    assert [s.kind for s in twice] == ["scene", "end"]
+    assert [s.kind for s in compose.finish_scenes([Scene(lines=["a"]), compose.end_scene(), compose.end_scene()])] == ["scene", "end"]

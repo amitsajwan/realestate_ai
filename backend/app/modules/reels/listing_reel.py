@@ -4,7 +4,7 @@ POST /listings/{id}/reel {lang} queues a job; the worker renders ONE job at a ti
   * the listing's own photos (our uploads only, at least 2),
   * a script from the listing's facts and its `about` only (an LLM writes it, director._valid checks it: no invented numbers,
     no phone numbers, Roman on-screen text; otherwise a rules script built from the same facts),
-  * 'Listed by <business> · RERA <no>' on the closing scene (never a phone number), the Avasetu end card,
+  * 'Listed by <business> · RERA <no>' on the closing scene (never a phone number), with the small Avasetu mark (no end card),
   * a voiceover in English, Hindi or Marathi (Google TTS) with Hinglish/Roman on-screen text (the renderer cannot shape
     Devanagari), over our own generated music bed. Without the TTS key the reel is made with music only, and the job says so.
 Sample listings carry the 'Sample listing' badge on every scene.
@@ -28,8 +28,8 @@ from app.modules.marketing.facts import T, Facts
 from app.modules.marketing.images import latin, local_upload_path
 
 from . import ffmpeg, voice
-from .compose import Scene, TextLine, make_reel, plan
-from .director import END_SECONDS, XFADE, _valid
+from .compose import Scene, TextLine, make_reel, plan, stretch
+from .director import XFADE, _valid
 
 log = logging.getLogger(__name__)
 
@@ -267,6 +267,7 @@ def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opt
         if not voiced:
             note = note or NO_VOICE_NOTE
             durs = [SILENT_SECONDS + (0.4 if i == 0 else 0.0) for i in range(len(beats))]
+        durs = stretch(durs, XFADE)
         scenes = []
         for i, b in enumerate(beats):
             first, last = i == 0, i == len(beats) - 1
@@ -276,7 +277,7 @@ def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opt
                     lines.append(TextLine(part, size=44, weight="medium", max_lines=2))
             scenes.append(Scene(image=photos[i % len(photos)], lines=lines, layout="lower", badge=badge,
                                 kicker=kicker if first else None, seconds=durs[i], seed=f"listing-{i}"))
-        tl = plan(durs + [END_SECONDS], XFADE)
+        tl = plan(durs, XFADE)   # no end card: the closing scene carries the brand mark and the reel loops
         from .music import write as write_music
         bed = write_music(work / "bed.wav", seconds=tl.total + 1.0)
         if voiced:

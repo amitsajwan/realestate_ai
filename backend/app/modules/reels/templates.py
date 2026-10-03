@@ -4,7 +4,7 @@ Rules (docs/NEWSROOM_PLAN.md, brand): no phone numbers, no invented facts, no pr
 """
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from .compose import Scene, TextLine
+from .compose import Scene, TextLine, stretch
 
 CTA_WORD = "INTERESTED"
 HOOK_SECONDS = 2.2  # the opening scene: most viewers decide in the first 1-2 s, so the hook is short and on screen from frame one
@@ -28,7 +28,7 @@ def tip_reel(lines: Sequence[str], images: Optional[Sequence] = None, seed: str 
         scenes.append(Scene(image=img(i + 1), lines=[TextLine(b, size=110, max_lines=5)], kicker=f"Tip {i + 1} of {len(beats)}",
                             seconds=3.3, seed=f"{seed}-{i + 1}"))
     scenes.append(Scene(image=img(len(beats) + 1), lines=[TextLine(cta, size=96, max_lines=4)], seconds=2.8, seed=f"{seed}-cta"))
-    return scenes, {"transition": "fade"}
+    return _at_least_min(scenes, 0.45), {"transition": "fade"}
 
 
 def listing_tour(photos: Sequence, facts: Dict, sample: bool = False) -> Tuple[List[Scene], Dict]:
@@ -73,7 +73,7 @@ def listing_tour(photos: Sequence, facts: Dict, sample: bool = False) -> Tuple[L
         n += 1
     scenes.append(Scene(image=ph(n), lines=[TextLine(f"Want the details?", size=100), TextLine(f"Comment *{CTA_WORD}*", size=72, weight="semibold")],
                         layout="lower", badge=badge, seconds=2.8, seed=f"tour-{n}"))
-    return scenes, {"transition": "slide", "xfade": 0.5}
+    return _at_least_min(scenes, 0.5), {"transition": "slide", "xfade": 0.5}
 
 
 def agent_pitch(problem: str = "Buyers message you all day. *Same* questions. Every time.",
@@ -95,6 +95,14 @@ def agent_pitch(problem: str = "Buyers message you all day. *Same* questions. Ev
         scenes.append(Scene(image=img(i + 2), lines=[TextLine(p, size=108)], kicker="What you get", seconds=2.4, seed=f"pitch-proof-{i}"))
     scenes.append(Scene(image=img(4), lines=[TextLine(cta, size=104)], seconds=2.6, seed="pitch-cta"))
     return scenes, {"transition": "fade"}
+
+
+def _at_least_min(scenes: List[Scene], xfade: float) -> List[Scene]:
+    """Stretch short reels (few scenes) to compose.MIN_SECONDS, so a two-scene tour is not over in five seconds."""
+    durs = stretch([s.seconds or 3.0 for s in scenes], xfade)
+    for s, d in zip(scenes, durs):
+        s.seconds = d
+    return scenes
 
 
 # Sample listing facts (labelled samples only; same localities as scripts/seed_samples.py)
