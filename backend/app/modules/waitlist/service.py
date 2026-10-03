@@ -41,10 +41,11 @@ class WaitlistService:
         self.salt = salt
         self.now = now
 
-    async def submit(self, data: InviteRequestIn, ip: Optional[str]) -> None:
-        """Store or update the request. Returns None for accepted, duplicate and honeypot alike (no information leak)."""
+    async def submit(self, data: InviteRequestIn, ip: Optional[str]) -> bool:
+        """Store or update the request. The caller answers the same for accepted, duplicate and honeypot alike (no information
+        leak); the return value only says whether a new request now waits for the owner (False for a repeat or the honeypot)."""
         if data.website:  # honeypot hit: pretend success, keep nothing
-            return
+            return False
         now = self.now()
         ip_hash = hash_ip(ip, self.salt) if ip else None
         since = now - HOUR
@@ -54,17 +55,19 @@ class WaitlistService:
             raise RateLimited("Too many requests")
         await self.attempts.insert_one({"phone": data.phone, "ip_hash": ip_hash, "at": now})
 
-        existing = await self.col.find_one({"phone": data.phone, "created_at": {"$gte": now - DEDUPE_WINDOW}},
+        # only a request still waiting is merged: one the owner already invited or dismissed must not swallow a new one
+        existing = await self.col.find_one({"phone": data.phone, "status": "new", "created_at": {"$gte": now - DEDUPE_WINDOW}},
                                            sort=[("created_at", -1)])
         if existing:
             await self.col.update_one({"_id": existing["_id"]}, {"$set": {
                 "name": data.name, "city": data.city, "message": data.message, "updated_at": now}})
-            return
+            return False
         await self.col.insert_one({
             "name": data.name, "phone": data.phone, "city": data.city, "message": data.message,
             "consent": {"given_at": now, "text": CONSENT_TEXT},
             "ip_hash": ip_hash, "status": "new", "created_at": now, "updated_at": now,
         })
+        return True
 
     # -- admin (scripts/invite_requests.py) --------------------------------------------------------------
     async def list_new(self) -> List[dict]:
