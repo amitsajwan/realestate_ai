@@ -49,11 +49,11 @@ def test_golden_full_listing():
     c = build_content(facts(), "en")
     assert c["headline"] == "2 BHK apartment for sale in Baner, Pune | ₹85 Lakh"
     assert c["whatsapp"]["message"] == (
-        "Hi! 2 BHK apartment for sale in Baner, Pune - ₹85 Lakh (1,100 sq ft, Ready to move). RERA: P52100012345\n"
+        "2 BHK apartment for sale in Baner, Pune - ₹85 Lakh (1,100 sq ft, Ready to move)\nRERA: P52100012345\n"
         "Details and photos: https://site.test/agent/rahul/listings/L1?src=whatsapp\nReply here to plan a visit.")
     assert c["whatsapp"]["status_text"] == "2 BHK | Baner | ₹85 Lakh\nReply INTERESTED for details"
     cap = c["instagram"]["caption"]
-    assert cap.startswith("\U0001F3E1 2 BHK apartment for sale in Baner, Pune\n₹85 Lakh · 1,100 sq ft · Ready to move\nRERA: P52100012345")
+    assert cap.startswith("\U0001F3E1 2 BHK apartment for sale in Baner, Pune · 1,100 sq ft · Ready to move\n₹85 Lakh\nRERA: P52100012345")
     assert "Amenities: Gym, Swimming pool, Clubhouse" in cap
     assert cap.splitlines()[-1] == "\U0001F4AC Interested? Comment INTERESTED and Avasetu team will share the details and plan a site visit."
     assert c["instagram"]["hashtags"][:4] == ["#Baner", "#Pune", "#2BHK", "#Apartment"]
@@ -207,7 +207,7 @@ def test_no_phone_number_or_call_prompt_in_any_post(name, lang):
 
 def test_facebook_post_reads_well_and_stays_within_limits():
     post = build_content(facts(), "en")["facebook"]["post"]
-    assert post.startswith("\U0001F3E1 2 BHK apartment for sale in Baner, Pune\n₹85 Lakh")
+    assert post.startswith("\U0001F3E1 2 BHK apartment for sale in Baner, Pune · 1,100 sq ft · Ready to move\n₹85 Lakh")
     assert "\U0001F4D0 Area: 1,100 sq ft (carpet)" in post and "✅ Possession: Ready to move" in post
     assert post.rstrip().endswith("plan a site visit.") and len(post) <= FB_MAX
 
@@ -303,7 +303,8 @@ def test_group_post_is_short_dated_tracked_and_has_no_contact_details(lang):
 
 def test_group_post_without_a_date_omits_the_line_and_samples_are_labelled():
     assert "Available as of" not in build_content(facts(), "en")["group"]["post"]
-    assert build_content(facts(title="Sample: 2 BHK"), "en")["group"]["post"].startswith("SAMPLE LISTING")
+    first = build_content(facts(title="Sample: 2 BHK"), "en")["group"]["post"].splitlines()
+    assert "SAMPLE LISTING" in first[0] and first[1].startswith("SAMPLE LISTING (")
 
 
 # ---- links back to the agent's site -----------------------------------------------------------------------------
@@ -362,3 +363,23 @@ def test_reel_hook_in_devanagari_keeps_the_facts(lang):
     assert re.search(r"[ऀ-ॿ]", r["hook"]) and "2 BHK" in r["hook"] and "Baner" in r["hook"] and "{" not in r["hook"]
     assert r["beats"][3]["text"].startswith("₹85 Lakh. ")
     assert "{" not in build_content(facts(price_inr=None, locality=None, city=None), lang)["reel"]["hook"]
+
+
+# ---- the first caption line is the hook ------------------------------------------------------------------------
+@pytest.mark.parametrize("lang", ["en", "hi", "mr"])
+@pytest.mark.parametrize("sample", [False, True])
+@pytest.mark.parametrize("name", list(VARIANTS))
+def test_every_text_opens_with_a_hook_not_a_label_or_greeting(name, lang, sample):
+    """Instagram shows about 125 characters before '... more': the first line is what and where plus a standout fact."""
+    from app.modules.calendar.guards import hook_problems
+
+    over = dict(VARIANTS[name], **({"title": "Sample: x"} if sample else {}))
+    f = facts(**over)
+    c = build_content(f, lang)
+    for text in (c["instagram"]["caption"], c["facebook"]["post"], c["whatsapp"]["message"], c["group"]["post"]):
+        line = text.splitlines()[0]
+        assert hook_problems(text) == [], (line, hook_problems(text))
+        assert (f.locality or f.city) in line and (f.bhk_text or "") in line
+        assert ("SAMPLE LISTING" in line) == sample  # a sample is labelled inside the visible part, never hidden below '... more'
+    ig_line = c["instagram"]["caption"].splitlines()[0]
+    assert f.area_text is None or f.area_text in ig_line  # the standout fact
