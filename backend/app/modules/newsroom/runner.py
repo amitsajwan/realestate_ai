@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from app.core.database import get_database
 from app.platform.controls import is_paused
+from app.platform.heartbeats import heartbeat
 
 from . import adapters, digest
 from .config import load
@@ -32,7 +33,7 @@ async def _weekly_digest(store: Store, stages: dict, now: datetime, counts: dict
         log.exception("newsroom: digest failed")
 
 
-async def cycle(store: Store, cfg) -> dict:
+async def cycle(store: Store, cfg, hb=None) -> dict:
     """One guarded cycle; records last_run_at / last_error. Never raises except cancellation."""
     now = datetime.now(timezone.utc)
     try:
@@ -52,6 +53,8 @@ async def cycle(store: Store, cfg) -> dict:
         raise
     except Exception as e:
         log.exception("newsroom: cycle failed")
+        if hb is not None:
+            hb.failed(e)
         try:
             from app.platform.meta_graph.publisher import sanitize
             await store.set_run(last_run_at=now, last_error=sanitize(f"{type(e).__name__}: {e}"))
@@ -65,12 +68,13 @@ async def loop() -> None:
     while True:
         cfg = load()
         try:
-            if cfg.enabled and await is_paused(get_database(), "news_paused"):
-                log.info("newsroom: paused by owner, cycle skipped")
-            elif cfg.enabled:
-                counts = await cycle(Store(get_database()), cfg)
-                if counts:
-                    log.info("newsroom: cycle done %s", counts)
+            async with heartbeat("newsroom", get_database, on=cfg.enabled) as hb:
+                if cfg.enabled and await is_paused(get_database(), "news_paused"):
+                    log.info("newsroom: paused by owner, cycle skipped")
+                elif cfg.enabled:
+                    counts = await cycle(Store(get_database()), cfg, hb)
+                    if counts:
+                        log.info("newsroom: cycle done %s", counts)
         except asyncio.CancelledError:
             raise
         except Exception:  # never let one bad cycle stop the loop
