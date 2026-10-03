@@ -50,7 +50,9 @@ def _title(caption: str) -> str:
 
 
 def _excerpt(caption: str) -> str:
-    text = re.sub(r"\s+", " ", _clean(caption)).strip()
+    """The caption after its first line (the card already shows that line as the title)."""
+    lines = [ln for ln in _clean(caption).splitlines() if ln.strip(" -–—:·•")]
+    text = re.sub(r"\s+", " ", " ".join(lines[1:] if len(lines) > 1 else lines)).strip()
     if len(text) <= EXCERPT_MAX:
         return text
     cut = text[:EXCERPT_MAX - 1]
@@ -65,6 +67,23 @@ def _reel_still(video: str) -> Optional[str]:
     for rel in (f"{stem}-cover.jpg", f"{stem}-1.jpg") if stem else ():
         if (uploads_dir() / rel).is_file():
             return rel
+    return None
+
+
+def _media_urls(doc: dict) -> List[str]:
+    """Every slide of the post, as public https URLs (a carousel shows them all, like Instagram)."""
+    base = (os.environ.get("PUBLIC_MEDIA_BASE_URL") or "").strip().rstrip("/")
+    images = doc.get("images") or ([doc["image_path"]] if doc.get("image_path") else [])
+    return [f"{base}/uploads/{str(i).lstrip('/')}" for i in images if i] if base else []
+
+
+def _site_url(doc: dict) -> Optional[str]:
+    """The page on our own site the post points to (the Facebook caption carries it), for the card's main link."""
+    site = brand.site()
+    for url in _URL.findall(doc.get("caption") or ""):
+        url = url.rstrip(".,;:)")
+        if url.startswith(site + "/") and "/i/" not in url:
+            return url
     return None
 
 
@@ -91,7 +110,8 @@ def _view(doc: dict) -> dict:
     ch = _channel(doc)
     return {"id": doc["_id"], "kind": doc.get("kind", "post"), "channel": ch, "channels": [ch],
             "title": _title(doc.get("caption", "")), "excerpt": _excerpt(doc.get("caption", "")),
-            "image_url": _image_url(doc), "permalink": doc["permalink"], "links": [{"channel": ch, "url": doc["permalink"]}],
+            "image_url": _image_url(doc), "images": _media_urls(doc), "site_url": _site_url(doc),
+            "permalink": doc["permalink"], "links": [{"channel": ch, "url": doc["permalink"]}],
             "published_at": _when(doc), "sample": doc.get("kind") == "showcase", "_slug": doc.get("slug")}
 
 
@@ -101,6 +121,10 @@ def _merge(into: dict, other: dict) -> None:
         into["links"].append(other["links"][0])
     if not into["image_url"]:
         into["image_url"] = other["image_url"]
+    if len(other["images"]) > len(into["images"]):  # Instagram carries every slide, Facebook only the cover
+        into["images"] = other["images"]
+    if not into["site_url"]:
+        into["site_url"] = other["site_url"]
     if into["channel"] != "facebook" and other["channel"] == "facebook":  # the Facebook text and link lead
         for k in ("channel", "title", "excerpt", "permalink"):
             into[k] = other[k]

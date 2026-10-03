@@ -53,7 +53,7 @@ async def test_only_published_newest_first_with_fields():
     p = data[0]
     assert p["channel"] == "instagram" and p["permalink"] == "https://ig/2" and p["sample"] is False
     assert p["image_url"] == "https://media.example.com/uploads/posts/b/1.jpg"
-    assert p["excerpt"] == "New one Body text" and p["published_at"].startswith("2026-10-10")
+    assert p["excerpt"] == "Body text"  # the title line is not repeated and p["published_at"].startswith("2026-10-10")
     assert not any("Hidden" in x["title"] for x in data)
 
 
@@ -129,3 +129,22 @@ def test_feed_hides_taken_down_posts_and_shows_a_story_once():
             row("old-tip", "post", "Read your cost sheet", hidden_from_feed=True), row("hd-anshul-reel", "reel", "Anshul Medora")]
     out = public.build(docs, 10)
     assert [(o["kind"], o["title"]) for o in out] == [("post", "AMCO Equa, Wagholi"), ("reel", "Anshul Medora")]
+
+
+
+def test_feed_card_carries_all_slides_our_page_and_no_repeated_title(monkeypatch):
+    from datetime import datetime, timezone
+    from app.modules.calendar import public
+    monkeypatch.setenv("PUBLIC_MEDIA_BASE_URL", "https://avasetu.in")
+    monkeypatch.setenv("PUBLIC_SITE_URL", "https://avasetu.in")
+    t = datetime(2026, 10, 3, 12, tzinfo=timezone.utc)
+    cap = "AMCO Equa, Wagholi: 59.99 L.\n\nThe lowest starting price of the five.\n\nListed by House Deal."
+    ig = {"_id": "a", "slug": "hd-amco", "kind": "post", "channel": "instagram", "status": "published", "permalink": "https://ig/p/1",
+          "published_at": t, "due_at": t, "caption": cap + " Every fact: link in our bio.", "images": [f"hd/amco-{k}.jpg" for k in range(1, 6)]}
+    fb = {**ig, "_id": "b", "channel": "facebook_page", "permalink": "https://fb/1", "images": ["hd/amco-1.jpg"],
+          "caption": cap + " Every fact: https://avasetu.in/agent/house-deal/projects/amco-equa\n\nInterested? https://avasetu.in/i/abc"}
+    (card,) = public.build([ig, fb], 5)
+    assert card["title"] == "AMCO Equa, Wagholi: 59.99 L."
+    assert card["excerpt"].startswith("The lowest starting price") and "AMCO Equa, Wagholi" not in card["excerpt"]
+    assert len(card["images"]) == 5 and card["images"][0] == "https://avasetu.in/uploads/hd/amco-1.jpg"
+    assert card["site_url"] == "https://avasetu.in/agent/house-deal/projects/amco-equa"

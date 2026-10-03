@@ -11,6 +11,10 @@ export interface PublicPost {
   title: string
   excerpt: string
   image_url: string | null
+  /** every slide of a carousel (https), cover first; empty when there is none */
+  images: string[]
+  /** the page on our own site the post points to, when it has one */
+  site_url: string | null
   permalink: string
   links: Array<{ channel: 'facebook' | 'instagram'; url: string }>
   published_at: string
@@ -40,6 +44,8 @@ export function cleanPosts(raw: unknown): PublicPost[] {
       title: typeof p.title === 'string' ? p.title : BRAND_NAME,
       excerpt: typeof p.excerpt === 'string' ? p.excerpt : '',
       image_url: safeUrl(p.image_url) ? p.image_url : null,
+      images: (Array.isArray(p.images) ? p.images : []).filter(safeUrl).slice(0, 10),
+      site_url: safeUrl(p.site_url) ? p.site_url : null,
       permalink: links[0].url,
       links,
       published_at: typeof p.published_at === 'string' ? p.published_at : '',

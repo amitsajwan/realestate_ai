@@ -10,8 +10,26 @@ import { organizationJsonLd } from '@/lib/marketing/seo'
 
 const post = (o: Partial<PublicPost> = {}): PublicPost => ({
   id: 'a', kind: 'post', channel: 'facebook', channels: ['facebook'], title: 'Why carpet area matters', excerpt: 'Ask for carpet area under RERA.',
-  image_url: 'https://media.example.com/uploads/a.jpg', permalink: 'https://www.facebook.com/p/1',
+  image_url: 'https://media.example.com/uploads/a.jpg', images: [], site_url: null, permalink: 'https://www.facebook.com/p/1',
   links: [{ channel: 'facebook', url: 'https://www.facebook.com/p/1' }], published_at: '2026-10-02T06:00:00Z', sample: false, ...o,
+})
+
+describe('PostCard like Instagram', () => {
+  it('shows every carousel slide to swipe, and leads with the page on our own site', () => {
+    const images = [1, 2, 3, 4, 5].map((k) => `https://avasetu.in/uploads/hd/amco-${k}.jpg`)
+    render(<PostsGrid posts={[post({ images, site_url: 'https://avasetu.in/agent/house-deal/projects/amco-equa' })]} />)
+    expect(screen.getByTestId('slide-strip').querySelectorAll('img')).toHaveLength(5)
+    expect(screen.getByAltText(/slide 3 of 5/)).toHaveAttribute('src', images[2])
+    expect(screen.getByTestId('post-site-link')).toHaveAttribute('href', 'https://avasetu.in/agent/house-deal/projects/amco-equa')
+    expect(screen.getByRole('link', { name: /^Facebook/ })).toHaveAttribute('target', '_blank')
+  })
+
+  it('drops slide and site urls that are not https', () => {
+    const [p] = cleanPosts([{ id: 'x', title: 't', links: [{ channel: 'facebook', url: 'https://fb/1' }],
+      images: ['https://ok/1.jpg', 'http://bad/2.jpg', 'javascript:alert(1)'], site_url: 'http://avasetu.in/x' }])
+    expect(p.images).toEqual(['https://ok/1.jpg'])
+    expect(p.site_url).toBeNull()
+  })
 })
 
 describe('PostsGrid', () => {
