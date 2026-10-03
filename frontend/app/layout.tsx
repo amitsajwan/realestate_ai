@@ -18,10 +18,15 @@ import '../styles/spacing.css'
 import '../styles/components.css'
 import '../styles/mobile.css'
 import { BRAND_NAME, DEFAULT_DESCRIPTION, DEFAULT_TITLE, LOGO, NAVY } from '@/lib/brand'
+import { getMarketingConfig } from '@/lib/marketing/config'
 
 const inter = Inter({ subsets: ['latin'] })
 
+// Google Search Console: paste the code from its "HTML tag" method (only the content="..." value) into this variable.
+const googleVerification = (process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || '').trim()
+
 export const metadata: Metadata = {
+  metadataBase: new URL(getMarketingConfig().siteUrl),
   title: DEFAULT_TITLE,
   description: DEFAULT_DESCRIPTION,
   applicationName: BRAND_NAME,
@@ -33,6 +38,7 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: LOGO.appleTouch, sizes: '180x180', type: 'image/png' }],
   },
+  verification: googleVerification ? { google: googleVerification } : undefined,
 }
 
 export const viewport = {

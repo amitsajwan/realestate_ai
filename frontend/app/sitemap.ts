@@ -2,21 +2,41 @@ import type { MetadataRoute } from 'next'
 import { INSIGHTS } from '@/lib/marketing/insights'
 import { LOCALITIES } from '@/lib/marketing/localities'
 import { getMarketingConfig } from '@/lib/marketing/config'
+import { fetchNews } from '@/lib/news/data'
+import { getSitemapEntries } from '@/lib/site/api'
+import { agentPath } from '@/lib/site/slug'
 
-/** Pages that are public, stable and worth indexing. Agent sites are added once they have real listings. */
-export default function sitemap(): MetadataRoute.Sitemap {
+const day = (d?: string | null): Date | undefined => {
+  const t = d ? new Date(d) : null
+  return t && !isNaN(t.getTime()) ? t : undefined
+}
+
+/** Pages that are public and worth indexing: the fixed pages, then news stories and the agent pages that have real content
+ *  (the backend leaves out the demo agent, unpublished previews and sample listings). Built when Google asks for it, so new
+ *  stories, listings and projects are listed without a deploy. */
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = getMarketingConfig().siteUrl
-  const at = (path: string, priority: number, date?: string) => ({ url: base + path, lastModified: date ? new Date(date) : undefined, priority })
+  const at = (path: string, priority: number, date?: string | null) => ({ url: base + path, lastModified: day(date), priority })
+  const [news, agents] = await Promise.all([fetchNews(50), getSitemapEntries()])
+  const latest = new Map<string, string | null | undefined>() // agent slug -> newest change on their site
+  for (const e of [...agents.listings, ...agents.projects]) {
+    const prev = latest.get(e.agent_slug)
+    if (!latest.has(e.agent_slug) || (e.updated_at && (!prev || e.updated_at > prev))) latest.set(e.agent_slug, e.updated_at)
+  }
   return [
     at('/', 1),
-    at('/for-agents', 0.9),
-    at('/news', 0.8),
-    at('/posts', 0.7),
     at('/localities', 0.8),
     ...LOCALITIES.map((l) => at(`/localities/${l.slug}`, 0.8, l.updated)),
+    at('/news', 0.8),
+    ...news.items.map((n) => at(`/news/${n.id}`, 0.6, n.published_at ?? n.as_of)),
     at('/insights', 0.7),
     ...INSIGHTS.map((a) => at(`/insights/${a.slug}`, 0.7, a.updated)),
-    at('/request-invite', 0.4),
+    at('/posts', 0.6),
+    ...[...latest].map(([slug, d]) => at(agentPath(slug), 0.7, d)),
+    ...agents.projects.map((p) => at(agentPath(p.agent_slug, 'projects/' + p.slug), 0.8, p.updated_at)),
+    ...agents.listings.map((l) => at(agentPath(l.agent_slug, 'listings/' + l.id), 0.6, l.updated_at)),
+    at('/for-agents', 0.6),
+    at('/request-invite', 0.3),
     at('/privacy', 0.2),
     at('/terms', 0.2),
   ]

@@ -48,3 +48,31 @@ export function organizationJsonLd(cfg: MarketingConfig, description: string, sa
 export function jsonLdString(obj: Record<string, unknown>): string {
   return JSON.stringify(obj).replace(/</g, '\\u003c')
 }
+
+export interface Crumb { name: string; path: string }
+
+/** BreadcrumbList for the trail a page shows (Home > Area guides > Kharadi). Paths are site-relative. */
+export function breadcrumbJsonLd(siteUrl: string, crumbs: Crumb[]): Record<string, unknown> {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: crumbs.map((c, i) => ({ '@type': 'ListItem', position: i + 1, name: c.name, item: siteUrl + (c.path === '/' ? '' : c.path) })),
+  }
+}
+
+/** Article data for a buyer guide we wrote ourselves: what the page shows, nothing more. */
+export function articleJsonLd(cfg: MarketingConfig, a: { title: string; summary: string; path: string; updated: string }): Record<string, unknown> {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: a.title.slice(0, 110),
+    description: a.summary,
+    inLanguage: 'en-IN',
+    mainEntityOfPage: cfg.siteUrl + a.path,
+    dateModified: a.updated,
+    author: { '@type': 'Organization', name: `${cfg.businessName} team`, url: cfg.siteUrl },
+    publisher: { '@type': 'Organization', name: cfg.businessName, url: cfg.siteUrl, logo: { '@type': 'ImageObject', url: cfg.siteUrl + LOGO.icon512 } },
+    image: [cfg.siteUrl + '/brand/og.jpg'],
+    isAccessibleForFree: true,
+  }
+}

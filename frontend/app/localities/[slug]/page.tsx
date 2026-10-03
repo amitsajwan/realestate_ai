@@ -8,7 +8,7 @@ import ListingCard from '@/components/site/ListingCard'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { INSIGHT_NOTE, getInsight } from '@/lib/marketing/insights'
 import { LOCALITIES, getLocality } from '@/lib/marketing/localities'
-import { pageMetadata } from '@/lib/marketing/seo'
+import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import { getLocalityListings } from '@/lib/site/api'
 
 type Props = { params: Promise<{ slug: string }> }
@@ -42,7 +42,10 @@ export default async function LocalityPage({ params }: Props) {
   return (
     <MarketingShell>
       <article className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd).replace(/</g, '\\u003c') }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(faqLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(breadcrumbJsonLd(getMarketingConfig().siteUrl, [
+          { name: 'Home', path: '/' }, { name: 'Area guides', path: '/localities' }, { name: `${l.name}, Pune`, path: `/localities/${l.slug}` },
+        ])) }} />
         <p className="text-sm"><Link href="/localities" className="text-[#0f2340] underline underline-offset-2">All localities</Link></p>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{l.name}, Pune</h1>
         <p className="mt-1 font-semibold text-amber-700">{l.tagline}</p>

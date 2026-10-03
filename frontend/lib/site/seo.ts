@@ -26,8 +26,13 @@ function build(title: string, description: string, path: string, image?: string)
 /** A preview site (owner-only flag) must never be indexed: the agent has not agreed to publish it yet. */
 export const isPreviewAgent = (agent: Pick<AgentProfile, 'branding_data'> | null | undefined): boolean => agent?.branding_data?.preview === true
 
+/** The fictional demo agent: its sample homes must never show up in Google as if they were for sale. */
+export const isDemoAgent = (agent: Pick<AgentProfile, 'branding_data'> | null | undefined): boolean => agent?.branding_data?.demo === true
+
 export function withPreview(agent: AgentProfile, md: Metadata): Metadata {
-  return isPreviewAgent(agent) ? { ...md, robots: { index: false, follow: false } } : md
+  if (isPreviewAgent(agent)) return { ...md, robots: { index: false, follow: false } }
+  if (isDemoAgent(agent)) return { ...md, robots: { index: false, follow: true } }
+  return md
 }
 
 export function agentMetadata(agent: AgentProfile, listings: PublicListing[], city: string): Metadata {

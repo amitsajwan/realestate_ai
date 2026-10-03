@@ -131,3 +131,17 @@ def test_parse_general_handles_missing_and_wrong_answers():
         maharera.parse_general({"status": "0"}, "P52100078796", 1)
     r = maharera.parse_general(GENERAL, "p52100078796", 53311)
     assert r["registered_on"] == "2025-01-13" and r["name"] == "MY HOME UPPER KHARADI"
+
+
+async def test_sitemap_entries_list_live_projects_of_indexable_public_agents_only():
+    svc, db, _ = make()
+    profiles = db.get_collection("agent_public_profiles")
+    await add_profile(db)
+    await profiles.insert_one({"_id": "A2", "agent_id": "A2", "slug": "hidden", "is_public": False})
+    await profiles.insert_one({"_id": "A3", "agent_id": "A3", "slug": "demo", "is_public": True, "branding_data": {"demo": True}})
+    await profiles.insert_one({"_id": "A4", "agent_id": "A4", "slug": "prev", "is_public": True, "branding_data": {"preview": True}})
+    for agent in ("A1", "A2", "A3", "A4"):
+        await svc.upsert(agent, "goyal-my-home", project())
+    await svc.upsert("A1", "draft-one", project(status="draft"))
+    entries = await svc.sitemap_entries()
+    assert [(e["agent_slug"], e["slug"]) for e in entries] == [("house-deal", "goyal-my-home")]

@@ -12,6 +12,8 @@ import { getAgent, getProject } from '@/lib/site/api'
 import { formatPrice, groupIndian } from '@/lib/site/format'
 import { bhkRange, formatDay, mapsLink, possessionLines, priceRange, projectWhatsAppMessage, sourceLabel } from '@/lib/site/projects'
 import { jsonLdString, projectMetadata } from '@/lib/site/seo'
+import { breadcrumbJsonLd } from '@/lib/marketing/seo'
+import { localityByName } from '@/lib/marketing/localities'
 import { agentPath, normalizeSlug, siteOrigin } from '@/lib/site/slug'
 import { displayName } from '@/lib/site/theme'
 import { BRAND_NAME } from '@/lib/brand'
@@ -47,11 +49,18 @@ export default async function ProjectPage({ params }: Props) {
   const ld = {
     '@context': 'https://schema.org', '@type': 'ApartmentComplex', name: p.name, url,
     address: { '@type': 'PostalAddress', streetAddress: p.address, addressLocality: p.locality, addressRegion: 'Maharashtra', postalCode: p.pincode, addressCountry: 'IN' },
+    image: photo ? [/^https?:/.test(photo.url) ? photo.url : siteOrigin() + photo.url] : undefined,
+    numberOfAccommodationUnits: p.rera?.units_total ?? undefined,
   }
+  const area = localityByName(p.locality)
+  const crumbs = breadcrumbJsonLd(siteOrigin(), [
+    { name: 'Home', path: '/' }, { name: name, path: agentPath(slug) }, { name: p.name, path: agentPath(slug, 'projects/' + p.slug) },
+  ])
 
   return (
     <SiteShell agent={agent} bottomPad>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(ld) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(crumbs) }} />
       <TrackingBeacon agentSlug={slug} />
       <DemoRibbon agent={agent} />
 
@@ -66,6 +75,13 @@ export default async function ProjectPage({ params }: Props) {
           <p className="mt-1 text-slate-600">by {p.builder}{p.rera?.promoter ? ` (promoter on MahaRERA: ${p.rera.promoter})` : ''}</p>
           <p className="mt-3 text-2xl font-extrabold text-[var(--site-primary)]">{priceRange(p)} <span className="text-base font-semibold text-slate-700">· {bhkRange(p.bhk_options)}</span></p>
           {p.positioning && <p className="mt-2 max-w-2xl text-lg text-slate-800">{p.positioning}</p>}
+          {area && (
+            <p className="mt-2 text-sm">
+              <Link href={`/localities/${area.slug}`} className="inline-flex min-h-[44px] items-center font-semibold text-[var(--site-primary)] underline underline-offset-2">
+                Buyer guide to {area.name}: who it suits, commute and what to check
+              </Link>
+            </p>
+          )}
           <div className="mt-4 hidden max-w-sm md:flex">
             <ContactButtons agentSlug={slug} phone={agent.phone} waMessage={msg} size="md" />
           </div>

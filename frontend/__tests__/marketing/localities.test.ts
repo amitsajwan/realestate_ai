@@ -1,5 +1,7 @@
 import { INSIGHTS } from '@/lib/marketing/insights'
-import { LOCALITIES, getLocality } from '@/lib/marketing/localities'
+import { LOCALITIES, getLocality, localityByName } from '@/lib/marketing/localities'
+import { buildMarketingConfig } from '@/lib/marketing/config'
+import { articleJsonLd, breadcrumbJsonLd } from '@/lib/marketing/seo'
 import sitemap from '@/app/sitemap'
 import robots from '@/app/robots'
 
@@ -27,14 +29,77 @@ describe('locality pages are safe to publish', () => {
 })
 
 describe('sitemap and robots', () => {
-  it('lists the localities, guides and key pages; keeps the private app out of search', () => {
-    const urls = sitemap().map((s) => s.url)
+  const realFetch = global.fetch
+  afterEach(() => { global.fetch = realFetch })
+
+  function api(routes: Record<string, unknown>) {
+    global.fetch = jest.fn(async (url: string) => {
+      const hit = Object.keys(routes).find((k) => String(url).includes(k))
+      const body = hit ? routes[hit] : {}
+      return { ok: !!hit, status: hit ? 200 : 500, json: async () => body }
+    }) as unknown as typeof fetch
+  }
+
+  it('lists the localities, guides and key pages; keeps the private app out of search', async () => {
+    api({})
+    const urls = (await sitemap()).map((s) => s.url)
     expect(urls.some((u) => u.endsWith('/localities/kharadi'))).toBe(true)
     expect(urls.some((u) => u.endsWith('/insights/kharadi-upper-kharadi-wagholi'))).toBe(true)
     expect(urls.some((u) => /studio|join|api/.test(u))).toBe(false)
     const r = robots()
     const rule = Array.isArray(r.rules) ? r.rules[0] : r.rules
-    expect(JSON.stringify(rule)).toContain('/studio')
+    for (const p of ['/studio', '/dashboard', '/onboarding', '/profile', '/properties', '/analytics', '/social-publishing', '/i/']) {
+      expect(rule.disallow).toContain(p)
+    }
     expect(String(r.sitemap)).toMatch(/sitemap\.xml$/)
+  })
+
+  it('adds news stories and the agent, project and listing pages the backend says are indexable', async () => {
+    api({
+      '/public/news': [{ id: 'n1', kind: 'story', headline: 'Metro update', summary: 's', pillar: 'p', pillar_label: 'P', areas: [],
+        source_name: 'PIB', source_url: null, as_of: '2026-10-01', image_url: null, permalinks: [], published_at: '2026-10-02T08:00:00Z' }],
+      '/public/sitemap/listings': { items: [{ agent_slug: 'house-deal', id: 'L1', updated_at: '2026-10-01T00:00:00Z' }] },
+      '/public/sitemap/projects': { items: [{ agent_slug: 'house-deal', slug: 'goyal-my-home', updated_at: '2026-10-03T00:00:00Z' }] },
+    })
+    const map = await sitemap()
+    const urls = map.map((s) => s.url)
+    expect(urls.some((u) => u.endsWith('/news/n1'))).toBe(true)
+    expect(urls.some((u) => u.endsWith('/agent/house-deal/projects/goyal-my-home'))).toBe(true)
+    expect(urls.some((u) => u.endsWith('/agent/house-deal/listings/L1'))).toBe(true)
+    const home = map.find((s) => s.url.endsWith('/agent/house-deal'))!
+    expect(urls.filter((u) => u.endsWith('/agent/house-deal'))).toHaveLength(1) // one entry per agent
+    expect((home.lastModified as Date).toISOString()).toBe('2026-10-03T00:00:00.000Z') // their newest change
+  })
+
+  it('still lists the fixed pages when the API is down', async () => {
+    api({})
+    const urls = (await sitemap()).map((s) => s.url)
+    expect(urls.some((u) => u.endsWith('/news'))).toBe(true)
+    expect(urls.some((u) => u.includes('/agent/'))).toBe(false)
+  })
+})
+
+describe('structured data and links between pages', () => {
+  const cfg = buildMarketingConfig({ NEXT_PUBLIC_SITE_URL: 'https://avasetu.in' })
+
+  it('finds the area guide for a locality however the agent typed it', () => {
+    expect(localityByName(' upper kharadi ')?.slug).toBe('upper-kharadi')
+    expect(localityByName('Baner')).toBeUndefined()
+    expect(localityByName(null)).toBeUndefined()
+  })
+
+  it('builds a breadcrumb trail with absolute URLs', () => {
+    const ld = breadcrumbJsonLd(cfg.siteUrl, [{ name: 'Home', path: '/' }, { name: 'Area guides', path: '/localities' }])
+    expect(ld.itemListElement).toEqual([
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://avasetu.in' },
+      { '@type': 'ListItem', position: 2, name: 'Area guides', item: 'https://avasetu.in/localities' },
+    ])
+  })
+
+  it('describes a guide as an Article by the Avasetu team, dated as shown on the page', () => {
+    const a = INSIGHTS[0]
+    const ld = articleJsonLd(cfg, { title: a.title, summary: a.summary, path: `/insights/${a.slug}`, updated: a.updated })
+    expect(ld).toMatchObject({ '@type': 'Article', dateModified: a.updated, mainEntityOfPage: `https://avasetu.in/insights/${a.slug}` })
+    expect(String(ld.headline).length).toBeLessThanOrEqual(110)
   })
 })

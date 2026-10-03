@@ -126,6 +126,18 @@ class ProjectService:
         docs = await self.col.find({"agent_id": agent_id, "status": "live"}).sort("order", 1).to_list(MAX_PER_AGENT)
         return [PublicProject(**public_view(d)) for d in docs]
 
+    async def sitemap_entries(self) -> List[dict]:
+        """Live projects on public agent sites that are neither the fictional demo nor an unpublished preview,
+        as {agent_slug, slug, updated_at}."""
+        out = []
+        for profile in await self.profiles.find({"is_public": True}).to_list(None):
+            b = profile.get("branding_data") or {}
+            if b.get("demo") or b.get("preview") or not profile.get("agent_id"):
+                continue
+            docs = await self.col.find({"agent_id": profile["agent_id"], "status": "live"}).sort("order", 1).to_list(MAX_PER_AGENT)
+            out += [{"agent_slug": profile["slug"], "slug": d["slug"], "updated_at": d.get("updated_at")} for d in docs]
+        return out
+
     async def public_get(self, agent_slug: str, slug: str) -> PublicProject:
         agent_id = await self._agent_id(agent_slug)
         doc = await self.col.find_one({"agent_id": agent_id, "slug": slug, "status": "live"}) if agent_id else None

@@ -65,6 +65,8 @@ describe('preview sites', () => {
     expect(isPreviewAgent({ branding_data: { demo: true } })).toBe(false)
     expect(withPreview(AGENT, { title: 't' }).robots).toEqual({ index: false, follow: false })
     expect(withPreview({ ...AGENT, branding_data: {} }, { title: 't' }).robots).toBeUndefined()
+    // the fictional demo agent is not indexed either (its homes are samples), but its links may be followed
+    expect(withPreview({ ...AGENT, branding_data: { demo: true } }, { title: 't' }).robots).toEqual({ index: false, follow: true })
     expect(projectMetadata(AGENT, P, '₹97 L').robots).toEqual({ index: false, follow: false })
     render(<DemoRibbon agent={AGENT} />)
     expect(screen.getByTestId('preview-note')).toHaveTextContent(previewNote('House Deal'))

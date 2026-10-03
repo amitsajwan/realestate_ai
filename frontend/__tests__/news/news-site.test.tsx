@@ -209,6 +209,6 @@ describe('pages', () => {
   it('has News in the footer and the sitemap', async () => {
     render(await NewsPage())
     expect(within(screen.getByRole('contentinfo')).getByRole('link', { name: 'News' })).toHaveAttribute('href', '/news')
-    expect(sitemap().some((s) => s.url.endsWith('/news'))).toBe(true)
+    expect((await sitemap()).some((s) => s.url.endsWith('/news'))).toBe(true)
   })
 })

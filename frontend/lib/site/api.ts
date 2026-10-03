@@ -103,3 +103,19 @@ export function agentCity(agent: AgentProfile, listings: PublicListing[]): strin
   if (listings.length) return listings[0].city
   return ''
 }
+
+export interface SitemapEntries {
+  listings: Array<{ agent_slug: string; id: string; updated_at?: string | null }>
+  projects: Array<{ agent_slug: string; slug: string; updated_at?: string | null }>
+}
+
+/** Agent pages a search engine may index (the backend leaves out the demo agent, preview sites and samples). Never throws: an
+ *  outage gives empty lists, so sitemap.xml still lists the fixed pages. */
+export async function getSitemapEntries(): Promise<SitemapEntries> {
+  if (fixturesForced()) return { listings: [], projects: [] }
+  const [l, p] = await Promise.all([
+    getJson<{ items: SitemapEntries['listings'] }>('/api/v1/public/sitemap/listings'),
+    getJson<{ items: SitemapEntries['projects'] }>('/api/v1/public/sitemap/projects'),
+  ])
+  return { listings: l.ok ? l.data.items : [], projects: p.ok ? p.data.items : [] }
+}

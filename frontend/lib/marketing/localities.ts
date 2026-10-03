@@ -95,3 +95,9 @@ export const LOCALITIES: Locality[] = [
 export function getLocality(slug: string): Locality | undefined {
   return LOCALITIES.find((l) => l.slug === slug)
 }
+
+/** The area guide for a locality name as agents type it ("upper kharadi", "Upper Kharadi "), if we have one. */
+export function localityByName(name: string | null | undefined): Locality | undefined {
+  const want = (name || '').trim().toLowerCase()
+  return want ? LOCALITIES.find((l) => l.listingName.toLowerCase() === want) : undefined
+}

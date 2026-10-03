@@ -53,6 +53,12 @@ async def check_project(agent_id: str, slug: str, user: User = Depends(writer("c
         raise _http(e)
 
 
+@public_router.get("/sitemap/projects")
+async def sitemap_projects(svc: ProjectService = Depends(get_service)):
+    """Indexable project pages, for the website's sitemap.xml."""
+    return {"items": await svc.sitemap_entries()}
+
+
 @public_router.get("/agents/{agent_slug}/projects", response_model=PublicProjectPage)
 async def public_projects(agent_slug: str, svc: ProjectService = Depends(get_service)):
     try:
