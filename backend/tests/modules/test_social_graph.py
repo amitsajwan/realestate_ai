@@ -203,3 +203,22 @@ async def test_sanitize_and_dry_run_publisher():
     assert sanitize(None) == ""
     r = await DryRunPublisher().publish(Post("instagram", "t", []))
     assert r.external_id.startswith("dryrun_") and r.permalink is None
+
+
+CAPTION = "2 BHK in Baner" + chr(10) * 2 + "#Pune #Baner"  # what run() publishes
+
+
+async def test_instagram_retry_finds_its_own_post_and_does_not_publish_again():
+    """Live 2026-10-03: media_publish answered error 4/2207051 although the carousel went out; the retry posted a copy."""
+    g = FakeGraph(ig_routes(), recent=[{"id": "OLD", "caption": "something else"},
+                                       {"id": "M7", "caption": CAPTION, "permalink": "https://instagram.com/p/x"}])
+    (p,) = await run(g, "instagram")
+    assert (p.status, p.external_id, p.permalink) == ("published", "M7", "https://instagram.com/p/x")
+    assert g.calls == [] and len(g.lookups) == 1
+
+
+async def test_instagram_lookup_failure_still_publishes():
+    g = FakeGraph(ig_routes())
+    g.recent = None  # the lookup itself is answered; an empty account means "not posted yet"
+    (p,) = await run(g, "instagram")
+    assert p.status == "published" and g.calls[-2]["path"].endswith("/media_publish")

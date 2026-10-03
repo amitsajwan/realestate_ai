@@ -113,6 +113,9 @@ class ReelPublisher(GraphPublisher):
     # ---- Instagram -------------------------------------------------------------------------------------------
     async def _instagram_reel(self, video_url: str, caption: str, cover_url: Optional[str] = None) -> Result:
         ig = self.cfg.ig_id
+        found = await self._already_on_instagram(caption)  # a retry after a "failed" publish that actually went out
+        if found:
+            return found
         params = {"media_type": "REELS", "video_url": video_url, "caption": caption, "share_to_feed": "true"}
         if cover_url and str(cover_url).lower().startswith("https://"):
             params["cover_url"] = cover_url   # the hook still as the grid/feed cover (else Instagram picks a frame)

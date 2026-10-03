@@ -113,6 +113,8 @@ class Graph:
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         body = {k: v[0] for k, v in parse_qs(request.content.decode()).items()} if request.method == "POST" else {}
+        if request.method == "GET" and request.url.path.endswith("/media"):  # the "already on Instagram?" lookup
+            return httpx.Response(200, json={"data": []})
         self.calls.append((request.method, request.url.path, body, dict(request.url.params)))
         path = request.url.path
         if path.endswith("/media"):

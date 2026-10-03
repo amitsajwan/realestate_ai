@@ -31,11 +31,15 @@ class Clock:
 class Fake:
     """Routes (method, path) -> (status, json) or a list of them (consumed in order, the last repeats); records every request."""
 
-    def __init__(self, routes):
+    def __init__(self, routes, recent=None):
         self.routes = {k: list(v) if isinstance(v, list) else [v] for k, v in routes.items()}
         self.calls = []
+        self.recent, self.lookups = recent or [], 0  # the "already on Instagram?" lookup, kept out of `calls`
 
     def __call__(self, req: httpx.Request) -> httpx.Response:
+        if req.method == "GET" and req.url.path.endswith("/media") and "caption" in req.url.params.get("fields", ""):
+            self.lookups += 1
+            return httpx.Response(200, json={"data": self.recent})
         raw = req.content or b""
         form = {}
         if req.headers.get("content-type", "").startswith("application/x-www-form-urlencoded"):
@@ -260,3 +264,10 @@ def test_cover_staging_and_urls(tmp_path):
         publish.public_cover_url(CFG, "x/y-cover.jpg")
     with pytest.raises(PublishError):
         publish.public_cover_url(SocialConfig(dry_run=False, media_base_url="http://insecure.test"), "reel-abc-cover.jpg")
+
+
+async def test_instagram_reel_retry_finds_its_own_post_and_does_not_publish_again():
+    fake = Fake({}, recent=[{"id": "M9", "caption": "c", "permalink": "https://www.instagram.com/reel/X/"}])
+    r = await pub(fake).publish_reel("instagram", URL, "c")
+    assert (r.external_id, r.permalink) == ("M9", "https://www.instagram.com/reel/X/")
+    assert fake.lookups == 1 and fake.calls == []  # nothing created, nothing published

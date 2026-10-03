@@ -14,6 +14,7 @@ POLL_INTERVAL_S = 2.0
 POLL_TIMEOUT_S = 60.0
 REQUEST_TIMEOUT_S = 20.0
 MAX_CAROUSEL = 10
+DEDUP_WINDOW = 12  # recent Instagram posts checked for an identical caption before publishing
 
 
 class GraphPublisher:
@@ -113,11 +114,30 @@ class GraphPublisher:
         return Result(ext, f"https://www.facebook.com/{ext}")
 
     # ---- Instagram -------------------------------------------------------------------------------------------
+    async def _already_on_instagram(self, caption: str) -> Optional[Result]:
+        """The account's recent post with this exact caption, if any. Instagram sometimes publishes a post and still answers
+        media_publish with an error (seen live 2026-10-03: error 4/2207051, the carousel appeared twice after one retry), so a
+        retry first looks for its own post instead of publishing a copy. Best effort: no answer means "not found"."""
+        key = (caption or "").strip()
+        if not key:
+            return None
+        try:
+            body = await self._call("GET", f"{self.cfg.ig_id}/media", {"fields": "id,caption,permalink", "limit": DEDUP_WINDOW})
+        except PublishError:
+            return None
+        for m in body.get("data") or []:
+            if (m.get("caption") or "").strip() == key and m.get("id"):
+                return Result(str(m["id"]), m.get("permalink"))
+        return None
+
     async def _instagram(self, post: Post) -> Result:
         ig = self.cfg.ig_id
         urls = post.image_urls[:MAX_CAROUSEL]
         if not urls:
             raise PublishError("Instagram needs at least one image")
+        found = await self._already_on_instagram(post.text)
+        if found:
+            return found
         if len(urls) == 1:
             container = self._need_id(await self._call("POST", f"{ig}/media", {"image_url": urls[0], "caption": post.text}), "the container")
         else:
