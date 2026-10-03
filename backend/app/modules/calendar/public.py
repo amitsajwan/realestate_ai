@@ -108,7 +108,8 @@ def _merge(into: dict, other: dict) -> None:
 
 
 def build(docs: List[dict], limit: int) -> List[dict]:
-    rows = [d for d in docs if d.get("status") == "published" and d.get("permalink") and _channel(d)]
+    # hidden_from_feed: posts taken down from Facebook/Instagram (old Page, retired tests); kept as history, never shown
+    rows = [d for d in docs if d.get("status") == "published" and d.get("permalink") and _channel(d) and not d.get("hidden_from_feed")]
     rows.sort(key=_when, reverse=True)
     out: List[dict] = []
     for d in rows:
@@ -119,6 +120,9 @@ def build(docs: List[dict], limit: int) -> List[dict]:
             _merge(twin, v)
         else:
             out.append(v)
+    # a reel with the same title as a post is the same story told twice: show the post (it has the slides) once
+    posts = {o["title"] for o in out if o["kind"] != "reel"}
+    out = [o for o in out if not (o["kind"] == "reel" and o["title"] in posts)]
     for o in out:
         o.pop("_slug", None)
         o["links"].sort(key=lambda link: link["channel"] != "facebook")

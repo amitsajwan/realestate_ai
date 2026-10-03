@@ -117,3 +117,15 @@ def test_a_reel_card_uses_its_cover_or_first_slide(tmp_path, monkeypatch):
     assert public._image_url(doc) == "https://avasetu.in/uploads/agentprojects/hd/amco-1.jpg"
     (tmp_path / "agentprojects" / "hd" / "amco-cover.jpg").write_bytes(b"x")
     assert public._image_url(doc).endswith("/amco-cover.jpg")
+
+
+def test_feed_hides_taken_down_posts_and_shows_a_story_once():
+    from datetime import datetime, timezone
+    from app.modules.calendar import public
+    t = datetime(2026, 10, 3, 12, tzinfo=timezone.utc)
+    row = lambda slug, kind, cap, **kw: {"_id": slug + kind, "slug": slug, "kind": kind, "channel": "facebook_page", "caption": cap,  # noqa: E731
+                                         "status": "published", "permalink": "https://fb/" + slug + kind, "published_at": t, "due_at": t, **kw}
+    docs = [row("hd-amco", "post", "AMCO Equa, Wagholi"), row("hd-amco-reel", "reel", "AMCO Equa, Wagholi"),
+            row("old-tip", "post", "Read your cost sheet", hidden_from_feed=True), row("hd-anshul-reel", "reel", "Anshul Medora")]
+    out = public.build(docs, 10)
+    assert [(o["kind"], o["title"]) for o in out] == [("post", "AMCO Equa, Wagholi"), ("reel", "Anshul Medora")]
