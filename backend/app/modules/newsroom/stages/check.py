@@ -7,7 +7,7 @@ import re
 from datetime import datetime, timezone
 from typing import List, Optional, Set
 
-from app.modules.marketing.polish import HYPE, PHONE
+from app.platform.text import HYPE, PHONE
 
 from .. import policy
 from ..types import CheckResult, Draft, Facts, RawItem

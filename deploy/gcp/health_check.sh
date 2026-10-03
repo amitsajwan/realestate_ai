@@ -6,9 +6,11 @@
 #   bash health_check.sh --dry-run     # run the checks, print alerts instead of sending them, change no state
 #   bash health_check.sh --test-alert  # send one test alert through the configured hook and exit
 #
-# Checks: site (https://SITE_HOST/), API (/api/v1/health says "healthy"), disk space, the four containers, the
+# Checks: site (https://SITE_HOST/), API (/api/v1/health says "healthy"), disk space, the five containers, the
 # Facebook/Meta Page token (asked of Meta from INSIDE the backend container; the token never leaves it and is never
-# printed) and that the newest database backup is recent.
+# printed), the background loops' heartbeats (`python -m app.worker --check` in the backend container: a loop that is
+# switched on and has not cycled for twice its interval fails; loops switched off in .env are skipped) and that the
+# newest database backup is recent.
 #
 # Alerts are an optional hook. Put either (or both) in deploy/gcp/.env on the VM:
 #   ALERT_WEBHOOK_URL=https://...   JSON POST {"text": "...", "content": "..."} (Slack, Discord, Google Chat-compatible relays, ntfy-style bridges)
@@ -83,7 +85,7 @@ elif [ "$PCT" -ge "$DISK_FAIL_PCT" ]; then bad disk "root disk is ${PCT}% full (
 else ok disk "${PCT}% used"; fi
 
 PS="$($DC ps --format '{{.Service}} {{.State}} {{.Health}}' 2>/dev/null)"
-for svc in mongo backend frontend caddy; do
+for svc in mongo backend worker frontend caddy; do
   line="$(printf '%s\n' "$PS" | awk -v s="$svc" '$1==s{print; exit}')"
   if [ -z "$line" ]; then bad "container $svc" "not found"
   elif [ "$(echo "$line" | awk '{print $2}')" != "running" ]; then bad "container $svc" "state is $(echo "$line" | awk '{print $2}')"
@@ -121,6 +123,14 @@ case "$TOK" in
   UNKNOWN*) say "warn  facebook-token: could not ask Meta right now (${TOK#UNKNOWN }); not counted as a failure" ;;
   *)        bad facebook-token "could not run the check in the backend container" ;;
 esac
+
+# Background loops: each records a heartbeat per cycle in Mongo (worker_heartbeats). Run from the backend container so a
+# stopped or hung worker is caught too; prints one line per loop and exits 1 when one is stale, 2 when it cannot read Mongo.
+HB="$($DC exec -T backend python -m app.worker --check 2>/dev/null)"; HB_RC=$?
+if [ "$HB_RC" -eq 0 ]; then ok loops "$(printf '%s\n' "$HB" | awk '{print $1, $2}' | tr -d ':' | paste -sd, -)"
+elif [ "$HB_RC" -eq 1 ] && printf '%s\n' "$HB" | grep -q '^STALE'; then
+  bad loops "$(printf '%s\n' "$HB" | grep '^STALE' | sed 's/^STALE *//' | paste -sd ';' -) (see: docker compose logs --tail 80 worker)"
+else bad loops "could not check the loop heartbeats in the backend container ($(printf '%s' "$HB" | tail -n1 | cut -c1-120))"; fi
 
 NEWEST="$(ls -1t "$BACKUP_DIR"/*.archive.gz 2>/dev/null | head -n1)"
 if [ -z "$NEWEST" ]; then bad backup "no backup found in $BACKUP_DIR (is the backup cron installed?)"

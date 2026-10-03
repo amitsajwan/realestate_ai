@@ -15,9 +15,9 @@ from pathlib import Path
 from app.core import database as dbmod
 from app.core.config import settings
 from app.modules.marketing.service import MarketingService
-from app.modules.social.config import load
-from app.modules.social.graph import GraphPublisher
-from app.modules.social.publisher import Post
+from app.platform.meta_graph.config import load
+from app.platform.meta_graph.graph import GraphPublisher
+from app.platform.meta_graph.publisher import Post
 from app.modules.social.service import build_payload
 
 AGENT_SLUG = "avasetu"

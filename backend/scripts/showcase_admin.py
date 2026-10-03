@@ -49,7 +49,7 @@ def cmd_preview(a) -> int:
 def cmd_post(a) -> int:
     llm = None
     if a.polish:
-        from app.modules.ai_listing.llm import default_llm
+        from app.platform.llm import default_llm
         llm = default_llm()
     try:
         results = asyncio.run(publish.publish_showcase(a.slug, a.channel, llm=llm))

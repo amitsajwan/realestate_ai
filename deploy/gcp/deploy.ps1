@@ -1,5 +1,5 @@
 <#
-  Redeploy the pilot to the single GCP VM (Caddy + frontend + backend + MongoDB via docker compose).
+  Redeploy the pilot to the single GCP VM (Caddy + frontend + backend + worker + MongoDB via docker compose).
 
   What it does:
     1. Bundles the TRACKED files of deploy/, backend/ and frontend/ from git HEAD (so no .env, node_modules or uploads ever leave your PC).

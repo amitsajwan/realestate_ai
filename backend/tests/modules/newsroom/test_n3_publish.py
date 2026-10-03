@@ -12,7 +12,7 @@ from app.modules.newsroom.pipeline import run_once
 from app.modules.newsroom.samples import SAMPLES, make_doc
 from app.modules.newsroom.store import Store
 from app.modules.newsroom.types import CheckResult
-from app.modules.social.config import SocialConfig
+from app.platform.meta_graph.config import SocialConfig
 
 from ..fakes import FakeDb
 from .helpers import NOW
@@ -47,7 +47,7 @@ class Graph:
 
 
 def publisher(graph, cfg=REAL, checker=None, render=None):
-    return SocialPublisher(cfg, transport=httpx.MockTransport(graph), checker=checker, render=render)
+    return SocialPublisher(cfg, transport=httpx.MockTransport(graph), checker=checker, render=render, db=FakeDb())
 
 
 def story(status="approved", n=0, **kw):
@@ -208,3 +208,15 @@ async def test_captions_are_what_gets_sent():
     sent = {c[1].split("/")[-1]: c[2] for c in g.calls if "caption" in c[2]}
     texts = captions.build(doc)
     assert sent["photos"]["caption"] == [texts["facebook"]] and sent["media"]["caption"] == [texts["instagram"]]
+
+
+async def test_an_item_published_twice_is_posted_once_per_channel(monkeypatch):
+    """A retry of an item whose posts already went out (e.g. saving 'published' failed) posts nothing new."""
+    monkeypatch.delenv("PUBLISH_LEDGER", raising=False)
+    g, db = Graph(), FakeDb()
+    pub = SocialPublisher(REAL, transport=httpx.MockTransport(g), db=db)
+    first = await pub.publish_item(story())
+    posts = [c for c in g.calls if c[1].endswith(("/photos", "/media_publish"))]
+    again = await pub.publish_item(story())
+    assert [c for c in g.calls if c[1].endswith(("/photos", "/media_publish"))] == posts and len(posts) == 2
+    assert again["facebook"]["id"] == first["facebook"]["id"] and again["instagram"]["id"] == first["instagram"]["id"]

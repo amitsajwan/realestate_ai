@@ -62,6 +62,11 @@ def resolve_language(requested: str) -> str:
     return requested if requested in SUPPORTED else "en"
 
 
+def link_line(language: str, url: str) -> str:
+    """'🔗 Details and photos: <url>' in the pack's language; passed to distribution by app/wiring.py."""
+    return P[resolve_language(language or "en")]["link"].format(url=url)
+
+
 def clip(text: str, n: int) -> str:
     """Hard length limit on a word boundary (last resort; builders already drop optional parts first)."""
     if len(text) <= n:

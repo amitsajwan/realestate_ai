@@ -24,7 +24,7 @@ from typing import Awaitable, Callable, List, Optional
 from app.core import brand
 from app.modules.engage.brain import ABUSE, valid_reply
 from app.modules.knowledge.reply import answer as grounded_answer, detect_language, has_topic, topics_in
-from app.modules.onboarding.phone import normalize_indian_mobile
+from app.platform.text import normalize_indian_mobile
 from app.modules.tracking import requirement as rq
 
 from . import kb

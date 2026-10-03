@@ -161,7 +161,7 @@ async def test_captions_preview_matches_what_is_posted_and_records_nothing():
 
 
 async def test_hub_item_added_only_when_instagram_really_published():
-    from app.modules.social.config import SocialConfig
+    from app.platform.meta_graph.config import SocialConfig
     svc, db, _ = make()  # dry run: nothing real posted, so nothing on the public hub
     aid, lid = await post_ready(svc, db)
     await svc.record_consent("OWNER", aid)

@@ -89,9 +89,9 @@ cat ~/meta.env >> .env
 grep -q '^SOCIAL_DRY_RUN=' .env || echo 'SOCIAL_DRY_RUN=true' >> .env
 chmod 600 .env
 rm -f ~/meta.env
-sudo docker compose up -d backend
+sudo docker compose up -d backend worker  # the worker reads the same .env (background loops)
 sleep 15
-sudo docker compose ps backend --format '{{.Name}} {{.Status}}'
+sudo docker compose ps backend worker --format '{{.Name}} {{.Status}}'
 grep -c '^META_PAGE_ACCESS_TOKEN=' .env | sed 's/^/token lines in .env: /'
 grep '^SOCIAL_DRY_RUN=' .env
 '@ -replace "__DIR__", $RemoteDir

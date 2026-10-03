@@ -4,7 +4,7 @@ import re
 import pytest
 from PIL import Image
 
-from app.modules.marketing.polish import PHONE
+from app.platform.text import PHONE
 from app.modules.showcase import render, samples
 from app.modules.showcase.render import FACEBOOK, GRID_SAFE_X, MARGIN, PORTRAIT, STORY
 

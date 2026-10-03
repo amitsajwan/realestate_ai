@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 from typing import Iterable, List, Optional, Set
 
-from app.modules.marketing.polish import HYPE, PHONE
+from app.platform.text import HYPE, PHONE
 
 from .library import SITE, Entry
 

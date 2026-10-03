@@ -10,9 +10,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
-from app.modules.social.config import SocialConfig, load as load_config
-from app.modules.social.graph import GraphPublisher
-from app.modules.social.publisher import DryRunPublisher, Post, PublishError, Publisher
+from app.platform.meta_graph.config import SocialConfig, load as load_config
+from app.modules.social.distribution import default_publisher
+from app.platform.meta_graph.publisher import Post, PublishError, Publisher
 
 from . import captions
 from .render import write_home
@@ -62,7 +62,7 @@ def _urls(cfg: SocialConfig, slug: str, names: List[str]) -> List[str]:
 def _publisher(cfg: SocialConfig, publisher: Optional[Publisher]) -> Publisher:
     if publisher is not None:
         return publisher
-    return DryRunPublisher() if cfg.dry_run else GraphPublisher(cfg)
+    return default_publisher(cfg)
 
 
 async def _publish(slug: str, channel: str, names: List[str], *, cfg: Optional[SocialConfig], publisher: Optional[Publisher], llm,

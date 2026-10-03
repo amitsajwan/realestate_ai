@@ -1,11 +1,11 @@
 """Tiny WhatsApp Cloud API client: send a text, mark a message read, read the phone number's info. The token goes in the Authorization header,
-never in a URL, and every error text is sanitised (social.publisher.sanitize) before it is raised, stored or logged.
+never in a URL, and every error text is sanitised (platform.meta_graph.publisher.sanitize) before it is raised, stored or logged.
 `transport` is injectable so tests use httpx.MockTransport and never touch the network."""
 from typing import Optional
 
 import httpx
 
-from app.modules.social.publisher import sanitize
+from app.platform.meta_graph.publisher import sanitize
 
 from .config import WhatsAppConfig
 

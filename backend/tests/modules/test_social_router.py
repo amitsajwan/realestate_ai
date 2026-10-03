@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from app.core.auth_backend import current_active_user
 from app.modules.marketing.service import MarketingService
 from app.modules.social import router as sr
-from app.modules.social.config import SocialConfig
+from app.platform.meta_graph.config import SocialConfig
 from app.modules.social.service import SocialService
 
 from .listings_fakes import ListingsDb

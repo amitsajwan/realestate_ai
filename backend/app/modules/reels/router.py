@@ -4,7 +4,8 @@
   GET  /listings/{listing_id}/reel                                  -> {jobs: {lang: job}}  (latest job per language)
 
 Two segments ending in "reel", so they cannot shadow "/{listing_id}" or the marketing routes. Both start the render worker
-in this process if it is not running yet (listing_reel.ensure_worker), so no lifespan wiring is required.
+in this process if it is not running yet (listing_reel.ensure_worker); the app lifespan starts it too. With
+RUN_BACKGROUND_LOOPS=false neither does: the worker process (app/worker.py) renders the queued jobs.
 """
 from pathlib import Path
 from typing import Literal, Optional
@@ -30,7 +31,7 @@ class ReelIn(BaseModel):
 
 
 def get_jobs() -> ReelJobs:
-    from app.modules.ai_listing.llm import default_llm
+    from app.platform.llm import default_llm
     return ReelJobs(get_database(), Path(settings.upload_directory), llm_factory=default_llm)
 
 

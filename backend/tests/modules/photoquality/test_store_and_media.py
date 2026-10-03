@@ -10,6 +10,7 @@ from app.modules.listings.schemas import ListingCreate, PublicListing
 from app.modules.marketing.images import first_photo_url
 from app.modules.photoquality import store
 from app.modules.photoquality.analysis import load_bgr
+from app.platform import media
 
 from .test_analysis_enhance import ROOM, darken
 
@@ -58,10 +59,10 @@ def test_process_skips_enhanced_files_and_junk(tmp_path):
 
 def test_display_url_rules():
     m = {"url": "http://api.x/uploads/images/a.jpg", "enhanced_url": "/uploads/images/a-enh.jpg", "use_enhanced": True}
-    assert store.display_url(m) == "http://api.x/uploads/images/a-enh.jpg"
-    assert store.display_url({**m, "use_enhanced": False}) == m["url"]
+    assert media.display_url(m) == "http://api.x/uploads/images/a-enh.jpg"
+    assert media.display_url({**m, "use_enhanced": False}) == m["url"]
     # a foreign enhanced url never wins: only our own /uploads/images path is used
-    assert store.display_url({"url": "/uploads/images/a.jpg", "enhanced_url": "/etc/passwd", "use_enhanced": True}) == "/uploads/images/a.jpg"
+    assert media.display_url({"url": "/uploads/images/a.jpg", "enhanced_url": "/etc/passwd", "use_enhanced": True}) == "/uploads/images/a.jpg"
 
 
 def test_media_schema_accepts_quality_and_rejects_foreign_enhanced_url():

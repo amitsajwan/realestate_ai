@@ -10,7 +10,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.core.auth_backend import current_active_user
-from app.modules.admin import controls, health
+from app.modules.admin import health
+from app.platform import controls
 from app.modules.admin import router as ar
 from app.modules.admin.service import AdminService, day_start
 from app.modules.concierge import router as cr

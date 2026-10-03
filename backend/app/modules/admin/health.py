@@ -20,7 +20,7 @@ def _iso(dt) -> Optional[str]:
 
 async def default_ai_ping() -> Dict:
     """One tiny call to the configured provider (default_llm)."""
-    from app.modules.ai_listing.llm import default_llm
+    from app.platform.llm import default_llm
     llm = default_llm()
     if llm is None:
         return {"ok": False, "configured": False}

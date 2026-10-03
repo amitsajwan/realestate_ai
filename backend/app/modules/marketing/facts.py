@@ -1,32 +1,16 @@
 """Listing facts + formatting helpers + per-language word tables. Everything here is derived from the listing only."""
 from app.core import brand
+from app.platform.text import bhk_label, money, sqft
 from dataclasses import dataclass, field
 from typing import List, Optional
 
 PUBLIC_NAME = brand.TEAM
-LAKH = 100_000
-CRORE = 10_000_000
 
 # Round ceilings for the "under Rs X" angle (rupees). Sale first, then monthly rent.
 SALE_CEILINGS = [1_000_000, 2_000_000, 3_000_000, 4_000_000, 5_000_000, 7_500_000, 10_000_000, 15_000_000,
                  20_000_000, 30_000_000, 50_000_000, 75_000_000, 100_000_000]
 RENT_CEILINGS = [10_000, 15_000, 20_000, 25_000, 30_000, 40_000, 50_000, 75_000, 100_000, 150_000, 200_000,
                  300_000, 500_000]
-
-
-def _trim(v: float) -> str:
-    return f"{v:.2f}".rstrip("0").rstrip(".")
-
-
-def money(n: int, rent: bool = False) -> str:
-    """8500000 -> '₹85 Lakh', 12500000 -> '₹1.25 Cr', 45000 -> '₹45,000' (+ '/month' for rent)."""
-    if n >= CRORE:
-        s = f"₹{_trim(n / CRORE)} Cr"
-    elif n >= LAKH:
-        s = f"₹{_trim(n / LAKH)} Lakh"
-    else:
-        s = f"₹{n:,}"
-    return s + "/month" if rent else s
 
 
 def budget_phrase(price: int, rent: bool = False) -> str:
@@ -38,14 +22,6 @@ def budget_phrase(price: int, rent: bool = False) -> str:
     step = 50_000_000 if not rent else 500_000
     c = (price // step + 1) * step
     return f"under {money(c, rent)}"
-
-
-def sqft(n: int) -> str:
-    return f"{n:,} sq ft"
-
-
-def bhk_label(b: float) -> str:
-    return f"{int(b)} BHK" if float(b).is_integer() else f"{b:g} BHK"
 
 
 T = {

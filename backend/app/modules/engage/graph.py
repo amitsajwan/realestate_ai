@@ -3,7 +3,7 @@ from typing import List, Optional
 
 import httpx
 
-from app.modules.social.publisher import sanitize
+from app.platform.meta_graph.publisher import sanitize
 
 from .config import EngageConfig
 

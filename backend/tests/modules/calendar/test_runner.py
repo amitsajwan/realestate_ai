@@ -7,8 +7,8 @@ import pytest
 from app.modules.calendar import library, runner
 from app.modules.calendar.config import CalendarConfig
 from app.modules.calendar.store import Store
-from app.modules.social.config import SocialConfig
-from app.modules.social.publisher import PublishError, Result
+from app.platform.meta_graph.config import SocialConfig
+from app.platform.meta_graph.publisher import PublishError, Result
 
 from ..fakes import FakeDb
 
@@ -333,3 +333,28 @@ async def test_dry_run_publishes_nothing_for_any_kind_and_does_not_render():
     counts = await run(store, pub, render, social=DRY, publish_reel=never, publish_showcase=never)
     assert counts["published"] == 2 and render.calls == [] and pub.posts == []
     assert (await store.get(r))["external_id"].startswith("dryrun_")
+
+
+async def test_a_post_that_went_out_is_never_posted_again_when_recording_it_failed(monkeypatch):
+    """The Graph post succeeded but saving 'published' failed (a database blip): the retry must not post a second time."""
+    monkeypatch.delenv("PUBLISH_LEDGER", raising=False)
+    store, pub, _ = make()
+    await add(store, library.ENTRIES[0].slug, "facebook_page", NOW - timedelta(minutes=5))
+    real = store.published
+    calls = {"n": 0}
+
+    async def flaky_published(*a, **kw):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise ConnectionError("mongo blip")
+        return await real(*a, **kw)
+
+    monkeypatch.setattr(store, "published", flaky_published)
+    first = await runner.run_once(store, pub, LIVE, CFG, NOW, uploads=UPLOADS)
+    assert len(pub.posts) == 1 and first["retry"] == 1
+    later = NOW + timedelta(seconds=runner.RETRY_AFTER_S + 1)
+    second = await runner.run_once(store, pub, LIVE, CFG, later, uploads=UPLOADS)
+    assert len(pub.posts) == 1  # still one post on the Page
+    assert second["published"] == 1  # the ledger knew the post was out: the slot is recorded as published, nothing re-sent
+    doc = (await store.all())[0]
+    assert doc["status"] == "published" and doc["external_id"] == "ext1"

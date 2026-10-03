@@ -3,7 +3,7 @@ import logging
 import httpx
 import pytest
 
-from app.modules.social.publisher import DryRunPublisher, Post, sanitize
+from app.platform.meta_graph.publisher import DryRunPublisher, Post, sanitize
 from app.modules.social.schemas import PublishIn
 
 from .test_social_helpers import REAL, TOKEN, Clock, FakeGraph, graph_service, make_db
@@ -123,8 +123,8 @@ async def test_instagram_permalink_failure_is_best_effort():
 
 
 async def test_instagram_caps_carousel_at_ten():
-    from app.modules.social.graph import GraphPublisher
-    from app.modules.social.publisher import Post
+    from app.platform.meta_graph.graph import GraphPublisher
+    from app.platform.meta_graph.publisher import Post
     g = FakeGraph({("POST", f"{V}/IG1/media"): lambda c: (200, {"id": f"C{len(g.calls)}"}),
                    ("GET", f"{V}/C11"): (200, {"status_code": "FINISHED"}), ("POST", f"{V}/IG1/media_publish"): (200, {"id": "M"})})
     pub = GraphPublisher(REAL, transport=g.transport())
@@ -187,8 +187,8 @@ async def test_one_channel_failing_does_not_stop_the_other():
 
 
 async def test_graph_publisher_itself_refuses_http_urls():
-    from app.modules.social.graph import GraphPublisher
-    from app.modules.social.publisher import PublishError
+    from app.platform.meta_graph.graph import GraphPublisher
+    from app.platform.meta_graph.publisher import PublishError
     g = FakeGraph()
     with pytest.raises(PublishError):
         await GraphPublisher(REAL, transport=g.transport()).publish(Post("facebook_page", "t", ["http://x.test/a.jpg"]))

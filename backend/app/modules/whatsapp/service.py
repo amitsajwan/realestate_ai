@@ -52,7 +52,7 @@ class WhatsAppService:
         self.convs = db.get_collection("whatsapp_conversations")
 
     def _clean(self, text) -> str:
-        from app.modules.social.publisher import sanitize
+        from app.platform.meta_graph.publisher import sanitize
         return sanitize(text, self.cfg.secrets)
 
     # ---- webhook intake (called in the request: fast, no network) -------------------------------------------------

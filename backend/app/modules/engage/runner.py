@@ -3,8 +3,9 @@ import asyncio
 import logging
 
 from app.core.database import get_database
-from app.modules.admin.controls import is_paused
-from app.modules.ai_listing.llm import default_llm
+from app.platform.controls import is_paused
+from app.platform.heartbeats import heartbeat
+from app.platform.llm import default_llm
 
 from .config import load
 from .graph import EngageGraph
@@ -52,14 +53,15 @@ async def loop() -> None:
     while True:
         cfg = load()
         try:
-            if cfg.enabled and cfg.page_id and cfg.page_token and await is_paused(get_database(), "comments_paused"):
-                log.info("engage: paused by owner, cycle skipped")
-            elif cfg.enabled and cfg.page_id and cfg.page_token:
-                db = get_database()
-                counts = await EngageService(db, EngageGraph(cfg), default_llm(), cfg, ig_graph=_ig(cfg),
-                                             interest_url=interest_resolver(db, cfg.owner_agent_id or "")).run_once()
-                if counts:
-                    log.info("engage: cycle done %s (dry_run=%s)", counts, cfg.dry_run)
+            async with heartbeat("engage", get_database, on=bool(cfg.enabled and cfg.page_id and cfg.page_token)):
+                if cfg.enabled and cfg.page_id and cfg.page_token and await is_paused(get_database(), "comments_paused"):
+                    log.info("engage: paused by owner, cycle skipped")
+                elif cfg.enabled and cfg.page_id and cfg.page_token:
+                    db = get_database()
+                    counts = await EngageService(db, EngageGraph(cfg), default_llm(), cfg, ig_graph=_ig(cfg),
+                                                 interest_url=interest_resolver(db, cfg.owner_agent_id or "")).run_once()
+                    if counts:
+                        log.info("engage: cycle done %s (dry_run=%s)", counts, cfg.dry_run)
         except asyncio.CancelledError:
             raise
         except Exception:  # never let one bad cycle stop the loop

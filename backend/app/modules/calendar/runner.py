@@ -13,10 +13,12 @@ from pathlib import Path
 from typing import Callable, Dict, Optional
 
 from app.core.database import get_database
-from app.modules.admin.controls import is_paused
-from app.modules.social.config import SocialConfig
-from app.modules.social.config import load as load_social
-from app.modules.social.publisher import DryRunPublisher, Post, sanitize
+from app.platform.controls import is_paused
+from app.platform.heartbeats import heartbeat
+from app.platform.meta_graph.config import SocialConfig
+from app.platform.meta_graph.config import load as load_social
+from app.modules.social.distribution import graph_publisher, send
+from app.platform.meta_graph.publisher import DryRunPublisher, Post, sanitize
 
 from . import adapters
 from .config import MAX_ATTEMPTS, RETRY_AFTER_S, CalendarConfig, load, uploads_dir
@@ -82,6 +84,11 @@ def _images(doc: dict) -> list:
     return list(doc.get("images") or ([doc["image_path"]] if doc.get("image_path") else []))
 
 
+def _once(store: Store, doc: dict, publish: Callable):
+    """Each calendar slot is posted at most once, even if recording the outcome fails and the slot is retried."""
+    return send(store.db, f"calendar:{doc['_id']}", publish, paused_flag="posting_paused")
+
+
 async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict, uploads: Path, render_reel: Callable, publish_reel: Callable,
                        publish_showcase: Callable) -> str:
     attempts = int(doc.get("attempts") or 0) + 1
@@ -99,9 +106,9 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
                 video = await asyncio.to_thread(render_reel, doc, uploads)
                 await store.set_video(doc["_id"], video)
                 doc = {**doc, "video": video}
-            res = await publish_reel(doc, social, uploads)
+            res = await _once(store, doc, lambda: publish_reel(doc, social, uploads))
         elif kind == "showcase":
-            res = await publish_showcase(doc, social, publisher, uploads)
+            res = await _once(store, doc, lambda: publish_showcase(doc, social, publisher, uploads))
         else:
             imgs = _images(doc)
             if not imgs:
@@ -112,7 +119,7 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
             if doc["channel"] == "facebook_page":
                 imgs = imgs[:1]  # a Facebook post carries one image
             urls = [f"{social.media_base_url}/uploads/{p}" for p in imgs]
-            res = await publisher.publish(Post(doc["channel"], doc["caption"], urls))
+            res = await _once(store, doc, lambda: publisher.publish(Post(doc["channel"], doc["caption"], urls)))
         await store.published(doc["_id"], res.external_id, res.permalink)
         await adapters.register_hub(store.db, doc, res.permalink or "")
         return "published"
@@ -132,18 +139,18 @@ async def loop() -> None:
     while True:
         cfg = load()
         try:
-            if cfg.enabled and await is_paused(get_database(), "posting_paused"):
-                log.info("calendar: paused by owner, cycle skipped")
-            elif cfg.enabled:
-                from app.modules.social.graph import GraphPublisher
-                social = load_social()
-                store = Store(get_database())
-                now = datetime.now(timezone.utc)
-                if rendering is None or rendering.done():  # reels render in the background so a pass is never held up for a minute
-                    rendering = asyncio.create_task(prerender_reels(store, now))
-                counts = await run_once(store, GraphPublisher(social), social, cfg, now)
-                if any(counts.values()):
-                    log.info("calendar: cycle done %s (dry_run=%s)", counts, social.dry_run)
+            async with heartbeat("calendar", get_database, on=cfg.enabled):
+                if cfg.enabled and await is_paused(get_database(), "posting_paused"):
+                    log.info("calendar: paused by owner, cycle skipped")
+                elif cfg.enabled:
+                    social = load_social()
+                    store = Store(get_database())
+                    now = datetime.now(timezone.utc)
+                    if rendering is None or rendering.done():  # reels render in the background so a pass is never held up
+                        rendering = asyncio.create_task(prerender_reels(store, now))
+                    counts = await run_once(store, graph_publisher(social), social, cfg, now)
+                    if any(counts.values()):
+                        log.info("calendar: cycle done %s (dry_run=%s)", counts, social.dry_run)
         except asyncio.CancelledError:
             if rendering and not rendering.done():
                 rendering.cancel()

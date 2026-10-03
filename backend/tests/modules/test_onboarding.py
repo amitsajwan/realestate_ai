@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.modules.onboarding.otp import OTPError, OTPService
-from app.modules.onboarding.phone import normalize_indian_mobile
+from app.platform.text import normalize_indian_mobile
 from app.modules.onboarding.schemas import SiteCreate
 from app.modules.onboarding.service import OnboardingService, default_branding, placeholder_email
 from app.modules.onboarding.slug import slugify, unique_slug

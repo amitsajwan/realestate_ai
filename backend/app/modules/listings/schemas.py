@@ -73,8 +73,8 @@ class Media(BaseModel):
         """Only our own enhanced uploads ('/uploads/images/<name>-enh.jpg', relative or on our host) are accepted."""
         if v is None or not v.strip():
             return None
-        from app.modules.photoquality.store import _local_path, is_enhanced_name
-        p = _local_path(v)
+        from app.platform.media import is_enhanced_name, upload_path
+        p = upload_path(v)
         if not p or not is_enhanced_name(p.rsplit("/", 1)[-1]):
             raise ValueError("enhanced_url must be an enhanced upload")
         return v.strip()
@@ -210,7 +210,7 @@ class PublicListing(BaseModel):
     @field_validator("media", mode="before")
     @classmethod
     def _chosen_photo(cls, v):
-        from app.modules.photoquality.store import public_media
+        from app.platform.media import public_media
         return public_media(v) if isinstance(v, list) else v
     created_at: datetime
     updated_at: datetime

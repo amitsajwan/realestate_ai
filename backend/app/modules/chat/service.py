@@ -10,7 +10,7 @@ from typing import Callable, List, Optional
 from app.core import brand
 from app.modules.knowledge.grounding import Ref, facts_for
 from app.modules.listings.freshness import is_hidden
-from app.modules.marketing.facts import money
+from app.platform.text import money
 from app.modules.notifications.service import notify
 from app.modules.tracking import matching
 from app.modules.tracking import requirement as rq

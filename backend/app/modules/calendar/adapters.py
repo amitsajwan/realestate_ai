@@ -19,15 +19,15 @@ from app.modules.creative import make as _creative_make
 from app.modules.creative import samples as _creative_samples
 from app.modules.creative.models import Brief, CreativePack
 from app.modules.reels import compose as _reel_compose
-from app.modules.reels import publish as _reel_publish
+from app.modules.social import reel_publish as _reel_publish
 from app.modules.reels import templates as _reel_templates
 from app.modules.showcase import captions as _show_captions
 from app.modules.showcase import publish as _show_publish
 from app.modules.showcase import render as _show_render
 from app.modules.showcase.samples import HOMES, Home
 from app.modules.showcase.samples import get as get_home
-from app.modules.social.config import SocialConfig
-from app.modules.social.publisher import PublishError, Result
+from app.platform.meta_graph.config import SocialConfig
+from app.platform.meta_graph.publisher import PublishError, Result
 
 from . import render as _cards
 from .library import SITE, Entry

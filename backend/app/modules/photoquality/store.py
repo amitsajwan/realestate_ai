@@ -11,33 +11,23 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
-from urllib.parse import urlparse
+from typing import Any, Dict, Optional
 
 import cv2
+
+from app.platform.media import enhanced_name, is_enhanced_name
 
 from .analysis import analyze, load_bgr
 from .enhance import enhance
 
 log = logging.getLogger(__name__)
 
-ENH_SUFFIX = "-enh"
 SIDECAR_SUFFIX = ".quality.json"
 MAX_SIDE = 2048
 IMPROVE_THRESHOLD = 5        # use the enhanced copy by default when the score rises by at least this much
 VERSION = 1                  # bump to invalidate sidecars after tuning
 PHOTO_EXT = {".jpg", ".jpeg", ".png", ".webp"}
-UPLOAD_IMAGE_RE = re.compile(r"^/uploads/images/([A-Za-z0-9][A-Za-z0-9._-]{0,200})$")
-
-
-def enhanced_name(name: str) -> str:
-    return f"{Path(name).stem}{ENH_SUFFIX}.jpg"
-
-
-def is_enhanced_name(name: str) -> bool:
-    return Path(name).stem.endswith(ENH_SUFFIX)
 
 
 def _sidecar(path: Path) -> Path:
@@ -90,41 +80,3 @@ def process_file(path: Path, url_prefix: str = "/uploads/images") -> Dict[str, A
     except Exception:
         log.warning("photoquality: could not process %s", path.name, exc_info=True)
         return {}
-
-
-# ---- choosing what to show --------------------------------------------------------------------------
-def _local_path(url: Optional[str]) -> Optional[str]:
-    """'/uploads/images/x.jpg' for any url (relative or absolute) pointing at our uploads; None otherwise."""
-    if not url or not isinstance(url, str):
-        return None
-    try:
-        p = urlparse(url.strip()).path or ""
-    except ValueError:
-        return None
-    m = UPLOAD_IMAGE_RE.match(p)
-    return p if m and ".." not in m.group(1) else None
-
-
-def display_url(m: Dict[str, Any]) -> str:
-    """The URL to show for a media record: the enhanced copy when the agent kept 'Use enhanced' on and it is one of our
-    own uploads, otherwise the original."""
-    url = m.get("url") or ""
-    enh = m.get("enhanced_url")
-    if m.get("use_enhanced") and _local_path(enh):
-        # keep the original's host so absolute and relative urls stay alike
-        orig = _local_path(url)
-        if orig and url != orig:
-            return url[: len(url) - len(orig)] + _local_path(enh)
-        return enh
-    return url
-
-
-def public_media(media: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Media for public pages: the chosen url only (no quality details, no second url)."""
-    out = []
-    for m in media or []:
-        if hasattr(m, "model_dump"):
-            m = m.model_dump()
-        if isinstance(m, dict):
-            out.append({"url": display_url(m), "kind": m.get("kind") or "image", "order": m.get("order") or 0})
-    return out

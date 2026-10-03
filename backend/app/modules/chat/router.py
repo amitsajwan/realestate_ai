@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from app.core.auth_backend import current_active_user
 from app.core.database import get_database
 from app.models.user import User
-from app.modules.ai_listing.llm import default_llm
+from app.platform.llm import default_llm
 from app.modules.tracking.service import TrackingService
 
 from .service import ChatError, ChatService

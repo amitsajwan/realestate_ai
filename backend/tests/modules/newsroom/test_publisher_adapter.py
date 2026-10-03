@@ -5,8 +5,10 @@ import httpx
 import pytest
 
 from app.modules.newsroom.adapters import SocialPublisher
-from app.modules.social.config import SocialConfig
-from app.modules.social.publisher import PublishError
+from app.platform.meta_graph.config import SocialConfig
+
+from ..fakes import FakeDb
+from app.platform.meta_graph.publisher import PublishError
 
 from .helpers import NOW
 
@@ -20,7 +22,7 @@ def make(handler, cfg=REAL):
     def h(req):
         seen.append(req)
         return handler(req)
-    return SocialPublisher(cfg, transport=httpx.MockTransport(h), clock=lambda: NOW), seen
+    return SocialPublisher(cfg, transport=httpx.MockTransport(h), clock=lambda: NOW, db=FakeDb()), seen
 
 
 async def test_dry_run_makes_no_network_call():

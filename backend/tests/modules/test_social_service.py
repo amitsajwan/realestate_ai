@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 import httpx
 import pytest
 
-from app.modules.social import config
-from app.modules.social.config import SocialConfig
+from app.platform.meta_graph import config
+from app.platform.meta_graph.config import SocialConfig
 from app.modules.social.schemas import PublishIn
 from app.modules.social.service import CONSENT_TEXT, SocialError, SocialService, build_payload, rebase
 

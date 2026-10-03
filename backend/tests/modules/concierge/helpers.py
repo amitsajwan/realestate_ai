@@ -2,11 +2,12 @@
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 
+from app.modules.concierge.attribution import attribution_text, register_hub_item
 from app.modules.concierge.service import ConciergeService
 from app.modules.listings.service import ListingService
 from app.modules.onboarding.invites import InviteService
 from app.modules.onboarding.service import OnboardingService
-from app.modules.social.config import SocialConfig
+from app.platform.meta_graph.config import SocialConfig
 from app.modules.social.service import SocialService
 
 from ..listings_fakes import ListingsDb
@@ -56,7 +57,9 @@ def make(db=None, config=DRY):
 
     onboarding = OnboardingService(db, invites, users, no_token, "https://pune.test", branding=fake_branding)
     svc = ConciergeService(db, invites=invites, onboarding=onboarding, users=users, listings=ListingService(db, now=clock),
-                           social=SocialService(db, config_loader=lambda: config), site_url="https://pune.test", now=clock)
+                           social=SocialService(db, config_loader=lambda: config, attribution=attribution_text,
+                                                on_instagram_published=register_hub_item),  # as wired by concierge.router
+                           site_url="https://pune.test", now=clock)
     return svc, db, invites
 
 

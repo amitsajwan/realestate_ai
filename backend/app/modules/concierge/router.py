@@ -17,7 +17,7 @@ from app.core.database import get_database
 from app.models.user import User
 from app.modules.listings.schemas import ListingCreate, ListingUpdate
 from app.modules.listings.service import ListingError, ListingService
-from app.modules.onboarding.phone import normalize_indian_mobile
+from app.platform.text import normalize_indian_mobile
 
 from . import config
 from .service import ConciergeError, ConciergeService
@@ -64,6 +64,8 @@ def get_service() -> ConciergeService:
     from app.modules.onboarding.invites import InviteService
     from app.modules.onboarding.service import BeanieUserStore, OnboardingService
     from app.modules.social.service import SocialService
+
+    from .attribution import attribution_text, register_hub_item
     db = get_database()
     invites, users = InviteService(db, settings.jwt_secret_key), BeanieUserStore()
 
@@ -73,7 +75,8 @@ def get_service() -> ConciergeService:
     from app.modules.reels.router import get_jobs
     return ConciergeService(
         db, invites=invites, users=users, onboarding=OnboardingService(db, invites, users, no_token, settings.public_site_url),
-        listings=ListingService(db), social=SocialService(db), site_url=settings.public_site_url,
+        listings=ListingService(db), site_url=settings.public_site_url,
+        social=SocialService(db, attribution=attribution_text, on_instagram_published=register_hub_item),
         marketing=MarketingService(db, Path(settings.upload_directory), settings.public_site_url, polish=default_polish()),
         reels=get_jobs())
 

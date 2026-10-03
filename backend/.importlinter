@@ -1,0 +1,132 @@
+; Import rules from docs/ARCHITECTURE.md, checked in CI by `lint-imports` (run from backend/).
+; `ignore_imports` lists the violations that existed when a rule was introduced (the baseline). The list may only shrink:
+; fix an import, then delete its line. A line that no longer matches anything fails the check, so the list cannot go stale.
+
+[importlinter]
+root_package = app
+exclude_type_checking_imports = True
+
+[importlinter:contract:platform]
+name = The platform imports no business code
+type = forbidden
+source_modules =
+    app.platform
+forbidden_modules =
+    app.modules
+    app.api
+    app.routers
+    app.services
+    app.repositories
+    app.schemas
+
+[importlinter:contract:modules-no-legacy]
+name = New modules never import the old layer
+type = forbidden
+source_modules =
+    app.modules
+forbidden_modules =
+    app.api
+    app.routers
+    app.services
+    app.repositories
+    app.schemas
+
+[importlinter:contract:domains]
+name = Domains import only downward (apps > content, conversations > distribution > buyers > inventory > identity)
+type = layers
+containers =
+    app.modules
+layers =
+    admin : concierge
+    newsroom : calendar : showcase : marketing : creative : reels : photoquality : engage : chat : whatsapp : knowledge : notifications
+    social
+    tracking : interest : report
+    listings : ai_listing
+    onboarding : waitlist
+; The baseline of 8 exceptions recorded on 2026-10-03 was cleared by step 5: this rule now has none.
+
+[importlinter:contract:core-platform]
+name = The platform parts of core (config, database, auth, region, brand, indexes, User) import no business code
+type = forbidden
+source_modules =
+    app.core.config
+    app.core.database
+    app.core.auth_backend
+    app.core.region
+    app.core.brand
+    app.core.indexes
+    app.models.user
+forbidden_modules =
+    app.modules
+    app.api
+    app.routers
+    app.services
+    app.repositories
+    app.schemas
+
+[importlinter:contract:siblings-conv]
+name = Conversations do not import content
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    app.modules.engage
+    app.modules.chat
+    app.modules.whatsapp
+    app.modules.knowledge
+    app.modules.notifications
+forbidden_modules =
+    app.modules.newsroom
+    app.modules.calendar
+    app.modules.showcase
+    app.modules.marketing
+    app.modules.creative
+    app.modules.reels
+    app.modules.photoquality
+
+[importlinter:contract:siblings-content]
+name = Content does not import conversations
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    app.modules.newsroom
+    app.modules.calendar
+    app.modules.showcase
+    app.modules.marketing
+    app.modules.creative
+    app.modules.reels
+    app.modules.photoquality
+forbidden_modules =
+    app.modules.engage
+    app.modules.chat
+    app.modules.whatsapp
+    app.modules.knowledge
+    app.modules.notifications
+
+[importlinter:contract:one-way-out]
+name = Only distribution (social) talks to the Graph API to publish (docs/ARCHITECTURE.md §7)
+type = forbidden
+source_modules =
+    app.modules.admin
+    app.modules.ai_listing
+    app.modules.calendar
+    app.modules.chat
+    app.modules.concierge
+    app.modules.creative
+    app.modules.engage
+    app.modules.interest
+    app.modules.knowledge
+    app.modules.listings
+    app.modules.marketing
+    app.modules.newsroom
+    app.modules.notifications
+    app.modules.onboarding
+    app.modules.photoquality
+    app.modules.reels
+    app.modules.report
+    app.modules.showcase
+    app.modules.tracking
+    app.modules.waitlist
+    app.modules.whatsapp
+forbidden_modules =
+    app.platform.meta_graph.graph
+allow_indirect_imports = True

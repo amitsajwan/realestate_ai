@@ -6,7 +6,7 @@ import pytest
 
 from app.modules.calendar.guards import FRONTEND, PREDICT, PRICE
 from app.modules.knowledge.areas import AREAS, area_facts, normalise
-from app.modules.marketing.polish import HYPE, PHONE
+from app.platform.text import HYPE, PHONE
 
 LOC = FRONTEND / "lib" / "marketing" / "localities.ts"
 INS = FRONTEND / "lib" / "marketing" / "insights.ts"

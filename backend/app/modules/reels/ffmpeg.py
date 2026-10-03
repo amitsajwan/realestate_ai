@@ -7,7 +7,7 @@ import threading
 from dataclasses import dataclass
 from typing import Iterable, List, Optional
 
-from app.modules.social.publisher import sanitize
+from app.platform.meta_graph.publisher import sanitize
 
 DEFAULT_TIMEOUT_S = 600.0
 

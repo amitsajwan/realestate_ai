@@ -7,7 +7,7 @@ The review is advice: it never blocks approval.
 """
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Literal, Optional
+from typing import Any, Awaitable, Callable, Dict, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -36,44 +36,30 @@ def get_reviewer() -> Callable:
     return review
 
 
-def _is_owner(user: User, ids) -> bool:
-    return bool(getattr(user, "is_superuser", False)) or str(user.id) in ids
+# Passed in at startup (app/wiring.py):
+#   is_operator(user) -> the operator console's check: an operator may review any agent's listing cards;
+#   resolvers[kind](item_id, user, db) -> (image paths, context) for that kind's item, raising 403/404 itself
+#   (the calendar and the newsroom own their items and who may review them).
+_hooks: Dict[str, Any] = {"is_operator": lambda user: False, "resolvers": {}}
+Resolver = Callable[[str, User, Any], Awaitable[tuple]]
 
 
-def _calendar_owner(user: User) -> bool:
-    from app.modules.calendar.config import load
-    return _is_owner(user, load().owner_ids)
+def configure(is_operator: Callable[[User], bool], resolvers: Dict[str, Resolver]) -> None:
+    _hooks.update(is_operator=is_operator, resolvers=dict(resolvers))
 
 
-def _news_owner(user: User) -> bool:
-    from app.modules.newsroom.config import load
-    return _is_owner(user, load().owner_ids)
-
-
-def _concierge_owner(user: User) -> bool:
-    from app.modules.concierge import config
-    return _is_owner(user, config.owner_ids())
+def _operator(user: User) -> bool:
+    return bool(getattr(user, "is_superuser", False)) or _hooks["is_operator"](user)
 
 
 async def resolve(body: ReviewIn, user: User, db) -> tuple:
-    if body.kind == "calendar":
-        if not _calendar_owner(user):
-            raise HTTPException(403, "Only the owner can review calendar posts")
-        from app.modules.calendar.store import COLLECTION
-        doc = await db.get_collection(COLLECTION).find_one({"_id": body.id})
-        if not doc:
+    if body.kind != "listing":
+        resolver = _hooks["resolvers"].get(body.kind)
+        if resolver is None:
             raise HTTPException(404, "Item not found")
-        return targets.calendar_target(doc)
-    if body.kind == "news":
-        if not _news_owner(user):
-            raise HTTPException(403, "Only the owner can review news posts")
-        from app.modules.newsroom.store import ITEMS
-        doc = await db.get_collection(ITEMS).find_one({"_id": body.id})
-        if not doc:
-            raise HTTPException(404, "Item not found")
-        return targets.news_target(doc)
+        return await resolver(body.id, user, db)
     listing = await db.get_collection("listings").find_one({"_id": body.id})
-    if not listing or (str(listing.get("agent_id")) != str(user.id) and not _concierge_owner(user)):
+    if not listing or (str(listing.get("agent_id")) != str(user.id) and not _operator(user)):
         raise HTTPException(404, "Listing not found")
     pack = await db.get_collection("marketing_packs").find_one({"_id": body.id}) or {}
     return targets.listing_target(pack, listing)

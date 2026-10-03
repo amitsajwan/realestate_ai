@@ -11,7 +11,7 @@ from app.modules.calendar import adapters, builder, library
 from app.modules.calendar.plan import Item
 from app.modules.creative import copywriter, guards, strategist
 from app.modules.creative.models import Brief
-from app.modules.social.config import SocialConfig
+from app.platform.meta_graph.config import SocialConfig
 
 NUM = re.compile(r"\d+")
 

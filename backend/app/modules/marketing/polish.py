@@ -8,6 +8,8 @@ import logging
 import re
 from typing import Awaitable, Callable, Dict, List, Optional
 
+from app.platform.text import HYPE, PHONE, clean_llm_text
+
 from .content import CAPTION_MAX, FB_MAX, HEADLINE_MAX, STATUS_MAX, WA_MAX
 from .facts import Facts
 
@@ -24,10 +26,6 @@ def required_facts(draft: str, f: Facts) -> List[str]:
     need += re.findall(r"https?://\S+", draft)  # every link (share link, channel-tagged copies) must survive
     need += [k for k in ("INTERESTED", f.agent_name) if k and k in draft]  # the call to action and the team signature stay
     return need
-
-
-HYPE = re.compile(r"\b(best|guarantee\w*|lowest|cheapest|perfect|dream|unbeatable|no\.? ?1|luxurious)\b", re.I)
-PHONE = re.compile(r"(?<!\d)(?:\+?91[\s-]?)?[6-9]\d{9}(?!\d)")
 
 
 def clean_of_new_claims(draft: str, polished: str) -> bool:
@@ -53,23 +51,6 @@ POLISH_SYSTEM = (
 )
 
 
-CHATTER = re.compile(r"^(of course|sure|certainly|absolutely|okay|ok|here(?:'s| is| are)|rewritten|below is)\b[^\n]*$", re.I)
-
-
-def clean_llm_text(out: str) -> str:
-    """Drop what chatty models wrap around the answer: code fences, surrounding quotes and 'Here is the rewritten post:' lines."""
-    text = (out or "").strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```[a-z]*\n?|```$", "", text).strip()
-    lines = text.split("\n")
-    while len(lines) > 1 and (CHATTER.match(lines[0].strip()) or not lines[0].strip()):
-        lines.pop(0)
-    text = "\n".join(lines).strip()
-    if len(text) > 1 and text[0] in "\"'\u201c" and text[-1] in "\"'\u201d":
-        text = text[1:-1].strip()
-    return text
-
-
 def make_llm_polish(llm) -> Polish:
     """A Polish backed by an LLM client that has `text(system, user)`. Its output still goes through accept()."""
     async def polish(draft: str, language: str) -> str:
@@ -86,7 +67,7 @@ def default_polish() -> Optional[Polish]:
 
     if (os.environ.get("MARKETING_POLISH") or "").strip().lower() not in ("1", "true", "yes", "on"):
         return None
-    from app.modules.ai_listing.llm import default_llm
+    from app.platform.llm import default_llm
     llm = default_llm()
     return make_llm_polish(llm) if llm is not None else None
 

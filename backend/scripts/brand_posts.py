@@ -48,7 +48,7 @@ async def delete_old():
     """Delete earlier copies of the starter posts (matched by their exact first caption line; nothing else is touched)."""
     import httpx
 
-    from app.modules.social.config import load
+    from app.platform.meta_graph.config import load
 
     cfg = load()
     firsts = {p["caption"].split(chr(10))[0] for p in POSTS}
@@ -71,9 +71,9 @@ def ig_caption(caption: str) -> str:
 
 
 async def publish_instagram(only):
-    from app.modules.social.config import load
-    from app.modules.social.graph import GraphPublisher
-    from app.modules.social.publisher import Post
+    from app.platform.meta_graph.config import load
+    from app.platform.meta_graph.graph import GraphPublisher
+    from app.platform.meta_graph.publisher import Post
 
     cfg = replace(load(), dry_run=False)
     if not (cfg.ig_id and cfg.page_token and cfg.media_url_ok):
@@ -90,9 +90,9 @@ async def publish_instagram(only):
 
 
 async def publish(only):
-    from app.modules.social.config import load
-    from app.modules.social.graph import GraphPublisher
-    from app.modules.social.publisher import Post
+    from app.platform.meta_graph.config import load
+    from app.platform.meta_graph.graph import GraphPublisher
+    from app.platform.meta_graph.publisher import Post
 
     cfg = replace(load(), dry_run=False)
     if not (cfg.page_id and cfg.page_token and cfg.media_url_ok):

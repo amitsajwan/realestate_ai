@@ -11,6 +11,11 @@ def owner_ids() -> Tuple[str, ...]:
     return tuple(s.strip() for s in _env("CONCIERGE_OWNER_IDS").split(",") if s.strip())
 
 
+def is_operator(user) -> bool:
+    """The platform owner, who runs the concierge for agents (CONCIERGE_OWNER_IDS)."""
+    return str(user.id) in owner_ids()
+
+
 def owner_agent_ids() -> Tuple[str, ...]:
     """Agent ids whose listings are the platform owner's own (no 'Listed by' attribution): the owner's user ids
     plus the owner agent that receives interest in samples and educational posts."""

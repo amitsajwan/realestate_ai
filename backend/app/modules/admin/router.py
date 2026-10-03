@@ -16,7 +16,8 @@ from app.modules.concierge import config as concierge_config
 from app.modules.concierge.router import get_service as get_concierge, limiter
 from app.modules.concierge.service import ConciergeError
 
-from . import controls, health
+from app.platform import controls
+from . import health
 from .service import AdminError, AdminService
 
 router = APIRouter()
@@ -54,7 +55,7 @@ async def overview(user: User = Depends(owner_only), svc: AdminService = Depends
     from app.modules.calendar.config import load as load_calendar
     from app.modules.engage.config import load as load_engage
     from app.modules.newsroom.config import load as load_newsroom
-    from app.modules.social.config import load as load_social
+    from app.platform.meta_graph.config import load as load_social
     from app.modules.whatsapp.config import load as load_wa
     ctl = await svc.controls()
     cal_run, news_run = await svc.run_status("calendar_status"), await svc.run_status("newsroom_status")

@@ -183,7 +183,7 @@ def test_no_layout_twice_in_a_row_on_a_channel(built):
 
 
 def test_captions_are_clean_and_instagram_has_no_url(built):
-    from app.modules.marketing.polish import HYPE, PHONE
+    from app.platform.text import HYPE, PHONE
     _, rows, _, _ = built
     for r in rows:
         assert r["caption"].strip() and not PHONE.search(r["caption"]) and not HYPE.search(r["caption"]), r["slug"]
