@@ -2,7 +2,7 @@ import pytest
 from PIL import Image
 
 from app.modules.reels import compose, ffmpeg, templates
-from app.modules.reels.compose import SAFE_BOTTOM, SAFE_TOP, W, Scene, TextLine
+from app.modules.reels.compose import H, W, Scene, TextLine
 
 
 # ---- timing maths (pure) -----------------------------------------------------------------------------------------
@@ -58,26 +58,46 @@ def test_short_tours_and_tips_are_stretched_to_the_minimum_length():
 
 
 # ---- layout: safe zones, text rules ------------------------------------------------------------------------------------
+# Instagram draws its caption / account row / bottom bar over roughly the last 20-28% of a 9:16 reel and its buttons over the
+# right ~12%; the top ~12% holds the 'Reels' bar. Every text line and the CTA must sit in y [14%, 72%] and x [0, 88%].
+ZONE_TOP, ZONE_BOTTOM, ZONE_RIGHT = 0.14 * H, 0.72 * H, 0.88 * W
+
+
 def _all_scenes():
     tip, _ = templates.tip_reel(templates.TIP_LINES)
     pitch, _ = templates.agent_pitch()
     facts = {**templates.SAMPLE_FACTS["wagholi"], "price_text": "Rs 1.2 Cr", "furnishing": "Semi-furnished"}
     tour, _ = templates.listing_tour([Image.new("RGB", (1600, 1000), "gray")], facts, sample=True)
-    return tip + pitch + tour + [compose.end_scene()]
+    plain, _ = templates.listing_tour(["a.jpg", "b.jpg"], templates.SAMPLE_FACTS["kharadi"])
+    # as rendered: the last scene of each reel carries the brand mark; the optional end card is checked too
+    return [s for group in (tip, pitch, tour, plain) for s in compose.finish_scenes(group)] + [compose.end_scene()]
 
 
-def test_every_text_box_is_inside_the_instagram_safe_zone():
+def _in_zone(box) -> bool:
+    x0, y0, x1, y1 = box
+    return x0 >= 0 and x1 <= ZONE_RIGHT and y0 >= ZONE_TOP and y1 <= ZONE_BOTTOM
+
+
+def test_every_text_box_of_every_template_is_inside_the_instagram_safe_zone():
     for sc in _all_scenes():
         for it in compose.layout_scene(sc):
-            x0, y0, x1, y1 = it.box
-            assert x0 >= compose.SIDE - 1 and x1 <= W - compose.SIDE + 1, sc.lines
-            assert y0 >= SAFE_TOP and y1 <= SAFE_BOTTOM, (sc.lines, it.box)
+            assert _in_zone(it.box), (sc.lines, sc.kind, it.box)
+        if sc.badge:
+            assert _in_zone(compose._chip_item(sc.badge, compose.CONTENT_TOP - 4, "left", filled=False).box)
+    assert _in_zone(compose._tag_item().box)   # the brand tag row under the progress bar
+
+
+def test_lower_layout_text_and_the_cta_sit_above_the_caption_area():
+    sc, _ = templates.listing_tour(["a.jpg", "b.jpg"], templates.SAMPLE_FACTS["kharadi"])
+    cta = compose.layout_scene(compose.finish_scenes(sc)[-1])
+    assert max(it.box[3] for it in cta) <= ZONE_BOTTOM and max(it.box[2] for it in cta) <= ZONE_RIGHT
 
 
 def test_long_text_shrinks_to_fit_instead_of_leaving_the_zone():
-    sc = Scene(lines=[TextLine("word " * 60, size=120)], kicker="Kicker")
-    for it in compose.layout_scene(sc):
-        assert it.box[1] >= SAFE_TOP and it.box[3] <= SAFE_BOTTOM
+    for align in ("left", "center"):
+        sc = Scene(lines=[TextLine("word " * 60, size=120)], kicker="Kicker", align=align, brand_mark=True)
+        for it in compose.layout_scene(sc):
+            assert _in_zone(it.box), it.box
 
 
 def test_phone_numbers_are_rejected():
@@ -170,7 +190,8 @@ def test_frame_zero_shows_the_complete_hook_and_later_scenes_still_animate():
     x0, y0, x1, y1 = first.items[1].box     # items[0] is the kicker chip
     crop0, crop1 = f0.crop((x0, y0, x1, y1)), f1.crop((x0, y0, x1, y1))
     assert max(p[0] for p in crop0.getdata()) >= 250   # pure white glyphs, not a half-faded grey
-    assert crop0.getextrema() == crop1.getextrema()
+    white = lambda im: sum(1 for p in im.getdata() if min(p) >= 245)
+    assert white(crop0) >= 0.9 * white(crop1) > 0   # as much of the headline painted at t=0 as a second later
 
 
 def test_cover_is_the_hook_scene_fully_visible_without_the_progress_bar():

@@ -3,7 +3,9 @@ photo, eased text animation, cross-fade or slide transitions, progress bar, a sm
 No separate end card by default: a 'Follow for more' card is a dead end that breaks the loop (pass end_card=True to get one).
 
 Output: H.264 (yuv420p, High profile), 1080x1920, 30 fps, AAC stereo audio (silent unless `music` is given), faststart, < 30 s.
-Text stays inside the Instagram safe zone: nothing in the top 10% or bottom 20% of the frame (see SAFE_TOP / SAFE_BOTTOM).
+Text stays inside the Instagram safe zone: every text line and the CTA between 14% and 72% of the height (TEXT_TOP / TEXT_BOTTOM;
+Instagram's caption, account row and the bottom bar cover roughly the last 20-28%) and left of the right 12% (TEXT_RIGHT: the like,
+comment and share buttons). Only the thin progress bar sits above TEXT_TOP.
 """
 from app.core import brand
 import os
@@ -25,8 +27,12 @@ MIN_SECONDS = 8.0             # shorter than this and a tour/tip reel feels like
 MAX_BYTES = 20 * 1024 * 1024
 SAFE_TOP = int(H * 0.10)      # 192: Instagram's top bar
 SAFE_BOTTOM = int(H * 0.80)   # 1536: caption, account name, buttons
+TEXT_TOP = -(-H * 14 // 100)   # 269: no text above (the top bar and its icons)
+TEXT_BOTTOM = int(H * 0.72)   # 1382: no text below (caption, account row, audio line, bottom bar)
+TEXT_RIGHT = int(W * 0.88)    # 950: no text right of this (like / comment / share / remix buttons)
 SIDE = 72
-TEXT_W = W - 2 * SIDE
+TEXT_W = TEXT_RIGHT - SIDE                 # 878: left-aligned lines run from SIDE to TEXT_RIGHT
+TEXT_W_CENTER = W - 2 * (W - TEXT_RIGHT)   # 820: centred lines keep the same margin on both sides
 WHITE = (255, 255, 255)
 SOFT = (226, 232, 243)
 INK = (24, 30, 44)
@@ -36,7 +42,8 @@ TAGLINE = brand.TAGLINE
 # a run of 9+ digits that does not start inside a word: 'A51800012345' (a MahaRERA agent number) is not a phone number
 PHONE_RE = re.compile(r"(?<![A-Za-z0-9])(?:\+?\d[\s\-]?){9,}")
 PAD = 28
-CONTENT_TOP = SAFE_TOP + 150   # below the brand tag row
+TAG_Y = TEXT_TOP               # the brand tag row (logo + name), under the progress bar
+CONTENT_TOP = TAG_Y + 94       # 362: below the brand tag row
 
 
 class ReelError(Exception):
@@ -296,8 +303,9 @@ def layout_scene(scene: Scene) -> List[Item]:
     align = scene.align or ("center" if scene.layout == "center" else "left")
     lines = [l if isinstance(l, TextLine) else TextLine(l) for l in scene.lines]
     lines = [l for l in lines if l.text]
-    bottom = SAFE_BOTTOM - 56
+    bottom = TEXT_BOTTOM
     avail = bottom - CONTENT_TOP
+    max_w = TEXT_W if align == "left" else TEXT_W_CENTER
     shrink = 1.0
     for _ in range(10):
         blocks = []
@@ -307,15 +315,18 @@ def layout_scene(scene: Scene) -> List[Item]:
             weight, color, mx = tl.weight or weight, tl.color or color, tl.max_lines or mx
             fnt = load_font(size, weight)
             toks = _tokens(tl.text)
-            wr = _wrap_balanced(toks, fnt, TEXT_W)
+            wr = _wrap_balanced(toks, fnt, max_w)
             while len(wr) > mx and size > 34:
                 size -= 4
                 fnt = load_font(size, weight)
-                wr = _wrap_balanced(toks, fnt, TEXT_W)
+                wr = _wrap_balanced(toks, fnt, max_w)
             blocks.append([(ln, fnt, color) for ln in wr])
         chip_h = 64 + 36 if scene.kicker else 0
         mark_h = MARK_D + 40 if scene.brand_mark else 0
         total = mark_h + chip_h + sum(len(b) * int(b[0][1].size * 1.17) + 30 for b in blocks) - (30 if blocks else 0)
+        if blocks:  # the last line's glyph box (ascent + descent) can reach below its line step
+            last = blocks[-1][-1][1]
+            total += max(0, sum(last.getmetrics()) - int(last.size * 1.17))
         if total <= avail:
             break
         shrink *= 0.9
@@ -480,7 +491,7 @@ def _tag_item() -> Item:
         img.alpha_composite(badge, (PAD, PAD))
     shadow = _shadowed(tw, 40, lambda d, dx, dy, m: d.text((dx, dy), BRAND, font=font, fill=255 if m == "shadow" else (*WHITE, 255)))
     img.alpha_composite(shadow, (64 + 18, PAD + 10 - PAD))
-    y = SAFE_TOP + 40
+    y = TAG_Y
     return Item(img, SIDE - PAD, y - PAD, (SIDE, y, SIDE + w, y + h))
 
 
