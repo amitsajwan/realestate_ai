@@ -76,7 +76,7 @@ export const LANDING = {
     title: 'Get more property enquiries. Spend less time chasing them.',
     lead:
       'Avasetu gives Pune agents their own property website, makes the posts and reels, and turns every enquiry into a lead card that says what the buyer wants and who to call first.',
-    publishing: 'We create the content and publish it through Avasetu\'s Facebook and Instagram, marked "Listed by" you. Posting to your own Page and Instagram is coming.',
+    publishing: 'We create the content and publish it on your own Instagram and Facebook Page, and on Avasetu\'s too. Buyers can reach you on your WhatsApp. We set it all up with you.',
     cta: 'Join the free pilot',
     secondary: 'See an example agent page',
     signIn: 'Already invited? Sign in',
@@ -117,7 +117,7 @@ export const LANDING = {
       },
       {
         key: 'attract', label: 'Get discovered', title: 'Posts and reels, made for you',
-        body: 'Your own website, plus carousels and reels on Avasetu\'s Facebook and Instagram marked "Listed by" you, after you approve each one. Every post links back to your page.',
+        body: 'Your own website, plus carousels and reels on your own Instagram and Facebook Page, and on Avasetu\'s, after you approve each one. Every post links back to your page.',
       },
       {
         key: 'qualify', label: 'Get qualified leads', title: 'Every enquiry becomes a lead card',
@@ -155,19 +155,20 @@ export const LANDING = {
   },
   coming: {
     id: 'whats-coming',
-    heading: 'What is coming, and what is not ready yet',
+    heading: 'What you get, and what is next',
     today: 'Works today',
     todayItems: [
       'Your own website with your homes and builder projects',
       'Builder projects checked on MahaRERA, with the date we read the record',
-      'Carousels and reels on Avasetu\'s Facebook and Instagram, after you approve each one',
+      'Carousels and reels on your own Instagram and Facebook Page (and Avasetu\'s), after you approve each one',
+      'Your WhatsApp number on every post and page, with ready-to-send replies',
       'Enquiries with a summary of what each buyer wants',
       'Matching your buyers to new properties',
     ],
-    next: 'Coming later',
+    next: 'Next',
     nextItems: [
-      'Posting to your own Facebook Page and Instagram. This needs approval from Meta.',
-      'WhatsApp Business messages and automatic follow-ups to buyers.',
+      'Automatic follow-ups to buyers, sent only when you say so.',
+      'More areas of Pune, and more languages.',
     ],
   },
   faq: {
@@ -188,7 +189,7 @@ export const LANDING = {
       },
       {
         q: 'Do you post on my own Facebook and Instagram?',
-        a: 'Not yet. Today we post on Avasetu\'s Facebook Page and Instagram, marked "Listed by" you, after you approve each post. Posting to your own accounts needs Meta\'s approval and is coming.',
+        a: 'Yes. When you join, we connect your Facebook Page and Instagram with you, and posts go out there after you approve each one. They also go out on Avasetu\'s accounts, marked "Listed by" you, for extra reach.',
       },
       {
         q: 'Who can see my listings?',

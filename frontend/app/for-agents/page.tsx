@@ -181,8 +181,8 @@ export default function ForAgentsPage() {
           </div>
         </section>
 
-        {/* Cost, what is coming, trust */}
-        <section aria-label="Cost, what is coming and trust" className={section}>
+        {/* Cost, setup, trust */}
+        <section aria-label="Cost, setup and trust" className={section}>
           <div className={wrap + ' grid gap-4 md:grid-cols-3 print:!grid-cols-3 print:gap-[3mm]'}>
             <div className="fa-keep rounded-2xl border-2 border-[#f0b440] bg-[#fbf6ea] p-5 print:p-[3.5mm]">
               <h2 id="fa-cost" className="text-sm font-bold uppercase tracking-wide text-[#8a6410]">{C.cost.heading}</h2>

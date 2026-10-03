@@ -80,7 +80,7 @@ def offer(n: int) -> Rendered:
     y = c.text("We do the marketing. You do the closing.", c.left, y, c.right - c.left, 68, "bold", c.pal.ink, 3, min_size=50,
                role="headline") + 46
     for icon, title, body in (("home", "Your own property website", "Your homes and builder projects, on one link to share."),
-                              ("star", "Posts and reels, made for you", "Carousels and reels on Avasetu's Instagram and Facebook."),
+                              ("star", "Posts and reels, made for you", "On your own Instagram and Facebook Page, and on Avasetu's."),
                               ("check", "Projects checked on MahaRERA", "Completion date and homes booked, read from the record."),
                               ("bubble", "Every enquiry, a lead card", "What the buyer wants, and who to call first.")):
         c.circle((c.left + 38, y + 38), 38, c.pal.accent_fill)

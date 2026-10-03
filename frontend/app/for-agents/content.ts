@@ -38,7 +38,7 @@ export const FOR_AGENTS = {
     heading: 'What you get',
     items: [
       { title: 'Your own branded page', body: 'Your logo, your colours, your business name and your RERA agent number, with your homes and an enquiry form.' },
-      { title: 'Your listings, posted for you', body: `Posts on the ${BRAND_NAME} Facebook Page and Instagram, each credited "Listed by" you, with your consent.` },
+      { title: 'Your listings, posted for you', body: `Posts and reels on your own Instagram and Facebook Page, and on ${BRAND_NAME}'s, after you approve each one.` },
       { title: 'Leads in your inbox', body: 'Every buyer who taps interest or writes in arrives as a lead card in your studio, on your phone.' },
       { title: 'Weekly results', body: 'Each week: how many people viewed your homes, how many enquired, and what to do next.' },
     ],
@@ -46,15 +46,15 @@ export const FOR_AGENTS = {
   cost: {
     heading: 'What it costs',
     title: 'Free during the pilot',
-    body: 'There is no charge while the pilot runs. We will tell you before that changes.',
+    body: 'No charge during the pilot. After it, Avasetu stays low-cost: a small monthly fee, not a big subscription. We tell you the price before anything changes.',
   },
   coming: {
-    heading: 'What is coming',
+    heading: 'Set up with you',
     items: [
       'Your own WhatsApp number connected, so buyer messages reach you directly.',
-      'Posting to your own Facebook and Instagram pages, once Meta approves our app.',
+      'Your own Facebook Page and Instagram connected, so posts go out in your name.',
     ],
-    note: 'Until then, posts go out on the Avasetu pages and you share them in one tap.',
+    note: 'We do the setup with you when you join: it takes one short call.',
   },
   trust: {
     heading: 'How we keep it honest',

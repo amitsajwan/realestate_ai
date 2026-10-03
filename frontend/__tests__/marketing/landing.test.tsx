@@ -37,13 +37,13 @@ describe('landing page', () => {
     expect(container.textContent).toMatch(/invite-only/i)
   })
 
-  it('says what is coming, and makes clear early that posts go out through Avasetu, not the agent\'s own accounts', () => {
+  it('says what you get, early: posts on the agent\'s own Instagram and Facebook, set up with them', () => {
     render(<LandingPage />)
-    expect(screen.getByRole('heading', { name: /what is coming/i })).toBeInTheDocument()
-    expect(screen.getByText(/needs approval from meta/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /what you get, and what is next/i })).toBeInTheDocument()
     const hero = screen.getByRole('heading', { level: 1 }).closest('section')!
-    expect(within(hero).getByText(/publish it through avasetu/i)).toBeInTheDocument()
-    expect(within(hero).getByText(/posting to your own page and instagram is coming/i)).toBeInTheDocument()
+    expect(within(hero).getByText(/publish it on your own instagram and facebook page/i)).toBeInTheDocument()
+    expect(within(hero).getByText(/we set it all up with you/i)).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/is coming/i)
   })
 
   it('keeps the page short: no screenshot strip, no posts feed (they live on /posts)', () => {

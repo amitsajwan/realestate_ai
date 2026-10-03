@@ -12,7 +12,7 @@ describe('/for-agents brochure', () => {
   it('has one h1 and every section, in the brochure order', () => {
     const { container } = render(<ForAgentsPage />)
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-    const order = [/problem every agent knows/i, /four steps/i, /what you get/i, /what it costs/i, /what is coming/i, /keep it honest/i, /see it live/i, /request an invite/i]
+    const order = [/problem every agent knows/i, /four steps/i, /what you get/i, /what it costs/i, /set up with you/i, /keep it honest/i, /see it live/i, /request an invite/i]
     const h2s = Array.from(container.querySelectorAll('article h2')).map((h) => h.textContent || '')
     let at = -1
     for (const re of order) {
@@ -27,8 +27,8 @@ describe('/for-agents brochure', () => {
     const steps = Array.from(container.querySelectorAll('#how ol > li > p:first-child')).map((p) => (p.textContent || '').replace(/^\d/, '').trim())
     expect(steps).toEqual(['Create', 'Attract', 'Qualify', 'Close'])
     const text = container.textContent || ''
-    for (const must of [/hindi voice/i, /tap-to-show-interest/i, /BHK, budget, timing/i, /RERA agent number/i, /listed by/i, /weekly results/i,
-      /free during the pilot/i, /tell you before that changes/i, /own WhatsApp number/i, /once Meta approves/i,
+    for (const must of [/hindi voice/i, /tap-to-show-interest/i, /BHK, budget, timing/i, /RERA agent number/i, /your own instagram and facebook page/i, /weekly results/i,
+      /free during the pilot/i, /tell you the price before anything changes/i, /own WhatsApp number/i, /posts go out in your name/i,
       /nothing is sent to a buyer without you/i, /labelled as samples/i, /no invented AI percentages/i, /consent .* recorded/i]) {
       expect(text).toMatch(must)
     }
