@@ -1,5 +1,5 @@
 import { fixtureAgent, fixtureListing, fixtureListings } from './fixtures'
-import type { AgentProfile, ListingsPage, PublicListing, PublicProject } from './types'
+import type { AgentProfile, CatalogProject, ListingsPage, PublicListing, PublicProject } from './types'
 
 // Server-side data access for the public site. Server components need an ABSOLUTE url:
 // SITE_API_URL (server-only) > NEXT_PUBLIC_API_URL > http://localhost:8000.
@@ -118,4 +118,21 @@ export async function getSitemapEntries(): Promise<SitemapEntries> {
     getJson<{ items: SitemapEntries['projects'] }>('/api/v1/public/sitemap/projects'),
   ])
   return { listings: l.ok ? l.data.items : [], projects: p.ok ? p.data.items : [] }
+}
+
+/** Avasetu's shared project pages, optionally for one locality. Empty under fixtures or when the API is down (a list page then
+ *  says there is nothing yet rather than failing). */
+export async function getCatalog(locality?: string): Promise<CatalogProject[]> {
+  if (fixturesForced()) return []
+  const r = await getJson<{ items: CatalogProject[] }>('/api/v1/public/projects' + (locality ? '?locality=' + encodeURIComponent(locality) : ''))
+  return r.ok ? r.data.items : []
+}
+
+/** One shared project page, or null when there is no such project. An outage throws (see unavailable()). */
+export async function getCatalogProject(slug: string): Promise<CatalogProject | null> {
+  if (fixturesForced()) return null
+  const r = await getJson<CatalogProject>('/api/v1/public/projects/' + encodeURIComponent(slug))
+  if (r.ok) return r.data
+  if (r.notFound) return null
+  return unavailable()
 }

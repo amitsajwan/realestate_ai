@@ -145,3 +145,48 @@ async def test_sitemap_entries_list_live_projects_of_indexable_public_agents_onl
     await svc.upsert("A1", "draft-one", project(status="draft"))
     entries = await svc.sitemap_entries()
     assert [(e["agent_slug"], e["slug"]) for e in entries] == [("house-deal", "goyal-my-home")]
+
+
+async def _two_agents_same_project(svc, db):
+    """House Deal and a second agent both have Goyal My Home live (under different slugs); only House Deal's is checked."""
+    profiles = db.get_collection("agent_public_profiles")
+    await add_profile(db)
+    await profiles.insert_one({"_id": "A2", "agent_id": "A2", "slug": "zeta-homes", "is_public": True, "agent_name": "Zeta",
+                               "phone": "+919800000000", "branding_data": {"business_name": "Zeta Homes"}})
+    await svc.upsert("A1", "goyal-my-home", project())
+    await svc.check_maharera("A1", "goyal-my-home")
+    await svc.upsert("A2", "my-home-upper-kharadi", project())
+
+
+async def test_catalog_gives_one_page_per_checked_registration_with_every_agent():
+    svc, db, _ = make()
+    await _two_agents_same_project(svc, db)
+    await svc.upsert("A1", "unchecked", project(name="Not Read Yet", rera_no="P52100000001"))  # no MahaRERA read: not shared
+    items = await svc.catalog()
+    assert [p.slug for p in items] == ["goyal-my-home"]
+    p = items[0]
+    assert p.catalog_slug == "goyal-my-home" and p.rera.regno == "P52100078796"
+    assert [(a.slug, a.project_slug) for a in p.agents] == [("house-deal", "goyal-my-home"), ("zeta-homes", "my-home-upper-kharadi")]
+    assert p.agents[1].name == "Zeta Homes"  # the business name when the agent has one
+    assert [x.slug for x in await svc.catalog("upper kharadi")] == ["goyal-my-home"]
+    assert await svc.catalog("Wagholi") == []
+
+
+async def test_catalog_get_finds_by_any_agents_slug_and_hides_demo_and_preview():
+    svc, db, _ = make()
+    await _two_agents_same_project(svc, db)
+    assert (await svc.catalog_get("my-home-upper-kharadi")).slug == "goyal-my-home"
+    with pytest.raises(ProjectError):
+        await svc.catalog_get("nope")
+    await db.get_collection("agent_public_profiles").update_one({"_id": "A1"}, {"$set": {"branding_data": {"preview": True}}})
+    assert await svc.catalog() == []  # the only checked record is on a preview site
+
+
+async def test_agent_copy_points_to_the_shared_page():
+    svc, db, _ = make()
+    await _two_agents_same_project(svc, db)
+    assert (await svc.public_get("house-deal", "goyal-my-home")).catalog_slug == "goyal-my-home"
+    # the second agent's copy is not checked yet, but it is the same registration: it points to the same shared page
+    assert (await svc.public_get("zeta-homes", "my-home-upper-kharadi")).catalog_slug == "goyal-my-home"
+    await svc.upsert("A1", "other", project(name="Other", rera_no="P52100000001"))  # unchecked everywhere: no shared page
+    assert (await svc.public_get("house-deal", "other")).catalog_slug is None

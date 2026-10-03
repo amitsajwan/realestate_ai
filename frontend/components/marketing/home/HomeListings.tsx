@@ -5,11 +5,7 @@ import { isSampleListing } from '@/lib/site/format'
 import type { PublicListing } from '@/lib/site/types'
 import SectionHead from './SectionHead'
 import { wrap } from './shared'
-
-/** Agent-site colours that ListingCard reads, set to the Avasetu navy for this surface. */
-const CARD_THEME = {
-  '--site-primary': '#0f2340', '--site-on-primary': '#ffffff', '--site-secondary': '#0f2340', '--site-on-secondary': '#ffffff',
-} as React.CSSProperties
+import { AVASETU_SITE_VARS as CARD_THEME } from '@/lib/marketing/siteTheme'
 
 /** Only real homes: anything without an agent page or labelled as a sample is left out, and each home appears once. */
 export function realListings(items: PublicListing[]): PublicListing[] {

@@ -157,6 +157,29 @@ class PublicProject(BaseModel):
     booked_pct: Optional[int] = None
     completion_moved_months: Optional[int] = None  # how far MahaRERA's date moved since registration
     updated_at: Optional[str] = None
+    # Avasetu's shared page for this project (/projects/<catalog_slug>), when it has one: the agent's copy points search
+    # engines there. None until some agent's copy of the registration has been read on MahaRERA, and for demo or preview sites.
+    catalog_slug: Optional[str] = None
+
+
+class ProjectAgent(BaseModel):
+    """An agent who handles a project: where a buyer's enquiry goes."""
+    slug: str
+    name: str
+    phone: Optional[str] = None
+    photo: Optional[str] = None
+    project_slug: str  # the project's page on this agent's own site
+
+
+class CatalogProject(PublicProject):
+    """One project on Avasetu's own pages (/projects/<slug>), shared by every agent who handles it. The facts are the most
+    recently checked record; `agents` are the public agents who have it live."""
+    agents: List[ProjectAgent] = []
+
+
+class CatalogPage(BaseModel):
+    items: List[CatalogProject]
+    total: int
 
 
 class PublicProjectPage(BaseModel):

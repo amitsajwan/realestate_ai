@@ -93,6 +93,11 @@ export const HOME = {
     compareLabel: 'Comparing the three?',
     all: 'All area guides',
   },
+  projects: {
+    heading: 'New projects, checked on MahaRERA',
+    lead: 'Prices as quoted by local agents, with the completion date filed on MahaRERA and how many homes are booked.',
+    all: 'All projects',
+  },
   homes: {
     heading: 'Homes from local agents',
     lead: 'Listed by local agents. Open a home for the details and to send an enquiry.',

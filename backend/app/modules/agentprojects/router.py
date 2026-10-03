@@ -9,7 +9,7 @@ from app.core.database import get_database
 from app.models.user import User
 from app.modules.concierge.router import owner_only, writer
 
-from .schemas import SLUG, OwnerProject, ProjectIn, PublicProject, PublicProjectPage
+from .schemas import SLUG, CatalogPage, CatalogProject, OwnerProject, ProjectIn, PublicProject, PublicProjectPage
 from .service import ProjectError, ProjectService
 
 router = APIRouter()
@@ -49,6 +49,21 @@ async def check_project(agent_id: str, slug: str, user: User = Depends(writer("c
                         svc: ProjectService = Depends(get_service)):
     try:
         return await svc.check_maharera(agent_id, _slug(slug))
+    except ProjectError as e:
+        raise _http(e)
+
+
+@public_router.get("/projects", response_model=CatalogPage)
+async def catalog(locality: str = "", svc: ProjectService = Depends(get_service)):
+    """Avasetu's shared project pages: one per MahaRERA registration, with the agents who handle it."""
+    items = await svc.catalog(locality or None)
+    return CatalogPage(items=items, total=len(items))
+
+
+@public_router.get("/projects/{slug}", response_model=CatalogProject)
+async def catalog_project(slug: str, svc: ProjectService = Depends(get_service)):
+    try:
+        return await svc.catalog_get(_slug(slug))
     except ProjectError as e:
         raise _http(e)
 

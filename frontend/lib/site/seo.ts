@@ -99,5 +99,29 @@ export function projectMetadata(agent: AgentProfile, p: PublicProject, priceText
   const title = `${p.name}, ${p.locality} | ${agent.agent_name}`
   const description = truncate([priceText, p.positioning, 'MahaRERA ' + p.rera_no].filter(Boolean).join('. '), 160)
   const image = p.media.find((m) => m.kind === 'image')?.url
-  return withPreview(agent, build(title, description, agentPath(agent.slug, 'projects/' + p.slug), image))
+  const md = build(title, description, agentPath(agent.slug, 'projects/' + p.slug), image)
+  // Avasetu's shared page is the one to rank: every agent's copy of the project names it as the canonical address
+  if (p.catalog_slug) md.alternates = { canonical: siteOrigin() + '/projects/' + p.catalog_slug }
+  return withPreview(agent, md)
+}
+
+/** Metadata for Avasetu's shared project page (/projects/<slug>). */
+export function catalogProjectMetadata(p: PublicProject, priceText: string): Metadata {
+  const title = `${p.name}, ${p.locality}, Pune: prices and MahaRERA dates`
+  const description = truncate([priceText, p.positioning, 'MahaRERA ' + p.rera_no + ', completion date and homes booked from the public record'].filter(Boolean).join('. '), 160)
+  const image = p.media.find((m) => m.kind === 'image')?.url
+  return build(title, description, '/projects/' + p.slug, image ? absolute(image) : undefined)
+}
+
+const absolute = (u: string): string => (/^https?:/.test(u) ? u : siteOrigin() + u)
+
+/** ApartmentComplex data: only what the page shows. */
+export function projectJsonLd(p: PublicProject, url: string): Record<string, unknown> {
+  const photo = p.media.find((m) => m.kind === 'image')
+  return {
+    '@context': 'https://schema.org', '@type': 'ApartmentComplex', name: p.name, url,
+    address: { '@type': 'PostalAddress', streetAddress: p.address || undefined, addressLocality: p.locality, addressRegion: 'Maharashtra', postalCode: p.pincode || undefined, addressCountry: 'IN' },
+    image: photo ? [absolute(photo.url)] : undefined,
+    numberOfAccommodationUnits: p.rera?.units_total ?? undefined,
+  }
 }

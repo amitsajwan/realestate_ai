@@ -4,11 +4,12 @@ import { agentPath } from '@/lib/site/slug'
 import { bhkRange, formatDay, priceRange } from '@/lib/site/projects'
 import type { PublicProject } from '@/lib/site/types'
 
-/** A builder project on the agent's site. No photo: we show only images we have the right to use, so the card is typographic. */
-export default function ProjectCard({ agentSlug, p }: { agentSlug: string; p: PublicProject }) {
+/** A builder project on the agent's site. No photo: we show only images we have the right to use, so the card is typographic.
+ *  `href` overrides the link (Avasetu's shared /projects pages link to themselves, not to one agent's site). */
+export default function ProjectCard({ agentSlug, p, href }: { agentSlug?: string; p: PublicProject; href?: string }) {
   const done = formatDay(p.rera?.completion_now)
   return (
-    <Link href={agentPath(agentSlug, 'projects/' + p.slug)} data-testid="project-card"
+    <Link href={href ?? agentPath(agentSlug ?? '', 'projects/' + p.slug)} data-testid="project-card"
       className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 no-underline shadow-sm transition hover:border-[var(--site-primary)] hover:shadow-md">
       <div className="bg-[var(--site-primary)] px-4 pb-4 pt-3 text-[var(--site-on-primary)]">
         <p className="text-xs font-bold uppercase tracking-wide text-[var(--site-accent)]">{p.locality}</p>
