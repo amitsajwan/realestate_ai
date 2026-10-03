@@ -95,8 +95,8 @@ def source_name(doc: dict) -> str:
     names = [n for n in ((doc.get("draft") or {}).get("source_names") or []) if n and n.strip()]
     if names:
         return names[0].strip()
-    s = (doc.get("raw") or {}).get("source") or ""
-    return s.replace("_", " ").strip().title()
+    s = ((doc.get("raw") or {}).get("source") or "").replace("_", " ").strip()
+    return s if any(c.isupper() for c in s) else s.title()  # "MahaRERA" stays as written
 
 
 def is_google_redirect(url: str) -> bool:

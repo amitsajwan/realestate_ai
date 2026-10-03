@@ -169,3 +169,14 @@ async def test_llm_is_told_the_maharera_wording(monkeypatch):
     seen.clear()
     await draft_stage.draft(replace(MAHA, source="Times of India"), MAHA_FACTS, rel, "post", Llm())
     assert "Never say" not in seen[0]
+
+
+def test_source_name_keeps_its_capitals():
+    assert draft_stage._source_name(MAHA) == "MahaRERA"
+    assert draft_stage._source_name(replace(MAHA, source="times_of_india")) == "Times Of India"
+
+
+def test_a_question_starting_with_has_is_not_a_name():
+    res = check(_draft("VIKRAM MARQUEE in Kharadi was listed or updated on MahaRERA.\n\nHas anyone visited the site?"),
+                MAHA_FACTS, MAHA, NOW)
+    assert not any("Names not in the source" in p for p in res.problems), res.problems

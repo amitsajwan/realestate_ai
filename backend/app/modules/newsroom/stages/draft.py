@@ -66,7 +66,8 @@ def headline_only(item: RawItem) -> bool:
 
 
 def _source_name(item: RawItem) -> str:
-    return item.source.replace("_", " ").strip().title() if item.source else ""
+    s = (item.source or "").replace("_", " ").strip()
+    return s if any(c.isupper() for c in s) else s.title()  # "MahaRERA" stays as written; "times_of_india" -> "Times Of India"
 
 
 def _as_of(facts: Facts, item: RawItem) -> str:

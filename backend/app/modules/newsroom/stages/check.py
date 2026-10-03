@@ -34,6 +34,7 @@ latest please read save see share should so still tell thanks thank today update
 house houses people families city area areas road roads metro line station project projects notice notices rules rule rate rates
 loan loans important key quick short good note notes status checking heads ask compare confirm visit talk read look find try make keep use take get wait watch review verify approvals plans approval timeline timelines dates date notices official officials""".split())
 COMMON |= {"heads-up", "kharadi's", "pune's"}
+COMMON |= set("has had am could may might must shall isn't aren't hasn't haven't".split())  # questions open with these: "Has anyone visited...?"
 # ordinary adjectives, determiners and verbs that start sentences in plain-English posts
 COMMON |= set("""local nearby recent upcoming major minor big small many several such other another every each any both few various current
 future official regular typical early late daily public private general open clear simple useful helpful proposed planned approved
