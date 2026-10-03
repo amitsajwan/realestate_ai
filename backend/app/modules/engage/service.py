@@ -7,17 +7,24 @@ per person per day; our own comments, threaded replies, spam and abuse are never
 import logging
 import uuid
 from datetime import datetime, timedelta
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import quote
 
 from app.modules.knowledge.grounding import Ref, facts_for
-from app.modules.marketing.facts import Facts
 
 from .brain import Decision, decide
 from .config import EngageConfig
 from .graph import EngageGraphError
 
 log = logging.getLogger(__name__)
+
+# Passed in at startup (app/wiring.py): listing_facts(listing, profile, share_url) -> the listing's display facts
+# (title_line, price_text, area_text, ...), marketing's Facts.from_docs.
+_listing_facts: Dict[str, Any] = {"from_docs": None}
+
+
+def configure(listing_facts: Callable[[dict, dict, str], Any]) -> None:
+    _listing_facts["from_docs"] = listing_facts
 LEAD_INTENTS = ("interested", "question")
 MAX_COMMENT_AGE = timedelta(days=7)
 UNKNOWN_PER_POST_PER_DAY = 6  # commenters whose identity Meta does not show us
@@ -106,7 +113,7 @@ class EngageService:
             profile = await self.profiles.find_one({"agent_id": listing.get("agent_id")}) or {}
             slug = profile.get("slug")
             base = f"{self.cfg.site_url}/agent/{slug}/listings/{listing['_id']}#enquire" if slug and self.cfg.site_url else self.cfg.landing_url
-            f = Facts.from_docs(listing, profile, "")
+            f = _listing_facts["from_docs"](listing, profile, "")
             facts = "\n".join(x for x in (f.title_line("en"), f.price_text, f.area_text, f.possession_text("en"), f.floor_text("en"),
                                           f"RERA {f.rera}" if f.rera else None, "Amenities: " + ", ".join(f.amenities) if f.amenities else None, message) if x)
             return {"facts": facts, "link": with_source(base, source), "listing_id": listing["_id"], "agent_id": listing.get("agent_id"), "grounding": grounding}

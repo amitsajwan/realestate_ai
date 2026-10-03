@@ -12,7 +12,7 @@ Collections read: listings, content_calendar (the calendar's table, named here t
 """
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from app.platform.text import HYPE, PHONE, money, sqft
 
@@ -189,10 +189,23 @@ def listing_grounding(doc: dict) -> Grounding:
     return g
 
 
+# ---- data passed in at startup (app/wiring.py): showcase's sample homes and the calendar's verified evergreen posts ----
+def _no_sample(slug: str):
+    raise KeyError(slug)
+
+
+_sources: Dict[str, Any] = {"sample_home": _no_sample, "icon_labels": {}, "evergreen_post": lambda slug: None}
+
+
+def configure(sample_home: Callable[[str], Any], icon_labels: Dict[str, str], evergreen_post: Callable[[str], Any]) -> None:
+    """sample_home(slug) -> a home with bhk, locality, carpet_text, ... (KeyError when unknown); evergreen_post(slug) -> a
+    post with body, title and review, or None."""
+    _sources.update(sample_home=sample_home, icon_labels=icon_labels, evergreen_post=evergreen_post)
+
+
 # ---- sample home ----------------------------------------------------------------------------------------------------
 def sample_grounding(slug: str) -> Grounding:
-    from app.modules.showcase import samples as S  # data module; imported lazily so that a missing asset set cannot break area/listing replies
-    h = S.get(slug)
+    h = _sources["sample_home"](slug)
     g = Grounding(subject=f"Sample home: {h.title}", kind="sample", sample=True, general=[LOAN, "A sample home has no RERA number; real listings show theirs, and every project can be looked up on the MahaRERA website."])
     f = g.facts
     _add(f, SAMPLE_1, SAMPLE_2,
@@ -202,7 +215,8 @@ def sample_grounding(slug: str) -> Grounding:
     _add(f, ("In this sample the home is ready to move." if h.ready else f"In this sample the home is {h.possession[0].lower() + h.possession[1:]}."))
     if h.facing:
         _add(f, f"It faces {h.facing.lower()}.")
-    labels = [S.ICON_LABELS[a] for a in h.amenities if a in S.ICON_LABELS]
+    icons = _sources["icon_labels"]
+    labels = [icons[a] for a in h.amenities if a in icons]
     if labels:
         _add(f, f"The sample society shows these amenities: {_join(labels)}.")
     _add(f, f"Highlights: {_join(list(h.highlights))}.")
@@ -245,8 +259,7 @@ def calendar_grounding(doc: dict) -> Optional[Grounding]:
             return None
     body, subject, review = doc.get("caption") or "", doc.get("slug") or "", ""
     try:
-        from app.modules.calendar.library import BY_SLUG  # data module: verified body and review note of the evergreen post
-        e = BY_SLUG.get(doc.get("slug") or "")
+        e = _sources["evergreen_post"](doc.get("slug") or "")
     except Exception:
         e = None
     if e:

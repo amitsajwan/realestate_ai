@@ -68,3 +68,41 @@ forbidden_modules =
     app.services
     app.repositories
     app.schemas
+
+[importlinter:contract:siblings-conv]
+name = Conversations do not import content
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    app.modules.engage
+    app.modules.chat
+    app.modules.whatsapp
+    app.modules.knowledge
+    app.modules.notifications
+forbidden_modules =
+    app.modules.newsroom
+    app.modules.calendar
+    app.modules.showcase
+    app.modules.marketing
+    app.modules.creative
+    app.modules.reels
+    app.modules.photoquality
+
+[importlinter:contract:siblings-content]
+name = Content does not import conversations
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    app.modules.newsroom
+    app.modules.calendar
+    app.modules.showcase
+    app.modules.marketing
+    app.modules.creative
+    app.modules.reels
+    app.modules.photoquality
+forbidden_modules =
+    app.modules.engage
+    app.modules.chat
+    app.modules.whatsapp
+    app.modules.knowledge
+    app.modules.notifications
