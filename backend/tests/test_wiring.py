@@ -34,3 +34,11 @@ def test_the_interest_hub_gets_the_sample_catalogue():
     home = interest_routes._sample_home(slugs[0])
     assert home["title"].startswith(samples.SAMPLE_LABEL + ": ")
     assert home["image_url"] == interest_routes.SAMPLE_IMAGE_PATH + slugs[0]
+
+
+def test_social_posts_use_marketings_link_line_in_the_packs_language():
+    from app.modules.social.service import build_payload
+
+    pack = {"language": "hi", "share_url": "https://site.test/l/1", "facebook": {"post": "पोस्ट"}, "images": {}}
+    text = build_payload(pack, "facebook_page", "")["text"]
+    assert text.endswith("🔗 विवरण और फोटो: https://site.test/l/1")

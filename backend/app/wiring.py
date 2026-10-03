@@ -11,14 +11,17 @@ def wire() -> None:
     from app.modules.engage import service as engage_service
     from app.modules.interest import router as interest_routes
     from app.modules.knowledge import grounding
+    from app.modules.marketing.content import link_line
     from app.modules.marketing.facts import Facts
     from app.modules.newsroom import quality as news_quality
     from app.modules.photoquality import router as quality_routes
     from app.modules.showcase import samples
     from app.modules.social import router as social_routes
+    from app.modules.social import service as social_service
 
     # social posts carry the "Listed by" lines and register the Instagram post as a hub item
     social_routes.configure(attribution=attribution_text, on_instagram_published=register_hub_item)
+    social_service.configure(link_line=link_line)  # the pack's link line, in marketing's words
     # the quality route: the operator may review any agent's listing cards; calendar and news items are found by their owners
     quality_routes.configure(is_operator=is_operator,
                              resolvers={"calendar": calendar_quality.review_target, "news": news_quality.review_target})

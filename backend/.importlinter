@@ -43,12 +43,7 @@ layers =
     tracking : interest : report
     listings : ai_listing
     onboarding : waitlist
-unmatched_ignore_imports_alerting = error
-; Baseline, 2026-10-03. Each line goes away in a MODERNIZATION step:
-ignore_imports =
-    ; step 5: social builds marketing-pack payloads; content will hand distribution finished posts instead
-    app.modules.social.service -> app.modules.marketing.content
-    ; step 3: wrong-way dependencies, replaced by callbacks or the owner's query functions
+; The baseline of 8 exceptions recorded on 2026-10-03 was cleared by step 5: this rule now has none.
 
 [importlinter:contract:core-platform]
 name = The platform parts of core (config, database, auth, region, brand, indexes, User) import no business code

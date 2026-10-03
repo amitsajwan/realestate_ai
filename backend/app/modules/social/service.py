@@ -8,7 +8,6 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any, Awaitable, Callable, List, Optional
 
-from app.modules.marketing.content import P as content_phrases, resolve_language
 
 from app.platform.meta_graph.config import BRAND, SocialConfig, load as load_config
 from app.platform.meta_graph.graph import GraphPublisher
@@ -44,6 +43,14 @@ def rebase(url: str, base: str) -> str:
     return f"{base.rstrip('/')}{path}" if base else path
 
 
+# Passed in at startup (app/wiring.py): link_line(language, url) -> marketing's "🔗 Details and photos: <url>" line.
+_text: dict = {"link_line": lambda language, url: f"🔗 {url}"}
+
+
+def configure(link_line: Callable[[str, str], str]) -> None:
+    _text["link_line"] = link_line
+
+
 def build_payload(pack: dict, channel: str, base: str, attribution: str = "") -> dict:
     """`attribution` (concierge: 'Listed by ...' lines, never a phone number) goes between the caption and the link/hashtags."""
     imgs = pack.get("images") or {}
@@ -54,7 +61,7 @@ def build_payload(pack: dict, channel: str, base: str, attribution: str = "") ->
     share = pack.get("share_url") or ""
     if channel == "facebook_page":
         post = (pack.get("facebook") or {}).get("post", "")
-        link_line = content_phrases[resolve_language(pack.get("language") or "en")]["link"].format(url=share) if share else ""
+        link_line = _text["link_line"](pack.get("language") or "en", share) if share else ""
         text = (f"{post}\n\n{attribution}\n\n{link_line}" if attribution else f"{post}\n\n{link_line}").strip()
         return {"text": text, "image_urls": urls(("cover",)), "link": share or None}
     ig = pack.get("instagram") or {}
