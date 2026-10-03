@@ -71,7 +71,7 @@ def test_consent_is_required():
 
 async def test_request_is_stored_as_new_with_consent_record():
     svc, db, clock = make()
-    assert await svc.submit(body(), "203.0.113.9") is None
+    assert await svc.submit(body(), "203.0.113.9") is True
     (r,) = rows(db)
     assert r["phone"] == "+919876543210" and r["status"] == "new" and r["city"] == "Pune"
     assert r["consent"] == {"given_at": clock.t, "text": CONSENT_TEXT}
@@ -80,7 +80,7 @@ async def test_request_is_stored_as_new_with_consent_record():
 
 async def test_honeypot_is_dropped_silently_and_not_stored():
     svc, db, _ = make()
-    assert await svc.submit(body(website="http://spam.example"), "203.0.113.9") is None
+    assert await svc.submit(body(website="http://spam.example"), "203.0.113.9") is False
     assert rows(db) == []
     assert db.get_collection("invite_request_attempts").docs == []  # does not even count towards limits
 
@@ -196,3 +196,16 @@ async def test_format_request_shows_phone_name_city_message_date():
     out = format_request((await svc.list_new())[0])
     for part in ("+919876543210", "Rahul Sharma", "Pune", "Baner, 2BHK sales", "2026-01-01"):
         assert part in out
+
+
+async def test_a_request_after_the_owner_handled_the_last_one_is_a_new_row():
+    """Merging into an invited or dismissed row hid the new request from Studio > Admin."""
+    svc, db, clock = make()
+    assert await svc.submit(body(), "1.1.1.1") is True
+    rows(db)[0]["status"] = "dismissed"
+    clock.advance(minutes=30)
+    assert await svc.submit(body(message="please call me"), "1.1.1.1") is True
+    assert [(r["status"], r["message"]) for r in rows(db)] == [("dismissed", "Baner, 2BHK sales"), ("new", "please call me")]
+    assert [r["message"] for r in await svc.list_new()] == ["please call me"]
+    assert await svc.submit(body(), "1.1.1.1") is False  # a repeat while it still waits is merged, as before
+    assert await svc.submit(body(phone="9123456780", website="http://spam"), "1.1.1.1") is False  # honeypot

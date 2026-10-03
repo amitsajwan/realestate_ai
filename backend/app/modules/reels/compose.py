@@ -2,7 +2,7 @@
 photo, eased text animation, cross-fade or slide transitions, progress bar, a small brand mark on the last scene) and piped to ffmpeg.
 No separate end card by default: a 'Follow for more' card is a dead end that breaks the loop (pass end_card=True to get one).
 
-Output: H.264 (yuv420p, High profile), 1080x1920, 30 fps, AAC stereo audio (silent unless `music` is given), faststart, < 30 s.
+Output: H.264 (yuv420p, High profile), 1080x1920, 30 fps, AAC stereo audio (the Avasetu signature music unless `music` is given), faststart, < 30 s.
 Text stays inside the Instagram safe zone: every text line and the CTA between 14% and 72% of the height (TEXT_TOP / TEXT_BOTTOM;
 Instagram's caption, account row and the bottom bar cover roughly the last 20-28%) and left of the right 12% (TEXT_RIGHT: the like,
 comment and share buttons). Only the thin progress bar sits above TEXT_TOP.
@@ -10,9 +10,10 @@ comment and share buttons). Only the thin progress bar sits above TEXT_TOP.
 from app.core import brand
 import os
 import re
+import tempfile
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Iterator, List, Optional, Sequence, Tuple, Union
+from typing import Iterable, Iterator, List, Optional, Sequence, Tuple, Union
 
 from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
@@ -624,36 +625,52 @@ def write_cover(renderer: "Renderer", video) -> Path:
     return out
 
 
+def brand_music_on() -> bool:
+    return os.environ.get("REEL_BRAND_MUSIC", "on").strip().lower() != "off"
+
+
+def encode(frames: Iterable[bytes], total: float, out_path, music=None, timeout: float = 900.0) -> Path:
+    """Encode raw 1080x1920 RGB frames lasting `total` seconds to an MP4 with an audio track: `music` when given, else the Avasetu
+    signature music (reels.music; REEL_BRAND_MUSIC=off gives a silent track instead)."""
+    out = Path(out_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as work:
+        if music is None and brand_music_on():
+            from .music import write as write_music
+            music = write_music(Path(work) / "brand.wav", seconds=total)
+        args = ["-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-"]
+        if music:
+            if not Path(music).is_file():
+                raise ReelError("music file not found")
+            args += ["-stream_loop", "-1", "-i", str(music), "-af", f"afade=t=in:d=0.6,afade=t=out:st={max(0.0, total - 1.4):.2f}:d=1.4,volume=0.7"]
+        else:
+            args += ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo"]
+        args += ["-map", "0:v:0", "-map", "1:a:0", "-t", f"{total:.3f}",
+                 "-c:v", "libx264", "-preset", "medium", "-crf", "21", "-profile:v", "high", "-level", "4.1", "-pix_fmt", "yuv420p",
+                 "-maxrate", "8M", "-bufsize", "16M", "-g", "60", "-r", str(FPS),
+                 "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2", "-movflags", "+faststart", str(out)]
+        try:
+            ffmpeg.run_with_frames(args, frames, timeout=timeout)
+        except ffmpeg.FfmpegError as e:
+            out.unlink(missing_ok=True)
+            raise ReelError(str(e))
+    if out.stat().st_size > MAX_BYTES:
+        out.unlink(missing_ok=True)
+        raise ReelError("the reel came out larger than 20 MB")
+    return out
+
+
 def make_reel(scenes: Sequence[Scene], out_path, seconds_per_scene: float = 3.0, music=None, transition: str = "fade",
               xfade: float = 0.45, progress: bool = True, end_card: bool = False, timeout: float = 900.0) -> Path:
     """Render `scenes` (plus the brand end card only when end_card=True) to an MP4 at `out_path` and return the path. A 1080x1920 cover JPG (the hook
     scene as a still, see `cover_path`) is written next to it, for Instagram's `cover_url`.
 
-    `music` is an optional path to a royalty-free audio file that YOU have the rights to; nothing is bundled or downloaded.
-    Without it the reel has a silent stereo AAC track (some players need an audio stream)."""
+    `music` is an optional path to an audio file that YOU have the rights to (a voice-over mixed with our bed, say); without it the reel
+    carries the Avasetu signature music (see `encode`)."""
+    if music and not Path(music).is_file():
+        raise ReelError("music file not found")
     r = Renderer(scenes, seconds_per_scene, transition, xfade, progress, end_card)
-    out = Path(out_path)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    total = r.tl.total
-    args = ["-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-"]
-    if music:
-        if not Path(music).is_file():
-            raise ReelError("music file not found")
-        args += ["-stream_loop", "-1", "-i", str(music), "-af", f"afade=t=in:d=0.6,afade=t=out:st={max(0.0, total - 1.4):.2f}:d=1.4,volume=0.7"]
-    else:
-        args += ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo"]
-    args += ["-map", "0:v:0", "-map", "1:a:0", "-t", f"{total:.3f}",
-             "-c:v", "libx264", "-preset", "medium", "-crf", "21", "-profile:v", "high", "-level", "4.1", "-pix_fmt", "yuv420p",
-             "-maxrate", "8M", "-bufsize", "16M", "-g", "60", "-r", str(FPS),
-             "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2", "-movflags", "+faststart", str(out)]
-    try:
-        ffmpeg.run_with_frames(args, r.frames(), timeout=timeout)
-    except ffmpeg.FfmpegError as e:
-        out.unlink(missing_ok=True)
-        raise ReelError(str(e))
-    if out.stat().st_size > MAX_BYTES:
-        out.unlink(missing_ok=True)
-        raise ReelError("the reel came out larger than 20 MB")
+    out = encode(r.frames(), r.tl.total, out_path, music=music, timeout=timeout)
     write_cover(r, out)
     return out
 

@@ -73,6 +73,22 @@ Plain, honest, warm. Never hype.
 - Samples are always labelled "Sample listing". Agents are "listed by <name> on Avasetu", never "verified by Avasetu".
 - End posts with a real question or one clear next step.
 
+## Music
+
+One piece of music, ours, under every reel. The system generates it in code (`backend/app/modules/reels/music.py`), so there is
+no licence to buy or lose.
+
+- **The sound logo: A-va-se-tu.** Four rising notes, one per syllable: G C E G (Pa Sa Ga Pa), the last one held. It opens every
+  reel on the santoor and closes it on a soft bell, so people hear the brand in the first second and again at the end.
+- **The theme.** Only the five notes of Raag Bhupali (Sa Re Ga Pa Dha, C D E G A): calm, warm, an evening raag about coming
+  home. A santoor-like plucked string over four chords (C, Am, F, G), a soft pad, a light bass and quiet hand-drum strokes,
+  84 beats a minute. It sounds Indian without sounding like a film song, and it sits under a voice-over.
+- **Files for hand-made reels** (Instagram or Facebook editor, CapCut): `audio/avasetu-sound-logo.m4a` (3 s),
+  `audio/avasetu-theme-15s.m4a`, `audio/avasetu-theme-30s.m4a`. Regenerate with `cd backend && PYTHONPATH=. python scripts/brand_music.py`.
+- **Rules.** Keep it quiet under a voice (the reels mix it at about a third of the voice). Do not cut off the last two seconds:
+  that is the sound logo. Do not use trending audio on brand reels: it can be muted or removed when its licence changes.
+- **Switch.** `REEL_BRAND_MUSIC=off` on the server gives reels a silent track instead.
+
 ## Where the brand lives in code
 
 - Backend: `backend/app/core/brand.py` (`NAME`, `TAGLINE`, `TAGLINE_HI`, `TAGLINE_MR`, `TEAM`, `HASHTAG`, `SITE`).

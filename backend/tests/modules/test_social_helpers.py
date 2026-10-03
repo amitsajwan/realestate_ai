@@ -32,8 +32,11 @@ def make_db(version: int = 1, status: str = "live", images=("cover", "facts", "a
 class FakeGraph:
     """Records every Graph call; `routes` maps (METHOD, path) to a response, a list of responses (consumed in order) or a callable."""
 
-    def __init__(self, routes=None):
+    def __init__(self, routes=None, recent=None):
         self.routes, self.calls = routes or {}, []
+        # the publisher's "already on Instagram?" lookup (GET {ig}/media?fields=id,caption,...) is kept apart from `calls`
+        # so the publish-flow tests keep their exact order; `recent` is what it answers (default: no recent posts)
+        self.recent, self.lookups = recent or [], []
 
     def transport(self):
         return httpx.MockTransport(self._handle)
@@ -41,6 +44,9 @@ class FakeGraph:
     def _handle(self, request: httpx.Request) -> httpx.Response:
         form = dict(parse_qsl(request.content.decode())) if request.method == "POST" else {}
         query = dict(request.url.params)
+        if request.method == "GET" and request.url.path.endswith("/media") and "caption" in query.get("fields", ""):
+            self.lookups.append(query)
+            return httpx.Response(200, json={"data": self.recent})
         self.calls.append({"method": request.method, "path": request.url.path, "form": form, "query": query})
         route = self.routes.get((request.method, request.url.path))
         if callable(route):

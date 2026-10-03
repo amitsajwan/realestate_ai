@@ -8,6 +8,7 @@ import { friendlyConciergeError } from '@/lib/app/concierge'
 import { timeAgo } from '@/lib/app/format'
 import { copyText } from '@/lib/app/share'
 import { useAsync } from '@/lib/app/useAsync'
+import { getNotifications, markNotificationRead } from '@/lib/app/whatsapp'
 import { BRAND_NAME } from '@/lib/brand'
 import { AddAgentSheet } from '../agents/AddAgentSheet'
 import { ProgressRing } from '../agents/ProgressRing'
@@ -198,6 +199,12 @@ export function AdminScreen() {
   const { data, error, loading, reload, setData } = useAsync(() => adminApi.overview(), [])
   const [adding, setAdding] = useState(false)
   const [invited, setInvited] = useState<InvitedRequest | null>(null)
+  // opening this screen is seeing the requests: the 'new request to join' alerts on Studio home are cleared
+  React.useEffect(() => {
+    getNotifications(true)
+      .then((n) => Promise.all(n.items.filter((x) => x.kind === 'invite_request').map((x) => markNotificationRead(x.id))))
+      .catch(() => undefined)
+  }, [])
 
   if (loading && !data) return <Spinner />
   if (error && !data) return <ErrorBox message={error} onRetry={reload} />

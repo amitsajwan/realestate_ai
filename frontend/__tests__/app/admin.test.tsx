@@ -22,6 +22,10 @@ jest.mock('@/lib/app/concierge', () => ({
   conciergeApi: { create: (...a: unknown[]) => mockCreate(...a) },
 }))
 jest.mock('@/lib/app/share', () => ({ copyText: jest.fn(async () => true) }))
+jest.mock('@/lib/app/whatsapp', () => ({
+  getNotifications: jest.fn(async () => ({ unread: 2, items: [{ id: 'n1', kind: 'invite_request' }, { id: 'n2', kind: 'new_chat_lead' }] })),
+  markNotificationRead: jest.fn(async () => undefined),
+}))
 
 const AGENTS = fixtureAgents().map(({ listings: _l, consent: _c, ...s }) => s)
 const overview = (over: Partial<AdminOverview> = {}): AdminOverview => ({ ...fixtureOverview(), agents: AGENTS, ...over })
@@ -33,6 +37,13 @@ beforeEach(() => {
 })
 
 describe('Admin home', () => {
+  it('opening it clears the "new request to join" alerts, and only those', async () => {
+    const { markNotificationRead } = jest.requireMock('@/lib/app/whatsapp') as { markNotificationRead: jest.Mock }
+    render(<AdminPage />)
+    await screen.findByTestId('admin-screen')
+    await waitFor(() => expect(markNotificationRead).toHaveBeenCalledWith('n1'))
+    expect(markNotificationRead).not.toHaveBeenCalledWith('n2')
+  })
   it('shows the sections in order: Add agent, Today, Needs you, Agents, Health, Controls', async () => {
     render(<AdminPage />)
     await screen.findByTestId('admin-screen')

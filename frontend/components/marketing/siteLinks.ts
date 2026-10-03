@@ -30,7 +30,7 @@ export function siteLinks() {
   const posts: SiteLink = { href: '/posts', label: 'Posts' }
   const areas: SiteLink = { href: '/localities', label: 'Area guides' }
   const insights: SiteLink = { href: '/insights', label: 'Insights' }
-  const invite: SiteLink = { href: INVITE_PATH, label: 'Request an invite' }
+  const invite: SiteLink = { href: INVITE_PATH, label: 'Join the free pilot' }
   const signIn: SiteLink = { href: SIGN_IN_PATH, label: 'Sign in' }
   const need: SiteLink = { href: buyerEnquirePath(), label: 'Tell us what you need' }
   const ig: SiteLink = { href: instagram, label: 'Instagram', external: true }

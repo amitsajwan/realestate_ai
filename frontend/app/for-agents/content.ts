@@ -38,7 +38,7 @@ export const FOR_AGENTS = {
     heading: 'What you get',
     items: [
       { title: 'Your own branded page', body: 'Your logo, your colours, your business name and your RERA agent number, with your homes and an enquiry form.' },
-      { title: 'Your listings, posted for you', body: `Posts on the ${BRAND_NAME} Facebook Page and Instagram, each credited "Listed by" you, with your consent.` },
+      { title: 'Your listings, posted for you', body: `Posts and reels on your own Instagram and Facebook Page, and on ${BRAND_NAME}'s, after you approve each one.` },
       { title: 'Leads in your inbox', body: 'Every buyer who taps interest or writes in arrives as a lead card in your studio, on your phone.' },
       { title: 'Weekly results', body: 'Each week: how many people viewed your homes, how many enquired, and what to do next.' },
     ],
@@ -46,15 +46,15 @@ export const FOR_AGENTS = {
   cost: {
     heading: 'What it costs',
     title: 'Free during the pilot',
-    body: 'There is no charge while the pilot runs. We will tell you before that changes.',
+    body: 'No charge during the pilot. After it, Avasetu stays low-cost: a small monthly fee, not a big subscription. We tell you the price before anything changes.',
   },
   coming: {
-    heading: 'What is coming',
+    heading: 'Set up with you',
     items: [
       'Your own WhatsApp number connected, so buyer messages reach you directly.',
-      'Posting to your own Facebook and Instagram pages, once Meta approves our app.',
+      'Your own Facebook Page and Instagram connected, so posts go out in your name.',
     ],
-    note: 'Until then, posts go out on the Avasetu pages and you share them in one tap.',
+    note: 'We do the setup with you when you join: it takes one short call.',
   },
   trust: {
     heading: 'How we keep it honest',
@@ -64,40 +64,6 @@ export const FOR_AGENTS = {
       'No invented AI percentages or made-up numbers.',
       "Buyers' consent to be contacted is recorded.",
     ],
-  },
-  screens: {
-    heading: 'The real screens',
-    lead: 'Screenshots from the product. Names and numbers are sample data.',
-  },
-  faq: {
-    heading: 'Questions agents ask',
-    items: [
-      { q: 'What does it cost?', a: 'Nothing during the pilot. We will tell you before that changes.' },
-      {
-        q: 'Who sees my buyer leads?',
-        a: 'You do. Each enquiry goes to the agent the buyer contacted, and we handle it only to run the service. We do not sell it and we do not share it with other agents.',
-      },
-      {
-        q: 'What about RERA?',
-        a: 'We do not issue or verify RERA registration. You stay responsible for your own RERA details, and for showing them on a listing where the law asks. Our Pune guides explain how buyers can check a project.',
-      },
-      {
-        q: 'Who can see my listings?',
-        a: 'Only properties you post appear on your public page, and anyone with the link can see them. Drafts you have not posted stay private to you.',
-      },
-      {
-        q: "What happens to my buyers' details?",
-        a: 'When a buyer sends an enquiry they are asked to agree to be contacted. Their details are shown to you, the agent they contacted, and are handled by us only to run the service. We do not sell them.',
-      },
-      {
-        q: 'How is my consent handled when I request an invite?',
-        a: 'You tick a box to say it is OK for us to contact you about the pilot. We use your details only to reply to your request. You can ask us to delete them at any time.',
-      },
-      { q: 'Do I need to install an app?', a: "No. It works in your phone's browser." },
-      { q: 'How do I get my data deleted?', a: 'Follow the steps on the data deletion page. We delete it within 30 days.' },
-    ],
-    privacyLink: 'Read the privacy policy',
-    deletionLink: 'Data deletion',
   },
   live: {
     heading: 'See it live',

@@ -37,6 +37,7 @@ class Media(_In):
     credit: str = Field("", max_length=140)  # "Photo: Akshit 77, CC BY-SA 4.0, Wikimedia Commons"
     artist_impression: bool = False  # a builder render, never a photo of the real site
     kind: Literal["image", "video"] = "image"
+    slide: bool = False  # one of the project's designed carousel slides (as posted on Instagram/Facebook)
 
 
 class Place(_In):

@@ -76,3 +76,28 @@ def test_falls_back_to_socket_peer_when_no_proxy_header(env):
     c, db = env
     c.post(URL, json=GOOD)
     assert rows(db)[0]["ip_hash"] and "testclient" not in repr(rows(db))
+
+
+def test_the_owner_is_told_once_per_new_request_and_a_failing_alert_never_fails_the_form(env):
+    c, db = env
+    told = []
+
+    async def tell(name, city):
+        told.append((name, city))
+
+    wired = wr._on_new_request  # app/wiring.py's alert, restored afterwards
+    wr.configure(on_new_request=tell)
+    try:
+        c.post(URL, json=GOOD)
+        c.post(URL, json={**GOOD, "message": "again"})  # merged into the waiting request: no second alert
+        c.post(URL, json={**GOOD, "phone": "9123456780", "website": "http://spam"})  # honeypot: none
+        assert told == [("Rahul Sharma", "Pune")]
+
+        async def broken(name, city):
+            raise RuntimeError("notifications down")
+
+        wr.configure(on_new_request=broken)
+        r = c.post(URL, json={**GOOD, "phone": "9000000001", "name": "Asha"})
+        assert r.status_code == 200 and len(rows(db)) == 2
+    finally:
+        wr.configure(on_new_request=wired)

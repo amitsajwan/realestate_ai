@@ -243,7 +243,7 @@ async def test_skipped_and_failed_rows_cannot_be_approved():
     assert await store.skip(i) and not await store.approve(i)
 
 
-async def test_instagram_carousel_goes_as_multi_image_and_facebook_gets_the_first_image():
+async def test_a_carousel_goes_with_every_slide_on_instagram_and_facebook_when_slide_reels_are_off():
     store, pub, render = make()
     for rel in ("calendar/w1/a-1.jpg", "calendar/w1/a-2.jpg", "calendar/w1/a-3.jpg"):
         (UPLOADS / rel).parent.mkdir(parents=True, exist_ok=True)
@@ -251,10 +251,10 @@ async def test_instagram_carousel_goes_as_multi_image_and_facebook_gets_the_firs
     imgs = ["calendar/w1/a-1.jpg", "calendar/w1/a-2.jpg", "calendar/w1/a-3.jpg"]
     for ch in ("instagram", "facebook_page"):
         await store.add("carousel-test", ch, "caption", imgs[0], NOW - timedelta(hours=1), images=imgs, status="approved")
-    await run(store, pub, render)
+    await run(store, pub, render, cfg=CalendarConfig(enabled=True, fb_carousel_as_reel=False))
     by = {p.channel: p for p in pub.posts}
     assert by["instagram"].image_urls == [f"https://media.test/uploads/{p}" for p in imgs]
-    assert by["facebook_page"].image_urls == [f"https://media.test/uploads/{imgs[0]}"]
+    assert by["facebook_page"].image_urls == [f"https://media.test/uploads/{p}" for p in imgs]  # a multi-photo post
 
 
 async def test_missing_image_file_is_a_recorded_failure():
@@ -358,3 +358,62 @@ async def test_a_post_that_went_out_is_never_posted_again_when_recording_it_fail
     assert second["published"] == 1  # the ledger knew the post was out: the slot is recorded as published, nothing re-sent
     doc = (await store.all())[0]
     assert doc["status"] == "published" and doc["external_id"] == "ext1"
+
+
+
+async def _carousel(store):
+    imgs = ["calendar/w1/c-1.jpg", "calendar/w1/c-2.jpg", "calendar/w1/c-3.jpg"]
+    for rel in imgs:
+        (UPLOADS / rel).parent.mkdir(parents=True, exist_ok=True)
+        (UPLOADS / rel).write_bytes(b"jpg")
+    ids = []
+    for ch in ("instagram", "facebook_page"):
+        ids.append(await store.add("carousel-c", ch, "Carousel " + ch, imgs[0], NOW - timedelta(minutes=5), images=imgs, status="approved"))
+    return imgs, ids
+
+
+async def test_a_carousels_facebook_copy_goes_out_as_a_reel_of_its_slides():
+    store, pub, render = make()
+    imgs, (ig, fb) = await _carousel(store)
+    rendered, reels = [], []
+
+    def slides_reel(doc, uploads):
+        rendered.append(doc["images"])
+        return "calendar/slidereels/x.mp4"
+
+    async def publish_reel(doc, social, uploads, name=None):
+        reels.append((doc["channel"], doc["video"], name, doc["caption"]))
+        return Result("reel1", "https://fb/reel1")
+
+    counts = await run(store, pub, render, render_slides_reel=slides_reel, publish_reel=publish_reel)
+    assert counts["published"] == 2
+    assert [p.channel for p in pub.posts] == ["instagram"]  # Instagram keeps its swipeable carousel
+    assert rendered == [imgs]
+    assert len(reels) == 1 and reels[0][:3] == ("facebook_page", "calendar/slidereels/x.mp4", f"{fb}-slides.mp4")
+    assert (await store.get(fb))["video"] == "calendar/slidereels/x.mp4" and (await store.get(fb))["external_id"] == "reel1"
+
+
+async def test_a_slides_reel_that_cannot_be_made_falls_back_to_the_multi_photo_post():
+    store, pub, render = make()
+    imgs, _ = await _carousel(store)
+
+    def broken(doc, uploads):
+        raise RuntimeError("ffmpeg missing")
+
+    async def never(*a, **k):
+        raise AssertionError("no reel to publish")
+
+    counts = await run(store, pub, render, render_slides_reel=broken, publish_reel=never)
+    assert counts["published"] == 2
+    assert {p.channel: p.image_urls for p in pub.posts}["facebook_page"] == [f"https://media.test/uploads/{p}" for p in imgs]
+
+
+async def test_a_single_image_facebook_post_is_never_turned_into_a_reel():
+    store, pub, render = make()
+    await add(store, "carpet-under-rera", "facebook_page", NOW - timedelta(hours=1))
+
+    def never(doc, uploads):
+        raise AssertionError("a one-image post has no slides reel")
+
+    await run(store, pub, render, render_slides_reel=never)
+    assert [p.channel for p in pub.posts] == ["facebook_page"]

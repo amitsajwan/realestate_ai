@@ -35,6 +35,7 @@ from .library import SITE, Entry
 AREAS = ("Kharadi", "Upper Kharadi", "Wagholi")
 CHANNEL_OF = {"facebook_page": "facebook", "instagram": "instagram", "facebook": "facebook"}
 REEL_DIR = "calendar/reels"
+SLIDES_REEL_DIR = "calendar/slidereels"
 
 # 2 to 4 words naming the subject; creative's hooks read "Do you really know your <short>?" and "What nobody tells you about <short>".
 SHORT = {
@@ -326,14 +327,27 @@ def render_reel_for(doc: dict, uploads: Path) -> str:
     return render_reel(spec, uploads, BY_SLUG.get(spec.ref))
 
 
-async def publish_reel(doc: dict, social: SocialConfig, uploads: Path) -> Result:
-    """Stage the video under uploads/reels and publish it as an Instagram Reel or a Facebook Page Reel (dry run: no network)."""
+def render_slides_reel_for(doc: dict, uploads: Path) -> str:
+    """Runner hook: the Reel made from a carousel post's slides (its Facebook copy), rendered once to
+    <uploads>/calendar/slidereels/<row id>.mp4; returns the path relative to uploads."""
+    from app.modules.reels.slides import make_slides_reel
+    rel = f"{SLIDES_REEL_DIR}/{doc['_id']}.mp4"
+    dest = Path(uploads) / rel
+    if not (dest.is_file() and dest.stat().st_size > 0):
+        imgs = list(doc.get("images") or [])
+        make_slides_reel([Path(uploads) / p for p in imgs], dest)
+    return rel
+
+
+async def publish_reel(doc: dict, social: SocialConfig, uploads: Path, name: Optional[str] = None) -> Result:
+    """Stage the video under uploads/reels and publish it as an Instagram Reel or a Facebook Page Reel (dry run: no network).
+    `name` is the staged file name (default: the reel's key)."""
     mp4 = Path(uploads) / doc["video"]
     if not social.dry_run and not mp4.is_file():
         raise PublishError("the reel video is missing")
     if social.dry_run:
         return await _reel_publish.publish_reel(doc["channel"], "https://dry.run/reel.mp4", doc["caption"], cfg=social)
-    name = _reel_publish.stage(mp4, Path(uploads), f"{spec_of(doc).key}.mp4")
+    name = _reel_publish.stage(mp4, Path(uploads), name or f"{spec_of(doc).key}.mp4")
     url = _reel_publish.public_url(social, name)
     extra = {}
     if doc["channel"] == "instagram":  # the hook still rendered next to the mp4, when there is one, as the reel's cover

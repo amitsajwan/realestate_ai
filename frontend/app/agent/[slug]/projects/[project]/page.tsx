@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import ContactButtons from '@/components/site/ContactButtons'
 import EnquiryForm from '@/components/site/EnquiryForm'
 import ReraBox from '@/components/site/ReraBox'
+import SlideStrip from '@/components/site/SlideStrip'
 import SiteShell from '@/components/site/SiteShell'
 import StickyBar from '@/components/site/StickyBar'
 import TrackingBeacon from '@/components/site/TrackingBeacon'
@@ -43,7 +44,8 @@ export default async function ProjectPage({ params }: Props) {
   const msg = projectWhatsAppMessage(p, url)
   const quoted = sourceLabel('agent', name)
   const possession = possessionLines(p, name)
-  const photo = p.media.find((m) => m.kind === 'image')
+  const photo = p.media.find((m) => m.kind === 'image' && !m.slide)
+  const slides = p.media.filter((m) => m.kind === 'image' && m.slide).map((m, i, all) => ({ url: m.url, alt: `${p.name}: ${m.caption || 'slide ' + (i + 1) + ' of ' + all.length}` }))
   const ld = {
     '@context': 'https://schema.org', '@type': 'ApartmentComplex', name: p.name, url,
     address: { '@type': 'PostalAddress', streetAddress: p.address, addressLocality: p.locality, addressRegion: 'Maharashtra', postalCode: p.pincode, addressCountry: 'IN' },
@@ -74,11 +76,18 @@ export default async function ProjectPage({ params }: Props) {
         {photo && (
           <figure className="overflow-hidden rounded-2xl bg-slate-100">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={photo.url} alt={photo.caption} className="aspect-[16/7] w-full object-cover" />
+            <img src={photo.url} alt={photo.caption} width={1600} height={756} className="aspect-[16/8] w-full object-cover" />
             <figcaption className="px-3 py-2 text-xs text-slate-600">
               {photo.caption}{photo.credit ? ' · ' + photo.credit : ''}
             </figcaption>
           </figure>
+        )}
+
+        {slides.length > 0 && (
+          <section aria-labelledby="slides-title">
+            <h2 id="slides-title" className="text-xl font-bold">As posted on Instagram</h2>
+            <SlideStrip slides={slides} label={`${p.name} carousel`} className="mt-3" />
+          </section>
         )}
 
         <section aria-labelledby="prices-title">

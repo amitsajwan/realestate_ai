@@ -7,6 +7,7 @@ import { buildMarketingConfig } from '@/lib/marketing/config'
 import { socialLinks } from '@/lib/marketing/social'
 
 jest.mock('@/components/site/PostsSection', () => ({ __esModule: true, default: () => null }))
+jest.mock('@/components/news/NewsSection', () => ({ __esModule: true, default: () => null }))
 
 const cfg = buildMarketingConfig({})
 const EXPECTED: Array<[RegExp, string]> = [
@@ -81,25 +82,12 @@ describe('site footer', () => {
     expect(footer.textContent).not.toMatch(/(?:\+?\d[\s\-().]*){10,}/)
     expect(footer.querySelector('a[href^="tel:"], a[href*="wa.me"]')).toBeNull()
   })
-
-  it('describes the site to buyers, not as an agent pilot, and keeps the agent links in their own column', () => {
-    render(<SiteFooter cfg={cfg} />)
-    const footer = screen.getByRole('contentinfo')
-    expect(footer).toHaveTextContent('Your bridge to the right home. Plain-language property news, area guides and homes for Kharadi, Upper Kharadi and Wagholi, Pune.')
-    expect(footer.textContent).not.toMatch(/pilot/i)
-    const agents = within(footer).getByRole('heading', { name: /^for agents$/i }).parentElement as HTMLElement
-    expect(within(agents).getAllByRole('link').map((a) => a.textContent)).toEqual(['For agents', 'See a demo page', 'Request an invite', 'Sign in'])
-  })
 })
 
-describe('home page', () => {
-  it('offers agents a "See a demo agent page" link', async () => {
-    process.env.SITE_USE_FIXTURES = '1' // news from fixtures, no network
-    try {
-      render(await LandingPage())
-    } finally {
-      delete process.env.SITE_USE_FIXTURES
-    }
-    expect(screen.getByRole('link', { name: /^see a demo agent page$/i })).toHaveAttribute('href', '/agent/demo')
+describe('landing hero', () => {
+  it('leads with "Join the free pilot" and offers "See an example agent page" second', () => {
+    render(<LandingPage />)
+    expect(screen.getAllByRole('link', { name: /^join the free pilot$/i })[0]).toHaveAttribute('href', '/request-invite')
+    expect(screen.getByRole('link', { name: /^see an example agent page$/i })).toHaveAttribute('href', '/agent/house-deal')
   })
 })

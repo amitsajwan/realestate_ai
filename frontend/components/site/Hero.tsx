@@ -35,6 +35,7 @@ export default function Hero({ agent, city }: { agent: AgentProfile; city: strin
   const name = displayName(agent)
   const tagline = (b?.tagline || '').trim()
   const photo = safeImage(agent.photo) || (agent.photo && /^https:\/\//.test(agent.photo) ? agent.photo : null)
+  const logo = safeImage(agent.branding_data?.logo)  // no photo: the business logo before initials
   const light = !banner && t.id === 'cream-ink'
   const areas = (b?.areas || []).slice(0, 2)
   const eyebrow = areas.length ? [...areas, city || 'Pune'].join(' · ') : `Homes in ${city || 'Pune'}`  // area first; never reads like a brand name
@@ -59,6 +60,9 @@ export default function Hero({ agent, city }: { agent: AgentProfile; city: strin
           {photo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={photo} alt={'Photo of ' + agent.agent_name} width={56} height={56} className="h-14 w-14 rounded-full border-2 object-cover" style={{ borderColor: light ? 'var(--site-accent)' : '#ffffff' }} />
+          ) : logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logo} alt="" width={56} height={56} className="h-14 w-14 rounded-full bg-white object-contain p-1" />
           ) : (
             <span aria-hidden className="flex h-14 w-14 items-center justify-center rounded-full text-lg font-bold" style={{ background: 'var(--site-accent)', color: 'var(--site-on-accent)' }}>{monogram(agent.agent_name)}</span>
           )}

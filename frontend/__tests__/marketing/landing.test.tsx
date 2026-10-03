@@ -1,178 +1,108 @@
 import React from 'react'
 import { render, screen, within } from '@testing-library/react'
-import HomePage, { metadata } from '@/app/page'
+import LandingPage from '@/app/page'
 import RequestInvitePage from '@/app/request-invite/page'
-import HomeListings, { realListings } from '@/components/marketing/home/HomeListings'
-import { FIXTURE_NEWS } from '@/lib/news/fixtures'
-import { INSIGHTS } from '@/lib/marketing/insights'
-import { LOCALITIES } from '@/lib/marketing/localities'
-import type { PublicListing } from '@/lib/site/types'
+import { SHOTS } from '@/lib/marketing/strings'
 
 // PostsSection is an async server component (fetches /public/posts); it is covered in __tests__/posts.
-jest.mock('@/components/site/PostsSection', () => ({ __esModule: true, default: () => <section aria-labelledby="posts-stub"><h2 id="posts-stub">Latest from Avasetu</h2></section> }))
-jest.mock('@/components/site/ChatWidget', () => ({ __esModule: true, default: () => null }))
+jest.mock('@/components/site/PostsSection', () => ({ __esModule: true, default: () => null }))
+jest.mock('@/components/news/NewsSection', () => ({ __esModule: true, default: () => null }))
 
-const PHONE = /(?:\+?\d[\s\-().]*){10,}/
-
-// Fixtures: news comes from lib/news/fixtures, and locality listings are always empty (never sample homes).
-beforeAll(() => { process.env.SITE_USE_FIXTURES = '1' })
-afterAll(() => { delete process.env.SITE_USE_FIXTURES })
-
-const renderHome = async () => render(await HomePage())
-
-describe('home page (buyers first)', () => {
-  it('has one h1 for buyers in Kharadi, Upper Kharadi and Wagholi, with the brand and tagline', async () => {
-    await renderHome()
-    const h1s = screen.getAllByRole('heading', { level: 1 })
-    expect(h1s).toHaveLength(1)
-    expect(h1s[0].textContent).toMatch(/Kharadi, Upper Kharadi and Wagholi/)
-    // the header carries the logo; the hero says the brand and tagline once, in its lead sentence
-    const hero = h1s[0].closest('section')!
-    expect(hero.textContent).toMatch(/Avasetu is your bridge to the right home/)
+describe('landing page', () => {
+  it('has one h1 and a primary call to action to /request-invite', () => {
+    render(<LandingPage />)
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    const ctas = screen.getAllByRole('link', { name: /request an invite/i })
+    expect(ctas.length).toBeGreaterThanOrEqual(2)
+    ctas.forEach((a) => expect(a).toHaveAttribute('href', '/request-invite'))
   })
 
-  it('puts the buyer requirement first and area guides second', async () => {
-    await renderHome()
-    const hero = screen.getByRole('heading', { level: 1 }).closest('section')!
-    const links = within(hero).getAllByRole('link')
-    expect(links[0]).toHaveTextContent('Tell us what you are looking for')
-    expect(links[0]).toHaveAttribute('href', '/agent/avasetu#enquire')
-    expect(links[1]).toHaveTextContent('Explore area guides')
-    expect(links[1]).toHaveAttribute('href', '/localities')
+  it('links to sign in and the legal pages', () => {
+    render(<LandingPage />)
+    expect(screen.getAllByRole('link', { name: /sign in/i })[0]).toHaveAttribute('href', '/studio') // header: studio sends a signed-out agent to /join
+    expect(screen.getByRole('link', { name: /already invited\? sign in/i })).toHaveAttribute('href', '/join')
+    const footer = screen.getByRole('contentinfo')
+    expect(within(footer).getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy')
+    expect(within(footer).getByRole('link', { name: 'Terms' })).toHaveAttribute('href', '/terms')
+    expect(within(footer).getByRole('link', { name: 'Data deletion' })).toHaveAttribute('href', '/data-deletion')
   })
 
-  it('shows sections in the buyer order, with h2 after h1 and no skipped levels', async () => {
-    const { container } = await renderHome()
-    const h2s = Array.from(container.querySelectorAll('h2')).map((h) => h.textContent || '')
-    const order = [/latest local news/i, /area guides/i, /buyer guides/i, /latest from avasetu/i, /real estate agent in pune/i]
-    let at = -1
-    for (const re of order) {
-      const i = h2s.findIndex((t, k) => k > at && re.test(t))
-      expect(i).toBeGreaterThan(at)
-      at = i
-    }
-    const levels = Array.from(container.querySelectorAll('h1, h2, h3, h4')).map((h) => Number(h.tagName[1]))
-    levels.forEach((lvl, i) => { if (i > 0) expect(lvl - levels[i - 1]).toBeLessThanOrEqual(1) })
-  })
-
-  it('shows the three most recent news items with source and date, linking to /news', async () => {
-    await renderHome()
-    const news = screen.getByRole('heading', { name: /latest local news/i }).closest('section')!
-    const cards = within(news).getAllByTestId('news-card')
-    expect(cards).toHaveLength(3)
-    FIXTURE_NEWS.slice(0, 3).forEach((n, i) => {
-      expect(within(cards[i]).getByRole('link', { name: n.headline })).toHaveAttribute('href', `/news/${n.id}`)
-    })
-    expect(within(cards[1]).getByText(/Source: Hindustan Times/)).toBeInTheDocument()
-    expect(within(cards[1]).getByText('28 Sep 2026')).toBeInTheDocument()
-    expect(within(news).getByRole('link', { name: 'All news' })).toHaveAttribute('href', '/news')
-  })
-
-  it('says so honestly when news is not loading', async () => {
-    delete process.env.SITE_USE_FIXTURES
-    const fetchBefore = global.fetch
-    global.fetch = jest.fn().mockRejectedValue(new Error('down')) as unknown as typeof fetch
-    try {
-      await renderHome()
-      expect(screen.getByText('News is not loading right now')).toBeInTheDocument()
-      expect(screen.queryByTestId('news-card')).toBeNull()
-      expect(screen.getByTestId('homes-empty')).toBeInTheDocument()
-    } finally {
-      global.fetch = fetchBefore
-      process.env.SITE_USE_FIXTURES = '1'
-    }
-  })
-
-  it('links every area guide, the comparison guide and the buyer guides', async () => {
-    await renderHome()
-    const areas = screen.getByRole('heading', { name: /^area guides$/i }).closest('section')!
-    expect(LOCALITIES.map((l) => l.slug)).toEqual(['kharadi', 'upper-kharadi', 'wagholi'])
-    for (const l of LOCALITIES) {
-      const card = within(areas).getByRole('heading', { level: 3, name: l.name }).closest('a')!
-      expect(card).toHaveAttribute('href', `/localities/${l.slug}`)
-    }
-    const compare = INSIGHTS.find((i) => i.slug === 'kharadi-upper-kharadi-wagholi')!
-    expect(within(areas).getByRole('link', { name: compare.title })).toHaveAttribute('href', `/insights/${compare.slug}`)
-    const guides = screen.getByRole('heading', { name: /buyer guides/i }).closest('section')!
-    for (const g of INSIGHTS.filter((i) => i !== compare)) {
-      expect(within(guides).getByRole('link', { name: new RegExp(g.title.slice(0, 20)) })).toHaveAttribute('href', `/insights/${g.slug}`)
-    }
-    expect(within(guides).getByRole('link', { name: 'All guides' })).toHaveAttribute('href', '/insights')
-  })
-
-  it('shows no homes when there are no real listings, and says plainly where they will appear', async () => {
-    await renderHome()
-    expect(screen.queryByRole('heading', { name: /homes from local agents/i })).toBeNull()
-    expect(screen.getByTestId('homes-empty')).toHaveTextContent(/appear here as they are listed/i)
-    expect(document.body.textContent).not.toMatch(/sample listing|sample home/i)
-  })
-
-  it('keeps the agent story to one compact band linking to /for-agents and the demo page, with no invite form', async () => {
-    await renderHome()
-    const band = screen.getByRole('heading', { name: /are you a real estate agent in pune/i }).closest('section')!
-    expect(within(band).getByRole('link', { name: /what we do for agents/i })).toHaveAttribute('href', '/for-agents')
-    expect(within(band).getByRole('link', { name: /^see a demo agent page$/i })).toHaveAttribute('href', '/agent/demo')
-    expect(screen.queryByRole('button', { name: /send request/i })).toBeNull()
-    expect(document.querySelector('form')).toBeNull()
-    expect(screen.queryByText(/INTERESTED/)).toBeNull()
-  })
-
-  it('never invents social proof, prices or phone numbers', async () => {
-    const { container } = await renderHome()
+  it('never invents social proof', () => {
+    const { container } = render(<LandingPage />)
     const text = container.textContent || ''
-    for (const banned of [/testimonial/i, /\brated\b/i, /\d+\s*\+?\s*(agents|customers|users|buyers|properties)\b/i, /trusted by/i, /five.star|5.star/i, /\bbest\b/i, /guarantee/i]) {
+    for (const banned of [/testimonial/i, /\brated\b/i, /\d+\s*\+?\s*(agents|customers|users|properties)\b/i, /trusted by/i, /five.star|5.star/i]) {
       expect(text).not.toMatch(banned)
     }
-    expect(container.querySelector('a[href^="tel:"]')).toBeNull()
-    const main = Array.from(container.querySelectorAll('section')).map((s) => s.textContent || '').join(' ')
-    expect(main).not.toMatch(PHONE)
+    expect(container.textContent).toMatch(/free during the pilot/i)
+    expect(container.textContent).toMatch(/invite-only/i)
   })
 
-  it('renders on the v2 surface with Organization JSON-LD and no invented contact', async () => {
-    const { container } = await renderHome()
+  it('says what you get, early: posts on the agent\'s own Instagram and Facebook, set up with them', () => {
+    render(<LandingPage />)
+    expect(screen.getByRole('heading', { name: /what you get, and what is next/i })).toBeInTheDocument()
+    const hero = screen.getByRole('heading', { level: 1 }).closest('section')!
+    expect(within(hero).getByText(/publish it on your own instagram and facebook page/i)).toBeInTheDocument()
+    expect(within(hero).getByText(/we set it all up with you/i)).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/is coming/i)
+  })
+
+  it('keeps the page short: no screenshot strip, no posts feed (they live on /posts)', () => {
+    const { container } = render(<LandingPage />)
+    expect(container.querySelector('#screens-title')).toBeNull()
+    expect(screen.queryByTestId('post-card')).toBeNull()
+  })
+
+  it('leads with the agent problem and an HTML phone mock of the lead card, labelled as sample', () => {
+    render(<LandingPage />)
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/more property enquiries/i)
+    expect(screen.getAllByText('INTERESTED').length).toBeGreaterThan(0)
+    expect(screen.getByText('HOT')).toBeInTheDocument()
+    expect(screen.getByText('Sample data')).toBeInTheDocument()
+  })
+
+  it('shows a real agent live today, with their pages and real slides, and says it is with their permission', () => {
+    const { container } = render(<LandingPage />)
+    expect(screen.getByRole('heading', { name: /see what an avasetu agent gets/i })).toBeInTheDocument()
+    expect(screen.getByText(/a sample page we built for house deal/i)).toBeInTheDocument()
+    expect(screen.queryByText(/live today/i)).toBeNull()
+    expect(screen.getByRole('link', { name: /open the example page/i })).toHaveAttribute('href', '/agent/house-deal')
+    expect(screen.getByRole('link', { name: /compare the 5 projects/i })).toHaveAttribute('href', '/agent/house-deal/projects/compare')
+    const live = Array.from(container.querySelectorAll('img')).filter((i) => (i.getAttribute('src') || '').startsWith('/landing/live/'))
+    expect(live).toHaveLength(3)
+    live.forEach((i) => expect(i.getAttribute('alt')!.length).toBeGreaterThan(30))
+  })
+
+  it('gives buyers two doors: area guides and news', () => {
+    render(<LandingPage />)
+    const strip = screen.getByRole('heading', { name: /buying a home in kharadi or wagholi/i }).closest('section')!
+    expect(within(strip).getByRole('link', { name: 'Area guides' })).toHaveAttribute('href', '/localities')
+    expect(within(strip).getByRole('link', { name: 'News' })).toHaveAttribute('href', '/news')
+  })
+
+  it('tells the create, get discovered, get qualified leads, close story in order', () => {
+    const { container } = render(<LandingPage />)
+    const steps = container.querySelector('#what-it-does')!
+    const labels = Array.from(steps.querySelectorAll('ol > li > p:first-child')).map((p) => (p.textContent || '').replace(/^\d/, '').trim())
+    expect(labels).toEqual(['Create', 'Get discovered', 'Get qualified leads', 'Close'])
+  })
+
+  it('answers cost, lead visibility, RERA and data in the FAQ, and puts the short form on the page', () => {
+    render(<LandingPage />)
+    for (const q of [/what does it cost/i, /who sees my buyer leads/i, /what about rera/i, /what happens to my buyers/i]) {
+      expect(screen.getByText(q)).toBeInTheDocument()
+    }
+    expect(screen.getByRole('button', { name: /send request/i })).toBeInTheDocument()
+  })
+
+  it('renders standalone on the v2 surface and embeds Organization JSON-LD without contact invented', () => {
+    const { container } = render(<LandingPage />)
     expect(container.querySelector('[data-surface="v2"]')).not.toBeNull()
     const ld = JSON.parse(container.querySelector('script[type="application/ld+json"]')!.textContent || '{}')
     expect(ld['@type']).toBe('Organization')
     expect(ld.name).toBeTruthy()
-    expect(ld.description).toMatch(/buyers/i)
     expect(ld.contactPoint).toBeUndefined()
     expect(ld.telephone).toBeUndefined()
     expect(ld.address).toBeUndefined()
-  })
-
-  it('has buyer metadata and keeps the landing preview image', () => {
-    expect(String(metadata.title)).toMatch(/^Avasetu: Kharadi, Upper Kharadi and Wagholi property news, area guides and homes/)
-    expect(String(metadata.description)).toMatch(/area guides/i)
-    expect(String(metadata.description)).not.toMatch(/agent.*pilot|invite/i)
-    const og = metadata.openGraph as { images: Array<{ url: string; width: number; height: number }> }
-    expect(og.images[0].url).toMatch(/\/brand\/og-landing\.jpg$/)
-    expect(og.images[0]).toMatchObject({ width: 1200, height: 630 })
-  })
-})
-
-const listing = (over: Partial<PublicListing>): PublicListing => ({
-  id: 'x', status: 'active', transaction: 'sale', property_type: 'apartment', title: '2 BHK in Kharadi', description: {}, price_inr: 9000000,
-  city: 'Pune', locality: 'Kharadi', amenities: [], media: [], agent: { slug: 'asha-homes', agent_name: 'Asha' }, ...over,
-})
-
-describe('home listings', () => {
-  it('keeps only real homes with an agent page, once each', () => {
-    const items = [
-      listing({ id: 'a' }),
-      listing({ id: 'a' }),
-      listing({ id: 'b', title: 'Sample: 3 BHK in Wagholi' }),
-      listing({ id: 'c', agent: undefined }),
-    ]
-    expect(realListings(items).map((l) => l.id)).toEqual(['a'])
-  })
-
-  it('renders real homes linking to their agent page, and nothing when there are none', () => {
-    const { container, rerender } = render(<HomeListings items={[listing({ id: 'a' })]} />)
-    expect(screen.getByRole('heading', { level: 2, name: /homes from local agents/i })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /2 BHK in Kharadi/ })).toHaveAttribute('href', expect.stringContaining('asha-homes'))
-    expect(container.textContent).not.toMatch(/sample/i)
-    rerender(<HomeListings items={[listing({ id: 'b', title: 'Sample home' })]} />)
-    expect(container.innerHTML).toBe('')
   })
 })
 
