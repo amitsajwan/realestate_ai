@@ -25,7 +25,7 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 | Modules touching `listings` / `agent_public_profiles` / `contacts` | 16 / 12 (+4 old services) / 7 | 1 writer each |
 | Old code (`services`, `api/v1`, `routers`, `schemas`, `repositories`, `models`, `utils`, `core`) | about 38,500 lines (26,000 after step 1) | platform keepers only |
 | … of which never imported | about 11,400 lines (40 files); 0 after step 1 | 0 |
-| Import-rule exceptions in `backend/.importlinter` | 8 (step 1); 5 now | 0 |
+| Import-rule exceptions in `backend/.importlinter` | 8 (step 1); 4 now | 0 |
 | Background loops guarded against running twice | 0 of 4 | 4 of 4 (step 0) |
 
 ## Steps
@@ -101,6 +101,7 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 
 | Date | Step | Change |
 |---|---|---|
+| 2026-10-03 | 2 | Media URL helpers moved to `platform.media` (`upload_path`, `display_url`, `public_media`, enhanced-copy names), pinned first by 24 tests; listings and marketing use them from there; photo analysis stays in photoquality. 1 import-rule exception removed |
 | 2026-10-03 | 2 | Text helpers moved to `platform.text` (copy guards, INR/sq ft/BHK formatting, Indian mobile numbers, LLM output clean-up), pinned first by 48 tests; 14 modules and 2 scripts import them from there; `onboarding/phone.py` deleted. Note: `money(9_999_999)` gives '₹100 Lakh', pinned as is, to fix separately |
 | 2026-10-03 | 2 | Pause switches moved to `platform.controls` (the 3 runners and admin now import them from there): 3 import-rule exceptions removed |
 | 2026-10-03 | 1 | Deleted 40 never-imported files, the demo and mock Facebook endpoints, `backend/modules/auth` and 12 debug scripts (14,568 lines); import rules in CI with 8 baseline exceptions |

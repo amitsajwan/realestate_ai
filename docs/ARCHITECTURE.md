@@ -53,7 +53,7 @@ Shared building blocks with no business knowledge. Nothing here imports from `ap
 | `jobs` | Worker entry point, heartbeats per loop | new (step 4) |
 | `llm` | AI model access: per-task model routing, schema-checked outputs, failover, call log | `ai_listing/llm.py` |
 | `meta_graph` | Facebook/Instagram Graph client, `sanitize`, publish errors | `social/graph.py`, `social/publisher.py` |
-| `media` | Upload storage, public URLs | `photoquality/store.py`, `endpoints/uploads.py` |
+| `media` | Upload storage, public URLs | `photoquality/store.py` (URL helpers **done**, step 2), `endpoints/uploads.py` |
 | `text` | Copy guards (hype words, phone numbers), INR/lakh/crore, sq ft, BHK, Indian mobile numbers, LLM output clean-up | `marketing/polish.py`, `marketing/facts.py`, `onboarding/phone.py`, **done** (step 2) |
 | `controls` | Owner pause switches | `admin/controls.py`, **done** (step 2) |
 | `region`, `brand` | Where we operate; the brand name and site URL | `core/region.py`, `core/brand.py` |

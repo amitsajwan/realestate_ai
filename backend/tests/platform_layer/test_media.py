@@ -4,8 +4,7 @@ Recorded from the code before it moved into the platform (MODERNIZATION step 2);
 """
 import pytest
 
-from app.modules.photoquality.store import _local_path as upload_path
-from app.modules.photoquality.store import display_url, enhanced_name, is_enhanced_name, public_media
+from app.platform.media import display_url, enhanced_name, is_enhanced_name, public_media, upload_path
 
 
 @pytest.mark.parametrize("url, path", [

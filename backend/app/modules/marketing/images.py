@@ -59,8 +59,8 @@ def local_upload_path(url: Optional[str], uploads_dir: Path) -> Optional[Path]:
 
 
 def first_photo_url(media: List[dict]) -> Optional[str]:
-    """The first photo's url; the enhanced copy when the agent kept 'Use enhanced' on (photoquality.store.display_url)."""
-    from app.modules.photoquality.store import display_url
+    """The first photo's url; the enhanced copy when the agent kept 'Use enhanced' on (platform.media.display_url)."""
+    from app.platform.media import display_url
     imgs = [(m.get("order") or 0, i, m) for i, m in enumerate(media or []) if (m.get("kind") or "image") == "image"]
     return display_url(min(imgs, key=lambda t: (t[0], t[1]))[2]) if imgs else None
 
