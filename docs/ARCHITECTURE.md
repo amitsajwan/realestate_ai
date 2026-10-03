@@ -11,8 +11,9 @@ Splitting into services is premature for a 3-10 agent pilot and a small team.
 
 Two processes run from the same Docker image:
 - **api**: serves HTTP.
-- **worker**: runs the background loops (newsroom, calendar, comment assistant, listing reels, later freshness and the publish
-  queue). Until the worker exists (MODERNIZATION step 4) the loops run inside the api process, guarded by runner leases.
+- **worker** (`python -m app.worker`): runs the background loops (newsroom, calendar, comment assistant, listing reels, later
+  freshness and the publish queue). `RUN_BACKGROUND_LOOPS=true` makes the api run them instead (the default where no worker is
+  deployed); runner leases keep one copy of each loop either way.
 
 **Constraints we design for:** MongoDB is a single server (`mongo:7`, no replica set). No multi-document transactions, no change
 streams and no Atlas Vector Search. Nothing in this design may depend on them.
@@ -39,6 +40,8 @@ identity < inventory < buyers < distribution < content
 When a lower module needs something from a higher one (for example, Distribution needs the "Listed by" attribution that the
 operator console knows), the higher module **passes a callback in at wiring time**. There is no event bus.
 `newsroom/pipeline.py` (`default_stages`) and `newsroom/adapters.py` already work this way, and they are the pattern to copy.
+All such wiring lives in one place, `backend/app/wiring.py` (the composition root), called by the api's route list, by the
+worker at start and by the tests.
 
 ## 3. Platform (`backend/app/platform/`)
 
@@ -53,7 +56,7 @@ holds them to the platform rule. They move into `app/platform/` in step 8, when 
 | `db` | Connection, `get_database`, indexes | `core/database.py`, `core/indexes.py` |
 | `auth` | `current_active_user`, `User`, roles | `core/auth_backend.py`, `models/user.py` (moved as is; never rewritten during the refactor) |
 | `leases` | One runner per background loop | new, **done** (step 0) |
-| `jobs` | Worker entry point, heartbeats per loop | new (step 4) |
+| `jobs` | Worker entry point, heartbeats per loop | `app/worker.py`, `platform/heartbeats.py`, **done** (step 4) |
 | `llm` | AI model access: per-task model routing, schema-checked outputs, failover, call log | `ai_listing/llm.py` (gateway moved, **done** step 2; routing, schemas and call log still to come) |
 | `meta_graph` | Facebook/Instagram Graph client and settings, `sanitize`, publish errors | `social/graph.py`, `social/publisher.py`, `social/config.py`, **done** (step 2) |
 | `media` | Upload storage, public URLs | `photoquality/store.py` (URL helpers **done**, step 2), `endpoints/uploads.py` |
@@ -98,8 +101,8 @@ Enforcement: `import-linter` in CI with today's violations recorded as a baselin
   expire, so two copies never run at once.
 - The loops are already status machines stored in Mongo (newsroom items, calendar slots, reel jobs). That is our durable workflow.
   We do not add Temporal, Inngest or a general job framework.
-- Each loop records a heartbeat (last cycle start, last success, last error). The health check alerts when a heartbeat is older
-  than twice the loop's interval (step 4).
+- Each loop records a heartbeat (last cycle start, last success, last error) in `worker_heartbeats`. `deploy/gcp/health_check.sh`
+  alerts when a heartbeat is older than twice the loop's interval (`python -m app.worker --check`).
 
 ## 7. Publishing
 

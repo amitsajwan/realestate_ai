@@ -20,13 +20,14 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 
 | Measure | Today | Target |
 |---|---|---|
-| Modules caught in one import cycle | 16 of 22; 10 after step 2 (calendar, concierge, creative, interest, marketing, newsroom, photoquality, reels, showcase, social) | 0 |
-| Imports between modules / of them hidden inside functions | 165 / 100; 109 / 68 after step 2 | only from public APIs / 0 (except heavy optional libraries) |
+| Modules caught in one import cycle | 16 of 22; 10 after step 2; **0 after step 3** | 0 |
+| Imports between modules / of them hidden inside functions | 165 / 100; 109 / 68 after step 2; 98 / 58 after step 3 | only from public APIs / 0 (except heavy optional libraries) |
 | Modules touching `listings` / `agent_public_profiles` / `contacts` | 16 / 12 (+4 old services) / 7 | 1 writer each |
 | Old code (`services`, `api/v1`, `routers`, `schemas`, `repositories`, `models`, `utils`, `core`) | about 38,500 lines (26,000 after step 1) | platform keepers only |
 | … of which never imported | about 11,400 lines (40 files); 0 after step 1 | 0 |
-| Import-rule exceptions in `backend/.importlinter` | 8 (step 1); 4 now | 0 |
+| Import-rule exceptions in `backend/.importlinter` | 8 (step 1); 4 after step 2; 1 after step 3 (step 5's) | 0 |
 | Background loops guarded against running twice | 0 of 4 | 4 of 4 (step 0) |
+| Background loops in their own process, with heartbeats | 0 of 4 | 4 of 4 (step 4, once deployed) |
 
 ## Steps
 
@@ -60,17 +61,35 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
   them old-layer files deleted in step 8) and would collide with product work in progress, for no change in behaviour. A
   fourth import rule holds them to the platform rule where they are; the move itself is part of step 8.
 
-### Step 3: Fix the wrong-way dependencies
+### Step 3: Fix the wrong-way dependencies (done)
 - `social → concierge.attribution`, `photoquality router → newsroom/calendar/concierge`, `admin → concierge.router` internals,
   `knowledge → calendar.library`, `interest → showcase.samples`. Replace each with a callback passed in at wiring time or a
   query function on the owner.
 - Add a test that imports every module and calls every route once.
 - **Done when:** the import check shows no upward edge; no function-level import is left to dodge a cycle.
+- **Result:** no import cycle is left. `app/wiring.py` is the composition root: at startup it passes callbacks and data into
+  lower modules (concierge's attribution into social, an operator check and per-kind review lookups into the quality route,
+  showcase's sample catalogue into the interest hub, sample homes and evergreen posts into knowledge grounding, the listing
+  facts builder into the comment assistant). The API wires when its route list loads, the worker at start, and the tests
+  through a session fixture. Two new import rules keep content and conversations independent. `tests/test_imports.py`
+  imports every module and resolves every import written inside a function; it found two broken imports in an old router
+  that was never mounted, now deleted. The 58 imports left inside functions no longer dodge a cycle; moving them to the top
+  of their files is cleanup for whoever next edits each file. `admin` still uses `concierge`'s route helpers: both are the
+  operator console, the same layer, so this is allowed.
 
-### Step 4: Worker process
+### Step 4: Worker process (done; verify after deploy)
 - `python -m app.worker` from the same image runs the loops; the api process stops starting them.
 - Heartbeat per loop; `deploy/gcp/health_check.sh` alerts when one is older than twice its interval.
 - **Done when:** restarting the api does not interrupt a loop; stopping the worker raises an alert.
+- **Result:** `python -m app.worker` runs engage, newsroom, calendar and listing reels, each under its runner lease; on
+  SIGTERM it cancels them (releasing the leases), then closes the database. It applies the startup wiring before the loops
+  start (caught in review: without it the comment assistant would crash on listing comments; a test covers it). Production
+  refuses to start without its database. `RUN_BACKGROUND_LOOPS` (default true) decides whether the API also starts them; the
+  GCP compose file sets it false on the backend and adds a `worker` service from the same build. Rollback:
+  `RUN_BACKGROUND_LOOPS=true` in `.env`, then `docker compose up -d backend`. Each loop records start, success and error per
+  cycle in `worker_heartbeats` (`app/platform/heartbeats.py`; never raises). `health_check.sh` checks the worker container and
+  runs `python -m app.worker --check` in the backend container, alerting when a loop switched on in `.env` has had no
+  heartbeat for twice its interval (for reels, twice the 15-minute render limit). Not yet run on the VM.
 
 ### Step 5: One publishing path
 - Distribution owns the queue and the publication log; newsroom, calendar, showcase and reels hand it posts instead of calling
@@ -107,6 +126,8 @@ small pull requests, one step (or part of a step) at a time. Each step has a "do
 
 | Date | Step | Change |
 |---|---|---|
+| 2026-10-03 | 3 | No import cycles left: wrong-way imports replaced by callbacks and data passed in by `app/wiring.py`; content and conversations independent (2 new import rules); every module and function-level import checked by a test, which found and removed an unmounted broken router. Exceptions 4 -> 1 |
+| 2026-10-03 | 4 | Worker process (`python -m app.worker`), `RUN_BACKGROUND_LOOPS` flag (API default unchanged; false in deploy/gcp), per-loop heartbeats in `worker_heartbeats`, stale-heartbeat alert in `health_check.sh`; built in parallel with step 3, merged, and fixed so the worker applies the startup wiring |
 | 2026-10-03 | 2 | Step 2 closed: core's platform parts held to the platform rule in place by a 4th import rule; their physical move is deferred to step 8 |
 | 2026-10-03 | 2 | Meta Graph client moved to `platform.meta_graph` (`config`, `graph`, `publisher`, files moved unchanged with history); 35 files across modules, tests and scripts import it from there; `social` keeps only its publish service and routes |
 | 2026-10-03 | 2 | AI gateway moved to `platform.llm` (providers, model failover, json/text, speech-to-text, `default_llm`); the listing prompts stay in `ai_listing` as `ListingLLM` on top of it. 9 modules and 6 scripts use the gateway from the platform. Every kept definition is identical to before (checked by comparing the code); one new test covers the about-suggest endpoint's use of the same client. The `social -> marketing.content` exception is re-labelled to step 5 (it is pack building, not a shared helper) |
