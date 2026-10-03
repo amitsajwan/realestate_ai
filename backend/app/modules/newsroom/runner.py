@@ -39,7 +39,7 @@ async def cycle(store: Store, cfg, hb=None) -> dict:
     try:
         stages = default_stages()
         stages["get"] = adapters.make_fetcher()
-        sources, publisher, llm = load_sources(cfg.sources), adapters.SocialPublisher(checker=stages["check"]), adapters.default_llm()
+        sources, publisher, llm = load_sources(cfg.sources), adapters.SocialPublisher(checker=stages["check"], db=store.db), adapters.default_llm()
         counts = await run_once(store, sources, stages, publisher, llm, now, cfg)
         for _ in range(MAX_PASSES - 1):  # each pass handles a small batch per stage: keep going while there is work
             if not (counts.get("filter") or counts.get("extract") or counts.get("draft") or counts.get("check")):

@@ -13,6 +13,8 @@ import httpx
 from app.platform.llm import default_llm as _default_llm
 from app.platform.meta_graph import config as social_config
 from app.platform.meta_graph.graph import GRAPH_HOST, REQUEST_TIMEOUT_S, GraphPublisher
+from app.core.database import get_database
+from app.modules.social.distribution import send as ledger_send
 from app.platform.meta_graph.publisher import Post, PublishError, sanitize
 
 from . import captions, cards
@@ -98,8 +100,8 @@ class SocialPublisher:
 
     def __init__(self, cfg=None, transport: Optional[httpx.AsyncBaseTransport] = None,
                  clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc), uploads: Optional[Path] = None,
-                 render: Optional[Callable[[dict, Path], dict]] = None, checker: Optional[Callable] = None):
-        self._cfg, self.transport, self.clock = cfg, transport, clock
+                 render: Optional[Callable[[dict, Path], dict]] = None, checker: Optional[Callable] = None, db=None):
+        self._cfg, self.transport, self.clock, self._db = cfg, transport, clock, db
         self.uploads, self.render, self.checker = uploads, render or render_cards, checker
 
     async def _card(self, doc: dict) -> Optional[dict]:
@@ -132,7 +134,10 @@ class SocialPublisher:
             if not cfg.configured(key):
                 return _fail("Facebook Page is not configured" if channel == "facebook" else "Instagram is not configured")
             try:
-                res = await graph.publish(Post(post_channel, texts[channel], urls, pr.news_url(doc["_id"]) if not urls else None))
+                post = Post(post_channel, texts[channel], urls, pr.news_url(doc["_id"]) if not urls else None)
+                # each item is posted at most once per channel, even if recording the outcome fails and the item is retried
+                res = await ledger_send(self._db if self._db is not None else get_database(), f"news:{doc['_id']}:{channel}",
+                                 lambda: graph.publish(post))  # the pause is checked per cycle by the runner: a failed item is final
             except PublishError as e:
                 return _fail(e)
             except Exception as e:  # a bug or an odd response must not stop the other channel
