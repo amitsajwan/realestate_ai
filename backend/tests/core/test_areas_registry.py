@@ -24,3 +24,10 @@ def test_named_in_prefers_the_specific_area():
     assert [a.key for a in areas.named_in("Homes near Hinjewadi Phase 3")] == ["hinjawadi"]
     assert [a.key for a in areas.named_in("Lohgaon airport road")] == ["lohegaon"]
     assert areas.named_in("Pune metro update") == ()
+
+
+def test_names_match_whole_words_only():
+    assert areas.named_in("Mr Banerjee bought a flat") == ()
+    assert [a.key for a in areas.named_in("Baner, Pune")] == ["baner"]
+    assert [a.key for a in areas.named_in("Homes in upper-kharadi")] == ["upper_kharadi"]
+    assert [a.key for a in areas.named_in("#Wagholi homes")] == ["wagholi"]

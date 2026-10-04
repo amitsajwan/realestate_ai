@@ -5,6 +5,7 @@ Add an area here, not in a module. Order is the order pages and menus show them.
 (Hinjawadi and Wakad, Keshav Nagar and Mundhwa), so mapping a MahaRERA project to an area lives with the register
 (app/modules/newsroom/policy.py), where it is verified against real project records.
 """
+import re
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
 
@@ -34,10 +35,10 @@ AREAS: Tuple[Area, ...] = (
     Area("wagholi", "Wagholi", "wagholi", "affordable", ("wagholi",), ("#WagholiPune", "#WagholiHomes")),
     Area("lohegaon", "Lohegaon", "lohegaon", "affordable", ("lohegaon", "lohgaon"), ("#LohegaonPune", "#Lohegaon")),
     Area("keshav_nagar", "Keshav Nagar", "keshav-nagar", "affordable", ("keshav nagar", "keshavnagar", "keshav-nagar"),
-         ("#KeshavNagarPune", "#Mundhwa")),
+         ("#KeshavNagarPune", "#Keshavnagar")),
     Area("hinjawadi", "Hinjawadi", "hinjawadi", "it", ("hinjawadi", "hinjewadi"), ("#HinjewadiPune", "#Hinjawadi")),
     Area("wakad", "Wakad", "wakad", "it", ("wakad",), ("#WakadPune", "#Wakad")),
-    Area("baner", "Baner", "baner", "it", ("baner",), ("#BanerPune", "#Baner")),
+    Area("baner", "Baner", "baner", "it", ("baner",), ("#BanerPune", "#BanerBalewadi")),
 )
 BY_KEY: Dict[str, Area] = {a.key: a for a in AREAS}
 BY_SLUG: Dict[str, Area] = {a.slug: a for a in AREAS}
@@ -51,8 +52,14 @@ def get(key_or_slug: str) -> Optional[Area]:
 def named_in(text: str) -> Tuple[Area, ...]:
     """Areas named in free text, most specific first ("Upper Kharadi" before "Kharadi"; Kharadi is dropped when only
     Upper Kharadi is meant)."""
-    t = f" {(text or '').lower()} "
-    found = [a for a in AREAS if any(f"{al}" in t for al in a.aliases)]
-    if BY_KEY["upper_kharadi"] in found and t.count("kharadi") == t.count("upper kharadi") + t.count("upper-kharadi"):
+    t = (text or "").lower()
+    hits = {a.key: [al for al in a.aliases if _word(al).search(t)] for a in AREAS}
+    found = [a for a in AREAS if hits[a.key]]
+    if hits["upper_kharadi"] and len(_word("kharadi").findall(t)) == sum(len(_word(al).findall(t)) for al in hits["upper_kharadi"]):
         found = [a for a in found if a.key != "kharadi"]
-    return tuple(sorted(found, key=lambda a: -max(len(al) for al in a.aliases if al in t)))
+    return tuple(sorted(found, key=lambda a: -max(len(al) for al in hits[a.key])))
+
+
+def _word(alias: str) -> "re.Pattern[str]":
+    """The alias as a whole word: "Baner" matches "Baner, Pune" but not "Banerjee"."""
+    return re.compile(rf"(?<![a-z]){re.escape(alias)}(?![a-z])")
