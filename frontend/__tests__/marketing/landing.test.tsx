@@ -2,19 +2,21 @@ import React from 'react'
 import { render, screen, within } from '@testing-library/react'
 import LandingPage from '@/app/page'
 import RequestInvitePage from '@/app/request-invite/page'
-import { SHOTS } from '@/lib/marketing/strings'
 
 // PostsSection is an async server component (fetches /public/posts); it is covered in __tests__/posts.
 jest.mock('@/components/site/PostsSection', () => ({ __esModule: true, default: () => null }))
 jest.mock('@/components/news/NewsSection', () => ({ __esModule: true, default: () => null }))
 
 describe('landing page', () => {
-  it('has one h1 and a primary call to action to /request-invite', () => {
+  it('has one h1 and sends the join buttons to the form on the page', () => {
     render(<LandingPage />)
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-    const ctas = screen.getAllByRole('link', { name: /request an invite/i })
-    expect(ctas.length).toBeGreaterThanOrEqual(2)
-    ctas.forEach((a) => expect(a).toHaveAttribute('href', '/request-invite'))
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/get more enquiries\.\s*know who to call first\./i)
+    const hero = screen.getByRole('heading', { level: 1 }).closest('section')!
+    expect(within(hero).getByRole('link', { name: /join the free pilot/i })).toHaveAttribute('href', '#invite')
+    expect(within(screen.getByTestId('sticky-join')).getByRole('link', { name: /join the free pilot/i, hidden: true })).toHaveAttribute('href', '#invite')
+    expect(screen.getByTestId('header-cta')).toHaveAttribute('href', '/request-invite')
+    expect(document.getElementById('invite')).not.toBeNull()
   })
 
   it('links to sign in and the legal pages', () => {
@@ -27,49 +29,45 @@ describe('landing page', () => {
     expect(within(footer).getByRole('link', { name: 'Data deletion' })).toHaveAttribute('href', '/data-deletion')
   })
 
-  it('never invents social proof', () => {
+  it('never invents social proof and ships no placeholders', () => {
     const { container } = render(<LandingPage />)
     const text = container.textContent || ''
-    for (const banned of [/testimonial/i, /\brated\b/i, /\d+\s*\+?\s*(agents|customers|users|properties)\b/i, /trusted by/i, /five.star|5.star/i]) {
+    for (const banned of [/testimonial/i, /rated/i, /\d+\s*\+?\s*(agents|customers|users|properties)/i, /trusted by/i, /five.star|5.star/i, /\[(confirm|pilot agent|agent name|founder|one line)/i]) {
       expect(text).not.toMatch(banned)
     }
-    expect(container.textContent).toMatch(/free during the pilot/i)
-    expect(container.textContent).toMatch(/invite-only/i)
+    expect(text).toMatch(/free during the pilot/i)
   })
 
-  it('says what you get, early: posts on the agent\'s own Instagram and Facebook, set up with them', () => {
+  it('keeps it short: no publishing box, no "what is next" lists', () => {
     render(<LandingPage />)
-    expect(screen.getByRole('heading', { name: /what you get, and what is next/i })).toBeInTheDocument()
-    const hero = screen.getByRole('heading', { level: 1 }).closest('section')!
-    expect(within(hero).getByText(/publish it on your own instagram and facebook page/i)).toBeInTheDocument()
-    expect(within(hero).getByText(/we set it all up with you/i)).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /what you get, and what is next/i })).toBeNull()
+    expect(document.body.textContent).not.toMatch(/we set it all up with you/i)
     expect(document.body.textContent).not.toMatch(/is coming/i)
   })
 
-  it('keeps the page short: no screenshot strip, no posts feed (they live on /posts)', () => {
-    const { container } = render(<LandingPage />)
-    expect(container.querySelector('#screens-title')).toBeNull()
-    expect(screen.queryByTestId('post-card')).toBeNull()
-  })
-
-  it('leads with the agent problem and an HTML phone mock of the lead card, labelled as sample', () => {
+  it('shows the lead card: the source comment, labelled fields and a next step, as sample data', () => {
     render(<LandingPage />)
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/more property enquiries/i)
-    expect(screen.getAllByText('INTERESTED').length).toBeGreaterThan(0)
-    expect(screen.getByText('HOT')).toBeInTheDocument()
+    expect(screen.getByText('INTERESTED')).toBeInTheDocument()
+    expect(screen.getByText('Hot')).toBeInTheDocument()
+    for (const label of ['Area', 'Budget', 'Timing', 'Loan']) expect(screen.getByText(label, { selector: 'dt' })).toBeInTheDocument()
+    expect(screen.getByText(/next step:/i)).toBeInTheDocument()
     expect(screen.getByText('Sample data')).toBeInTheDocument()
   })
 
-  it('shows a real agent live today, with their pages and real slides, and says it is with their permission', () => {
+  it('shows a real agent page with full-colour slides before the steps', () => {
     const { container } = render(<LandingPage />)
     expect(screen.getByRole('heading', { name: /see what an avasetu agent gets/i })).toBeInTheDocument()
     expect(screen.getByText(/a sample page we built for house deal/i)).toBeInTheDocument()
-    expect(screen.queryByText(/live today/i)).toBeNull()
     expect(screen.getByRole('link', { name: /open the example page/i })).toHaveAttribute('href', '/agent/house-deal')
     expect(screen.getByRole('link', { name: /compare the 5 projects/i })).toHaveAttribute('href', '/agent/house-deal/projects/compare')
     const live = Array.from(container.querySelectorAll('img')).filter((i) => (i.getAttribute('src') || '').startsWith('/landing/live/'))
     expect(live).toHaveLength(3)
-    live.forEach((i) => expect(i.getAttribute('alt')!.length).toBeGreaterThan(30))
+    live.forEach((i) => {
+      expect(i.getAttribute('alt')!.length).toBeGreaterThan(30)
+      expect(i.className).not.toMatch(/grayscale/)
+    })
+    const order = Array.from(container.querySelectorAll('section[id]')).map((s) => s.id)
+    expect(order.indexOf('live')).toBeLessThan(order.indexOf('what-it-does'))
   })
 
   it('gives buyers two doors: area guides and news', () => {
@@ -82,16 +80,26 @@ describe('landing page', () => {
   it('tells the create, get discovered, get qualified leads, close story in order', () => {
     const { container } = render(<LandingPage />)
     const steps = container.querySelector('#what-it-does')!
-    const labels = Array.from(steps.querySelectorAll('ol > li > p:first-child')).map((p) => (p.textContent || '').replace(/^\d/, '').trim())
+    const labels = Array.from(steps.querySelectorAll('ol > li p:first-child')).map((p) => (p.textContent || '').trim())
     expect(labels).toEqual(['Create', 'Get discovered', 'Get qualified leads', 'Close'])
   })
 
-  it('answers cost, lead visibility, RERA and data in the FAQ, and puts the short form on the page', () => {
-    render(<LandingPage />)
-    for (const q of [/what does it cost/i, /who sees my buyer leads/i, /what about rera/i, /what happens to my buyers/i]) {
+  it('answers the first worry, cost, leads and RERA in the FAQ, and the form is short', () => {
+    const { container } = render(<LandingPage />)
+    for (const q of [/what happens after i ask for an invite/i, /is it really free/i, /who sees my buyer leads/i, /what about rera/i, /which languages/i]) {
       expect(screen.getByText(q)).toBeInTheDocument()
     }
-    expect(screen.getByRole('button', { name: /send request/i })).toBeInTheDocument()
+    const form = container.querySelector('#invite form')!
+    expect(within(form as HTMLElement).getByRole('button', { name: /send request/i })).toBeInTheDocument()
+    expect(form.querySelector('input[name="city"]')).toBeNull()
+    expect(form.querySelector('input[name="consent"]')).not.toBeNull()
+  })
+
+  it('has a phone-only sticky join bar, hidden until the hero scrolls away', () => {
+    render(<LandingPage />)
+    const bar = screen.getByTestId('sticky-join')
+    expect(bar).toHaveAttribute('aria-hidden', 'true')
+    expect(bar.className).toMatch(/md:hidden/)
   })
 
   it('renders standalone on the v2 surface and embeds Organization JSON-LD without contact invented', () => {

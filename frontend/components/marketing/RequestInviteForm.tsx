@@ -9,9 +9,10 @@ type Status = 'idle' | 'sending' | 'done'
 
 /**
  * Short invite form: name, mobile and consent are the only things a phone user must fill.
- * City (default Pune) and a note live under "More details". `idPrefix` keeps ids unique if it appears twice on a page.
+ * City (default Pune) and a note live under "More details"; `short` drops that fold (the landing page sends Pune).
+ * `idPrefix` keeps ids unique if it appears twice on a page.
  */
-export default function RequestInviteForm({ idPrefix = 'ri' }: { idPrefix?: string }) {
+export default function RequestInviteForm({ idPrefix = 'ri', short = false }: { idPrefix?: string; short?: boolean }) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [city, setCity] = useState('Pune')
@@ -80,7 +81,7 @@ export default function RequestInviteForm({ idPrefix = 'ri' }: { idPrefix?: stri
         {errors.phone && <p id={id('phone-err')} role="alert" className="mt-1 text-sm text-red-700">{errors.phone}</p>}
       </div>
 
-      <details open={moreOpen} className="rounded-lg border border-slate-200 px-3">
+      {!short && <details open={moreOpen} className="rounded-lg border border-slate-200 px-3">
         <summary className="flex min-h-[44px] cursor-pointer items-center text-sm font-semibold text-[#0f2340]">{INVITE.more}</summary>
         <div className="space-y-4 pb-3">
           <div>
@@ -97,7 +98,7 @@ export default function RequestInviteForm({ idPrefix = 'ri' }: { idPrefix?: stri
             {errors.message && <p id={id('message-err')} role="alert" className="mt-1 text-sm text-red-700">{errors.message}</p>}
           </div>
         </div>
-      </details>
+      </details>}
 
       {/* Honeypot: hidden from people and assistive tech; bots that fill every field give themselves away. */}
       <div aria-hidden="true" style={{ position: 'absolute', left: '-10000px', top: 'auto', width: 1, height: 1, overflow: 'hidden' }}>

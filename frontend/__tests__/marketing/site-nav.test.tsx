@@ -87,7 +87,7 @@ describe('site footer', () => {
 describe('landing hero', () => {
   it('leads with "Join the free pilot" and offers "See an example agent page" second', () => {
     render(<LandingPage />)
-    expect(screen.getAllByRole('link', { name: /^join the free pilot$/i })[0]).toHaveAttribute('href', '/request-invite')
+    expect(screen.getAllByRole('link', { name: /^join the free pilot$/i })[0]).toHaveAttribute('href', '#invite') // the short form on the page
     expect(screen.getByRole('link', { name: /^see an example agent page$/i })).toHaveAttribute('href', '/agent/house-deal')
   })
 })
