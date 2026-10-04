@@ -59,7 +59,6 @@ describe('landing page', () => {
     expect(screen.getByRole('heading', { name: /see what an avasetu agent gets/i })).toBeInTheDocument()
     expect(screen.getByText(/a sample page we built for house deal/i)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /open the example page/i })).toHaveAttribute('href', '/agent/house-deal')
-    expect(screen.getByRole('link', { name: /compare the 5 projects/i })).toHaveAttribute('href', '/agent/house-deal/projects/compare')
     const live = Array.from(container.querySelectorAll('img')).filter((i) => (i.getAttribute('src') || '').startsWith('/landing/live/'))
     expect(live).toHaveLength(3)
     live.forEach((i) => {
@@ -70,10 +69,16 @@ describe('landing page', () => {
     expect(order.indexOf('live')).toBeLessThan(order.indexOf('what-it-does'))
   })
 
-  it('gives buyers two doors: area guides and news', () => {
+  it('links buyers to every area page, grouped by tier, then projects and news', () => {
     render(<LandingPage />)
-    const strip = screen.getByRole('heading', { name: /buying a home in kharadi or wagholi/i }).closest('section')!
-    expect(within(strip).getByRole('link', { name: 'Area guides' })).toHaveAttribute('href', '/localities')
+    const strip = screen.getByRole('heading', { name: /buying a home in pune/i }).closest('section')!
+    expect(within(strip).getByRole('heading', { name: 'Affordable homes' })).toBeInTheDocument()
+    expect(within(strip).getByRole('heading', { name: 'IT corridor' })).toBeInTheDocument()
+    for (const [name, slug] of [['Wagholi', 'wagholi'], ['Lohegaon', 'lohegaon'], ['Keshav Nagar', 'keshav-nagar'], ['Hinjawadi', 'hinjawadi'], ['Baner', 'baner']]) {
+      expect(within(strip).getByRole('link', { name })).toHaveAttribute('href', `/localities/${slug}`)
+    }
+    expect(within(strip).getAllByRole('link').filter((l) => l.getAttribute('href')?.startsWith('/localities/'))).toHaveLength(8)
+    expect(within(strip).getByRole('link', { name: 'All projects' })).toHaveAttribute('href', '/projects')
     expect(within(strip).getByRole('link', { name: 'News' })).toHaveAttribute('href', '/news')
   })
 
