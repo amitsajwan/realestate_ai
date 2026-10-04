@@ -24,6 +24,7 @@ class EngageConfig:
     lookback_posts: int = 15
     ig_business_id: str = ""        # linked Instagram Professional account (META_IG_BUSINESS_ID)
     instagram_enabled: bool = False  # ENGAGE_INSTAGRAM_ENABLED; defaults to on when ig_business_id is set
+    private_reply: bool = False      # ENGAGE_PRIVATE_REPLY: also DM interested/asking commenters for their WhatsApp number (needs pages_messaging)
     page_token: str = field(default="", repr=False)
 
     @property
@@ -41,5 +42,6 @@ def load() -> EngageConfig:
         interval_s=max(20, int(_env("ENGAGE_INTERVAL_SECONDS", "60") or 60)),
         page_id=_env("META_PAGE_ID"), graph_version=_env("META_GRAPH_VERSION", "v23.0"), page_token=_env("META_PAGE_ACCESS_TOKEN"),
         owner_agent_id=_env("ENGAGE_OWNER_AGENT_ID"), landing_url=_env("ENGAGE_LANDING_URL") or site, site_url=site,
+        private_reply=_env("ENGAGE_PRIVATE_REPLY").lower() in TRUE,
         ig_business_id=ig_id, instagram_enabled=bool(ig_id) and (ig_flag in TRUE if ig_flag else True),
     )

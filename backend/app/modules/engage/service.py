@@ -5,6 +5,7 @@ Guard rails: the whole thing is off unless ENGAGE_ENABLED; in dry-run mode it on
 per person per day; our own comments, threaded replies, spam and abuse are never answered; questions the post cannot answer go to a person.
 """
 import logging
+import re
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional
@@ -13,7 +14,9 @@ from urllib.parse import quote
 from app.modules.calendar.reach import audience as _audience
 from app.modules.knowledge.grounding import Ref, facts_for
 
-from .brain import Decision, decide
+from app.platform.text import normalize_indian_mobile
+
+from .brain import Decision, decide, dm_text
 from .config import EngageConfig
 from .graph import EngageGraphError
 
@@ -29,6 +32,7 @@ def configure(listing_facts: Callable[[dict, dict, str], Any]) -> None:
 LEAD_INTENTS = ("interested", "question")
 MAX_COMMENT_AGE = timedelta(days=7)
 UNKNOWN_PER_POST_PER_DAY = 6  # commenters whose identity Meta does not show us
+DM_PHONE = re.compile(r"(?<!\d)(?:\+?91[\s-]?|0)?[6-9](?:[\s-]?\d){9}(?!\d)")  # as people type it: "98765 43210", "+91-98765-43210"
 
 
 def with_source(url: str, source: str = "facebook_comment") -> str:
@@ -179,6 +183,13 @@ class EngageService:
         for channel, graph in self.channels():
             if not await self._run_channel(channel, graph, only_ids, counts):
                 break
+        if only_ids is None:
+            try:
+                n = await self.collect_dm_replies()
+                if n:
+                    counts["dm_phone"] = n
+            except Exception:  # reading the inbox must never stop replies
+                log.exception("engage: could not read private replies")
         return counts
 
     async def _run_channel(self, channel: str, graph, only_ids: Optional[set], counts: Dict[str, int]) -> bool:
@@ -205,6 +216,7 @@ class EngageService:
                     return False
                 doc = await self._handle(post, c, ctx, channel, handle, graph)
                 if doc:
+                    await self._private_reply(doc, post, ctx, graph)
                     await self.comments.insert_one(doc)
                     counts[doc["status"]] = counts.get(doc["status"], 0) + 1
                     if doc["intent"] in LEAD_INTENTS and doc["status"] in ("replied", "needs_human", "dry_run", "capped"):
@@ -214,6 +226,71 @@ class EngageService:
                             log.exception("engage: could not record a lead for comment %s", c["id"])
                     log.info("engage: %s comment %s intent=%s status=%s%s", channel, c["id"], doc["intent"], doc["status"], f" error={doc['error']}" if doc["error"] else "")
         return True
+
+    async def _private_reply(self, doc: dict, post: dict, ctx: Dict, graph) -> None:
+        """Interested or asking commenters also get one private message (Messenger / Instagram DM) asking for their WhatsApp number,
+        budget and timing: the public reply is seen by everyone, the DM is what turns a commenter into someone an agent can call.
+        One per person a week; a failure (e.g. the messaging permission is missing) is recorded and never stops the public reply."""
+        if not self.cfg.private_reply or doc["intent"] not in LEAD_INTENTS or not doc.get("from_id") \
+                or doc["status"] not in ("replied", "needs_human", "dry_run"):
+            return
+        if await self.comments.find_one({"channel": doc["channel"], "from_id": doc["from_id"], "dm_status": {"$in": ["sent", "dry_run"]},
+                                         "processed_at": {"$gte": self.now() - MAX_COMMENT_AGE}}):
+            doc["dm_status"] = "skipped"
+            return
+        topic = ((post.get("message") or "").splitlines() or [""])[0].strip()
+        topic = topic if len(topic) <= 60 else topic[:60].rsplit(" ", 1)[0]
+        doc["dm"] = dm_text(doc.get("language") or "en", doc.get("from_name"), ctx["link"], topic, ctx.get("audience") or "buyers")
+        if self.cfg.dry_run:
+            doc["dm_status"] = "dry_run"
+            return
+        try:
+            doc["dm_recipient"] = await graph.private_reply(doc["comment_id"], doc["dm"])
+            doc.update(dm_status="sent", dm_at=self.now())
+        except EngageGraphError as e:
+            doc.update(dm_status="failed", dm_error=str(e))
+            log.warning("engage: private reply to %s comment %s failed: %s", doc["channel"], doc["comment_id"], e)
+
+    async def collect_dm_replies(self) -> int:
+        """Answers to our private messages: when a commenter-lead without a phone writes back a mobile number, it goes onto the lead
+        (with everything they wrote, e.g. budget and timing) so the agent can call or WhatsApp them. Returns the number of leads updated."""
+        if not self.cfg.private_reply or self.cfg.dry_run:
+            return 0
+        contacts = self.db.get_collection("contacts")
+        waiting = [c for c in await contacts.find({"phone": ""}).to_list(500) if (c.get("dm") or {}).get("id")]
+        updated = 0
+        for channel, graph in self.channels():
+            mine = {c["dm"]["id"]: c for c in waiting if c["dm"].get("channel") == channel}
+            if not mine:
+                continue
+            try:
+                convs = await graph.inbox()
+            except EngageGraphError as e:
+                log.warning("engage: could not read the %s inbox: %s", channel, e)
+                continue
+            for conv in convs:
+                said: Dict[str, List[str]] = {}
+                for m in reversed((conv.get("messages") or {}).get("data") or []):  # oldest first
+                    who = str((m.get("from") or {}).get("id") or "")
+                    if who in mine and (m.get("message") or "").strip():
+                        said.setdefault(who, []).append(m["message"].strip())
+                for who, lines in said.items():
+                    text = "\n".join(lines)[:1000]
+                    found = DM_PHONE.search(text)
+                    if not found:
+                        continue
+                    try:
+                        phone = normalize_indian_mobile(found.group(0))
+                    except ValueError:
+                        continue
+                    now, lead = self.now(), mine.pop(who)
+                    message = f"{channel.title()} message: “{text}”"
+                    await contacts.update_one({"_id": lead["_id"]}, {"$set": {
+                        "phone": phone, "last_message": message, "message": f"{lead.get('message', '')}\n\n{message}".strip(),
+                        "last_activity_at": now, "score_base": max(int(lead.get("score_base") or 0), 25),
+                        "consent": {"given_at": now, "purpose": "enquiry follow-up", "how": f"shared their number in a {channel} message"}}})
+                    updated += 1
+        return updated
 
     async def _record_lead(self, doc: dict, post: dict) -> None:
         """An interested or asking commenter becomes a lead in the agent's inbox (no phone yet: the agent can reply or DM on the platform)."""
@@ -226,9 +303,11 @@ class EngageService:
         topic = ((post.get("message") or post.get("caption") or "").splitlines() or [""])[0][:120]
         message = f"{doc['channel'].title()} comment: “{doc.get('text', '')[:300]}”" + (f"\nOn the post: {topic}" if topic else "")
         now = self.now()
+        dm = {"channel": doc["channel"], "id": doc["dm_recipient"]} if doc.get("dm_recipient") else None
         existing = await contacts.find_one({"agent_id": agent, "anon_ids": key})
         if existing:
-            await contacts.update_one({"_id": existing["_id"]}, {"$set": {"last_activity_at": now, "last_message": message}})
+            await contacts.update_one({"_id": existing["_id"]}, {"$set": {"last_activity_at": now, "last_message": message,
+                                                                         **({"dm": dm} if dm else {})}})
             return
         await contacts.insert_one({
             "_id": uuid.uuid4().hex, "agent_id": agent,
@@ -237,6 +316,7 @@ class EngageService:
             "first_listing_id": doc.get("listing_id"), "consent": None,
             "score_base": 10 if doc["intent"] == "interested" else 6, "created_at": now, "last_activity_at": now, "last_message": message,
             "notes": [], "requirement": None, "social": {"channel": doc["channel"], "handle": who, "comment_link": doc.get("permalink")},
+            "dm": dm,  # who we privately messaged; their answer (a phone number) is filled in by collect_dm_replies
         })
 
     async def _set_status(self, channel: str, ok: bool, err: Optional[EngageGraphError] = None) -> None:

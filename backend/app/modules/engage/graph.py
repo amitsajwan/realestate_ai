@@ -1,4 +1,5 @@
 """Facebook Graph calls for comments: list recent posts with their comments, reply to a comment. Errors are sanitised."""
+import json
 from typing import List, Optional
 
 import httpx
@@ -42,3 +43,19 @@ class EngageGraph:
     async def reply(self, comment_id: str, text: str) -> str:
         body = await self._call("POST", f"{comment_id}/comments", {"message": text})
         return str(body.get("id", ""))
+
+    # ---- private replies (needs pages_messaging; instagram_manage_messages for Instagram) ---------------------------------------
+    platform = "messenger"
+
+    async def private_reply(self, comment_id: str, text: str) -> str:
+        """One private message to the person who wrote the comment (Meta allows one per comment, within 7 days). Returns their
+        Page-scoped id, which is how their answer is found in the inbox later."""
+        body = await self._call("POST", f"{self.cfg.page_id}/messages",
+                                {"recipient": json.dumps({"comment_id": comment_id}), "message": json.dumps({"text": text})})
+        return str(body.get("recipient_id", ""))
+
+    async def inbox(self, limit: int = 25) -> List[dict]:
+        """Recent conversations: [{participant ids, messages: [{message, from: {id}, created_time}]}], newest first."""
+        fields = "participants,updated_time,messages.limit(10){message,from,created_time}"
+        body = await self._call("GET", f"{self.cfg.page_id}/conversations", {"platform": self.platform, "fields": fields, "limit": limit})
+        return body.get("data", [])

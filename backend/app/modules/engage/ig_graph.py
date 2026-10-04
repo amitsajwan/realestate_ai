@@ -37,3 +37,5 @@ class IgGraph(EngageGraph):
     async def reply(self, comment_id: str, text: str) -> str:
         body = await self._call("POST", f"{comment_id}/replies", {"message": text})
         return str(body.get("id", ""))
+
+    platform = "instagram"  # private replies and the inbox go through the Page's messaging API with platform=instagram

@@ -20,19 +20,19 @@ ABUSE = re.compile(r"\b(fraud|scam|cheat|fake|liar|stupid|idiot|bloody)\b", re.I
 
 TEMPLATES = {
     "en": {
-        "interested": "Thanks{name}! Here are the details: {link} . Share your budget and preferred area there and our team will get back to you.",
-        "question": "Good question{name}! Our team will reply here soon. Meanwhile, the full details are here: {link}",
+        "interested": "Thanks{name}! Details and price: {link} . Leave your WhatsApp number there and our team will send you the price list and floor plans.",
+        "question": "Good question{name}! Our team will reply here soon. Meanwhile, the full details are here: {link} . Leave your WhatsApp number there for the price list.",
         "praise": "Thank you{name}! Follow the page for more Pune property guides and listings.",
         "greeting": "Hello{name}! Comment INTERESTED on a listing for the details, or ask your question here and our team will help.",
     },
     "hi": {
-        "interested": "धन्यवाद{name}! पूरी जानकारी यहाँ है: {link} . वहाँ अपना बजट और पसंदीदा इलाका बताएं, हमारी टीम आपसे संपर्क करेगी।",
+        "interested": "धन्यवाद{name}! पूरी जानकारी और कीमत यहाँ है: {link} . वहाँ अपना WhatsApp नंबर दें, हमारी टीम आपको प्राइस लिस्ट और फ्लोर प्लान भेजेगी।",
         "question": "अच्छा सवाल{name}! हमारी टीम जल्द यहीं जवाब देगी। पूरी जानकारी यहाँ है: {link}",
         "praise": "धन्यवाद{name}! पुणे की प्रॉपर्टी गाइड और लिस्टिंग के लिए पेज को फॉलो करें।",
         "greeting": "नमस्ते{name}! विवरण के लिए कमेंट में INTERESTED लिखें, या अपना सवाल यहीं पूछें, हमारी टीम मदद करेगी।",
     },
     "mr": {
-        "interested": "धन्यवाद{name}! संपूर्ण माहिती इथे आहे: {link} . तिथे तुमचे बजेट आणि आवडते क्षेत्र सांगा, आमची टीम तुमच्याशी संपर्क करेल.",
+        "interested": "धन्यवाद{name}! संपूर्ण माहिती आणि किंमत इथे आहे: {link} . तिथे तुमचा WhatsApp नंबर द्या, आमची टीम तुम्हाला प्राइस लिस्ट आणि फ्लोअर प्लॅन पाठवेल.",
         "question": "छान प्रश्न{name}! आमची टीम लवकरच इथेच उत्तर देईल. संपूर्ण माहिती इथे आहे: {link}",
         "praise": "धन्यवाद{name}! पुण्यातील प्रॉपर्टी गाइड आणि लिस्टिंगसाठी पेज फॉलो करा.",
         "greeting": "नमस्कार{name}! तपशीलासाठी कमेंटमध्ये INTERESTED लिहा, किंवा तुमचा प्रश्न इथेच विचारा, आमची टीम मदत करेल.",
@@ -43,17 +43,17 @@ TEMPLATES = {
 BIO = {"en": "the link in our bio", "hi": "हमारे बायो का लिंक", "mr": "आमच्या बायोमधील लिंक"}
 IG_TEMPLATES = {
     "en": {
-        "interested": "Thanks{name}! Full details are at the link in our bio. Share your budget and preferred area there and our team will get back to you.",
+        "interested": "Thanks{name}! Full details are at the link in our bio. Leave your WhatsApp number there and our team will send you the price list and floor plans.",
         "question": "Good question{name}! Our team will reply here soon. Meanwhile, the details are at the link in our bio.",
         "praise": "Thank you{name}! Follow this account for more Pune property guides and listings.",
     },
     "hi": {
-        "interested": "धन्यवाद{name}! पूरी जानकारी हमारे बायो के लिंक पर है। वहाँ अपना बजट और पसंदीदा इलाका बताएं, हमारी टीम आपसे संपर्क करेगी।",
+        "interested": "धन्यवाद{name}! पूरी जानकारी हमारे बायो के लिंक पर है। वहाँ अपना WhatsApp नंबर दें, हमारी टीम आपको प्राइस लिस्ट और फ्लोर प्लान भेजेगी।",
         "question": "अच्छा सवाल{name}! हमारी टीम जल्द यहीं जवाब देगी। पूरी जानकारी हमारे बायो के लिंक पर है।",
         "praise": "धन्यवाद{name}! पुणे की प्रॉपर्टी गाइड और लिस्टिंग के लिए इस अकाउंट को फॉलो करें।",
     },
     "mr": {
-        "interested": "धन्यवाद{name}! संपूर्ण माहिती आमच्या बायोमधील लिंकवर आहे. तिथे तुमचे बजेट आणि आवडते क्षेत्र सांगा, आमची टीम तुमच्याशी संपर्क करेल.",
+        "interested": "धन्यवाद{name}! संपूर्ण माहिती आमच्या बायोमधील लिंकवर आहे. तिथे तुमचा WhatsApp नंबर द्या, आमची टीम तुम्हाला प्राइस लिस्ट आणि फ्लोअर प्लॅन पाठवेल.",
         "question": "छान प्रश्न{name}! आमची टीम लवकरच इथेच उत्तर देईल. संपूर्ण माहिती आमच्या बायोमधील लिंकवर आहे.",
         "praise": "धन्यवाद{name}! पुण्यातील प्रॉपर्टी गाइड आणि लिस्टिंगसाठी हे अकाउंट फॉलो करा.",
     },
@@ -222,3 +222,25 @@ async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm
     if looks_like_question(text):
         return Decision("question", lang, render("question", lang, from_name, link, channel), needs_human=True, reason="question the post cannot answer")
     return Decision("other", lang, None, reason="other")
+
+
+# The private message (Messenger / Instagram DM) sent once to someone who commented interest or a question. It asks for what turns a
+# commenter into a lead an agent can call; their answer is read back into the lead (EngageService.collect_dm_replies).
+DM_TEMPLATES = {
+    "en": "Hi{name}, thanks for your comment{topic}. To send you the price list and floor plans on WhatsApp, please reply here with "
+          "1) your WhatsApp number, 2) your budget, 3) when you plan to buy. Details: {link}",
+    "hi": "नमस्ते{name}, आपके कमेंट{topic} के लिए धन्यवाद। प्राइस लिस्ट और फ्लोर प्लान WhatsApp पर भेजने के लिए यहीं जवाब दें: "
+          "1) आपका WhatsApp नंबर, 2) आपका बजट, 3) आप कब तक खरीदना चाहते हैं। जानकारी: {link}",
+    "mr": "नमस्कार{name}, तुमच्या कमेंटसाठी{topic} धन्यवाद. प्राइस लिस्ट आणि फ्लोअर प्लॅन WhatsApp वर पाठवण्यासाठी इथेच उत्तर द्या: "
+          "1) तुमचा WhatsApp नंबर, 2) तुमचे बजेट, 3) तुम्ही कधी खरेदी करणार. माहिती: {link}",
+}
+DM_AGENTS = ("Hi{name}, thanks for asking about Avasetu. The pilot is free. Reply here with your WhatsApp number and the areas you work in, "
+             "and we will set it up with you. Or join here: {link}")
+
+
+def dm_text(language: str, name: Optional[str], link: str, topic: str = "", audience: str = "buyers") -> str:
+    first = f" {name.split()[0]}" if name and name.split() else ""
+    if audience == "agents":
+        return DM_AGENTS.format(name=first, link=link)
+    on = (f" on {topic}" if language == "en" else f" ({topic})") if topic else ""
+    return DM_TEMPLATES.get(language, DM_TEMPLATES["en"]).format(name=first, topic=on, link=link)

@@ -212,3 +212,30 @@ async def test_config_defaults_instagram_on_only_when_the_account_id_is_set(monk
     assert load().instagram_enabled is True
     monkeypatch.setenv("ENGAGE_INSTAGRAM_ENABLED", "false")
     assert load().instagram_enabled is False
+
+
+async def test_private_replies_and_the_inbox_use_the_pages_messaging_api_with_the_right_platform():
+    import json as _json
+    import httpx
+    from app.modules.engage.graph import EngageGraph
+    from app.modules.engage.ig_graph import IgGraph
+    seen = []
+
+    def handler(req):
+        seen.append(req)
+        if req.method == "POST":
+            return httpx.Response(200, json={"recipient_id": "PSID9", "message_id": "m1"})
+        return httpx.Response(200, json={"data": [{"id": "t1"}]})
+
+    cfg = EngageConfig(page_id="PAGE", page_token="tok", ig_business_id="IG")
+    for G, platform in ((EngageGraph, "messenger"), (IgGraph, "instagram")):
+        seen.clear()
+        g = G(cfg, transport=httpx.MockTransport(handler))
+        assert await g.private_reply("C7", "hello") == "PSID9"
+        assert await g.inbox() == [{"id": "t1"}]
+        post_req, get_req = seen
+        assert post_req.url.path.endswith("/PAGE/messages")
+        form = dict(x.split("=", 1) for x in post_req.content.decode().split("&"))
+        from urllib.parse import unquote_plus
+        assert _json.loads(unquote_plus(form["recipient"])) == {"comment_id": "C7"} and _json.loads(unquote_plus(form["message"])) == {"text": "hello"}
+        assert get_req.url.path.endswith("/PAGE/conversations") and get_req.url.params["platform"] == platform

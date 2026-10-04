@@ -345,3 +345,95 @@ async def test_a_question_on_a_project_post_is_answered_from_the_project_record(
     ctx = await svc._base_context({"id": "PAGE_910", "message": "Rohan Abhilasha 4, Wagholi: 74 L"}, "facebook")
     assert "Lohegaon-Wagholi Road" in ctx["facts"] and "about 172 not yet booked" in ctx["facts"]
     assert ctx["link"].startswith("https://site.test/agent/house-deal/projects/rohan-abhilasha")
+
+
+# ---- private replies: comment -> DM asking for WhatsApp number -> phone on the lead ------------------------------------
+class DmGraph(FakeGraph):
+    def __init__(self, posts):
+        super().__init__(posts)
+        self.dms, self.convs, self.dm_fail = [], [], False
+
+    async def private_reply(self, comment_id, text):
+        if self.dm_fail:
+            raise EngageGraphError("(#10) This message is sent outside of allowed window or the app lacks pages_messaging")
+        self.dms.append((comment_id, text))
+        return f"psid-{comment_id}"
+
+    async def inbox(self, limit=25):
+        return self.convs
+
+
+def make_dm(posts, dry_run=False, **cfg):
+    db = FakeDb()
+    conf = EngageConfig(enabled=True, dry_run=dry_run, page_id="PAGE", site_url="https://site.test", owner_agent_id="OWNER",
+                        landing_url="https://site.test/agent/rahul#enquire", private_reply=True, **cfg)
+    g = DmGraph(posts)
+    return EngageService(db, g, None, conf, now=lambda: NOW), g, db
+
+
+async def test_an_interested_commenter_also_gets_one_private_message_asking_for_whatsapp_and_budget():
+    svc, g, db = make_dm([post([comment("C1", "INTERESTED")], message="Rohan Abhilasha 4, Wagholi: 2 BHK from 74 L")])
+    await svc.run_once()
+    assert len(g.replies) == 1 and len(g.dms) == 1
+    cid, text = g.dms[0]
+    assert cid == "C1" and text.startswith("Hi Priya, thanks for your comment on Rohan Abhilasha 4") and "WhatsApp number" in text
+    assert "budget" in text and "site.test/agent/rahul" in text
+    lead = db.get_collection("contacts").docs[0]
+    assert lead["phone"] == "" and lead["dm"] == {"channel": "facebook", "id": "psid-C1"}
+
+
+async def test_private_messages_are_off_by_default_and_only_recorded_in_dry_run():
+    svc, g, db = make([post([comment("C1", "INTERESTED")])])
+    await svc.run_once()
+    assert not hasattr(g, "dms") and "dm_status" not in db.get_collection("engage_comments").docs[0]
+    svc, g, db = make_dm([post([comment("C1", "INTERESTED")])], dry_run=True)
+    await svc.run_once()
+    doc = db.get_collection("engage_comments").docs[0]
+    assert g.dms == [] and doc["dm_status"] == "dry_run" and "WhatsApp number" in doc["dm"]
+
+
+async def test_one_private_message_per_person_and_none_for_praise_or_spam():
+    svc, g, db = make_dm([post([comment("C1", "INTERESTED"), comment("C2", "price?"), comment("C3", "Earn money click here", who="u9")])])
+    await svc.run_once()
+    assert [c for c, _ in g.dms] == ["C1"]
+    assert db.get_collection("engage_comments").docs[1]["dm_status"] == "skipped"
+
+
+async def test_a_refused_private_message_is_recorded_and_the_public_reply_still_goes_out():
+    svc, g, db = make_dm([post([comment("C1", "INTERESTED")])])
+    g.dm_fail = True
+    assert await svc.run_once() == {"replied": 1}
+    doc = db.get_collection("engage_comments").docs[0]
+    assert doc["dm_status"] == "failed" and "pages_messaging" in doc["dm_error"] and len(g.replies) == 1
+
+
+async def test_agents_asking_under_our_promo_get_the_pilot_message():
+    svc, g, db = make_dm([post([comment("C1", "INTERESTED")], pid="PAGE_900", message="Pune property agents: stop chasing comments")])
+    db.get_collection("content_calendar").docs.append({"_id": "CALP", "slug": "promo-v2-group", "kind": "post", "channel": "facebook_page",
+                                                      "external_id": "PAGE_900", "caption": "", "status": "published",
+                                                      "creative": {"source": "promo_agents_v2"}})
+    await svc.run_once()
+    text = g.dms[0][1]
+    assert "pilot is free" in text and "areas you work in" in text and "https://site.test/pilot" in text
+
+
+async def test_a_number_written_back_in_the_dm_becomes_the_leads_phone_with_what_they_said():
+    svc, g, db = make_dm([post([comment("C1", "INTERESTED")])])
+    await svc.run_once()
+    g.convs = [{"participants": {}, "messages": {"data": [  # newest first, as Meta returns them
+        {"message": "budget 80 lakh, buying in 3 months", "from": {"id": "psid-C1"}},
+        {"message": "my whatsapp 98765 43210", "from": {"id": "psid-C1"}},
+        {"message": "Hi Priya, thanks...", "from": {"id": "PAGE"}}]}}]
+    assert await svc.run_once() == {"dm_phone": 1}
+    lead = db.get_collection("contacts").docs[0]
+    assert lead["phone"] == "+919876543210" and lead["consent"]["how"] == "shared their number in a facebook message"
+    assert lead["last_message"] == "Facebook message: “my whatsapp 98765 43210\nbudget 80 lakh, buying in 3 months”"
+    assert await svc.run_once() == {}  # already has a phone: not touched again
+
+
+async def test_a_dm_without_a_valid_mobile_leaves_the_lead_waiting():
+    svc, g, db = make_dm([post([comment("C1", "INTERESTED")])])
+    await svc.run_once()
+    g.convs = [{"messages": {"data": [{"message": "call me on 12345", "from": {"id": "psid-C1"}}]}}]
+    assert await svc.run_once() == {}
+    assert db.get_collection("contacts").docs[0]["phone"] == ""
