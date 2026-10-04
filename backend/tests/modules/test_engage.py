@@ -316,3 +316,14 @@ async def test_other_facebook_errors_do_not_ask_for_a_reconnect():
     g.recent_posts_with_comments = boom
     await svc.run_once()
     assert db.get_collection("engage_status").docs[0]["reconnect"] is False
+
+
+async def test_interest_on_our_agent_promo_goes_to_the_pilot_signup():
+    """Live 2026-10-04: an agent asked 'is it free, how can I use this' under the promo and got the old buyer landing link."""
+    svc, g, db = make([post([comment("C1", "INTERESTED")], pid="PAGE_900", message="Pune property agents: stop chasing comments")])
+    db.get_collection("content_calendar").docs.append({"_id": "CALP", "slug": "promo-v2-group", "kind": "post", "channel": "facebook_page",
+                                                      "external_id": "PAGE_900", "caption": "", "status": "published",
+                                                      "creative": {"source": "promo_agents_v2"}})
+    await svc.run_once()
+    doc = db.get_collection("engage_comments").docs[0]
+    assert "https://site.test/pilot" in doc["reply"] and "agent/rahul" not in doc["reply"]

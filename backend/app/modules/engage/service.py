@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import quote
 
+from app.modules.calendar.reach import audience as _audience
 from app.modules.knowledge.grounding import Ref, facts_for
 
 from .brain import Decision, decide
@@ -94,7 +95,7 @@ class EngageService:
         """{facts, link, listing_id, agent_id, grounding} for a post. Listing posts use the listing's facts; calendar posts use their verified
         text (or the sample home); other posts use the post's own text. `grounding` is what a question about the post may be answered from."""
         ctx = await self._base_context(post, channel)
-        if self.interest_url is not None:
+        if self.interest_url is not None and ctx.get("audience") != "agents":  # agents get the pilot link, not a buyer interest link
             url = self.interest_url(ctx, channel)
             url = await url if hasattr(url, "__await__") else url
             if url:
@@ -117,8 +118,12 @@ class EngageService:
             facts = "\n".join(x for x in (f.title_line("en"), f.price_text, f.area_text, f.possession_text("en"), f.floor_text("en"),
                                           f"RERA {f.rera}" if f.rera else None, "Amenities: " + ", ".join(f.amenities) if f.amenities else None, message) if x)
             return {"facts": facts, "link": with_source(base, source), "listing_id": listing["_id"], "agent_id": listing.get("agent_id"), "grounding": grounding}
-        return {"facts": message, "link": with_source(self.cfg.landing_url, source), "listing_id": None, "agent_id": self.cfg.owner_agent_id or None,
-                "grounding": grounding, "calendar_id": item["_id"] if item else None}
+        landing = self.cfg.landing_url
+        agents = bool(item) and _audience(item) == "agents"
+        if agents and self.cfg.site_url:  # our recruitment posts: agents asking "how do I use this" go to the pilot sign-up
+            landing = f"{self.cfg.site_url}/pilot"
+        return {"facts": message, "link": with_source(landing, source), "listing_id": None, "agent_id": self.cfg.owner_agent_id or None,
+                "grounding": grounding, "calendar_id": item["_id"] if item else None, "audience": "agents" if agents else "buyers"}
 
     # ---- limits ------------------------------------------------------------------------------------------------
     async def _hourly_full(self) -> bool:
