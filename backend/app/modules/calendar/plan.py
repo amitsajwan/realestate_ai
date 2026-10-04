@@ -5,15 +5,18 @@ Per week (default 4 weeks), 10:00 or 19:00 IST on varied days:
   Facebook  (5): two educational posts, a showcase card, an agent post or a poll (alternating), the same reel
 Reel templates alternate tip, tour, pitch. A library slug is never reused within 60 days (on either channel). Showcase homes rotate through
 Kharadi, Upper Kharadi and Wagholi. Hindi and Marathi agent posts are left out unless include_local is set.
+
+The daily reel rhythm (`build_daily_plan`, opt-in: CALENDAR_DAILY_REELS) is separate: 2 reels a day (3 later) on both channels,
+a morning area insight and an evening real project (consented agents only) or buyer-guide reel.
 """
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from .adapters import AGENT_POOL, AREAS, STAT_SLUGS, homes_in
 from .library import ENTRIES, Entry
-from .schedule import CHANNELS, IST, NO_REPEAT, slot_times
+from .schedule import CHANNELS, IST, MIN_GAP, NO_REPEAT, slot_times
 
 PER_WEEK = 5
 IG_ROLES = ("showcase", "checklist", "mythpoll", "agent", "reel")
@@ -37,7 +40,9 @@ class Item:
     ref: str                # library slug, agent slug, home slug, or for a reel the reel key
     prefer: str = ""        # creative format wanted
     template: str = ""      # reel: tip | tour | pitch
-    reel_ref: str = ""      # reel: entry slug (tip) or home slug (tour)
+    reel_ref: str = ""      # reel: entry slug (tip), home slug (tour), area key (area) or project slug (project)
+    area: str = ""          # app.core.areas key the item is about, when it is about one area
+    agent_id: str = ""      # project reel: the agent whose project it is (and who consented)
 
     @property
     def slug(self) -> str:
@@ -194,3 +199,108 @@ def _make(ch: str, role: str, due: datetime, k: int, p: _Picker, counters, reels
     if not got:
         return None
     return Item(ch, "post", due, wk, role, "library", got[1], "stat" if got[1] in STAT_SLUGS else "single")
+
+
+# ---- the daily reel rhythm ----------------------------------------------------------------------------------------------------------------
+# Hours (IST) per number of reels a day. Two reels 12 hours apart keep the existing minimum gap (MIN_GAP) on a channel; a third reel
+# needs a 6 hour gap, so it is only planned when the caller passes that smaller gap on purpose.
+DAILY_HOURS = {1: (8,), 2: (8, 20), 3: (8, 14, 20)}
+DAILY_ROLES = {1: ("area",), 2: ("area", "evening"), 3: ("area", "guide", "evening")}
+# Morning area tiers, by day: the affordable belt (first homes, budget buyers) gets two mornings in three.
+TIER_CYCLE = ("affordable", "it", "affordable")
+GUIDE_PILLARS = ("checklist", "explainer", "local", "myth")
+
+
+def area_reel_slug(key: str, day: date) -> str:
+    return f"area-{key}-{day:%Y%m%d}"
+
+
+def area_of_slug(slug: str) -> Optional[str]:
+    """'area-upper_kharadi-20261012' -> 'upper_kharadi'."""
+    if not slug.startswith("area-") or len(slug) < 15:
+        return None
+    return slug[5:-9]
+
+
+def project_reel_slug(project_slug: str) -> str:
+    """'<project slug>-reel': knowledge.grounding.project_slug_of strips '-reel', so comment replies find the project record."""
+    return f"{project_slug}-reel"
+
+
+def daily_gap(per_day: int) -> timedelta:
+    return MIN_GAP if per_day <= 2 else timedelta(hours=6)
+
+
+def build_daily_plan(start: date, days: int = 7, areas: Sequence[str] = (), projects: Sequence[dict] = (), per_day: int = 2,
+                     existing: Iterable[Tuple[str, str, datetime]] = (), entries: Sequence[Entry] = ENTRIES,
+                     now: Optional[datetime] = None, min_gap: Optional[timedelta] = None) -> List[Item]:
+    """Reels for [start, start + days), the same reel on Instagram and the Facebook Page.
+
+    `areas`: keys of the areas that have an area reel today (the caller drops areas whose stats are too thin); `projects`: dicts with
+    slug, agent_id and area of live projects whose agent has consented (the caller checks consent). `existing` = (channel, slug,
+    due_at) of rows already in the calendar: a slot within the gap of one of them is left free on that channel, their slugs count
+    as used (60 day no-repeat for guides and projects; least recently shown first for areas). Slots before `now` are skipped."""
+    from app.core import areas as _areas
+    per_day = max(1, min(3, per_day))
+    gap = min_gap or daily_gap(per_day)
+    existing = list(existing)
+    taken = {c: [_aware(d) for ch, _, d in existing if ch == c] for c in CHANNELS}
+    picker = _Picker(entries, False, existing)
+    area_last: Dict[str, datetime] = {}
+    for _, slug, due in existing:
+        k = area_of_slug(slug)
+        if k:
+            area_last[k] = max(area_last.get(k, _aware(due)), _aware(due))
+    usable = [a for a in _areas.AREAS if a.key in set(areas)]
+    proj_pool = [p for p in projects if p.get("slug") and p.get("agent_id")]
+    items: List[Item] = []
+    for d in range(days):
+        day = start + timedelta(days=d)
+        week = d // 7 + 1
+        for hour, role in zip(DAILY_HOURS[per_day], DAILY_ROLES[per_day]):
+            due = datetime.combine(day, time(hour, 0), tzinfo=IST).astimezone(timezone.utc)
+            if now is not None and due <= now:
+                continue
+            chans = [c for c in ("instagram", "facebook_page") if all(abs(due - t) >= gap for t in taken[c])]
+            if not chans:
+                continue
+            made = _daily(role, day, due, week, usable, area_last, proj_pool, picker)
+            if not made:
+                continue
+            for c in chans:
+                items.append(Item(c, "reel", due, week, made["role"], made["source"], made["ref"], template=made["template"],
+                                  reel_ref=made["reel_ref"], area=made.get("area", ""), agent_id=made.get("agent_id", "")))
+                taken[c].append(due)
+    return sorted(items, key=lambda i: (i.due_at, i.channel))
+
+
+def _daily(role: str, day: date, due: datetime, week: int, usable, area_last: Dict[str, datetime], projects: Sequence[dict],
+           picker: _Picker) -> Optional[dict]:
+    if role == "area":
+        a = _next_area(day, usable, area_last)
+        if a is None:
+            return None
+        area_last[a.key] = due
+        return {"role": "area", "source": "area_insight", "ref": area_reel_slug(a.key, day), "template": "area", "reel_ref": a.key,
+                "area": a.key}
+    if role == "evening" and projects:
+        pool = [project_reel_slug(p["slug"]) for p in projects]
+        got = picker.take(pool, due)
+        if got:
+            p = projects[pool.index(got)]
+            return {"role": "project", "source": "agentprojects", "ref": got, "template": "project", "reel_ref": p["slug"],
+                    "area": p.get("area") or "", "agent_id": p["agent_id"]}
+    got = picker.take_first(GUIDE_PILLARS, due)  # buyer guide: the entry slug is the row slug, so the 60 day rule holds across runs
+    if not got:
+        return None
+    return {"role": "guide", "source": "reel", "ref": got[1], "template": "tip", "reel_ref": got[1]}
+
+
+def _next_area(day: date, usable, area_last: Dict[str, datetime]):
+    """The tier of the day (TIER_CYCLE by calendar day, so reruns agree), then the area of that tier shown longest ago."""
+    if not usable:
+        return None
+    tier = TIER_CYCLE[day.toordinal() % len(TIER_CYCLE)]
+    pool = [a for a in usable if a.tier == tier] or list(usable)
+    never = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    return min(pool, key=lambda a: (area_last.get(a.key, never), usable.index(a)))

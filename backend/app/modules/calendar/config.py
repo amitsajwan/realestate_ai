@@ -30,6 +30,9 @@ class CalendarConfig:
     owner_ids: Tuple[str, ...] = ()  # user ids allowed to use the owner endpoints; empty = superusers only
     # Facebook shows a multi-photo post as a grid, not a swipeable carousel: its copy of a carousel goes out as a Reel of the slides
     fb_carousel_as_reel: bool = True
+    # The daily reel rhythm (plan.build_daily_plan): off until the owner switches it on, so merging it changes nothing that is posted
+    daily_reels: bool = False
+    daily_per_day: int = 2           # 3 later; a third reel a day uses a 6 hour gap instead of 12
 
 
 def load() -> CalendarConfig:
@@ -38,7 +41,9 @@ def load() -> CalendarConfig:
         interval_s=max(30, _int("CALENDAR_INTERVAL_SECONDS", 300)),
         stale_hours=max(1, _int("CALENDAR_STALE_HOURS", 48)),
         owner_ids=tuple(s.strip() for s in _env("CALENDAR_OWNER_IDS").split(",") if s.strip()),
-        fb_carousel_as_reel=_env("CALENDAR_FB_CAROUSEL_AS_REEL", "on").lower() in TRUE)
+        fb_carousel_as_reel=_env("CALENDAR_FB_CAROUSEL_AS_REEL", "on").lower() in TRUE,
+        daily_reels=_env("CALENDAR_DAILY_REELS").lower() in TRUE,
+        daily_per_day=max(1, min(3, _int("CALENDAR_DAILY_REELS_PER_DAY", 2))))
 
 
 def uploads_dir() -> Path:

@@ -2,16 +2,20 @@
 
 Nothing here publishes. The owner reviews the rows (preview-plan) and approves them; only then can the runner post them.
 Items are made in due-time order per channel so the layout of the previous posts can be avoided (never the same layout twice in a row).
+`build_daily_and_store` does the same for the daily reel rhythm (area insights, consented projects, buyer guides); it does nothing
+unless CALENDAR_DAILY_REELS is on.
 """
 import hashlib
 import logging
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 from . import adapters
 from .library import BY_SLUG
-from .plan import Item, build_plan
+from . import area_reels
+from .config import load as load_config
+from .plan import Item, build_daily_plan, build_plan
 from .store import Store
 
 log = logging.getLogger(__name__)
@@ -94,5 +98,67 @@ async def build_and_store(store: Store, start: date, weeks: int, uploads: Path, 
         say(f"{it.due_at.isoformat()[:16]} {it.channel:13} {it.kind:8} {it.ref:32} via {how}")
         id = await store.add(it.ref, it.channel, caption, images[0] if images else "", it.due_at, kind=it.kind, status="planned", images=images,
                              video=video, creative=notes, week=it.week)
+        out.append({"id": id, "item": it, "caption": caption, "images": images, "creative": notes})
+    return out
+
+
+async def build_daily_and_store(store: Store, start: date, days: int, uploads: Path, now: Optional[datetime] = None,
+                                stats_fn: Optional[Callable] = None, per_day: Optional[int] = None, enabled: Optional[bool] = None,
+                                say: Callable[[str], None] = lambda s: None) -> List[Dict]:
+    """Create `planned` daily reel rows for [start, start + days). Off unless CALENDAR_DAILY_REELS is on (or enabled=True).
+    Idempotent: slots already filled on a channel are left alone. Area slides are drawn and checked now (a slide that fails
+    area_reels.check drops that reel); the videos are rendered by the runner's pre-render step once a row is approved."""
+    from app.core import areas as core_areas
+    cfg = load_config()
+    if not (cfg.daily_reels if enabled is None else enabled):
+        say("daily reels are off (set CALENDAR_DAILY_REELS=on)")
+        return []
+    uploads = Path(uploads)
+    reels = {}
+    for a in core_areas.AREAS:
+        r = await area_reels.area_reel(store.db, a.key, stats_fn)
+        if r is None:
+            say(f"area {a.key}: too little data for a reel, skipped")
+        else:
+            reels[a.key] = r
+    projects = await adapters.consented_projects(store.db)
+    by_ref = {(p["agent_id"], p["slug"]): p for p in projects}
+    items = build_daily_plan(start, days, list(reels), projects, per_day or cfg.daily_per_day, await store.existing(), now=now)
+    slides: Dict[str, List[str]] = {}
+    out: List[Dict] = []
+    for it in items:
+        ig = it.channel == "instagram"
+        notes: Dict = {"role": it.role, "source": it.source, "template": it.template, "reel_key": it.ref, "ref": it.reel_ref,
+                       "layout": "reel", "ok": True}
+        extra: Dict = {"area": it.area} if it.area else {}
+        images: List[str] = []
+        if it.template == "area":
+            r = reels[it.area]
+            if it.ref not in slides:
+                try:
+                    slides[it.ref] = [_rel(str(p), uploads) for p in area_reels.save_slides(r, uploads / area_reels.SUBDIR / it.ref)]
+                except ValueError as e:
+                    log.warning("calendar: area reel %s failed its slide check: %s", it.ref, e)
+                    slides[it.ref] = []
+            if not slides[it.ref]:
+                continue
+            images = slides[it.ref]
+            caption = r.caption_ig if ig else r.caption_fb
+            notes.update(path="area_insight", area=it.area, slides=images, script=r.script, hook=r.hook, as_of=r.as_of)
+        elif it.template == "project":
+            p = by_ref[(it.agent_id, it.reel_ref)]
+            caption = adapters.project_reel_caption(p["project"], p["agent"], it.channel, p["agent_slug"])
+            notes.update(path="agentprojects", area=it.area, project=p["project"], agent=p["agent"],
+                         script=adapters.project_reel_script(p["project"], p["agent"]))
+            extra["agent_id"] = it.agent_id
+        else:
+            spec = adapters.ReelSpec(it.template, it.ref, it.reel_ref)
+            entry = BY_SLUG.get(it.reel_ref)
+            caption = adapters.reel_caption(spec, it.channel, entry)
+            scenes, _ = adapters.reel_scenes(spec, entry)
+            notes.update(path="reel", script=[l if isinstance(l, str) else l.text for sc in scenes for l in sc.lines])
+        say(f"{it.due_at.isoformat()[:16]} {it.channel:13} reel {it.role:8} {it.ref}")
+        id = await store.add(it.ref, it.channel, caption, images[0] if images else "", it.due_at, kind="reel", status="planned",
+                             images=images, creative=notes, week=it.week, extra=extra)
         out.append({"id": id, "item": it, "caption": caption, "images": images, "creative": notes})
     return out
