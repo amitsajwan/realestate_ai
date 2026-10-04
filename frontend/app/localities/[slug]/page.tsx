@@ -7,16 +7,21 @@ import MarketingShell from '@/components/marketing/MarketingShell'
 import ListingCard from '@/components/site/ListingCard'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { INSIGHT_NOTE, getInsight } from '@/lib/marketing/insights'
-import { LOCALITIES, getLocality, localitySource } from '@/lib/marketing/localities'
+import { LOCALITIES, type LocalityTier, getLocality, localitiesByTier, localitySource } from '@/lib/marketing/localities'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import ProjectCard from '@/components/site/ProjectCard'
+import AreaLatest from '@/components/localities/AreaLatest'
 import AreaRecords from '@/components/localities/AreaRecords'
+import { getAreaNews, getAreaPosts } from '@/components/localities/areaFeed'
 import { getAreaStats } from '@/components/localities/areaStats'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getCatalog, getLocalityListings } from '@/lib/site/api'
 import { livePages } from '@/lib/site/filters'
 
 type Props = { params: Promise<{ slug: string }> }
+
+/** "Other <word> areas we cover" (the tier titles in TIER_LABELS read badly there). */
+const TIER_WORD: Record<LocalityTier, string> = { affordable: 'affordable', it: 'IT corridor' }
 
 export function generateStaticParams() {
   return LOCALITIES.map((l) => ({ slug: l.slug }))
@@ -26,8 +31,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const l = getLocality((await params).slug)
   if (!l) return {}
   return pageMetadata(getMarketingConfig(), {
-    title: `${l.name}, Pune: buyer guide`,
-    description: `${l.summary.split('. ')[0]}. Who it suits, how to get around and what to check before you buy.`,
+    title: `${l.name}, Pune: projects, MahaRERA records and buyer guide`,
+    description: `${l.summary.split('. ')[0].replace(/\.$/, '')}. Projects, MahaRERA records, getting around and what to check before you buy.`,
     path: `/localities/${l.slug}`,
   })
 }
@@ -40,7 +45,10 @@ const enquireHref = (l: { key: string }) =>
 export default async function LocalityPage({ params }: Props) {
   const l = getLocality((await params).slug)
   if (!l) notFound()
-  const [listings, projects, stats] = await Promise.all([getLocalityListings(l.listingName), getCatalog(l.listingName), getAreaStats(l.slug)])
+  const [listings, projects, stats, posts, news] = await Promise.all([
+    getLocalityListings(l.listingName), getCatalog(l.listingName), getAreaStats(l.slug), getAreaPosts(l, 6), getAreaNews(l, 5),
+  ])
+  const sameTier = localitiesByTier(l.tier).filter((o) => o.slug !== l.slug)
   const guides = l.guides.map((s) => getInsight(s)).filter((g): g is NonNullable<typeof g> => !!g)
   const faqLd = {
     '@context': 'https://schema.org', '@type': 'FAQPage',
@@ -85,6 +93,8 @@ export default async function LocalityPage({ params }: Props) {
             <p className="mt-3"><Link href="/projects" className="font-semibold text-[#0f2340] underline underline-offset-2">All projects</Link></p>
           </section>
         )}
+        <AreaLatest name={l.name} posts={posts} news={news} />
+
         <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Homes in {l.name}</h2>
           {listings.length > 0 ? (
             <ul className="mt-4 grid list-none gap-4 p-0 sm:grid-cols-2">{listings.map((x) => x.agent?.slug ? <ListingCard key={x.id} slug={x.agent.slug} listing={x} /> : null)}</ul>
@@ -102,6 +112,17 @@ export default async function LocalityPage({ params }: Props) {
           <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Related guides</h2>
             <ul className="mt-3 space-y-1">{guides.map((g) => <li key={g.slug}><Link href={`/insights/${g.slug}`} className="text-[#0f2340] underline underline-offset-2">{g.title}</Link></li>)}</ul></section>
         )}
+
+        {/* Same tier only, never "nearby" or a distance: the IT corridor spans both ends of the city. */}
+        <section className="mt-9" aria-labelledby="other-areas-title">
+          <h2 id="other-areas-title" className="text-xl font-semibold text-slate-900">Other {TIER_WORD[l.tier]} areas we cover</h2>
+          <ul className="mt-3 flex list-none flex-wrap gap-2 p-0">
+            {sameTier.map((o) => (
+              <li key={o.slug}><Link href={`/localities/${o.slug}`} className="inline-flex min-h-[44px] items-center rounded-full border border-slate-300 px-4 text-sm font-semibold text-[#0f2340] no-underline hover:border-[#0f2340]">{o.name}</Link></li>
+            ))}
+            <li><Link href="/localities" className="inline-flex min-h-[44px] items-center px-2 text-sm font-semibold text-[#0f2340] underline underline-offset-2">All Pune area guides</Link></li>
+          </ul>
+        </section>
 
         <section className="mt-10 border-t border-slate-200 pt-6"><h2 className="text-lg font-semibold text-slate-900">Sources</h2>
           <ul className="mt-2 list-disc space-y-1 pl-6 text-sm">{l.sources.map((s) => <li key={s.href}><a href={s.href} target="_blank" rel="noopener noreferrer" className="text-[#0f2340] underline underline-offset-2">{s.label}</a></li>)}</ul></section>
