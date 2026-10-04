@@ -1,7 +1,8 @@
 """MahaRERA projects listed or updated recently (Pune district).
 
 Reads the public search page https://www.maharera.maharashtra.gov.in/projects-search-result (no login, no captcha).
-Results are paged 10 per page in ascending registration order, so the newest projects sit on the LAST pages.
+Results are paged 10 per page in ascending registration order, so the newest projects sit on the LAST pages. Pages are numbered
+from 1 (page 0 answers as page 1), so 12949 results end on page 1295 (verified live 2026-10-04: page 1295 held the 9 newest).
 We fetch page 0 only to learn the total count, then read the last `pages` pages. Anything unexpected gives [].
 The site often answers "No Records Found" for a page that has results (about a third of requests, verified 2026-10-02), so an
 empty page is asked for again, up to `TRIES` times, before it is given up.
@@ -32,6 +33,9 @@ RETRY_DELAY = 2.0  # seconds, grows per try; tests set it to 0
 LATE_ROUNDS = 2
 LATE_PAUSE = 20.0  # seconds before each late round; tests set it to 0
 DETAIL = "https://maharerait.maharashtra.gov.in/public/project/view/"
+# the same search with project_location set to a pincode lists that pincode's projects in Pune district (verified 2026-10-04:
+# 411047 gave 196, 411057 gave 645; a place name there gives nothing): how the area sweep reads older projects in our areas
+BY_PINCODE = SEARCH.replace("project_location=", "project_location={pincode}")
 
 _TOTAL = re.compile(r'Showing Final\s*<span[^>]*>\s*(\d+)\s*</span>', re.I)
 _CARD = re.compile(r'<div class="row shadow[^"]*">(.*?)(?=<div class="row shadow|\Z)', re.S)
@@ -79,6 +83,17 @@ def parse_projects(page: str) -> List[MahaReraProject]:
         except Exception:
             continue
     return out
+
+
+def last_page(total: int) -> int:
+    """The number of the page holding the newest projects (pages count from 1)."""
+    return max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+
+
+async def read_pincode_page(get: Fetcher, pincode: str, page: int, district: int = PUNE_DISTRICT):
+    """(total results, projects) for one page of a pincode's projects; (None, []) when the site gave nothing after retries."""
+    body = await _ask(get, BY_PINCODE.format(district=district, pincode=pincode, page=page), lambda b: parse_projects(b))
+    return (parse_total(body), parse_projects(body)) if body else (None, [])
 
 
 def to_item(p: MahaReraProject, fetched_at: Optional[datetime] = None) -> RawItem:
@@ -138,8 +153,8 @@ class MahaReraSource:
             if not total or total < 1:
                 log.warning("newsroom: MahaRERA gave no result count after %d rounds", 1 + LATE_ROUNDS)
                 return []
-            last = (total - 1) // PAGE_SIZE
-            seen, missed = set(), list(range(last, max(last - self.pages, -1), -1))
+            last = last_page(total)
+            seen, missed = set(), list(range(last, max(last - self.pages, 0), -1))
             for rnd in range(1 + LATE_ROUNDS):
                 if rnd and missed:
                     await asyncio.sleep(LATE_PAUSE)
@@ -154,7 +169,7 @@ class MahaReraSource:
                             seen.add(p.regno)
                             self.projects.append(p)
                 missed = still
-            if missed:  # the count's last page is often empty for good; any other page here means projects were lost this run
+            if missed:  # a page still empty after the late rounds: its projects were not read this run
                 log.warning("newsroom: MahaRERA pages %s stayed empty after %d rounds", missed, 1 + LATE_ROUNDS)
             fetched_at = now_utc()
             return [to_item(p, fetched_at) for p in self.projects]

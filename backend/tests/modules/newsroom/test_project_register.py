@@ -18,7 +18,8 @@ from .helpers import FakeSource
 NOW = datetime(2026, 9, 30, 9, 0, tzinfo=timezone.utc)
 CFG = NewsroomConfig(enabled=True, daily_cap=2)
 FIX = Path(__file__).parent / "fixtures" / "sources"
-FIRST = (FIX / "maharera_pune_first.html").read_text(encoding="utf-8")  # 12920 results: the newest page is 1291
+# 12910 results (the fixture says 12920): pages count from 1, so the newest page is 1291
+FIRST = (FIX / "maharera_pune_first.html").read_text(encoding="utf-8").replace(">12920<", ">12910<", 1)
 LAST = (FIX / "maharera_pune_last.html").read_text(encoding="utf-8")
 EMPTY = "<html><body>Registered Projects Search Record No Records Found</body></html>"  # the site's flaky answer
 
@@ -29,6 +30,7 @@ PAGE_1291 = (LAST.replace("412202", "412207", 1)  # AARAMBH PHASE 1 -> Wagholi
              .replace("411016", "411014", 1)  # VIKRAM MARQUEE -> Kharadi
              .replace("Satvam Hills C5", "Satvam Kharadi Heights", 1))  # Mulshi pincode, Kharadi by name
 PAGE_1290 = (PAGE_1291.replace("SHREERAM ICON", "SHREERAM ICON UPPER KHARADI", 1)
+             .replace("413102", "412202", 1)  # near Pune: a name alone does not count from Baramati's 413102
              .replace("PR1260002602002", "PR1260002699999", 1))  # a different project, so a new number
 IN_AREA = {"PP1260002601725": "wagholi", "PM1260002602035": "kharadi", "PP1260002601969": "kharadi"}
 
@@ -66,12 +68,60 @@ def proj(**kw) -> MahaReraProject:
 def test_locality_by_pincode_and_by_name():
     assert register.locality(proj(pincode="411014")) == ("kharadi", "pincode")
     assert register.locality(proj(pincode="412207")) == ("wagholi", "pincode")
-    assert register.locality(proj(pincode="411047")) == ("wagholi", "pincode")
+    assert register.locality(proj(pincode="411047")) == ("lohegaon", "pincode")  # Lohegaon's pincode, once mapped to Wagholi
     assert register.locality(proj(pincode="411014", name="Skyline Upper Kharadi")) == ("upper_kharadi", "pincode and project name")
     assert register.locality(proj(name="Mantra Kharadi Phase 3")) == ("kharadi", "project name")
     assert register.locality(proj(name="Wagholi Greens", pincode="412207")) == ("wagholi", "pincode")
     assert register.locality(proj()) is None
     assert register.locality(proj(name="Near EON IT Park Residency")) is None  # a landmark is not a locality
+
+
+def test_own_pincode_beats_a_name_but_upper_kharadi_is_finer():
+    # real 412207 projects (2026-10-04): named for Kharadi, filed in Wagholi's pincode
+    assert register.locality(proj(name="Kharadi Pune P1", pincode="412207")) == ("wagholi", "pincode")
+    assert register.locality(proj(name="MY HOME UPPER KHARADI", pincode="412207")) == ("upper_kharadi", "pincode and project name")
+    assert register.locality(proj(name="Belmont Skyone", pincode="411047")) == ("lohegaon", "pincode")
+    assert register.locality(proj(name="Lohgaon Heights", pincode="411047")) == ("lohegaon", "pincode")
+    # a name that says only another locality keeps a project out, even on our own pincode
+    assert register.locality(proj(name="Solitaire Business Hub Viman Nagar Phase 1", pincode="411047")) is None
+    assert register.locality(proj(name="Kharadi Viman Nagar Link", pincode="411014")) == ("kharadi", "pincode")
+
+
+def test_shared_pincode_needs_the_name():
+    assert register.locality(proj(name="Menlo Homes Hinjewadi Phase I", pincode="411057")) == ("hinjawadi", "pincode and project name")
+    assert register.locality(proj(name="YASHWIN HINJAWADI", pincode="411057")) == ("hinjawadi", "pincode and project name")
+    assert register.locality(proj(name="One Place - Wakad", pincode="411057")) == ("wakad", "pincode and project name")
+    assert register.locality(proj(name="The Crown Greens", pincode="411057")) is None  # Hinjawadi or Wakad or Maan: unknown
+    assert register.locality(proj(name="NESTORIA BANER", pincode="411045")) == ("baner", "pincode and project name")
+    assert register.locality(proj(name="Palladio Balewadi Central Phase 1", pincode="411045")) is None  # Balewadi is not ours
+    assert register.locality(proj(name="Keshav Nagar Greens", pincode="411036")) == ("keshav_nagar", "pincode and project name")
+    assert register.locality(proj(name="Keshavnagar Heights", pincode="411036")) == ("keshav_nagar", "pincode and project name")
+    assert register.locality(proj(name="NEWTON HOME MUNDHWA", pincode="411036")) is None  # Mundhwa shares the pincode
+
+
+def test_name_only_matches():
+    assert register.locality(proj(name="Pune Baner Project-Tower 4 and 5", pincode="411038")) == ("baner", "project name")
+    assert register.locality(proj(name="MY HOME WAKAD", pincode="")) == ("wakad", "project name")
+    # named for an area but filed far from it: "Hinjewadi Road" in Talegaon's 410506 is not Hinjawadi
+    assert register.locality(proj(name="XRBIA HINJEWADI ROAD/RIVERFRONT-PH-1", pincode="410506")) is None
+    assert register.locality(proj(name="Wagholikar Heritage", pincode="413102")) is None  # whole words only
+    assert register.locality(proj(name="Wagholikar Heritage", pincode="412202")) is None
+
+
+def test_area_names_come_from_the_one_area_list():
+    from app.modules.newsroom.stages.filter import named_areas
+    assert named_areas("Hinjewadi Phase 3 - Tower 1") == ["hinjawadi"]
+    assert named_areas("Skyline Upper Kharadi") == ["kharadi", "upper_kharadi"]
+    assert named_areas("Keshavnagar Heights, Baner Road") == ["keshav_nagar", "baner"]
+    assert named_areas("Wagholikar Heritage") == [] and named_areas("") == []
+    assert named_areas("Lohgaon Heights") == ["lohegaon"]
+
+
+def test_a_maharera_item_on_lohegaons_pincode_is_lohegaon_news():
+    from app.modules.newsroom.sources.maharera import to_item
+    from app.modules.newsroom.stages.filter import assess
+    rel = assess(to_item(proj(name="Belmont Skyone", pincode="411047", last_modified="2026-09-28")), NOW)
+    assert rel.keep and rel.areas == ["lohegaon"]
 
 
 def test_records_hold_facts_with_source_and_date():

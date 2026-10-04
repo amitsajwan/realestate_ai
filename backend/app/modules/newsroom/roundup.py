@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Callable, List, Optional
 
 from app.core import brand
+from app.core.areas import AREAS
 
 from . import codec, policy
 from . import presentation as pr
@@ -25,7 +26,7 @@ WINDOW_DAYS = 30
 MAX_SLIDES = 7  # Instagram allows 10 images: the cover, up to 7 projects, what to check, the closing slide
 KIND = "maharera"
 TITLE = "Listed or updated on MahaRERA"  # never "new": the only date MahaRERA gives is Last Modified
-AREA_NAMES = {"kharadi": "Kharadi", "upper_kharadi": "Upper Kharadi", "wagholi": "Wagholi"}
+AREA_NAMES = {a.key: a.name for a in AREAS}
 CHECK = ("Open the project on the MahaRERA website and read its approvals, possession date and the promoter's quarterly "
          "updates.")  # the slide's label already says 'Before you decide'
 
@@ -46,10 +47,15 @@ def _label(d: datetime) -> str:
 
 
 def pick(projects: List[dict], now: datetime) -> List[dict]:
-    """Projects whose MahaRERA record was modified in the last WINDOW_DAYS, newest first."""
+    """Projects in our areas whose MahaRERA record was modified in the last WINDOW_DAYS, newest first."""
     since = (now.astimezone(IST) - timedelta(days=WINDOW_DAYS)).date()
-    ok = [p for p in projects if _date(p.get("last_modified", "")) and _date(p["last_modified"]).date() >= since]
+    ok = [p for p in projects if p.get("locality") in AREA_NAMES
+          and _date(p.get("last_modified", "")) and _date(p["last_modified"]).date() >= since]
     return sorted(ok, key=lambda p: (p["last_modified"], p.get("name", "")), reverse=True)
+
+
+def _and(names: List[str]) -> str:
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
 
 
 def _snapshot(p: dict) -> dict:
@@ -69,17 +75,18 @@ def compose(projects: List[dict], now: datetime, item_id: str) -> Optional[dict]
     when = _label(ist)
     shown = [_snapshot(p) for p in chosen[:MAX_SLIDES]]
     areas = list(dict.fromkeys(p.get("locality", "") for p in chosen if p.get("locality") in AREA_NAMES))
+    where = _and([name for k, name in AREA_NAMES.items() if k in areas])  # in AREAS order
     lines = "\n".join(f"• {p['name']}, {AREA_NAMES.get(p.get('locality', ''), '')} (MahaRERA {p['_id']}), "
                       f"last updated {_label(_date(p['last_modified']))}" for p in chosen)
     n = len(chosen)
-    intro = (f"{n} project{'s' if n != 1 else ''} in Kharadi and Wagholi {'were' if n != 1 else 'was'} "
+    intro = (f"{n} project{'s' if n != 1 else ''} in {where} {'were' if n != 1 else 'was'} "
              f"{policy.MAHARERA_PHRASE} in the last {WINDOW_DAYS} days.")
     question = "Which of these would you like us to look into?"
     text = "\n\n".join([intro, lines, f"What to check: {CHECK}", f"Source: MahaRERA, as of {when}.", question])
     site = pr.site_url()
     link = "/localities"  # a path: captions add the site address when they are built
     # the source text the check compares against: what the register holds for each project, as stated by MahaRERA
-    basis = [f"Projects {policy.MAHARERA_PHRASE} in the last {WINDOW_DAYS} days in Kharadi and Wagholi: {n}."]
+    basis = [f"Projects {policy.MAHARERA_PHRASE} in the last {WINDOW_DAYS} days in {where}: {n}."]
     for p in chosen:
         lm = _date(p["last_modified"])
         basis.append(f"{p['name']} ({p['_id']}) in {AREA_NAMES.get(p.get('locality', ''), '')}, pincode {p.get('pincode', '')}, "
@@ -120,7 +127,7 @@ async def build(store: Store, now: datetime, checker: Optional[Callable] = None,
         return {"doc": waiting, "created": False}
     doc = compose(await store.projects.find({}).to_list(None), now, _item_id(now))
     if doc is None:
-        raise NothingToPost(f"No project in Kharadi or Wagholi was {policy.MAHARERA_PHRASE} in the last {WINDOW_DAYS} days")
+        raise NothingToPost(f"No project in our areas was {policy.MAHARERA_PHRASE} in the last {WINDOW_DAYS} days")
     if checker is None:
         from .stages.check import check as checker
     res = checker(codec.draft(doc), codec.facts(doc), codec.raw_item(doc))

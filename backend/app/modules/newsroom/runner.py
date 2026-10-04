@@ -33,6 +33,19 @@ async def _weekly_digest(store: Store, stages: dict, now: datetime, counts: dict
         log.exception("newsroom: digest failed")
 
 
+async def _area_records(store: Store, stages: dict, cfg, counts: dict) -> None:
+    """A gentle step that keeps the project register complete for the area stats (areastats.refresh): only while MahaRERA
+    is one of our sources, and never holding the newsroom back."""
+    if "maharera" not in cfg.sources:
+        return
+    try:
+        from app.modules.agentprojects.maharera import make_fetch
+        from app.modules.areastats import refresh
+        counts["areas"] = await refresh.step(store, stages["get"], make_fetch(), datetime.now(timezone.utc))
+    except Exception:
+        log.exception("newsroom: area records failed")
+
+
 async def cycle(store: Store, cfg, hb=None) -> dict:
     """One guarded cycle; records last_run_at / last_error. Never raises except cancellation."""
     now = datetime.now(timezone.utc)
@@ -47,6 +60,7 @@ async def cycle(store: Store, cfg, hb=None) -> dict:
             more = await run_once(store, [], stages, publisher, llm, datetime.now(timezone.utc), cfg)
             counts = {k: counts.get(k, 0) + more.get(k, 0) for k in set(counts) | set(more)}
         await _weekly_digest(store, stages, now, counts)
+        await _area_records(store, stages, cfg, counts)
         await store.set_run(last_run_at=now, last_error=None, last_counts=counts)
         return counts
     except asyncio.CancelledError:

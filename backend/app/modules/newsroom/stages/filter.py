@@ -4,6 +4,8 @@ from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 from typing import Dict, List
 
+from app.core.areas import AREAS
+
 from ..policy import AREA_KEYWORDS, AREA_PINCODES, BANNED, CORRIDOR_KEYWORDS, MAX_AGE_DAYS, PILLAR_KEYWORDS, PUNE_HINT
 from ..types import RawItem, Relevance
 from . import topics
@@ -17,6 +19,8 @@ def _phrase(p: str, plural: bool = False) -> "re.Pattern[str]":
 _AREA_RE: Dict[str, List["re.Pattern[str]"]] = {a: [_phrase(k) for k in ks] for a, ks in AREA_KEYWORDS.items()}
 _AREA_NAME_RE: Dict[str, List["re.Pattern[str]"]] = {
     a: [_phrase(k) for k in ks if k not in topics.LANDMARKS] for a, ks in AREA_KEYWORDS.items()}
+# every area we cover, by the names people write (app.core.areas); the project register reads these
+_CORE_NAME_RE: Dict[str, List["re.Pattern[str]"]] = {a.key: [_phrase(al) for al in a.aliases] for a in AREAS}
 _OTHER_RE = [_phrase(k) for k in topics.OTHER_LOCALITIES]
 _CORRIDOR_RE = [_phrase(k) for k in CORRIDOR_KEYWORDS]
 _HINT_RE = [_phrase(k) for k in PUNE_HINT]
@@ -51,7 +55,20 @@ def _pin_areas(text: str) -> List[str]:
 
 
 def named_areas(text: str) -> List[str]:
-    """Areas named in `text` (landmarks do not count), in AREAS order."""
+    """Keys of the areas (app.core.areas) named in `text`, in AREAS order, as whole words: "Wagholikar Heritage" is not
+    Wagholi. "Upper Kharadi" names Kharadi too; callers that care pick the finer one."""
+    low = (text or "").lower()
+    return [a for a, pats in _CORE_NAME_RE.items() if any(p.search(low) for p in pats)]
+
+
+def other_locality_named(text: str) -> bool:
+    """True when `text` names a Pune locality we do not cover (topics.OTHER_LOCALITIES)."""
+    low = (text or "").lower()
+    return any(p.search(low) for p in _OTHER_RE)
+
+
+def _news_named(text: str) -> List[str]:
+    """Areas in the news scope (policy.AREA_KEYWORDS, landmarks do not count) named in `text`."""
     low = (text or "").lower()
     return [a for a, pats in _AREA_NAME_RE.items() if any(p.search(low) for p in pats)]
 
@@ -78,7 +95,7 @@ def assess(item: RawItem, now: datetime) -> Relevance:
     # area only further down, so for those the whole text counts too, by name (a landmark alone is not enough), unless the
     # headline names another locality: "launches project in Hinjewadi ... 20 minutes from Kharadi" is Hinjewadi's story
     supply = (item.source.lower() == "maharera" or _hits(_PILLAR_RE["new_supply"], full) > 0) and not _hits(_OTHER_RE, head)
-    body_areas = _pin_areas(full) + (named_areas(full) if supply else [])
+    body_areas = _pin_areas(full) + (_news_named(full) if supply else [])
     by_body = [a for a in dict.fromkeys(body_areas) if a not in areas]
     areas += by_body
     corridor = any(p.search(full) for p in _CORRIDOR_RE) and any(p.search(full) for p in _HINT_RE)

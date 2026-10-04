@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from app.modules.newsroom.sources.maharera import MahaReraSource, parse_page, parse_total
+from app.modules.newsroom.sources.maharera import MahaReraSource, last_page, parse_page, parse_total, read_pincode_page
 
 pytestmark = pytest.mark.asyncio
 FIX = Path(__file__).parent / "fixtures" / "sources"
@@ -45,9 +45,31 @@ async def test_fetch_reads_last_pages_only():
 
     items = await MahaReraSource(pages=2).fetch(get)
     assert "page=0&" in urls[0]
-    assert "page=1291&" in urls[1] and "page=1290&" in urls[2] and len(urls) == 3  # 12920 results, 10 per page
+    # 12920 results, 10 per page, numbered from 1: the newest are on page 1292 (the site answers page 0 as page 1)
+    assert "page=1292&" in urls[1] and "page=1291&" in urls[2] and len(urls) == 3
     assert len(items) == 10  # the second page is the same fixture: de-duplicated by id
     assert "project_district=521" in urls[1]
+
+
+def test_last_page_counts_from_one():
+    assert [last_page(n) for n in (1, 10, 11, 12920, 12949, 0)] == [1, 1, 2, 1292, 1295, 1]
+
+
+async def test_pincode_page_reads_one_pincode():
+    urls = []
+
+    async def get(url):
+        urls.append(url)
+        return LAST
+
+    total, projects = await read_pincode_page(get, "411047", 3)
+    assert total == 12920 and len(projects) == 10
+    assert "project_location=411047&" in urls[0] and "page=3&" in urls[0] and "project_district=521" in urls[0]
+
+    async def empty(url):
+        return "<html>No Records Found</html>"
+
+    assert await read_pincode_page(empty, "411047", 1) == (None, [])
 
 
 async def test_fetch_never_raises():

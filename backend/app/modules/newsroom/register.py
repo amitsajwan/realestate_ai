@@ -1,15 +1,15 @@
 """The project register (docs/TASKS.md T1.2): one record per MahaRERA registration number in our areas. Pure logic, no I/O;
 store.py writes the records. Facts only, each with where and when it came from: no ratings, no opinions about builders.
 
-A project is ours by its pincode (MahaRERA gives the taluka, "Haveli", not the locality) or by an area named in its project name.
-News links are made only on a clear match (the registration number, or the full project name in a story about the same
-area), because a wrong link on a public project page is worse than none."""
+A project is ours by its pincode (MahaRERA gives the taluka, "Haveli", not the locality) or by an area named in its project name:
+policy.AREA_PINCODES / SHARED_PINCODES say which, and why. News links are made only on a clear match (the registration number,
+or the full project name in a story about the same area), because a wrong link on a public project page is worse than none."""
 import re
 from datetime import datetime
 from typing import List, Optional, Tuple
 
-from .policy import AREA_PINCODES
-from .stages.filter import named_areas
+from .policy import AREA_PINCODES, NAME_ONLY_PINCODE_PREFIXES, SHARED_PINCODES, UPPER_KHARADI_PINCODES
+from .stages.filter import named_areas, other_locality_named
 from .types import MahaReraProject
 
 REGNO = re.compile(r"\bP[A-Z]?\d{9,13}\b")  # PR1260002601907 (current), P52100012345 (older)
@@ -20,15 +20,27 @@ MIN_NAME_WORDS = 2  # specific words a name needs before a story that merely con
 
 
 def locality(p: MahaReraProject) -> Optional[Tuple[str, str]]:
-    """(area, how we know) for a project in our areas, else None. The pincode wins over the name; within Kharadi's pincode
-    a name that says Upper Kharadi is the finer answer."""
-    named = named_areas(p.name)
-    by_pin = AREA_PINCODES.get((p.pincode or "").strip())
+    """(area, how we know) for a project in our areas, else None."""
+    return locality_of(p.name, p.pincode)
+
+
+def locality_of(name: str, pincode: str) -> Optional[Tuple[str, str]]:
+    """(area key, how we know) from a project's name and pincode, else None. An area's own pincode wins over the name
+    (unless the name says Upper Kharadi, the finer answer, or names only a locality we do not cover); on a shared pincode the
+    name must say which of its areas; elsewhere a name alone counts only near Pune city."""
+    named = named_areas(name)
+    pin = (pincode or "").strip()
+    by_pin = AREA_PINCODES.get(pin)
     if by_pin:
-        if by_pin == "kharadi" and "upper_kharadi" in named:
+        if pin in UPPER_KHARADI_PINCODES and "upper_kharadi" in named:
             return "upper_kharadi", "pincode and project name"
+        if not named and other_locality_named(name):  # "Solitaire Business Hub Viman Nagar" in 411047 is not Lohegaon
+            return None
         return by_pin, "pincode"
-    if named:
+    shared = [a for a in named if a in SHARED_PINCODES.get(pin, ())]
+    if shared:
+        return shared[0], "pincode and project name"
+    if named and (not pin or pin.startswith(NAME_ONLY_PINCODE_PREFIXES)):
         return ("upper_kharadi" if "upper_kharadi" in named else named[0]), "project name"
     return None
 
@@ -46,6 +58,15 @@ def records(projects: List[MahaReraProject], now: datetime) -> List[dict]:
             "source": "MahaRERA", "source_url": p.url, "checked_at": now,
         })
     return out
+
+
+_DETAIL_ID = re.compile(r"/public/project/view/(\d+)(?:[/?#]|$)")
+
+
+def maharera_id(source_url: str) -> Optional[int]:
+    """MahaRERA's internal project id from a record's source_url (.../public/project/view/<id>), for its project API."""
+    m = _DETAIL_ID.search(source_url or "")
+    return int(m.group(1)) if m else None
 
 
 def _words(text: str) -> List[str]:
