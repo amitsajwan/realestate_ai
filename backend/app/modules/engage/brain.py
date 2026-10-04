@@ -94,6 +94,21 @@ def first_name(name: Optional[str]) -> str:
     return f" {n}" if n and re.fullmatch(r"[A-Za-zऀ-ॿ.'-]{1,30}", n) else ""
 
 
+# Comments on our agent-recruitment posts and reels ("Comment AGENT"): the reply is about the pilot, never price lists or floor plans.
+AGENT_ASK = re.compile(r"\b(agents?|join|pilot|interested|intrested|details|demo|how|kaise|cost|charges?|free|yes|haan|ha)\b|एजेंट|इंटरेस्टेड|जानकारी", re.I)
+AGENT_TEMPLATES = {
+    "en": {"facebook": "Thanks{name}! The Avasetu pilot is free for Pune property agents. Join here: {link} . We have also sent you a message.",
+           "instagram": "Thanks{name}! We have sent you a message with the free pilot link. It is also at the link in our bio."},
+    "hi": {"facebook": "धन्यवाद{name}! पुणे के प्रॉपर्टी एजेंट्स के लिए Avasetu पायलट फ्री है। यहाँ जुड़ें: {link} . हमने आपको मैसेज भी भेजा है।",
+           "instagram": "धन्यवाद{name}! हमने आपको फ्री पायलट का लिंक मैसेज में भेजा है। यह हमारे बायो के लिंक में भी है।"},
+}
+
+
+def agent_reply(lang: str, name: Optional[str], link: str, channel: str = "facebook") -> str:
+    t = AGENT_TEMPLATES.get(lang, AGENT_TEMPLATES["en"])["instagram" if channel == "instagram" else "facebook"]
+    return t.format(name=first_name(name), link=link)
+
+
 def render(kind: str, lang: str, name: Optional[str], link: str, channel: str = "facebook") -> str:
     if channel == "instagram":
         t = IG_TEMPLATES.get(lang, IG_TEMPLATES["en"]).get(kind)
@@ -164,14 +179,19 @@ async def grounded_decision(text: str, grounding, link: str, llm, channel: str) 
     return Decision("question", REPLY_LANG.get(r.language, "en"), reply, needs_human=not r.confident, reason=reason, missing=r.missing, basis=r.basis)
 
 
-async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm, channel: str = "facebook", handle: str = "", grounding=None) -> Decision:
+async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm, channel: str = "facebook", handle: str = "", grounding=None,
+                 audience: str = "buyers") -> Decision:
     ig = channel == "instagram"
     if ig and wants_a_person(text, handle):
         return Decision("question", detect_language(text), None, needs_human=True, reason="mention or DM request")
-    if ig:
-        link = BIO["en"]  # never put a URL in an Instagram reply
     lang = detect_language(text)
     intent = by_rules(text)
+    if audience == "agents" and intent not in ("spam", "complaint") and AGENT_ASK.search(text or ""):
+        said = lang if lang in AGENT_TEMPLATES else "en"
+        return Decision("interested", said, agent_reply(said, from_name, link, channel),
+                        reason="agent asks about the pilot")
+    if ig:
+        link = BIO["en"]  # never put a URL in an Instagram reply
     if grounding is not None and intent is None and asks_about_the_post(text):
         # the LLM (when there is one) still gets to say it is spam, abuse or plain praise; a question about the post is answered from facts
         raw = await llm.json(SYSTEM, f"POST FACTS:\n{(facts or '')[:900]}\n\nCOMMENT:\n{text[:500]}") if llm is not None and hasattr(llm, "json") else None

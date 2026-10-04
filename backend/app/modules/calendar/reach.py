@@ -16,7 +16,7 @@ _TAG_LINE = re.compile(r"^\s*(?:#\w+\s*)+$")
 
 AGENT_TAGS = ["#PuneRealEstate", "#RealEstateAgentPune", "#PuneBrokers", "#ChannelPartner", "#PuneProperty"]
 BUYER_TAGS = ["#PuneProperty", "#MahaRERA", "#PuneHomes"]
-AGENT_SOURCES = ("promo_agents", "promo_agents_v2")
+AGENT_SOURCES = ("promo_agents", "promo_agents_v2", "agent_reels")
 PER_CHANNEL = {"instagram": 5, "facebook_page": 3}
 
 

@@ -328,8 +328,21 @@ def render_reel_for(doc: dict, uploads: Path) -> str:
     c = doc.get("creative") or {}
     if c.get("template") in ("area", "project"):
         return _render_daily(doc, Path(uploads))
+    if c.get("template") == "agent":
+        return render_agent_reel(doc, Path(uploads))
     spec = spec_of(doc)
     return render_reel(spec, uploads, BY_SLUG.get(spec.ref))
+
+
+def render_agent_reel(doc: dict, uploads: Path, composer: Optional[Callable] = None) -> str:
+    """An agent-recruitment reel (reels.agent_reels), by its code; the Instagram and Facebook rows share one file."""
+    from app.modules.reels import agent_reels
+    c = doc.get("creative") or {}
+    rel = f"{REEL_DIR}/{c.get('reel_key') or doc['slug']}.mp4"
+    dest = uploads / rel
+    if not (dest.is_file() and dest.stat().st_size > 0):
+        agent_reels.render(c["reel_code"], dest, composer)
+    return rel
 
 
 def _render_daily(doc: dict, uploads: Path, composer: Optional[Callable] = None) -> str:
@@ -444,6 +457,9 @@ async def with_interest(db, doc: dict) -> dict:
         from app.modules.interest.service import interest_url
         from .footer import with_footer
         channel = "instagram" if doc["channel"] == "instagram" else "facebook"
+        from .reach import audience
+        if audience(doc) == "agents":  # recruitment posts carry their own pilot link and comment keyword, not a buyer interest link
+            return {**doc, "caption": with_footer(doc["caption"], channel)}
         agent = doc.get("agent_id") or _owner_agent()  # an agent's own post (agentprojects) sends interest to that agent
         caption = doc["caption"]
         if agent:

@@ -67,13 +67,15 @@ class Scene:
     image: Union[Image.Image, str, Path, None] = None   # photo; None = branded gradient with skyline
     lines: Sequence[Union[str, TextLine]] = ()
     kicker: Optional[str] = None                        # small gold label above the text, e.g. "TIP 1 OF 3"
-    layout: str = "center"                              # center | lower
-    align: Optional[str] = None                         # left | center (default: center for "center", left for "lower")
+    layout: str = "center"                              # center | lower | top (text just under the brand tag row)
+    align: Optional[str] = None                         # left | center (default: left for "lower", center otherwise)
     badge: Optional[str] = None                         # static outlined label, e.g. "SAMPLE LISTING"
     seconds: Optional[float] = None
     seed: str = "reel"
     kind: str = "scene"                                 # scene | end
     brand_mark: bool = False                            # small logo + name above the text (set on the last scene by Renderer)
+    screen: bool = False                                # `image` is a designed frame (a product screen in a phone): shown as it is,
+                                                        # with no dark scrim, no parallax and only a gentle zoom
 
 
 def end_scene(seconds: float = 2.6) -> Scene:
@@ -328,7 +330,7 @@ def layout_scene(scene: Scene) -> List[Item]:
     """All text items for a scene, positioned inside the safe zone (type shrinks if it would not fit)."""
     if scene.kind == "end":
         return _end_items()
-    align = scene.align or ("center" if scene.layout == "center" else "left")
+    align = scene.align or ("left" if scene.layout == "lower" else "center")
     lines = [l if isinstance(l, TextLine) else TextLine(l) for l in scene.lines]
     lines = [l for l in lines if l.text]
     bottom = TEXT_BOTTOM
@@ -358,7 +360,12 @@ def layout_scene(scene: Scene) -> List[Item]:
         if total <= avail:
             break
         shrink *= 0.9
-    y = bottom - total if scene.layout == "lower" else CONTENT_TOP + (avail - total) // 2 + 20
+    if scene.layout == "lower":
+        y = bottom - total
+    elif scene.layout == "top":
+        y = CONTENT_TOP
+    else:
+        y = CONTENT_TOP + (avail - total) // 2 + 20
     y = max(y, CONTENT_TOP)
     items: List[Item] = []
     if scene.brand_mark:
@@ -437,8 +444,11 @@ class _Prepared:
         else:
             self.fx0, self.fx1 = (0.47, 0.53) if not flip else (0.53, 0.47)
         self.fy0, self.fy1 = (0.52, 0.46) if not flip else (0.46, 0.52)
+        if scene.screen:  # a designed frame: barely moves, so the screen stays readable
+            self.z0, self.z1 = (1.0, 1.035)
+            self.fx0, self.fx1, self.fy0, self.fy1 = 0.5, 0.5, 0.5, 0.5
         self.depth = None
-        if self.has_photo and os.environ.get("REEL_PARALLAX", "on").lower() != "off":
+        if self.has_photo and not scene.screen and os.environ.get("REEL_PARALLAX", "on").lower() != "off":
             try:
                 from .depth import depth_map
                 self.depth = depth_map(self.base)  # 2.5D: nearness per pixel, or None (plain zoom)
@@ -456,6 +466,8 @@ class _Prepared:
         self.delay, self.fade, self.stagger = 0.30, 0.6, 0.16
 
     def _scrim_mask(self) -> Image.Image:
+        if self.scene.screen:
+            return Image.new("L", (W, H), 0)
         grad = Image.linear_gradient("L").resize((W, H))
         if not self.has_photo:
             lut = [int(40 * min(1.0, v / 120)) for v in range(256)]
@@ -523,11 +535,15 @@ def _tag_item() -> Item:
     return Item(img, SIDE - PAD, y - PAD, (SIDE, y, SIDE + w, y + h))
 
 
-def _chrome(img: Image.Image, tag: Item, progress: float, alpha: float, bar: bool = True) -> None:
+def _chrome(img: Image.Image, tag: Item, progress: float, alpha: float, bar: bool = True, tag_alpha: float = 1.0) -> None:
+    """The brand tag (at `tag_alpha` of `alpha`) and the progress bar, drawn at `alpha` over the frame."""
     if alpha <= 0.004:
         return
     over = img.copy() if alpha < 0.999 else img
-    _blit(over, tag, 1.0, rise=0)
+    if tag_alpha >= 0.999:
+        _blit(over, tag, 1.0, rise=0)
+    elif tag_alpha > 0.004:
+        _blit(over, tag, tag_alpha, rise=0)
     if not bar:
         return
     d = ImageDraw.Draw(over)
@@ -566,8 +582,11 @@ def finish_scenes(scenes: Sequence[Scene], end_card: bool = False) -> List[Scene
 
 class Renderer:
     def __init__(self, scenes: Sequence[Scene], seconds_per_scene: float = 3.0, transition: str = "fade", xfade: float = 0.45,
-                 progress: bool = True, end_card: bool = False):
+                 progress: bool = True, end_card: bool = False, hook_tag: bool = True):
+        """hook_tag=False: no brand tag while the hook (scene 1) is on screen; it fades in with scene 2. The first second belongs to the
+        viewer's problem, not to our name."""
         scenes = finish_scenes(scenes, end_card)
+        self.hook_tag = hook_tag
         _no_phone_numbers(scenes)
         if transition not in ("fade", "slide"):
             raise ReelError("transition must be 'fade' or 'slide'")
@@ -583,10 +602,13 @@ class Renderer:
     def frame_at(self, t: float) -> Image.Image:
         t = min(t, self.tl.total - 1e-6)
         act = active_scenes(self.tl, t)
+        tag_a = 1.0
         if len(act) == 1:
             i = act[0][0]
             img = self._scene_frame(i, t)
             chrome_a = 0.0 if self.prep[i].scene.kind == "end" else 1.0
+            if i == 0 and not self.hook_tag:
+                tag_a = 0.0
         else:
             (i, _), (j, w) = act
             a, b = self._scene_frame(i, t), self._scene_frame(j, t)
@@ -599,13 +621,15 @@ class Renderer:
             else:
                 img = Image.blend(a, b, e)
             chrome_a = (1 - e) if self.prep[j].scene.kind == "end" else 1.0
-        _chrome(img, self.tag, t / self.tl.total if self.progress else 0.0, chrome_a)
+            if i == 0 and not self.hook_tag:
+                tag_a = e
+        _chrome(img, self.tag, t / self.tl.total if self.progress else 0.0, chrome_a, tag_alpha=tag_a)
         return img
 
     def cover(self) -> Image.Image:
         """The cover: the hook scene as a still with all its text in place (no progress bar, it is not playing)."""
         img = self._scene_frame(0, 0.0)
-        _chrome(img, self.tag, 0.0, 0.0 if self.prep[0].scene.kind == "end" else 1.0, bar=False)
+        _chrome(img, self.tag, 0.0, 0.0 if self.prep[0].scene.kind == "end" else 1.0, bar=False, tag_alpha=1.0 if self.hook_tag else 0.0)
         return img
 
     def frames(self) -> Iterator[bytes]:
@@ -661,7 +685,7 @@ def encode(frames: Iterable[bytes], total: float, out_path, music=None, timeout:
 
 
 def make_reel(scenes: Sequence[Scene], out_path, seconds_per_scene: float = 3.0, music=None, transition: str = "fade",
-              xfade: float = 0.45, progress: bool = True, end_card: bool = False, timeout: float = 900.0) -> Path:
+              xfade: float = 0.45, progress: bool = True, end_card: bool = False, timeout: float = 900.0, hook_tag: bool = True) -> Path:
     """Render `scenes` (plus the brand end card only when end_card=True) to an MP4 at `out_path` and return the path. A 1080x1920 cover JPG (the hook
     scene as a still, see `cover_path`) is written next to it, for Instagram's `cover_url`.
 
@@ -669,7 +693,7 @@ def make_reel(scenes: Sequence[Scene], out_path, seconds_per_scene: float = 3.0,
     carries the Avasetu signature music (see `encode`)."""
     if music and not Path(music).is_file():
         raise ReelError("music file not found")
-    r = Renderer(scenes, seconds_per_scene, transition, xfade, progress, end_card)
+    r = Renderer(scenes, seconds_per_scene, transition, xfade, progress, end_card, hook_tag)
     out = encode(r.frames(), r.tl.total, out_path, music=music, timeout=timeout)
     write_cover(r, out)
     return out

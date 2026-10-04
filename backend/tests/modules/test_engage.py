@@ -417,6 +417,47 @@ async def test_agents_asking_under_our_promo_get_the_pilot_message():
     assert "pilot is free" in text and "areas you work in" in text and "https://site.test/pilot" in text
 
 
+def _agent_reel_row(db, pid="PAGE_920", code="C1"):
+    db.get_collection("content_calendar").docs.append({"_id": "CALA", "slug": f"agent-reel-{code.lower()}", "kind": "reel",
+                                                      "channel": "facebook_page", "external_id": pid, "caption": "", "status": "published",
+                                                      "creative": {"source": "agent_reels", "template": "agent", "reel_code": code}})
+
+
+async def test_comment_agent_under_an_agent_reel_gets_the_pilot_reply_tagged_with_the_reel():
+    """'Comment AGENT' reels: the public reply and the DM are about the pilot (never price lists or floor plans), the link carries
+    the reel's code, and the agent is not recorded as a buyer lead."""
+    svc, g, db = make_dm([post([comment("C1", "AGENT")], pid="PAGE_920", message="Leads abhi bhi diary mein?")])
+    _agent_reel_row(db)
+    await svc.run_once()
+    doc = db.get_collection("engage_comments").docs[0]
+    assert doc["intent"] == "interested" and doc["audience"] == "agents" and doc["calendar_id"] == "CALA"
+    assert "pilot is free" in doc["reply"] and "price list" not in doc["reply"] and "floor plan" not in doc["reply"]
+    assert "https://site.test/pilot?src=reel_c1_fb" in doc["reply"]
+    assert "https://site.test/pilot?src=reel_c1_fb" in g.dms[0][1]
+    assert db.get_collection("contacts").docs == []
+
+
+@pytest.mark.parametrize("text", ["Agent", "interested", "how to join?", "is it free", "एजेंट"])
+async def test_agent_reel_keywords_in_any_form_get_the_pilot_reply(text):
+    reply = (await decide(text, "Amit", "", "https://site.test/pilot?src=reel_a1_fb", None, audience="agents")).reply
+    assert reply and "site.test/pilot?src=reel_a1_fb" in reply
+
+
+async def test_on_instagram_the_agent_reply_points_at_the_message_and_bio_not_a_url():
+    d = await decide("AGENT", "Amit", "", "https://site.test/pilot?src=reel_a1_ig", None, channel="instagram", handle="avasetu", audience="agents")
+    assert d.intent == "interested" and "http" not in d.reply and "bio" in d.reply
+
+
+async def test_spam_under_an_agent_reel_is_still_not_answered():
+    d = await decide("Earn money click here, join now", "X", "", "https://site.test/pilot", None, audience="agents")
+    assert d.intent == "spam" and d.reply is None
+
+
+async def test_buyer_posts_still_get_the_buyer_reply_for_agent_words():
+    d = await decide("INTERESTED", "Priya", "", "https://site.test/agent/rahul", None)
+    assert "price list" in d.reply
+
+
 async def test_a_number_written_back_in_the_dm_becomes_the_leads_phone_with_what_they_said():
     svc, g, db = make_dm([post([comment("C1", "INTERESTED")])])
     await svc.run_once()

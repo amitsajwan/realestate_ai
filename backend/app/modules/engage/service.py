@@ -132,6 +132,10 @@ class EngageService:
         agents = bool(item) and _audience(item) == "agents"
         if agents and self.cfg.site_url:  # our recruitment posts: agents asking "how do I use this" go to the pilot sign-up
             landing = f"{self.cfg.site_url}/pilot"
+            code = (item.get("creative") or {}).get("reel_code")
+            if code:  # an agent reel: the sign-up is traced back to this reel (scripts/agent_reels.py report)
+                from app.modules.reels.agent_reels import source_tag
+                source = source_tag(code, channel)
         return {"facts": message, "link": with_source(landing, source), "listing_id": None, "agent_id": self.cfg.owner_agent_id or None,
                 "grounding": grounding, "calendar_id": item["_id"] if item else None, "audience": "agents" if agents else "buyers"}
 
@@ -157,8 +161,9 @@ class EngageService:
         if own or c.get("replied") or c.get("parent") or (t and self.now() - t > MAX_COMMENT_AGE):
             return {**base, "intent": "other", "language": "en", "status": "ignored", "needs_human": False, "reason": "own comment, already answered, thread reply or old"}
         extra = {"channel": channel, "handle": handle} if channel != "facebook" else {}
-        d: Decision = await decide(c.get("message") or "", sender.get("name"), ctx["facts"], ctx["link"], self.llm, grounding=ctx.get("grounding"), **extra)
-        doc = {**base, "intent": d.intent, "language": d.language, "reply": d.reply, "needs_human": d.needs_human, "reason": d.reason, "status": "ignored",
+        d: Decision = await decide(c.get("message") or "", sender.get("name"), ctx["facts"], ctx["link"], self.llm, grounding=ctx.get("grounding"),
+                                   audience=ctx.get("audience") or "buyers", **extra)
+        doc = {**base, "audience": ctx.get("audience") or "buyers", "calendar_id": ctx.get("calendar_id"), "intent": d.intent, "language": d.language, "reply": d.reply, "needs_human": d.needs_human, "reason": d.reason, "status": "ignored",
                "answer_basis": d.basis, "missing": d.missing}
         if d.needs_human and not d.reply:
             doc["status"] = "needs_human"
@@ -219,7 +224,8 @@ class EngageService:
                     await self._private_reply(doc, post, ctx, graph)
                     await self.comments.insert_one(doc)
                     counts[doc["status"]] = counts.get(doc["status"], 0) + 1
-                    if doc["intent"] in LEAD_INTENTS and doc["status"] in ("replied", "needs_human", "dry_run", "capped"):
+                    if doc["intent"] in LEAD_INTENTS and doc.get("audience") != "agents" \
+                            and doc["status"] in ("replied", "needs_human", "dry_run", "capped"):  # an agent asking about the pilot is not a buyer lead
                         try:
                             await self._record_lead(doc, post)
                         except Exception:  # a lead problem must never stop replies
