@@ -1,5 +1,6 @@
 import React from 'react'
-import { formatPostDate, POSTS_TEXT, type PublicPost } from '@/lib/posts/data'
+import Link from 'next/link'
+import { formatPostDate, postPath, POSTS_TEXT, type PublicPost } from '@/lib/posts/data'
 import Skyline from './Skyline'
 import SlideStrip from './SlideStrip'
 
@@ -7,10 +8,12 @@ const LABEL = { facebook: 'Facebook', instagram: 'Instagram' } as const
 
 /**
  * One published post, close to how it reads on Instagram: every carousel slide (swipe), the caption's opening line as the
- * title, the rest as a short excerpt; the main link goes to the page on our own site, Facebook and Instagram are small links.
+ * title, the rest as a short excerpt; the title and picture open the post's own page, "See the project" goes to the project page
+ * it is about, Facebook and Instagram are small links.
  */
 export default function PostCard({ post }: { post: PublicPost }) {
   const date = formatPostDate(post.published_at)
+  const page = post.slug ? postPath(post.slug) : null
   const slides = (post.images.length ? post.images : post.image_url ? [post.image_url] : [])
     .map((url, i, all) => ({ url, alt: all.length > 1 ? `${post.title} (slide ${i + 1} of ${all.length})` : post.title }))
   return (
@@ -19,9 +22,17 @@ export default function PostCard({ post }: { post: PublicPost }) {
         {slides.length > 1 ? (
           <SlideStrip slides={slides} label={post.title} size="sm" className="p-3 pb-0" />
         ) : slides.length === 1 ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={slides[0].url} alt={slides[0].alt} width={1080} height={1350} loading="lazy" decoding="async"
-            className="aspect-[4/5] w-full bg-slate-100 object-cover" />
+          page ? (
+            <Link href={page} tabIndex={-1} aria-hidden="true" className="block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={slides[0].url} alt="" width={1080} height={1350} loading="lazy" decoding="async"
+                className="aspect-[4/5] w-full bg-slate-100 object-cover" />
+            </Link>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={slides[0].url} alt={slides[0].alt} width={1080} height={1350} loading="lazy" decoding="async"
+              className="aspect-[4/5] w-full bg-slate-100 object-cover" />
+          )
         ) : (
           <div className="flex aspect-[4/3] w-full flex-col justify-end bg-gradient-to-b from-[#102340] to-[#183a5d]" aria-hidden="true">
             <Skyline className="block h-1/2 w-full" />
@@ -36,7 +47,9 @@ export default function PostCard({ post }: { post: PublicPost }) {
       </div>
       <div className="flex flex-1 flex-col p-4">
         {date && <p className="text-xs font-medium text-slate-600"><time dateTime={post.published_at}>{date}</time></p>}
-        <h3 className="mt-1 line-clamp-2 text-base font-bold text-[#0f2340]">{post.title}</h3>
+        <h3 className="mt-1 line-clamp-2 text-base font-bold text-[#0f2340]">
+          {page ? <Link href={page} data-testid="post-page-link" className="no-underline hover:underline">{post.title}</Link> : post.title}
+        </h3>
         {post.excerpt && post.excerpt !== post.title && <p className="mt-1 line-clamp-3 text-sm text-slate-700">{post.excerpt}</p>}
         {post.sample && <p className="mt-2 text-xs text-slate-600">{POSTS_TEXT.sampleNote}</p>}
         <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-2 pt-4">
