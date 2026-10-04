@@ -133,7 +133,7 @@ describe('NewsArticle', () => {
 
   it('renders a digest as a list of linked stories plus the buyer tip, without a source link', () => {
     render(<NewsArticle item={digest} />)
-    expect(screen.getByRole('link', { name: /Pune Ring Road/ })).toHaveAttribute('href', '/news/a1b2c3d4e5')
+    expect(screen.getByRole('link', { name: /Pune Ring Road/ })).toHaveAttribute('href', '/news/pune-ring-road-10502-crore-approved-a1b2c3')
     expect(screen.getByText('Buyer tip')).toBeInTheDocument()
     expect(screen.queryByTestId('read-original')).toBeNull()
     expect(screen.queryByTestId('summary-badge')).toBeNull()
@@ -189,7 +189,7 @@ describe('SEO', () => {
 describe('pages', () => {
   it('the list page shows the news and how we write it', async () => {
     render(await NewsPage())
-    expect(screen.getByRole('heading', { level: 1, name: 'Local property news' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Pune property news' })).toBeInTheDocument()
     expect(screen.getAllByTestId('news-card').length).toBeGreaterThan(3)
     expect(screen.getByText('How we write news')).toBeInTheDocument()
     expect(screen.getByRole('contentinfo')).toBeInTheDocument()

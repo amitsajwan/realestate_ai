@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import { formatNewsDate, NEWS_TEXT, type NewsItem } from '@/lib/news/data'
+import { formatNewsDate, NEWS_TEXT, newsPath, type NewsItem } from '@/lib/news/data'
 import BuyerLine from './BuyerLine'
 
 function Meta({ item }: { item: NewsItem }) {
@@ -24,7 +24,7 @@ function Kicker({ item }: { item: NewsItem }) {
 
 /** One news item. `featured` is the lead story (big image); the others are compact rows with a small card thumbnail. */
 export default function NewsCard({ item, featured = false }: { item: NewsItem; featured?: boolean }) {
-  const href = `/news/${item.id}`
+  const href = newsPath(item.id)
   const img = item.image_url && (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={item.image_url} alt="" width={featured ? 720 : 112} height={featured ? 720 : 112} loading={featured ? 'eager' : 'lazy'} decoding="async"
