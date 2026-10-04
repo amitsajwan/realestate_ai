@@ -22,7 +22,7 @@ from app.platform.meta_graph.config import load as load_social
 from app.modules.social.distribution import graph_publisher, send
 from app.platform.meta_graph.publisher import DryRunPublisher, Post, sanitize
 
-from . import adapters
+from . import adapters, reach
 from .config import MAX_ATTEMPTS, RETRY_AFTER_S, CalendarConfig, load, uploads_dir
 from .store import Store, aware
 
@@ -114,6 +114,7 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
     try:
         kind = doc.get("kind") or "post"
         doc = await adapters.with_interest(store.db, doc)
+        doc = reach.apply(doc)  # 3 to 5 targeted hashtags in place of the caption's own
         if social.dry_run:
             res = await DryRunPublisher().publish(Post(doc["channel"], doc["caption"], []))
             await store.published(doc["_id"], res.external_id, res.permalink, "dry run: nothing was sent")
@@ -142,7 +143,8 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
                 res = await _once(store, reel, lambda: publish_reel(reel, social, uploads, name=f"{doc['_id']}-slides.mp4"))
             else:
                 urls = [f"{social.media_base_url}/uploads/{p}" for p in imgs]
-                res = await _once(store, doc, lambda: publisher.publish(Post(doc["channel"], doc["caption"], urls)))
+                res = await _once(store, doc, lambda: publisher.publish(Post(doc["channel"], doc["caption"], urls,
+                                                                             location_id=reach.location_id(doc))))
         await store.published(doc["_id"], res.external_id, res.permalink)
         await adapters.register_hub(store.db, doc, res.permalink or "")
         return "published"

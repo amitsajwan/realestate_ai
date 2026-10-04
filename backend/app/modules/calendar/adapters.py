@@ -354,6 +354,9 @@ async def publish_reel(doc: dict, social: SocialConfig, uploads: Path, name: Opt
         cover = _reel_publish.staged_cover_url(social, mp4, Path(uploads), name)
         if cover:
             extra["cover_url"] = cover
+        from .reach import location_id
+        if location_id(doc):
+            extra["location_id"] = location_id(doc)
     return await _reel_publish.publish_reel(doc["channel"], url, doc["caption"], cfg=social, file_path=mp4, **extra)
 
 

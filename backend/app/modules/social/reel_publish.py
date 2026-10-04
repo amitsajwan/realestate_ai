@@ -94,7 +94,7 @@ class ReelPublisher(GraphPublisher):
         super().__init__(cfg, transport, sleep, clock, poll_interval, poll_timeout)
 
     async def publish_reel(self, channel: str, video_url: str, caption: str, file_path: Optional[Path] = None,
-                           cover_url: Optional[str] = None) -> Result:
+                           cover_url: Optional[str] = None, location_id: Optional[str] = None) -> Result:
         if channel not in CHANNELS:
             raise PublishError(f"Unknown channel {channel}")
         if not self.cfg.configured(channel):
@@ -105,13 +105,14 @@ class ReelPublisher(GraphPublisher):
             self._client = client
             try:
                 if channel == "instagram":
-                    return await self._instagram_reel(video_url, caption, cover_url)
+                    return await self._instagram_reel(video_url, caption, cover_url, location_id)
                 return await self._facebook_reel(video_url, caption, file_path)
             finally:
                 self._client = None
 
     # ---- Instagram -------------------------------------------------------------------------------------------
-    async def _instagram_reel(self, video_url: str, caption: str, cover_url: Optional[str] = None) -> Result:
+    async def _instagram_reel(self, video_url: str, caption: str, cover_url: Optional[str] = None,
+                              location_id: Optional[str] = None) -> Result:
         ig = self.cfg.ig_id
         found = await self._already_on_instagram(caption, video=True)  # a retry after a "failed" publish that went out
         if found:
@@ -119,6 +120,8 @@ class ReelPublisher(GraphPublisher):
         params = {"media_type": "REELS", "video_url": video_url, "caption": caption, "share_to_feed": "true"}
         if cover_url and str(cover_url).lower().startswith("https://"):
             params["cover_url"] = cover_url   # the hook still as the grid/feed cover (else Instagram picks a frame)
+        if location_id:
+            params["location_id"] = location_id  # a Facebook place id: the reel's location tag
         body = await self._call("POST", f"{ig}/media", params)
         container = self._need_id(body, "the reel container")
         await self._wait_finished(container)
@@ -193,7 +196,8 @@ class ReelPublisher(GraphPublisher):
 
 
 async def publish_reel(channel: str, video_url: str, caption: str, cfg: Optional[SocialConfig] = None, file_path: Optional[Path] = None,
-                       dry_run: Optional[bool] = None, cover_url: Optional[str] = None, **kwargs) -> Result:
+                       dry_run: Optional[bool] = None, cover_url: Optional[str] = None, location_id: Optional[str] = None,
+                       **kwargs) -> Result:
     """Entry point. Dry run (SOCIAL_DRY_RUN, the default) returns a fake id without any network call.
     `cover_url` (Instagram only): public https url of the cover JPG; the Facebook path ignores it."""
     cfg = cfg or load_config()
@@ -201,4 +205,5 @@ async def publish_reel(channel: str, video_url: str, caption: str, cfg: Optional
         raise PublishError(f"Unknown channel {channel}")
     if (cfg.dry_run if dry_run is None else dry_run):
         return Result(external_id=f"dryrun_{uuid.uuid4().hex[:12]}")
-    return await ReelPublisher(cfg, **kwargs).publish_reel(channel, video_url, caption, file_path, cover_url=cover_url)
+    return await ReelPublisher(cfg, **kwargs).publish_reel(channel, video_url, caption, file_path, cover_url=cover_url,
+                                                            location_id=location_id)

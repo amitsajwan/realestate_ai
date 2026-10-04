@@ -168,15 +168,17 @@ class GraphPublisher:
         found = await self._already_on_instagram(post.text)
         if found:
             return found
+        place = {"location_id": post.location_id} if post.location_id else {}
         if len(urls) == 1:
-            container = self._need_id(await self._call("POST", f"{ig}/media", {"image_url": urls[0], "caption": post.text}), "the container")
+            container = self._need_id(await self._call("POST", f"{ig}/media", {"image_url": urls[0], "caption": post.text, **place}),
+                                      "the container")
         else:
             children = []
             for u in urls:
                 body = await self._call("POST", f"{ig}/media", {"image_url": u, "is_carousel_item": "true"})
                 children.append(self._need_id(body, "a carousel item"))
             container = self._need_id(await self._call("POST", f"{ig}/media", {
-                "media_type": "CAROUSEL", "children": ",".join(children), "caption": post.text}), "the carousel")
+                "media_type": "CAROUSEL", "children": ",".join(children), "caption": post.text, **place}), "the carousel")
         await self._wait_finished(container)
         media_id = self._need_id(await self._call("POST", f"{ig}/media_publish", {"creation_id": container}), "the published media")
         permalink = None
