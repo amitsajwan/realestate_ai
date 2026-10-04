@@ -12,6 +12,7 @@ MIN_PROJECTS projects, or with too few facts for MIN_SLIDES slides, gets no reel
 The slides are drawn with the creative Canvas, so `check()` can prove every text is inside the Reels safe zone, readable
 (contrast >= 4.5) and not cut short. The video plays the slides with cross-fades through reels.compose.encode.
 """
+import importlib
 import re
 from dataclasses import dataclass, field
 from datetime import date
@@ -183,9 +184,9 @@ async def area_reel(db, key: str, stats_fn: Optional[Callable] = None) -> Option
     """The reel for one area, or None (unknown area, no stats, thin data). `stats_fn` defaults to areastats.service.area_stats,
     imported here so the calendar loads even where that module is not deployed yet."""
     if stats_fn is None:
-        try:
-            from app.modules.areastats.service import area_stats as stats_fn
-        except ImportError:
+        try:  # by name: the areastats module (W1) may land after this one
+            stats_fn = importlib.import_module("app.modules.areastats.service").area_stats
+        except (ImportError, AttributeError):
             return None
     try:
         stats = await stats_fn(db, key)
