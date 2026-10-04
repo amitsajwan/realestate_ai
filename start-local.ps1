@@ -77,6 +77,34 @@ function Test-Port {
     }
 }
 
+function Test-BackendHealthy {
+    try {
+        $response = Invoke-WebRequest -Uri "http://localhost:$BACKEND_PORT/api/v1/health" -UseBasicParsing -TimeoutSec 5
+        return $response.StatusCode -eq 200
+    } catch {
+        return $false
+    }
+}
+
+function Test-FrontendHealthy {
+    try {
+        $response = Invoke-WebRequest -Uri "http://localhost:$FRONTEND_PORT/" -UseBasicParsing -TimeoutSec 5
+        return $response.StatusCode -eq 200
+    } catch {
+        return $false
+    }
+}
+
+function Stop-StaleLocalProcess {
+    param([string]$Name, [string[]]$Patterns)
+
+    foreach ($pattern in $Patterns) {
+        Get-Process -Name $Name -ErrorAction SilentlyContinue |
+            Where-Object { $_.CommandLine -match $pattern } |
+            ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
+    }
+}
+
 function Start-MongoDB {
     Write-Step "MONGO" "Starting MongoDB..."
     
@@ -109,8 +137,13 @@ function Start-Backend {
     Write-Step "BACKEND" "Starting FastAPI backend..."
     
     if (Test-Port $BACKEND_PORT) {
-        Write-Success "Backend is already running on port $BACKEND_PORT"
-        return $true
+        if (Test-BackendHealthy) {
+            Write-Success "Backend is already running on port $BACKEND_PORT"
+            return $true
+        }
+        Write-Warning "Backend port is occupied but the health endpoint is not healthy; restarting stale backend..."
+        Stop-StaleLocalProcess -Name "python" -Patterns @("uvicorn", "app.main")
+        Stop-StaleLocalProcess -Name "uvicorn" -Patterns @("uvicorn")
     }
     
     try {
@@ -176,12 +209,23 @@ function Start-Frontend {
     Write-Step "FRONTEND" "Starting Next.js frontend..."
     
     if (Test-Port $FRONTEND_PORT) {
-        Write-Success "Frontend is already running on port $FRONTEND_PORT"
-        return $true
+        if (Test-FrontendHealthy) {
+            Write-Success "Frontend is already running on port $FRONTEND_PORT"
+            return $true
+        }
+        Write-Warning "Frontend port is occupied but the app is not serving a healthy page; restarting stale frontend..."
+        Stop-StaleLocalProcess -Name "node" -Patterns @("next", "next-server", "frontend")
+        Stop-StaleLocalProcess -Name "powershell" -Patterns @("start_frontend.ps1")
     }
     
     try {
         Push-Location frontend
+
+        # Clear any stale Next.js build cache before starting to avoid reusing broken generated assets.
+        if (Test-Path ".next") {
+            Write-Step "FRONTEND" "Clearing stale Next.js cache..."
+            Remove-Item -Recurse -Force ".next"
+        }
         
         # Check if node_modules exists
         if (!(Test-Path "node_modules")) {
@@ -289,14 +333,9 @@ function Stop-Services {
         }
     }
     
-    # Clean up PowerShell script files
-    Write-Step "STOP" "Cleaning up temporary files..."
-    if (Test-Path "backend/start_backend.ps1") {
-        Remove-Item "backend/start_backend.ps1" -Force
-    }
-    if (Test-Path "frontend/start_frontend.ps1") {
-        Remove-Item "frontend/start_frontend.ps1" -Force
-    }
+    # Keep the repo's startup helper scripts in place so the app can be restarted without
+    # leaving tracked files deleted or dirty between local sessions.
+    Write-Step "STOP" "Stopping services and leaving the repo clean..."
     
     # Wait a moment for processes to fully stop
     Start-Sleep -Seconds 2
