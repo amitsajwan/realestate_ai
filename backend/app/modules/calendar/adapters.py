@@ -4,6 +4,8 @@
   agent_item_to_brief            the agent-attraction briefs (product benefits only, same claims as the library's agent posts)
   showcase_item / publish_showcase   a labelled sample home as an Instagram carousel or Facebook card
   reel_item / render_reel / publish_reel   a short vertical video (tip, tour, pitch) and its publication
+  consented_projects / project_reel_caption   live projects of agents who consented to be featured, for the daily evening reel
+  render_reel_for               also renders the daily reels: an area insight (area_reels) or an agent's project (agentprojects.reel)
 
 Facts: a Brief carries only what the library entry itself says (its points, its body sentences, the claim in its `review` note).
 creative's guards reject any number that is not in the Brief, any price, prediction, phone, URL, hype or filler, and replace the
@@ -323,8 +325,77 @@ def spec_of(doc: dict) -> ReelSpec:
 def render_reel_for(doc: dict, uploads: Path) -> str:
     """Runner hook: render the reel behind a calendar row."""
     from .library import BY_SLUG
+    c = doc.get("creative") or {}
+    if c.get("template") in ("area", "project"):
+        return _render_daily(doc, Path(uploads))
     spec = spec_of(doc)
     return render_reel(spec, uploads, BY_SLUG.get(spec.ref))
+
+
+def _render_daily(doc: dict, uploads: Path, composer: Optional[Callable] = None) -> str:
+    """An area insight plays its checked slides (stored with the row); a project reel is drawn from the project record and agent
+    name stored with the row when it was planned (the same facts the owner approved)."""
+    c = doc.get("creative") or {}
+    rel = f"{REEL_DIR}/{c.get('reel_key') or doc['slug']}.mp4"
+    dest = uploads / rel
+    if dest.is_file() and dest.stat().st_size > 0:
+        return rel
+    if c["template"] == "area":
+        from . import area_reels
+        (composer or area_reels.render_video)([uploads / p for p in c.get("slides") or doc.get("images") or []], dest)
+    else:
+        from app.modules.agentprojects import reel as _project_reel
+        (composer or _project_reel.render)(c["project"], c["agent"], dest)
+    return rel
+
+
+# ---- the daily evening reel: an agent's real project, only with the agent's consent ------------------------------------------------------
+async def consented_projects(db) -> List[Dict]:
+    """Live, MahaRERA-checked projects of agents whose concierge record says consent.given is True and whose public site is
+    indexable (public, not the demo, not an unpublished preview). Consent is read every time a plan is made, so a revoked
+    consent (House Deal: given=False) stops new rows at once. Returns [{slug, agent_id, area, project, agent, agent_slug}]."""
+    from app.core import areas as core_areas
+    from app.modules.agentprojects.service import COLLECTION, _agent_name, indexable, public_view
+    agents = await db.get_collection("concierge_agents").find({}).to_list(None)
+    ok = {str(a["_id"]) for a in agents if (a.get("consent") or {}).get("given") is True}
+    if not ok:
+        return []
+    profiles = {str(p["agent_id"]): p for p in await db.get_collection("agent_public_profiles").find({}).to_list(None)
+                if str(p.get("agent_id")) in ok and indexable(p)}
+    out = []
+    docs = await db.get_collection(COLLECTION).find({}).to_list(None)
+    for d in sorted(docs, key=lambda d: (str(d.get("agent_id")), d.get("order") or 0, d.get("slug", ""))):
+        prof = profiles.get(str(d.get("agent_id")))
+        if not prof or d.get("status") != "live" or not d.get("rera") or not d.get("configurations"):
+            continue
+        p = public_view(d)
+        named = core_areas.named_in(p.get("locality") or "")
+        out.append({"slug": d["slug"], "agent_id": str(d["agent_id"]), "area": named[0].key if named else "", "project": p,
+                    "agent": {"name": _agent_name(prof)}, "agent_slug": prof.get("slug", "")})
+    return out
+
+
+def project_reel_caption(p: dict, agent: dict, channel: str, agent_slug: str = "") -> str:
+    """The project's facts as the agent quoted them and MahaRERA filed them, with the read date; no phone number (interest links
+    and comments reach the agent)."""
+    from app.modules.agentprojects.cards import bhk_range, day, price_range
+    r = p.get("rera") or {}
+    page = f"{SITE}/agent/{agent_slug}/projects/{p['slug']}" if agent_slug else SITE
+    lines = [f"{p['name']}, {p['locality']}: {price_range(p)}, {bhk_range(p.get('bhk_options') or [])}.",
+             f"MahaRERA {p['rera_no']}: completion date filed {day(r.get('completion_now'))}"
+             + (f", {p['booked_pct']}% of {r.get('units_total')} homes booked" if p.get("booked_pct") is not None else "")
+             + (f" (read on {day(r.get('checked_at'))})." if r.get("checked_at") else "."),
+             f"Builder's target: {day(p.get('possession_target'))}. Plan around the MahaRERA date." if p.get("possession_target") else "",
+             f"Prices as quoted by {agent['name']}; confirm before booking. Listed by {agent['name']}.",
+             "Comment PRICE for the prices on your floor.",
+             "Every fact with its source: link in our bio." if channel == "instagram" else f"Every fact with its source: {page}",
+             "#Pune #" + p["locality"].replace(" ", "") + " #MahaRERA"]
+    return "\n\n".join(x for x in lines if x)
+
+
+def project_reel_script(p: dict, agent: dict) -> List[str]:
+    from app.modules.agentprojects import reel as _project_reel
+    return [l if isinstance(l, str) else l.text for s in _project_reel.scenes(p, agent) for l in s.lines]
 
 
 def render_slides_reel_for(doc: dict, uploads: Path) -> str:

@@ -2,6 +2,8 @@
 
   python scripts/calendar_admin.py plan --start 2026-10-12 --weeks 4 [--llm] [--include-local-languages] [--render-reels]
         make the creative for every slot and store it as `planned` (images go to uploads/calendar/); needs MongoDB
+  python scripts/calendar_admin.py daily --start 2026-10-12 --days 7
+        the daily reels (morning area insight, evening consented project or buyer guide) as `planned`; only with CALENDAR_DAILY_REELS=on
   python scripts/calendar_admin.py preview-plan [--week N] [--out DIR]     one contact sheet per week + all captions, to review before approving
   python scripts/calendar_admin.py approve --all | --week N | <id>          planned -> approved (the runner may then publish it at its time)
   python scripts/calendar_admin.py skip <id>                                 drop one item
@@ -122,10 +124,11 @@ async def offline(start: date, weeks: int, out: Path, use_llm: bool, include_loc
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("mode", nargs="?", choices=["plan", "preview-plan", "approve", "skip", "list", "status", "preview-offline"])
+    ap.add_argument("mode", nargs="?", choices=["plan", "daily", "preview-plan", "approve", "skip", "list", "status", "preview-offline"])
     ap.add_argument("id", nargs="?")
     ap.add_argument("--start", default=None, help="first day (default: next Monday)")
     ap.add_argument("--weeks", type=int, default=4)
+    ap.add_argument("--days", type=int, default=7, help="daily: how many days to plan")
     ap.add_argument("--week", type=int, default=None)
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--llm", action="store_true", help="use the real LLM in the creative studio; each item falls back to the deterministic path on failure")
@@ -158,6 +161,9 @@ def main(argv=None) -> int:
                 print("refusing to plan: fix the guard failures first")
                 return 1
             await plan(store, start, a.weeks, a.llm, a.include_local_languages, a.render_reels, uploads)
+        elif a.mode == "daily":
+            made = await builder.build_daily_and_store(store, start, a.days, uploads, now=datetime.now(IST), say=print)
+            print(f"{len(made)} daily reel row(s) planned (status `planned`: nothing posts until you approve).")
         elif a.mode == "preview-plan":
             await preview_plan(store, Path(a.out), a.week, uploads)
         elif a.mode == "approve":
