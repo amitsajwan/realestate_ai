@@ -1,13 +1,13 @@
 import type { Metadata } from 'next'
 import type { MarketingConfig } from '@/lib/marketing/config'
 import { pageMetadata } from '@/lib/marketing/seo'
-import { isGoogleRedirect, type NewsItem } from './data'
+import { isGoogleRedirect, newsPath, type NewsItem } from './data'
 
 const clip = (s: string, n: number) => (s.length <= n ? s : s.slice(0, n - 1).replace(/\s+\S*$/, '') + '…')
 
 /** Page metadata for one news item. The shared preview is our own card, so a link on Facebook or WhatsApp shows us, not Google. */
 export function newsMetadata(cfg: MarketingConfig, item: NewsItem): Metadata {
-  const path = `/news/${item.id}`
+  const path = newsPath(item.id) // the canonical address: always the current slug, also when an old one was opened
   const description = clip(item.summary || item.headline, 200)
   const base = pageMetadata(cfg, { title: `${item.headline} | ${cfg.businessName}`, description, path })
   const image = item.image_url ? { url: item.image_url, width: 1080, height: 1080, alt: item.headline } : undefined
@@ -38,7 +38,8 @@ export function newsJsonLd(cfg: MarketingConfig, item: NewsItem): Record<string,
     abstract: `A short summary written by the ${cfg.businessName} team. The facts are from the source named in isBasedOn.`,
     articleSection: item.pillar_label,
     inLanguage: 'en-IN',
-    mainEntityOfPage: `${cfg.siteUrl}/news/${item.id}`,
+    mainEntityOfPage: cfg.siteUrl + newsPath(item.id),
+    url: cfg.siteUrl + newsPath(item.id),
     datePublished: item.published_at ?? item.as_of ?? undefined,
     dateModified: item.as_of ?? item.published_at ?? undefined,
     image: item.image_url ? [item.image_url] : undefined,

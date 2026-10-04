@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import { formatNewsDate, NEWS_TEXT, type NewsItem } from '@/lib/news/data'
+import { formatNewsDate, NEWS_TEXT, newsPath, type NewsItem } from '@/lib/news/data'
 import { policyDisclaimer } from '@/lib/news/disclaimer'
 import BuyerLine from './BuyerLine'
 import InterestStrip from './InterestStrip'
@@ -37,7 +37,9 @@ export default function NewsArticle({ item }: { item: NewsItem }) {
           <ul className="mt-3 list-none space-y-3 p-0">
             {item.items.map((i) => (
               <li key={i.id} className="rounded-xl border border-slate-200 bg-white p-4">
-                <Link href={`/news/${i.id}`} className="font-bold text-[#0f2340] underline-offset-2 hover:underline">{i.headline}</Link>
+                {i.linked
+                  ? <Link href={newsPath(i.id)} className="font-bold text-[#0f2340] underline-offset-2 hover:underline">{i.headline}</Link>
+                  : <p className="font-bold text-[#0f2340]">{i.headline}</p>}
                 {i.source_name && <p className="mt-1 text-xs text-slate-600">Source: {i.source_name}</p>}
               </li>
             ))}
@@ -91,6 +93,16 @@ export default function NewsArticle({ item }: { item: NewsItem }) {
             </a>
           ))}
         </p>
+      )}
+
+      {item.areas.length > 0 && (
+        <nav aria-label="Areas in this story" data-testid="news-areas" className="mt-6 flex flex-wrap gap-x-5 text-sm">
+          {item.areas.map((a) => (
+            <Link key={a.slug} href={`/localities/${a.slug}`} className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-4">
+              {NEWS_TEXT.moreAbout(a.name)}
+            </Link>
+          ))}
+        </nav>
       )}
 
       <p data-testid="news-disclaimer" className="mt-8 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-700">{item.disclaimer || policyDisclaimer}</p>

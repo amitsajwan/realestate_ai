@@ -4,8 +4,11 @@ import { FIXTURE_NEWS } from './fixtures'
 import { BRAND_NAME, TEAM } from '@/lib/brand'
 
 /** One approved news item, as returned by GET /api/v1/public/news (list) and /public/news/{id} (detail adds the long parts). */
-export interface NewsArea { slug: string; name: string }
+/** An area the item is about: `key` is the backend's area key (app/core/areas.py), `slug` its page: /localities/<slug>. */
+export interface NewsArea { key?: string; slug: string; name: string }
 export interface NewsItem {
+  /** The item's address: a readable slug for a story ("lohegaon-hospital-opd-awaiting-approval-f5ddee"), the digest's own id
+   *  ("digest-2026-w40"). /news/<old id> still answers with this id, and the page redirects there. */
   id: string
   kind: 'story' | 'digest'
   headline: string
@@ -26,7 +29,8 @@ export interface NewsItem {
    *  item has none (education and digest items). */
   buyer_line: string | null
   disclaimer: string
-  items: Array<{ id: string; headline: string; source_name: string; line: string }>
+  /** A digest's entries; `linked` is false for one with no page of its own (a MahaRERA project in a roundup). */
+  items: Array<{ id: string; headline: string; source_name: string; line: string; linked: boolean }>
   tip: string
 }
 
@@ -43,7 +47,8 @@ export function cleanNewsItem(raw: unknown): NewsItem | null {
   if (typeof r.id !== 'string' || !r.id || typeof r.headline !== 'string' || !r.headline.trim()) return null
   const areas = (Array.isArray(r.areas) ? r.areas : []).flatMap((a): NewsArea[] => {
     const o = a as Record<string, unknown>
-    return o && typeof o.slug === 'string' && typeof o.name === 'string' ? [{ slug: o.slug, name: o.name }] : []
+    if (!o || typeof o.slug !== 'string' || typeof o.name !== 'string') return []
+    return [typeof o.key === 'string' ? { key: o.key, slug: o.slug, name: o.name } : { slug: o.slug, name: o.name }]
   })
   const links = (Array.isArray(r.permalinks) ? r.permalinks : []).flatMap((l): NewsItem['permalinks'] => {
     const o = l as Record<string, unknown>
@@ -51,7 +56,8 @@ export function cleanNewsItem(raw: unknown): NewsItem | null {
   })
   const items = (Array.isArray(r.items) ? r.items : []).flatMap((i): NewsItem['items'] => {
     const o = i as Record<string, unknown>
-    return o && typeof o.id === 'string' ? [{ id: o.id, headline: str(o.headline), source_name: str(o.source_name), line: str(o.line) }] : []
+    return o && typeof o.id === 'string' && o.id
+      ? [{ id: o.id, headline: str(o.headline), source_name: str(o.source_name), line: str(o.line), linked: o.linked !== false }] : []
   })
   return {
     id: r.id, kind: r.kind === 'digest' ? 'digest' : 'story', headline: r.headline.trim(), summary: str(r.summary),
@@ -81,17 +87,26 @@ async function getJson(path: string): Promise<{ status: number; body: unknown } 
   }
 }
 
-/** Server-side list, cached 60 s. An outage is reported as ok:false (shown honestly), never as fake content. */
-export async function fetchNews(limit = 20): Promise<NewsListResult> {
-  if (fixturesForced()) return { ok: true, items: FIXTURE_NEWS.slice(0, limit) }
-  const res = await getJson(`?limit=${limit}`)
+/** The site path of one item. */
+export const newsPath = (id: string): string => `/news/${encodeURIComponent(id)}`
+
+/** Server-side list, cached 60 s. An outage is reported as ok:false (shown honestly), never as fake content. `area` (an area key
+ *  from app/core/areas.py, e.g. "upper_kharadi") keeps the stories about that area. */
+export async function fetchNews(limit = 20, area?: string): Promise<NewsListResult> {
+  if (fixturesForced()) {
+    const items = area ? FIXTURE_NEWS.filter((n) => n.kind === 'story' && n.areas.some((a) => a.key === area || a.slug === area)) : FIXTURE_NEWS
+    return { ok: true, items: items.slice(0, limit) }
+  }
+  const res = await getJson(`?limit=${limit}${area ? `&area=${encodeURIComponent(area)}` : ''}`)
   if (!res || res.status >= 400) { await dontCacheThisRender(); return { ok: false, items: [] } }
   return { ok: true, items: cleanNewsList(res.body) }
 }
 
 export async function fetchNewsItem(id: string): Promise<NewsItemResult> {
   if (fixturesForced()) {
-    const item = FIXTURE_NEWS.find((n) => n.id === id)
+    // like the API: the address, or an older one of a story (its stored id or an older slug), found by the slug's last 6 characters
+    const old = id.split('-').pop()?.slice(0, 6) ?? ''
+    const item = FIXTURE_NEWS.find((n) => n.id === id) ?? FIXTURE_NEWS.find((n) => n.kind === 'story' && !!old && n.id.endsWith(`-${old}`))
     return item ? { ok: true, item } : { ok: false, notFound: true }
   }
   const res = await getJson(`/${encodeURIComponent(id)}`)
@@ -116,10 +131,12 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 export const isGoogleRedirect = (u: string | null): boolean => !!u && /news\.google\.com|google\.com\/rss/i.test(u)
 
 export const NEWS_TEXT = {
-  heading: 'Local property news',
-  lead: 'Kharadi, Upper Kharadi and Wagholi: short summaries in our own words of what is happening with roads, metro, approvals and rules. Each one names its source and the date.',
+  heading: 'Pune property news',
+  lead: 'Short summaries in our own words of what is happening with roads, metro, approvals and rules in the Pune areas we cover. Each one names its source and the date.',
+  homeHeading: 'Pune property news',
+  homeLead: 'Roads, metro, approvals and rules, each with its source.',
   empty: 'No news yet',
-  emptyLead: 'We publish a note when there is something worth knowing in Kharadi, Upper Kharadi or Wagholi. Follow us on Facebook or Instagram to see it first.',
+  emptyLead: 'We publish a note when there is something worth knowing in the Pune areas we cover. Follow us on Facebook or Instagram to see it first.',
   error: 'News is not loading right now',
   errorLead: 'Please try again in a minute, or see our latest posts on Facebook or Instagram.',
   badge: 'Summary of a news report',
@@ -134,8 +151,9 @@ export const NEWS_TEXT = {
   interestTitle: (area: string) => `Looking in ${area}?`,
   interestLead: `Tell us what you are looking for and the ${TEAM} will get back to you.`,
   interestCta: (area: string) => `I am interested in ${area}`,
-  pageTitle: `Local property news | ${BRAND_NAME}`,
-  pageDescription: 'Short summaries of Kharadi, Upper Kharadi and Wagholi property news in plain words, each with its source and date.',
+  pageTitle: `Pune property news | ${BRAND_NAME}`,
+  pageDescription: 'Short summaries of Pune property news in plain words: roads, metro, approvals and rules, each with its source and date.',
+  moreAbout: (area: string) => `More about ${area}`,
   all: 'All news',
   digestHeading: 'In this digest',
   tipHeading: 'Buyer tip',
