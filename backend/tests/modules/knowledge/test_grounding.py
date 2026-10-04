@@ -70,7 +70,7 @@ async def test_every_showcase_sample_home_has_a_labelled_grounding():
 async def test_an_area_grounding_has_the_curated_facts_and_no_prices():
     g = await facts_for(Ref.area("upper-kharadi"))
     assert g.kind == "area" and g.subject == "Upper Kharadi, Pune" and any("eastern corridor" in f for f in g.facts) and g.area_facts == []
-    assert await facts_for(Ref.area("Baner")) is None
+    assert await facts_for(Ref.area("Nashik")) is None
     assert not any("₹" in f for f in g.facts)
 
 

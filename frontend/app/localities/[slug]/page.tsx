@@ -7,9 +7,11 @@ import MarketingShell from '@/components/marketing/MarketingShell'
 import ListingCard from '@/components/site/ListingCard'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { INSIGHT_NOTE, getInsight } from '@/lib/marketing/insights'
-import { LOCALITIES, getLocality } from '@/lib/marketing/localities'
+import { LOCALITIES, getLocality, localitySource } from '@/lib/marketing/localities'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import ProjectCard from '@/components/site/ProjectCard'
+import AreaRecords from '@/components/localities/AreaRecords'
+import { getAreaStats } from '@/components/localities/areaStats'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getCatalog, getLocalityListings } from '@/lib/site/api'
 import { livePages } from '@/lib/site/filters'
@@ -30,13 +32,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   })
 }
 
-/** Where "I'm interested" leads: the house agent site's enquiry form (configurable at build time). */
-const ENQUIRE = `/agent/${process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'avasetu'}#enquire`
+/** Where "I'm interested" leads: the house agent site's enquiry form (configurable at build time). `?src=locality_<key>` is
+ *  picked up by the site's attribution (lib/site/tracking.ts readAttribution) and stored as the lead's source. */
+const enquireHref = (l: { key: string }) =>
+  `/agent/${process.env.NEXT_PUBLIC_DEFAULT_AGENT_SLUG || 'avasetu'}?src=${localitySource(l)}#enquire`
 
 export default async function LocalityPage({ params }: Props) {
   const l = getLocality((await params).slug)
   if (!l) notFound()
-  const [listings, projects] = await Promise.all([getLocalityListings(l.listingName), getCatalog(l.listingName)])
+  const [listings, projects, stats] = await Promise.all([getLocalityListings(l.listingName), getCatalog(l.listingName), getAreaStats(l.slug)])
   const guides = l.guides.map((s) => getInsight(s)).filter((g): g is NonNullable<typeof g> => !!g)
   const faqLd = {
     '@context': 'https://schema.org', '@type': 'FAQPage',
@@ -54,13 +58,15 @@ export default async function LocalityPage({ params }: Props) {
         <p className="mt-1 font-semibold text-amber-700">{l.tagline}</p>
         <p className="mt-2 text-sm text-slate-600">Last updated: <time dateTime={l.updated}>{l.updatedLabel}</time></p>
         <p className="mt-5 text-lg leading-relaxed text-slate-800">{l.summary}</p>
-        <a href={ENQUIRE} className="mt-5 inline-flex min-h-[48px] items-center rounded-full bg-amber-400 px-6 font-bold text-slate-900 no-underline">Tell us what you are looking for</a>
+        <a href={enquireHref(l)} className="mt-5 inline-flex min-h-[48px] items-center rounded-full bg-amber-400 px-6 font-bold text-slate-900 no-underline">Tell us what you are looking for</a>
 
         <section className="mt-10"><h2 className="text-xl font-semibold text-slate-900">Who {l.name} suits</h2>
           <ul className="mt-3 list-disc space-y-2 pl-6 leading-relaxed text-slate-800">{l.suits.map((s) => <li key={s}>{s}</li>)}</ul></section>
 
         <section className="mt-9"><h2 className="text-xl font-semibold text-slate-900">Getting around</h2>
           {l.gettingAround.map((p) => <p key={p} className="mt-3 leading-relaxed text-slate-800">{p}</p>)}</section>
+
+        <AreaRecords name={l.name} stats={stats} />
 
         {projects.length > 0 && (
           <section className="mt-9" style={AVASETU_SITE_VARS} aria-labelledby="projects-title">
