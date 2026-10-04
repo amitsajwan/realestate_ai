@@ -11,6 +11,7 @@ import { socialLinks } from '@/lib/marketing/social'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { jsonLdString, organizationJsonLd, pageMetadata } from '@/lib/marketing/seo'
 import { BUYERS, LANDING as L, LIVE, PATHS } from '@/lib/marketing/strings'
+import { TIER_LABELS, localitiesByTier } from '@/lib/marketing/localities'
 import { BRAND_NAME, TAGLINE } from '@/lib/brand'
 
 export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
@@ -108,9 +109,6 @@ export default function LandingPage() {
             <Link href={LIVE.links.page} className="inline-flex min-h-[52px] items-center justify-center rounded-xl bg-[#0f2340] px-7 text-[17px] font-bold text-white no-underline hover:bg-[#183a5d]">
               {LIVE.links.pageLabel}
             </Link>
-            <Link href={LIVE.links.compare} className="flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-4">
-              {LIVE.links.compareLabel}
-            </Link>
           </div>
         </div>
       </section>
@@ -196,17 +194,27 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Buyers who land here: one line, two doors, the latest local news */}
-      <section aria-labelledby="buyers-title" className="border-b border-[#ead9ae] bg-[#fbf6ea] py-8">
-        <div className={wrap + ' flex flex-wrap items-center justify-between gap-4'}>
-          <div className="max-w-2xl">
-            <h2 id="buyers-title" className="text-xl font-extrabold text-[#0f2340]">{BUYERS.title}</h2>
-            <p className="mt-1 text-slate-700">{BUYERS.body}</p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Link href="/localities" className="inline-flex min-h-[48px] items-center rounded-xl border-2 border-[#0f2340] px-5 font-bold text-[#0f2340] no-underline">{BUYERS.guides}</Link>
-            <Link href="/news" className="inline-flex min-h-[48px] items-center rounded-xl border-2 border-[#0f2340] px-5 font-bold text-[#0f2340] no-underline">{BUYERS.news}</Link>
-          </div>
+      {/* Buyers who land here: every area page (the hubs search engines and buyers need), then projects and news */}
+      <section aria-labelledby="buyers-title" className="border-b border-[#ead9ae] bg-[#fbf6ea] py-10">
+        <div className={wrap}>
+          <h2 id="buyers-title" className="text-xl font-extrabold text-[#0f2340] sm:text-2xl">{BUYERS.title}</h2>
+          <p className="mt-1 text-slate-700">{BUYERS.body}</p>
+          {(['affordable', 'it'] as const).map((tier) => ({ tier, areas: localitiesByTier(tier) })).map(({ tier, areas }) => (
+            <div key={tier} className="mt-5">
+              <h3 className={eyebrow}>{TIER_LABELS[tier].title}</h3>
+              <ul className="mt-2 flex flex-wrap gap-2 p-0">
+                {areas.map((a) => (
+                  <li key={a.slug} className="list-none">
+                    <Link href={`/localities/${a.slug}`} className="inline-flex min-h-[44px] items-center rounded-full border-2 border-[#0f2340] bg-white px-4 font-semibold text-[#0f2340] no-underline hover:bg-[#0f2340] hover:text-white">{a.name}</Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          <p className="mt-5 flex flex-wrap gap-x-6 gap-y-1">
+            <Link href="/projects" className="flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-4">{BUYERS.projects}</Link>
+            <Link href="/news" className="flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-4">{BUYERS.news}</Link>
+          </p>
         </div>
       </section>
       <NewsSection />
