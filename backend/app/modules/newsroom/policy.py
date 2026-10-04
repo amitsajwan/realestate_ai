@@ -7,16 +7,43 @@ DAILY_CAP = 2  # posts a day at most
 MAX_QUOTE_WORDS = 15  # longest run of words we may repeat from a source
 POST_MAX_CHARS = 900
 
-# area name (as used in `AREAS`) -> lowercase phrases that show an item is about it
+# NEWS scope: area key (app.core.areas) -> lowercase phrases that show a news item is about it. Narrower than the 8 areas on
+# purpose: Hinjawadi, Wakad and Baner news is still "another locality" for the news filter (stages/topics.OTHER_LOCALITIES)
+# until the owner widens the news scope. The project register below covers all 8 areas.
 AREA_KEYWORDS = {
     "kharadi": ["kharadi", "eon it park", "world trade center pune", "wtc pune", "magarpatta"],
     "upper_kharadi": ["upper kharadi"],
-    "wagholi": ["wagholi", "lohegaon", "bakori", "kesnand"],
+    "wagholi": ["wagholi", "bakori", "kesnand"],
+    "lohegaon": ["lohegaon", "lohgaon"],
 }
-# pincode -> area. MahaRERA gives the taluka ("Haveli"), not the locality, so the pincode is how its items find us.
-# 411014 also covers Upper Kharadi (Thite Nagar); 412207 also covers Kesnand and Bakori (verified 2026-10-02)
-AREA_PINCODES = {"411014": "kharadi", "412207": "wagholi", "411047": "wagholi"}
-MAHARERA_PAGES = 15  # newest 150 Pune district projects per run; the pincode filter keeps only ours
+# Which MahaRERA project is in which area. MahaRERA gives the taluka ("Haveli"), not the locality, so the pincode decides,
+# with the project name where one pincode covers more than one place. Verified 2026-10-04 against the MahaRERA search
+# (project_location=<pincode> lists a pincode's projects; project_name=<word> lists projects by name):
+# - 411014: 325 projects; Kharadi-named ones (Mantra Kharadi, Palladio Kharadi Central, VJ IndiLife Kharadi) are here. Upper
+#   Kharadi (Thite Nagar) shares it (2026-10-02).
+# - 412207: 380 projects; Wagholi-named ones are here, and so are many named Kharadi ("Kharadi Pune P1", "Kharadi New Project",
+#   "Menlo Homes Kharadi Next"): the pincode says Wagholi, so they stay Wagholi; "MY HOME UPPER KHARADI" is 412207 too, so
+#   a name saying Upper Kharadi wins here as in 411014. Kesnand and Bakori share it (2026-10-02).
+# - 411047: 196 projects (Belmont Skyone, Goodwill Metropolis East, Hollyhock City, NESTERRA): Lohegaon's pincode. It used to map
+#   to Wagholi, which put Lohegaon projects under Wagholi. No project names Lohegaon; Dhanori-named ones are 411015. One is named
+#   for Viman Nagar ("Solitaire Business Hub Viman Nagar"), so a name that says another locality keeps a project out.
+# - 411057: 645 projects, shared: Hinjawadi (31 of the 33 Hinjewadi/Hinjawadi-named ones read are here, the other 2 are 410506)
+#   and Wakad (all 9 Wakad-named ones), plus Maan, Marunji and others; most names say neither, so the name must say which.
+# - 411036: 243 projects, shared with Mundhwa (5 Mundhwa-named here). No MahaRERA project names Keshav Nagar (2026-10-04), so
+#   Keshav Nagar has projects only once one is named for it.
+# - 411045: 714 projects, shared: Baner (18 of 19 Baner-named here) and Balewadi (all 7 Balewadi-named here), Mhalunge.
+# The detail API's address (getProjectLegalLandAddressDetails) needs a login (401), so names and pincodes are all we can use.
+AREA_PINCODES = {"411014": "kharadi", "412207": "wagholi", "411047": "lohegaon"}  # pincode -> its area
+SHARED_PINCODES = {"411057": ("hinjawadi", "wakad"), "411036": ("keshav_nagar",), "411045": ("baner",)}  # name decides
+# Upper Kharadi has no pincode of its own: within these, a name that says Upper Kharadi is the finer answer
+UPPER_KHARADI_PINCODES = ("411014", "412207")
+# a project named for an area but filed under none of these pincodes counts only near Pune city: "Xrbia Hinjewadi Road" is
+# 410506 (the Talegaon side), not Hinjawadi; "Pune Baner Project-Tower 4 and 5" (411038) is Baner (its Tower 3 is 411045)
+NAME_ONLY_PINCODE_PREFIXES = ("411", "412")
+# newest 150 Pune district projects per run: enough for new registrations (Pune grew from 12920 to 12949 projects in two days,
+# 2026-10-02 to 2026-10-04; a run is every 3 hours), whatever the number of areas, because the pincode filter picks ours from
+# the whole district. Older projects in our areas come from the area sweep (areastats.refresh), not from here.
+MAHARERA_PAGES = 15
 # the only honest wording for a MahaRERA item: the date we have is "Last Modified", not the registration date
 MAHARERA_PHRASE = "listed or updated on MahaRERA"
 # corridor topics that affect our areas even when no area is named (matched together with a Pune hint)

@@ -46,7 +46,7 @@ def test_nothing_in_window_gives_none():
 def test_text_states_facts_only_and_passes_the_check():
     doc = roundup.compose(PROJECTS, NOW, "maharera-x")
     text = doc["draft"]["text"]
-    assert text.startswith("4 projects in Kharadi and Wagholi were listed or updated on MahaRERA in the last 30 days.")
+    assert text.startswith("4 projects in Kharadi, Upper Kharadi and Wagholi were listed or updated on MahaRERA in the last 30 days.")
     for p in roundup.pick(PROJECTS, NOW):
         assert p["name"] in text and p["_id"] in text
     assert "last updated 1 Oct 2026" in text and "Source: MahaRERA, as of 3 Oct 2026." in text

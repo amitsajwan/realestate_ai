@@ -100,7 +100,14 @@ class Store:
 
     async def set_run(self, **fields) -> None:
         """Runner bookkeeping (last_run_at, last_error, ...); a single document."""
-        key = {"_id": "runner"}
+        await self.set_mark("runner", **fields)
+
+    async def get_run(self) -> dict:
+        return await self.get_mark("runner")
+
+    async def set_mark(self, name: str, **fields) -> None:
+        """Set fields on one bookkeeping document in newsroom_status (the runner's, the area sweep's place)."""
+        key = {"_id": name}
         if await self.status.find_one(key):
             await self.status.update_one(key, {"$set": fields})
             return
@@ -109,8 +116,8 @@ class Store:
         except Exception:  # lost a race with another writer
             await self.status.update_one(key, {"$set": fields})
 
-    async def get_run(self) -> dict:
-        return await self.status.find_one({"_id": "runner"}) or {}
+    async def get_mark(self, name: str) -> dict:
+        return await self.status.find_one({"_id": name}) or {}
 
     # --- project register -----------------------------------------------------------------------------------------------
 
@@ -137,6 +144,14 @@ class Store:
 
     async def projects_in(self, areas: List[str], limit: int = 500) -> List[dict]:
         return await self.projects.find({"locality": {"$in": list(areas)}}).to_list(limit)
+
+    async def all_projects(self, limit: int = 20000) -> List[dict]:
+        """Every register record (a few thousand at most: our areas only), for the area stats and the relabel pass."""
+        return await self.projects.find({}).to_list(limit)
+
+    async def set_project(self, regno: str, **fields) -> None:
+        """Set fields on one register record (details from MahaRERA's project API, a corrected locality)."""
+        await self.projects.update_one({"_id": regno}, {"$set": fields})
 
     async def link_news(self, regno: str, link: dict) -> bool:
         """Add a news item to a project's `news` once; False when it was already linked or the project is unknown."""
