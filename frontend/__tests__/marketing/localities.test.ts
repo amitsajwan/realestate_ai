@@ -1,13 +1,15 @@
 import { INSIGHTS } from '@/lib/marketing/insights'
-import { LOCALITIES, getLocality, localityByName } from '@/lib/marketing/localities'
+import { LOCALITIES, getLocality, localitiesByTier, localityByName, localitySource } from '@/lib/marketing/localities'
 import { buildMarketingConfig } from '@/lib/marketing/config'
 import { articleJsonLd, breadcrumbJsonLd } from '@/lib/marketing/seo'
 import sitemap from '@/app/sitemap'
 import robots from '@/app/robots'
 
 describe('locality pages are safe to publish', () => {
-  it('has the three east-Pune localities with unique slugs and dated, sourced content', () => {
-    expect(LOCALITIES.map((l) => l.slug)).toEqual(['kharadi', 'upper-kharadi', 'wagholi'])
+  it('has the eight Pune areas (same list as backend/app/core/areas.py) with unique slugs and dated, sourced content', () => {
+    expect(LOCALITIES.map((l) => l.slug)).toEqual(['kharadi', 'upper-kharadi', 'wagholi', 'lohegaon', 'keshav-nagar', 'hinjawadi', 'wakad', 'baner'])
+    expect(localitiesByTier('affordable').map((l) => l.slug)).toEqual(['upper-kharadi', 'wagholi', 'lohegaon', 'keshav-nagar'])
+    expect(localitiesByTier('it').map((l) => l.slug)).toEqual(['kharadi', 'hinjawadi', 'wakad', 'baner'])
     for (const l of LOCALITIES) {
       expect(l.sources.length).toBeGreaterThan(0)
       expect(l.updated).toMatch(/^\d{4}-\d{2}-\d{2}$/)
@@ -23,7 +25,12 @@ describe('locality pages are safe to publish', () => {
   })
 
   it('always says approved metro is not running', () => {
-    for (const l of LOCALITIES) expect(JSON.stringify(l.gettingAround).toLowerCase()).toMatch(/approved/)
+    for (const l of LOCALITIES) {
+      expect(JSON.stringify(l.gettingAround).toLowerCase()).toMatch(/approved is not (the same as )?running|approved lines take years/)
+      for (const s of [...l.gettingAround, ...l.faqs.map((f) => f.a)]) {
+        if (/metro|line 4|corridor 2b/i.test(s)) expect(s).toMatch(/approved|check the (current|latest) status|not yet|not running yet/i)
+      }
+    }
     expect(JSON.stringify(LOCALITIES)).not.toMatch(/metro (station )?(is|will be) (open|opening|ready)/i)
   })
 })
@@ -44,6 +51,7 @@ describe('sitemap and robots', () => {
     api({})
     const urls = (await sitemap()).map((s) => s.url)
     expect(urls.some((u) => u.endsWith('/localities/kharadi'))).toBe(true)
+    expect(urls.some((u) => u.endsWith('/localities/keshav-nagar'))).toBe(true)
     expect(urls.some((u) => u.endsWith('/insights/kharadi-upper-kharadi-wagholi'))).toBe(true)
     expect(urls.some((u) => /studio|join|api/.test(u))).toBe(false)
     const r = robots()
@@ -84,8 +92,16 @@ describe('structured data and links between pages', () => {
 
   it('finds the area guide for a locality however the agent typed it', () => {
     expect(localityByName(' upper kharadi ')?.slug).toBe('upper-kharadi')
-    expect(localityByName('Baner')).toBeUndefined()
+    expect(localityByName('Hinjewadi')?.slug).toBe('hinjawadi')
+    expect(localityByName('Keshav  Nagar')?.slug).toBe('keshav-nagar')
+    expect(localityByName('Nashik')).toBeUndefined()
     expect(localityByName(null)).toBeUndefined()
+  })
+
+  it('tags an area enquiry with the area key, within the 40 characters the lead source holds', () => {
+    expect(localitySource(getLocality('wagholi')!)).toBe('locality_wagholi')
+    expect(localitySource(getLocality('keshav-nagar')!)).toBe('locality_keshav_nagar')
+    for (const l of LOCALITIES) expect(localitySource(l)).toMatch(/^locality_[a-z0-9_]{1,31}$/)
   })
 
   it('builds a breadcrumb trail with absolute URLs', () => {

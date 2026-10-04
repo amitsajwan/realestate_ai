@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from app.modules.calendar.guards import FRONTEND, PREDICT, PRICE
+from app.core import areas as registry
 from app.modules.knowledge.areas import AREAS, area_facts, normalise
 from app.platform.text import HYPE, PHONE
 
@@ -32,7 +33,34 @@ def statements(a):
 def test_the_same_areas_as_the_site_pages():
     assert {a.slug for a in AREAS.values()} == set(blocks())
     assert {normalise(n) for n in ("Kharadi", "upper-kharadi", "Upper  Kharadi", "WAGHOLI")} == {"kharadi", "upper_kharadi", "wagholi"}
-    assert area_facts("Baner") is None and area_facts(None) is None
+    assert area_facts("Nashik") is None and area_facts(None) is None
+
+
+def test_every_area_in_the_registry_has_facts_and_every_spelling_finds_it():
+    assert list(AREAS) == [a.key for a in registry.AREAS]
+    for a in registry.AREAS:
+        assert AREAS[a.key].slug == a.slug and AREAS[a.key].name == a.name
+        for spelling in (a.key, a.slug, a.name, a.name.upper(), *a.aliases):
+            assert normalise(spelling) == a.key, spelling
+    assert normalise("Hinjewadi") == "hinjawadi" and normalise("Lohgaon") == "lohegaon" and normalise("Keshav  Nagar") == "keshav_nagar"
+
+
+def _ts_field(block: str, name: str):
+    m = re.search(r"(?<![A-Za-z_])" + name + r": (\[[^\]]*\]|'[^']*')", block)
+    assert m, f"{name} missing in {block[:60]!r}"
+    v = m.group(1)
+    return re.findall(r"'([^']*)'", v) if v.startswith("[") else v.strip("'")
+
+
+def test_the_locality_pages_mirror_the_area_list_in_order_with_the_same_names_tiers_and_spellings():
+    """frontend/lib/marketing/localities.ts copies app/core/areas.py (the /localities index groups by tier, the enquiry tags the key)."""
+    pages = blocks()
+    assert list(pages) == [a.slug for a in registry.AREAS]
+    for a in registry.AREAS:
+        b = pages[a.slug]
+        assert _ts_field(b, "key") == a.key and _ts_field(b, "name") == a.name and _ts_field(b, "tier") == a.tier
+        assert _ts_field(b, "aliases") == list(a.aliases)
+        assert len(f"locality_{a.key}") <= 40  # the lead source field holds at most 40 characters
 
 
 @pytest.mark.parametrize("key", list(AREAS))
