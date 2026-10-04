@@ -57,7 +57,10 @@ Run "gcloud compute scp $common `"$bundle`" ${target}:pune-property.tgz"
 Step "Unpacking and rebuilding on the VM (secrets in deploy/gcp/.env are kept)"
 $setEmail = ""
 if ($ContactEmail) { $setEmail = "sed -i '/^NEXT_PUBLIC_CONTACT_EMAIL=/d' .env; sed -i -e '`$a\' .env; echo 'NEXT_PUBLIC_CONTACT_EMAIL=$ContactEmail' >> .env; " }
-$remote = "set -e; mkdir -p $RemoteDir; tar xzf ~/pune-property.tgz -C $RemoteDir; cd $RemoteDir/deploy/gcp; test -f .env || { echo 'ERROR: deploy/gcp/.env missing on the VM'; exit 1; }; ${setEmail}sudo docker compose up -d --build; sudo docker compose ps; rm -f ~/pune-property.tgz"
+# Unpacking over the old tree keeps files deleted from git, and they get built in (a removed Next.js route once broke the
+# build). Code files in the code folders that the bundle no longer has are removed; .env files, backups and assets are kept.
+$prune = "cd $RemoteDir; tar tzf ~/pune-property.tgz | sort > /tmp/deploy-new.txt; find backend/app backend/scripts backend/tests frontend/app frontend/components frontend/lib frontend/__tests__ -type f \( -name '*.py' -o -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' -o -name '*.mjs' -o -name '*.css' \) -not -path '*/node_modules/*' -not -path '*/__pycache__/*' 2>/dev/null | sort | comm -23 - /tmp/deploy-new.txt > /tmp/deploy-stale.txt; echo removing `$(wc -l < /tmp/deploy-stale.txt) stale code files; xargs -r rm -f < /tmp/deploy-stale.txt; cd ~; "
+$remote = "set -e; mkdir -p $RemoteDir; tar xzf ~/pune-property.tgz -C $RemoteDir; $prune cd $RemoteDir/deploy/gcp; test -f .env || { echo 'ERROR: deploy/gcp/.env missing on the VM'; exit 1; }; ${setEmail}sudo docker compose up -d --build; sudo docker compose ps; rm -f ~/pune-property.tgz"
 Run "gcloud compute ssh $target $common --command `"$remote`""
 
 Step "Checking the public health address"
