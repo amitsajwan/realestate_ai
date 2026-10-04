@@ -251,6 +251,71 @@ def post_grounding(subject: str, body: str, review: str = "") -> Grounding:
     return g
 
 
+def _inr(n) -> str:
+    n = int(n or 0)
+    return (f"{n / 1e7:.2f}".rstrip("0").rstrip(".") + " crore") if n >= 10_000_000 else (f"{n / 1e5:.2f}".rstrip("0").rstrip(".") + " lakh")
+
+
+def _day(iso) -> str:
+    months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    s = str(iso or "")
+    return f"{int(s[8:10])} {months[int(s[5:7]) - 1]} {s[:4]}" if len(s) >= 10 else (f"{months[int(s[5:7]) - 1]} {s[:4]}" if len(s) == 7 else "")
+
+
+def project_grounding(p: dict, agent_name: str = "the agent", page_url: str = "") -> Grounding:
+    """A builder project (agentprojects public view): every sentence from the project record, MahaRERA facts with their read date."""
+    g = Grounding(subject=p["name"], kind="listing", locality=p.get("locality"))
+    where = f"{p['name']} is in {p['locality']}, Pune"
+    _add(g.facts, where + (f", at {p['address']}." if p.get("address") else "."))
+    r = p.get("rera") or {}
+    _add(g.facts, f"Builder: {p['builder']}." + (f" Promoter on MahaRERA: {r['promoter']}." if r.get("promoter") else ""))
+    _add(g.facts, f"MahaRERA registration number: {p['rera_no']}.")
+    if p.get("scope_note"):
+        _add(g.facts, p["scope_note"])
+    for c in p.get("configurations") or []:
+        _add(g.facts, f"{c['label']}: {c['carpet_sqft']} sq ft carpet, {_inr(c['price_inr'])} (price as quoted by {agent_name}; confirm before booking).")
+    if r.get("completion_now"):
+        _add(g.facts, f"The completion date filed with MahaRERA is {_day(r['completion_now'])}.")
+    if p.get("possession_target"):
+        _add(g.facts, f"The builder's own target for possession is {_day(p['possession_target'])}.")
+    if r.get("units_total"):
+        free = max(0, int(r["units_total"]) - int(r.get("units_booked") or 0))
+        _add(g.facts, f"MahaRERA showed {r.get('units_booked') or 0} of {r['units_total']} homes booked, so about {free} not yet booked, "
+                      f"as read on {_day(r.get('checked_at'))}. The project is under construction; {agent_name} confirms which homes and floors are open.")
+    for n in p.get("nearby") or []:
+        if n.get("km"):
+            _add(g.facts, f"{n['name']} is about {n['km']} km away by road.")
+    if p.get("amenities"):
+        _add(g.facts, "Amenities: " + ", ".join(p["amenities"][:12]) + ".")
+    if page_url:
+        g.links["page"] = page_url
+    g.sources.append("agent_projects (owner-entered quotes) + MahaRERA public record")
+    return g
+
+
+def project_slug_of(calendar_slug: str) -> str:
+    """'hd-goyal-my-home-reel' / 'house-deal-goyal-my-home' -> 'goyal-my-home'."""
+    s = calendar_slug or ""
+    for pre in ("hd-", "house-deal-"):
+        if s.startswith(pre):
+            s = s[len(pre):]
+    return s[:-5] if s.endswith("-reel") else s
+
+
+async def calendar_project_grounding(doc: dict, db, site_url: str = "") -> Optional[Grounding]:
+    """For a calendar post made from an agent's builder project: the project's facts, not just the caption."""
+    if (doc.get("creative") or {}).get("source") != "agentprojects" or not doc.get("agent_id"):
+        return None
+    from app.modules.agentprojects.service import public_view
+    proj = await db.get_collection("agent_projects").find_one({"agent_id": doc["agent_id"], "slug": project_slug_of(doc.get("slug", ""))})
+    if not proj:
+        return None
+    prof = await db.get_collection("agent_public_profiles").find_one({"agent_id": doc["agent_id"]}) or {}
+    name = (prof.get("branding_data") or {}).get("business_name") or prof.get("agent_name") or "the agent"
+    page = f"{site_url}/agent/{prof['slug']}/projects/{proj['slug']}" if site_url and prof.get("slug") else ""
+    return project_grounding(public_view(proj), name, page)
+
+
 def calendar_grounding(doc: dict) -> Optional[Grounding]:
     if doc.get("kind") == "showcase":
         try:
@@ -307,5 +372,9 @@ async def facts_for(ref: Union[Ref, dict, tuple], db=None) -> Optional[Grounding
         return listing_grounding(doc) if doc else None
     if r.kind == "calendar":
         doc = await db.get_collection(CALENDAR_COLLECTION).find_one({"_id": r.id})
-        return calendar_grounding(doc) if doc else None
+        if not doc:
+            return None
+        import os
+        site = (os.environ.get("PUBLIC_SITE_URL") or "").rstrip("/")
+        return await calendar_project_grounding(doc, db, site) or calendar_grounding(doc)
     return None

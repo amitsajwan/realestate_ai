@@ -119,6 +119,12 @@ class EngageService:
                                           f"RERA {f.rera}" if f.rera else None, "Amenities: " + ", ".join(f.amenities) if f.amenities else None, message) if x)
             return {"facts": facts, "link": with_source(base, source), "listing_id": listing["_id"], "agent_id": listing.get("agent_id"), "grounding": grounding}
         landing = self.cfg.landing_url
+        if item:  # a calendar post made from an agent's builder project answers from the project record
+            from app.modules.knowledge.grounding import calendar_project_grounding
+            grounding = await calendar_project_grounding(item, self.db, self.cfg.site_url) or grounding
+        if grounding is not None and grounding.links.get("page"):  # a builder project post: its own facts and its own page
+            message = "\n".join(grounding.facts)[:1400]
+            landing = grounding.links["page"] + "#enquire"
         agents = bool(item) and _audience(item) == "agents"
         if agents and self.cfg.site_url:  # our recruitment posts: agents asking "how do I use this" go to the pilot sign-up
             landing = f"{self.cfg.site_url}/pilot"

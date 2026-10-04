@@ -327,3 +327,21 @@ async def test_interest_on_our_agent_promo_goes_to_the_pilot_signup():
     await svc.run_once()
     doc = db.get_collection("engage_comments").docs[0]
     assert "https://site.test/pilot" in doc["reply"] and "agent/rahul" not in doc["reply"]
+
+
+async def test_a_question_on_a_project_post_is_answered_from_the_project_record():
+    """Live 2026-10-04: 'where is project located' under Rohan Abhilasha got 'I do not have the location'."""
+    svc, g, db = make([post([comment("C1", "where is project located")], pid="PAGE_910", message="Rohan Abhilasha 4, Wagholi: 74 L")])
+    db.get_collection("content_calendar").docs.append({"_id": "CALR", "slug": "hd-rohan-abhilasha", "kind": "post", "channel": "facebook_page",
+                                                      "external_id": "PAGE_910", "caption": "", "status": "published", "agent_id": "HD",
+                                                      "creative": {"source": "agentprojects"}})
+    db.get_collection("agent_public_profiles").docs.append({"agent_id": "HD", "slug": "house-deal", "agent_name": "Sharad",
+                                                           "branding_data": {"business_name": "House Deal"}})
+    db.get_collection("agent_projects").docs.append({
+        "_id": "P1", "agent_id": "HD", "slug": "rohan-abhilasha", "name": "Rohan Abhilasha 4", "builder": "Rohan Builders",
+        "locality": "Wagholi", "address": "Lohegaon-Wagholi Road, Wagholi, Pune 412207", "rera_no": "P52100080076",
+        "configurations": [{"label": "2 BHK", "bhk": 2, "carpet_sqft": 688, "price_inr": 7400000, "source": "agent"}],
+        "rera": {"regno": "P52100080076", "completion_now": "2029-10-30", "units_total": 416, "units_booked": 244, "checked_at": "2026-10-03"}})
+    ctx = await svc._base_context({"id": "PAGE_910", "message": "Rohan Abhilasha 4, Wagholi: 74 L"}, "facebook")
+    assert "Lohegaon-Wagholi Road" in ctx["facts"] and "about 172 not yet booked" in ctx["facts"]
+    assert ctx["link"].startswith("https://site.test/agent/house-deal/projects/rohan-abhilasha")
