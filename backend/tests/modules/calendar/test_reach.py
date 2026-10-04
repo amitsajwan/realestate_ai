@@ -43,7 +43,7 @@ def test_location_uses_the_area_then_pune_and_is_off_when_unset(monkeypatch):
 def test_new_areas_get_their_tags_whatever_the_spelling():
     assert reach.hashtags(row("2 BHK in Lohgaon near the airport road"))[:2] == ["#LohegaonPune", "#Lohegaon"]
     assert reach.hashtags(row("Ready flats in Hinjewadi Phase 2"))[:2] == ["#HinjewadiPune", "#Hinjawadi"]
-    assert reach.hashtags(row("Keshav Nagar, Mundhwa: 3 projects"))[:2] == ["#KeshavNagarPune", "#Mundhwa"]
+    assert reach.hashtags(row("Keshav Nagar, Mundhwa: 3 projects"))[:2] == ["#KeshavNagarPune", "#Keshavnagar"]
     assert reach.hashtags(row("Wakad homes", channel="facebook_page")) == ["#WakadPune", "#Wakad", "#PuneProperty"]
     assert reach.area(row("Baner")).key == "baner"
 
