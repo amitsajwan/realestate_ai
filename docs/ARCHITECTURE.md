@@ -3,6 +3,7 @@
 Status: **agreed target**, October 2026. The plan for getting here, step by step, is `docs/MODERNIZATION.md`.
 Product decisions (governance, India requirements, business model, Facebook Marketplace limits) from the earlier proposal still
 stand: `docs/archive/ARCHITECTURE_v2_proposal.md`. Product direction: `docs/PRODUCT_PLAN.md` and `docs/TASKS.md`.
+How content is made, published, measured and learned from, and the work items for the team: `docs/CONTENT_PLATFORM.md`.
 
 ## 1. Shape
 
