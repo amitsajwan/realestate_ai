@@ -56,6 +56,10 @@ def _valid(script: dict, facts: str) -> bool:
     return True
 
 
+numbers_in = _numbers
+valid_script = _valid  # 3-5 beats plus a call to action: short Roman-letter screen text, no number that is not in `facts`, no phone numbers
+
+
 async def write_script(subject: str, facts: Sequence[str], lang: str, llm, fallback: Dict) -> Dict:
     facts_text = "\n".join(f"- {f}" for f in facts)
     if llm is not None:
@@ -72,15 +76,21 @@ def fit_beats(script: Dict, photos: Sequence) -> tuple:
     beats = list(script["beats"])
     cta = {"screen": script["cta_screen"], "voice": script["cta_voice"]}
     picks = photo_plan(len(beats) + 1, photos, MIN_SCENES)
+    if not picks:  # no photos at all (a trend or explainer reel): branded-background scenes, every beat kept
+        return beats + [cta], [None] * (len(beats) + 1)
     return beats[:max(1, len(picks) - 1)] + [cta], picks
 
 
 def build(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Optional[str] = None, kicker: Optional[str] = None,
-          with_music: bool = True) -> Path:
+          with_music: bool = True, voiced: bool = True) -> Path:
+    """`voiced=False` makes the reel without narration (no TTS key, or on purpose): fixed scene lengths, the Avasetu theme under it."""
     beats, picks = fit_beats(script, photos)
     work = Path(tempfile.mkdtemp(prefix="reel-"))
     clips, durs = [], []
     for i, b in enumerate(beats):
+        if not voiced:
+            durs.append(2.6 if i == 0 else 3.0)
+            continue
         mp3 = work / f"b{i}.mp3"
         mp3.write_bytes(voice.synth(b["voice"], lang))
         d = ffmpeg.probe(mp3).duration
@@ -93,6 +103,8 @@ def build(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opti
         lines = [TextLine(b["screen"], size=104 if first else 96)]
         scenes.append(Scene(image=picks[i], lines=lines, layout="lower", badge=badge,
                             kicker=kicker if first else None, seconds=durs[i], seed=f"dir-{i}"))
+    if not voiced:
+        return make_reel(scenes, out_path, transition="slide", xfade=XFADE)
     tl = plan(durs, XFADE)   # no end card: the last scene (with the brand mark) loops back to the hook
     # narration: each line starts just after its scene appears; one track as long as the whole reel
     inputs, filters = [], []
