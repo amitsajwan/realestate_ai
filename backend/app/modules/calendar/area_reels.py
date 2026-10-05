@@ -40,6 +40,7 @@ MIN_SLIDES = 4
 MIN_CONTRAST = 4.5
 MIN_FONT = 24
 SECONDS_PER_SLIDE = 3.4
+XFADE = 0.2  # a short blend into each slide (slides.py moved to plain cuts; area reels keep a soft change)
 SOURCE = "MahaRERA public records"
 SUBDIR = "calendar/areareels"
 MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
@@ -270,8 +271,8 @@ def _frames(imgs: List[Image.Image], starts: List[float], seconds: float, total:
         t = k / _compose.FPS
         i = max(j for j in range(len(imgs)) if starts[j] <= t)
         img = imgs[i]
-        if i > 0 and t < starts[i] + _slides.XFADE:
-            img = Image.blend(imgs[i - 1], img, _compose.ease_in_out_cubic((t - starts[i]) / _slides.XFADE))
+        if i > 0 and t < starts[i] + XFADE:
+            img = Image.blend(imgs[i - 1], img, _compose.ease_in_out_cubic((t - starts[i]) / XFADE))
         yield img.tobytes()
 
 

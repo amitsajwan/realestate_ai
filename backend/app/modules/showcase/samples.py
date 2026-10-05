@@ -110,7 +110,7 @@ HOMES: List[Home] = [
           _u("u0tVimluL_ls.jpg", "interior", "Spl Interiors", "0tVimluL_ls", (0.5, 0.6))), "East"),
     Home("kharadi-3bhk-ready", "Kharadi", 3, 1050, 12, 25, "Ready to move", True, 14_500_000, "Furnished",
          ("parking", "lift", "gym", "pool", "clubhouse", "security"), ("Fully furnished", "Three bedrooms", "Modular kitchen"),
-         (_u("u7Cwct_F0Gbs.jpg", "exterior", "Parth Savani", "7Cwct-F0Gbs", (0.6, 0.35)),
+         (_u("u7Cwct_F0Gbs.jpg", "exterior", "Parth Savani", "7Cwct-F0Gbs", (0.45, 0.5)),
           _u("uAgK_XAqSbfk.jpg", "interior", "Danilo Rios", "AgK_XAqSbfk", (0.45, 0.55)),
           _u("uAgHJm3uKr4U.jpg", "interior", "Anand Kumar", "AgHJm3uKr4U", (0.5, 0.5)),
           _u("ub0DHABrkRcM.jpg", "interior", "Naksha Banwao", "b0DHABrkRcM", (0.5, 0.6))), "North-east"),

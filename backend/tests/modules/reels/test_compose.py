@@ -250,3 +250,11 @@ def test_photo_plan_never_repeats_when_there_are_enough_photos():
     assert compose.photo_plan(5, ["a", "b"], 3) == ["a", "b", "a"]
     img = Image.new("RGB", (4, 4))
     assert compose.photo_plan(3, [img, img], 1) == [img]
+
+
+def test_tip_and_pitch_open_on_a_hook_card_with_quick_cuts():
+    """Like the slide reels: frame one is the hook alone on the brand background, no label, no brand tag, then quick cuts."""
+    for scenes, opts in (templates.tip_reel(templates.TIP_LINES), templates.agent_pitch()):
+        first = scenes[0]
+        assert first.image is None and first.kicker is None and first.seconds <= 2.6
+        assert opts["hook_tag"] is False and opts["xfade"] <= 0.2

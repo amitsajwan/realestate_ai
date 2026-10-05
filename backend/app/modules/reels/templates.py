@@ -7,6 +7,12 @@ from typing import Dict, List, Optional, Sequence, Tuple
 from .compose import Scene, TextLine, distinct_photos, stretch
 from .director import CTA_SCREEN, CTA_WORD  # noqa: F401  (CTA_WORD re-exported: the comment keyword)
 HOOK_SECONDS = 2.2  # the opening scene: most viewers decide in the first 1-2 s, so the hook is short and on screen from frame one
+# Tip and pitch reels open like the slide reels (reels/slides.py): the first slide reel lost 62% of plays in one second when frame
+# one was a busy picture. So frame one is a hook card: the hook alone, big, on the plain brand background (no photo, no label, no
+# brand tag), then quick cuts instead of slow cross-fades.
+HOOK_CARD_SECONDS = 1.6
+QUICK_XFADE = 0.15
+HOOK_OPTIONS = {"transition": "fade", "xfade": QUICK_XFADE, "hook_tag": False}
 
 
 def tip_reel(lines: Sequence[str], images: Optional[Sequence] = None, seed: str = "tip") -> Tuple[List[Scene], Dict]:
@@ -22,12 +28,12 @@ def tip_reel(lines: Sequence[str], images: Optional[Sequence] = None, seed: str 
     def img(i):
         return imgs[i % len(imgs)] if imgs else None
 
-    scenes = [Scene(image=img(0), lines=[TextLine(hook, size=132)], kicker="Quick tip", seconds=HOOK_SECONDS, seed=f"{seed}-0")]
+    scenes = [Scene(lines=[TextLine(hook, size=140, max_lines=4)], seconds=HOOK_CARD_SECONDS, seed=f"{seed}-0")]
     for i, b in enumerate(beats):
         scenes.append(Scene(image=img(i + 1), lines=[TextLine(b, size=110, max_lines=5)], kicker=f"Tip {i + 1} of {len(beats)}",
                             seconds=3.3, seed=f"{seed}-{i + 1}"))
     scenes.append(Scene(image=img(len(beats) + 1), lines=[TextLine(cta, size=96, max_lines=4)], seconds=2.8, seed=f"{seed}-cta"))
-    return _at_least_min(scenes, 0.45), {"transition": "fade"}
+    return _at_least_min(scenes, QUICK_XFADE), dict(HOOK_OPTIONS)
 
 
 def listing_tour(photos: Sequence, facts: Dict, sample: bool = False) -> Tuple[List[Scene], Dict]:
@@ -95,13 +101,13 @@ def agent_pitch(problem: str = "Buyers message you all day. *Same* questions. Ev
         return imgs[i % len(imgs)] if imgs else None
 
     scenes = [
-        Scene(image=img(0), lines=[TextLine(problem, size=108, max_lines=5)], kicker="Agents, sound familiar?", seconds=3.6, seed="pitch-problem"),
+        Scene(lines=[TextLine(problem, size=116, max_lines=5)], seconds=2.6, seed="pitch-problem"),   # a longer hook: a little longer
         Scene(image=img(1), lines=[TextLine(solution, size=88, max_lines=6)], kicker="There is a better way", seconds=4.0, seed="pitch-solution"),
     ]
     for i, p in enumerate(list(proof)[:2]):
         scenes.append(Scene(image=img(i + 2), lines=[TextLine(p, size=108)], kicker="What you get", seconds=2.4, seed=f"pitch-proof-{i}"))
     scenes.append(Scene(image=img(4), lines=[TextLine(cta, size=104)], seconds=2.6, seed="pitch-cta"))
-    return scenes, {"transition": "fade"}
+    return scenes, dict(HOOK_OPTIONS)
 
 
 def _at_least_min(scenes: List[Scene], xfade: float) -> List[Scene]:
