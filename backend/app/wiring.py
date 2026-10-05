@@ -6,6 +6,7 @@
 def wire() -> None:
     from app.modules.calendar import library as calendar_library
     from app.modules.calendar import quality as calendar_quality
+    from app.modules.calendar import reach as calendar_reach
     from app.modules.concierge.attribution import attribution_text, register_hub_item
     from app.modules.concierge.config import is_operator
     from app.modules.engage import service as engage_service
@@ -30,7 +31,8 @@ def wire() -> None:
     interest_routes.configure(sample_entry=samples.catalogue_entry, sample_slugs=samples.catalogue_slugs)
     # grounded answers know the sample homes and the verified evergreen posts; comment replies show listing facts
     grounding.configure(sample_home=samples.get, icon_labels=samples.ICON_LABELS, evergreen_post=calendar_library.BY_SLUG.get)
-    engage_service.configure(listing_facts=Facts.from_docs)
+    # comment replies know which posts are our agent promos (content's rule, calendar.reach)
+    engage_service.configure(listing_facts=Facts.from_docs, audience=calendar_reach.audience)
     # a website request to join shows as an alert in the owner's Studio (it waits in Studio > Admin)
     waitlist_routes.configure(on_new_request=_tell_owner_about_invite_request)
 
