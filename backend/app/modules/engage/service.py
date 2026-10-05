@@ -11,7 +11,6 @@ from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import quote
 
-from app.modules.calendar.reach import audience as _audience
 from app.modules.knowledge.grounding import Ref, facts_for
 
 from app.platform.text import normalize_indian_mobile
@@ -27,8 +26,19 @@ log = logging.getLogger(__name__)
 _listing_facts: Dict[str, Any] = {"from_docs": None}
 
 
-def configure(listing_facts: Callable[[dict, dict, str], Any]) -> None:
+# who a calendar post speaks to ('agents' for our recruitment posts, else 'buyers'); content's rule, passed in by app/wiring.py
+# (calendar.reach.audience) because conversations do not import content
+_audience_of: Dict[str, Callable[[dict], str]] = {"fn": lambda doc: "buyers"}
+
+
+def _audience(doc: dict) -> str:
+    return _audience_of["fn"](doc)
+
+
+def configure(listing_facts: Callable[[dict, dict, str], Any], audience: Optional[Callable[[dict], str]] = None) -> None:
     _listing_facts["from_docs"] = listing_facts
+    if audience is not None:
+        _audience_of["fn"] = audience
 LEAD_INTENTS = ("interested", "question")
 MAX_COMMENT_AGE = timedelta(days=7)
 UNKNOWN_PER_POST_PER_DAY = 6  # commenters whose identity Meta does not show us
