@@ -335,7 +335,9 @@ def render_slides_reel_for(doc: dict, uploads: Path) -> str:
     dest = Path(uploads) / rel
     if not (dest.is_file() and dest.stat().st_size > 0):
         imgs = list(doc.get("images") or [])
-        make_slides_reel([Path(uploads) / p for p in imgs], dest)
+        # the reel opens on the post's hook line (the creative's hook, else the caption's first line) in big type
+        hook = (doc.get("creative") or {}).get("hook") or doc.get("caption")
+        make_slides_reel([Path(uploads) / p for p in imgs], dest, hook=hook)
     return rel
 
 
