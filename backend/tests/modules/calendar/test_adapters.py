@@ -180,3 +180,20 @@ async def test_publish_reel_sends_the_cover_to_instagram_only(monkeypatch):
         await adapters.publish_reel(doc, live, uploads)
     assert sent == [("instagram", "https://media.test/uploads/reels/reel-w1-tip-cover.jpg"), ("facebook_page", None)]
     assert (uploads / "reels" / "reel-w1-tip-cover.jpg").read_bytes() == b"jpg"   # staged next to the mp4
+
+
+def test_a_slides_reel_opens_on_the_posts_hook_line(tmp_path, monkeypatch):
+    from app.modules.reels import slides
+    seen = []
+
+    def fake(paths, dest, hook=None, **kw):
+        seen.append(hook)
+        Path(dest).parent.mkdir(parents=True, exist_ok=True)
+        Path(dest).write_bytes(b"mp4")
+        return dest
+
+    monkeypatch.setattr(slides, "make_slides_reel", fake)
+    base = {"images": ["a.jpg", "b.jpg"], "caption": "Caption first line\nmore"}
+    adapters.render_slides_reel_for({**base, "_id": "r1", "creative": {"hook": "The creative's hook"}}, tmp_path)
+    adapters.render_slides_reel_for({**base, "_id": "r2"}, tmp_path)
+    assert seen == ["The creative's hook", "Caption first line\nmore"]  # make_slides_reel keeps the first line

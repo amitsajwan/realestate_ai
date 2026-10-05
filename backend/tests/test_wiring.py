@@ -60,3 +60,11 @@ async def test_a_website_invite_request_becomes_an_alert_for_each_owner(monkeypa
         ("owner2", "invite_request", "Asha (Pune) asked to join on the website"),
     ]
     assert alerts[0]["ref"] == {"screen": "/studio/admin"}
+
+
+def test_comment_replies_get_the_calendars_audience_rule():
+    from app.modules.calendar.reach import audience
+    from app.modules.engage import service as engage_service
+
+    assert engage_service._audience_of["fn"] is audience
+    assert engage_service._audience({"slug": "promo-agents-1"}) == "agents"

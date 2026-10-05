@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from app.modules.reels import compose, ffmpeg, music
+from app.modules.reels import compose, ffmpeg, music, slides
 from app.modules.reels.compose import Scene
 from app.modules.reels.slides import MAX_SLIDES, SLIDE_TOP, _Slide, make_slides_reel, timeline
 
@@ -33,18 +33,33 @@ def test_the_signature_sounds_near_the_end_and_only_with_logo():
 
 
 # ---- slides reel ----------------------------------------------------------------------------------------------------------------------
-def test_timeline_cross_fades_and_stays_under_the_limit():
+def test_timeline_cuts_and_stays_under_the_limit():
     starts, seconds, total = timeline(5)
-    assert starts[1] == pytest.approx(seconds - 0.45) and total == pytest.approx(5 * seconds - 4 * 0.45)
+    assert starts == pytest.approx([i * seconds for i in range(5)]) and total == pytest.approx(5 * seconds)
+    starts, seconds, total = timeline(4, hook=True)
+    assert starts[0] == pytest.approx(slides.HOOK_SECONDS) and total == pytest.approx(slides.HOOK_SECONDS + 4 * seconds)
     starts, seconds, total = timeline(MAX_SLIDES * 2)
     assert total <= compose.MAX_SECONDS + 1e-6
+
+
+def test_the_hook_line_is_cleaned_from_a_caption():
+    assert slides.clean_hook("🏠 Pune property agents: get more enquiries.\n\nMore text #PuneRealEstate") == \
+        "Pune property agents: get more enquiries."
+    assert slides.clean_hook("#tags only https://x.y") is None and slides.clean_hook(None) is None
+    long = slides.clean_hook("word " * 40)
+    assert len(long) <= slides.HOOK_MAX + 1 and long.endswith("…")
+
+
+def test_every_slide_moves_from_its_first_frame():
+    s = _Slide(Image.new("RGB", (1080, 1350), (20, 40, 80)))
+    assert s.frame(0.0, 2.4).tobytes() != s.frame(slides.PUNCH, 2.4).tobytes()  # the punch-in: motion at once
 
 
 def test_a_slide_sits_whole_inside_the_safe_area():
     s = _Slide(Image.new("RGB", (1080, 1350), (20, 40, 80)))
     assert s.fg.width <= compose.TEXT_RIGHT + 60 and SLIDE_TOP >= compose.SAFE_TOP
     assert SLIDE_TOP + s.fg.height <= compose.SAFE_BOTTOM  # clear of the caption and account row
-    f = s.frame(1.0)
+    f = s.frame(1.0, 2.4)
     assert f.size == (compose.W, compose.H)
 
 
@@ -65,6 +80,12 @@ def test_slides_reel_file_and_cover(tmp_path):
     _, _, total = timeline(3)
     assert (info.width, info.height) == (1080, 1920) and info.has_audio and abs(info.duration - total) < 0.3
     assert compose.cover_path(out).is_file()
+    # with a hook: the hook card opens it in place of the cover slide, and is the cover
+    out2 = make_slides_reel(paths, tmp_path / "h.mp4", hook="Would you buy this 2 BHK for 50 lakh?")
+    _, _, total2 = timeline(2, hook=True)
+    assert abs(ffmpeg.probe(out2).duration - total2) < 0.3
+    with Image.open(compose.cover_path(out2)) as cover:
+        assert cover.size == (1080, 1920)
 
 
 @pytest.mark.skipif(not ffmpeg.available(), reason="ffmpeg cannot run here")
