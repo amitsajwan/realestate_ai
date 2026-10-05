@@ -18,7 +18,7 @@ TODAY = date(2026, 10, 5)
 
 def test_the_cost_sheet_adds_the_taxes_and_nothing_else():
     c = trend.cost_sheet(6_000_000)
-    assert c == {"base": 6_000_000, "stamp_duty": 420_000, "registration": 30_000, "gst": 200_000, "extra": 650_000, "total": 6_650_000}
+    assert c == {"base": 6_000_000, "stamp_duty": 420_000, "registration": 30_000, "gst": 300_000, "extra": 750_000, "total": 6_750_000}   # GST: 7.5% on two-thirds = 5%
     ready = trend.cost_sheet(6_000_000, under_construction=False)
     assert ready["gst"] == 0 and ready["total"] == 6_450_000
     # registration is 1% below the cap
@@ -46,12 +46,12 @@ def test_every_fact_is_sourced_dated_and_only_official_facts_say_official():
         assert f.kind in (trend.OFFICIAL, trend.SECONDARY)
     # the metro facts come from the Cabinet's own release; prices and rates from portals and advice sites are labelled secondary
     assert trend.FACTS["metro_2b_approved"].kind == trend.OFFICIAL and "pib.gov.in" in trend.FACTS["metro_2b_approved"].url
-    assert {f.id for f in trend.FACTS.values() if f.kind == trend.SECONDARY} >= {"psf_wagholi", "psf_kharadi", "stamp_duty_man", "gst_under_construction"}
+    assert {f.id for f in trend.FACTS.values() if f.kind == trend.SECONDARY} == {"psf_wagholi", "psf_kharadi", "stamp_duty_man"}
 
 
 def test_a_number_that_is_not_in_the_facts_is_refused():
     r = trend.BY_SLUG["trend-60l-flat-real-cost"]
-    bad = replace(r, beats=(*r.beats[:1], {"screen": "Parking costs ₹3 lakh", "voice": "Parking costs three lakh."}, *r.beats[2:]))
+    bad = replace(r, beats=(*r.beats[:1], {"screen": "Parking costs ₹9 lakh", "voice": "Parking costs nine lakh."}, *r.beats[2:]))
     assert any("not in the facts" in p for p in trend.check(bad, TODAY))
     ok_words = replace(r, beats=(*r.beats[:1], {"screen": "Parking is extra", "voice": "Parking is extra."}, *r.beats[2:]))
     assert trend.check(ok_words, TODAY) == []
@@ -103,8 +103,8 @@ async def test_the_script_renders_a_manifest_and_queues_planned_rows_once(tmp_pa
     monkeypatch.setattr(trend, "TRENDS", [trend.BY_SLUG["trend-wagholi-metro"], trend.BY_SLUG["trend-60l-flat-real-cost"]])
     manifest = trend_reels.render_all(tmp_path / "out", TODAY)
     assert [m["slug"] for m in manifest] == ["trend-wagholi-metro", "trend-60l-flat-real-cost"]
-    saved = json.loads((tmp_path / "out" / "manifest.json").read_text())
-    assert saved[1]["confirm_before_approving"] == ["stamp_duty_man", "registration", "gst_under_construction"]
+    saved = json.loads((tmp_path / "out" / "manifest.json").read_text(encoding="utf-8"))
+    assert saved[1]["confirm_before_approving"] == ["stamp_duty_man"]   # registration and GST are from official pages now
     db = FakeDb()
     assert await trend_reels.queue(db, manifest, tmp_path / "out", TODAY, dry=True, log=lambda *_: None) == 0
     assert await trend_reels.queue(db, manifest, tmp_path / "out", TODAY, dry=False, log=lambda *_: None) == 4  # 2 reels x 2 channels

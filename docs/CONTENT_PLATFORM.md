@@ -89,9 +89,16 @@ Five rules the whole system follows (all already true in the code; keep them tru
 - Do not add a dependency or a service without writing why in the PR.
 
 ## 5. Open facts to confirm (blocks reels 1 and 3 only)
-Portal prices per sq ft; stamp duty 7% (man) / 6% (woman) and whether Wagholi is inside municipal limits; registration 1% capped at Rs 30,000;
-GST 5% on two-thirds of the price (under construction), none when ready. Official pages: igrmaharashtra.gov.in and the GST Council.
-The metro reel uses official sources (PIB) only.
+Confirmed against official pages on 5 October 2026, and now `official` in `FACTS`: registration 1% capped at Rs 30,000 (IGR Maharashtra,
+Table of Fees under the Registration Act, amended 11 Sep 2014); GST on an under-construction home that is not affordable housing works out
+to 5% of the price — 7.5% on two-thirds of it, one-third deemed land (CBIC notification 03/2019, in the GST Council's consolidated rate
+notification) — and none when the whole price is paid after the completion certificate or first occupation. The metro facts were already
+official (PIB Cabinet releases, including Line 4 Kharadi to Khadakwasla).
+
+Still `secondary`, so a person confirms them in Studio before approving: the portal prices per sq ft for Wagholi and Kharadi, and stamp
+duty 7% (man) / 6% (woman) inside Pune's municipal limits. There is no official URL to cite for stamp duty — igrmaharashtra.gov.in publishes
+its registration fee table but no duty schedule, and India Code refuses automated downloads. Wagholi is inside PMC limits (merged 1 July
+2021), which is what makes the 7% rate apply to it.
 
 ## 6. Work items
 

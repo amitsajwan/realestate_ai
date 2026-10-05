@@ -23,9 +23,9 @@ secondary ones under `confirm_before_approving`, and a human checks them against
 | "₹9,500 vs ₹6,500 per sq ft" | changed: portals disagree (Wagholi ₹5,000-6,500 entry, one listing ₹10,823 average) | ranges, "as listed on portals, Oct 2026", secondary |
 | "Metro extension coming up, under 20 minutes to EON" | dropped: metro is not running, commute is not sourced | "Approved by the Union Cabinet, 25 June 2025; within 4 years; approved is not running" (official) |
 | "Stamp duty ~7%" | kept as secondary: 7% for a man in municipal limits, 6% for a woman | in the cost sheet, confirm on igrmaharashtra.gov.in |
-| "GST on under-construction: 5%" | changed: 5% on two-thirds of the price (deemed land), none on a ready home | in the cost sheet |
+| "GST on under-construction: 5%" | changed and now official: it works out to 5% of the price (7.5% on two-thirds of it, one-third deemed land, CBIC notification 03/2019); none when the whole price is paid after the completion certificate | in the cost sheet |
 | "Parking ₹3-5L, corpus ₹1.5L" | dropped: no source, differs by project | "Parking and deposits: extra. Ask for the all-in cost sheet." |
-| "₹60L = ₹71L" | replaced by the sum: ₹60L becomes ₹66.5L before parking and deposits (₹64.5L when ready) | calculator, example labelled |
+| "₹60L = ₹71L" | replaced by the sum: ₹60L becomes ₹67.5L before parking and deposits (₹64.5L when ready) | calculator, example labelled |
 | "Comment COST for a DM checklist" | dropped: nothing answers that keyword | "Save this. Send it to someone buying." |
 
 ## Experiments

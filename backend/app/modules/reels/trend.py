@@ -58,12 +58,17 @@ FACTS: Dict[str, Fact] = {f.id: f for f in (
          "https://igrmaharashtra.gov.in/", "2026-10-05", "2026-12-05", SECONDARY),
     Fact("registration",
          "Registration is 1% of the value, capped at Rs 30,000.",
-         "Property-advice sites, read Oct 2026; confirm on igrmaharashtra.gov.in", "https://igrmaharashtra.gov.in/", "2026-10-05", "2026-12-05", SECONDARY),
+         # the table: Rs 100 plus Rs 10 per Rs 1,000 above Rs 10,000, at most Rs 30,000 (conveyance on market value, Article I(3-A))
+         "IGR Maharashtra, Table of Fees under the Registration Act (amended 11 Sep 2014), read 5 Oct 2026",
+         "https://igrmaharashtra.gov.in/pdf/eodb/3.1Registration%20fee%20table.pdf", "2026-10-05", "2027-04-05", OFFICIAL),
     Fact("gst_under_construction",
-         "GST on an under-construction home that is not affordable housing is 5% with no input credit, charged on two-thirds of the price "
-         "(a deemed one-third is land); a ready home with an occupancy certificate has none.",
-         "GST Council (34th meeting, effective 1 April 2019); explainers, read Oct 2026", "https://gstcouncil.gov.in/", "2026-10-05", "2027-04-05",
-         SECONDARY),
+         "GST on an under-construction home that is not affordable housing works out to 5% of the price, with no input credit (7.5% on "
+         "two-thirds of it; one-third is deemed to be land); none is due when the whole price is paid after the completion certificate "
+         "or first occupation.",
+         # item (ia) of heading 9954: central tax 3.75% (state tax the same) on the price less a deemed one-third for land, paragraph 2
+         "CBIC Notification 03/2019-Central Tax (Rate), 29 Mar 2019 (in the consolidated rate notification on gstcouncil.gov.in), read 5 Oct 2026",
+         "https://gstcouncil.gov.in/sites/default/files/2024-02/11-rate_notification-cgst-01.04.2019.pdf", "2026-10-05", "2027-04-05",
+         OFFICIAL),
 )}
 
 
@@ -77,12 +82,12 @@ def lakh(rupees: float) -> str:
     return f"Rs {int(round(rupees)):,}"
 
 
-def cost_sheet(base_inr: int, *, stamp_pct: float = 7.0, gst_pct: float = 5.0, under_construction: bool = True) -> Dict[str, int]:
+def cost_sheet(base_inr: int, *, stamp_pct: float = 7.0, gst_pct: float = 7.5, under_construction: bool = True) -> Dict[str, int]:
     """What a flat advertised at `base_inr` costs once the taxes in FACTS are added (not parking, deposits, maintenance or other charges,
     which differ by project and must be asked for in writing). Whole rupees."""
     stamp = round(base_inr * stamp_pct / 100)
     registration = min(round(base_inr / 100), 30_000)
-    gst = round(base_inr * 2 / 3 * gst_pct / 100) if under_construction else 0
+    gst = round(base_inr * 2 / 3 * gst_pct / 100) if under_construction else 0   # 7.5% on two-thirds = 5% of the price
     return {"base": base_inr, "stamp_duty": stamp, "registration": registration, "gst": gst,
             "extra": stamp + registration + gst, "total": base_inr + stamp + registration + gst}
 
@@ -169,10 +174,10 @@ TRENDS: List[TrendReel] = [
                  f"A ready home with an occupancy certificate has no GST: {lakh(_C60_READY['total'])}.",),
         beats=(
             {"screen": f"A ₹60 lakh flat costs *{lakh(_C60['total']).replace('Rs ', '₹')}*?",
-             "voice": "Why does a sixty lakh flat cost about sixty-six and a half lakh?"},
+             "voice": "Why does a sixty lakh flat cost about sixty-seven and a half lakh?"},
             {"screen": f"Stamp duty 7%: {lakh(_C60['stamp_duty']).replace('Rs ', '₹')}", "voice": "Stamp duty at seven percent is about four point two lakh."},
             {"screen": f"Registration: {lakh(_C60['registration']).replace('Rs ', '₹')}", "voice": "Registration is capped at thirty thousand rupees."},
-            {"screen": f"GST, under construction: {lakh(_C60['gst']).replace('Rs ', '₹')}", "voice": "GST on an under-construction flat adds about two lakh."},
+            {"screen": f"GST, under construction: {lakh(_C60['gst']).replace('Rs ', '₹')}", "voice": "GST on an under-construction flat adds about three lakh."},
             {"screen": "Parking and deposits: *extra*", "voice": "Parking and deposits come on top. Ask for the all-in cost sheet first."},
         ),
         cta={"screen": "Save this before you book.", "voice": "Save this before you book."},

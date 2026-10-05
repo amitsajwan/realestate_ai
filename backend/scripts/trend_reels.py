@@ -44,7 +44,7 @@ def render_all(out: Path, today: date) -> list:
             "confirm_before_approving": [f.id for f in trend.secondary_facts(r)],
         })
         print(f"rendered {mp4}")
-    (out / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False))
+    (out / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
     return manifest
 
 

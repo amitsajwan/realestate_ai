@@ -658,15 +658,17 @@ def encode(frames: Iterable[bytes], total: float, out_path, music=None, timeout:
     signature music (reels.music; REEL_BRAND_MUSIC=off gives a silent track instead)."""
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
+    brand_bed = music is None and brand_music_on()
     with tempfile.TemporaryDirectory() as work:
-        if music is None and brand_music_on():
+        if brand_bed:
             from .music import write as write_music
             music = write_music(Path(work) / "brand.wav", seconds=total)
         args = ["-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-"]
         if music:
             if not Path(music).is_file():
                 raise ReelError("music file not found")
-            args += ["-stream_loop", "-1", "-i", str(music), "-af", f"afade=t=in:d=0.6,afade=t=out:st={max(0.0, total - 1.4):.2f}:d=1.4,volume=0.7"]
+            vol = 0.5 if brand_bed else 0.7   # the bed alone (no voice over it) sits quieter than a supplied mix
+            args += ["-stream_loop", "-1", "-i", str(music), "-af", f"afade=t=in:d=0.6,afade=t=out:st={max(0.0, total - 1.4):.2f}:d=1.4,volume={vol}"]
         else:
             args += ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo"]
         args += ["-map", "0:v:0", "-map", "1:a:0", "-t", f"{total:.3f}",
