@@ -12,7 +12,10 @@ import { getMarketingConfig } from '@/lib/marketing/config'
 import { localityByName } from '@/lib/marketing/localities'
 import { breadcrumbJsonLd, jsonLdString } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
-import { getCatalog, getCatalogProject } from '@/lib/site/api'
+import { getCatalog, getCatalogProject, getPropertyFacts } from '@/lib/site/api'
+import RegisterProjectPage from '@/components/site/RegisterProjectPage'
+import { pageMetadata } from '@/lib/marketing/seo'
+import { getRegisterProject } from '@/lib/site/register'
 import { bhkRange, mainAgent, priceRange, projectWhatsAppMessage } from '@/lib/site/projects'
 import { catalogProjectMetadata, projectJsonLd } from '@/lib/site/seo'
 import { agentPath } from '@/lib/site/slug'
@@ -22,23 +25,49 @@ export const revalidate = 300
 
 type Props = { params: Promise<{ slug: string }> }
 
-const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+){0,8}$/
+const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+){0,15}$/
 
 async function load(params: Props['params']): Promise<CatalogProject | null> {
   const { slug } = await params
   return SLUG.test(slug) ? getCatalogProject(slug) : null
 }
 
+/** A project with no agent listing yet: Avasetu's own page from the MahaRERA register (docs/plan/project-pages.md). */
+async function loadRegister(params: Props['params']) {
+  const { slug } = await params
+  return SLUG.test(slug) ? getRegisterProject(slug) : null
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = await load(params)
-  if (!p) return { title: 'Project not found', robots: { index: false } }
-  return catalogProjectMetadata(p, priceRange(p) + ', ' + bhkRange(p.bhk_options))
+  if (p && p.agents.length) return catalogProjectMetadata(p, priceRange(p) + ', ' + bhkRange(p.bhk_options))
+  const r = await loadRegister(params)
+  if (!r) return { title: 'Project not found', robots: { index: false } }
+  const meta = pageMetadata(getMarketingConfig(), {
+    title: `${r.name}${r.area ? `, ${r.area.name}` : ''}: MahaRERA completion date and homes booked`,
+    description: r.paragraph.slice(0, 155),
+    path: `/projects/${r.slug}`,
+  })
+  return r.indexable ? meta : { ...meta, robots: { index: false, follow: true } }   // thin pages stay out of search until filled in
 }
 
 export default async function SharedProjectPage({ params }: Props) {
   const { slug } = await params
   const p = await load(params)
-  if (!p || !p.agents.length) notFound()
+  if (!p || !p.agents.length) {
+    const r = await loadRegister(params)
+    if (!r) notFound()
+    if (r.slug !== slug) permanentRedirect(`/projects/${r.slug}`)
+    // an agent lists this project: its shared page (with the agents) is the project's page
+    const listed = (await getCatalog()).find((x) => x.rera_no === r.regno && x.agents.length)
+    if (listed) permanentRedirect(`/projects/${listed.slug}`)
+    const facts = await getPropertyFacts({ rera: r.regno, project: r.name, locality: r.area?.name }).catch(() => null)
+    return (
+      <MarketingShell>
+        <RegisterProjectPage p={r} siteUrl={getMarketingConfig().siteUrl} facts={facts} />
+      </MarketingShell>
+    )
+  }
   if (p.slug !== slug) permanentRedirect(`/projects/${p.slug}`) // an agent's own slug for the same project
   const cfg = getMarketingConfig()
   const main = mainAgent(p)

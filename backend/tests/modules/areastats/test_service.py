@@ -74,7 +74,7 @@ async def test_recent_is_newest_first_at_most_five():
     assert out["projects"] == 8
     first = out["recent"][0]
     assert first == {"name": "Project 7", "regno": "PR1260002600007", "promoter": "Rohan Builders", "completion": None,
-                     "updated": "2026-09-17", "url": "https://maharerait.maharashtra.gov.in/public/project/view/7"}
+                     "updated": "2026-09-17", "url": "https://maharerait.maharashtra.gov.in/public/project/view/7", "page": None}
     three = next(r for r in (await area_stats(await db_with(*docs[:5]), "wagholi", TODAY))["recent"] if r["name"] == "Project 3")
     assert three["completion"] == "2029-10-30" and three["promoter"] is None  # a person, or not given: never named
 
@@ -127,5 +127,5 @@ async def test_endpoint_returns_the_contract_and_404_for_unknown_areas():
     assert set(body) == {"area", "as_of", "projects", "completing", "units_total", "units_booked", "recent", "source"}
     assert body["area"] == {"key": "keshav_nagar", "name": "Keshav Nagar", "slug": "keshav-nagar", "tier": "affordable"}
     assert body["projects"] == 1 and body["units_total"] == 12 and body["units_booked"] == 3
-    assert set(body["recent"][0]) == {"name", "regno", "promoter", "completion", "updated", "url"}
+    assert set(body["recent"][0]) == {"name", "regno", "promoter", "completion", "updated", "url", "page"}
     assert c.get("/public/areas/mundhwa/stats").status_code == 404

@@ -51,7 +51,8 @@ def _units(docs: List[dict]) -> Dict[str, Optional[int]]:
 
 def _recent(d: dict) -> dict:
     return {"name": d.get("name", ""), "regno": d.get("regno") or d["_id"], "promoter": d.get("promoter") or None,
-            "completion": _day(d.get("completion_now")), "updated": _day(d.get("last_modified")), "url": d.get("source_url") or None}
+            "completion": _day(d.get("completion_now")), "updated": _day(d.get("last_modified")), "url": d.get("source_url") or None,
+            "page": f"/projects/{d['page_slug']}" if d.get("page_slug") else None}   # our own page first (docs/plan/project-pages.md)
 
 
 def area_view(area: Area, docs: List[dict], as_of: date) -> dict:

@@ -6,6 +6,13 @@
 - Marketing (e.g. Gulmohar City, Ranjangaon) must never point at nothing: the page exists first and shows every fact the posts use,
   from the same stored facts, so a corrected fact fixes page and posts together.
 
+## Who owns what (owner, 2026-10-06)
+- The project page and its content are Avasetu's: avasetu.in/projects/<slug>. The MahaRERA facts behind it (register, details,
+  read dates) are ours and live in one place, the register.
+- An agent's listing (House Deal's flat in that project) goes on the agent's own page (/agent/<agent>/...). It uses our RERA facts
+  from the register (never its own copy) and links to our project page; our project page lists the agents with homes there.
+- Today the shared catalog pages (agentprojects) read MahaRERA themselves; they move to reading the register (follow-up).
+
 ## Rules
 - Facts only, each with source and read date. The paragraph is written by code from the facts (no model, no adjectives, no prices
   unless a labelled source gives one). MahaRERA dates are "filed", "listed or updated"; never "newly registered".

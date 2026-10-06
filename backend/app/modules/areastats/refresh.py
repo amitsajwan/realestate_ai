@@ -27,6 +27,7 @@ from app.modules.newsroom.policy import AREA_PINCODES, SHARED_PINCODES
 from app.modules.newsroom.sources import maharera as search
 from app.modules.newsroom.store import Store
 
+from . import pages
 from . import watch as watchlist
 
 log = logging.getLogger(__name__)
@@ -152,14 +153,15 @@ async def details(store: Store, fetch: project_api.Fetch, now: datetime, limit: 
 
 async def step(store: Store, get, fetch: project_api.Fetch, now: datetime, pages: Optional[int] = None,
                limit: Optional[int] = None) -> dict:
-    """One round: sweep, relabel, the watch list, details. Batch sizes follow `behind` unless given. A failing part is logged
+    """One round: sweep, relabel, the watch list, details, page slugs for new records. Batch sizes follow `behind` unless given. A failing part is logged
     and never stops the others."""
     catching_up = (pages is None or limit is None) and await behind(store, now)
     pages = pages if pages is not None else (CATCHUP_PAGES if catching_up else SWEEP_PAGES)
     limit = limit if limit is not None else (CATCHUP_DETAILS if catching_up else DETAILS_PER_STEP)
     out: dict = {"mode": "catch-up" if catching_up else "steady"}
     for name, part in (("sweep", lambda: sweep(store, get, now, pages)), ("relabel", lambda: relabel(store)),
-                       ("watch", lambda: watchlist.sync(store, now)), ("details", lambda: details(store, fetch, now, limit))):
+                       ("watch", lambda: watchlist.sync(store, now)), ("details", lambda: details(store, fetch, now, limit)),
+                       ("pages", lambda: pages.assign_all(store))):
         try:
             out[name] = await part()
         except Exception:

@@ -41,7 +41,9 @@ export default function AreaRecords({ name, stats }: { name: string; stats: Area
           <ul className="mt-2 list-none space-y-3 p-0">
             {stats.recent.map((p) => (
               <li key={p.regno || p.name} className="min-w-0 rounded-xl border border-slate-200 p-3">
-                {p.url ? (
+                {p.page ? (
+                  <a href={p.page} className="break-words font-semibold text-[#0f2340] underline underline-offset-2">{p.name}</a>
+                ) : p.url ? (
                   <a href={p.url} target="_blank" rel="noopener noreferrer" className="break-words font-semibold text-[#0f2340] underline underline-offset-2">{p.name}</a>
                 ) : (
                   <span className="break-words font-semibold text-slate-900">{p.name}</span>
