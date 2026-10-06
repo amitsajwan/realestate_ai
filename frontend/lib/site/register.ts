@@ -15,6 +15,7 @@ export interface RegisterProject {
   completion_at_registration: string | null
   units_total: number | null
   units_booked: number | null
+  completion_passed?: boolean
   details_read_at: string | null
   listed_or_updated: string | null
   maharera_url: string | null

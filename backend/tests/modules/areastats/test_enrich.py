@@ -116,3 +116,11 @@ def test_off_unless_switched_on(monkeypatch):
     monkeypatch.setenv("PROJECT_ENRICH_ENABLED", "on")
     monkeypatch.setenv("PROJECT_ENRICH_EVERY_MINUTES", "30")
     assert enrich.load().enabled and enrich.load().every == timedelta(minutes=30)
+
+
+def test_facts_label_both_dates_and_drop_junk_names():
+    doc = {**FULL, "_id": "P1", "name": "Ivy", "locality": "wagholi", "regno": "P1"}
+    g = {"nearby": [{"label": "Hospital", "name": "HOSPITAL 9", "km": 0.5}, {"label": "Hospital", "name": "Care Hospital", "km": 0.6}]}
+    facts = enrich.facts_text(doc, g)
+    assert "Completion date filed when the project was registered: 31 Dec 2028 (this is a completion date, not the registration date)" in facts
+    assert "HOSPITAL 9" not in facts and "Care Hospital, 0.6 km" in facts

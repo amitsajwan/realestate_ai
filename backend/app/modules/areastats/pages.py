@@ -10,7 +10,7 @@ list first (areastats.watch), and then has its page at once.
 """
 import re
 import unicodedata
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 
 from app.core import brand
@@ -60,9 +60,21 @@ async def assign_all(store: Store, docs: Optional[List[dict]] = None) -> int:
     return n
 
 
+def completion_passed(doc: dict, today: Optional[date] = None) -> bool:
+    day = _day(doc.get("completion_now"))
+    return bool(day) and day < (today or date.today()).isoformat()
+
+
+def booked(doc: dict) -> Optional[int]:
+    """Homes booked as MahaRERA shows them; None when unknown. A 0 after the filed completion date means the builder has not
+    reported bookings (a finished project with nothing sold is not what that 0 says), so it counts as unknown."""
+    b = _count(doc.get("units_booked"))
+    return None if b == 0 and completion_passed(doc) else b
+
+
 def indexable(doc: dict) -> bool:
-    total, booked = _count(doc.get("units_total")), _count(doc.get("units_booked"))
-    return bool(_day(doc.get("completion_now")) and total and booked is not None and booked <= total)
+    total, booked_ = _count(doc.get("units_total")), booked(doc)
+    return bool(_day(doc.get("completion_now")) and total and booked_ is not None and booked_ <= total)
 
 
 def _long(day: Optional[str]) -> Optional[str]:
@@ -83,11 +95,15 @@ def paragraph(doc: dict) -> str:
         out.append(f"Its filed completion date is {_long(now)}; at registration it was {_long(first)}.")
     elif now:
         out.append(f"Its filed completion date is {_long(now)}.")
-    total, booked = _count(doc.get("units_total")), _count(doc.get("units_booked"))
+    total, sold = _count(doc.get("units_total")), booked(doc)
     read = doc.get("details_checked_at")
-    if total and booked is not None and booked <= total:
-        when = f" when we read the record on {_long(read.date().isoformat())}" if isinstance(read, datetime) else ""
-        out.append(f"{booked} of {total} homes were booked{when}.")
+    when = f" when we read the record on {_long(read.date().isoformat())}" if isinstance(read, datetime) else ""
+    if total and sold is not None and sold <= total:
+        out.append(f"{sold} of {total} homes were booked{when}.")
+    elif total:
+        out.append(f"MahaRERA lists {total} homes; bookings were not reported{when}.")
+    if completion_passed(doc):
+        out.append("The filed completion date has passed: ask for the occupancy certificate (OC).")
     out.append("Check the MahaRERA record before you book, and ask the builder for the agreement's possession date in writing.")
     return " ".join(out)
 
@@ -100,7 +116,7 @@ def view(doc: dict, same_area: List[dict]) -> dict:
         "promoter": doc.get("promoter") or None, "pincode": doc.get("pincode") or None,
         "area": {"key": area.key, "slug": area.slug, "name": area.name} if area else None,
         "completion_now": _day(doc.get("completion_now")), "completion_at_registration": _day(doc.get("completion_at_registration")),
-        "units_total": _count(doc.get("units_total")), "units_booked": _count(doc.get("units_booked")),
+        "units_total": _count(doc.get("units_total")), "units_booked": booked(doc), "completion_passed": completion_passed(doc),
         "details_read_at": read.date().isoformat() if isinstance(read, datetime) and doc.get("details_ok") else None,
         "listed_or_updated": _day(doc.get("last_modified")), "maharera_url": doc.get("source_url") or None,
         # the enriched text (model-written from gathered facts, checked) when there is one, else the code-written paragraph

@@ -78,3 +78,12 @@ async def test_page_for_and_the_public_api():
     assert [p["slug"] for p in c.get("/public/register/projects?area=wagholi").json()] == ["kesnand-greens-wagholi", "rohan-abhilasha-4-wagholi"] or \
         sorted(p["slug"] for p in c.get("/public/register/projects?area=wagholi").json()) == ["kesnand-greens-wagholi", "rohan-abhilasha-4-wagholi"]
     assert len(c.get("/public/register/projects?all=true").json()) == 4
+
+
+async def test_zero_booked_after_completion_means_not_reported_and_the_page_says_the_date_passed():
+    past = {**FULL, "completion_now": "2023-12-29", "completion_at_registration": "2022-12-30", "units_total": 1185, "units_booked": 0}
+    assert pages.booked(past) is None and not pages.indexable(past)
+    text = pages.paragraph({**past, "_id": "P1", "name": "Ivy Estate-Nia", "locality": "wagholi", "regno": "P1"})
+    assert "0 of 1185" not in text and "bookings were not reported" in text and "occupancy certificate (OC)" in text
+    future_new = {**FULL, "units_booked": 0}   # a new project with nothing sold yet: 0 is a real number
+    assert pages.booked(future_new) == 0 and pages.indexable(future_new)

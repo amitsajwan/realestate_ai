@@ -81,11 +81,12 @@ export default function RegisterProjectPage({ p, siteUrl, facts }: { p: Register
         <dl className="mt-2">
           {p.completion_now && <Row label="Completion date filed with MahaRERA" value={longDay(p.completion_now)}
             note={moved ? `At registration: ${longDay(p.completion_at_registration)}. ${read}.` : `${read}.`} />}
-          {p.units_total ? <Row label="Homes booked" value={`${p.units_booked ?? '?'} of ${p.units_total}`} note={`${read}.`} /> : null}
+          {p.units_total ? <Row label="Homes booked" value={p.units_booked != null ? `${p.units_booked} of ${p.units_total}` : `Not reported (${p.units_total} homes)`} note={`${read}.`} /> : null}
           <Row label="MahaRERA registration" value={p.regno} note={p.listed_or_updated ? `Listed or updated on MahaRERA ${longDay(p.listed_or_updated)}.` : undefined} />
           {p.promoter && <Row label="Promoter (builder)" value={p.promoter} />}
           {p.pincode && <Row label="Pincode" value={p.pincode} />}
         </dl>
+        {p.completion_passed && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">The filed completion date has passed. Ask for the occupancy certificate (OC) before you book.</p>}
         {!p.completion_now && <p className="mt-3 text-sm text-slate-600">We are still reading this project&apos;s details from MahaRERA; this page fills in by itself.</p>}
       </section>
 

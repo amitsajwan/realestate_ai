@@ -22,6 +22,7 @@ from app.core.areas import BY_KEY
 from app.modules.newsroom.store import Store
 
 from . import pages, searchconsole
+from .service import _day
 
 log = logging.getLogger(__name__)
 
@@ -91,20 +92,28 @@ async def next_project(store: Store, now: datetime) -> Optional[dict]:
     return ranked[0][1] if ranked else None
 
 
+_JUNK_NAME = re.compile(r"^\W*(hospital|school|college|clinic|bus stop|bus stand|station|temple|park|shop|office|building)\W*\d*\W*$", re.I)
+
+
 def facts_text(doc: dict, gathered: Optional[dict]) -> str:
-    """Everything the model may use, as plain lines: the register record, then the gathered sheet."""
+    """Everything the model may use, as plain labelled lines: the register record (dates spelt out with what they are), then the
+    gathered sheet. Names that are only a category and a number ("Hospital 9") are left out."""
     lines = [pages.paragraph(doc)]
+    now, first = _day(doc.get("completion_now")), _day(doc.get("completion_at_registration"))
+    if now:
+        lines.append(f"Completion date filed with MahaRERA now: {pages._long(now)}")
+    if first and first != now:
+        lines.append(f"Completion date filed when the project was registered: {pages._long(first)} (this is a completion date, not the registration date)")
     g = gathered or {}
     for n in (g.get("nearby") or [])[:8]:
-        if n.get("name") and n.get("km") is not None:
-            lines.append(f"Nearby {n.get('label') or ''}: {n['name']}, {n['km']} km (OpenStreetMap)".replace("  ", " "))
+        if n.get("name") and n.get("km") is not None and not _JUNK_NAME.match(str(n["name"])):
+            lines.append(f"Nearby {n.get('label') or 'place'}: {n['name']}, {n['km']} km (OpenStreetMap)")
     for k, v in (g.get("numbers") or {}).items():
         if isinstance(v, (int, float)):
             lines.append(f"{k.replace('_', ' ')}: {v}")
     m = g.get("maharera") or {}
-    for k in ("project_type", "registered_on", "moved_months"):
-        if m.get(k) not in (None, ""):
-            lines.append(f"MahaRERA {k.replace('_', ' ')}: {m[k]}")
+    if m.get("project_type"):
+        lines.append(f"MahaRERA project type: {m['project_type']}")
     o = g.get("offer") or {}
     if o.get("price_inr"):
         lines.append(f"Price on the agent's listing: Rs {o['price_inr']:,} ({o.get('source') or 'agent listing'})")
@@ -134,7 +143,8 @@ def check_text(text: str, facts: str) -> List[str]:
 
 SYSTEM = ("You write the description on a property website's page about one housing project in Pune. Use ONLY the facts given. "
           "Plain, neutral English, 2 short paragraphs, under 120 words. Say what the project is, where, the completion date filed "
-          "with MahaRERA and whether it moved, how many homes are booked, and what is nearby with distances, if given. No adjectives "
+          "with MahaRERA and whether it moved, how many homes are booked (or that bookings were not reported), whether the completion "
+          "date has passed, and what is nearby with distances, if given. Keep each date with its label. No adjectives "
           "of praise, no advice to buy, no prices unless a fact gives one, no numbers that are not in the facts. "
           'Answer as JSON: {"text": "..."}')
 
