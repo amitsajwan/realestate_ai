@@ -131,3 +131,15 @@ def test_agent_without_public_profile_still_works(env):
     p = c.post("/listings/L1/marketing").json()
     assert p["share_url"] == "https://site.test/listings/L1?src=whatsapp"
     assert "Avasetu team will share the details" in p["instagram"]["caption"]
+
+
+def test_a_pack_left_under_another_account_is_replaced_not_a_crash(env):
+    """Live 2026-10-06: Gulmohar's listing moved to House Deal's account; its old pack (other agent_id) made POST a 500."""
+    c, db, _, up = env
+    db.get_collection("marketing_packs").docs.append({"_id": "L1", "agent_id": "OLD", "version": 3})
+    assert c.get("/listings/L1/marketing").status_code == 404        # not this agent's pack
+    r = c.post("/listings/L1/marketing")
+    assert r.status_code == 200 and r.json()["version"] == 4
+    packs = db.get_collection("marketing_packs").docs
+    assert len(packs) == 1 and packs[0]["agent_id"] == "A1"
+    assert c.get("/listings/L1/marketing").json()["version"] == 4

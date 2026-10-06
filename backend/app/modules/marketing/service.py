@@ -66,12 +66,14 @@ class MarketingService:
             images = await asyncio.to_thread(render_all, facts, listing.get("media") or [], self.uploads_dir, listing_id)
         except Exception as e:  # disk full, permissions...: surface as a clean error
             raise MarketingError(f"Could not render images: {e}", 500)
-        prev = await self.packs.find_one({"_id": listing_id, "agent_id": agent_id})
+        # the pack is the listing's (one per listing, _id = listing_id). The listing check above proves this agent owns it, so a
+        # pack left under another agent id (a listing moved between accounts) is replaced, not a duplicate-key crash
+        prev = await self.packs.find_one({"_id": listing_id})
         doc = {**content, "agent_id": agent_id, "images": images, "share_url": facts.share_url,
                "version": (prev.get("version", 0) if prev else 0) + 1,
                "generated_at": self.now().replace(microsecond=0).isoformat() + "Z"}
         if prev:
-            await self.packs.update_one({"_id": listing_id, "agent_id": agent_id}, {"$set": doc})
+            await self.packs.update_one({"_id": listing_id}, {"$set": doc})
         else:
             await self.packs.insert_one({"_id": listing_id, **doc})
         try:  # warm the visual review (photoquality) so the Approve screen's quality chip is instant; never blocks
