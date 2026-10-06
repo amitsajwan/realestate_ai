@@ -6,7 +6,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 from .config import COLLECTION, STATUS_COLLECTION
 
-STATUSES = ("planned", "approved", "scheduled", "published", "failed", "skipped")
+STATUSES = ("planned", "approved", "scheduled", "published", "failed", "skipped", "removed")  # removed: deleted on the platform
 PUBLISHABLE = ("approved", "scheduled")   # the approval gate: nothing else is ever published
 OPEN = ("planned", "approved", "scheduled")  # not yet published, failed or skipped
 KINDS = ("post", "showcase", "reel")
@@ -75,6 +75,29 @@ class Store:
             return False
         await self._move(id, "approved", "approved by owner")
         return True
+
+    async def post_now(self, id: str) -> Optional[dict]:
+        """The owner's "Post now": approve it if needed and make it due at once (the next runner pass, about a couple of minutes,
+        publishes it). None when it is already published, failed, skipped or removed."""
+        doc = await self.get(id)
+        if not doc or doc["status"] not in OPEN:
+            return None
+        now = self.clock()
+        await self._move(id, "approved", "post now by owner", due_at=now)
+        return {**doc, "status": "approved", "due_at": now}
+
+    async def mark_removed(self, id: str, note: str) -> None:
+        """A published post that no longer exists on the platform (deleted there): out of Studio and the public feed."""
+        await self._move(id, "removed", note, removed_at=self.clock())
+
+    async def checked_live(self, id: str, gone: Optional[datetime] = None, clear: bool = False) -> None:
+        """Record a live check: `gone` when the platform said it is not there (the first sighting), `clear` when it is there."""
+        fields = {"live_checked_at": self.clock()}
+        if gone is not None:
+            fields["live_gone_at"] = gone
+        elif clear:
+            fields["live_gone_at"] = None
+        await self.items.update_one({"_id": id}, {"$set": fields})
 
     async def _move(self, id: str, status: str, note: str, **fields) -> None:
         now = self.clock()

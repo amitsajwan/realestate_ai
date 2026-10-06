@@ -37,7 +37,7 @@ async def seed(store):
 
 
 def test_every_route_is_owner_only():
-    assert len(cr.router.routes) == 4
+    assert len(cr.router.routes) == 5
     for route in cr.router.routes:
         assert any(d.call is cr.owner_only for d in route.dependant.dependencies), route.path
 

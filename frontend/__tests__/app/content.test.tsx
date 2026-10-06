@@ -1,13 +1,14 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import React from 'react'
 import ContentPage from '@/app/studio/content/page'
-import { FIXTURE_ITEMS, createContentApi, createFixtureContentApi, dueLabel, mediaUrl, normalizeItem, statusLabel } from '@/lib/app/content'
+import { FIXTURE_ITEMS, countdown, createContentApi, groupItems, createFixtureContentApi, dueLabel, mediaUrl, normalizeItem, statusLabel } from '@/lib/app/content'
 import type { ContentItem } from '@/lib/app/content'
 import { ApiError } from '@/lib/app/api'
 
 const getUpcoming = jest.fn()
 const approve = jest.fn()
 const skip = jest.fn()
+const postNow = jest.fn()
 jest.mock('@/lib/app/client', () => ({
   errorMessage: (e: Error) => e.message,
   isFixtureMode: () => false,
@@ -19,6 +20,7 @@ jest.mock('@/lib/app/content', () => ({
     getUpcoming: (...a: unknown[]) => getUpcoming(...a),
     approve: (...a: unknown[]) => approve(...a),
     skip: (...a: unknown[]) => skip(...a),
+    postNow: (...a: unknown[]) => postNow(...a),
   },
 }))
 
@@ -26,7 +28,8 @@ const okRes = (body: unknown, status = 200) => ({ ok: status < 400, status, text
 const items = (): ContentItem[] => FIXTURE_ITEMS.map((i) => ({ ...i }))
 
 beforeEach(() => {
-  ;[getUpcoming, approve, skip].forEach((m) => m.mockReset())
+  ;[getUpcoming, approve, skip, postNow].forEach((m) => m.mockReset())
+  postNow.mockResolvedValue(undefined)
   getUpcoming.mockResolvedValue(items())
   approve.mockResolvedValue(undefined)
   skip.mockResolvedValue(undefined)
@@ -134,5 +137,60 @@ describe('content client', () => {
     await api.skip('fx-2')
     expect((await api.getUpcoming()).map((i) => i.id)).toEqual(['fx-1', 'fx-3'])
     await expect(api.skip('nope')).rejects.toMatchObject({ status: 404 })
+  })
+})
+
+
+describe('one card per post, timing and Post now', () => {
+  const pair = (): ContentItem[] => [
+    { ...FIXTURE_ITEMS[0], id: 'ig-1', channel: 'instagram', status: 'approved', due_at: new Date(Date.now() + 3 * 3600_000).toISOString() },
+    { ...FIXTURE_ITEMS[0], id: 'fb-1', channel: 'facebook_page', status: 'planned', due_at: new Date(Date.now() + 4 * 3600_000).toISOString() },
+  ]
+
+  it('shows the Instagram and Facebook copies of a post as one card, with when each goes out', async () => {
+    getUpcoming.mockResolvedValue(pair())
+    render(<ContentPage />)
+    const cards = await screen.findAllByTestId('content-card')
+    expect(cards).toHaveLength(1)
+    const c = within(cards[0])
+    expect(c.getByText('Instagram')).toBeInTheDocument()
+    expect(c.getByText('Facebook')).toBeInTheDocument()
+    expect(c.getByTestId('when')).toHaveTextContent(/Instagram: Goes out in (2h 5\dm|3h 0m)/)
+    expect(c.getByTestId('when')).toHaveTextContent(/Facebook: Planned for .*Approve it to post then, or Post now/)
+  })
+
+  it('Post now sends every open copy and the card says it is posting', async () => {
+    getUpcoming.mockResolvedValue(pair())
+    render(<ContentPage />)
+    fireEvent.click(within((await screen.findAllByTestId('content-card'))[0]).getByRole('button', { name: 'Post now' }))
+    await waitFor(() => expect(postNow).toHaveBeenCalledTimes(2))
+    expect(postNow.mock.calls.map((c) => c[0])).toEqual(['ig-1', 'fb-1'])
+    expect(await screen.findAllByText(/Posting now: it appears within a few minutes/)).toHaveLength(2)
+  })
+
+  it('Approve only approves the copies still waiting', async () => {
+    getUpcoming.mockResolvedValue(pair())
+    render(<ContentPage />)
+    fireEvent.click(within((await screen.findAllByTestId('content-card'))[0]).getByRole('button', { name: 'Approve' }))
+    await waitFor(() => expect(approve).toHaveBeenCalledWith('fb-1'))
+    expect(approve).toHaveBeenCalledTimes(1)
+  })
+
+  it('a post that repeats one already published is flagged and cannot be posted now', async () => {
+    getUpcoming.mockResolvedValue([{ ...pair()[1], duplicate_of: { slug: 'hd-goyal-my-home', published_at: '2026-10-03T12:11:00Z', permalink: null } }])
+    render(<ContentPage />)
+    const c = within((await screen.findAllByTestId('content-card'))[0])
+    expect(c.getByTestId('duplicate')).toHaveTextContent(/repeats .hd-goyal-my-home.*held back/)
+    expect(c.queryByRole('button', { name: 'Post now' })).toBeNull()
+  })
+
+  it('countdown and grouping helpers', () => {
+    const now = Date.parse('2026-10-06T10:00:00Z')
+    expect(countdown('2026-10-06T10:20:00Z', now)).toBe('in 20 min')
+    expect(countdown('2026-10-06T12:30:00Z', now)).toBe('in 2h 30m')
+    expect(countdown('2026-10-09T10:00:00Z', now)).toBe('in 3 days')
+    expect(countdown('2026-10-06T09:00:00Z', now)).toBeNull()
+    const g = groupItems([{ ...FIXTURE_ITEMS[0], id: 'a', channel: 'facebook_page' }, { ...FIXTURE_ITEMS[1], id: 'b' }, { ...FIXTURE_ITEMS[0], id: 'c', channel: 'instagram' }])
+    expect(g.map((x) => x.items.map((i) => i.id))).toEqual([['c', 'a'], ['b']])
   })
 })

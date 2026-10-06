@@ -22,7 +22,7 @@ from app.platform.meta_graph.config import load as load_social
 from app.modules.social.distribution import graph_publisher, send
 from app.platform.meta_graph.publisher import DryRunPublisher, Post, sanitize
 
-from . import adapters, reach
+from . import adapters, liveness, reach
 from .config import MAX_ATTEMPTS, RETRY_AFTER_S, CalendarConfig, load, uploads_dir
 from .store import Store, aware
 
@@ -61,9 +61,16 @@ async def run_once(store: Store, publisher, social: SocialConfig, cfg: CalendarC
     counts = {"published": 0, "failed": 0, "retry": 0, "skipped": 0, "waiting": 0}
     uploads = uploads or uploads_dir()
     due = await store.due(now)
+    rows = await store.all() if due else []
     seen = set()
     for doc in due:
         ch = doc["channel"]
+        dup = liveness.duplicate_of(doc, rows, now)
+        if dup is not None:  # the same opening line already went out on this channel: never post it twice
+            when = aware(dup["published_at"]).strftime("%d %b") if isinstance(dup.get("published_at"), datetime) else "earlier"
+            await store.skip(doc["_id"], f"held back: same as {dup['slug']} published on {when}")
+            counts["skipped"] += 1
+            continue
         if aware(doc["due_at"]) < now - timedelta(hours=cfg.stale_hours):
             await store.skip(doc["_id"], f"missed its slot by over {cfg.stale_hours}h")
             counts["skipped"] += 1
@@ -176,6 +183,10 @@ async def loop() -> None:
                     counts = await run_once(store, graph_publisher(social), social, cfg, now)
                     if any(counts.values()):
                         log.info("calendar: cycle done %s (dry_run=%s)", counts, social.dry_run)
+                    if not social.dry_run:  # posts deleted on Facebook or Instagram leave Studio and the feed by themselves
+                        live = await liveness.check_published(store, liveness.graph_exists(social), now)
+                        if live["removed"]:
+                            log.info("calendar: %s published posts are gone from the platform, marked removed", live["removed"])
         except asyncio.CancelledError:
             if rendering and not rendering.done():
                 rendering.cancel()

@@ -6,7 +6,7 @@ import { getToken } from './session'
 import { HASHTAG } from '@/lib/brand'
 
 export type ContentKind = 'post' | 'showcase' | 'reel'
-export type ContentStatus = 'planned' | 'approved' | 'scheduled' | 'published' | 'failed' | 'skipped'
+export type ContentStatus = 'planned' | 'approved' | 'scheduled' | 'published' | 'failed' | 'skipped' | 'removed'
 
 export interface ContentItem {
   id: string
@@ -21,6 +21,16 @@ export interface ContentItem {
   image_urls: string[]
   video_url: string | null
   error: string | null
+  /** A post already published on this channel with the same opening line: the publisher holds this one back. */
+  duplicate_of?: { slug: string; published_at: string | null; permalink: string | null } | null
+}
+
+/** The Instagram and Facebook copies of one post (same slug), shown and handled as one card. */
+export interface ContentGroup {
+  key: string
+  items: ContentItem[]
+  /** The earliest time any copy goes out. */
+  due_at: string
 }
 
 const KINDS: ContentKind[] = ['post', 'showcase', 'reel']
@@ -42,7 +52,40 @@ export function normalizeItem(raw: unknown): ContentItem {
     image_urls: urls,
     video_url: typeof r.video_url === 'string' ? r.video_url : null,
     error: typeof r.error === 'string' ? r.error : null,
+    duplicate_of: dupOf(r.duplicate_of),
   }
+}
+
+function dupOf(raw: unknown): ContentItem['duplicate_of'] {
+  if (!raw || typeof raw !== 'object') return null
+  const d = raw as Record<string, unknown>
+  if (typeof d.slug !== 'string') return null
+  return { slug: d.slug, published_at: typeof d.published_at === 'string' ? d.published_at : null, permalink: typeof d.permalink === 'string' ? d.permalink : null }
+}
+
+const ts = (iso: string) => new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`).getTime()
+
+/** One group per slug (its Instagram and Facebook copies), in the order the server sent them; Instagram first inside a group. */
+export function groupItems(items: ContentItem[]): ContentGroup[] {
+  const groups = new Map<string, ContentItem[]>()
+  for (const it of items) groups.set(it.slug || it.id, [...(groups.get(it.slug || it.id) ?? []), it])
+  return [...groups.entries()]
+    .map(([key, its]) => {
+      const sorted = [...its].sort((a, b) => (a.channel === b.channel ? 0 : a.channel === 'instagram' ? -1 : 1))
+      const due = sorted.map((i) => i.due_at).filter(Boolean).sort((a, b) => ts(a) - ts(b))[0] ?? ''
+      return { key, items: sorted, due_at: due }
+    })
+}
+
+/** "in 2h 14m", "in 3 days", or null when the time has come. */
+export function countdown(iso: string, now: number = Date.now()): string | null {
+  const ms = ts(iso) - now
+  if (isNaN(ms) || ms <= 0) return null
+  const m = Math.ceil(ms / 60000)
+  if (m < 60) return `in ${m} min`
+  const h = Math.floor(m / 60)
+  if (h < 48) return `in ${h}h ${m % 60}m`
+  return `in ${Math.round(h / 24)} days`
 }
 
 export function channelLabel(c: ContentItem['channel']): string {
@@ -86,6 +129,8 @@ export interface ContentApi {
   getUpcoming(limit?: number): Promise<ContentItem[]>
   approve(id: string): Promise<void>
   skip(id: string): Promise<void>
+  /** Approve if needed and publish at the next pass (a few minutes at most). */
+  postNow(id: string): Promise<void>
 }
 
 export function createContentApi(opts: { getToken: () => string | null; baseUrl?: string; fetchImpl?: typeof fetch }): ContentApi {
@@ -122,6 +167,9 @@ export function createContentApi(opts: { getToken: () => string | null; baseUrl?
     },
     skip: async (id) => {
       await request<unknown>(`/items/${encodeURIComponent(id)}/skip`, 'POST')
+    },
+    postNow: async (id) => {
+      await request<unknown>(`/items/${encodeURIComponent(id)}/post-now`, 'POST')
     },
   }
 }
@@ -195,6 +243,12 @@ export function createFixtureContentApi(seed: ContentItem[] = FIXTURE_ITEMS): Co
       find(id)
       items = items.filter((i) => i.id !== id)
     },
+    postNow: async (id) => {
+      const it = find(id)
+      if (!['planned', 'approved', 'scheduled'].includes(it.status)) throw new ApiError(409, 'Already handled')
+      it.status = 'approved'
+      it.due_at = new Date().toISOString()
+    },
   }
 }
 
@@ -207,4 +261,5 @@ export const contentApi: ContentApi = {
   getUpcoming: (limit) => impl().getUpcoming(limit),
   approve: (id) => impl().approve(id),
   skip: (id) => impl().skip(id),
+  postNow: (id) => impl().postNow(id),
 }
