@@ -71,8 +71,8 @@ async def check_published(store: Store, exists: Exists, now: datetime, per_pass:
 
 
 def graph_exists(social, transport: Optional[httpx.AsyncBaseTransport] = None) -> Exists:
-    """Ask the Graph API whether a published post is still there. Meta answers code 100 for an object that does not exist; a post
-    on another Page (an old Page we no longer manage) also counts as gone from ours."""
+    """Ask the Graph API whether a published post is still there. Meta answers code 100 for an object that does not exist (and #10
+    for a deleted post on our own Page); a post on another Page (an old Page we no longer manage) also counts as gone from ours."""
     async def exists(doc: dict) -> Optional[bool]:
         ext = str(doc.get("external_id") or "")
         if doc.get("channel") == "facebook_page" and "_" in ext and social.page_id and not ext.startswith(social.page_id + "_"):
@@ -88,5 +88,12 @@ def graph_exists(social, transport: Optional[httpx.AsyncBaseTransport] = None) -
             return None
         if "error" not in body:
             return True
-        return False if int((body["error"] or {}).get("code") or 0) == 100 else None
+        code = int((body["error"] or {}).get("code") or 0)
+        if code == 100:
+            return False
+        # a deleted post on our own Page answers #10 ("does not exist ... or missing permission"); our token reads our own posts,
+        # so on our Page that means gone (two sightings, CONFIRM_AFTER apart, guard against a passing permission problem)
+        if code == 10 and doc.get("channel") == "facebook_page" and social.page_id and ext.startswith(social.page_id + "_"):
+            return False
+        return None
     return exists

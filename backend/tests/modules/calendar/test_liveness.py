@@ -72,6 +72,8 @@ async def test_graph_exists_reads_meta_answers():
         oid = req.url.path.rsplit("/", 1)[-1]
         if oid == "gone":
             return httpx.Response(400, json={"error": {"code": 100, "message": "does not exist"}})
+        if oid == "PAGE_deleted":
+            return httpx.Response(400, json={"error": {"code": 10, "message": "Object does not exist, cannot be loaded due to missing permission"}})
         if oid == "perm":
             return httpx.Response(400, json={"error": {"code": 10, "message": "permission"}})
         return httpx.Response(200, json={"id": oid})
@@ -82,6 +84,8 @@ async def test_graph_exists_reads_meta_answers():
     assert await exists({"channel": "instagram", "external_id": "perm"}) is None
     assert await exists({"channel": "facebook_page", "external_id": "OLDPAGE_123"}) is False   # an old Page we no longer manage
     assert await exists({"channel": "facebook_page", "external_id": "PAGE_123"}) is True
+    assert await exists({"channel": "facebook_page", "external_id": "PAGE_deleted"}) is False   # deleted on our own Page: #10
+    assert await exists({"channel": "instagram", "external_id": "perm"}) is None                # #10 on Instagram: cannot tell
 
 
 def test_post_now_approves_and_makes_it_due_at_once(monkeypatch):
