@@ -7,9 +7,6 @@ their subject modules are rebuilt in v2 (see docs/IMPLEMENTATION_PLAN.md, WS-7).
 """
 
 collect_ignore = [
-    "test_integration.py",
-    "test_post_management_service.py",
-    "test_post_management_api.py",
     "test_analytics_service.py",
 ]
 

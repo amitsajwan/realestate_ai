@@ -726,15 +726,6 @@ export default function Properties({
               >
                 Close
               </button>
-              <button
-                onClick={() => {
-                  // Navigate to Property Marketing Hub
-                  window.location.href = '/?section=property-marketing-hub'
-                }}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Go to Marketing Hub
-              </button>
             </div>
           </div>
         </div>

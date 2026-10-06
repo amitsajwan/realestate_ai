@@ -22,14 +22,7 @@ from app.api.v1.endpoints.agent_preferences import router as agent_preferences_r
 # Removed property_publishing - functionality moved to unified_properties and agent_preferences
 # from app.api.v1.endpoints.posts import router as posts_router  # Removed during cleanup
 # from app.api.v1.endpoints.templates import router as templates_router  # Removed during cleanup
-from app.api.v1.endpoints.enhanced_post_management import router as enhanced_posts_router
 from app.api.v1.endpoints.branding import router as branding_router
-from app.api.v1.endpoints.social_publishing import router as social_publishing_router
-from app.api.v1.endpoints.enhanced_templates import router as enhanced_templates_router
-# Removed post_management - using enhanced_post_management instead
-from app.api.v1.endpoints.unified_publishing import router as unified_publishing_router
-from app.api.v1.endpoints.content_library import router as content_library_router
-from app.api.v1.endpoints.publishing_logs import router as publishing_logs_router
 from app.api.v1.endpoints.analytics_data import router as analytics_data_router
 from app.api.v1.endpoints.unified_ai_unified import router as unified_ai_unified_router
 from app.api.v1.endpoints.unified_agent_profile import router as unified_agent_profile_router
@@ -79,15 +72,7 @@ api_router.include_router(agent_preferences_router, prefix="/agent", tags=["agen
 # Removed property_publishing_router - functionality moved to unified_properties and agent_preferencesimage.png
 # api_router.include_router(posts_router, prefix="/posts", tags=["posts"])  # Removed during cleanup
 # api_router.include_router(templates_router, prefix="/templates", tags=["templates"])  # Removed during cleanup
-api_router.include_router(enhanced_posts_router, prefix="/enhanced-posts", tags=["enhanced-posts"])
-api_router.include_router(enhanced_posts_router, prefix="/enhanced-post-management", tags=["enhanced-post-management"])
 api_router.include_router(branding_router, prefix="/branding", tags=["branding"])
-api_router.include_router(social_publishing_router, prefix="/social-publishing", tags=["social-publishing"])
-api_router.include_router(enhanced_templates_router, prefix="/enhanced-templates", tags=["enhanced-templates"])
-# Removed post_management_router - using enhanced_posts_router instead
-api_router.include_router(unified_publishing_router, prefix="/publishing", tags=["unified-publishing"])
-api_router.include_router(content_library_router, prefix="/content", tags=["content-library"])
-api_router.include_router(publishing_logs_router, prefix="/publishing-logs", tags=["publishing-logs"])
 api_router.include_router(analytics_data_router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(unified_ai_unified_router, prefix="/ai-unified", tags=["unified-ai-unified"])
 api_router.include_router(unified_agent_profile_router, prefix="/agent", tags=["unified-agent-profile"])

@@ -8,11 +8,9 @@ import {
     BuildingOfficeIcon,
     ChartBarIcon,
     CogIcon,
-    DocumentTextIcon,
     GlobeAltIcon,
     HomeIcon,
     PlusIcon,
-    SparklesIcon,
     UserIcon,
     UsersIcon,
     XMarkIcon
@@ -33,7 +31,6 @@ interface NavigationItem {
 const navigation: NavigationItem[] = [
     { name: 'Dashboard', icon: HomeIcon, id: 'dashboard' },
     { name: 'Properties', icon: BuildingOfficeIcon, id: 'properties' },
-    { name: 'Property Marketing Hub', icon: DocumentTextIcon, id: 'property-marketing-hub', highlight: true },
     { name: 'Add Property', icon: PlusIcon, id: 'property-form' },
     { name: 'Analytics', icon: ChartBarIcon, id: 'analytics' },
     { name: 'CRM', icon: UsersIcon, id: 'crm' },
@@ -49,7 +46,6 @@ interface MobileFirstNavigationProps {
     user?: any
     properties?: any[]
     onShowDashboardCustomization: () => void
-    onShowAIContentModal: () => void
 }
 
 export default function MobileFirstNavigation({
@@ -57,8 +53,7 @@ export default function MobileFirstNavigation({
     onSectionChange,
     user,
     properties = [],
-    onShowDashboardCustomization,
-    onShowAIContentModal
+    onShowDashboardCustomization
 }: MobileFirstNavigationProps) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
@@ -114,16 +109,6 @@ export default function MobileFirstNavigation({
 
                         {/* Right Side Actions */}
                         <div className="flex items-center space-x-2">
-                            {/* Create Post Button */}
-                            {properties.length > 0 && (
-                                <button
-                                    onClick={onShowAIContentModal}
-                                    className="p-2 bg-blue-600 text-white rounded-lg shadow-sm"
-                                    aria-label="Create new post"
-                                >
-                                    <SparklesIcon className="w-5 h-5" />
-                                </button>
-                            )}
 
                             {/* Notifications */}
                             <button

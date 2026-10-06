@@ -1,6 +1,5 @@
 'use client'
 
-import AdminPostsManagement from '@/components/AdminPostsManagement'
 import BreadcrumbNavigation from '@/components/BreadcrumbNavigation'
 import CRM from '@/components/CRM'
 import DashboardCustomization from '@/components/DashboardCustomization'
@@ -10,15 +9,12 @@ import MobileBottomNavigation from '@/components/MobileBottomNavigation'
 import MobileFirstNavigation from '@/components/MobileFirstNavigation'
 import MobilePropertyForm from '@/components/MobilePropertyForm'
 import Properties from '@/components/Properties'
-import PublishingWorkflowManager from '@/components/PublishingWorkflowManager'
 import { Card, CardContent, CardHeader } from '@/components/UI'
-import UnifiedPostingHub from '@/components/UnifiedPostingHub'
 import { apiService } from '@/lib/api/centralized-client'
 import { authManager } from '@/lib/auth'
 import { User } from '@/lib/auth/types'
 import { Property } from '@/lib/properties/types'
 import { DashboardStats, DashboardWidget } from '@/types/dashboard'
-import { UnifiedPostingMode } from '@/types/posting'
 import {
   BuildingOfficeIcon,
   ChartBarIcon,
@@ -26,7 +22,6 @@ import {
   GlobeAltIcon,
   HomeIcon,
   PlusIcon,
-  SparklesIcon,
   UsersIcon
 } from '@heroicons/react/24/outline'
 import { motion } from 'framer-motion'
@@ -34,7 +29,6 @@ import { useRouter } from 'next/navigation'
 import { lazy, Suspense, useEffect, useState } from 'react'
 
 // Lazy load heavy components
-const AIContentGeneratorModal = lazy(() => import('@/components/AIContentGeneratorModal'))
 const Analytics = lazy(() => import('@/components/Analytics'))
 const PublicWebsiteManagement = lazy(() => import('@/components/PublicWebsiteManagement'))
 const TeamManagement = lazy(() => import('@/components/TeamManagement'))
@@ -52,7 +46,6 @@ interface NavigationItem {
 const navigation: NavigationItem[] = [
   { name: 'Dashboard', icon: HomeIcon, id: 'dashboard' },
   { name: 'Properties', icon: BuildingOfficeIcon, id: 'properties' },
-  { name: 'Property Marketing Hub', icon: SparklesIcon, id: 'property-marketing-hub', highlight: true },
   { name: 'Add Property', icon: PlusIcon, id: 'property-form' },
   { name: 'Analytics', icon: ChartBarIcon, id: 'analytics' },
   { name: 'CRM', icon: UsersIcon, id: 'crm' },
@@ -69,13 +62,6 @@ export default function DashboardPage() {
   const [properties, setProperties] = useState<Property[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [dashboardWidgets, setDashboardWidgets] = useState<DashboardWidget[]>([])
-  const [showWorkflow, setShowWorkflow] = useState(false)
-  const [workflowPropertyData, setWorkflowPropertyData] = useState<Property | null>(null)
-  const [isAIContentModalOpen, setIsAIContentModalOpen] = useState(false)
-  const [selectedPropertyForAI, setSelectedPropertyForAI] = useState<Property | null>(null)
-  const [showUnifiedPosting, setShowUnifiedPosting] = useState(false)
-  const [unifiedPostingMode, setUnifiedPostingMode] = useState<UnifiedPostingMode>('marketing-hub')
-  const [unifiedPostingProperty, setUnifiedPostingProperty] = useState<Property | null>(null)
   const [user, setUser] = useState<User | null>(null)
 
   useEffect(() => {
@@ -155,11 +141,9 @@ export default function DashboardPage() {
             <DashboardStatsDisplay 
               stats={dashboardStats}
               onAddProperty={() => handleSectionChange('property-form')}
-              onNavigateToAI={() => setIsAIContentModalOpen(true)}
-              onNavigateToAnalytics={() => handleSectionChange('analytics')}
+                    onNavigateToAnalytics={() => handleSectionChange('analytics')}
               onNavigateToSmartForm={() => handleSectionChange('property-form')}
-              onNavigateToPosts={() => handleSectionChange('property-marketing-hub')}
-            />
+                  />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {dashboardWidgets.map((widget) => (
                 <Card key={widget.id}>
@@ -180,24 +164,6 @@ export default function DashboardPage() {
             properties={properties}
             setProperties={setProperties}
             onRefresh={loadProperties}
-            onPublishWorkflow={(property: Property) => {
-              setWorkflowPropertyData(property)
-              setShowWorkflow(true)
-            }}
-          />
-        )
-      case 'property-marketing-hub':
-        return (
-          <AdminPostsManagement
-            onUnifiedPostClick={(property: Property) => {
-              setUnifiedPostingMode('property-creation')
-              setUnifiedPostingProperty(property)
-              setShowUnifiedPosting(true)
-            }}
-            onCreatePost={() => {
-              setUnifiedPostingMode('standalone')
-              setShowUnifiedPosting(true)
-            }}
           />
         )
       case 'facebook':
@@ -256,8 +222,7 @@ export default function DashboardPage() {
           user={user}
           properties={properties}
           onShowDashboardCustomization={() => setShowDashboardCustomization(true)}
-          onShowAIContentModal={() => setIsAIContentModalOpen(true)}
-        />
+          />
 
         {/* Main Layout */}
         <div className="flex">
@@ -323,61 +288,6 @@ export default function DashboardPage() {
           />
         </div>
       </div>
-
-      {/* Property-to-Post Workflow */}
-      <PublishingWorkflowManager
-        propertyData={workflowPropertyData}
-        isOpen={showWorkflow}
-        onClose={() => {
-          setShowWorkflow(false)
-          setWorkflowPropertyData(null)
-        }}
-        onComplete={() => {
-          setShowWorkflow(false)
-          setWorkflowPropertyData(null)
-          setActiveSection('properties')
-          loadProperties()
-        }}
-      />
-
-      {/* Unified Posting Hub */}
-      <UnifiedPostingHub
-        mode={unifiedPostingMode}
-        propertyData={unifiedPostingProperty || undefined}
-        isOpen={showUnifiedPosting}
-        onClose={() => {
-          setShowUnifiedPosting(false)
-          setUnifiedPostingProperty(null)
-        }}
-        onContentGenerated={(content) => {
-          console.log('Content generated:', content)
-        }}
-        onPublish={(content, language) => {
-          console.log('Content published:', content, language)
-          setShowUnifiedPosting(false)
-          setUnifiedPostingProperty(null)
-          // Refresh properties to show updated content
-          loadProperties()
-        }}
-        preselectedLanguage="en"
-        preselectedPlatforms={['website', 'facebook', 'instagram']}
-      />
-
-      {/* AI Content Generator Modal */}
-      <Suspense fallback={
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-        </div>
-      }>
-        <AIContentGeneratorModal
-          isOpen={isAIContentModalOpen}
-          onClose={() => {
-            setIsAIContentModalOpen(false)
-            setSelectedPropertyForAI(null)
-          }}
-          propertyData={selectedPropertyForAI}
-        />
-      </Suspense>
 
       {/* Dashboard Customization Modal */}
       <DashboardCustomization

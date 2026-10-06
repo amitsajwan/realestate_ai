@@ -240,29 +240,6 @@ export class CentralizedAPIClient {
     });
   }
 
-  async regenerateLegacyAIContent(propertyId: string, data: any): Promise<any> {
-    return this.request(`/api/v1/ai-content/regenerate/${propertyId}`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Social Publishing
-  async publishToSocialMedia(data: any): Promise<any> {
-    return this.request('/api/v1/social-publishing/', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async publishContent(publishData: any): Promise<any> {
-    console.log('[CentralizedAPIClient] Publishing with data:', JSON.stringify(publishData, null, 2))
-    return this.request('/api/v1/publishing/publish', {
-      method: 'POST',
-      body: JSON.stringify(publishData),
-    });
-  }
-
   async getPublishingStatus(propertyId: string): Promise<any> {
     return this.request(`/api/v1/properties/${propertyId}/publishing-status`);
   }
@@ -280,31 +257,6 @@ export class CentralizedAPIClient {
     return this.request('/api/v1/agent/public/profile', {
       method: 'PUT',
       body: JSON.stringify(data),
-    });
-  }
-
-  // Content Management
-  async getContentItems(): Promise<any[]> {
-    return this.request('/api/v1/content/');
-  }
-
-  async getContent(query?: string): Promise<any> {
-    return this.request(`/api/v1/content/${query || ''}`);
-  }
-
-  async getPublishingLogs(query?: string): Promise<any> {
-    return this.request(`/api/v1/publishing-logs/${query || ''}`);
-  }
-
-  async createPost(postData: any): Promise<any> {
-    console.log('[CentralizedAPIClient] Creating post with data:', JSON.stringify(postData, null, 2))
-    console.log('[CentralizedAPIClient] Data type:', typeof postData)
-    console.log('[CentralizedAPIClient] Data keys:', Object.keys(postData))
-    console.log('[CentralizedAPIClient] Channels field:', postData.channels, 'Type:', typeof postData.channels)
-
-    return this.request('/api/v1/enhanced-posts/posts/', {
-      method: 'POST',
-      body: JSON.stringify(postData),
     });
   }
 

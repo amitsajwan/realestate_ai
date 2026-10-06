@@ -4,10 +4,8 @@ import { Button, Card, CardContent } from '@/components/UI';
 import {
     ChartBarIcon,
     CurrencyDollarIcon,
-    DocumentTextIcon,
     EyeIcon,
     HomeIcon,
-    SparklesIcon,
     UserGroupIcon
 } from '@heroicons/react/24/outline';
 
@@ -15,20 +13,16 @@ import { DashboardStats as IDashboardStats } from '@/types/dashboard';
 
 interface DashboardStatsProps {
   stats: IDashboardStats;
-  onNavigateToAI: () => void;
   onNavigateToAnalytics: () => void;
   onNavigateToSmartForm: () => void;
-  onNavigateToPosts: () => void;
   onAddProperty: () => void;
 }
 
 export function DashboardStatsDisplay({
   stats,
   onAddProperty,
-  onNavigateToAI,
   onNavigateToAnalytics,
-  onNavigateToSmartForm,
-  onNavigateToPosts
+  onNavigateToSmartForm
 }: DashboardStatsProps) {
   const currentDate = new Date().toLocaleDateString('en-US', {
     weekday: 'short',
@@ -45,24 +39,6 @@ export function DashboardStatsDisplay({
       variant: 'primary' as const,
       tag: 'Popular',
       onClick: onAddProperty
-    },
-    {
-      id: 'manage-posts',
-      title: 'Manage Posts',
-      description: 'Create, edit, and publish social media content for your properties',
-      icon: DocumentTextIcon,
-      variant: 'outline' as const,
-      tag: 'Content',
-      onClick: onNavigateToPosts
-    },
-    {
-      id: 'ai-tools',
-      title: 'AI Tools',
-      description: 'Generate compelling content, market analysis, and property descriptions automatically',
-      icon: SparklesIcon,
-      variant: 'outline' as const,
-      tag: 'AI Powered',
-      onClick: onNavigateToAI
     },
     {
       id: 'analytics',

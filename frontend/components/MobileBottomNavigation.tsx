@@ -3,16 +3,13 @@
 import {
     BuildingOfficeIcon,
     ChartBarIcon,
-    DocumentTextIcon,
     HomeIcon,
     PlusIcon,
-    SparklesIcon,
     UserIcon
 } from '@heroicons/react/24/outline'
 import {
     BuildingOfficeIcon as BuildingSolidIcon,
     ChartBarIcon as ChartSolidIcon,
-    DocumentTextIcon as DocumentTextSolidIcon,
     HomeIcon as HomeSolidIcon,
     UserIcon as UserSolidIcon
 } from '@heroicons/react/24/solid'
@@ -58,13 +55,6 @@ export default function MobileBottomNavigation({
             href: '/properties'
         },
         {
-            id: 'property-marketing-hub',
-            label: 'Marketing Hub',
-            icon: DocumentTextIcon,
-            solidIcon: DocumentTextSolidIcon,
-            href: '/?section=property-marketing-hub'
-        },
-        {
             id: 'analytics',
             label: 'Analytics',
             icon: ChartBarIcon,
@@ -88,20 +78,6 @@ export default function MobileBottomNavigation({
             solidIcon: PlusIcon,
             onClick: () => onSectionChange('property-form')
         },
-        {
-            id: 'ai-generate',
-            label: 'AI Generate',
-            icon: SparklesIcon,
-            solidIcon: SparklesIcon,
-            onClick: () => onSectionChange('ai-content')
-        },
-        {
-            id: 'marketing-hub',
-            label: 'Marketing Hub',
-            icon: BuildingOfficeIcon,
-            solidIcon: BuildingSolidIcon,
-            onClick: () => onSectionChange('property-marketing-hub')
-        }
     ]
 
     const handleItemClick = (item: NavigationItem) => {

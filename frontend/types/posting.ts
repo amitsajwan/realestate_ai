@@ -1,1 +1,0 @@
-export type UnifiedPostingMode = 'quick-post' | 'standalone' | 'marketing-hub' | 'property-creation';
