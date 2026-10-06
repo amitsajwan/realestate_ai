@@ -44,3 +44,14 @@ HTTP (W2 uses this): `GET /api/v1/public/areas/{slug}/stats` → 200 with the di
 - `projects` may be 0. `units_total`/`units_booked` are null when not known for enough projects (never guess).
 - `completing` counts projects by the year of their filed completion date; years before `as_of` are left out.
 - `recent` has at most 5 items, newest `updated` first.
+
+## The MahaRERA register keeps itself up to date (2026-10-06)
+- **Catch-up is automatic.** `areastats.refresh.step` runs in every newsroom cycle (the worker). While the first pincode sweep is
+  not done, or more records wait for details than a gentle step reads, it uses `CATCHUP_PAGES` / `CATCHUP_DETAILS`; then it drops
+  back to `SWEEP_PAGES` / `DETAILS_PER_STEP`. Requests stay `PAUSE` seconds apart. Its place is kept in `newsroom_status`
+  (`area_sweep`), so deploys only pause it. `scripts/area_backfill.py` is only for a one-off full run.
+- **Watch list: projects outside the 8 areas** (e.g. a project we market in Ranjangaon) are kept fresh but never count in area
+  stats or news roundups (`locality` stays None; `watched_by` names who wants them). To watch a new kind of project, add one line
+  in `app/wiring.py`: `register_watch.add_source("<name>", fn)`, where `fn()` returns `WatchItem(regno, maharera_id, name)`s.
+  Sources are asked again every step: a project a source stops returning stops being watched by it; a failing source changes
+  nothing. Today: `agent_projects` (every builder project an agent added). For one project by hand: `areastats.watch.watch()`.

@@ -35,10 +35,14 @@ def _audience(doc: dict) -> str:
     return _audience_of["fn"](doc)
 
 
-def configure(listing_facts: Callable[[dict, dict, str], Any], audience: Optional[Callable[[dict], str]] = None) -> None:
+def configure(listing_facts: Callable[[dict, dict, str], Any], audience: Optional[Callable[[dict], str]] = None,
+              reel_source: Optional[Callable[[str, str], str]] = None) -> None:
+    """`reel_source(code, channel)`: the ?src= tag that traces a sign-up back to an agent reel (reels.agent_reels.source_tag)."""
     _listing_facts["from_docs"] = listing_facts
     if audience is not None:
         _audience_of["fn"] = audience
+    if reel_source is not None:
+        _audience_of["reel_source"] = reel_source
 LEAD_INTENTS = ("interested", "question")
 MAX_COMMENT_AGE = timedelta(days=7)
 UNKNOWN_PER_POST_PER_DAY = 6  # commenters whose identity Meta does not show us
@@ -143,9 +147,9 @@ class EngageService:
         if agents and self.cfg.site_url:  # our recruitment posts: agents asking "how do I use this" go to the pilot sign-up
             landing = f"{self.cfg.site_url}/pilot"
             code = (item.get("creative") or {}).get("reel_code")
-            if code:  # an agent reel: the sign-up is traced back to this reel (scripts/agent_reels.py report)
-                from app.modules.reels.agent_reels import source_tag
-                source = source_tag(code, channel)
+            reel_source = _audience_of.get("reel_source")
+            if code and reel_source:  # an agent reel: the sign-up is traced back to this reel (scripts/agent_reels.py report)
+                source = reel_source(code, channel)
         return {"facts": message, "link": with_source(landing, source), "listing_id": None, "agent_id": self.cfg.owner_agent_id or None,
                 "grounding": grounding, "calendar_id": item["_id"] if item else None, "audience": "agents" if agents else "buyers"}
 

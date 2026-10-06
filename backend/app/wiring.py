@@ -32,9 +32,14 @@ def wire() -> None:
     # grounded answers know the sample homes and the verified evergreen posts; comment replies show listing facts
     grounding.configure(sample_home=samples.get, icon_labels=samples.ICON_LABELS, evergreen_post=calendar_library.BY_SLUG.get)
     # comment replies know which posts are our agent promos (content's rule, calendar.reach)
-    engage_service.configure(listing_facts=Facts.from_docs, audience=calendar_reach.audience)
+    from app.modules.reels.agent_reels import source_tag as agent_reel_source
+    engage_service.configure(listing_facts=Facts.from_docs, audience=calendar_reach.audience, reel_source=agent_reel_source)
     # a website request to join shows as an alert in the owner's Studio (it waits in Studio > Admin)
     waitlist_routes.configure(on_new_request=_tell_owner_about_invite_request)
+
+    # the MahaRERA register keeps every agent's builder project fresh, wherever it is (areastats.watch); add other sources here
+    from app.modules.areastats import watch as register_watch
+    register_watch.add_source("agent_projects", _agent_project_watch)
 
 
 async def _tell_owner_about_invite_request(name: str, city: str) -> None:
@@ -50,3 +55,13 @@ async def _tell_owner_about_invite_request(name: str, city: str) -> None:
     for owner in owners:
         await notify(get_database(), owner, "invite_request", f"{name} ({city}) asked to join on the website",
                      {"screen": "/studio/admin"})
+
+
+async def _agent_project_watch():
+    """Every builder project an agent has added (with MahaRERA's id), for the register's watch list."""
+    from app.core.database import get_database
+    from app.modules.areastats.watch import WatchItem
+
+    docs = await get_database().get_collection("agent_projects").find(
+        {"rera_no": {"$exists": True}}, {"rera_no": 1, "maharera_id": 1, "name": 1}).to_list(2000)
+    return [WatchItem(d["rera_no"], d.get("maharera_id"), d.get("name", "")) for d in docs if d.get("rera_no")]

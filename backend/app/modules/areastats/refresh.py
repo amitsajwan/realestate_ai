@@ -9,6 +9,11 @@ their completion dates. Each step:
 3. details: reads MahaRERA's project API for up to `details` records: completion dates and homes booked, again every
    DETAILS_MAX_AGE_DAYS because builders file updates.
 Requests are spaced by PAUSE seconds: MahaRERA is a public service and must not feel us.
+
+It catches up on its own: while the first sweep round is not done, or more records wait for details than one step reads, a step
+uses the bigger CATCHUP_* batches (still PAUSE apart), then drops back to the gentle sizes. The sweep's place is kept in the
+database, so a deploy or restart only pauses it; nothing has to be started by hand (scripts/area_backfill.py stays for a
+one-off full run). Watched projects outside our areas (areastats.watch) get their details refreshed too.
 """
 import asyncio
 import logging
@@ -22,10 +27,14 @@ from app.modules.newsroom.policy import AREA_PINCODES, SHARED_PINCODES
 from app.modules.newsroom.sources import maharera as search
 from app.modules.newsroom.store import Store
 
+from . import watch as watchlist
+
 log = logging.getLogger(__name__)
 
 SWEEP_PAGES = 3
 DETAILS_PER_STEP = 15
+CATCHUP_PAGES = 10              # while behind: about 10 x 2 s of searches and 50 x 2 s of project reads per step
+CATCHUP_DETAILS = 50
 DETAILS_MAX_AGE_DAYS = 30
 DETAILS_RETRY_DAYS = 1  # after a failed read
 PAUSE = 2.0  # seconds between MahaRERA requests; tests set it to 0
@@ -98,11 +107,25 @@ def _due(d: dict, now: datetime) -> bool:
     return now - _aware(at) >= timedelta(days=wait)
 
 
+def _wanted(d: dict) -> bool:
+    """A record whose details we keep: one in our areas, or one a source watches."""
+    return d.get("locality") in BY_KEY or watchlist.is_watched(d)
+
+
+async def behind(store: Store, now: datetime, docs: Optional[List[dict]] = None) -> bool:
+    """True while the register is still filling: the first sweep round is not done, or more records wait for details than a
+    gentle step reads."""
+    if not (await store.get_mark(MARK)).get("round_done_at"):
+        return True
+    docs = docs if docs is not None else await store.all_projects()
+    return sum(1 for d in docs if _wanted(d) and _due(d, now)) > DETAILS_PER_STEP
+
+
 async def details(store: Store, fetch: project_api.Fetch, now: datetime, limit: int = DETAILS_PER_STEP,
                   docs: Optional[List[dict]] = None) -> dict:
     """Fill completion dates and homes from MahaRERA's project API for the records that need it most (never read first)."""
     docs = docs if docs is not None else await store.all_projects()
-    due = [d for d in docs if d.get("locality") in BY_KEY and _due(d, now)]
+    due = [d for d in docs if _wanted(d) and _due(d, now)]
     due.sort(key=lambda d: (isinstance(d.get("details_checked_at"), datetime),
                             _aware(d["details_checked_at"]) if isinstance(d.get("details_checked_at"), datetime) else now))
     out = {"read": 0, "failed": 0}
@@ -127,12 +150,16 @@ async def details(store: Store, fetch: project_api.Fetch, now: datetime, limit: 
     return out
 
 
-async def step(store: Store, get, fetch: project_api.Fetch, now: datetime, pages: int = SWEEP_PAGES,
-               limit: int = DETAILS_PER_STEP) -> dict:
-    """One gentle round of all three; a failing part is logged and never stops the others."""
-    out: dict = {}
+async def step(store: Store, get, fetch: project_api.Fetch, now: datetime, pages: Optional[int] = None,
+               limit: Optional[int] = None) -> dict:
+    """One round: sweep, relabel, the watch list, details. Batch sizes follow `behind` unless given. A failing part is logged
+    and never stops the others."""
+    catching_up = (pages is None or limit is None) and await behind(store, now)
+    pages = pages if pages is not None else (CATCHUP_PAGES if catching_up else SWEEP_PAGES)
+    limit = limit if limit is not None else (CATCHUP_DETAILS if catching_up else DETAILS_PER_STEP)
+    out: dict = {"mode": "catch-up" if catching_up else "steady"}
     for name, part in (("sweep", lambda: sweep(store, get, now, pages)), ("relabel", lambda: relabel(store)),
-                       ("details", lambda: details(store, fetch, now, limit))):
+                       ("watch", lambda: watchlist.sync(store, now)), ("details", lambda: details(store, fetch, now, limit))):
         try:
             out[name] = await part()
         except Exception:
