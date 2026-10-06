@@ -292,3 +292,20 @@ async def test_page_first_asks_for_the_page_text_without_waiting(tmp_path):
     await runs.create("a1", "L1", again=True)
     await runs.run_once()
     assert (await runs.latest("a1", "L1"))["status"] == "done"
+
+
+async def test_after_the_earlier_rows_were_skipped_sending_again_adds_the_posts(tmp_path):
+    """Live 2026-10-06, Gulmohar: the campaign was made again after its first rows were skipped; Send added nothing."""
+    from app.modules.calendar.store import Store as CalendarStore
+    db, runs, _, _ = await setup(tmp_path)
+    await runs.create("a1", "L1")
+    await runs.run_once()
+    cal = CalendarStore(db)
+    first = await runs.to_calendar("a1", "L1")
+    n = len(first["calendar"])
+    for r in await cal.all():
+        if r["slug"].startswith("campaign-L1-"):
+            await cal.skip(r["_id"])
+    await runs.to_calendar("a1", "L1")
+    planned = [r for r in await cal.all() if r["slug"].startswith("campaign-L1-") and r["status"] == "planned"]
+    assert len(planned) == n

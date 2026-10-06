@@ -7,7 +7,7 @@ with `?src=`, so visits per post show in tracking; Instagram keeps "link in bio"
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from app.modules.calendar.store import Store as CalendarStore
+from app.modules.calendar.store import Store as CalendarStore, aware
 
 IST = timezone(timedelta(hours=5, minutes=30))
 POST_AT = time(19, 0)          # 7 pm IST: after work, when buyers browse
@@ -81,7 +81,10 @@ def items(run: dict, link_line: str) -> List[Dict]:
 async def queue(store: CalendarStore, run: dict, link_line: str, start: date) -> List[Dict]:
     """Add the run's posts and reels as planned rows; returns [{angle, channel, kind, row_id, due_at}]. Rows already in the
     calendar for this listing are not added again (pressing twice adds nothing; a reel rendered later is added then)."""
-    existing = await store.existing()
+    # only rows still waiting, approved or published block a post: a campaign run made again after its earlier rows were
+    # skipped (or removed, or failed) must be able to send its new posts (live 2026-10-06, Gulmohar: "sent" added nothing)
+    existing = [(d["channel"], d["slug"], aware(d["due_at"])) for d in await store.all()
+                if d.get("status") in ("planned", "approved", "scheduled", "published")]
     used = {(ch, slug) for ch, slug, _ in existing}
     added: List[Dict] = []
     todo = [it for it in items(run, link_line) if (it["channel"], it["slug"]) not in used]
