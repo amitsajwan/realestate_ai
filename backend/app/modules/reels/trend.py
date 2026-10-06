@@ -181,9 +181,9 @@ TRENDS: List[TrendReel] = [
             {"screen": "Parking and deposits: *extra*", "voice": "Parking and deposits come on top. Ask for the all-in cost sheet first."},
         ),
         cta={"screen": "Save this before you book.", "voice": "Save this before you book."},
-        caption=("A ₹60 lakh flat in Pune can cost about ₹66.5 lakh. Here is the sum.\n\nExample: a man buying an under-construction flat advertised at "
+        caption=(f"A ₹60 lakh flat in Pune can cost about {lakh(_C60['total']).replace('Rs ', '₹')}. Here is the sum.\n\nExample: a man buying an under-construction flat advertised at "
                  f"₹60 lakh, inside Pune's municipal limits. Stamp duty 7% = {lakh(_C60['stamp_duty'])}. Registration = {lakh(_C60['registration'])} "
-                 f"(1%, capped). GST 5% on two-thirds of the price = {lakh(_C60['gst'])}. Total {lakh(_C60['total'])}, before parking, maintenance "
+                 f"(1%, capped). GST 5% of the price (7.5% on two-thirds; one-third is deemed land) = {lakh(_C60['gst'])}. Total {lakh(_C60['total'])}, before parking, maintenance "
                  f"deposit and other charges. A ready home with an occupancy certificate has no GST ({lakh(_C60_READY['total'])}). Women pay 1% less "
                  "stamp duty. Ask the builder for an all-in cost sheet in writing."),
         tags=("#PuneProperty", "#HomeBuyingTips", "#PuneHomes", "#MahaRERA"),
