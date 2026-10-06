@@ -125,3 +125,17 @@ Removing the app under Facebook Settings > Business integrations, changing the F
 2. App Review for advanced access: `pages_manage_engagement`/`pages_read_user_content` for comments by the public, `pages_messaging` (Messenger), `instagram_content_publish`/`instagram_manage_comments` for other people's accounts. Prepare a screencast per permission, the privacy policy and a test login.
 3. Switch the app to Live. Until then it works for the Page and for people with a role.
 4. Agents connecting their OWN Pages/Instagram needs the same App Review plus Business verification: plan it after the pilot.
+
+## Insights access (X-1, checked 2026-10-07 with `backend/scripts/insights_probe.py` on the VM)
+
+Page token scopes include `read_insights` but **not `instagram_manage_insights`**.
+
+| Channel | Metric | Available |
+|---|---|---|
+| Instagram reel and post | views, reach, likes, comments, shares, saved, total_interactions, ig_reels_avg_watch_time, profile_visits, follows | **No**: error #10 until the token has `instagram_manage_insights` |
+| Facebook post | post_media_view, post_clicks, post_reactions_by_type_total | Yes |
+| Facebook post | post_impressions, post_impressions_unique, post_engaged_users | No: Meta retired these metrics |
+| Facebook reel | blue_reels_play_count, fb_reels_total_plays, post_video_avg_time_watched, post_video_view_time, post_video_retention_graph, post_video_social_actions, post_video_followers | Yes |
+
+Fix: generate the Page token again with `instagram_manage_insights` added (Graph API Explorer, same app), put it in the VM `.env`
+as `META_PAGE_ACCESS_TOKEN`, restart backend and worker, then run the probe again.
