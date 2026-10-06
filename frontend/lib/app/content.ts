@@ -141,6 +141,10 @@ export interface ContentApi {
   postNow(id: string): Promise<void>
   /** What finished lately: posted (with link), failed (with reason), removed. */
   getRecent(hours?: number): Promise<ContentItem[]>
+  /** A failed post back in the queue, a few minutes after the last one on its channel. */
+  retry(id: string): Promise<void>
+  /** An approved post back to "To approve". */
+  unapprove(id: string): Promise<void>
 }
 
 export function createContentApi(opts: { getToken: () => string | null; baseUrl?: string; fetchImpl?: typeof fetch }): ContentApi {
@@ -168,7 +172,7 @@ export function createContentApi(opts: { getToken: () => string | null; baseUrl?
     return data as T
   }
   return {
-    getUpcoming: async (limit = 60) => {
+    getUpcoming: async (limit = 200) => {
       const r = await request<unknown[]>(`/upcoming?limit=${limit}`)
       return (Array.isArray(r) ? r : []).map(normalizeItem)
     },
@@ -184,6 +188,12 @@ export function createContentApi(opts: { getToken: () => string | null; baseUrl?
     getRecent: async (hours = 72) => {
       const r = await request<unknown[]>(`/recent?hours=${hours}`)
       return (Array.isArray(r) ? r : []).map(normalizeItem)
+    },
+    retry: async (id) => {
+      await request<unknown>(`/items/${encodeURIComponent(id)}/retry`, 'POST')
+    },
+    unapprove: async (id) => {
+      await request<unknown>(`/items/${encodeURIComponent(id)}/unapprove`, 'POST')
     },
   }
 }
@@ -264,6 +274,14 @@ export function createFixtureContentApi(seed: ContentItem[] = FIXTURE_ITEMS): Co
       it.due_at = new Date().toISOString()
     },
     getRecent: async () => [],
+    retry: async (id) => {
+      const it = find(id)
+      it.status = 'approved'
+    },
+    unapprove: async (id) => {
+      const it = find(id)
+      it.status = 'planned'
+    },
   }
 }
 
@@ -278,4 +296,6 @@ export const contentApi: ContentApi = {
   skip: (id) => impl().skip(id),
   postNow: (id) => impl().postNow(id),
   getRecent: (hours) => impl().getRecent(hours),
+  retry: (id) => impl().retry(id),
+  unapprove: (id) => impl().unapprove(id),
 }

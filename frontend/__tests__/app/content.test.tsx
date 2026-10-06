@@ -10,6 +10,8 @@ const approve = jest.fn()
 const skip = jest.fn()
 const postNow = jest.fn()
 const getRecent = jest.fn()
+const unapprove = jest.fn()
+const retry = jest.fn()
 jest.mock('@/lib/app/client', () => ({
   errorMessage: (e: Error) => e.message,
   isFixtureMode: () => false,
@@ -23,6 +25,8 @@ jest.mock('@/lib/app/content', () => ({
     skip: (...a: unknown[]) => skip(...a),
     postNow: (...a: unknown[]) => postNow(...a),
     getRecent: (...a: unknown[]) => getRecent(...a),
+    unapprove: (...a: unknown[]) => unapprove(...a),
+    retry: (...a: unknown[]) => retry(...a),
   },
 }))
 
@@ -30,7 +34,8 @@ const okRes = (body: unknown, status = 200) => ({ ok: status < 400, status, text
 const items = (): ContentItem[] => FIXTURE_ITEMS.map((i) => ({ ...i }))
 
 beforeEach(() => {
-  ;[getUpcoming, approve, skip, postNow, getRecent].forEach((m) => m.mockReset())
+  ;[getUpcoming, approve, skip, postNow, getRecent, unapprove, retry].forEach((m) => m.mockReset())
+  window.history.replaceState(null, '', '/studio/content')
   postNow.mockResolvedValue(undefined)
   getRecent.mockResolvedValue([])
   getUpcoming.mockResolvedValue(items())
@@ -38,64 +43,155 @@ beforeEach(() => {
   skip.mockResolvedValue(undefined)
 })
 
-describe('Content screen', () => {
-  it('lists cards with channel, kind, due time, caption and a scrolling image carousel', async () => {
+
+const openRow = async (n = 0) => {
+  const cards = await screen.findAllByTestId('content-card')
+  fireEvent.click(within(cards[n]).getAllByRole('button')[0])
+  return within(screen.getAllByTestId('content-card')[n])
+}
+
+describe('Content screen: tabs, compact rows, guarded actions', () => {
+  it('opens on To approve with counts on every tab, rows show a title, channels and a status', async () => {
     render(<ContentPage />)
-    const cards = await screen.findAllByTestId('content-card')
-    expect(cards).toHaveLength(3)
-    const c = within(cards[0])
-    expect(c.getByText('Instagram')).toBeInTheDocument()
-    expect(c.getByText('Post')).toBeInTheDocument()
-    expect(c.getByText('Needs your OK')).toBeInTheDocument()
-    expect(c.getByTestId('caption')).toHaveTextContent('Ask these water and power questions')
-    expect(c.getAllByRole('img')).toHaveLength(3)
-    expect(c.getByTestId('carousel').className).toContain('overflow-x-auto')
-    expect(within(cards[1]).getByText('Facebook')).toBeInTheDocument()
-    expect(within(cards[1]).getByText('Sample home')).toBeInTheDocument()
-    expect(within(cards[2]).getByTestId('reel-note')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Waiting for your OK (2)' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Going out (1)' })).toBeInTheDocument()
+    const tabs = await screen.findByRole('tablist', { name: 'Content' })
+    expect(within(tabs).getByRole('tab', { name: /To approve\s*2/ })).toHaveAttribute('aria-selected', 'true')
+    expect(within(tabs).getByRole('tab', { name: /Going out\s*1/ })).toBeInTheDocument()
+    expect(within(tabs).queryByRole('tab', { name: /Problems/ })).toBeNull()
+    const cards = screen.getAllByTestId('content-card')
+    expect(cards).toHaveLength(2)
+    expect(within(cards[0]).getByTestId('row-title')).toHaveTextContent('Ask these water and power questions')
+    expect(within(cards[0]).getByLabelText('Instagram')).toBeInTheDocument()
+    expect(within(cards[0]).getByText('Needs your OK')).toBeInTheDocument()
+    expect(within(cards[0]).queryByTestId('caption')).toBeNull()
   })
 
-  it('approves a planned item and shows it as approved, without an Approve button', async () => {
+  it('a tapped row shows images, caption and actions; Approve moves it to Going out', async () => {
     render(<ContentPage />)
-    const cards = await screen.findAllByTestId('content-card')
-    fireEvent.click(within(cards[0]).getByRole('button', { name: 'Approve' }))
+    const card = await openRow(0)
+    expect(card.getAllByRole('img').length).toBeGreaterThan(0)
+    expect(card.getByTestId('caption')).toHaveTextContent('Ask these water and power questions')
+    fireEvent.click(card.getByRole('button', { name: 'Approve' }))
     await waitFor(() => expect(approve).toHaveBeenCalledWith('fx-1'))
-    // approved: it moves from "Waiting for your OK" to "Going out", without an Approve button
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Waiting for your OK (1)' })).toBeInTheDocument())
-    expect(screen.getByRole('heading', { name: 'Going out (2)' })).toBeInTheDocument()
-    const moved = screen.getAllByTestId('content-card').find((c) => within(c).queryByText(/Ask these water and power questions/))!
-    expect(within(moved).getAllByText('Approved').length).toBeGreaterThan(0)
-    expect(within(moved).queryByRole('button', { name: 'Approve' })).toBeNull()
+    await waitFor(() => expect(screen.getByRole('tab', { name: /To approve\s*1/ })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('tab', { name: /Going out/ }))
+    expect(window.location.search).toBe('?tab=going')
+    expect(screen.getAllByTestId('content-card')).toHaveLength(2)
   })
 
-  it('an already approved item only offers Skip; skipping removes the card', async () => {
+  it('Post now asks first, then posts every open copy', async () => {
     render(<ContentPage />)
-    const cards = await screen.findAllByTestId('content-card')
-    const reel = within(cards[2])
-    expect(reel.queryByRole('button', { name: 'Approve' })).toBeNull()
-    fireEvent.click(reel.getByRole('button', { name: 'Skip' }))
-    await waitFor(() => expect(skip).toHaveBeenCalledWith('fx-3'))
-    await waitFor(() => expect(screen.getAllByTestId('content-card')).toHaveLength(2))
+    const card = await openRow(0)
+    fireEvent.click(card.getByRole('button', { name: 'Post now…' }))
+    expect(postNow).not.toHaveBeenCalled()
+    const sheet = screen.getByRole('dialog', { name: /Post now on Instagram/ })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Yes, post now' }))
+    await waitFor(() => expect(postNow).toHaveBeenCalledWith('fx-1'))
   })
 
-  it('shows a friendly message when the server refuses', async () => {
+  it('Skip can be undone for a few seconds, then goes to the server', async () => {
+    render(<ContentPage />)
+    const card = await openRow(0)
+    jest.useFakeTimers()
+    try {
+      fireEvent.click(card.getByRole('button', { name: 'Skip' }))
+      expect(screen.getByRole('status')).toHaveTextContent('Skipped')
+      fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+      expect(skip).not.toHaveBeenCalled()
+      expect(screen.getAllByTestId('content-card')).toHaveLength(2)
+      fireEvent.click(within(screen.getAllByTestId('content-card')[0]).getAllByRole('button')[0])
+      fireEvent.click(within(screen.getAllByTestId('content-card')[0]).getByRole('button', { name: 'Skip' }))
+      jest.advanceTimersByTime(8100)
+    } finally {
+      jest.useRealTimers()
+    }
+    await waitFor(() => expect(skip).toHaveBeenCalledWith('fx-1'))
+  })
+
+  it('Approve all asks first', async () => {
+    render(<ContentPage />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Approve all 2' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: /Approve all 2 posts/ })).getByRole('button', { name: 'Approve 2' }))
+    await waitFor(() => expect(approve).toHaveBeenCalledTimes(2))
+  })
+
+  it('an approved post can go back to To approve', async () => {
+    unapprove.mockResolvedValue(undefined)
+    window.history.replaceState(null, '', '/studio/content?tab=going')
+    render(<ContentPage />)
+    const card = await openRow(0)
+    fireEvent.click(card.getByRole('button', { name: 'Back to To approve' }))
+    await waitFor(() => expect(unapprove).toHaveBeenCalledWith('fx-3'))
+  })
+
+  it('a refused action shows a friendly message', async () => {
     approve.mockRejectedValue(new ApiError(409, 'x'))
     render(<ContentPage />)
-    const cards = await screen.findAllByTestId('content-card')
-    fireEvent.click(within(cards[0]).getByRole('button', { name: 'Approve' }))
+    const card = await openRow(0)
+    fireEvent.click(card.getByRole('button', { name: 'Approve' }))
     expect(await screen.findByText(/already handled/)).toBeInTheDocument()
-    expect(within(screen.getAllByTestId('content-card')[0]).getByText('Needs your OK')).toBeInTheDocument()
   })
 
-  it('shows an error box with retry when loading fails, and an empty state', async () => {
+  it('loading errors offer a retry; an empty queue says what to expect', async () => {
     getUpcoming.mockRejectedValueOnce(new Error('boom'))
     render(<ContentPage />)
     expect(await screen.findByText(/boom/)).toBeInTheDocument()
     getUpcoming.mockResolvedValue([])
     fireEvent.click(screen.getByRole('button', { name: /try again|retry/i }))
-    expect(await screen.findByText(/Nothing is waiting for your OK/)).toBeInTheDocument()
+    expect(await screen.findByText(/Nothing approved is waiting to go out/)).toBeInTheDocument()
+  })
+})
+
+describe('Instagram and Facebook copies, duplicates, posted and problems', () => {
+  const pair = (): ContentItem[] => [
+    { ...FIXTURE_ITEMS[0], id: 'ig-1', channel: 'instagram', status: 'approved', due_at: new Date(Date.now() + 3 * 3600_000).toISOString() },
+    { ...FIXTURE_ITEMS[0], id: 'fb-1', channel: 'facebook_page', status: 'planned', due_at: new Date(Date.now() + 4 * 3600_000).toISOString() },
+  ]
+
+  it('one row for both copies; opened, each channel says when it goes out', async () => {
+    getUpcoming.mockResolvedValue(pair())
+    render(<ContentPage />)
+    expect(await screen.findAllByTestId('content-card')).toHaveLength(1)
+    const card = await openRow(0)
+    expect(card.getByTestId('when')).toHaveTextContent(/Goes out in (2h 5\dm|3h 0m)/)
+    expect(card.getByTestId('when')).toHaveTextContent(/Needs your OK/)
+    fireEvent.click(card.getByRole('button', { name: 'Approve' }))
+    await waitFor(() => expect(approve).toHaveBeenCalledWith('fb-1'))
+    expect(approve).toHaveBeenCalledTimes(1)
+  })
+
+  it('a repeat of a published post is flagged and cannot be posted now', async () => {
+    getUpcoming.mockResolvedValue([{ ...pair()[1], duplicate_of: { slug: 'hd-goyal-my-home', published_at: '2026-10-03T12:11:00Z', permalink: null } }])
+    render(<ContentPage />)
+    const card = await openRow(0)
+    expect(card.getByTestId('duplicate')).toHaveTextContent(/repeats .hd-goyal-my-home.*held back/)
+    expect(card.queryByRole('button', { name: 'Post now…' })).toBeNull()
+  })
+
+  it('Posted lists links per channel; Problems shows the reason and Retry', async () => {
+    retry.mockResolvedValue(undefined)
+    getUpcoming.mockResolvedValue([])
+    getRecent.mockResolvedValue([
+      { ...FIXTURE_ITEMS[0], id: 'p-ig', channel: 'instagram', status: 'published', permalink: 'https://www.instagram.com/p/X/', published_at: '2026-10-06T17:48:00Z' },
+      { ...FIXTURE_ITEMS[1], id: 'p-fb', channel: 'facebook_page', status: 'failed', error: 'Application request limit reached' },
+    ])
+    render(<ContentPage />)
+    fireEvent.click(await screen.findByRole('tab', { name: /Posted\s*1/ }))
+    expect(within(screen.getByTestId('posted')).getByRole('link', { name: /Open post/ })).toHaveAttribute('href', 'https://www.instagram.com/p/X/')
+    fireEvent.click(screen.getByRole('tab', { name: /Problems\s*1/ }))
+    const card = await openRow(0)
+    expect(card.getByText('Application request limit reached')).toBeInTheDocument()
+    fireEvent.click(card.getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(retry).toHaveBeenCalledWith('p-fb'))
+  })
+
+  it('countdown and grouping helpers', () => {
+    const now = Date.parse('2026-10-06T10:00:00Z')
+    expect(countdown('2026-10-06T10:20:00Z', now)).toBe('in 20 min')
+    expect(countdown('2026-10-06T12:30:00Z', now)).toBe('in 2h 30m')
+    expect(countdown('2026-10-09T10:00:00Z', now)).toBe('in 3 days')
+    expect(countdown('2026-10-06T09:00:00Z', now)).toBeNull()
+    const g = groupItems([{ ...FIXTURE_ITEMS[0], id: 'a', channel: 'facebook_page' }, { ...FIXTURE_ITEMS[1], id: 'b' }, { ...FIXTURE_ITEMS[0], id: 'c', channel: 'instagram' }])
+    expect(g.map((x) => x.items.map((i) => i.id))).toEqual([['c', 'a'], ['b']])
   })
 })
 
@@ -148,71 +244,3 @@ describe('content client', () => {
 })
 
 
-describe('one card per post, timing and Post now', () => {
-  const pair = (): ContentItem[] => [
-    { ...FIXTURE_ITEMS[0], id: 'ig-1', channel: 'instagram', status: 'approved', due_at: new Date(Date.now() + 3 * 3600_000).toISOString() },
-    { ...FIXTURE_ITEMS[0], id: 'fb-1', channel: 'facebook_page', status: 'planned', due_at: new Date(Date.now() + 4 * 3600_000).toISOString() },
-  ]
-
-  it('shows the Instagram and Facebook copies of a post as one card, with when each goes out', async () => {
-    getUpcoming.mockResolvedValue(pair())
-    render(<ContentPage />)
-    const cards = await screen.findAllByTestId('content-card')
-    expect(cards).toHaveLength(1)
-    const c = within(cards[0])
-    expect(c.getByText('Instagram')).toBeInTheDocument()
-    expect(c.getByText('Facebook')).toBeInTheDocument()
-    expect(c.getByTestId('when')).toHaveTextContent(/Instagram: Goes out in (2h 5\dm|3h 0m)/)
-    expect(c.getByTestId('when')).toHaveTextContent(/Facebook: Planned for .*Approve it to post then, or Post now/)
-  })
-
-  it('Post now sends every open copy and the card says it is posting', async () => {
-    getUpcoming.mockResolvedValue(pair())
-    render(<ContentPage />)
-    fireEvent.click(within((await screen.findAllByTestId('content-card'))[0]).getByRole('button', { name: 'Post now' }))
-    await waitFor(() => expect(postNow).toHaveBeenCalledTimes(2))
-    expect(postNow.mock.calls.map((c) => c[0])).toEqual(['ig-1', 'fb-1'])
-    expect(await screen.findAllByText(/Posting now: it appears within a few minutes/)).toHaveLength(2)
-  })
-
-  it('Approve only approves the copies still waiting', async () => {
-    getUpcoming.mockResolvedValue(pair())
-    render(<ContentPage />)
-    fireEvent.click(within((await screen.findAllByTestId('content-card'))[0]).getByRole('button', { name: 'Approve' }))
-    await waitFor(() => expect(approve).toHaveBeenCalledWith('fb-1'))
-    expect(approve).toHaveBeenCalledTimes(1)
-  })
-
-  it('a post that repeats one already published is flagged and cannot be posted now', async () => {
-    getUpcoming.mockResolvedValue([{ ...pair()[1], duplicate_of: { slug: 'hd-goyal-my-home', published_at: '2026-10-03T12:11:00Z', permalink: null } }])
-    render(<ContentPage />)
-    const c = within((await screen.findAllByTestId('content-card'))[0])
-    expect(c.getByTestId('duplicate')).toHaveTextContent(/repeats .hd-goyal-my-home.*held back/)
-    expect(c.queryByRole('button', { name: 'Post now' })).toBeNull()
-  })
-
-  it('countdown and grouping helpers', () => {
-    const now = Date.parse('2026-10-06T10:00:00Z')
-    expect(countdown('2026-10-06T10:20:00Z', now)).toBe('in 20 min')
-    expect(countdown('2026-10-06T12:30:00Z', now)).toBe('in 2h 30m')
-    expect(countdown('2026-10-09T10:00:00Z', now)).toBe('in 3 days')
-    expect(countdown('2026-10-06T09:00:00Z', now)).toBeNull()
-    const g = groupItems([{ ...FIXTURE_ITEMS[0], id: 'a', channel: 'facebook_page' }, { ...FIXTURE_ITEMS[1], id: 'b' }, { ...FIXTURE_ITEMS[0], id: 'c', channel: 'instagram' }])
-    expect(g.map((x) => x.items.map((i) => i.id))).toEqual([['c', 'a'], ['b']])
-  })
-})
-
-
-describe('posted and problems', () => {
-  it('lists what went out with a link per channel, and what failed with the reason', async () => {
-    getUpcoming.mockResolvedValue([])
-    getRecent.mockResolvedValue([
-      { ...FIXTURE_ITEMS[0], id: 'p-ig', channel: 'instagram', status: 'published', permalink: 'https://www.instagram.com/p/X/', published_at: '2026-10-06T17:48:00Z' },
-      { ...FIXTURE_ITEMS[0], id: 'p-fb', channel: 'facebook_page', status: 'failed', error: 'Application request limit reached' },
-    ])
-    render(<ContentPage />)
-    const posted = await screen.findByTestId('posted')
-    expect(within(posted).getByRole('link', { name: /Open post/ })).toHaveAttribute('href', 'https://www.instagram.com/p/X/')
-    expect(within(screen.getByTestId('problems')).getByText(/not posted: Application request limit reached/)).toBeInTheDocument()
-  })
-})

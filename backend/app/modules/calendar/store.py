@@ -119,6 +119,22 @@ class Store:
         await self._move(id, "approved", "post now by owner", due_at=at)
         return {**doc, "status": "approved", "due_at": at}
 
+    async def retry(self, id: str, due_at: datetime) -> bool:
+        """A failed row goes back in the queue (the owner's Retry): approved, due at `due_at`, attempts reset."""
+        doc = await self.get(id)
+        if not doc or doc["status"] != "failed":
+            return False
+        await self._move(id, "approved", "retry by owner", due_at=due_at, attempts=0, error=None, last_attempt_at=None)
+        return True
+
+    async def unapprove(self, id: str) -> bool:
+        """An approved row back to "planned" (the owner changed their mind before it went out)."""
+        doc = await self.get(id)
+        if not doc or doc["status"] not in ("approved", "scheduled"):
+            return False
+        await self._move(id, "planned", "moved back to To approve by owner")
+        return True
+
     async def mark_removed(self, id: str, note: str) -> None:
         """A published post that no longer exists on the platform (deleted there): out of Studio and the public feed."""
         await self._move(id, "removed", note, removed_at=self.clock())

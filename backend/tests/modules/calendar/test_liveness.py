@@ -157,3 +157,17 @@ def test_recent_lists_posted_with_link_and_failed_with_reason(monkeypatch):
     by = {r["id"]: r for r in rows}
     assert by[ids[0]]["status"] == "published" and by[ids[0]]["permalink"] == "https://instagram.test/p/1"
     assert by[ids[1]]["status"] == "failed" and "limit reached" in by[ids[1]]["error"]
+
+
+def test_retry_a_failed_post_and_move_an_approved_one_back(monkeypatch):
+    client, store = _client(monkeypatch)
+    loop, ids = _add(store, 2)
+    loop.run_until_complete(store.attempt_failed(ids[0], "limit reached", 3, True))
+    r = client.post(f"/calendar/items/{ids[0]}/retry")
+    doc = loop.run_until_complete(store.get(ids[0]))
+    assert r.status_code == 200 and doc["status"] == "approved" and doc["attempts"] == 0 and doc["error"] is None
+    assert client.post(f"/calendar/items/{ids[0]}/retry").status_code == 409            # not failed any more
+    client.post(f"/calendar/items/{ids[1]}/approve")
+    assert client.post(f"/calendar/items/{ids[1]}/unapprove").json()["status"] == "planned"
+    assert loop.run_until_complete(store.get(ids[1]))["status"] == "planned"
+    assert client.post(f"/calendar/items/{ids[1]}/unapprove").status_code == 409

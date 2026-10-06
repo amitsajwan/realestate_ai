@@ -97,6 +97,29 @@ async def post_now(id: str, user: User = Depends(owner_only), store: Store = Dep
     return {"id": id, "status": "approved", "due_at": done["due_at"], "interval_s": load().interval_s}
 
 
+@router.post("/items/{id}/retry")
+async def retry(id: str, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
+    """A failed post back in the queue, a few minutes after the last one on its channel."""
+    doc = await store.get(id)
+    if not doc:
+        raise HTTPException(404, "Item not found")
+    cfg = load()
+    at = await store.next_slot(doc["channel"], store.clock(), timedelta(minutes=max(cfg.post_now_gap_minutes, cfg.pace_minutes)), exclude=id)
+    if not await store.retry(id, at):
+        raise HTTPException(409, f"Item is {doc['status']}, not failed")
+    return {"id": id, "status": "approved", "due_at": at}
+
+
+@router.post("/items/{id}/unapprove")
+async def unapprove(id: str, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
+    doc = await store.get(id)
+    if not doc:
+        raise HTTPException(404, "Item not found")
+    if not await store.unapprove(id):
+        raise HTTPException(409, f"Item is {doc['status']}, so it cannot go back to To approve")
+    return {"id": id, "status": "planned"}
+
+
 @router.post("/items/{id}/skip")
 async def skip(id: str, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
     doc = await store.get(id)

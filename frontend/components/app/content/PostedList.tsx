@@ -1,6 +1,7 @@
 'use client'
 import React from 'react'
 import { Chip } from '@/components/app/ui'
+import { LinkOut } from '@/components/app/list'
 import { channelLabel, dueLabel, groupItems } from '@/lib/app/content'
 import type { ContentItem } from '@/lib/app/content'
 
@@ -25,11 +26,7 @@ export function PostedList({ items, kind }: { items: ContentItem[]; kind: 'poste
                   {i.status === 'published' ? (
                     <>
                       <span className="text-gray-600">posted {i.published_at ? dueLabel(i.published_at) : ''}</span>
-                      {i.permalink && (
-                        <a href={i.permalink} target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-700 underline">
-                          Open post<span className="sr-only"> on {channelLabel(i.channel)} (opens in a new tab)</span>
-                        </a>
-                      )}
+                      {i.permalink && <LinkOut href={i.permalink} label={`on ${channelLabel(i.channel)}`}>Open post</LinkOut>}
                     </>
                   ) : i.status === 'removed' ? (
                     <span className="text-gray-600">deleted on {channelLabel(i.channel)}</span>
