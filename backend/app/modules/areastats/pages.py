@@ -148,5 +148,6 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
     if only_indexable:
         docs = [d for d in docs if indexable(d)]
     docs.sort(key=lambda d: (_day(d.get("last_modified")) or "", d.get("name", "")), reverse=True)
-    return [{"slug": d["page_slug"], "name": d.get("name", ""), "area": d.get("locality"), "completion_now": _day(d.get("completion_now")),
+    return [{"slug": d["page_slug"], "regno": d.get("regno") or d["_id"], "name": d.get("name", ""), "area": d.get("locality"),
+             "completion_now": _day(d.get("completion_now")),
              "listed_or_updated": _day(d.get("last_modified")), "indexable": indexable(d)} for d in docs[:limit]]

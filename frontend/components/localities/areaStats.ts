@@ -12,6 +12,8 @@ export interface AreaStatsProject {
   completion?: string | null // filed completion date, YYYY-MM-DD
   updated?: string | null // MahaRERA "Last Modified", YYYY-MM-DD: listed or updated, never "registered"
   url?: string | null
+  /** Our own project page (/projects/<slug>), linked before MahaRERA. */
+  page?: string | null
 }
 
 export interface AreaStats {
@@ -42,7 +44,8 @@ export function cleanAreaStats(raw: unknown, slug: string): AreaStats | null {
   const recent = (Array.isArray(r.recent) ? r.recent : [])
     .filter((p): p is AreaStatsProject => !!p && typeof p.name === 'string' && p.name.trim() !== '' && typeof p.regno === 'string')
     .slice(0, 5)
-    .map((p) => ({ ...p, url: typeof p.url === 'string' && /^https:\/\/[a-z0-9.-]*maharera[a-z0-9.-]*\.gov\.in\//i.test(p.url) ? p.url : null }))
+    .map((p) => ({ ...p, url: typeof p.url === 'string' && /^https:\/\/[a-z0-9.-]*maharera[a-z0-9.-]*\.gov\.in\//i.test(p.url) ? p.url : null,
+      page: typeof p.page === 'string' && /^\/projects\/[a-z0-9-]+$/.test(p.page) ? p.page : null }))
   return {
     area, as_of: r.as_of, projects: r.projects, completing,
     units_total: booked === null ? null : total, units_booked: booked,

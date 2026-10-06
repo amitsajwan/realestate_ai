@@ -14,6 +14,8 @@ jest.mock('@/lib/site/api', () => ({
   serverApiBase: () => 'http://api',
 }))
 jest.mock('@/components/site/ChatWidget', () => ({ __esModule: true, default: () => null }))
+// Avasetu's own register pages (lib/site/register): none in these tests, so unknown slugs are 404s as before
+jest.mock('@/lib/site/register', () => ({ getRegisterProject: async () => null, getRegisterProjects: async () => [], longDay: () => '' }))
 const mockRedirect = jest.fn((url: string) => { throw new Error('REDIRECT ' + url) })
 const mockNotFound = jest.fn(() => { throw new Error('NOT_FOUND') })
 jest.mock('next/navigation', () => ({
