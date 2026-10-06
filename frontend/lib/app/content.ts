@@ -21,6 +21,11 @@ export interface ContentItem {
   image_urls: string[]
   video_url: string | null
   error: string | null
+  /** The post on Facebook or Instagram, once it is out. */
+  permalink?: string | null
+  published_at?: string | null
+  /** The last thing that happened to it, in words ("post now by owner", "held: ..."). */
+  note?: string | null
   /** A post already published on this channel with the same opening line: the publisher holds this one back. */
   duplicate_of?: { slug: string; published_at: string | null; permalink: string | null } | null
 }
@@ -53,6 +58,9 @@ export function normalizeItem(raw: unknown): ContentItem {
     video_url: typeof r.video_url === 'string' ? r.video_url : null,
     error: typeof r.error === 'string' ? r.error : null,
     duplicate_of: dupOf(r.duplicate_of),
+    permalink: typeof r.permalink === 'string' ? r.permalink : null,
+    published_at: typeof r.published_at === 'string' ? r.published_at : null,
+    note: typeof r.note === 'string' ? r.note : null,
   }
 }
 
@@ -131,6 +139,8 @@ export interface ContentApi {
   skip(id: string): Promise<void>
   /** Approve if needed and publish at the next pass (a few minutes at most). */
   postNow(id: string): Promise<void>
+  /** What finished lately: posted (with link), failed (with reason), removed. */
+  getRecent(hours?: number): Promise<ContentItem[]>
 }
 
 export function createContentApi(opts: { getToken: () => string | null; baseUrl?: string; fetchImpl?: typeof fetch }): ContentApi {
@@ -170,6 +180,10 @@ export function createContentApi(opts: { getToken: () => string | null; baseUrl?
     },
     postNow: async (id) => {
       await request<unknown>(`/items/${encodeURIComponent(id)}/post-now`, 'POST')
+    },
+    getRecent: async (hours = 72) => {
+      const r = await request<unknown[]>(`/recent?hours=${hours}`)
+      return (Array.isArray(r) ? r : []).map(normalizeItem)
     },
   }
 }
@@ -249,6 +263,7 @@ export function createFixtureContentApi(seed: ContentItem[] = FIXTURE_ITEMS): Co
       it.status = 'approved'
       it.due_at = new Date().toISOString()
     },
+    getRecent: async () => [],
   }
 }
 
@@ -262,4 +277,5 @@ export const contentApi: ContentApi = {
   approve: (id) => impl().approve(id),
   skip: (id) => impl().skip(id),
   postNow: (id) => impl().postNow(id),
+  getRecent: (hours) => impl().getRecent(hours),
 }

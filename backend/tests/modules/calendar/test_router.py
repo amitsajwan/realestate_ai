@@ -37,7 +37,7 @@ async def seed(store):
 
 
 def test_every_route_is_owner_only():
-    assert len(cr.router.routes) == 5
+    assert len(cr.router.routes) == 6
     for route in cr.router.routes:
         assert any(d.call is cr.owner_only for d in route.dependant.dependencies), route.path
 
@@ -93,7 +93,8 @@ async def test_upcoming_shows_kind_images_and_planned_items_and_approve_moves_th
     assert first["image_urls"] == ["/uploads/calendar/w1/a-1.jpg", "/uploads/calendar/w1/a-2.jpg"] and first["caption"] == "cap"
     assert first["creative"] == {"path": "rules", "layout": "checklist"}  # whitelisted fields only
     assert rows[1]["kind"] == "reel" and rows[1]["image_urls"] == [] and rows[1]["video_url"] is None
-    assert c.post(f"/calendar/items/{pid}/approve").json() == {"id": pid, "status": "approved"}
+    got = c.post(f"/calendar/items/{pid}/approve").json()
+    assert {k: got[k] for k in ("id", "status")} == {"id": pid, "status": "approved"} and got["due_at"]
     assert (await store.get(pid))["status"] == "approved"
     assert c.post(f"/calendar/items/{pid}/approve").status_code == 409
     assert c.post("/calendar/items/nope/approve").status_code == 404

@@ -104,3 +104,56 @@ def test_post_now_approves_and_makes_it_due_at_once(monkeypatch):
     loop.run_until_complete(store.skip(rid))
     assert client.post(f"/calendar/items/{rid}/post-now").status_code == 409
     assert client.post("/calendar/items/nope/post-now").status_code == 404
+
+
+def _client(monkeypatch, **env):
+    monkeypatch.setenv("CALENDAR_OWNER_IDS", "OWNER")
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    return setup()
+
+
+def _add(store, n, channel="instagram", days=3):
+    import asyncio
+
+    from app.modules.calendar import library
+    e = library.BY_SLUG["carpet-under-rera"]
+    loop = asyncio.new_event_loop()
+    return loop, [loop.run_until_complete(store.add(f"{e.slug}-{i}-{channel}-{days}", channel, f"{e.ig_caption} {i}", "x.jpg",
+                                                    NOW + timedelta(days=days + i), status="planned")) for i in range(n)]
+
+
+def test_post_now_on_many_posts_queues_them_minutes_apart_per_channel(monkeypatch):
+    client, store = _client(monkeypatch, CALENDAR_POST_NOW_GAP_MINUTES="10")
+    loop, ids = _add(store, 3)
+    _, fb = _add(store, 1, channel="facebook_page")
+    for i in ids + fb:
+        assert client.post(f"/calendar/items/{i}/post-now").status_code == 200
+    due = [loop.run_until_complete(store.get(i))["due_at"] for i in ids]
+    assert [d - NOW for d in due] == [timedelta(0), timedelta(minutes=10), timedelta(minutes=20)]
+    assert loop.run_until_complete(store.get(fb[0]))["due_at"] == NOW        # the other channel is not held up
+
+
+def test_testing_pace_moves_approved_posts_to_minutes_apart_and_off_keeps_the_planned_day(monkeypatch):
+    client, store = _client(monkeypatch, CALENDAR_PACE_MINUTES="15")
+    loop, ids = _add(store, 3)
+    for i in ids:
+        r = client.post(f"/calendar/items/{i}/approve")
+        assert r.status_code == 200
+    due = [loop.run_until_complete(store.get(i))["due_at"] for i in ids]
+    assert [d - NOW for d in due] == [timedelta(0), timedelta(minutes=15), timedelta(minutes=30)]
+    monkeypatch.setenv("CALENDAR_PACE_MINUTES", "0")
+    _, later = _add(store, 1, days=9)
+    client.post(f"/calendar/items/{later[0]}/approve")
+    assert loop.run_until_complete(store.get(later[0]))["due_at"] == NOW + timedelta(days=9)
+
+
+def test_recent_lists_posted_with_link_and_failed_with_reason(monkeypatch):
+    client, store = _client(monkeypatch)
+    loop, ids = _add(store, 2)
+    loop.run_until_complete(store.published(ids[0], "ext1", "https://instagram.test/p/1"))
+    loop.run_until_complete(store.attempt_failed(ids[1], "Graph API error 4: limit reached", 3, True))
+    rows = client.get("/calendar/recent?hours=24").json()
+    by = {r["id"]: r for r in rows}
+    assert by[ids[0]]["status"] == "published" and by[ids[0]]["permalink"] == "https://instagram.test/p/1"
+    assert by[ids[1]]["status"] == "failed" and "limit reached" in by[ids[1]]["error"]

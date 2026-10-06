@@ -9,6 +9,7 @@ const getUpcoming = jest.fn()
 const approve = jest.fn()
 const skip = jest.fn()
 const postNow = jest.fn()
+const getRecent = jest.fn()
 jest.mock('@/lib/app/client', () => ({
   errorMessage: (e: Error) => e.message,
   isFixtureMode: () => false,
@@ -21,6 +22,7 @@ jest.mock('@/lib/app/content', () => ({
     approve: (...a: unknown[]) => approve(...a),
     skip: (...a: unknown[]) => skip(...a),
     postNow: (...a: unknown[]) => postNow(...a),
+    getRecent: (...a: unknown[]) => getRecent(...a),
   },
 }))
 
@@ -28,8 +30,9 @@ const okRes = (body: unknown, status = 200) => ({ ok: status < 400, status, text
 const items = (): ContentItem[] => FIXTURE_ITEMS.map((i) => ({ ...i }))
 
 beforeEach(() => {
-  ;[getUpcoming, approve, skip, postNow].forEach((m) => m.mockReset())
+  ;[getUpcoming, approve, skip, postNow, getRecent].forEach((m) => m.mockReset())
   postNow.mockResolvedValue(undefined)
+  getRecent.mockResolvedValue([])
   getUpcoming.mockResolvedValue(items())
   approve.mockResolvedValue(undefined)
   skip.mockResolvedValue(undefined)
@@ -50,7 +53,8 @@ describe('Content screen', () => {
     expect(within(cards[1]).getByText('Facebook')).toBeInTheDocument()
     expect(within(cards[1]).getByText('Sample home')).toBeInTheDocument()
     expect(within(cards[2]).getByTestId('reel-note')).toBeInTheDocument()
-    expect(screen.getByText(/2 waiting for your OK/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Waiting for your OK (2)' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Going out (1)' })).toBeInTheDocument()
   })
 
   it('approves a planned item and shows it as approved, without an Approve button', async () => {
@@ -58,9 +62,12 @@ describe('Content screen', () => {
     const cards = await screen.findAllByTestId('content-card')
     fireEvent.click(within(cards[0]).getByRole('button', { name: 'Approve' }))
     await waitFor(() => expect(approve).toHaveBeenCalledWith('fx-1'))
-    await waitFor(() => expect(within(screen.getAllByTestId('content-card')[0]).getByText('Approved')).toBeInTheDocument())
-    expect(within(screen.getAllByTestId('content-card')[0]).queryByRole('button', { name: 'Approve' })).toBeNull()
-    expect(screen.getByText(/1 waiting for your OK/)).toBeInTheDocument()
+    // approved: it moves from "Waiting for your OK" to "Going out", without an Approve button
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Waiting for your OK (1)' })).toBeInTheDocument())
+    expect(screen.getByRole('heading', { name: 'Going out (2)' })).toBeInTheDocument()
+    const moved = screen.getAllByTestId('content-card').find((c) => within(c).queryByText(/Ask these water and power questions/))!
+    expect(within(moved).getAllByText('Approved').length).toBeGreaterThan(0)
+    expect(within(moved).queryByRole('button', { name: 'Approve' })).toBeNull()
   })
 
   it('an already approved item only offers Skip; skipping removes the card', async () => {
@@ -88,7 +95,7 @@ describe('Content screen', () => {
     expect(await screen.findByText(/boom/)).toBeInTheDocument()
     getUpcoming.mockResolvedValue([])
     fireEvent.click(screen.getByRole('button', { name: /try again|retry/i }))
-    expect(await screen.findByText(/No upcoming posts/)).toBeInTheDocument()
+    expect(await screen.findByText(/Nothing is waiting for your OK/)).toBeInTheDocument()
   })
 })
 
@@ -192,5 +199,20 @@ describe('one card per post, timing and Post now', () => {
     expect(countdown('2026-10-06T09:00:00Z', now)).toBeNull()
     const g = groupItems([{ ...FIXTURE_ITEMS[0], id: 'a', channel: 'facebook_page' }, { ...FIXTURE_ITEMS[1], id: 'b' }, { ...FIXTURE_ITEMS[0], id: 'c', channel: 'instagram' }])
     expect(g.map((x) => x.items.map((i) => i.id))).toEqual([['c', 'a'], ['b']])
+  })
+})
+
+
+describe('posted and problems', () => {
+  it('lists what went out with a link per channel, and what failed with the reason', async () => {
+    getUpcoming.mockResolvedValue([])
+    getRecent.mockResolvedValue([
+      { ...FIXTURE_ITEMS[0], id: 'p-ig', channel: 'instagram', status: 'published', permalink: 'https://www.instagram.com/p/X/', published_at: '2026-10-06T17:48:00Z' },
+      { ...FIXTURE_ITEMS[0], id: 'p-fb', channel: 'facebook_page', status: 'failed', error: 'Application request limit reached' },
+    ])
+    render(<ContentPage />)
+    const posted = await screen.findByTestId('posted')
+    expect(within(posted).getByRole('link', { name: /Open post/ })).toHaveAttribute('href', 'https://www.instagram.com/p/X/')
+    expect(within(screen.getByTestId('problems')).getByText(/not posted: Application request limit reached/)).toBeInTheDocument()
   })
 })

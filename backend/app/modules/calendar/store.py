@@ -83,22 +83,41 @@ class Store:
         await self.items.update_one({"_id": id, "status": "planned"}, {"$set": fields})
         return True
 
-    async def approve(self, id: str) -> bool:
+    async def approve(self, id: str, due_at: Optional[datetime] = None) -> bool:
+        """Approve a planned row; `due_at` moves it (the testing pace), else it keeps its planned time."""
         doc = await self.get(id)
         if not doc or doc["status"] != "planned":
             return False
-        await self._move(id, "approved", "approved by owner")
+        await self._move(id, "approved", "approved by owner" + (" (testing pace)" if due_at else ""), **({"due_at": due_at} if due_at else {}))
         return True
 
-    async def post_now(self, id: str) -> Optional[dict]:
-        """The owner's "Post now": approve it if needed and make it due at once (the next runner pass, about a couple of minutes,
-        publishes it). None when it is already published, failed, skipped or removed."""
+    async def next_slot(self, channel: str, after: datetime, gap: timedelta, exclude: Optional[str] = None) -> datetime:
+        """The first time at or after `after` that is at least `gap` from every post going out (or just out) on the channel."""
+        taken = sorted(aware(d.get("published_at") if d["status"] == "published" and isinstance(d.get("published_at"), datetime) else d["due_at"])
+                       for d in await self.all()
+                       if d["channel"] == channel and d["_id"] != exclude and d["status"] in ("approved", "scheduled", "published"))
+        at = aware(after)
+        for t in taken:
+            if abs((t - at).total_seconds()) < gap.total_seconds():
+                at = t + gap
+        return at
+
+    async def recent(self, since: datetime, statuses=("published", "failed", "removed")) -> List[dict]:
+        """Rows that finished since `since` (posted with their link, failed with the reason, removed), newest first."""
+        rows = [d for d in await self.all() if d["status"] in statuses and aware(d.get("updated_at") or d["due_at"]) >= aware(since)]
+        return sorted(rows, key=lambda d: aware(d.get("published_at") or d.get("updated_at") or d["due_at"]), reverse=True)
+
+    async def post_now(self, id: str, gap: Optional[timedelta] = None) -> Optional[dict]:
+        """The owner's "Post now": approve it if needed and make it due at once, or, when another post on the channel goes out
+        within `gap`, right after it (so many Post now taps queue a few minutes apart). None when it is already published,
+        failed, skipped or removed."""
         doc = await self.get(id)
         if not doc or doc["status"] not in OPEN:
             return None
         now = self.clock()
-        await self._move(id, "approved", "post now by owner", due_at=now)
-        return {**doc, "status": "approved", "due_at": now}
+        at = await self.next_slot(doc["channel"], now, gap, exclude=id) if gap else now
+        await self._move(id, "approved", "post now by owner", due_at=at)
+        return {**doc, "status": "approved", "due_at": at}
 
     async def mark_removed(self, id: str, note: str) -> None:
         """A published post that no longer exists on the platform (deleted there): out of Studio and the public feed."""
