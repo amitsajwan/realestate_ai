@@ -29,7 +29,15 @@ const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+){0,15}$/
 
 async function load(params: Props['params']): Promise<CatalogProject | null> {
   const { slug } = await params
-  return SLUG.test(slug) ? getCatalogProject(slug) : null
+  if (!SLUG.test(slug)) return null
+  try {
+    return await getCatalogProject(slug)
+  } catch (e) {
+    // the agent catalog could not be reached (a restart, a timeout): our own register page still serves the project when it has
+    // one; only with neither does the temporary-error page show (never a 404)
+    if (await getRegisterProject(slug).catch(() => null)) return null
+    throw e
+  }
 }
 
 /** A project with no agent listing yet: Avasetu's own page from the MahaRERA register (docs/plan/project-pages.md). */
