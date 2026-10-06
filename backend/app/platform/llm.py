@@ -5,6 +5,7 @@ Moved from ai_listing/llm.py (MODERNIZATION step 2); the listing extraction and 
 """
 import asyncio
 import base64
+import itertools
 import json
 import logging
 import os
@@ -66,12 +67,54 @@ def model_order(spec: str) -> list[str]:
     return models * 2 if len(models) == 1 else models
 
 
-async def post_with_failover(order: list[str], send, per_attempt: float, budget: float) -> httpx.Response:
+RETIRED_COOLDOWN = 24 * 3600.0   # a 404 model (retired free model) is skipped for a day
+BUSY_COOLDOWN = 60.0              # a 429 model is rested this long, or as long as the provider's Retry-After says
+MAX_COOLDOWN = 15 * 60.0
+
+
+class ModelHealth:
+    """Which (provider url, model) pairs to skip for now, shared by every client in the process: a retired or rate-limited
+    model is not asked again on each call (it was costing a 404 or 429 round trip before every useful answer)."""
+
+    def __init__(self, clock=time.monotonic):
+        self.clock = clock
+        self.until: dict[tuple[str, str], float] = {}
+
+    def usable(self, url: str, order: list[str]) -> list[str]:
+        """`order` without models that are resting; all of them when every model rests (better a try than nothing)."""
+        now = self.clock()
+        ok = [m for m in order if self.until.get((url, m), 0) <= now]
+        return ok or list(order)
+
+    def resting(self, url: str, models: list[str]) -> bool:
+        now = self.clock()
+        return bool(models) and all(self.until.get((url, m), 0) > now for m in models)
+
+    def note(self, url: str, model: str, r: httpx.Response) -> None:
+        if r.status_code == 404:
+            self.until[(url, model)] = self.clock() + RETIRED_COOLDOWN
+        elif r.status_code == 429:
+            try:
+                wait = float(r.headers.get("retry-after") or BUSY_COOLDOWN)
+            except ValueError:
+                wait = BUSY_COOLDOWN
+            self.until[(url, model)] = self.clock() + min(max(wait, 5.0), MAX_COOLDOWN)
+
+
+HEALTH = ModelHealth()
+_TURN = itertools.count()
+
+
+async def post_with_failover(order: list[str], send, per_attempt: float, budget: float, health: Optional[ModelHealth] = None,
+                             url: str = "") -> httpx.Response:
     """send(model, timeout) -> Response. Moves to the next model on FAILOVER_STATUS or a timeout/connection error
-    (a busy provider can take 20 s just to say 503) and stops when the overall budget is spent."""
+    (a busy provider can take 20 s just to say 503) and stops when the overall budget is spent. With `health`, resting
+    models are skipped and every 404/429 is remembered for the next call."""
     start = time.monotonic()
     r: Optional[httpx.Response] = None
     last_exc: Optional[Exception] = None
+    if health is not None:
+        order = health.usable(url, order)
     for i, model in enumerate(order):
         remaining = budget - (time.monotonic() - start)
         if i > 0 and remaining < 1.0:
@@ -82,6 +125,8 @@ async def post_with_failover(order: list[str], send, per_attempt: float, budget:
         except httpx.TransportError as e:
             r, last_exc = None, e
             continue
+        if health is not None:
+            health.note(url, model, r)
         if r.status_code in FAILOVER_STATUS and i < len(order) - 1:
             await asyncio.sleep(1.0 if order[i + 1] == model else 0)
             continue
@@ -95,9 +140,15 @@ class GroqLLM:
     """OpenAI-compatible chat client (Groq, Gemini's OpenAI endpoint, OpenRouter...). `model` may be a comma-separated failover list."""
 
     def __init__(self, api_key: str, model: str = LLM_MODEL, timeout: float = LLM_TIMEOUT,
-                 client: Optional[httpx.AsyncClient] = None, url: Optional[str] = None):
+                 client: Optional[httpx.AsyncClient] = None, url: Optional[str] = None, health: Optional["ModelHealth"] = None):
         self.api_key, self.model, self.timeout, self._client = api_key, model, timeout, client
         self.url = url or GROQ_CHAT_URL
+        self.health = health if health is not None else HEALTH
+        self.host = httpx.URL(self.url).host
+
+    def resting(self) -> bool:
+        """Every model of this provider is resting (retired or rate-limited): a round-robin tries it last."""
+        return self.health.resting(self.url, list(dict.fromkeys(model_order(self.model))))
 
     async def _chat(self, system: str, user: str) -> Optional[dict[str, Any]]:
         order = model_order(self.model)
@@ -113,13 +164,13 @@ class GroqLLM:
 
         try:
             r = await post_with_failover(order, send, per_attempt=self.timeout / 2 if len(set(order)) > 1 else self.timeout,
-                                         budget=self.timeout)
+                                         budget=self.timeout, health=self.health, url=self.url)
             r.raise_for_status()
             data = json.loads(r.json()["choices"][0]["message"]["content"])
             return data if isinstance(data, dict) else None
         except Exception as e:  # timeout, HTTP, bad JSON: caller falls back silently
             status = getattr(getattr(e, "response", None), "status_code", None)
-            log.info("ai_listing LLM call failed: %s%s", type(e).__name__, f" (HTTP {status})" if status else "")
+            log.info("LLM json call failed at %s: %s%s", self.host, type(e).__name__, f" (HTTP {status})" if status else "")
             return None
 
     async def text(self, system: str, user: str, timeout: Optional[float] = None) -> Optional[str]:
@@ -137,12 +188,13 @@ class GroqLLM:
                 return await c.post(self.url, json=body, headers=headers)
 
         try:
-            r = await post_with_failover(order, send, per_attempt=budget / 2 if len(set(order)) > 1 else budget, budget=budget)
+            r = await post_with_failover(order, send, per_attempt=budget / 2 if len(set(order)) > 1 else budget, budget=budget,
+                                         health=self.health, url=self.url)
             r.raise_for_status()
             return (r.json()["choices"][0]["message"]["content"] or "").strip() or None
         except Exception as e:
             status = getattr(getattr(e, "response", None), "status_code", None)
-            log.info("LLM text call failed: %s%s", type(e).__name__, f" (HTTP {status})" if status else "")
+            log.info("LLM text call failed at %s: %s%s", self.host, type(e).__name__, f" (HTTP {status})" if status else "")
             return None
 
     async def json(self, system: str, user: str) -> Optional[dict[str, Any]]:
@@ -228,13 +280,21 @@ class GeminiTranscriber:
 
 
 class FallbackLLM:
-    """Tries each provider in turn; the first usable answer wins. Free tiers have daily caps, so one provider running out must not stop the product."""
+    """Spreads calls over the providers round-robin (Groq, OpenRouter, ...): each call starts at the next provider and falls
+    back to the others, so no single free tier takes every call and hits its rate limit. A provider whose models are all
+    resting (ModelHealth) goes last. The first usable answer wins."""
 
     def __init__(self, providers):
         self.providers = list(providers)
 
+    def _order(self) -> list:
+        start = next(_TURN) % len(self.providers)   # shared: every client in the process takes its turn
+        turn = self.providers[start:] + self.providers[:start]
+        resting = lambda p: bool(getattr(p, "resting", lambda: False)())  # noqa: E731
+        return [p for p in turn if not resting(p)] + [p for p in turn if resting(p)]
+
     async def _first(self, method: str, *args, **kw):
-        for p in self.providers:
+        for p in self._order():
             out = await getattr(p, method)(*args, **kw)
             if out:
                 return out

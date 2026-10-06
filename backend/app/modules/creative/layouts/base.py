@@ -20,6 +20,7 @@ Box = Tuple[int, int, int, int]
 AA = 4  # supersampling factor for shapes
 CAP = 0.70      # Poppins cap height / font size
 DESC = 0.30     # descender allowance below the last baseline
+CAP_DEVANAGARI = 0.92
 PHOTO_DIR = Path(__file__).resolve().parent.parent / "assets" / "photos"
 FONT_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
 DEVANAGARI_FONTS = {"regular": "Mukta-Regular.ttf", "medium": "Mukta-Medium.ttf", "semibold": "Mukta-SemiBold.ttf",
@@ -46,6 +47,12 @@ def load_font(size: int, weight: str = "regular"):
         except OSError:
             pass
     return _latin_font(size, weight)
+
+
+def cap() -> float:
+    """Height above the baseline the layout reserves for a line: Poppins' cap height, or Devanagari's taller letters with
+    their vowel signs (measured 0.91 of the size in Mukta), so Marathi text never rises past the safe margin."""
+    return CAP_DEVANAGARI if _CARD.get()[0] else CAP
 
 
 def card_brand() -> Optional[CardBrand]:
@@ -271,13 +278,13 @@ class Canvas:
         while True:
             font = load_font(fs, weight)
             ls = _balanced(self.d, s, font, w) if balance and lines > 1 else wrap(self.d, s, font, w)
-            height = int(CAP * fs + (len(ls) - 1) * pitch * fs + DESC * fs)
+            height = int(cap() * fs + (len(ls) - 1) * pitch * fs + DESC * fs)
             whole = set(s.split()) <= set(" ".join(ls).split())  # no word broken mid-way
             if whole and len(ls) <= lines and (h is None or height <= h):
                 return fs, ls, height, False
             if fs <= lo:
                 ls = ls[:lines]
-                height = int(CAP * fs + (len(ls) - 1) * pitch * fs + DESC * fs)
+                height = int(cap() * fs + (len(ls) - 1) * pitch * fs + DESC * fs)
                 return fs, ls, height, True
             fs = max(lo, fs - 2)
 
@@ -302,7 +309,7 @@ class Canvas:
         lx0, lx1, ly0, ly1 = self.W, 0, self.H, 0
         pos = []
         for i, line in enumerate(ls):
-            base = y + CAP * fs + i * pitch * fs
+            base = y + cap() * fs + i * pitch * fs
             lw = self.d.textlength(line, font=font)
             lx = x if align == "left" else (x + (w - lw) / 2 if align == "center" else x + w - lw)
             bb = self.d.textbbox((lx, base), line, font=font, anchor="ls")
@@ -324,7 +331,7 @@ class Canvas:
                     col = (emph_fill or self.pal.accent) if hit else fill
                     if hit and marker:
                         ww = int(self.d.textlength(wd, font=font))
-                        self.rrect((int(cx) - 10, int(base - CAP * fs - 0.12 * fs), int(cx) + ww + 10, int(base + 0.26 * fs)), int(fs * 0.16),
+                        self.rrect((int(cx) - 10, int(base - cap() * fs - 0.12 * fs), int(cx) + ww + 10, int(base + 0.26 * fs)), int(fs * 0.16),
                                    self.pal.accent_fill, log=False)
                         col = self.pal.accent_ink
                     self.d.text((cx, base), wd, font=font, fill=col, anchor="ls")
@@ -332,7 +339,7 @@ class Canvas:
             else:
                 self.d.text((lx, base), line, font=font, fill=fill, anchor="ls")
             if strike:
-                yy = int(base - CAP * fs * 0.36)
+                yy = int(base - cap() * fs * 0.36)
                 self.d.line([(lx - 6, yy), (lx + lw + 6, yy)], fill=strike, width=max(4, fs // 11))
         ink_l = luminance(fill)
         hi, lo = max(ink_l, bg_l), min(ink_l, bg_l)
@@ -397,7 +404,7 @@ class Canvas:
         if icon:
             self.icon(icon, (tx + ic // 2, y + h // 2), ic, ink)
             tx += ic + 10
-        self.text(label, tx, y + (h - int(size * CAP)) // 2 - 1, tw + 6, size, "semibold", ink, 1, balance=False, role="chip", min_size=size,
+        self.text(label, tx, y + (h - int(size * cap())) // 2 - 1, tw + 6, size, "semibold", ink, 1, balance=False, role="chip", min_size=size,
                   bg_hint=fill if fill is not None else None)
         return (x, y, x + w, y + h)
 

@@ -13,7 +13,8 @@ ORG = re.compile(r"\b(?:[A-Z][\w&'.-]*\s+){1,3}(?:Developers?|Builders?|Construc
 TITLE_NAME = re.compile(r"\b(?:mr|mrs|ms|shri|smt|sri)\.?\s+[A-Z]\w+", re.I)
 NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
 HASHTAG = re.compile(r"#\w+")
-WORD = re.compile(r"[A-Za-z0-9ऀ-ॿ][\w'’\-]*")
+# Devanagari vowel signs and the virama are combining marks, not \w: they must not split a Marathi/Hindi word in two
+WORD = re.compile(r"[A-Za-z0-9ऀ-ॿ][\wऀ-ॿ'’\-]*")
 
 FILLER = (
     "in today's world", "in today’s world", "fast-paced", "game changer", "game-changer", "unlock", "ultimate guide",
