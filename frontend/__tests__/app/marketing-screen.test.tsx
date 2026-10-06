@@ -16,6 +16,8 @@ const getToday = jest.fn()
 const listLeads = jest.fn()
 const getSocialStatus = jest.fn()
 const listPublications = jest.fn()
+const getMarketingRun = jest.fn().mockResolvedValue(null)
+const startMarketingRun = jest.fn()
 jest.mock('@/lib/app/client', () => ({
   api: {
     createMarketingPack: (...a: unknown[]) => createMarketingPack(...a),
@@ -25,6 +27,8 @@ jest.mock('@/lib/app/client', () => ({
     listLeads: (...a: unknown[]) => listLeads(...a),
     getSocialStatus: (...a: unknown[]) => getSocialStatus(...a),
     listPublications: (...a: unknown[]) => listPublications(...a),
+    getMarketingRun: (...a: unknown[]) => getMarketingRun(...a),
+    startMarketingRun: (...a: unknown[]) => startMarketingRun(...a),
   },
   errorMessage: (e: Error) => e.message,
   isFixtureMode: () => false,

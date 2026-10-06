@@ -1,6 +1,6 @@
 """The worker process: runs the background loops outside the API (docs/ARCHITECTURE.md §1 and §6).
 
-    python -m app.worker           run engage, newsroom, calendar and listing reels until SIGTERM/SIGINT
+    python -m app.worker           run engage, newsroom, calendar, listing reels and marketing runs until SIGTERM/SIGINT
     python -m app.worker --check   print one line per loop; exit 1 when an enabled loop's heartbeat is older than twice its
                                    interval, 2 when the database cannot be read (deploy/gcp/health_check.sh calls this)
 
@@ -29,8 +29,10 @@ def loops() -> LoopTable:
     from app.modules.calendar.runner import loop as calendar_loop
     from app.modules.engage.runner import loop as engage_loop
     from app.modules.newsroom.runner import loop as newsroom_loop
+    from app.modules.propertyfacts.jobs import loop as marketing_loop
     from app.modules.reels.listing_reel import loop as reels_loop
-    return {"engage": engage_loop, "newsroom": newsroom_loop, "calendar": calendar_loop, "listing_reels": reels_loop}
+    return {"engage": engage_loop, "newsroom": newsroom_loop, "calendar": calendar_loop, "listing_reels": reels_loop,
+            "marketing_runs": marketing_loop}
 
 
 def start_loops(table: LoopTable, get_db: Callable[[], Any] = get_database) -> Dict[str, asyncio.Task]:
@@ -73,6 +75,7 @@ def expected_intervals() -> Dict[str, Optional[float]]:
     from app.modules.calendar.config import load as calendar_cfg
     from app.modules.engage.config import load as engage_cfg
     from app.modules.newsroom.config import load as newsroom_cfg
+    from app.modules.propertyfacts.jobs import HEARTBEAT_INTERVAL_S as MARKETING_INTERVAL_S
     from app.modules.reels.listing_reel import HEARTBEAT_INTERVAL_S
     e, n, c = engage_cfg(), newsroom_cfg(), calendar_cfg()
     return {
@@ -80,6 +83,7 @@ def expected_intervals() -> Dict[str, Optional[float]]:
         "newsroom": float(n.interval_s) if n.enabled else None,
         "calendar": float(c.interval_s) if c.enabled else None,
         "listing_reels": HEARTBEAT_INTERVAL_S,  # always on (polls the reel queue)
+        "marketing_runs": MARKETING_INTERVAL_S,  # always on (polls the Start marketing queue)
     }
 
 

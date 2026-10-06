@@ -41,7 +41,7 @@ def at(d: date, t: time) -> datetime:
 
 
 def site_link(site: str, slug: str = "") -> str:
-    return f"{site.rstrip('/')}/agent/{SLUG}" + (f"/projects/{slug}" if slug else "")
+    return f"{site.rstrip('/')}" + (f"/projects/{slug}" if slug else f"/agent/{SLUG}")
 
 
 def captions(cap: str, site: str, slug: str = "") -> Tuple[str, str]:
@@ -77,7 +77,7 @@ def plan_rows(projects: List[dict], made: dict, start: date, site: str) -> List[
              dict(slug=f"{SLUG}-compare", channel="facebook_page", caption=fb, images=imgs[:1], due=at(start, POST_AT), kind="post")]
     for k, p in enumerate(projects, 1):
         d = start + timedelta(days=k)
-        ig, fb = captions(cards.caption(p, AGENT), site, p["slug"])
+        ig, fb = captions(cards.caption(p, AGENT), site, p.get("catalog_slug") or p["slug"])
         imgs = [f"{FOLDER}/{f}" for f in made["projects"][p["slug"]]]
         rows += [dict(slug=f"{SLUG}-{p['slug']}", channel="instagram", caption=ig, images=imgs, due=at(d, POST_AT), kind="post"),
                  dict(slug=f"{SLUG}-{p['slug']}", channel="facebook_page", caption=fb, images=imgs[:1], due=at(d, POST_AT), kind="post")]
@@ -85,7 +85,7 @@ def plan_rows(projects: List[dict], made: dict, start: date, site: str) -> List[
         if p["slug"] not in made.get("reels", {}):
             continue
         d = start + timedelta(days=len(projects) + k)
-        ig, _ = captions(cards.caption(p, AGENT), site, p["slug"])
+        ig, _ = captions(cards.caption(p, AGENT), site, p.get("catalog_slug") or p["slug"])
         rows.append(dict(slug=f"{SLUG}-{p['slug']}-reel", channel="instagram", caption=ig, images=[], due=at(d, REEL_AT), kind="reel",
                          video=f"{FOLDER}/{made['reels'][p['slug']]}"))
     return rows

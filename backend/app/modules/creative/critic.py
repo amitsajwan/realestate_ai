@@ -7,11 +7,12 @@ twice in a row, plus every copy guard (hype, phone, price, prediction, numbers n
 import logging
 from typing import Any, List, Optional, Sequence
 
+from . import prompts
 from .copywriter import SLIDE_MAX_WORDS, review_copy
 from .guards import word_count
 from .hooks import HOOK_MAX_WORDS
 from .layouts.base import Rendered, violations
-from .models import Copy, Design, Problem, Report
+from .models import Copy, Design, Problem, Report, Voice
 
 log = logging.getLogger(__name__)
 
@@ -20,12 +21,6 @@ MAX_CARD_WORDS = 48
 MIN_FONT = 24
 MAX_COVER_LINES = 3
 MAX_GAP_FRACTION = 0.34
-
-CRITIC_SYSTEM = (
-    "You are a harsh art director and copy chief reviewing a social post for an Indian real-estate brand. Judge ONLY what you "
-    "are given. Would a Pune buyer or property agent stop scrolling? Reply with ONE JSON object: "
-    '{"stops_scroll": bool, "problems": [str] (at most 3, concrete), "better_hook": str (at most 9 words, or "")}'
-)
 
 
 def _add(out: List[Problem], rule: str, msg: str, sev: str = "error") -> None:
@@ -86,13 +81,14 @@ def review(copy: Copy, design: Design, rendered: Sequence[Rendered], corpus: str
     return Report(out)
 
 
-async def llm_critique(llm: Any, copy: Copy, design: Design) -> List[Problem]:
-    """Optional: advice only (severity warn). Any failure returns an empty list."""
+async def llm_critique(llm: Any, copy: Copy, design: Design, voice: Optional[Voice] = None,
+                       mode: str = prompts.BRAND) -> List[Problem]:
+    """Optional: advice only (severity warn). Any failure returns an empty list. `voice` and `mode` come from the brief."""
     if llm is None:
         return []
     user = f"Layout: {design.layout}. Hook: {copy.hook}\nSupport: {copy.support}\nSlides: {copy.slides}\nCaption first line: {copy.caption_first_line}"
     try:
-        data = await llm.json(CRITIC_SYSTEM, user)
+        data = await llm.json(prompts.critic(voice or Voice(), mode), user)
     except Exception:
         log.warning("critic LLM failed", exc_info=True)
         return []

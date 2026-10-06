@@ -10,6 +10,7 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Sequence
 
+from . import prompts
 from .guards import filler_hits, problems_in, tidy, word_count
 from .models import Angle, Brief, Copy
 
@@ -47,23 +48,6 @@ INTRO = {
 CARD_CTA = {"stat": "Save this", "myth-vs-fact": "Share with a buyer", "poll": "Vote in the comments", "before-after": "Save this",
             "checklist": "Save this list", "carousel": "Swipe", "single": "Save this"}
 
-SYSTEM = (
-    f"You are the copywriter of {brand.NAME}, an Indian real-estate brand (home buyers and property agents in Kharadi, "
-    "Upper Kharadi and Wagholi, Pune). Write the post copy for the given angle.\n"
-    f"Rules: plain, warm, direct English; brand voice '{brand.TEAM}'. Use ONLY the supplied facts: no prices, no "
-    "predictions, no invented numbers or claims, no phone numbers, no personal or builder names, no superlatives (best, "
-    "perfect, dream, guaranteed). Avoid filler such as 'in today's world', 'unlock', 'game changer'. Each slide is at most "
-    "14 words and carries ONE idea. The caption's first line is the only line visible before 'more': make it concrete and "
-    "curious, at most 120 characters. The caption never contains a URL or a phone number. End with a question to the reader.\n"
-    'Reply with ONE JSON object: {"support": str (one line, at most 14 words, may be empty), "slides": [str] (3 to 5, only '
-    'when the format is carousel or checklist), "first_line": str, "body": str (2 to 4 short lines), "question": str, '
-    '"hashtags": [str] (3 to 6, each starting with #)}'
-)
-VARIANT_SYSTEM = (
-    "You translate a social-media caption for an Indian real-estate brand. Keep every number and fact exactly; add nothing; "
-    "no prices, phone numbers, URLs or superlatives. Keep it short and natural, the way a Pune agent would speak. "
-    "Output ONLY the caption text."
-)
 VARIANT_LANG = {"hinglish": "Hinglish (Hindi written in Roman letters, mixed with English)", "marathi": "Marathi (Devanagari script)"}
 
 
@@ -73,7 +57,7 @@ KICKER = {"stat": "WORTH REMEMBERING", "myth-vs-fact": "MYTH VS FACT", "poll": "
 
 def _payload(brief: Brief, angle: Angle) -> Dict[str, object]:
     f = angle.fmt
-    kicker = "FOR AGENTS" if angle.audience == "agent" and f == "single" else KICKER.get(f, brand.NAME.upper())
+    kicker = brief.kicker or ("FOR AGENTS" if angle.audience == "agent" and f == "single" else KICKER.get(f, brand.NAME.upper()))
     base: Dict[str, object] = {"kicker": kicker, "audience": angle.audience, "fmt": f}
     if f == "stat":
         base.update(value=brief.stat_value, label=brief.stat_label)
@@ -121,7 +105,7 @@ def _support(brief: Brief, angle: Angle) -> str:
 
 def _body(brief: Brief, angle: Angle) -> str:
     lines = []
-    intro = INTRO.get(angle.fmt, "")
+    intro = brief.intro or INTRO.get(angle.fmt, "")
     if intro:
         lines.append(intro)
     if angle.fmt == "myth-vs-fact":
@@ -134,7 +118,7 @@ def _body(brief: Brief, angle: Angle) -> str:
         lines += [f"A: {brief.options[0]}", f"B: {brief.options[1]}"]
     else:
         lines += [f"• {p}" for p in angle.proof[:3]]
-    lines.append(f"- {SIGN_OFF}")
+    lines.append(f"- {brief.voice.team}")
     return "\n".join(lines)
 
 
@@ -150,7 +134,7 @@ def rule_copy(angle: Angle, brief: Brief) -> Copy:
                 slides=list(brief.steps[:5]) if angle.fmt in ("carousel", "checklist") else [],
                 caption_first_line=_first_line(angle), body=_body(brief, angle), cta_question=q,
                 hashtags=_tags(brief, angle.audience, angle.channel), card_cta=cta,
-                payload=_payload(brief, angle), source="rules")
+                payload=_payload(brief, angle), link_line=brief.link_line, source="rules")
 
 
 def build_user(angle: Angle, brief: Brief, feedback: Optional[str]) -> str:
@@ -162,6 +146,8 @@ def build_user(angle: Angle, brief: Brief, feedback: Optional[str]) -> str:
     lines.append(f"Call to action: {angle.cta}")
     if angle.channel == "instagram":
         lines.append("Instagram: no URLs at all. 3 to 6 hashtags.")
+    if brief.writer_note:
+        lines.append(brief.writer_note)
     if feedback:
         lines.append(f"A reviewer rejected the last attempt: {feedback}. Fix that.")
     return "\n".join(lines)
@@ -184,21 +170,23 @@ async def write(angle: Angle, brief: Brief, llm: Any = None, languages: Sequence
     copy = base
     if llm is not None:
         try:
-            data = await llm.json(SYSTEM, build_user(angle, brief, feedback))
+            data = await llm.json(prompts.copywriter(brief.voice, brief.mode), build_user(angle, brief, feedback))
         except Exception:
             log.warning("copywriter LLM failed; using rules", exc_info=True)
             data = None
         if isinstance(data, dict):
-            copy = _merge(base, data, angle, corpus)
+            copy = _merge(base, data, angle, corpus, brief.voice.team)
+            if brief.hashtags:  # the brief chose its tags (a property's locality): the model does not replace them
+                copy.hashtags = base.hashtags
     if llm is not None and languages:
         for lang in languages:
-            v = await _variant(llm, lang, copy, corpus)
+            v = await _variant(llm, lang, copy, corpus, brief)
             if v:
                 copy.variants[lang] = v
     return copy
 
 
-def _merge(base: Copy, data: dict, angle: Angle, corpus: str) -> Copy:
+def _merge(base: Copy, data: dict, angle: Angle, corpus: str, sign_off: str = SIGN_OFF) -> Copy:
     support = _clean_str(data.get("support"), corpus, SLIDE_MAX_WORDS) if data.get("support") else None
     slides = base.slides
     raw = data.get("slides")
@@ -208,8 +196,8 @@ def _merge(base: Copy, data: dict, angle: Angle, corpus: str) -> Copy:
             slides = cleaned  # type: ignore[assignment]
     first = _clean_str(data.get("first_line"), corpus, max_chars=FIRST_LINE_MAX)
     body = _clean_str(data.get("body"), corpus, max_chars=BODY_MAX)
-    if body and SIGN_OFF not in body:
-        body = f"{body}\n- {SIGN_OFF}"
+    if body and sign_off not in body:
+        body = f"{body}\n- {sign_off}"
     question = _clean_str(data.get("question"), corpus, max_chars=140)
     if question and "?" not in question and "comment" not in question.lower():
         question = None
@@ -221,15 +209,15 @@ def _merge(base: Copy, data: dict, angle: Angle, corpus: str) -> Copy:
     return Copy(hook=base.hook, support=support if support is not None else base.support, slides=slides,
                 caption_first_line=first or base.caption_first_line, body=body or base.body,
                 cta_question=question or base.cta_question, hashtags=tags if len(tags) >= lo else base.hashtags,
-                card_cta=base.card_cta, payload=base.payload, source="llm" if llm_used else "rules")
+                card_cta=base.card_cta, payload=base.payload, link_line=base.link_line, source="llm" if llm_used else "rules")
 
 
-async def _variant(llm: Any, lang: str, copy: Copy, corpus: str) -> Optional[str]:
+async def _variant(llm: Any, lang: str, copy: Copy, corpus: str, brief: Brief) -> Optional[str]:
     if lang not in VARIANT_LANG:
         return None
     src = "\n\n".join(p for p in (copy.caption_first_line, copy.body, copy.cta_question) if p)
     try:
-        out = await llm.text(VARIANT_SYSTEM, f"Language: {VARIANT_LANG[lang]}\n\nCAPTION:\n{src}")
+        out = await llm.text(prompts.translator(brief.voice, brief.mode), f"Language: {VARIANT_LANG[lang]}\n\nCAPTION:\n{src}")
     except Exception:
         return None
     if not out or len(out) > 1200:

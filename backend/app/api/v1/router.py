@@ -58,6 +58,7 @@ from app.modules.reels.router import router as listing_reels_router
 from app.modules.photoquality.router import router as quality_router
 from app.modules.agentprojects.router import router as agentprojects_router, public_router as agentprojects_public_router
 from app.modules.areastats.router import public_router as areastats_public_router
+from app.modules.propertyfacts.router import public_router as propertyfacts_public_router, router as propertyfacts_router
 
 # Create main API router
 api_router = APIRouter()
@@ -118,10 +119,12 @@ api_router.include_router(chat_router, prefix="/chat", tags=["chat"])
 api_router.include_router(report_router, prefix="/report", tags=["report"])
 api_router.include_router(listings_public_router, prefix="/public", tags=["public"])
 api_router.include_router(listing_reels_router, prefix="/listings", tags=["listing-reels"])
+api_router.include_router(propertyfacts_router, prefix="/listings", tags=["marketing-runs"])
 api_router.include_router(quality_router, prefix="/quality", tags=["quality"])
 api_router.include_router(agentprojects_router, prefix="/agentprojects", tags=["agent-projects"])
 api_router.include_router(agentprojects_public_router, prefix="/public", tags=["public"])
 api_router.include_router(areastats_public_router, prefix="/public", tags=["public"])
+api_router.include_router(propertyfacts_public_router, prefix="/public", tags=["public"])
 
 # Health check for API v1
 @api_router.get("/health")

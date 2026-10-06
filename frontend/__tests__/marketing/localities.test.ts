@@ -1,5 +1,5 @@
 import { INSIGHTS } from '@/lib/marketing/insights'
-import { LOCALITIES, getLocality, localitiesByTier, localityByName, localitySource } from '@/lib/marketing/localities'
+import { LOCALITIES, getLocality, localitiesByTier, localityByName, localityNameFromSlug, localitySlug, localitySource, localitySourceFromSlug } from '@/lib/marketing/localities'
 import { buildMarketingConfig } from '@/lib/marketing/config'
 import { articleJsonLd, breadcrumbJsonLd } from '@/lib/marketing/seo'
 import sitemap from '@/app/sitemap'
@@ -66,12 +66,13 @@ describe('sitemap and robots', () => {
     api({
       '/public/news': [{ id: 'n1', kind: 'story', headline: 'Metro update', summary: 's', pillar: 'p', pillar_label: 'P', areas: [],
         source_name: 'PIB', source_url: null, as_of: '2026-10-01', image_url: null, permalinks: [], published_at: '2026-10-02T08:00:00Z' }],
-      '/public/sitemap/listings': { items: [{ agent_slug: 'house-deal', id: 'L1', updated_at: '2026-10-01T00:00:00Z' }] },
+      '/public/sitemap/listings': { items: [{ agent_slug: 'house-deal', id: 'L1', locality: 'Gulmohar City', updated_at: '2026-10-01T00:00:00Z' }] },
       '/public/sitemap/projects': { items: [{ agent_slug: 'house-deal', slug: 'goyal-my-home', updated_at: '2026-10-03T00:00:00Z' }] },
     })
     const map = await sitemap()
     const urls = map.map((s) => s.url)
     expect(urls.some((u) => u.endsWith('/news/n1'))).toBe(true)
+    expect(urls.some((u) => u.endsWith('/localities/gulmohar-city'))).toBe(true)
     expect(urls.some((u) => u.endsWith('/agent/house-deal/projects/goyal-my-home'))).toBe(true)
     expect(urls.some((u) => u.endsWith('/agent/house-deal/listings/L1'))).toBe(true)
     const home = map.find((s) => s.url.endsWith('/agent/house-deal'))!
@@ -102,6 +103,11 @@ describe('structured data and links between pages', () => {
     expect(localitySource(getLocality('wagholi')!)).toBe('locality_wagholi')
     expect(localitySource(getLocality('keshav-nagar')!)).toBe('locality_keshav_nagar')
     for (const l of LOCALITIES) expect(localitySource(l)).toMatch(/^locality_[a-z0-9_]{1,31}$/)
+    expect(localityNameFromSlug('gulmohar-city')).toBe('Gulmohar City')
+    expect(localityNameFromSlug('it-park')).toBe('IT Park')
+    expect(localitySlug(' Gulmohar City!! ')).toBe('gulmohar-city')
+    expect(localitySourceFromSlug('gulmohar-city')).toBe('locality_gulmohar_city')
+    expect(localitySourceFromSlug('very-long-locality-name-that-keeps-going')).toHaveLength(40)
   })
 
   it('builds a breadcrumb trail with absolute URLs', () => {

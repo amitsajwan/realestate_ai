@@ -2,10 +2,20 @@
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
+from app.core import brand
+
 AUDIENCES = ("buyer", "agent")
 CHANNELS = ("instagram", "facebook")
 FORMATS = ("single", "carousel", "myth-vs-fact", "stat", "checklist", "before-after", "poll")
 SIZES = {"instagram": (1080, 1350), "facebook": (1080, 1080)}
+
+
+@dataclass(frozen=True)
+class Voice:
+    """Who speaks in the prompts and the sign-off. The default is the brand's own desk."""
+    name: str = brand.NAME
+    team: str = brand.TEAM
+    areas: str = ""                       # where a listing post is set ("Ranjangaon, Pune"); the brand prompts name their own areas
 
 
 @dataclass
@@ -32,11 +42,30 @@ class Brief:
     hashtags: List[str] = field(default_factory=list)
     hooks: Dict[str, str] = field(default_factory=dict)  # optional hand-written hooks by pattern id
     prefer: str = ""                      # optional format the desk wants (used when the brief supports it); otherwise rotated
+    kicker: str = ""                      # optional chip text on the card ("GULMOHAR CITY"); otherwise one per format
+    intro: str = ""                       # optional caption intro line, instead of the format's generic one
+    link_line: str = ""                   # optional Instagram line pointing to the link in bio, instead of "Full guide: ..."
+    writer_note: str = ""                 # optional extra context for the LLM copywriter (a property post may use its price)
+    voice: Voice = field(default_factory=Voice)
+    mode: str = "brand"                   # "brand" (explainers: no prices) or "listing" (markets one property); see prompts.py
+    listing_transaction: str = ""
+    listing_property_type: str = ""
+    listing_price_inr: str = ""
+    listing_bhk: str = ""
+    listing_carpet_sqft: str = ""
+    listing_locality: str = ""
+    listing_project_name: str = ""
+    listing_rera_no: str = ""
+    listing_amenities: List[str] = field(default_factory=list)
+    listing_media_refs: List[str] = field(default_factory=list)  # photo URLs; kept out of corpus() (URLs carry stray digits)
 
     def corpus(self) -> str:
         """Every string a number or claim may legitimately come from."""
         parts = [self.topic, self.short, self.stat_value, self.stat_label, self.myth, self.truth, self.question,
-                 self.tip, *self.facts, *self.options, *self.messy, *self.clean, *self.steps, *self.compare]
+                 self.tip, self.listing_transaction, self.listing_property_type, self.listing_price_inr,
+                 self.listing_bhk, self.listing_carpet_sqft, self.listing_locality, self.listing_project_name,
+                 self.listing_rera_no, *self.facts, *self.options, *self.messy, *self.clean, *self.steps,
+                 *self.compare, *self.listing_amenities]
         return " \n ".join(p for p in parts if p)
 
     def formats(self) -> List[str]:
@@ -83,6 +112,7 @@ class Copy:
     payload: Dict[str, object] = field(default_factory=dict)  # structure for the layouts (stat, myth, options, ...)
     variants: Dict[str, str] = field(default_factory=dict)    # "hinglish" / "marathi" captions, when asked
     source: str = "rules"
+    link_line: str = ""               # Instagram's pointer to the link in bio (Brief.link_line), else the default
 
     def caption(self, channel: str, link: str = "") -> str:
         parts = [self.caption_first_line.strip()]
@@ -92,7 +122,7 @@ class Copy:
             parts.append(self.cta_question.strip())
         if channel == "instagram":
             if link:
-                parts.append("Full guide: link in our bio.")
+                parts.append(self.link_line or "Full guide: link in our bio.")
         elif link:
             parts.append(f"\U0001F517 {link}")
         parts.append(" ".join(self.hashtags))
@@ -145,3 +175,4 @@ class CreativePack:
     variants: Dict[str, str] = field(default_factory=dict)
     used_llm: bool = False
     attempts: int = 1
+    prompts: List[str] = field(default_factory=list)  # tags of the prompts whose output was kept ("copywriter@1/listing")

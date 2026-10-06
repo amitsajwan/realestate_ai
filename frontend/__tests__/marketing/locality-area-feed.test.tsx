@@ -3,9 +3,11 @@ import { render, screen, within } from '@testing-library/react'
 
 // The area page reads listings, projects, MahaRERA stats, posts and news from the API: replaced here.
 const mockFetch = jest.fn()
+const mockCatalog = jest.fn()
+const mockListings = jest.fn()
 jest.mock('@/lib/site/api', () => ({
-  getCatalog: async () => [],
-  getLocalityListings: async () => [],
+  getCatalog: (locality?: string) => mockCatalog(locality),
+  getLocalityListings: (locality: string) => mockListings(locality),
   fixturesForced: () => false,
   serverApiBase: () => 'http://api',
 }))
@@ -52,6 +54,10 @@ function routes(map: Record<string, { status: number; body: unknown } | Error>) 
 
 beforeEach(() => {
   mockFetch.mockReset()
+  mockCatalog.mockReset()
+  mockListings.mockReset()
+  mockCatalog.mockResolvedValue([])
+  mockListings.mockResolvedValue([])
   global.fetch = mockFetch as unknown as typeof fetch
 })
 

@@ -176,3 +176,31 @@ export interface ProjectAgent {
 export interface CatalogProject extends PublicProject {
   agents: ProjectAgent[]
 }
+
+/** Facts we gathered and checked for a property (GET /public/property-facts): usable facts only, each block with its source. */
+export interface PropertyFactsView {
+  project?: string | null
+  locality?: string | null
+  gathered_at?: string | null
+  maharera?: {
+    rera_no: string
+    url: string
+    name?: string | null
+    project_type?: string | null
+    registered_on?: string | null
+    completion_at_registration?: string | null
+    completion_now?: string | null
+    moved_months?: number | null
+    units_total?: number | null
+    promoter?: string | null
+    read_at?: string | null
+  }
+  nearby?: { label: string; name: string; km: number }[]
+  nearby_source?: { name: string; url: string }
+  numbers?: {
+    price_per_sqft?: number
+    plot_guntha?: number
+    plot_sqm?: number
+    emi?: { emi: number; loan: number; rate: number; years: number }
+  }
+}

@@ -1,4 +1,5 @@
 """Layout 6, photo-led card: a full-bleed real photo, a dark gradient, the hook large over it."""
+from pathlib import Path
 from typing import List
 
 from ..models import Copy, Design
@@ -12,8 +13,8 @@ def render(copy: Copy, design: Design) -> List[Rendered]:
         pal = get("navy_gold")
     tall = H > W
     keys = photo_keys()
-    key = design.photo if design.photo in keys else (keys[0] if keys else "")
-    img = photo(key, design.size, centering=(0.5, 0.42)) if key else None
+    key = design.photo if design.photo in keys or design.photo == "none" or Path(design.photo).is_file() else (keys[0] if keys else "")
+    img = photo(key, design.size, centering=(0.5, 0.42)) if key and key != "none" else None
     if img is None:
         from .base import gradient
         img = gradient(design.size, pal.bg_top, pal.bg_bottom)
@@ -23,7 +24,7 @@ def render(copy: Copy, design: Design) -> List[Rendered]:
     w = c.right - c.left
     c.chip(str(copy.payload.get("kicker", "BUYER NOTE")), c.left, c.top, icon="home")
     # bottom-up: brand bar, cta, then support and hook above it
-    c.brand_bar(right="Illustrative photo", dark_bg=True)
+    c.brand_bar(right="Illustrative photo" if key in keys else None, dark_bg=True)  # a real listing photo needs no label
     cta_y = c.bottom - 64 - 40 - int(30 * 1.95)
     cta = copy.card_cta or "Save this"
     c.chip(cta, c.left, cta_y, outline=pal.accent, ink=pal.accent, icon="bookmark", size=30)

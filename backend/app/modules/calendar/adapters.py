@@ -393,7 +393,7 @@ def project_reel_caption(p: dict, agent: dict, channel: str, agent_slug: str = "
     and comments reach the agent)."""
     from app.modules.agentprojects.cards import bhk_range, day, price_range
     r = p.get("rera") or {}
-    page = f"{SITE}/agent/{agent_slug}/projects/{p['slug']}" if agent_slug else SITE
+    page = f"{SITE}/projects/{p.get('catalog_slug') or p['slug']}"
     lines = [f"{p['name']}, {p['locality']}: {price_range(p)}, {bhk_range(p.get('bhk_options') or [])}.",
              f"MahaRERA {p['rera_no']}: completion date filed {day(r.get('completion_now'))}"
              + (f", {p['booked_pct']}% of {r.get('units_total')} homes booked" if p.get("booked_pct") is not None else "")

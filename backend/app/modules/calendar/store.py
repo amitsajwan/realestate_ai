@@ -69,6 +69,20 @@ class Store:
     async def set_video(self, id: str, video: str) -> None:
         await self.items.update_one({"_id": id}, {"$set": {"video": video, "updated_at": self.clock()}})
 
+    async def set_planned(self, id: str, caption: Optional[str] = None, images: Optional[List[str]] = None) -> bool:
+        """Change a row's caption or images while it is still planned (an agent edited the post before approval);
+        False for any other status: an approved or published row is never changed behind the owner's back."""
+        doc = await self.get(id)
+        if not doc or doc["status"] != "planned":
+            return False
+        fields: Dict = {"updated_at": self.clock()}
+        if caption is not None:
+            fields["caption"] = caption
+        if images:
+            fields.update(images=list(images), image_path=images[0])
+        await self.items.update_one({"_id": id, "status": "planned"}, {"$set": fields})
+        return True
+
     async def approve(self, id: str) -> bool:
         doc = await self.get(id)
         if not doc or doc["status"] != "planned":

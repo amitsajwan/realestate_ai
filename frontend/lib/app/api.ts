@@ -8,30 +8,31 @@ import type {
   AboutSuggestion,
   AppApi,
   BusinessToday,
+  ChatConversation,
+  FacebookInterest,
+  FacebookStatus,
   FollowupDraft,
-  LeadPatch,
-  ListingActivity,
-  MarketingPack,
-  MatchingLeads,
-  PerformanceItem,
-  Publication,
-  SocialStatus,
   Lead,
   LeadDetail,
+  LeadPatch,
   Listing,
+  ListingActivity,
   ListingInput,
   ListingStatus,
   LoginResult,
+  MarketingPack,
+  MarketingRun,
+  MatchingLeads,
   OtpRequested,
+  PerformanceItem,
+  Publication,
   SiteCreateInput,
   SiteResult,
   SiteUpdateInput,
-  FacebookInterest,
-  ChatConversation,
-  FacebookStatus,
-  WeeklyReport,
+  SocialStatus,
   Stage,
   UploadedFile,
+  WeeklyReport,
 } from './types'
 
 export class ApiError extends Error {
@@ -211,6 +212,19 @@ export function createApiClient(opts: ClientOptions): AppApi {
     createMarketingPack: (listingId, language) =>
       request<MarketingPack>(`/listings/${listingId}/marketing`, { method: 'POST', json: language ? { language } : {} }),
     getMarketingPack: (listingId) => request<MarketingPack>(`/listings/${listingId}/marketing`),
+    startMarketingRun: async (listingId, again) =>
+      (await request<{ run: MarketingRun }>(`/listings/${listingId}/campaign`, { method: 'POST', json: { again: !!again } })).run,
+    getMarketingRun: async (listingId) => (await request<{ run: MarketingRun | null }>(`/listings/${listingId}/campaign`)).run,
+    sendRunToCalendar: async (listingId) =>
+      (await request<{ run: MarketingRun }>(`/listings/${listingId}/campaign/calendar`, { method: 'POST' })).run,
+    editRunPost: async (listingId, angle, caption) => {
+      const r = await request<{ run: MarketingRun; problems: string[] }>(`/listings/${listingId}/campaign/posts/${encodeURIComponent(angle)}`,
+        { method: 'PATCH', json: { caption } })
+      return { run: r.run, problems: r.problems ?? [] }
+    },
+    redoRunPost: async (listingId, angle, note) =>
+      (await request<{ run: MarketingRun }>(`/listings/${listingId}/campaign/posts/${encodeURIComponent(angle)}/redo`,
+        { method: 'POST', json: { note } })).run,
     getMatchingLeads: (listingId) => request<MatchingLeads>(`/inbox/matching-leads${qs({ listing_id: listingId })}`),
     getPerformance: async () => (await request<{ items: PerformanceItem[] }>('/inbox/performance')).items ?? [],
 

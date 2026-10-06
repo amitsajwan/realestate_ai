@@ -63,7 +63,8 @@ async def launch(db, site: str, now: datetime, dry: bool, log=print) -> int:
             ig, fb = captions(compare_caption(list(projects.values())), site)
             images = [f"{FOLDER}/compare-{k}.jpg" for k in range(1, 8)]
         else:
-            ig, fb = captions(cards.caption(projects[ref], AGENT), site, ref)
+            p = projects[ref]
+            ig, fb = captions(cards.caption(p, AGENT), site, p.get("catalog_slug") or ref)
             images = [f"{FOLDER}/{ref}-{k}.jpg" for k in range(1, 6)]
         due = now - timedelta(minutes=1) if when is None else when.astimezone(timezone.utc)
         for ch in CHANNELS:

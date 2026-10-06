@@ -367,8 +367,10 @@ class Canvas:
 
 
 def photo(key: str, size: Tuple[int, int], centering: Tuple[float, float] = (0.5, 0.5)) -> Optional[Image.Image]:
-    """A bundled stock photo cropped to fill `size`, or None if the key is unknown."""
+    """A bundled stock photo (by key) or a real photo file (by path) cropped to fill `size`, or None if neither exists."""
     p = PHOTO_DIR / f"{key}.jpg"
+    if not p.is_file() and key and Path(key).suffix.lower() in (".jpg", ".jpeg", ".png", ".webp"):
+        p = Path(key)
     if not p.is_file():
         return None
     with Image.open(p) as im:

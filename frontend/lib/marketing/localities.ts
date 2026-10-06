@@ -221,6 +221,19 @@ export function getLocality(slug: string): Locality | undefined {
   return LOCALITIES.find((l) => l.slug === slug)
 }
 
+const TITLE_WORDS = new Set(['it'])
+
+export function localityNameFromSlug(slug: string): string {
+  return slug.split('-').filter(Boolean).map((w) => {
+    const lower = w.toLowerCase()
+    return TITLE_WORDS.has(lower) ? lower.toUpperCase() : lower.charAt(0).toUpperCase() + lower.slice(1)
+  }).join(' ')
+}
+
+export function localitySlug(name: string | null | undefined): string {
+  return (name || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80)
+}
+
 /** The area guide for a locality name as agents type it ("upper kharadi", "Upper Kharadi "), if we have one. */
 export function localityByName(name: string | null | undefined): Locality | undefined {
   const want = (name || '').trim().toLowerCase().split(/\s+/).join(' ')
@@ -235,4 +248,8 @@ export function localitiesByTier(tier: LocalityTier): Locality[] {
 /** The `?src=` tag an area page passes to the enquiry form, so the lead shows which area the buyer asked about. */
 export function localitySource(l: Pick<Locality, 'key'>): string {
   return `locality_${l.key}`
+}
+
+export function localitySourceFromSlug(slug: string): string {
+  return `locality_${slug.replace(/-/g, '_')}`.slice(0, 40)
 }

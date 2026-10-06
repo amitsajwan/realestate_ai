@@ -608,6 +608,29 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
       if (!pack) throw fixtureError(404, 'No marketing pack yet')
       return JSON.parse(JSON.stringify(pack)) as MarketingPack
     },
+    async startMarketingRun(listingId) {
+      const l = find(listingId)
+      if (l.status !== 'live' && l.status !== 'under_offer') throw fixtureError(409, 'Only live listings can be marketed')
+      const now = new Date().toISOString()
+      return {
+        id: 'run-' + listingId, listing_id: listingId, status: 'done', step: 'posts', page_url: shareUrlFor(listingId),
+        facts: { usable: 0, held: 0, maharera: null, how: 'Demo mode: no live facts', nearby: 0, notes: [] },
+        posts: [], dropped: {}, error: '', created_at: now, facts_done_at: now, finished_at: now,
+      }
+    },
+    async editRunPost() {
+      throw fixtureError(409, 'Demo mode: no campaign to edit')
+    },
+    async redoRunPost() {
+      throw fixtureError(409, 'Demo mode: no campaign to improve')
+    },
+    async sendRunToCalendar() {
+      throw fixtureError(409, 'Demo mode: nothing to send to the calendar')
+    },
+    async getMarketingRun(listingId) {
+      find(listingId)
+      return null
+    },
     async getMatchingLeads(listingId): Promise<MatchingLeads> {
       const l = find(listingId)
       return {

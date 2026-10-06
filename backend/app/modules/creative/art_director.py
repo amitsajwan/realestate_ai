@@ -4,6 +4,7 @@ Picks from the layout library so consecutive posts never look the same: a layout
 alternative exists, and the palette variant rotates with the seed. Pure and deterministic for a given seed.
 """
 import re
+from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
 from .catalog import layouts_for, palettes_for
@@ -43,8 +44,8 @@ def choose_palette(layout: str, recent: Sequence[str], seed: int) -> str:
 
 def choose_photo(seed: int, preferred: str = "", layout: str = "photo_led") -> str:
     keys = photo_keys()
-    if preferred and preferred in keys:
-        return preferred
+    if preferred and (preferred in keys or preferred == "none" or Path(preferred).is_file()):
+        return preferred  # a bundled key, a real photo file (a listing's own), or "none" (no photo: a plot is not a tower)
     if layout == "product_showcase":  # the phone shows an interior listing photo
         keys = [k for k in keys if k.startswith("living")] or keys
     return keys[seed % len(keys)] if keys else ""

@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { INSIGHTS } from '@/lib/marketing/insights'
-import { LOCALITIES } from '@/lib/marketing/localities'
+import { LOCALITIES, getLocality, localitySlug } from '@/lib/marketing/localities'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { fetchNews } from '@/lib/news/data'
 import { fetchPosts, postPath } from '@/lib/posts/data'
@@ -24,6 +24,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const at = (path: string, priority: number, date?: string | null) => ({ url: base + path, lastModified: day(date), priority })
   const [news, agents, projects, posts] = await Promise.all([fetchNews(50), getSitemapEntries(), getCatalog(), fetchPosts(POSTS_MAX)])
   const shared = new Set(projects.flatMap((p) => p.agents.map((a) => a.slug + '/' + a.project_slug)))
+  const fallbackLocalities = new Map<string, string | null | undefined>()
+  for (const e of agents.listings) {
+    const slug = localitySlug(e.locality)
+    if (slug && !getLocality(slug)) fallbackLocalities.set(slug, e.updated_at)
+  }
+  for (const p of projects) {
+    const slug = localitySlug(p.locality)
+    const date = [p.rera?.checked_at, p.updated_at].filter(Boolean).sort().pop()
+    if (slug && !getLocality(slug)) {
+      const prev = fallbackLocalities.get(slug)
+      if (!fallbackLocalities.has(slug) || (date && (!prev || date > prev))) fallbackLocalities.set(slug, date)
+    }
+  }
   const latest = new Map<string, string | null | undefined>() // agent slug -> newest change on their site
   for (const e of [...agents.listings, ...agents.projects]) {
     const prev = latest.get(e.agent_slug)
@@ -33,6 +46,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     at('/', 1),
     at('/localities', 0.8),
     ...LOCALITIES.map((l) => at(`/localities/${l.slug}`, 0.8, l.updated)),
+    ...[...fallbackLocalities].map(([slug, d]) => at(`/localities/${slug}`, 0.5, d)),
     at('/news', 0.8),
     ...news.items.map((n) => at(`/news/${n.id}`, 0.6, n.published_at ?? n.as_of)),
     at('/insights', 0.7),

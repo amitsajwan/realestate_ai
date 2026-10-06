@@ -78,7 +78,8 @@ async def build_and_store(store: Store, start: date, weeks: int, uploads: Path, 
             recent[it.channel].append(layout)
             notes.update(path=how, layout=layout, format=pack.design.get("format"), palette=pack.design.get("palette"), ok=pack.report.get("ok"),
                          problems=[p["message"] for p in pack.report.get("problems", []) if p.get("severity") == "error"], alt_text=pack.alt_text,
-                         hook=pack.angle.get("hook"), slides=pack.design.get("slides", 1), llm=pack.used_llm)
+                         hook=pack.angle.get("hook"), slides=pack.design.get("slides", 1), llm=pack.used_llm,
+                         prompts=pack.prompts)
         elif it.kind == "showcase":
             home = adapters.get_home(it.ref)
             made = adapters.showcase_item(home, it.channel, uploads)

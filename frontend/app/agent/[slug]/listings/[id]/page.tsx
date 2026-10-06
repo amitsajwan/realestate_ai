@@ -13,16 +13,33 @@ import ShareButton from '@/components/site/ShareButton'
 import SiteShell from '@/components/site/SiteShell'
 import StickyBar from '@/components/site/StickyBar'
 import TrackingBeacon from '@/components/site/TrackingBeacon'
-import { getAgent, getListing } from '@/lib/site/api'
+import VerifiedFacts from '@/components/site/VerifiedFacts'
+import { getAgent, getCatalog, getListing, getPropertyFacts } from '@/lib/site/api'
 import { formatPrice } from '@/lib/site/format'
 import { whatsappMessage } from '@/lib/site/links'
 import { jsonLdString, listingJsonLd, listingMetadata } from '@/lib/site/seo'
 import { agentPath, normalizeSlug, siteOrigin } from '@/lib/site/slug'
+import { localityByName, localitySlug } from '@/lib/marketing/localities'
 import { BRAND_NAME } from '@/lib/brand'
 import DemoRibbon from '../../DemoRibbon'
+import type { CatalogProject, PublicListing } from '@/lib/site/types'
 
 interface Props {
   params: Promise<{ slug: string; id: string }>
+}
+
+function norm(s: string | null | undefined): string {
+  return (s || '').trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function projectForListing(listing: PublicListing, projects: CatalogProject[]): CatalogProject | null {
+  const rera = norm(listing.rera_no)
+  if (rera) {
+    const byRera = projects.find((p) => norm(p.rera_no) === rera)
+    if (byRera) return byRera
+  }
+  const name = norm(listing.project_name || listing.about?.project_name)
+  return name ? projects.find((p) => norm(p.name) === name || p.agents.some((a) => norm(a.project_slug).replace(/-/g, ' ') === name)) || null : null
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -45,6 +62,13 @@ export default async function ListingPage({ params }: Props) {
   const url = siteOrigin() + agentPath(slug, 'listings/' + l.id)
   const msg = whatsappMessage(agent.agent_name, l, url)
   const phone = agent.phone || (l.agent && l.agent.phone)
+  const locality = localityByName(l.locality)
+  const fallbackLocalitySlug = locality ? '' : localitySlug(l.locality)
+  const localityHref = locality ? `/localities/${locality.slug}` : (fallbackLocalitySlug ? `/localities/${fallbackLocalitySlug}` : '')
+  const projectName = (l.project_name || '').trim()
+  const project = projectName || l.rera_no || l.about?.project_name ? projectForListing(l, await getCatalog()) : null
+  const projectLabel = projectName || project?.name || ''
+  const facts = await getPropertyFacts({ rera: l.rera_no || project?.rera_no, project: projectLabel, locality: l.locality })
 
   return (
     <SiteShell agent={agent} bottomPad>
@@ -66,7 +90,15 @@ export default async function ListingPage({ params }: Props) {
           )}
           <h1 className="mt-1 text-2xl font-bold leading-snug">{l.title}</h1>
           <p className="mt-1 text-slate-600">
-            {[l.project_name, l.locality, l.city].filter(Boolean).join(', ')}
+            {project ? (
+              <Link href={`/projects/${project.slug}`} className="font-semibold text-[var(--site-primary)] underline underline-offset-2">{projectLabel}</Link>
+            ) : projectLabel}
+            {projectLabel && (l.locality || l.city) ? ', ' : ''}
+            {localityHref ? (
+              <Link href={localityHref} className="font-semibold text-[var(--site-primary)] underline underline-offset-2">{l.locality}</Link>
+            ) : l.locality}
+            {l.locality && l.city ? ', ' : ''}
+            {l.city}
             {l.status === 'under_offer' && <span className="ml-2 rounded-full bg-amber-300 px-2 py-0.5 text-xs font-semibold">Under offer</span>}
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -79,6 +111,7 @@ export default async function ListingPage({ params }: Props) {
 
         <ListingFacts listing={l} />
         <DescriptionSwitch description={l.description} />
+        <VerifiedFacts f={facts} />
 
         {l.amenities.length > 0 && (
           <section aria-labelledby="amen-title">

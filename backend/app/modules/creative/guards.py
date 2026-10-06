@@ -7,6 +7,9 @@ from app.platform.text import HYPE, PHONE
 URL = re.compile(r"https?://|www\.|\b[\w-]+\.(?:com|in|io|co|app|org|net)\b", re.I)
 PRICE = re.compile(r"₹|\brs\.?\s*\d|\binr\b|\blakhs?\b|\bcrores?\b|\bper\s*sq\.?\s*(?:ft|feet)\b|\bsq\.?\s?ft\b", re.I)
 PREDICT = re.compile(r"\b(will (?:rise|go up|increase|double|appreciate)|expected to (?:rise|grow|double)|appreciation|guaranteed returns?|invest now)\b", re.I)
+# "Kolte Patil Developers", "XYZ Realty Pvt": a builder or company name, which must come from the facts
+ORG = re.compile(r"\b(?:[A-Z][\w&'.-]*\s+){1,3}(?:Developers?|Builders?|Constructions?|Realty|Realtors?|Infra(?:structure)?|"
+                 r"Estates?|Properties|Promoters?|Buildcon|Ltd|Limited|LLP|Pvt)\b")
 TITLE_NAME = re.compile(r"\b(?:mr|mrs|ms|shri|smt|sri)\.?\s+[A-Z]\w+", re.I)
 NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
 HASHTAG = re.compile(r"#\w+")
@@ -53,6 +56,22 @@ def unsupported_numbers(text: str, corpus: str) -> List[str]:
     return [n for n in numbers(text) if n not in allowed]
 
 
+_NOT_A_NAME = {"the", "a", "an", "our", "your", "their", "this", "these", "those", "some", "many", "most", "all", "ask", "local"}
+
+
+def unsupported_orgs(text: str, corpus: str) -> List[str]:
+    """Builder or company names in `text` that the facts do not contain ("The Builders" is not a name)."""
+    low = (corpus or "").lower()
+    out = []
+    for m in ORG.finditer(text):
+        name = m.group(0)
+        if all(w.lower() in _NOT_A_NAME for w in name.split()[:-1]):
+            continue
+        if name.lower() not in low:
+            out.append(name)
+    return out
+
+
 def filler_hits(text: str) -> List[str]:
     low = (text or "").lower()
     return [f for f in FILLER if f in low]
@@ -72,6 +91,9 @@ def problems_in(text: str, corpus: str, *, allow_url: bool = False) -> List[str]
         out.append("prediction")
     if TITLE_NAME.search(t):
         out.append("personal name")
+    orgs = unsupported_orgs(t, corpus)
+    if orgs:
+        out.append("name not in facts: " + ", ".join(orgs))
     if CLICKBAIT.search(t):
         out.append("clickbait")
     if not allow_url and URL.search(t):

@@ -15,7 +15,7 @@ from typing import Any, Callable, List, Optional, Sequence, Tuple
 
 from app.modules.marketing.images import save_jpeg
 
-from . import art_director, copywriter, critic, strategist
+from . import art_director, copywriter, critic, prompts, strategist
 from .layouts import render_layout
 from .layouts.base import Rendered
 from .models import Angle, Brief, Copy, CreativePack, Design, Report
@@ -68,10 +68,12 @@ def _review_context(copy: Copy, report: Report, channel: str, link: Optional[str
 
 async def make(brief: Brief, audience: str, channel: str, llm: Any = None, seed: int = 0, recent_layouts: Sequence[str] = (),
                out_dir: Optional[Path] = None, languages: Sequence[str] = (), llm_critic: bool = False,
-               reviewer: Any = "default") -> CreativePack:
+               reviewer: Any = "default", note: str = "") -> CreativePack:
     """`reviewer`: async (paths, context) -> {score, verdict, notes, source}; "default" uses the photoquality visual review,
     None skips it. When the AI review says 'redo', the pack is regenerated ONCE with the review notes as feedback; the new
-    pack must still pass every critic guard, and it is kept only if its review is not worse."""
+    pack must still pass every critic guard, and it is kept only if its review is not worse.
+    `note`: what a person asked to change ("mention MIDC"); it goes to the copywriter as feedback on every attempt (the rule
+    path cannot follow it, so without an LLM only the layout changes)."""
     recent = list(recent_layouts)
     tries: List[Tuple[Angle, Copy, Design, List[Rendered], Report]] = []
     plan = [(llm, seed, None)]
@@ -79,24 +81,25 @@ async def make(brief: Brief, audience: str, channel: str, llm: Any = None, seed:
         plan += [(llm, seed + 1, None), (None, seed + 2, None)]  # a second LLM try with feedback, then the deterministic path
     else:
         plan += [(None, seed + 1, None)]
-    feedback: Optional[str] = None
+    asked = f"The agent asked for this change: {note.strip()}" if note and note.strip() else None
+    feedback: Optional[str] = asked
     for n, (client, s, _) in enumerate(plan):
         try:
             res = await _attempt(brief, audience, channel, client, s, recent, languages if client is not None else (), feedback)
         except Exception:
             log.warning("creative attempt %s failed", n + 1, exc_info=True)
-            feedback = "the previous attempt crashed"
+            feedback = "; ".join(x for x in (asked, "the previous attempt crashed") if x)
             continue
         tries.append(res)
         if res[4].ok:
             break
-        feedback = _feedback(res[4])
+        feedback = "; ".join(x for x in (asked, _feedback(res[4])) if x)
     if not tries:
         raise RuntimeError("creative pipeline produced nothing")
     best = next((t for t in tries if t[4].ok), None) or min(tries, key=lambda t: len(t[4].errors()))
     angle, copy, design, rendered, report = best
     if llm_critic:
-        report.problems += await critic.llm_critique(llm, copy, design)
+        report.problems += await critic.llm_critique(llm, copy, design, brief.voice, brief.mode)
 
     out = Path(out_dir) if out_dir else Path(tempfile.mkdtemp(prefix="creative-"))
     out.mkdir(parents=True, exist_ok=True)
@@ -133,7 +136,9 @@ async def make(brief: Brief, audience: str, channel: str, llm: Any = None, seed:
         report=report_dict, angle={"pain": angle.pain, "idea": angle.idea, "hook": angle.hook, "pattern": angle.pattern,
                                          "proof": angle.proof, "format": angle.fmt, "cta": angle.cta, "source": angle.source},
         alt_text=_alt_text(angle, copy, design), variants=copy.variants,
-        used_llm=(angle.source == "llm" or copy.source == "llm"), attempts=attempts)
+        used_llm=(angle.source == "llm" or copy.source == "llm"), attempts=attempts,
+        prompts=prompts.used(brief.mode, strategist=angle.source == "llm", copywriter=copy.source == "llm",
+                             translator=bool(copy.variants), critic=llm_critic and llm is not None))
 
 
 async def _safe_review(fn: Callable, paths: List[str], context: dict) -> Optional[dict]:

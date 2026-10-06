@@ -1,5 +1,5 @@
 import { fixtureAgent, fixtureListing, fixtureListings } from './fixtures'
-import type { AgentProfile, CatalogProject, ListingsPage, PublicListing, PublicProject } from './types'
+import type { AgentProfile, CatalogProject, ListingsPage, PropertyFactsView, PublicListing, PublicProject } from './types'
 
 // Server-side data access for the public site. Server components need an ABSOLUTE url:
 // SITE_API_URL (server-only) > NEXT_PUBLIC_API_URL > http://localhost:8000.
@@ -73,6 +73,20 @@ export async function getListing(slug: string, id: string): Promise<PublicListin
   return r.notFound ? null : unavailable()
 }
 
+/** Lookup used by the legacy /listings/:id share link so it can canonicalize to the owning agent page. */
+export async function getListingById(id: string): Promise<PublicListing | null> {
+  if (fixturesForced()) {
+    for (const slug of ['demo', 'rohan-kulkarni-aundh']) {
+      const listing = fixtureListing(slug, id)
+      if (listing) return listing
+    }
+    return null
+  }
+  const r = await getJson<PublicListing>('/api/v1/public/listings/' + encodeURIComponent(id))
+  if (r.ok) return r.data
+  return r.notFound ? null : unavailable()
+}
+
 /** The agent's live builder projects (agentprojects module); empty for agents without any, or under fixtures. */
 export async function getProjects(slug: string): Promise<PublicProject[]> {
   if (fixturesForced()) return []
@@ -105,7 +119,7 @@ export function agentCity(agent: AgentProfile, listings: PublicListing[]): strin
 }
 
 export interface SitemapEntries {
-  listings: Array<{ agent_slug: string; id: string; updated_at?: string | null }>
+  listings: Array<{ agent_slug: string; id: string; updated_at?: string | null; locality?: string | null }>
   projects: Array<{ agent_slug: string; slug: string; updated_at?: string | null }>
 }
 
@@ -135,4 +149,15 @@ export async function getCatalogProject(slug: string): Promise<CatalogProject | 
   if (r.ok) return r.data
   if (r.notFound) return null
   return unavailable()
+}
+
+/** The verified facts we keep for a property, or null. Optional extra on a page: any failure just hides the box. */
+export async function getPropertyFacts(q: { rera?: string | null; project?: string | null; locality?: string | null }): Promise<PropertyFactsView | null> {
+  if (fixturesForced() || !(q.rera || q.project)) return null
+  const p = new URLSearchParams()
+  if (q.rera) p.set('rera', q.rera)
+  if (q.project) p.set('project', q.project)
+  if (q.locality) p.set('locality', q.locality)
+  const r = await getJson<PropertyFactsView>('/api/v1/public/property-facts?' + p.toString())
+  return r.ok ? r.data : null
 }

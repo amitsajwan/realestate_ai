@@ -47,7 +47,7 @@ async def test_go_live_publishes_the_site_records_consent_and_plans_posts_for_ap
     assert len(ig["images"]) == 5 and all((tmp_path / p).is_file() for p in ig["images"])
     assert "Listed by House Deal" in ig["caption"] and "link in our bio" in ig["caption"]
     fb = [r for r in rows if r["channel"] == "facebook_page" and r["slug"] == "house-deal-goyal-my-home"][0]
-    assert fb["caption"].endswith("https://avasetu.test/agent/house-deal/projects/goyal-my-home") and len(fb["images"]) == 1
+    assert fb["caption"].endswith("https://avasetu.test/projects/goyal-my-home") and len(fb["images"]) == 1
     first = min(rows, key=lambda r: r["due_at"])
     assert first["slug"] == "house-deal-compare"
 

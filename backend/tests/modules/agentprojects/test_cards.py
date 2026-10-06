@@ -48,9 +48,10 @@ def test_comparison_never_calls_projects_new():
 
 
 def test_caption_states_sources_and_dates():
-    c = cards.caption(doc(), AGENT)
+    c = cards.caption(doc(), AGENT, "https://avasetu.in/projects/goyal-my-home")
     assert "MahaRERA P52100078796: completion date filed 30 Apr 2029, 71% of 143 homes booked (read on 3 Oct 2026)" in c
     assert "Prices as quoted by House Deal" in c and "#UpperKharadi" in c
+    assert "Every fact with its source: https://avasetu.in/projects/goyal-my-home" in c
 
 
 def test_money_and_dates():

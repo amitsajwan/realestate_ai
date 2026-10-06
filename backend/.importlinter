@@ -37,7 +37,7 @@ type = layers
 containers =
     app.modules
 layers =
-    admin : concierge
+    admin : concierge : propertyfacts
     newsroom : calendar : showcase : marketing : creative : reels : photoquality : engage : chat : whatsapp : knowledge : notifications
     social
     tracking : interest : report
@@ -121,6 +121,7 @@ source_modules =
     app.modules.notifications
     app.modules.onboarding
     app.modules.photoquality
+    app.modules.propertyfacts
     app.modules.reels
     app.modules.report
     app.modules.showcase

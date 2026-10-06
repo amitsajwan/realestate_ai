@@ -582,6 +582,16 @@ export interface AppApi {
   createMarketingPack(listingId: string, language?: DraftLanguage): Promise<MarketingPack>
   /** The existing pack, or a 404 ApiError when none was generated yet. */
   getMarketingPack(listingId: string): Promise<MarketingPack>
+  /** Start marketing: step 1 gathers the property facts (shown on the listing page), step 2 makes the posts. 409 unless live. */
+  startMarketingRun(listingId: string, again?: boolean): Promise<MarketingRun>
+  /** The latest run, or null when marketing was never started for this listing. */
+  getMarketingRun(listingId: string): Promise<MarketingRun | null>
+  /** Send the finished run's posts to the approval calendar as planned rows (one a day). 409 before the posts exist. */
+  sendRunToCalendar(listingId: string): Promise<MarketingRun>
+  /** Save an edited caption for one post; `problems` are the checks' warnings (the text is kept). Planned calendar rows follow. */
+  editRunPost(listingId: string, angle: string, caption: string): Promise<{ run: MarketingRun; problems: string[] }>
+  /** Make one post again with a note ("mention MIDC"), from the kept facts and under every check. 422 when no version passes. */
+  redoRunPost(listingId: string, angle: string, note: string): Promise<MarketingRun>
   getMatchingLeads(listingId: string): Promise<MatchingLeads>
   getPerformance(): Promise<PerformanceItem[]>
   /** Per-listing activity (views, sources, people, feed). 404 for a listing that is not yours. */
@@ -596,4 +606,24 @@ export interface AppApi {
   listPublications(listingId: string): Promise<Publication[]>
   /** Only for a failed publication. */
   retryPublication(id: string): Promise<Publication>
+}
+
+/** One "Start marketing" run (POST/GET /listings/{id}/campaign): facts first, then posts (drafts; posting needs approval). */
+export interface MarketingRun {
+  id: string
+  listing_id: string
+  status: 'queued' | 'facts' | 'posts' | 'done' | 'failed'
+  step?: 'facts' | 'posts' | null
+  facts?: { usable: number; held: number; maharera?: string | null; how?: string; nearby: number; notes: string[] } | null
+  page_url?: string | null
+  posts: { angle: string; layout?: string; format?: string; images: string[]; caption: string; used_llm?: boolean; edited?: boolean; redos?: number; note?: string }[]
+  dropped?: Record<string, string>
+  error?: string
+  created_at?: string | null
+  facts_done_at?: string | null
+  finished_at?: string | null
+  /** Slides reels from the carousels, and the walkthrough reel (rendered by its own queue: status may lag). */
+  reels?: { kind: 'slides' | 'walkthrough'; angle?: string; video?: string | null; status?: string; note?: string; caption?: string }[]
+  /** Rows planned in the approval calendar, once sent. */
+  calendar?: { angle: string; channel: string; row_id: string; due_at: string }[]
 }

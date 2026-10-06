@@ -3,9 +3,11 @@ import { render, screen, within } from '@testing-library/react'
 
 // The area page reads listings, projects and the MahaRERA area stats from the API: replaced here.
 const mockFetch = jest.fn()
+const mockCatalog = jest.fn()
+const mockListings = jest.fn()
 jest.mock('@/lib/site/api', () => ({
-  getCatalog: async () => [],
-  getLocalityListings: async () => [],
+  getCatalog: (locality?: string) => mockCatalog(locality),
+  getLocalityListings: (locality: string) => mockListings(locality),
   fixturesForced: () => false,
   serverApiBase: () => 'http://api',
 }))
@@ -40,6 +42,10 @@ function respond(status: number, body: unknown) {
 
 beforeEach(() => {
   mockFetch.mockReset()
+  mockCatalog.mockReset()
+  mockListings.mockReset()
+  mockCatalog.mockResolvedValue([])
+  mockListings.mockResolvedValue([])
   global.fetch = mockFetch as unknown as typeof fetch
 })
 
@@ -118,6 +124,26 @@ describe('area pages', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Keshav Nagar, Pune' })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'In the MahaRERA records' })).toBeNull()
     expect(screen.getByRole('link', { name: 'Tell us what you are looking for' })).toHaveAttribute('href', '/agent/avasetu?src=locality_keshav_nagar#enquire')
+  })
+
+  it('renders a non-curated locality only from live listing/project data', async () => {
+    mockListings.mockResolvedValue([{
+      id: 'L1', status: 'live', transaction: 'sale', property_type: 'plot', title: 'Plot in Gulmohar City',
+      description: { en: 'Residential plot.' }, price_inr: 5000000, city: 'Pune', locality: 'Gulmohar City',
+      amenities: [], media: [], agent: { slug: 'house-deal', agent_name: 'House Deal' },
+    }])
+    render(await LocalityPage({ params: Promise.resolve({ slug: 'gulmohar-city' }) }))
+    expect(mockListings).toHaveBeenCalledWith('Gulmohar City')
+    expect(mockCatalog).toHaveBeenCalledWith('Gulmohar City')
+    expect(screen.getByRole('heading', { level: 1, name: 'Gulmohar City, Pune' })).toBeInTheDocument()
+    expect(screen.getByText(/do not have a full buyer guide for Gulmohar City yet/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Tell us what you are looking for' })).toHaveAttribute('href', '/agent/avasetu?src=locality_gulmohar_city#enquire')
+    expect(screen.getByText('Plot in Gulmohar City')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Sources' })).toBeNull()
+  })
+
+  it('404s a non-curated locality when there is no public data', async () => {
+    await expect(LocalityPage({ params: Promise.resolve({ slug: 'no-public-data' }) })).rejects.toThrow('NOT_FOUND')
   })
 
   it('groups the index into affordable homes and the IT corridor', () => {

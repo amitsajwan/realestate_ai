@@ -4,10 +4,14 @@
  */
 process.env.SITE_USE_FIXTURES = '1'
 
-jest.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND') } }))
+jest.mock('next/navigation', () => ({
+  notFound: () => { throw new Error('NEXT_NOT_FOUND') },
+  permanentRedirect: (url: string) => { throw new Error('NEXT_REDIRECT ' + url) },
+}))
 
 import AgentHomePage from '@/app/agent/[slug]/page'
 import ListingPage from '@/app/agent/[slug]/listings/[id]/page'
+import LegacyListingPage from '@/app/listings/[id]/page'
 
 describe('agent site pages take async route params', () => {
   it('renders the home page for a known agent', async () => {
@@ -24,5 +28,12 @@ describe('agent site pages take async route params', () => {
     const first = (fixtureListings('demo') as { items: { id: string }[] }).items[0]
     const el = await ListingPage({ params: Promise.resolve({ slug: 'demo', id: first.id }) })
     expect(el).toBeTruthy()
+  })
+
+  it('redirects the old listing share URL to the owning agent page', async () => {
+    await expect(LegacyListingPage({
+      params: Promise.resolve({ id: 'fx-baner-2bhk' }),
+      searchParams: Promise.resolve({ src: 'whatsapp' }),
+    })).rejects.toThrow('NEXT_REDIRECT /agent/demo/listings/fx-baner-2bhk?src=whatsapp')
   })
 })

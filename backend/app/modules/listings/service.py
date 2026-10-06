@@ -200,7 +200,8 @@ class ListingService:
             profile = profiles[d["agent_id"]]
             if not profile or not indexable(profile):
                 continue
-            out.append({"agent_slug": profile["slug"], "id": d["_id"], "updated_at": d.get("updated_at")})
+            out.append({"agent_slug": profile["slug"], "id": d["_id"], "updated_at": d.get("updated_at"),
+                        "locality": d.get("locality")})
         return out
 
     async def public_get(self, listing_id: str) -> PublicListing:

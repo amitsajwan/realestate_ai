@@ -268,7 +268,7 @@ def check(slides: List[Rendered]) -> None:
         raise CardProblem("; ".join(problems)[:600])
 
 
-def caption(p: dict, agent: dict) -> str:
+def caption(p: dict, agent: dict, page_url: str = "") -> str:
     r = p.get("rera") or {}
     lines = [f"{p['name']}, {p['locality']}: {price_range(p)}, {bhk_range(p.get('bhk_options') or [])}.",
              p.get("positioning", ""),
@@ -278,6 +278,7 @@ def caption(p: dict, agent: dict) -> str:
              f"Builder's target: {day(p.get('possession_target'))}. Plan around the MahaRERA date." if p.get("possession_target") else "",
              f"Prices as quoted by {agent['name']}; confirm before booking.",
              f"Comment PRICE or WhatsApp {agent['phone_display']} for a site visit.",
+             f"Every fact with its source: {page_url}" if page_url else "",
              "#Pune #" + p["locality"].replace(" ", "") + " #NewProjects #MahaRERA"]
     return "\n\n".join(x for x in lines if x)
 

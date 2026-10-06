@@ -142,12 +142,12 @@ def test_feed_card_carries_all_slides_our_page_and_no_repeated_title(monkeypatch
     ig = {"_id": "a", "slug": "hd-amco", "kind": "post", "channel": "instagram", "status": "published", "permalink": "https://ig/p/1",
           "published_at": t, "due_at": t, "caption": cap + " Every fact: link in our bio.", "images": [f"hd/amco-{k}.jpg" for k in range(1, 6)]}
     fb = {**ig, "_id": "b", "channel": "facebook_page", "permalink": "https://fb/1", "images": ["hd/amco-1.jpg"],
-          "caption": cap + " Every fact: https://avasetu.in/agent/house-deal/projects/amco-equa\n\nInterested? https://avasetu.in/i/abc"}
+          "caption": cap + " Every fact: https://avasetu.in/projects/amco-equa\n\nInterested? https://avasetu.in/i/abc"}
     (card,) = public.build([ig, fb], 5)
     assert card["title"] == "AMCO Equa, Wagholi: 59.99 L."
     assert card["excerpt"].startswith("The lowest starting price") and "AMCO Equa, Wagholi" not in card["excerpt"]
     assert len(card["images"]) == 5 and card["images"][0] == "https://avasetu.in/uploads/hd/amco-1.jpg"
-    assert card["site_url"] == "https://avasetu.in/agent/house-deal/projects/amco-equa"
+    assert card["site_url"] == "https://avasetu.in/projects/amco-equa"
 
 
 # ---- a page per post: slug, area, audience, filter, one post ----

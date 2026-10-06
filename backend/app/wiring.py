@@ -40,6 +40,7 @@ def wire() -> None:
     # the MahaRERA register keeps every agent's builder project fresh, wherever it is (areastats.watch); add other sources here
     from app.modules.areastats import watch as register_watch
     register_watch.add_source("agent_projects", _agent_project_watch)
+    register_watch.add_source("property_facts", _property_facts_watch)  # every project we gathered facts for to market it
 
 
 async def _tell_owner_about_invite_request(name: str, city: str) -> None:
@@ -55,6 +56,16 @@ async def _tell_owner_about_invite_request(name: str, city: str) -> None:
     for owner in owners:
         await notify(get_database(), owner, "invite_request", f"{name} ({city}) asked to join on the website",
                      {"screen": "/studio/admin"})
+
+
+async def _property_facts_watch():
+    """Every project a listing campaign gathered facts for (propertyfacts), for the register's watch list."""
+    from app.core.database import get_database
+    from app.modules.areastats.watch import WatchItem
+    from app.modules.propertyfacts.store import FactsStore
+
+    docs = await FactsStore(get_database()).watched()
+    return [WatchItem(d["rera_no"], d.get("maharera_id"), d.get("project_name") or "") for d in docs if d.get("rera_no")]
 
 
 async def _agent_project_watch():
