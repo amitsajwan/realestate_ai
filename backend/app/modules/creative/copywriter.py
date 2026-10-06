@@ -134,7 +134,7 @@ def rule_copy(angle: Angle, brief: Brief) -> Copy:
                 slides=list(brief.steps[:5]) if angle.fmt in ("carousel", "checklist") else [],
                 caption_first_line=_first_line(angle), body=_body(brief, angle), cta_question=q,
                 hashtags=_tags(brief, angle.audience, angle.channel), card_cta=cta,
-                payload=_payload(brief, angle), link_line=brief.link_line, source="rules")
+                payload=_payload(brief, angle), link_line=brief.link_line, contact=list(brief.contact), source="rules")
 
 
 def build_user(angle: Angle, brief: Brief, feedback: Optional[str]) -> str:
@@ -209,7 +209,8 @@ def _merge(base: Copy, data: dict, angle: Angle, corpus: str, sign_off: str = SI
     return Copy(hook=base.hook, support=support if support is not None else base.support, slides=slides,
                 caption_first_line=first or base.caption_first_line, body=body or base.body,
                 cta_question=question or base.cta_question, hashtags=tags if len(tags) >= lo else base.hashtags,
-                card_cta=base.card_cta, payload=base.payload, link_line=base.link_line, source="llm" if llm_used else "rules")
+                card_cta=base.card_cta, payload=base.payload, link_line=base.link_line, contact=base.contact,
+                source="llm" if llm_used else "rules")
 
 
 async def _variant(llm: Any, lang: str, copy: Copy, corpus: str, brief: Brief) -> Optional[str]:

@@ -43,13 +43,23 @@ LISTING = {"_id": "L1", "agent_id": "a1", "status": "live", "title": "Plot in Gu
            "project_name": "Gulmohar City", "media": []}
 
 
-async def setup(tmp_path, listing=LISTING, fail_posts=False):
+PROJECT_URL = "https://avasetu.in/projects/gulmohar-city-ranjangaon"
+PAGES = {"P52100076768": {"slug": "gulmohar-city-ranjangaon", "path": "/projects/gulmohar-city-ranjangaon",
+                          "url": PROJECT_URL, "indexable": False}}
+
+
+async def page_for(db, regno):
+    return PAGES.get(regno)
+
+
+async def setup(tmp_path, listing=LISTING, fail_posts=False, pages=page_for):
     db = FakeDb()
     await db.get_collection("listings").insert_one(dict(listing))
     await db.get_collection("agent_public_profiles").insert_one({"agent_id": "a1", "slug": "priya"})
     clients = WithRegister(Register(RECORD))
     runs = jobs.MarketingRuns(db, tmp_path, "https://avasetu.in", clients_factory=lambda: clients, now=lambda: NOW,
-                              slides_renderer=fake_slides_reel, reel_jobs=FakeReelJobs(), facts_store=clients.facts_store)
+                              slides_renderer=fake_slides_reel, reel_jobs=FakeReelJobs(), facts_store=clients.facts_store,
+                              page_for=pages)
     if fail_posts:
         async def boom(*a, **k):
             raise RuntimeError("render failed")
@@ -69,7 +79,8 @@ async def test_facts_then_posts(tmp_path):
     d = await runs.latest("a1", "L1")
     assert d["status"] == "done" and d["facts_done_at"] == NOW
     assert d["facts"]["maharera"] == "P52100076768" and d["facts"]["usable"] > 10
-    assert d["page_url"] == "https://avasetu.in/agent/priya/listings/L1"
+    assert d["page_url"] == PROJECT_URL                                   # a registered project: its own page is the link
+    assert d["listing_url"] == "https://avasetu.in/agent/priya/listings/L1"
     assert len(d["posts"]) >= 10 and all(i.startswith("/uploads/campaigns/L1/") for p in d["posts"] for i in p["images"])
     assert (await clients.facts_store.get("P52100076768"))["listing_id"] == "L1"     # the knowledge base is kept
     assert all("Full details of Gulmohar City, Ranjangaon, with its MahaRERA record: link in bio." in p["caption"]
@@ -148,7 +159,7 @@ async def test_send_to_calendar_plans_rows_for_approval(tmp_path):
     assert ig[1]["due_at"].astimezone(schedule.IST).date().isoformat() == "2026-10-09"   # the 8th is within 12 h of the brand post
     assert all(not i.startswith("/") and i.startswith("campaigns/L1/") for r in posts for i in r["images"])
     fb = next(r for r in rows if r["channel"] == "facebook_page")
-    assert "https://avasetu.in/agent/priya/listings/L1?src=fb_" in fb["caption"] and "link in bio" not in fb["caption"]
+    assert PROJECT_URL + "?src=fb_" in fb["caption"] and "link in bio" not in fb["caption"]
     assert "link in bio" in ig[0]["caption"]
     again = await runs.to_calendar("a1", "L1")                # pressing twice adds nothing
     assert len([r for r in await cal.all() if r["slug"].startswith("campaign-L1-")]) == 2 * n + 2
@@ -228,3 +239,35 @@ async def test_improve_a_post_with_a_note(tmp_path):
     assert all("/near_work/redo1/" in i for i in post["images"])
     assert any("The agent asked for this change: mention the MIDC jobs" in c[2] for c in llm.calls)   # the note reached the writer
     assert (await runs.latest("a1", "L1"))["posts"] == run["posts"]
+
+
+async def test_page_first_no_posts_until_the_project_page_exists(tmp_path):
+    async def no_page(db, regno):
+        return None
+    db, runs, clients, _ = await setup(tmp_path, pages=no_page)
+    await runs.create("a1", "L1")
+    await runs.run_once()
+    d = await runs.latest("a1", "L1")
+    assert d["status"] == "failed" and d["posts"] == [] and "project page for P52100076768 is not ready" in d["error"]
+    assert d["facts"]["maharera"] == "P52100076768" and await clients.facts_store.get("P52100076768")   # the facts are kept
+    reg = await db.get_collection("projects").find_one({"_id": "P52100076768"})
+    assert reg and "property_facts" in reg.get("watched_by", [])          # on the watch list, so its page can be made
+    # once the page exists, starting again makes the campaign with the project page as its link
+    runs.page_for = page_for
+    runs.now = lambda: NOW + timedelta(minutes=5)           # started again a few minutes later
+    await runs.create("a1", "L1", again=True)
+    await runs.run_once()
+    d = await runs.latest("a1", "L1")
+    assert d["status"] == "done" and d["page_url"] == PROJECT_URL and d["posts"]
+
+
+async def test_a_property_without_a_registration_uses_its_listing_page(tmp_path):
+    async def never(db, regno):
+        raise AssertionError("no project page lookup without a MahaRERA number")
+    listing = {**LISTING, "project_name": "", "rera_no": ""}
+    db, runs, clients, _ = await setup(tmp_path, listing, pages=never)
+    clients.register = Register()          # nothing in our register, and the search finds no project by name
+    await runs.create("a1", "L1")
+    await runs.run_once()
+    d = await runs.latest("a1", "L1")
+    assert d["page_url"] == d["listing_url"] == "https://avasetu.in/agent/priya/listings/L1"

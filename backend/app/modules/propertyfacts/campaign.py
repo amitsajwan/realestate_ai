@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from app.modules.creative import pipeline
 from app.modules.creative.hooks import PATTERNS
 from app.modules.creative.listing_brief import price_label
-from app.modules.creative.models import Brief, CreativePack, Voice
+from app.modules.creative.models import Brief, CardBrand, CreativePack, Voice
 
 from . import surroundings
 from .facts import Fact
@@ -33,7 +33,8 @@ def link_line_for(where: str) -> str:
 class Ctx:
     """Usable fact values, with the names every angle needs."""
 
-    def __init__(self, facts: Dict[str, Fact], photo: str = "none", link: str = "", voice: Optional[Voice] = None):
+    def __init__(self, facts: Dict[str, Fact], photo: str = "none", link: str = "", voice: Optional[Voice] = None,
+                 card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (), language: str = "en"):
         self.v: Dict[str, Any] = {k: f.value for k, f in facts.items() if f.usable}
         self.photo, self.link = photo, link
         self.project = self.v.get("project_name") or ""
@@ -41,6 +42,7 @@ class Ctx:
         areas = ", ".join(p for p in (self.locality, self.v.get("city") or "Pune") if p) if self.locality else ""
         v = voice or Voice()
         self.voice = v if v.areas else replace(v, areas=areas)  # who speaks; the prompts set the post in this area
+        self.card_brand, self.contact, self.language = card_brand, list(contact), language  # an agent's footer and contact
         self.where = ", ".join(p for p in (self.project, self.locality) if p)
         self.plot = self.v.get("property_type") == "plot"
         self.kind = "plot" if self.plot else "home"
@@ -65,6 +67,9 @@ class Ctx:
         kw.setdefault("link", self.link)
         kw.setdefault("voice", self.voice)
         kw.setdefault("mode", "listing")
+        kw.setdefault("card_brand", self.card_brand)
+        kw.setdefault("contact", list(self.contact))
+        kw.setdefault("language", self.language)
         return Brief(**kw)
 
 
@@ -216,8 +221,10 @@ ANGLES: Tuple[AngleDef, ...] = tuple(AngleDef(f.__name__, f) for f in (
 
 
 def plan(facts: Dict[str, Fact], photo: str = "none", link: str = "", angles: Sequence[AngleDef] = ANGLES,
-         voice: Optional[Voice] = None) -> List[Tuple[str, Brief]]:
-    c = Ctx(facts, photo, link, voice)
+         voice: Optional[Voice] = None, card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (),
+         language: str = "en") -> List[Tuple[str, Brief]]:
+    """`voice`, `card_brand`, `contact`, `language`: whose posts these are (default ours) and in which language."""
+    c = Ctx(facts, photo, link, voice, card_brand, contact, language)
     out = []
     for a in angles:
         b = a.build(c)
@@ -231,12 +238,13 @@ RETRIES = 3  # other seeds (other layouts) to try before an angle is dropped: so
 
 async def make(facts: Dict[str, Fact], out_dir: Path, llm: Any = None, photo: str = "none", link: str = "",
                channel: str = "instagram", dropped: Optional[Dict[str, Any]] = None,
-               voice: Optional[Voice] = None) -> List[Tuple[str, CreativePack]]:
+               voice: Optional[Voice] = None, card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (),
+               language: str = "en") -> List[Tuple[str, CreativePack]]:
     """Render every planned angle; consecutive posts avoid repeating a layout. An angle that fails a guard is retried with
     other seeds, then dropped (its problems go into `dropped` when given). `voice`: who speaks (default the brand desk)."""
     packs: List[Tuple[str, CreativePack]] = []
     recent: List[str] = []
-    for i, (aid, brief) in enumerate(plan(facts, photo, link, voice=voice)):
+    for i, (aid, brief) in enumerate(plan(facts, photo, link, voice=voice, card_brand=card_brand, contact=contact, language=language)):
         for attempt in range(RETRIES):
             pack = await pipeline.make(brief, "buyer", channel, llm, seed=i + 17 * attempt, recent_layouts=recent,
                                        out_dir=Path(out_dir) / aid, reviewer=None)

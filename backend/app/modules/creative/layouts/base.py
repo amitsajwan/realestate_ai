@@ -1,15 +1,18 @@
 """Drawing kit for the creative layouts: a Canvas with anti-aliased shapes, soft shadows and glows, icon glyphs drawn from
 shapes, and text that fits, balances its lines and logs what it drew (box, size, colour, background) so the critic and the
 tests can prove that everything is inside the safe margins and readable. Built on marketing.images primitives."""
+import contextvars
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, List, Optional, Sequence, Tuple
+from typing import Callable, Iterator, List, Optional, Sequence, Tuple
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps, ImageStat
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageOps, ImageStat
 
 from app.core import brand
-from app.modules.marketing.images import LOGO_PATH, MARGIN, load_font, wrap
+from app.modules.marketing.images import LOGO_PATH, MARGIN, load_font as _latin_font, wrap
 
+from ..models import CardBrand
 from .palette import Palette, contrast, luminance
 
 RGB = Tuple[int, int, int]
@@ -18,6 +21,40 @@ AA = 4  # supersampling factor for shapes
 CAP = 0.70      # Poppins cap height / font size
 DESC = 0.30     # descender allowance below the last baseline
 PHOTO_DIR = Path(__file__).resolve().parent.parent / "assets" / "photos"
+FONT_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
+DEVANAGARI_FONTS = {"regular": "Mukta-Regular.ttf", "medium": "Mukta-Medium.ttf", "semibold": "Mukta-SemiBold.ttf",
+                    "bold": "Mukta-Bold.ttf"}  # Mukta (SIL OFL): Devanagari, Latin and ₹; Pillow shapes it with libraqm
+
+# What the card being rendered needs: Devanagari fonts (a Marathi/Hindi post) and whose footer (an agent's or ours).
+_CARD: contextvars.ContextVar = contextvars.ContextVar("creative_card", default=(False, None))
+
+
+@contextmanager
+def card(devanagari: bool = False, card_brand: Optional[CardBrand] = None) -> Iterator[None]:
+    """Render inside this to draw Devanagari text and/or an agent's footer (layouts.render_layout does it)."""
+    token = _CARD.set((devanagari, card_brand))
+    try:
+        yield
+    finally:
+        _CARD.reset(token)
+
+
+def load_font(size: int, weight: str = "regular"):
+    if _CARD.get()[0]:
+        try:
+            return ImageFont.truetype(str(FONT_DIR / DEVANAGARI_FONTS.get(weight, DEVANAGARI_FONTS["regular"])), size)
+        except OSError:
+            pass
+    return _latin_font(size, weight)
+
+
+def card_brand() -> Optional[CardBrand]:
+    return _CARD.get()[1]
+
+
+def brand_name() -> str:
+    b = card_brand()
+    return b.name if b else brand.NAME
 
 
 @dataclass
@@ -309,24 +346,35 @@ class Canvas:
 
     # ---- brand chrome ---------------------------------------------------------------------------
     def logo(self, x: int, y: int, d: int) -> None:
+        agent = card_brand()
         try:
-            with Image.open(LOGO_PATH) as im:
-                im = im.convert("RGBA").resize((d, d), Image.LANCZOS)
+            with Image.open(agent.logo if agent else LOGO_PATH) as im:
+                im = ImageOps.fit(im.convert("RGBA"), (d, d), Image.LANCZOS)
         except Exception:
             self.circle((x + d // 2, y + d // 2), d // 2, self.pal.accent_fill)
+            self.shapes.append((x, y, x + d, y + d))
             return
+        if agent:  # an agent's logo is usually a square photo: draw it in a circle
+            mask = Image.new("L", (d * AA, d * AA), 0)
+            ImageDraw.Draw(mask).ellipse([0, 0, d * AA - 1, d * AA - 1], fill=255)
+            im.putalpha(ImageChops.multiply(im.getchannel("A"), mask.resize((d, d), Image.LANCZOS)))
         self.img.paste(im, (x, y), im)  # the Avasetu mark is a round disc; its own alpha is the mask
         self.shapes.append((x, y, x + d, y + d))
 
     def brand_bar(self, y: Optional[int] = None, right: Optional[str] = None, dark_bg: bool = True) -> None:
-        """Avasetu mark + wordmark + tagline at the bottom margin (or at y); an optional cue on the right."""
+        """Logo + name + second line at the bottom margin (or at y); an optional cue on the right. Ours: the Avasetu mark,
+        wordmark and tagline. An agent's: their logo, name and phone (CardBrand)."""
         d = 64
         y = self.bottom - d if y is None else y
         self.logo(self.left, y, d)
+        agent = card_brand()
         ink = self.pal.ink if dark_bg else self.pal.card_ink
-        self.text(brand.NAME, self.left + d + 18, y + 4, 420, 30, "semibold", ink, 1, role="brand", balance=False)
-        self.text(brand.TAGLINE, self.left + d + 18, y + 4 + 38, 420, 21, "medium", self.pal.accent if dark_bg else self.pal.muted,
-                  1, role="brand", balance=False)
+        self.text(agent.name if agent else brand.NAME, self.left + d + 18, y + 4, 420, 30, "semibold", ink, 1, role="brand",
+                  balance=False)
+        line = agent.line if agent else brand.TAGLINE
+        if line:
+            self.text(line, self.left + d + 18, y + 4 + 38, 460 if agent else 420, 24 if agent else 21, "semibold" if agent else "medium",
+                      self.pal.accent if dark_bg else self.pal.muted, 1, role="brand", balance=False)
         if right:
             self.text(right, self.right - 360, y + 14, 360, 28, "semibold", self.pal.accent if dark_bg else self.pal.muted, 1, align="right",
                       role="brand", balance=False)

@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from . import campaign
+from . import campaign, identity
 from .facts import USABLE
 from .gather import Clients, gather
 from .store import FactsStore, facts_of
@@ -56,7 +56,8 @@ def run_out(doc: Optional[dict], base_url: str = "") -> Optional[dict]:
     posts = [{**p, "images": [base + i if base and i.startswith("/") else i for i in p.get("images", [])]}
              for p in doc.get("posts") or []]
     return {"id": doc["_id"], "listing_id": doc["listing_id"], "status": doc["status"], "step": doc.get("step"),
-            "facts": doc.get("facts"), "page_url": doc.get("page_url"), "posts": posts, "dropped": doc.get("dropped") or {},
+            "language": doc.get("language") or "en",
+            "facts": doc.get("facts"), "page_url": doc.get("page_url"), "listing_url": doc.get("listing_url"), "posts": posts, "dropped": doc.get("dropped") or {},
             "error": doc.get("error") or "", "created_at": _iso(doc.get("created_at")),
             "calendar": [{**c, "due_at": _iso(c.get("due_at"))} for c in doc.get("calendar") or []],
             "reels": [{**r, "video": (base + r["video"] if base and (r.get("video") or "").startswith("/") else r.get("video"))}
@@ -84,9 +85,11 @@ def _summary(sheet) -> dict:
 class MarketingRuns:
     def __init__(self, db, uploads_dir, site: str = "", clients_factory: Optional[Callable[[], Any]] = None,
                  llm_factory: Optional[Callable] = None, now: Callable[[], datetime] = datetime.utcnow,
-                 slides_renderer: Optional[Callable] = None, reel_jobs: Any = None, facts_store: Any = None):
+                 slides_renderer: Optional[Callable] = None, reel_jobs: Any = None, facts_store: Any = None,
+                 page_for: Optional[Callable] = None):
         """`slides_renderer(paths, out, hook=, kicker=)` makes a slides reel (default reels.slides.make_slides_reel);
-        `reel_jobs` (reels.listing_reel.ReelJobs) queues the walkthrough reel; None skips it."""
+        `reel_jobs` (reels.listing_reel.ReelJobs) queues the walkthrough reel; None skips it;
+        `page_for(db, regno)` finds a project's own page (default areastats.pages.page_for)."""
         self.db = db
         self.runs = db.get_collection(COLLECTION)
         self.listings = db.get_collection("listings")
@@ -95,6 +98,7 @@ class MarketingRuns:
         self.clients_factory, self.llm_factory, self.now = clients_factory, llm_factory, now
         self.slides_renderer, self.reel_jobs = slides_renderer, reel_jobs
         self.facts_store = facts_store or FactsStore(db)
+        self.page_for = page_for
 
     async def _listing(self, agent_id: str, listing_id: str) -> dict:
         doc = await self.listings.find_one({"_id": listing_id, "agent_id": agent_id})
@@ -106,8 +110,9 @@ class MarketingRuns:
         docs = await self.runs.find(flt).sort("created_at", -1).limit(1).to_list(1)
         return docs[0] if docs else None
 
-    async def create(self, agent_id: str, listing_id: str, again: bool = False) -> tuple:
-        """(job, created). A running job is returned as it is; a finished one too unless `again` or the listing changed."""
+    async def create(self, agent_id: str, listing_id: str, again: bool = False, language: str = "en") -> tuple:
+        """(job, created). A running job is returned as it is; a finished one too unless `again`, the listing changed or
+        another language is asked for (en, mr, hi: the posts' language)."""
         listing = await self._listing(agent_id, listing_id)
         if listing.get("status") not in MARKETABLE:
             raise RunError("Publish this listing first: only live or under-offer listings can be marketed.", 409)
@@ -118,9 +123,9 @@ class MarketingRuns:
         if not again:
             done = await self._latest({**flt, "status": "done"})
             changed = listing.get("updated_at")
-            if done and not (isinstance(changed, datetime) and changed > done["created_at"]):
+            if done and (done.get("language") or "en") == language and not (isinstance(changed, datetime) and changed > done["created_at"]):
                 return done, False
-        doc = {"_id": uuid.uuid4().hex, **flt, "status": "queued", "step": "facts", "facts": None, "page_url": None, "posts": [],
+        doc = {"_id": uuid.uuid4().hex, **flt, "status": "queued", "step": "facts", "language": language, "facts": None, "page_url": None, "posts": [],
                "dropped": {}, "error": None, "created_at": self.now(), "started_at": None, "facts_done_at": None,
                "finished_at": None}
         await self.runs.insert_one(doc)
@@ -184,9 +189,11 @@ class MarketingRuns:
             raise RunError(f"Keep the caption under {CAPTION_MAX} characters.", 422)
         run, idx = await self._done_run(agent_id, listing_id, angle)
         listing = await self._listing(agent_id, listing_id)
-        briefs = dict(campaign.plan(await self._facts(run, listing)))
+        who = await self._identity(run)
+        briefs = dict(campaign.plan(await self._facts(run, listing), **self._who(run, who)))
         corpus = briefs[angle].corpus() if angle in briefs else ""
-        problems = [p for p in problems_in(caption, corpus, allow_url=True) if p != "url"] if corpus else []
+        checked = "\n".join(line for line in caption.splitlines() if line.strip() not in who.contact)  # code-made contact block
+        problems = [p for p in problems_in(checked, corpus, allow_url=True) if p != "url"] if corpus else []
         posts = list(run["posts"])
         posts[idx] = {**posts[idx], "caption": caption, "edited": True, "edited_at": self.now()}
         await self._set(run["_id"], posts=posts)
@@ -198,7 +205,8 @@ class MarketingRuns:
         note = (note or "").strip()[:NOTE_MAX]
         run, idx = await self._done_run(agent_id, listing_id, angle)
         listing = await self._listing(agent_id, listing_id)
-        briefs = dict(campaign.plan(await self._facts(run, listing), self._photo(listing), run.get("page_url") or ""))
+        briefs = dict(campaign.plan(await self._facts(run, listing), self._photo(listing), run.get("page_url") or "",
+                                    **self._who(run, await self._identity(run))))
         if angle not in briefs:
             raise RunError("The facts for this post are no longer available. Start marketing again.", 409)
         n = int(run["posts"][idx].get("redos") or 0) + 1
@@ -239,10 +247,46 @@ class MarketingRuns:
     async def _set(self, jid: str, **fields) -> None:
         await self.runs.update_one({"_id": jid}, {"$set": fields})
 
+    async def _identity(self, run: dict) -> identity.Identity:
+        """Whose posts these are: the listing owner's profile (an agent's name, logo, phone), or ours."""
+        prof = await self.profiles.find_one({"agent_id": run["agent_id"]})
+        return identity.identity(prof, self.site, self.uploads_dir, run.get("language") or "en")
+
+    @staticmethod
+    def _who(run: dict, who: identity.Identity) -> Dict[str, Any]:
+        """campaign.plan/make keyword arguments for this run's language and owner."""
+        return {"voice": who.voice, "card_brand": who.card_brand, "contact": who.contact, "language": run.get("language") or "en"}
+
     async def _page_url(self, agent_id: str, listing_id: str) -> str:
         prof = await self.profiles.find_one({"agent_id": agent_id})
         slug = (prof or {}).get("slug")
         return f"{self.site}/agent/{slug}/listings/{listing_id}" if slug else f"{self.site}/listings/{listing_id}"
+
+    async def _project_page(self, sheet) -> tuple:
+        """(regno, project page url) for a property with a MahaRERA number: the project is put on the register's watch list
+        now (so its page can be made), then its page is looked up (areastats.pages.page_for). (None, None) without a number;
+        (regno, None) while the page does not exist yet."""
+        f = sheet.facts.get("rera_no")
+        if not (f and f.usable):
+            return None, None
+        regno = str(f.value).upper()
+        url = sheet.facts.get("maharera_url")
+        m = re.search(r"/view/(\d+)", str(url.value)) if url and url.usable else None
+        name = sheet.facts["project_name"].value if "project_name" in sheet.facts else ""
+        try:
+            from app.modules.areastats.watch import WatchItem, watch
+            from app.modules.newsroom.store import Store as Register
+            await watch(Register(self.db), WatchItem(regno, int(m.group(1)) if m else None, name), "property_facts", self.now())
+        except Exception:
+            log.warning("marketing: could not add %s to the register's watch list", regno, exc_info=True)
+        page_for = self.page_for
+        if page_for is None:
+            try:
+                from app.modules.areastats.pages import page_for
+            except ImportError:  # project pages not deployed yet: nothing is marketed without its page
+                return regno, None
+        page = await page_for(self.db, regno)
+        return regno, (page or {}).get("url")
 
     def _photo(self, listing: dict) -> str:
         """The listing's first photo as a local file for the cards, or "none" (never a stock photo of something else)."""
@@ -298,14 +342,24 @@ class MarketingRuns:
             # step 1: the knowledge base and the page
             clients = self.clients_factory() if self.clients_factory else Clients(facts_store=self.facts_store)
             sheet = await gather({**listing, "id": listing["_id"]}, clients, self.now())
-            page = await self._page_url(job["agent_id"], job["listing_id"])
-            await self._set(jid, status="posts", step="posts", facts=_summary(sheet), page_url=page, facts_done_at=self.now())
+            listing_url = await self._page_url(job["agent_id"], job["listing_id"])
+            # page first (docs/plan/project-pages.md): a registered project is marketed only once its own page exists
+            regno, project_url = await self._project_page(sheet)
+            if regno and not project_url:
+                return await self._set(jid, status="failed", step="facts", facts=_summary(sheet), page_url=listing_url,
+                                       listing_url=listing_url, facts_done_at=self.now(), finished_at=self.now(),
+                                       error=f"The facts are saved, but the project page for {regno} is not ready yet, so no "
+                                             "posts were made. Please start marketing again in a few minutes.")
+            page = project_url or listing_url
+            await self._set(jid, status="posts", step="posts", facts=_summary(sheet), page_url=page, listing_url=listing_url,
+                            facts_done_at=self.now())
             # step 2: the posts, only now that the facts are kept
             step = "posts"
             out = self.uploads_dir / "campaigns" / _safe(job["listing_id"]) / jid[:8]
             dropped: Dict[str, Any] = {}
             llm = self.llm_factory() if self.llm_factory else None
-            packs = await campaign.make(sheet.facts, out, llm=llm, photo=self._photo(listing), link=page, dropped=dropped)
+            packs = await campaign.make(sheet.facts, out, llm=llm, photo=self._photo(listing), link=page, dropped=dropped,
+                                        **self._who(job, await self._identity(job)))
             posts: List[dict] = []
             for aid, p in packs:
                 imgs = ["/uploads/" + Path(i).resolve().relative_to(self.uploads_dir.resolve()).as_posix() for i in p.images]

@@ -583,7 +583,7 @@ export interface AppApi {
   /** The existing pack, or a 404 ApiError when none was generated yet. */
   getMarketingPack(listingId: string): Promise<MarketingPack>
   /** Start marketing: step 1 gathers the property facts (shown on the listing page), step 2 makes the posts. 409 unless live. */
-  startMarketingRun(listingId: string, again?: boolean): Promise<MarketingRun>
+  startMarketingRun(listingId: string, again?: boolean, language?: DraftLanguage): Promise<MarketingRun>
   /** The latest run, or null when marketing was never started for this listing. */
   getMarketingRun(listingId: string): Promise<MarketingRun | null>
   /** Send the finished run's posts to the approval calendar as planned rows (one a day). 409 before the posts exist. */
@@ -614,6 +614,8 @@ export interface MarketingRun {
   listing_id: string
   status: 'queued' | 'facts' | 'posts' | 'done' | 'failed'
   step?: 'facts' | 'posts' | null
+  /** The posts' language (cards and captions); English when absent. */
+  language?: DraftLanguage
   facts?: { usable: number; held: number; maharera?: string | null; how?: string; nearby: number; notes: string[] } | null
   page_url?: string | null
   posts: { angle: string; layout?: string; format?: string; images: string[]; caption: string; used_llm?: boolean; edited?: boolean; redos?: number; note?: string }[]

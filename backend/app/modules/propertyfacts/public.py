@@ -53,6 +53,12 @@ def view(doc: Optional[dict]) -> Optional[dict]:
         out["nearby"] = sorted(near, key=lambda p: p["km"])[:NEARBY_MAX]
         out["nearby_source"] = {"name": "OpenStreetMap contributors", "url": OSM_COPYRIGHT}
 
+    # the agent's own offer, which posts quote ("₹32.3 lakh for a plot"): shown with its source, never as a project price
+    offer = {k: _val(f, k) for k in ("transaction", "property_type", "price_inr", "plot_sqft", "carpet_sqft", "bhk")
+             if _val(f, k) is not None}
+    if offer.get("price_inr") or offer.get("plot_sqft") or offer.get("carpet_sqft"):
+        out["offer"] = {**offer, "source": "the agent's listing", "read_at": _read_at(f, "price_inr")}
+
     numbers: Dict[str, Any] = {}
     for k in ("price_per_sqft", "plot_guntha", "plot_sqm", "emi"):
         if _val(f, k) is not None:
@@ -60,4 +66,4 @@ def view(doc: Optional[dict]) -> Optional[dict]:
     if numbers:
         out["numbers"] = numbers
 
-    return out if any(k in out for k in ("maharera", "nearby", "numbers")) else None
+    return out if any(k in out for k in ("maharera", "nearby", "numbers", "offer")) else None

@@ -1,12 +1,13 @@
 """Property facts routes.
 
 `public_router` (mounted at /api/v1/public, no auth): `GET /property-facts`, the verified facts we keep for a property, for its
-listing page; by MahaRERA number, else by project + locality; 404 when we have none.
+listing page; by MahaRERA number, else by project + locality; 404 when we have none. `GET /property-facts/by-regno/{regno}`, the
+same for a project's own page.
 `router` (mounted at /api/v1/listings, bearer auth, owner only): `POST /{listing_id}/campaign` starts marketing a listing
 (step 1 facts and page, then step 2 posts; see jobs.py), `GET /{listing_id}/campaign` its latest run,
 `POST /{listing_id}/campaign/calendar` sends its posts to the approval calendar (schedule.py),
 `PATCH /{listing_id}/campaign/posts/{angle}` saves an edited caption, `POST .../posts/{angle}/redo` remakes it with a note."""
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict
@@ -39,6 +40,17 @@ async def public_property_facts(response: Response, rera: Optional[str] = None, 
     return out
 
 
+@public_router.get("/property-facts/by-regno/{regno}")
+async def public_property_facts_by_regno(regno: str, response: Response, db=Depends(get_db)) -> dict:
+    """The usable facts we keep for a MahaRERA project, for its own page (/projects/<slug>): every fact a campaign post may
+    use, each block with its source (docs/plan/project-pages.md). 404 when no campaign gathered facts for it."""
+    out = view(await FactsStore(db).find(regno.strip().upper()))
+    if out is None:
+        raise HTTPException(status_code=404, detail="No facts kept for this project")
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return out
+
+
 class EditIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     caption: str
@@ -52,6 +64,7 @@ class RedoIn(BaseModel):
 class StartIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     again: bool = False
+    language: Literal["en", "mr", "hi"] = "en"   # the posts' language (cards and captions)
 
 
 def get_runs() -> jobs.MarketingRuns:
@@ -67,7 +80,8 @@ async def start_marketing(listing_id: str, request: Request, body: Optional[Star
                           user: User = Depends(current_active_user), runs: jobs.MarketingRuns = Depends(get_runs),
                           _w: None = Depends(start_worker)) -> dict:
     try:
-        doc, created = await runs.create(str(user.id), listing_id, (body or StartIn()).again)
+        b = body or StartIn()
+        doc, created = await runs.create(str(user.id), listing_id, b.again, b.language)
     except jobs.RunError as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     return {"run": jobs.run_out(doc, str(request.base_url)), "created": created}

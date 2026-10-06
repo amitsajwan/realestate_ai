@@ -18,6 +18,18 @@ class Voice:
     areas: str = ""                       # where a listing post is set ("Ranjangaon, Pune"); the brand prompts name their own areas
 
 
+@dataclass(frozen=True)
+class CardBrand:
+    """Whose name is on the card footer. None on a Brief means the brand's own (logo, name, tagline). An agent's card shows
+    their logo, name and phone instead; the phone is drawn by code, never written by a model."""
+    name: str
+    line: str = ""                        # second footer line: "Call +91 99219 93099" (or a tagline)
+    logo: str = ""                        # local image file; a square logo is drawn in a circle; missing -> a plain disc
+
+
+LANGUAGES = ("en", "mr", "hi")
+
+
 @dataclass
 class Brief:
     """What the desk knows. `facts` is the ONLY source of numbers and claims. The optional fields carry ready structure
@@ -48,6 +60,9 @@ class Brief:
     writer_note: str = ""                 # optional extra context for the LLM copywriter (a property post may use its price)
     voice: Voice = field(default_factory=Voice)
     mode: str = "brand"                   # "brand" (explainers: no prices) or "listing" (markets one property); see prompts.py
+    card_brand: Optional[CardBrand] = None  # an agent's footer on the cards; None = the brand's own
+    contact: List[str] = field(default_factory=list)  # lines code adds to every caption ("📞 +91 ...", "🌐 house-deal.com")
+    language: str = "en"                  # "mr"/"hi": the cards and caption are translated after the English copy passes
     listing_transaction: str = ""
     listing_property_type: str = ""
     listing_price_inr: str = ""
@@ -113,6 +128,8 @@ class Copy:
     variants: Dict[str, str] = field(default_factory=dict)    # "hinglish" / "marathi" captions, when asked
     source: str = "rules"
     link_line: str = ""               # Instagram's pointer to the link in bio (Brief.link_line), else the default
+    contact: List[str] = field(default_factory=list)  # Brief.contact: added after the copy, never checked as copy
+    language: str = "en"              # the language the card texts and caption are in
 
     def caption(self, channel: str, link: str = "") -> str:
         parts = [self.caption_first_line.strip()]
@@ -120,6 +137,8 @@ class Copy:
             parts.append(self.body.strip())
         if self.cta_question.strip():
             parts.append(self.cta_question.strip())
+        if self.contact:
+            parts.append("\n".join(self.contact))
         if channel == "instagram":
             if link:
                 parts.append(self.link_line or "Full guide: link in our bio.")
@@ -137,6 +156,7 @@ class Design:
     emphasis: Tuple[str, ...] = ()
     size: Tuple[int, int] = (1080, 1350)
     notes: str = ""
+    brand: Optional[CardBrand] = None  # Brief.card_brand, for the footer
 
 
 @dataclass

@@ -116,3 +116,12 @@ def test_public_view_hides_held_back_facts_and_empty_sheets():
     from app.modules.propertyfacts.public import view
     held = {"facts": [{"key": "price_per_sqft", "value": 1800, "level": "single", "usable": False, "readings": []}]}
     assert view(held) is None and view(None) is None
+
+
+async def test_by_regno_view_carries_the_agents_offer_with_its_source():
+    from app.modules.propertyfacts.public import view
+    f = WithRegister(Register(RECORD))
+    await gather_mod.gather({**LISTING, "price_inr": 3230000, "carpet_sqft": 1927, "transaction": "sale"}, f, NOW)
+    v = view(await f.facts_store.find("p52100076768".upper()))
+    assert v["offer"]["price_inr"] == 3230000 and v["offer"]["plot_sqft"] == 1927 and v["offer"]["property_type"] == "plot"
+    assert v["offer"]["source"] == "the agent's listing"

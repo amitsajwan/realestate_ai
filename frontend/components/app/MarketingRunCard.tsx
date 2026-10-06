@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { api, errorMessage } from '@/lib/app/client'
 import { t } from '@/lib/app/strings'
-import type { MarketingRun } from '@/lib/app/types'
+import type { DraftLanguage, MarketingRun } from '@/lib/app/types'
 import { CampaignPostEditor } from './CampaignPostEditor'
 import { Btn, ErrorBox } from './ui'
 
@@ -45,11 +45,42 @@ function Step({ n, title, state, children }: { n: number; title: string; state: 
 
 /** "Start marketing": step 1 checks the project facts and puts them on the listing page; step 2 makes the posts from them.
  *  Posts are drafts here: publishing still needs approval. */
+const POST_LANGS: Array<{ key: DraftLanguage; label: 'langEnglish' | 'langMarathi' | 'langHindi' }> = [
+  { key: 'en', label: 'langEnglish' },
+  { key: 'mr', label: 'langMarathi' },
+  { key: 'hi', label: 'langHindi' },
+]
+
+/** Which language the posts are made in (cards and captions). */
+function LanguagePicker({ value, onChange }: { value: DraftLanguage; onChange: (l: DraftLanguage) => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label={t('postsLanguage')}>
+      <span className="text-sm text-gray-600">{t('postsLanguage')}</span>
+      {POST_LANGS.map((l) => (
+        <button
+          key={l.key}
+          type="button"
+          role="radio"
+          aria-checked={value === l.key}
+          onClick={() => onChange(l.key)}
+          className={`min-h-[44px] rounded-full border px-4 text-sm font-semibold ${
+            value === l.key ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-800'
+          }`}
+        >
+          {t(l.label)}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export function MarketingRunCard({ listingId }: { listingId: string }) {
   const [run, setRun] = useState<MarketingRun | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState<string | null>(null)
+  const [lang, setLang] = useState<DraftLanguage>('en')
+  const picked = useRef(false)
   const alive = useRef(true)
 
   useEffect(() => {
@@ -62,7 +93,10 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
   const refresh = useCallback(async () => {
     try {
       const r = await api.getMarketingRun(listingId)
-      if (alive.current) setRun(r)
+      if (alive.current) {
+        setRun(r)
+        if (r?.language && !picked.current) setLang(r.language)
+      }
     } catch (e) {
       if (alive.current) setError(errorMessage(e))
     } finally {
@@ -83,7 +117,7 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
   const start = async (again = false) => {
     setError(null)
     try {
-      const r = await api.startMarketingRun(listingId, again)
+      const r = await api.startMarketingRun(listingId, again, lang)
       if (alive.current) setRun(r)
     } catch (e) {
       if (alive.current) setError(errorMessage(e))
@@ -116,6 +150,7 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
       {!run && !loading && (
         <>
           <p className="text-sm text-gray-600">{t('startMarketingHelp')}</p>
+          <LanguagePicker value={lang} onChange={(l) => { picked.current = true; setLang(l) }} />
           <Btn onClick={() => start()}>{t('startMarketing')}</Btn>
         </>
       )}
@@ -202,7 +237,10 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
       )}
       {run?.status === 'failed' && run.error && <ErrorBox message={run.error} />}
       {run && !running && (
-        <Btn onClick={() => start(true)}>{run.status === 'failed' ? t('tryAgain') : t('makeAgain')}</Btn>
+        <>
+          <LanguagePicker value={lang} onChange={(l) => { picked.current = true; setLang(l) }} />
+          <Btn onClick={() => start(true)}>{run.status === 'failed' ? t('tryAgain') : t('makeAgain')}</Btn>
+        </>
       )}
     </section>
   )

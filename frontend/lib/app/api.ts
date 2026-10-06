@@ -212,8 +212,10 @@ export function createApiClient(opts: ClientOptions): AppApi {
     createMarketingPack: (listingId, language) =>
       request<MarketingPack>(`/listings/${listingId}/marketing`, { method: 'POST', json: language ? { language } : {} }),
     getMarketingPack: (listingId) => request<MarketingPack>(`/listings/${listingId}/marketing`),
-    startMarketingRun: async (listingId, again) =>
-      (await request<{ run: MarketingRun }>(`/listings/${listingId}/campaign`, { method: 'POST', json: { again: !!again } })).run,
+    startMarketingRun: async (listingId, again, language) =>
+      (await request<{ run: MarketingRun }>(`/listings/${listingId}/campaign`, {
+        method: 'POST', json: { again: !!again, language: language ?? 'en' },
+      })).run,
     getMarketingRun: async (listingId) => (await request<{ run: MarketingRun | null }>(`/listings/${listingId}/campaign`)).run,
     sendRunToCalendar: async (listingId) =>
       (await request<{ run: MarketingRun }>(`/listings/${listingId}/campaign/calendar`, { method: 'POST' })).run,

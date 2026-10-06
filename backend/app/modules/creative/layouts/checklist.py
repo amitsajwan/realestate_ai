@@ -1,6 +1,5 @@
 """Layout 3, checklist / carousel: a cover with a huge hook and a swipe cue, one idea per slide with a big numeral and progress
 dots, and a closing save-this slide."""
-from app.core import brand
 from typing import List
 
 from PIL import Image, ImageDraw
@@ -8,7 +7,7 @@ from PIL import Image, ImageDraw
 from app.modules.marketing.images import load_font
 
 from ..models import Copy, Design
-from .base import Canvas, Rendered, mix
+from .base import Canvas, Rendered, brand_name, mix
 from .palette import get
 
 
@@ -37,7 +36,7 @@ def _cover(copy: Copy, design: Design, n: int) -> Rendered:
     c = Canvas(design.size, pal, "checklist", 0, pattern="dots", glow_at=(0.9, 0.05))
     w = c.right - c.left
     c.logo(c.left, c.top, 64)
-    c.text(brand.NAME, c.left + 82, c.top + 14, 420, 30, "semibold", pal.ink, 1, balance=False, role="brand")
+    c.text(brand_name(), c.left + 82, c.top + 14, 420, 30, "semibold", pal.ink, 1, balance=False, role="brand")
     c.chip(str(copy.payload.get("kicker", "SAVE THIS")), c.right, c.top + 4, icon="bookmark", align_right=True, size=24)
     top, cue_top = c.top + 130, c.bottom - 40 - 34 - 40
     skel_h = 250 if tall else 150

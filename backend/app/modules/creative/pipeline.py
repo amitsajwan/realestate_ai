@@ -15,7 +15,7 @@ from typing import Any, Callable, List, Optional, Sequence, Tuple
 
 from app.modules.marketing.images import save_jpeg
 
-from . import art_director, copywriter, critic, prompts, strategist
+from . import art_director, copywriter, critic, prompts, strategist, translate
 from .layouts import render_layout
 from .layouts.base import Rendered
 from .models import Angle, Brief, Copy, CreativePack, Design, Report
@@ -24,10 +24,13 @@ log = logging.getLogger(__name__)
 
 
 async def _attempt(brief: Brief, audience: str, channel: str, llm: Any, seed: int, recent: Sequence[str], languages: Sequence[str],
-                   feedback: Optional[str]) -> Tuple[Angle, Copy, Design, List[Rendered], Report]:
+                   feedback: Optional[str], translator: Any = None) -> Tuple[Angle, Copy, Design, List[Rendered], Report]:
+    """`translator`: the LLM for a Marathi/Hindi brief, used even when this attempt's copy is the deterministic draft."""
     angle = await strategist.plan(brief, audience, channel, llm, seed, recent, feedback)
     copy = await copywriter.write(angle, brief, llm, languages, feedback)
+    copy = await translate.translate(copy, brief, translator)
     design = art_director.choose(copy, angle, recent, seed, brief.photo)
+    design.brand = brief.card_brand
     rendered = await asyncio.to_thread(render_layout, copy, design)
     report = critic.review(copy, design, rendered, brief.corpus(), channel, recent)
     return angle, copy, design, rendered, report
@@ -85,7 +88,7 @@ async def make(brief: Brief, audience: str, channel: str, llm: Any = None, seed:
     feedback: Optional[str] = asked
     for n, (client, s, _) in enumerate(plan):
         try:
-            res = await _attempt(brief, audience, channel, client, s, recent, languages if client is not None else (), feedback)
+            res = await _attempt(brief, audience, channel, client, s, recent, languages if client is not None else (), feedback, llm)
         except Exception:
             log.warning("creative attempt %s failed", n + 1, exc_info=True)
             feedback = "; ".join(x for x in (asked, "the previous attempt crashed") if x)
@@ -114,7 +117,7 @@ async def make(brief: Brief, audience: str, channel: str, llm: Any = None, seed:
             fb = "visual review: " + "; ".join(str(n) for n in (vision.get("notes") or [])[:3])
             client = llm if angle.source == "llm" or copy.source == "llm" else None
             try:
-                redo = await _attempt(brief, audience, channel, client, seed + 11, recent, languages if client is not None else (), fb)
+                redo = await _attempt(brief, audience, channel, client, seed + 11, recent, languages if client is not None else (), fb, llm)
             except Exception:
                 log.warning("creative redo after visual review failed", exc_info=True)
                 redo = None
@@ -138,7 +141,8 @@ async def make(brief: Brief, audience: str, channel: str, llm: Any = None, seed:
         alt_text=_alt_text(angle, copy, design), variants=copy.variants,
         used_llm=(angle.source == "llm" or copy.source == "llm"), attempts=attempts,
         prompts=prompts.used(brief.mode, strategist=angle.source == "llm", copywriter=copy.source == "llm",
-                             translator=bool(copy.variants), critic=llm_critic and llm is not None))
+                             translator=bool(copy.variants), critic=llm_critic and llm is not None,
+                             card_translator=copy.language != "en"))
 
 
 async def _safe_review(fn: Callable, paths: List[str], context: dict) -> Optional[dict]:

@@ -4,13 +4,14 @@ from typing import Dict, List
 
 from ..catalog import LAYOUTS
 from ..models import Copy, Design
-from .base import Rendered, violations  # noqa: F401
+from .base import Rendered, card, violations  # noqa: F401
 
 
 def render_layout(copy: Copy, design: Design) -> List[Rendered]:
     if design.layout not in LAYOUTS:
         raise ValueError(f"unknown layout {design.layout!r}")
-    return import_module(f"{__name__}.{design.layout}").render(copy, design)
+    with card(devanagari=copy.language in ("mr", "hi"), card_brand=design.brand):
+        return import_module(f"{__name__}.{design.layout}").render(copy, design)
 
 
 def all_layouts() -> List[str]:

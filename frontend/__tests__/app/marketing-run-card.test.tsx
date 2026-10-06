@@ -41,7 +41,7 @@ it('offers Start marketing when nothing ran yet, then shows step 1 working', asy
   startMarketingRun.mockResolvedValue(base)
   render(<MarketingRunCard listingId="L1" />)
   fireEvent.click(await screen.findByRole('button', { name: 'Start marketing' }))
-  expect(startMarketingRun).toHaveBeenCalledWith('L1', false)
+  expect(startMarketingRun).toHaveBeenCalledWith('L1', false, 'en')
   expect(await screen.findByText(/Project facts and listing page/)).toBeInTheDocument()
   expect(screen.getAllByText(/Working/)).toHaveLength(1)   // step 2 waits for step 1
 })
@@ -114,4 +114,16 @@ it('edits a caption (showing the checks as warnings) and improves a post with a 
   fireEvent.click(screen.getByRole('button', { name: 'Make it again with this note' }))
   expect(redoRunPost).toHaveBeenCalledWith('L1', 'price_reveal', 'mention MIDC')
   expect(await screen.findByDisplayValue('Near MIDC: ₹32.3 lakh plot.')).toBeInTheDocument()
+})
+
+it('makes the posts in the language picked, and keeps that language for a remake', async () => {
+  getMarketingRun.mockResolvedValue(null)
+  startMarketingRun.mockResolvedValue({ ...done, language: 'mr' })
+  render(<MarketingRunCard listingId="L1" />)
+  fireEvent.click(await screen.findByRole('radio', { name: 'मराठी' }))
+  expect(screen.getByRole('radio', { name: 'मराठी' })).toHaveAttribute('aria-checked', 'true')
+  fireEvent.click(screen.getByRole('button', { name: 'Start marketing' }))
+  expect(startMarketingRun).toHaveBeenCalledWith('L1', false, 'mr')
+  fireEvent.click(await screen.findByRole('button', { name: 'Check again and remake' }))
+  expect(startMarketingRun).toHaveBeenLastCalledWith('L1', true, 'mr')
 })

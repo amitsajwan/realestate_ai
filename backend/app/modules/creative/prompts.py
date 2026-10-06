@@ -14,7 +14,8 @@ from .models import Voice
 
 BRAND, LISTING = "brand", "listing"
 MODES = (BRAND, LISTING)
-VERSIONS = {"strategist": 1, "copywriter": 1, "translator": 1, "critic": 1}
+VERSIONS = {"strategist": 1, "copywriter": 1, "translator": 1, "critic": 1, "card_translator": 1}
+LANGUAGE_NAMES = {"mr": "Marathi (Devanagari script)", "hi": "Hindi (Devanagari script)"}
 
 
 def tag(stage: str, mode: str) -> str:
@@ -22,9 +23,11 @@ def tag(stage: str, mode: str) -> str:
     return f"{stage}@{VERSIONS[stage]}/{mode}"
 
 
-def used(mode: str, strategist: bool = False, copywriter: bool = False, translator: bool = False, critic: bool = False) -> List[str]:
+def used(mode: str, strategist: bool = False, copywriter: bool = False, translator: bool = False, critic: bool = False,
+         card_translator: bool = False) -> List[str]:
     """Tags of the stages whose LLM output a pack kept, in pipeline order."""
-    flags = {"strategist": strategist, "copywriter": copywriter, "translator": translator, "critic": critic}
+    flags = {"strategist": strategist, "copywriter": copywriter, "card_translator": card_translator, "translator": translator,
+             "critic": critic}
     return [tag(s, mode) for s, on in flags.items() if on]
 
 _LISTING_FACTS = ("Use ONLY the supplied facts: the price, the project name, the builder and the MahaRERA details may be "
@@ -79,6 +82,17 @@ def translator(v: Voice, mode: str = BRAND) -> str:
             "Keep every number and fact exactly; add nothing; no prices, phone numbers, URLs or superlatives.")
     return ("You translate a social-media caption for an Indian real-estate brand. " + keep
             + " Keep it short and natural, the way a Pune agent would speak. Output ONLY the caption text.")
+
+
+def card_translator(v: Voice, mode: str = BRAND, language: str = "mr") -> str:
+    """The whole post (card texts and caption) into Marathi or Hindi, after the English passed its guards."""
+    return (f"You translate one social post of {v.name}, an Indian real-estate brand, into {LANGUAGE_NAMES[language]}. "
+            "The input is a JSON object; reply with ONE JSON object with exactly the same keys and the same shape (a list stays "
+            "a list of the same length), every text translated. Keep every number exactly as written, in Western digits 0-9, "
+            "with ₹, 'sq ft', 'BHK', '%' and dates' numbers unchanged; MahaRERA numbers such as P52100076768 stay as they are. "
+            "Project, place and company names may be written in Devanagari but must not change. Add nothing and drop nothing: "
+            "no new claims, no phone numbers, no URLs, no superlatives. Cards have little room: keep each text about as short "
+            "as the original. Write it the way a Pune agent would say it to a buyer, natural and plain.")
 
 
 def critic(v: Voice, mode: str = BRAND) -> str:
