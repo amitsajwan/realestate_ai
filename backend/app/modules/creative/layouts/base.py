@@ -21,6 +21,7 @@ AA = 4  # supersampling factor for shapes
 CAP = 0.70      # Poppins cap height / font size
 DESC = 0.30     # descender allowance below the last baseline
 CAP_DEVANAGARI = 0.92
+TEXT_TOL = 4    # px a text's ink may overhang the safe area (glyph side bearings), invisible inside the margin
 PHOTO_DIR = Path(__file__).resolve().parent.parent / "assets" / "photos"
 FONT_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
 DEVANAGARI_FONTS = {"regular": "Mukta-Regular.ttf", "medium": "Mukta-Medium.ttf", "semibold": "Mukta-SemiBold.ttf",
@@ -97,7 +98,8 @@ def outside(box: Box, safe: Box, tol: int = 1) -> bool:
 
 
 def violations(r: Rendered) -> List[str]:
-    out = [f"text '{i.text[:30]}' box {i.box} outside safe area {r.safe}" for i in r.items if outside(i.box, r.safe)]
+    # text may overhang by a few pixels: some Devanagari letters' ink starts left of the pen (measured 2 px at 84 px margins)
+    out = [f"text '{i.text[:30]}' box {i.box} outside safe area {r.safe}" for i in r.items if outside(i.box, r.safe, TEXT_TOL)]
     out += [f"shape {b} outside safe area" for b in r.shapes if outside(b, r.safe)]
     return out
 

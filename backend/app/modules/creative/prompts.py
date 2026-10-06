@@ -14,7 +14,7 @@ from .models import Voice
 
 BRAND, LISTING = "brand", "listing"
 MODES = (BRAND, LISTING)
-VERSIONS = {"strategist": 1, "copywriter": 1, "translator": 1, "critic": 1, "card_translator": 1}
+VERSIONS = {"strategist": 1, "copywriter": 1, "translator": 1, "critic": 1, "card_translator": 2}
 LANGUAGE_NAMES = {"mr": "Marathi (Devanagari script)", "hi": "Hindi (Devanagari script)"}
 
 
@@ -90,9 +90,12 @@ def card_translator(v: Voice, mode: str = BRAND, language: str = "mr") -> str:
             "The input is a JSON object; reply with ONE JSON object with exactly the same keys and the same shape (a list stays "
             "a list of the same length), every text translated. Keep every number exactly as written, in Western digits 0-9, "
             "with ₹, 'sq ft', 'BHK', '%' and dates' numbers unchanged; MahaRERA numbers such as P52100076768 stay as they are. "
-            "Project, place and company names may be written in Devanagari but must not change. Add nothing and drop nothing: "
-            "no new claims, no phone numbers, no URLs, no superlatives. Cards have little room: keep each text about as short "
-            "as the original. Write it the way a Pune agent would say it to a buyer, natural and plain.")
+            "Project, place and company names (Gulmohar City, Ranjangaon, MahaRERA, IndoSpace...) stay exactly as written, in "
+            "English letters. Translate, do not rewrite: every sentence says what the English says and nothing more; never add "
+            "an opinion, a promise or a new claim (such as who it suits or whether it fits a budget), no phone numbers, no URLs, "
+            "no superlatives. Use the plain words a Pune agent uses with buyers, for example: per month = दरमहा, plot = प्लॉट, "
+            "possession = ताबा, site visit = साइट व्हिजिट, token = टोकन, Save this = सेव्ह करा, Swipe = पुढे पाहा, EMI and sq ft "
+            "stay as they are. Cards have little room: keep each text about as short as the original.")
 
 
 def critic(v: Voice, mode: str = BRAND) -> str:

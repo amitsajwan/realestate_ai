@@ -84,7 +84,7 @@ async def test_an_agents_marathi_campaign(tmp_path):
         assert "+91 99219 93099" in p["caption"] and "house-deal.com" in p["caption"] and "avasetu.in/agent/house-deal" in p["caption"]
         assert "House Deal team" in p["caption"] or p["caption"].startswith("मराठी: ")
     assert sum(p["caption"].startswith("मराठी: ") for p in d["posts"]) >= 8
-    assert any("card_translator@1/listing" in p["prompts"] for p in d["posts"])
+    assert any("card_translator@2/listing" in p["prompts"] for p in d["posts"])
     _, created = await runs.create("a1", "L1", language="en")      # another language makes a new run
     assert created
     assert LISTING["_id"] == "L1"
