@@ -86,10 +86,11 @@ class MarketingRuns:
     def __init__(self, db, uploads_dir, site: str = "", clients_factory: Optional[Callable[[], Any]] = None,
                  llm_factory: Optional[Callable] = None, now: Callable[[], datetime] = datetime.utcnow,
                  slides_renderer: Optional[Callable] = None, reel_jobs: Any = None, facts_store: Any = None,
-                 page_for: Optional[Callable] = None):
+                 page_for: Optional[Callable] = None, enrich_now: Optional[Callable] = None):
         """`slides_renderer(paths, out, hook=, kicker=)` makes a slides reel (default reels.slides.make_slides_reel);
         `reel_jobs` (reels.listing_reel.ReelJobs) queues the walkthrough reel; None skips it;
-        `page_for(db, regno)` finds a project's own page (default areastats.pages.page_for)."""
+        `page_for(db, regno)` finds a project's own page (default areastats.pages.page_for); `enrich_now(db, regno, by=)` asks
+        for that page's text to be written soon (default areastats.enrich.enrich_now)."""
         self.db = db
         self.runs = db.get_collection(COLLECTION)
         self.listings = db.get_collection("listings")
@@ -98,7 +99,7 @@ class MarketingRuns:
         self.clients_factory, self.llm_factory, self.now = clients_factory, llm_factory, now
         self.slides_renderer, self.reel_jobs = slides_renderer, reel_jobs
         self.facts_store = facts_store or FactsStore(db)
-        self.page_for = page_for
+        self.page_for, self.enrich_now = page_for, enrich_now
 
     async def _listing(self, agent_id: str, listing_id: str) -> dict:
         doc = await self.listings.find_one({"_id": listing_id, "agent_id": agent_id})
@@ -262,6 +263,17 @@ class MarketingRuns:
         slug = (prof or {}).get("slug")
         return f"{self.site}/agent/{slug}/listings/{listing_id}" if slug else f"{self.site}/listings/{listing_id}"
 
+    async def _enrich_soon(self, regno: str) -> None:
+        """Ask for the project page's text to be written soon (areastats.enrich.enrich_now, urgent, about a minute). Best
+        effort and not waited for: the page already shows this sheet's facts; only the written paragraph arrives later."""
+        enrich_now = self.enrich_now
+        try:
+            if enrich_now is None:
+                from app.modules.areastats.enrich import enrich_now
+            await enrich_now(self.db, regno, by="campaign")
+        except Exception:  # not deployed yet, loop off, project unknown: the campaign goes on
+            log.info("marketing: no urgent page enrichment for %s", regno, exc_info=True)
+
     async def _project_page(self, sheet) -> tuple:
         """(regno, project page url) for a property with a MahaRERA number: the project is put on the register's watch list
         now (so its page can be made), then its page is looked up (areastats.pages.page_for). (None, None) without a number;
@@ -279,6 +291,7 @@ class MarketingRuns:
             await watch(Register(self.db), WatchItem(regno, int(m.group(1)) if m else None, name), "property_facts", self.now())
         except Exception:
             log.warning("marketing: could not add %s to the register's watch list", regno, exc_info=True)
+        await self._enrich_soon(regno)
         page_for = self.page_for
         if page_for is None:
             try:

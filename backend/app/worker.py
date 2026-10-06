@@ -26,13 +26,14 @@ LoopTable = Dict[str, Callable[[], Awaitable[Any]]]
 
 def loops() -> LoopTable:
     """Lease name -> loop. The names are also the heartbeat names."""
+    from app.modules.areastats.enrich import loop as enrich_loop
     from app.modules.calendar.runner import loop as calendar_loop
     from app.modules.engage.runner import loop as engage_loop
     from app.modules.newsroom.runner import loop as newsroom_loop
     from app.modules.propertyfacts.jobs import loop as marketing_loop
     from app.modules.reels.listing_reel import loop as reels_loop
     return {"engage": engage_loop, "newsroom": newsroom_loop, "calendar": calendar_loop, "listing_reels": reels_loop,
-            "marketing_runs": marketing_loop}
+            "marketing_runs": marketing_loop, "project_enrich": enrich_loop}
 
 
 def start_loops(table: LoopTable, get_db: Callable[[], Any] = get_database) -> Dict[str, asyncio.Task]:
@@ -72,6 +73,8 @@ async def run(stop: asyncio.Event, table: Optional[LoopTable] = None, get_db: Ca
 # ---- --check --------------------------------------------------------------------------------------------------------
 def expected_intervals() -> Dict[str, Optional[float]]:
     """Loop name -> seconds between cycles, or None when the loop is switched off by config (it is not checked then)."""
+    from app.modules.areastats.enrich import POLL_SECONDS as ENRICH_POLL_S
+    from app.modules.areastats.enrich import load as enrich_cfg
     from app.modules.calendar.config import load as calendar_cfg
     from app.modules.engage.config import load as engage_cfg
     from app.modules.newsroom.config import load as newsroom_cfg
@@ -84,6 +87,7 @@ def expected_intervals() -> Dict[str, Optional[float]]:
         "calendar": float(c.interval_s) if c.enabled else None,
         "listing_reels": HEARTBEAT_INTERVAL_S,  # always on (polls the reel queue)
         "marketing_runs": MARKETING_INTERVAL_S,  # always on (polls the Start marketing queue)
+        "project_enrich": float(ENRICH_POLL_S) if enrich_cfg().enabled else None,  # PROJECT_ENRICH_ENABLED
     }
 
 

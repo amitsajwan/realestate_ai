@@ -92,13 +92,15 @@ async def test_worker_in_production_refuses_to_start_without_the_database(events
     assert started == []
 
 
-def test_the_worker_runs_the_five_loops_under_the_api_lease_names():
+def test_the_worker_runs_the_six_loops_under_the_api_lease_names():
     from app.modules.calendar.runner import loop as calendar_loop
     from app.modules.engage.runner import loop as engage_loop
     from app.modules.newsroom.runner import loop as newsroom_loop
     from app.modules.propertyfacts.jobs import loop as marketing_loop
+    from app.modules.areastats.enrich import loop as enrich_loop
     assert worker.loops() == {"engage": engage_loop, "newsroom": newsroom_loop, "calendar": calendar_loop,
-                              "listing_reels": listing_reel.loop, "marketing_runs": marketing_loop}
+                              "listing_reels": listing_reel.loop, "marketing_runs": marketing_loop,
+                              "project_enrich": enrich_loop}
 
 
 # ---- --check ----------------------------------------------------------------------------------------------------------

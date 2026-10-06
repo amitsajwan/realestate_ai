@@ -40,6 +40,9 @@ def wire() -> None:
     # the MahaRERA register keeps every agent's builder project fresh, wherever it is (areastats.watch); add other sources here
     from app.modules.areastats import watch as register_watch
     register_watch.add_source("agent_projects", _agent_project_watch)
+    # project pages are enriched slowly in the background with the property-facts gatherer (areastats.enrich, PROJECT_ENRICH_*)
+    from app.modules.areastats import enrich as project_enrich
+    project_enrich.configure(gather=_gather_project)
     register_watch.add_source("property_facts", _property_facts_watch)  # every project we gathered facts for to market it
 
 
@@ -76,3 +79,10 @@ async def _agent_project_watch():
     docs = await get_database().get_collection("agent_projects").find(
         {"rera_no": {"$exists": True}}, {"rera_no": 1, "maharera_id": 1, "name": 1}).to_list(2000)
     return [WatchItem(d["rera_no"], d.get("maharera_id"), d.get("name", "")) for d in docs if d.get("rera_no")]
+
+
+async def _gather_project(db, regno, name, locality, city="Pune", now=None):
+    """propertyfacts.enrich.gather_project, imported lazily (propertyfacts sits above areastats)."""
+    from app.modules.propertyfacts.enrich import gather_project
+
+    return await gather_project(db, regno, name, locality, city=city, now=now)

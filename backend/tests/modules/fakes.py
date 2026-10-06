@@ -84,6 +84,13 @@ class FakeCollection:
         for k, v in update.get("$push", {}).items():
             d.setdefault(k, []).append(v)
 
+    async def delete_one(self, flt):
+        for i, d in enumerate(self.docs):
+            if _match(d, flt):
+                del self.docs[i]
+                return type("R", (), {"deleted_count": 1})
+        return type("R", (), {"deleted_count": 0})
+
     async def update_one(self, flt, update):
         for d in self.docs:
             if _match(d, flt):

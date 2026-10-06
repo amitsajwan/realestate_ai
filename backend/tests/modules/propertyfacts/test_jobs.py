@@ -271,3 +271,24 @@ async def test_a_property_without_a_registration_uses_its_listing_page(tmp_path)
     await runs.run_once()
     d = await runs.latest("a1", "L1")
     assert d["page_url"] == d["listing_url"] == "https://avasetu.in/agent/priya/listings/L1"
+
+
+async def test_page_first_asks_for_the_page_text_without_waiting(tmp_path):
+    asked = []
+
+    async def enrich_now(db, regno, by="campaign"):
+        asked.append((regno, by))
+        return True
+    db, runs, _, _ = await setup(tmp_path)
+    runs.enrich_now = enrich_now
+    await runs.create("a1", "L1")
+    await runs.run_once()
+    assert asked == [("P52100076768", "campaign")] and (await runs.latest("a1", "L1"))["status"] == "done"
+
+    async def broken(db, regno, by="campaign"):
+        raise RuntimeError("loop off")
+    runs.enrich_now = broken                                    # enrichment down: the campaign still goes on
+    runs.now = lambda: NOW + timedelta(minutes=5)
+    await runs.create("a1", "L1", again=True)
+    await runs.run_once()
+    assert (await runs.latest("a1", "L1"))["status"] == "done"

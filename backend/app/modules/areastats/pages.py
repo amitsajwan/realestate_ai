@@ -103,7 +103,9 @@ def view(doc: dict, same_area: List[dict]) -> dict:
         "units_total": _count(doc.get("units_total")), "units_booked": _count(doc.get("units_booked")),
         "details_read_at": read.date().isoformat() if isinstance(read, datetime) and doc.get("details_ok") else None,
         "listed_or_updated": _day(doc.get("last_modified")), "maharera_url": doc.get("source_url") or None,
-        "paragraph": paragraph(doc), "indexable": indexable(doc),
+        # the enriched text (model-written from gathered facts, checked) when there is one, else the code-written paragraph
+        "paragraph": doc.get("page_text") or paragraph(doc), "indexable": indexable(doc),
+        "enriched_at": doc["enriched_at"].date().isoformat() if isinstance(doc.get("enriched_at"), datetime) else None,
         "same_area": [{"name": s.get("name", ""), "slug": s["page_slug"], "completion_now": _day(s.get("completion_now"))} for s in same_area],
         "source": "MahaRERA public records",
     }
