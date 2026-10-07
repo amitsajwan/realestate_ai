@@ -11,7 +11,7 @@ HOOK_SECONDS = 2.2  # the opening scene: most viewers decide in the first 1-2 s,
 # one was a busy picture. So frame one is a hook card: the hook alone, big, on the plain brand background (no photo, no label, no
 # brand tag), then quick cuts instead of slow cross-fades.
 HOOK_CARD_SECONDS = 1.6
-QUICK_XFADE = 0.15
+QUICK_XFADE = 0.35  # short enough to keep the pace, long enough to read as a smooth blend (0.15 s looked like a hard jump)
 HOOK_OPTIONS = {"transition": "fade", "xfade": QUICK_XFADE, "hook_tag": False}
 
 
@@ -32,7 +32,7 @@ def tip_reel(lines: Sequence[str], images: Optional[Sequence] = None, seed: str 
     for i, b in enumerate(beats):  # a long tip becomes two or three quick screens (same photo, same label): short enough to read muted
         for k, part in enumerate(split_screens(b)):
             scenes.append(Scene(image=img(i + 1), lines=[TextLine(part, size=110, max_lines=4)], kicker=f"Tip {i + 1} of {len(beats)}",
-                                seconds=read_seconds(part), seed=f"{seed}-{i + 1}-{k}"))
+                                seconds=read_seconds(part), seed=f"{seed}-{i + 1}"))   # same seed: one continuous background
     scenes.append(Scene(image=img(len(beats) + 1), lines=[TextLine(cta, size=96, max_lines=4)], seconds=2.8, seed=f"{seed}-cta"))
     return _at_least_min(scenes, QUICK_XFADE), dict(HOOK_OPTIONS)
 
@@ -108,7 +108,7 @@ def agent_pitch(problem: str = "Buyers message you all day. *Same* questions. Ev
     ]
     for k, part in enumerate(split_screens(solution)):
         scenes.append(Scene(image=img(1), lines=[TextLine(part, size=100, max_lines=4)], kicker="There is a better way",
-                            seconds=read_seconds(part), seed=f"pitch-solution-{k}"))
+                            seconds=read_seconds(part), seed="pitch-solution"))
     for i, p in enumerate(list(proof)[:2]):
         scenes.append(Scene(image=img(i + 2), lines=[TextLine(p, size=108)], kicker="What you get", seconds=2.4, seed=f"pitch-proof-{i}"))
     scenes.append(Scene(image=img(4), lines=[TextLine(cta, size=104)], seconds=2.6, seed="pitch-cta"))

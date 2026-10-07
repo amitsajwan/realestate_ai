@@ -187,8 +187,9 @@ def test_frame_zero_shows_the_complete_hook_and_later_scenes_still_animate():
     r = compose.Renderer(scenes, end_card=False)
     first, second = r.prep
     assert all(first.item_alpha(k, 0.0) == 1.0 for k in range(len(first.items))) and first.badge_alpha(0.0) == 1.0
-    assert second.item_alpha(0, 0.0) == 0.0 < second.item_alpha(0, 0.1) < 1.0   # later scenes keep a quick entrance ...
-    assert second.item_alpha(0, compose.TEXT_IN) == 1.0                          # ... that starts at the cut and is over at once
+    d = second.delay   # the handover point inside the blend
+    assert second.item_alpha(0, d) == 0.0 < second.item_alpha(0, d + 0.1) < 1.0   # later scenes keep a quick entrance ...
+    assert second.item_alpha(0, d + compose.TEXT_IN) == 1.0                         # ... that is over at once
     # the rendered pixels: the hook's white headline is fully painted on frame 0 (identical to a frame later in the scene)
     f0, f1 = r.frame_at(0.0), r.frame_at(1.0)
     x0, y0, x1, y1 = first.items[1].box     # items[0] is the kicker chip
@@ -259,7 +260,7 @@ def test_tip_and_pitch_open_on_a_hook_card_with_quick_cuts():
     for scenes, opts in (templates.tip_reel(templates.TIP_LINES), templates.agent_pitch()):
         first = scenes[0]
         assert first.image is None and first.kicker is None and first.seconds <= 2.6
-        assert opts["hook_tag"] is False and opts["xfade"] <= 0.2
+        assert opts["hook_tag"] is False and 0.25 <= opts["xfade"] <= 0.4   # quick, but a visible blend, not a jump
 
 
 # ---- short screens and no empty frame after a cut ----------------------------------------------------------------------------
@@ -286,6 +287,30 @@ def test_the_screen_is_never_empty_right_after_the_hook():
     """The first slide reels lost most viewers in the first two seconds; the cut after the hook used to show an empty background
     for about a second while the next text faded in. Now every text item of the next scene is fully drawn within 0.35 s of its cut."""
     scenes, opts = templates.tip_reel(templates.TIP_LINES)
-    second = compose.Renderer(scenes, **opts).prep[1]
+    r = compose.Renderer(scenes, **opts)
+    second, xf = r.prep[1], r.tl.xfade
     assert len(second.items) >= 2   # the 'Tip 1 of 3' chip and the text
-    assert second.item_alpha(0, 0.05) > 0 and all(second.item_alpha(k, 0.35) == 1.0 for k in range(len(second.items)))
+    assert second.item_alpha(0, 0.5 * xf) > 0                                    # arriving by the middle of the blend ...
+    assert all(second.item_alpha(k, xf + 0.3) == 1.0 for k in range(len(second.items)))   # ... and fully in just after it
+
+
+def test_old_and_new_text_hand_over_without_overlapping():
+    scenes, opts = templates.tip_reel(templates.TIP_LINES)
+    r = compose.Renderer(scenes, **opts)
+    xf, second = r.tl.xfade, r.prep[1]
+    lo, hi = compose.TEXT_HANDOVER
+    assert lo < hi < 1
+    assert second.item_alpha(0, (lo - 0.05) * xf) == 0.0   # the new text waits until the old text is on its way out
+    # pixels: just before the handover the frame shows the old text, at the end of the blend the new text (drawn in white)
+    white = lambda im: sum(1 for px in im.getdata() if min(px) >= 245)
+    box = second.items[-1].box
+    before, after = r.frame_at(r.tl.starts[1] + 0.3 * xf).crop(box), r.frame_at(r.tl.starts[1] + xf + 0.3).crop(box)
+    assert white(after) > 0 and before.tobytes() != after.tobytes()
+
+
+def test_screens_of_one_split_line_share_one_continuous_background():
+    scenes, opts = templates.tip_reel(templates.TIP_LINES)
+    r = compose.Renderer(scenes, **opts)
+    a, b = r.prep[1], r.prep[2]   # 'Ask for the *RERA number*.' / 'Then look it up on the MahaRERA site.'
+    assert a.scene.seed == b.scene.seed and b.punch == 0.0 < a.punch
+    assert a.base.tobytes() == b.base.tobytes() and (a.z1, a.fx1, a.fy1) == (b.z0, b.fx0, b.fy0)   # starts where the last ended

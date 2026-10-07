@@ -44,8 +44,9 @@ TAGLINE = brand.TAGLINE
 PHONE_RE = re.compile(r"(?<![A-Za-z0-9])(?:\+?\d[\s\-]?){9,}")
 PAD = 28
 TEXT_IN = 0.22         # a later scene's text is fully in this many seconds after its cut (no delay: never an empty screen)
-PUNCH_SCALE = 0.06     # each later scene starts 6% zoomed in ...
-PUNCH_SECONDS = 0.35   # ... and settles in this many seconds
+PUNCH_SCALE = 0.035    # each new picture starts 3.5% zoomed in ...
+PUNCH_SECONDS = 0.7    # ... and eases out over this long: a gentle push, not a jolt
+TEXT_HANDOVER = (0.4, 0.6)   # during a blend the new text starts at 40% of it and the old text is gone by 60%: never two texts on top of each other
 MAX_SCREEN_WORDS = 8   # on-screen text longer than this is split over quick screens (most people watch muted and read)
 TAG_Y = TEXT_TOP               # the brand tag row (logo + name), under the progress bar
 CONTENT_TOP = TAG_Y + 94       # 362: below the brand tag row
@@ -537,12 +538,13 @@ class _Prepared:
         """Opacity (and so the rise offset) of the k-th text item at scene time lt: 1.0 means in its final place."""
         return ease_out_cubic((lt - self.delay - self.stagger * k) / self.fade) if self.animate else 1.0
 
-    def frame(self, lt: float, p: float) -> Image.Image:
+    def frame(self, lt: float, p: float, text_a: float = 1.0) -> Image.Image:
+        """`text_a` < 1 while this scene is on its way out: its text leaves before the next scene's text arrives (no overlap)."""
         img = Image.composite(self.solid, self.background(p, lt), self.mask)
         if self.badge:
             _blit(img, self.badge, self.badge_alpha(lt), rise=0)
         for k, it in enumerate(self.items):
-            _blit(img, it, self.item_alpha(k, lt), rise=24)
+            _blit(img, it, self.item_alpha(k, lt) * text_a, rise=24)
         return img
 
 
@@ -628,11 +630,16 @@ class Renderer:
         self.transition, self.progress = transition, progress
         self.tl = plan([s.seconds if s.seconds else seconds_per_scene for s in scenes], xfade)
         self.prep = [_Prepared(s, i, i == 0) for i, s in enumerate(scenes)]
+        for q in self.prep[1:]:   # the incoming text starts a little before the middle of the blend, as the outgoing text leaves
+            q.delay = TEXT_HANDOVER[0] * self.tl.xfade
+        for a, b in zip(self.prep, self.prep[1:]):  # the next screen of the same picture (a long line split in two): the background
+            if b.scene.seed == a.scene.seed and b.scene.image is a.scene.image:   # carries on where it was (the zoom direction
+                b.punch = 0.0                                                     # alternates, so it starts where the last ended)
         self.tag = _tag_item()
 
-    def _scene_frame(self, i: int, t: float) -> Image.Image:
+    def _scene_frame(self, i: int, t: float, text_a: float = 1.0) -> Image.Image:
         lt = t - self.tl.starts[i]
-        return self.prep[i].frame(lt, clamp01(lt / self.tl.durations[i]))
+        return self.prep[i].frame(lt, clamp01(lt / self.tl.durations[i]), text_a)
 
     def frame_at(self, t: float) -> Image.Image:
         t = min(t, self.tl.total - 1e-6)
@@ -646,7 +653,8 @@ class Renderer:
                 tag_a = 0.0
         else:
             (i, _), (j, w) = act
-            a, b = self._scene_frame(i, t), self._scene_frame(j, t)
+            a = self._scene_frame(i, t, 1 - ease_out_cubic(w / TEXT_HANDOVER[1]))   # old text gone by 60% of the blend
+            b = self._scene_frame(j, t)
             e = ease_in_out_cubic(w)
             if self.transition == "slide":
                 img = Image.new("RGB", (W, H))
