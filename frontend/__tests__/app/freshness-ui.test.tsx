@@ -19,6 +19,7 @@ jest.mock('@/lib/app/client', () => ({
     getPerformance: (...a: unknown[]) => call('getPerformance', a),
     listLeads: (...a: unknown[]) => call('listLeads', a),
     getToday: (...a: unknown[]) => getToday(...a),
+    getMarketingRun: (...a: unknown[]) => call('getMarketingRun', a),
     confirmAvailable: (...a: unknown[]) => { spy.confirmAvailable(...a); return call('confirmAvailable', a) },
     setListingStatus: (...a: unknown[]) => { spy.setListingStatus(...a); return call('setListingStatus', a) },
     updateListing: (...a: unknown[]) => { spy.updateListing(...a); return call('updateListing', a) },
@@ -30,6 +31,11 @@ jest.mock('@/lib/app/session', () => ({
   useSession: () => ({ siteUrl: null, logout: jest.fn() }),
   getSiteUrl: () => 'https://example.test/agent/amit',
 }))
+const mockAgents = { list: jest.fn(), get: jest.fn() }
+jest.mock('@/lib/app/concierge', () => ({
+  ...jest.requireActual('@/lib/app/concierge'),
+  conciergeApi: { list: (...a: unknown[]) => mockAgents.list(...a), get: (...a: unknown[]) => mockAgents.get(...a) },
+}))
 let routeId = 'l4'
 jest.mock('next/navigation', () => ({ useParams: () => ({ id: routeId }), useSearchParams: () => new URLSearchParams() }))
 
@@ -38,7 +44,12 @@ beforeEach(() => {
   Object.values(spy).forEach((m) => m.mockClear())
   getToday.mockReset()
   routeId = 'l4'
+  mockAgents.list.mockReset().mockRejectedValue(new Error('The Agents area is only for the owner.'))
+  mockAgents.get.mockReset()
+  window.history.replaceState(null, '', '/studio/listings')
 })
+
+const tab = (name: RegExp) => screen.getByRole('tab', { name })
 
 const prompt = (id: string) => within(screen.getByTestId(`freshness-${id}`))
 
@@ -73,6 +84,7 @@ describe('Freshness prompts on the Listings screen', () => {
   it('listing cards show a Confirm or Hidden chip only when needed', async () => {
     render(<ListingsPage />)
     await screen.findByTestId('freshness-l3')
+    fireEvent.click(tab(/^Live/))
     const chips = screen.getAllByTestId('freshness-chip').map((c) => c.textContent)
     expect(chips.sort()).toEqual(['Confirm', 'Hidden'])
   })
@@ -85,9 +97,11 @@ describe('Freshness prompts on the Listings screen', () => {
     expect(spy.confirmAvailable).toHaveBeenCalledWith('l3')
     expect(spy.setListingStatus).not.toHaveBeenCalled()
     expect(screen.getByRole('status')).toHaveTextContent('2 BHK near Baner Road: Thanks. Buyers can see it.')
-    expect(screen.getAllByTestId('freshness-chip')).toHaveLength(1) // only the hidden one is left
     expect(screen.getByTestId('freshness-l4')).toBeInTheDocument()
+    expect(tab(/Needs you/)).toHaveTextContent('1')
     expect((await fx.getListing('l3')).freshness).toBe('fresh')
+    fireEvent.click(tab(/^Live/))
+    expect(screen.getAllByTestId('freshness-chip')).toHaveLength(1) // only the hidden one is left
   })
 
   it('confirming a hidden listing brings it back', async () => {
@@ -108,7 +122,8 @@ describe('Freshness prompts on the Listings screen', () => {
     expect(spy.setListingStatus).toHaveBeenCalledWith('l3', 'sold')
     expect(spy.confirmAvailable).not.toHaveBeenCalled()
     expect(screen.getByRole('status')).toHaveTextContent('Marked as sold.')
-    expect(screen.getByText('sold')).toBeInTheDocument() // the card's status chip
+    fireEvent.click(tab(/Closed/))
+    expect(screen.getByText('Sold')).toBeInTheDocument() // the card's status pill
   })
 
   it('"Pause it" pauses the listing', async () => {
@@ -118,7 +133,8 @@ describe('Freshness prompts on the Listings screen', () => {
     await waitFor(() => expect(screen.queryByTestId('freshness-l4')).toBeNull())
     expect(spy.setListingStatus).toHaveBeenCalledWith('l4', 'paused')
     expect(screen.getByRole('status')).toHaveTextContent('Paused. Buyers cannot see it.')
-    expect(screen.getByText('paused')).toBeInTheDocument()
+    fireEvent.click(tab(/Closed/))
+    expect(screen.getByText('Paused')).toBeInTheDocument()
   })
 
   it('a rental says "It is rented" and marks it rented', async () => {
@@ -128,7 +144,9 @@ describe('Freshness prompts on the Listings screen', () => {
     expect(prompt('l3').queryByRole('button', { name: 'It is sold' })).toBeNull()
     fireEvent.click(prompt('l3').getByRole('button', { name: 'It is rented' }))
     await waitFor(() => expect(spy.setListingStatus).toHaveBeenCalledWith('l3', 'rented'))
-    expect(await screen.findByText('rented')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByTestId('freshness-l3')).toBeNull())
+    fireEvent.click(tab(/Closed/))
+    expect(await screen.findByText('Rented')).toBeInTheDocument()
   })
 
   it('disables the buttons while working and shows an error (with buttons back) when it fails', async () => {
@@ -248,5 +266,100 @@ describe('Home: "Listings that need your confirmation"', () => {
     expect(await screen.findByTestId('headline')).toBeInTheDocument()
     expect(screen.queryByTestId('action-confirm_listing')).toBeNull()
     expect(screen.queryByRole('alert')).toBeNull()
+  })
+})
+
+describe('Listings tabs (shared list pattern)', () => {
+  it('opens on Needs you with a gold count, counts every tab and keeps the tab in the address', async () => {
+    render(<ListingsPage />)
+    await screen.findByTestId('freshness-l3')
+    expect(tab(/Needs you/)).toHaveAttribute('aria-selected', 'true')
+    expect(tab(/Needs you/)).toHaveTextContent('2')
+    expect(tab(/Needs you/).querySelector('span')!.className).toMatch(/f0b440/)
+    expect(tab(/^Live/)).toHaveTextContent('4')
+    expect(tab(/Drafts/)).toHaveTextContent('1')
+    expect(tab(/Closed/)).toHaveTextContent('0')
+    fireEvent.click(tab(/Drafts/))
+    expect(window.location.search).toBe('?tab=drafts')
+    expect(screen.getByText('3 BHK in Wakad')).toBeInTheDocument()
+    expect(screen.getByText('Draft')).toBeInTheDocument()
+    expect(screen.queryByText('2 BHK in Baner')).toBeNull()
+    fireEvent.click(tab(/Closed/))
+    expect(screen.getByText('Nothing sold, rented or paused yet.')).toBeInTheDocument()
+  })
+
+  it('opens on Live when nothing needs you, with plain status words', async () => {
+    await fx.confirmAvailable('l3')
+    await fx.confirmAvailable('l4')
+    await fx.setListingStatus('l5', 'under_offer')
+    await fx.updateListing('l1', { transaction: 'rent' })
+    render(<ListingsPage />)
+    await screen.findByText('2 BHK in Baner')
+    expect(tab(/^Live/)).toHaveAttribute('aria-selected', 'true')
+    expect(tab(/Needs you/)).toHaveTextContent('0')
+    expect(screen.getAllByText('On sale')).toHaveLength(2)
+    expect(screen.getByText('For rent')).toBeInTheDocument()
+    expect(screen.getByText('Under offer')).toBeInTheDocument()
+    expect(screen.queryByText(/under_offer|under offer|^live$/)).toBeNull()
+  })
+
+  it('the owner can look at one agent\'s listings; they open the agent\'s page', async () => {
+    const mine = await fx.listListings()
+    mockAgents.list.mockReset().mockResolvedValue([{ id: 'fx-a1', name: 'Rahul Sharma' }])
+    mockAgents.get.mockResolvedValue({ id: 'fx-a1', listings: [{ ...mine[0], id: 'a1-l1', title: 'Rahul flat', agent_id: 'fx-a1' }] })
+    render(<ListingsPage />)
+    const pick = await screen.findByLabelText('Agent')
+    fireEvent.change(pick, { target: { value: 'fx-a1' } })
+    expect(await screen.findByText('Rahul flat')).toBeInTheDocument()
+    expect(mockAgents.get).toHaveBeenCalledWith('fx-a1')
+    expect(window.location.search).toContain('agent=fx-a1')
+    expect(screen.getByText('Rahul flat').closest('a')).toHaveAttribute('href', '/studio/agents/fx-a1')
+    expect(screen.queryByRole('link', { name: /Activity/ })).toBeNull()
+    expect(screen.queryByText('2 BHK in Baner')).toBeNull()
+  })
+
+  it('there is no agent filter for an agent (not the owner)', async () => {
+    render(<ListingsPage />)
+    await screen.findByTestId('freshness-l3')
+    expect(screen.queryByLabelText('Agent')).toBeNull()
+  })
+})
+
+describe('Listing screen actions', () => {
+  it('Mark sold and Pause ask first; Cancel changes nothing', async () => {
+    routeId = 'l1'
+    render(<ListingDetailPage />)
+    await screen.findByRole('heading', { level: 1, name: '2 BHK in Baner' })
+    expect(screen.getByText('On sale')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Mark sold' }))
+    const sheet = screen.getByRole('dialog', { name: 'Mark 2 BHK in Baner sold?' })
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(spy.setListingStatus).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pause' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Pause 2 BHK in Baner?' })).getByRole('button', { name: 'Pause' }))
+    await waitFor(() => expect(spy.setListingStatus).toHaveBeenCalledWith('l1', 'paused'))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(await screen.findByText('Paused')).toBeInTheDocument()
+  })
+
+  it('Under offer does not ask', async () => {
+    routeId = 'l1'
+    render(<ListingDetailPage />)
+    await screen.findByRole('heading', { level: 1, name: '2 BHK in Baner' })
+    fireEvent.click(screen.getByRole('button', { name: 'Under offer' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await waitFor(() => expect(spy.setListingStatus).toHaveBeenCalledWith('l1', 'under_offer'))
+  })
+
+  it('Marketing is the prominent navy button, with the post count when a campaign exists', async () => {
+    routeId = 'l1'
+    jest.spyOn(fx, 'getMarketingRun').mockResolvedValue({ posts: [{}, {}, {}] } as never)
+    render(<ListingDetailPage />)
+    const btn = await screen.findByTestId('marketing-button')
+    expect(btn).toHaveAttribute('href', '/studio/listings/l1/marketing')
+    expect(btn.className).toMatch(/0f2340/)
+    await waitFor(() => expect(btn).toHaveTextContent('Marketing3 posts'))
   })
 })
