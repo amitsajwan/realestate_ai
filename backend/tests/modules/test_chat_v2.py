@@ -397,4 +397,4 @@ async def test_a_question_with_no_keyword_on_a_listing_page_is_answered_from_tha
     # with nothing to go on, the gap is recorded for the agent (the answer-gap loop) and a person is asked
     d2 = engine.new_data()
     t2 = await engine.turn(d2, "Is it good for a family?", FakeLLM({"answerable": False, "answer": ""}), g)
-    assert t2.needs_human and d2.get("gaps") == ["other"]
+    assert t2.needs_human and d2.get("gaps") == [{"q": "Is it good for a family?", "topics": ["other"]}]

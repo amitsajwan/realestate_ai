@@ -540,7 +540,7 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
         if not r.confident:
             d["needs_human"] = needs_human = True
             d.setdefault("missing", []).append((r.missing or "")[:100])
-            d.setdefault("gaps", []).extend(r.gaps)
+            d["gaps"] = (d.get("gaps") or [])[-19:] + [{"q": text[:200], "topics": list(r.gaps)}]   # read by knowledge.gaps
     elif is_question(text) and not (d["asked"] and not kb.search(text, 1) and len(text.split()) <= 3):
         d["questions"].append(text[:200])
         # A question about this home in words no keyword knows ('good for a family?', or most Hindi and Marathi): the home's own facts
@@ -555,7 +555,7 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
             parts.append(say("dont_guess", lang))
             if r is not None:
                 d.setdefault("missing", []).append((r.missing or text)[:100])
-                d.setdefault("gaps", []).extend(r.gaps or ["other"])
+                d["gaps"] = (d.get("gaps") or [])[-19:] + [{"q": text[:200], "topics": list(r.gaps or ["other"])}]
     ack = _ack(new, d)
     if ack and not parts:
         parts.append(ack)

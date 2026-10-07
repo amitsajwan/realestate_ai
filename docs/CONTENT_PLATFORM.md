@@ -134,7 +134,7 @@ Sizes: S = under a day, M = 1 to 3 days, L = more. "Needs" lists what must exist
 |---|---|---|---|
 | L-1 | Property reels with measurement | The listing and project reels carry the same tags and appear in "What worked". | X-3 |
 | L-2 | Experiment planner | Plan a set of variants for one idea in the calendar and compare them (same facts, different hooks) with their sample sizes. | X-5 |
-| L-3 | Comment themes | Group the questions people ask under posts (`engage` already classifies intent) into a weekly list of content ideas. | X-2 |
+| L-3 | Comment themes | Group the questions people ask under posts (`engage` already classifies intent) into a weekly list of content ideas. | X-2 | Started 2026-10-07: `knowledge/gaps.py` groups unanswered questions (comments, chat, WhatsApp) per home and topic, tells the agent once, closes the gap itself when the fact is added; `gaps.themes()` sums them by topic and area for the content plan. |
 | L-4 | Suggestions | Plain statements with counts ("this hook held 3x the typical watch time, 14 reels"); never an auto-publish. | about 50 reels with results |
 | L-5 | Agent content | Each agent's own posts and reels measured the same way. | L-1 |
 

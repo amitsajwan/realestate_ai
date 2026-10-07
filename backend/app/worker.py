@@ -1,6 +1,6 @@
 """The worker process: runs the background loops outside the API (docs/ARCHITECTURE.md §1 and §6).
 
-    python -m app.worker           run engage, newsroom, calendar, listing reels, marketing runs and insights until SIGTERM/SIGINT
+    python -m app.worker           run engage, newsroom, calendar, listing reels, marketing runs, insights and answer gaps until SIGTERM/SIGINT
     python -m app.worker --check   print one line per loop; exit 1 when an enabled loop's heartbeat is older than twice its
                                    interval, 2 when the database cannot be read (deploy/gcp/health_check.sh calls this)
 
@@ -30,11 +30,13 @@ def loops() -> LoopTable:
     from app.modules.calendar.runner import loop as calendar_loop
     from app.modules.engage.runner import loop as engage_loop
     from app.modules.insights.collector import loop as insights_loop
+    from app.modules.knowledge.gaps import loop as gaps_loop
     from app.modules.newsroom.runner import loop as newsroom_loop
     from app.modules.propertyfacts.jobs import loop as marketing_loop
     from app.modules.reels.listing_reel import loop as reels_loop
     return {"engage": engage_loop, "newsroom": newsroom_loop, "calendar": calendar_loop, "listing_reels": reels_loop,
-            "marketing_runs": marketing_loop, "project_enrich": enrich_loop, "insights": insights_loop}
+            "marketing_runs": marketing_loop, "project_enrich": enrich_loop, "insights": insights_loop,
+            "answer_gaps": gaps_loop}
 
 
 def start_loops(table: LoopTable, get_db: Callable[[], Any] = get_database) -> Dict[str, asyncio.Task]:
@@ -80,6 +82,7 @@ def expected_intervals() -> Dict[str, Optional[float]]:
     from app.modules.engage.config import load as engage_cfg
     from app.modules.insights.collector import INTERVAL_S as INSIGHTS_INTERVAL_S
     from app.modules.insights.collector import enabled as insights_on
+    from app.modules.knowledge.gaps import INTERVAL_S as GAPS_INTERVAL_S
     from app.platform.meta_graph.config import load as social_cfg
     from app.modules.newsroom.config import load as newsroom_cfg
     from app.modules.propertyfacts.jobs import HEARTBEAT_INTERVAL_S as MARKETING_INTERVAL_S
@@ -93,6 +96,7 @@ def expected_intervals() -> Dict[str, Optional[float]]:
         "marketing_runs": MARKETING_INTERVAL_S,  # always on (polls the Start marketing queue)
         "project_enrich": float(ENRICH_POLL_S) if enrich_cfg().enabled else None,  # PROJECT_ENRICH_ENABLED
         "insights": float(INSIGHTS_INTERVAL_S) if insights_on(social_cfg()) else None,  # real posts with a token, not dry run
+        "answer_gaps": float(GAPS_INTERVAL_S),  # always on (reads stored replies, notifies agents)
     }
 
 
