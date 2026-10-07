@@ -1,0 +1,15 @@
+{
+  "id": "rera_kharadi",
+  "source": "fixture",
+  "url": "https://example.test/rera_kharadi",
+  "title": "MahaRERA registers 14 new projects in Kharadi in September",
+  "text": "MahaRERA registered 14 new projects in Kharadi in September, according to data released by the authority. The registrations cover about 2,300 apartments. Kharadi continues to be the most active micro-market in east Pune for new registrations.",
+  "published_at": "2026-09-28T06:00:00+00:00",
+  "expect": {
+    "keep": true,
+    "pillar": "new_supply",
+    "areas": [
+      "kharadi"
+    ]
+  }
+}

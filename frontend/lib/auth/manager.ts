@@ -56,6 +56,31 @@ export class AuthManager {
     }
 
     /**
+     * Get current user with retry logic
+     */
+    async getCurrentUser(): Promise<User | null> {
+        try {
+            const token = this.getStoredToken();
+            if (!token) {
+                logger.debug('[AuthManager] No token available, user not logged in');
+                return null;
+            }
+
+            const userData = await this.retryApiCall(
+                () => authAPI.getCurrentUser(token)
+            );
+
+            if (userData && (userData.id || userData.user?.id)) {
+                return this.transformUserData(userData);
+            }
+            return null;
+        } catch (error) {
+            logger.error('[AuthManager] Failed to get current user', { errorDetails: error instanceof Error ? error.message : String(error) });
+            return null;
+        }
+    }
+
+    /**
      * Initialize authentication manager
      */
     async init(): Promise<void> {
@@ -73,10 +98,8 @@ export class AuthManager {
             const storedToken = this.getStoredToken();
             if (storedToken) {
                 try {
-                    // Verify token by getting current user with retry logic
-                    const userData = await this.retryApiCall(
-                        () => authAPI.getCurrentUser(storedToken)
-                    );
+                    // Verify token by getting current user (no retry for auth - should be fast)
+                    const userData = await authAPI.getCurrentUser(storedToken);
                     if (userData && (userData.id || userData.user?.id)) {
                         this.setState({
                             isAuthenticated: true,
@@ -94,7 +117,14 @@ export class AuthManager {
                 }
             }
 
-            this.setState({ isLoading: false, error: null });
+            // No valid token found - set as unauthenticated
+            this.setState({
+                isAuthenticated: false,
+                isLoading: false,
+                error: null,
+                user: null,
+                token: null
+            });
         } catch (error) {
             logger.error('[AuthManager] Init error', { errorDetails: error instanceof Error ? error.message : String(error) });
             this.setState({ isLoading: false, error: 'Authentication initialization failed' });
@@ -130,8 +160,14 @@ export class AuthManager {
                 });
 
                 if (loginResponse.access_token) {
-                    // Store tokens and user data
+                    // Set token BEFORE making any API calls so it's attached to requests
                     this.setStoredToken(loginResponse.access_token);
+
+                    // Set token in state immediately so API clients can use it
+                    this.setState({
+                        token: loginResponse.access_token,
+                        isLoading: true
+                    });
 
                     // Transform user data to expected format
                     const user = this.transformUserData(userResponse);
@@ -174,12 +210,20 @@ export class AuthManager {
             });
 
             if (response.access_token) {
-                // Get user data with retry logic
+                // 🔧 FIXED v2.1: Set token BEFORE making any API calls so it's attached to requests
+                console.log('🚀 NEW AUTHMANAGER CODE LOADED - Setting token before API calls');
+                this.setStoredToken(response.access_token);
+
+                // Set token in state immediately so API clients can use it
+                this.setState({
+                    token: response.access_token,
+                    isLoading: true
+                });
+
+                // Get user data with retry logic (token is now available for API calls)
                 const userData = await this.retryApiCall(
                     () => authAPI.getCurrentUser(response.access_token!)
                 );
-
-                this.setStoredToken(response.access_token);
 
                 this.setState({
                     isAuthenticated: true,

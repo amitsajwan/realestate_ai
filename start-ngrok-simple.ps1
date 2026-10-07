@@ -5,8 +5,11 @@
 
 param(
     [Parameter(Position=0)]
-    [ValidateSet("start", "status", "stop")]
-    [string]$Action = "start"
+    [ValidateSet("start", "status", "stop", "help")]
+    [string]$Action = "start",
+    
+    [Parameter()]
+    [switch]$Help = $false
 )
 
 # Colors for output
@@ -19,6 +22,35 @@ $Reset = "`e[0m"
 function Write-ColorOutput {
     param([string]$Message, [string]$Color = $Reset)
     Write-Host "$Color$Message$Reset"
+}
+
+function Show-Help {
+    Write-ColorOutput "Real Estate AI - Simple ngrok Deployment" $Blue
+    Write-ColorOutput "=========================================" $Blue
+    Write-ColorOutput ""
+    Write-ColorOutput "Usage: .\start-ngrok-simple.ps1 [ACTION]" $Yellow
+    Write-ColorOutput ""
+    Write-ColorOutput "Actions:" $Cyan
+    Write-ColorOutput "  start  - Start ngrok tunnels (default)" $Reset
+    Write-ColorOutput "  status - Check service status" $Reset
+    Write-ColorOutput "  stop   - Stop ngrok tunnels" $Reset
+    Write-ColorOutput "  help   - Show this help" $Reset
+    Write-ColorOutput ""
+    Write-ColorOutput "Prerequisites:" $Yellow
+    Write-ColorOutput "• Frontend running on port 3000" $Reset
+    Write-ColorOutput "• Backend running on port 8000" $Reset
+    Write-ColorOutput "• ngrok installed and in PATH" $Reset
+    Write-ColorOutput ""
+    Write-ColorOutput "Examples:" $Yellow
+    Write-ColorOutput "  .\start-ngrok-simple.ps1          # Start tunnels" $Reset
+    Write-ColorOutput "  .\start-ngrok-simple.ps1 start     # Start tunnels" $Reset
+    Write-ColorOutput "  .\start-ngrok-simple.ps1 status    # Check status" $Reset
+    Write-ColorOutput "  .\start-ngrok-simple.ps1 stop      # Stop tunnels" $Reset
+    Write-ColorOutput ""
+    Write-ColorOutput "After deployment:" $Yellow
+    Write-ColorOutput "• You'll get TWO separate URLs (frontend and backend)" $Reset
+    Write-ColorOutput "• Update your frontend to use the backend ngrok URL for API calls" $Reset
+    Write-ColorOutput "• Use ngrok dashboard (http://localhost:4040) for monitoring" $Reset
 }
 
 function Test-Prerequisites {
@@ -183,6 +215,11 @@ function Show-AccessInfo {
 }
 
 # Main execution
+if ($Help) {
+    Show-Help
+    exit 0
+}
+
 Write-ColorOutput "Real Estate AI - Simple ngrok Setup" $Blue
 Write-ColorOutput "====================================" $Blue
 
@@ -205,9 +242,14 @@ switch ($Action) {
         Stop-Services
     }
     
+    "help" {
+        Show-Help
+    }
+    
     default {
         Write-ColorOutput "Invalid action: $Action" $Red
-        Write-ColorOutput "Valid actions: start, status, stop" $Yellow
+        Write-ColorOutput "Valid actions: start, status, stop, help" $Yellow
+        Write-ColorOutput "Use -Help for detailed information" $Yellow
         exit 1
     }
 }

@@ -1,0 +1,184 @@
+"""Starter posts for the Avasetu Page: useful, honest content (no fake listings) rendered in the same card style.
+
+Facts stated here are general and stable (RERA registration, carpet area definitions). Nothing claims verification, reviews,
+prices or properties that do not exist.
+"""
+from app.core import brand
+from typing import Dict, List, Tuple
+
+from PIL import Image
+
+from .images import GOLD, MARGIN, PITCH, SOFT, SQUARE, WHITE, DARK_INK, Card, _chip, _stamp_logo, brand_background, load_font
+
+from pathlib import Path
+
+SITE = brand.SITE
+STATIC_DIR = Path(__file__).parent / "static_cards"  # pre-rendered cards (Hindi/Marathi), used instead of the Pillow render
+TAGS = brand.HASHTAG + " #PuneRealEstate #PuneProperty #HomeBuyingTips"
+
+POSTS: List[Dict] = [
+    {
+        "slug": "welcome", "kicker": "WELCOME", "title": "Homes in Pune, shared clearly",
+        "points": ["Price, area, possession and RERA in one place", "Simple, honest listings from local agents", "Follow this page: listings are coming"],
+        "caption": (
+            "\U0001F3E1 Welcome to " + brand.NAME + "\n\n"
+            "We are building a simple way to find and share homes in Pune: clear price, area, possession and RERA details, "
+            "posted by local agents.\n\n"
+            "\U0001F4CD Follow this page for new listings and buying tips.\n"
+            f"\U0001F517 {SITE}\n\n{TAGS}"),
+    },
+    {
+        "slug": "five-checks", "kicker": "BUYING TIP", "title": "5 checks before you buy a flat in Pune",
+        "points": ["RERA registration of the project", "Carpet area, not just built-up", "Title and approvals: ask a lawyer",
+                   "Possession date and builder's past projects", "Full cost: stamp duty, registration, maintenance"],
+        "caption": (
+            "\U0001F3E1 5 checks before you buy a flat in Pune\n\n"
+            "1️⃣ RERA registration of the project\n"
+            "2️⃣ Carpet area, not just built-up\n"
+            "3️⃣ Title and approvals: get a lawyer to check them\n"
+            "4️⃣ Possession date and the builder's past projects\n"
+            "5️⃣ The full cost: stamp duty, registration and maintenance, not just the price\n\n"
+            "\U0001F4AC Save this for your next site visit.\n\n" + TAGS),
+    },
+    {
+        "slug": "rera", "kicker": "KNOW YOUR RIGHTS", "title": "Check RERA before you pay a booking amount",
+        "points": ["Every project above the RERA limit must be registered", "Look up the project number on the MahaRERA website",
+                   "Compare the possession date with what you are told", "No RERA number in the ad? Ask for it"],
+        "caption": (
+            "\U0001F4CB Check RERA before you pay a booking amount\n\n"
+            "▪ Projects above the RERA limits must be registered\n"
+            "▪ Look up the project number on the MahaRERA website\n"
+            "▪ Compare the possession date there with what you are told\n"
+            "▪ No RERA number in the ad? Ask for it\n\n"
+            "Every listing on " + brand.NAME + " shows the RERA number when the agent provides it.\n\n" + TAGS),
+    },
+    {
+        "slug": "carpet-area", "kicker": "EXPLAINED", "title": "Carpet vs built-up vs super built-up",
+        "points": ["Carpet: the floor area you actually use, wall to wall", "Built-up: carpet plus walls and balcony",
+                   "Super built-up: built-up plus your share of common areas", "Compare flats by price per sq ft of carpet area"],
+        "caption": (
+            "\U0001F4D0 Carpet vs built-up vs super built-up\n\n"
+            "▪ Carpet: the floor area you actually use, wall to wall\n"
+            "▪ Built-up: carpet plus walls and balcony\n"
+            "▪ Super built-up: built-up plus your share of common areas\n\n"
+            "\U0001F4A1 Tip: compare flats by price per sq ft of CARPET area, so you compare like with like.\n\n" + TAGS),
+    },
+    {
+        "slug": "agents", "kicker": "FOR PUNE AGENTS", "title": "Property agent in Pune? Claim your free trial",
+        "points": ["Your own website in minutes", "Ready-made posts for Facebook, Instagram and WhatsApp", "Buyers tracked in one simple inbox",
+                   "Free trial: your first 3 properties"],
+        "caption": (
+            "\U0001F91D Property agent in Pune? Claim your free trial\n\n"
+            "✅ Your own website in minutes\n"
+            "✅ Ready-made posts for Facebook, Instagram and WhatsApp\n"
+            "✅ Buyers tracked in one simple inbox\n\n"
+            "Claim your free trial: your first 3 properties marketed free, no card:\n"
+            f"\U0001F517 {SITE}/trial\n\n" + TAGS),
+    },
+    {
+        "slug": "kharadi-choose", "kicker": "KHARADI - UPPER KHARADI - WAGHOLI", "title": "Which one suits you? Start with your commute",
+        "points": ["Kharadi: closest to the big office campuses", "Upper Kharadi: newer projects, a short hop from Kharadi",
+                   "Wagholi: often more space for the budget, longer commute", "Test it: travel to your office at 9 am on a weekday"],
+        "caption": (
+            "\U0001F4CD Kharadi, Upper Kharadi or Wagholi?\n\n"
+            "\u25AA Kharadi: closest to the big office campuses\n"
+            "\u25AA Upper Kharadi: newer projects, a short hop from Kharadi\n"
+            "\u25AA Wagholi: often more space for the budget, but a longer commute\n\n"
+            "\U0001F697 The real test: travel from the flat to your office at 9 am and 6:30 pm on a weekday.\n\n"
+            f"\U0001F4D6 Read the full guide: {SITE}/insights/kharadi-upper-kharadi-wagholi\n\n"
+            "#Kharadi #UpperKharadi #Wagholi " + TAGS),
+    },
+    {
+        "slug": "kharadi-metro", "kicker": "METRO", "title": "Metro near Kharadi and Wagholi: approved is not running",
+        "points": ["Ramwadi to Wagholi (Corridor 2B) is approved", "Kharadi to Khadakwasla (Line 4) is approved",
+                   "Approved lines take years to build", "Do not pay extra for a metro that is not running yet"],
+        "caption": (
+            "\U0001F687 Metro near Kharadi and Wagholi: approved is not the same as running\n\n"
+            "\u2705 Ramwadi to Wagholi/Vitthalwadi (Corridor 2B): approved by the Union Cabinet\n"
+            "\u2705 Kharadi to Khadakwasla (Line 4): approved by the Union Cabinet\n\n"
+            "\u26A0\uFE0F Approved lines take years to build. Do not pay extra today for a metro that is not yet running, and check the latest "
+            "status on the official Maha-Metro website.\n\n"
+            f"\U0001F4D6 Sources and details: {SITE}/insights/metro-kharadi-wagholi-approved-not-running\n\n"
+            "#PuneMetro #Kharadi #Wagholi " + TAGS),
+    },
+    {
+        "slug": "kharadi-site-visit", "kicker": "SITE VISIT CHECKLIST", "title": "Visiting a flat in Upper Kharadi or Wagholi? Check these 6",
+        "points": ["Go at 9 am and again at 6:30 pm on a weekday", "Ask where the water comes from", "Ask what the power backup covers",
+                   "Look at the road outside, ideally after rain", "Ask about parking and maintenance charges",
+                   "Visit a finished project by the same builder"],
+        "caption": (
+            "\U0001F4CB Site visit checklist for Upper Kharadi and Wagholi\n\n"
+            "1\uFE0F\u20E3 Go at 9 am and again at 6:30 pm on a weekday\n"
+            "2\uFE0F\u20E3 Ask where the water comes from\n"
+            "3\uFE0F\u20E3 Ask what the power backup covers\n"
+            "4\uFE0F\u20E3 Look at the road outside, ideally after rain\n"
+            "5\uFE0F\u20E3 Ask about parking and maintenance charges\n"
+            "6\uFE0F\u20E3 Visit a finished project by the same builder\n\n"
+            f"\U0001F4D6 The full checklist: {SITE}/insights/site-visit-checklist-upper-kharadi-wagholi\n\n"
+            "#UpperKharadi #Wagholi #SiteVisit " + TAGS),
+    },
+    {
+        "slug": "agents-problem", "kicker": "FOR PUNE AGENTS", "title": "Enquiries lost in comments? Not sure who is serious?",
+        "points": ["Post a property from your phone: your website is ready", "Ready-made posts for Facebook, Instagram and WhatsApp",
+                   "Comments like INTERESTED are answered for you", "Each buyer summarised: budget, BHK, timing, how warm"],
+        "caption": (
+            "\U0001F91D Property agent in Pune?\n\n"
+            "Enquiries lost in comments? Not sure which buyer is serious?\n\n"
+            "\u2705 Post a property from your phone: your own website is ready\n"
+            "\u2705 Ready-made posts for Facebook, Instagram and WhatsApp\n"
+            "\u2705 Comments like INTERESTED are answered for you\n"
+            "\u2705 Every buyer summarised: budget, BHK, timing and how warm they are\n\n"
+            "Claim your free trial (your first 3 properties free):\n"
+            f"\U0001F517 {SITE}/trial\n\n" + TAGS + " #RealEstateAgent #PuneAgents"),
+    },
+    {
+        "slug": "agents-hindi", "kicker": "पुणे के एजेंट्स के लिए", "title": "एक प्रॉपर्टी दीजिए, पूरा मार्केटिंग कैंपेन पाइए",
+        "points": ["मोबाइल से प्रॉपर्टी डालें, वेबसाइट अपने-आप तैयार", "फेसबुक, इंस्टाग्राम और व्हाट्सऐप के लिए तैयार पोस्ट",
+                   "कमेंट में INTERESTED लिखने वालों को जवाब", "हर खरीदार का सार: बजट, BHK, समय, कितना गंभीर"],
+        "caption": (
+            "\U0001F91D पुणे के प्रॉपर्टी एजेंट? हमारे पायलट से जुड़ें\n\n"
+            "\u2705 मोबाइल से प्रॉपर्टी डालें, आपकी अपनी वेबसाइट अपने-आप तैयार\n"
+            "\u2705 फेसबुक, इंस्टाग्राम और व्हाट्सऐप के लिए तैयार पोस्ट\n"
+            "\u2705 कमेंट में INTERESTED लिखने वालों को जवाब हम देते हैं\n"
+            "\u2705 हर खरीदार का सार: बजट, BHK, समय और कितना गंभीर\n\n"
+            "पायलट मुफ़्त है और सिर्फ़ इन्विटेशन से। अपना इन्विटेशन माँगें:\n"
+            f"\U0001F517 {SITE}/trial\n\n" + TAGS + " #PuneAgents"),
+    },
+    {
+        "slug": "agents-marathi", "kicker": "पुण्यातील एजंट्ससाठी", "title": "एक प्रॉपर्टी द्या, पूर्ण मार्केटिंग कॅम्पेन मिळवा",
+        "points": ["मोबाईलवरून प्रॉपर्टी टाका, वेबसाइट आपोआप तयार", "फेसबुक, इंस्टाग्राम आणि व्हॉट्सअ‍ॅपसाठी तयार पोस्ट",
+                   "कमेंटमध्ये INTERESTED लिहिणाऱ्यांना उत्तर", "प्रत्येक खरेदीदाराचा सारांश: बजेट, BHK, वेळ, किती गंभीर"],
+        "caption": (
+            "\U0001F91D पुण्यातील प्रॉपर्टी एजंट? आमच्या पायलटमध्ये सामील व्हा\n\n"
+            "\u2705 मोबाईलवरून प्रॉपर्टी टाका, तुमची स्वतःची वेबसाइट आपोआप तयार\n"
+            "\u2705 फेसबुक, इंस्टाग्राम आणि व्हॉट्सअ‍ॅपसाठी तयार पोस्ट\n"
+            "\u2705 कमेंटमध्ये INTERESTED लिहिणाऱ्यांना आम्ही उत्तर देतो\n"
+            "\u2705 प्रत्येक खरेदीदाराचा सारांश: बजेट, BHK, वेळ आणि किती गंभीर\n\n"
+            "पायलट मोफत आहे आणि फक्त आमंत्रणाने. तुमचे आमंत्रण मागवा:\n"
+            f"\U0001F517 {SITE}/trial\n\n" + TAGS + " #PuneAgents"),
+    },
+]
+
+
+def render_brand_post(kicker: str, title: str, points: List[str], size=SQUARE) -> Card:
+    """A 1080x1080 card (or `size`, e.g. PORTRAIT for Instagram): kicker chip, bold title, numbered/ticked points, brand footer. All text stays in the safe margins."""
+    c = Card(size, brand_background(size, "pune-property", floor=1.0, tall=0.2))
+    _, y = _chip(c, kicker, c.left, c.top)
+    y += 34
+    tall = size[1] > size[0]  # portrait (Instagram): more room, so larger type fills the card
+    y = c.block(title, y, 78 if tall else 68, WHITE, 3, 42, weight="bold") + (44 if tall else 26)
+    footer_h = 110
+    avail = c.bottom - footer_h - y
+    for sz in ((48, 44, 40, 36, 32, 28) if tall else (40, 36, 32, 28)):
+        need = sum(c.height_of(p, sz, 2, 24, x=c.left + 64, weight="medium") + (34 if tall else 20) for p in points)
+        if need <= avail:
+            break
+    for i, p in enumerate(points):
+        cy = y + int(sz * PITCH) // 2 + 4
+        c.draw.ellipse((c.left, cy - 21, c.left + 42, cy + 21), fill=GOLD)
+        c.draw.text((c.left + 21, cy), str(i + 1), font=load_font(26, "bold"), fill=DARK_INK, anchor="mm")
+        y = c.block(p, y, sz, WHITE, 2, 24, x=c.left + 64, weight="medium") + (34 if tall else 20)
+    _stamp_logo(c, c.left, c.bottom - 88, 88)
+    c.block(brand.NAME, c.bottom - 88, 34, GOLD, 1, 20, x=c.left + 108, weight="semibold")
+    c.block(brand.TAGLINE, c.bottom - 88 + int(34 * PITCH), 26, SOFT, 1, 18, x=c.left + 108, weight="medium")
+    return c

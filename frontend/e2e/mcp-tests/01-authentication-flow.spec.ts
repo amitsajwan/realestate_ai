@@ -18,7 +18,7 @@ test.describe('Authentication Flow - Natural Language Testing', () => {
   test('User can register and login successfully', async ({ page }) => {
     // Natural Language: "Go to the application and verify it loads"
     await page.goto('/');
-    await expect(page).toHaveTitle(/PropertyAI/);
+    await expect(page).toHaveTitle(/Avasetu/);
 
     // Natural Language: "Navigate to login page and switch to registration"
     await page.goto('/login');

@@ -20,7 +20,12 @@ class OnboardingService:
         self.logger.debug("OnboardingService initialized")
         self.db = get_database()
         self.users = self.db.users
-        self.steps = self.db.onboarding_steps
+        # Initialize steps collection safely
+        try:
+            self.steps = self.db.onboarding_steps
+        except Exception as e:
+            self.logger.warning(f"Could not initialize onboarding_steps collection: {e}")
+            self.steps = None
 
     async def _get_user(self, user_id: str) -> Dict[str, Any]:
         # Convert string ID to ObjectId for MongoDB query

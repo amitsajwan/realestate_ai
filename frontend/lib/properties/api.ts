@@ -6,7 +6,7 @@
  */
 
 import { authManager } from '@/lib/auth';
-import { PropertiesResponse, PropertyCreate, PropertyResponse, PropertyUpdate, PublishingRequest, PublishingStatusResponse } from './types';
+import { PropertiesResponse, PropertyResponse, PropertyUpdate, PublishingRequest, PublishingStatusResponse } from './types';
 
 import { fetchWithAuthInterceptor } from '../auth/interceptor';
 
@@ -66,11 +66,20 @@ class PropertiesAPI {
     /**
      * Create a new property
      */
-    async createProperty(propertyData: PropertyCreate): Promise<PropertyResponse> {
+    async createProperty(propertyData: any): Promise<PropertyResponse> {
+        // Transform the data to match backend expectations
+        const backendData = {
+            ...propertyData,
+            // Ensure property_type is used instead of propertyType
+            property_type: propertyData.property_type || propertyData.propertyType,
+            // Remove propertyType if it exists to avoid confusion
+            ...(propertyData.propertyType && !propertyData.property_type ? { propertyType: undefined } : {})
+        };
+
         const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/properties/`, {
             method: 'POST',
             headers: this.getAuthHeaders(),
-            body: JSON.stringify(propertyData)
+            body: JSON.stringify(backendData)
         });
 
         if (!response.ok) {
@@ -249,6 +258,42 @@ class PropertiesAPI {
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             throw new Error(errorData.detail || `Get publishing status failed: ${response.status}`);
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Generate AI content for property
+     */
+    async generateAIContent(data: any): Promise<any> {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/ai-unified/generate-unified`, {
+            method: 'POST',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || `Generate AI content failed: ${response.status}`);
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Upload images
+     */
+    async uploadImages(formData: FormData): Promise<any> {
+        const response = await fetchWithAuthInterceptor(`${this.baseUrl}/api/v1/uploads/images`, {
+            method: 'POST',
+            body: formData,
+            // Don't set Content-Type for FormData - let browser set it with boundary
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || `Upload images failed: ${response.status}`);
         }
 
         return response.json();

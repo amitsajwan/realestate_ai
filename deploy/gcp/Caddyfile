@@ -1,0 +1,25 @@
+(site) {
+	encode gzip
+	@api path /api/* /docs /openapi.json /uploads/*
+	handle @api {
+		reverse_proxy backend:8000
+	}
+	handle {
+		reverse_proxy frontend:3000
+	}
+}
+
+{$SITE_HOST} {
+	import site
+}
+
+# Extra names served the same way (for example a new domain while its certificate is being issued). Default: localhost.
+{$EXTRA_HOSTS} {
+	import site
+}
+
+# Other names for the site (www, the old sslip.io address) send visitors to SITE_HOST, keeping the path, so old links in
+# posts and messages keep working. REDIRECT_HOSTS is a comma-separated list set in .env.
+{$REDIRECT_HOSTS} {
+	redir https://{$SITE_HOST}{uri} permanent
+}

@@ -15,7 +15,9 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     curl \
+    libraqm0 \
     && rm -rf /var/lib/apt/lists/*
+# libraqm0 (with fribidi and harfbuzz): Pillow loads it at run time to shape Devanagari, so Marathi cards join their letters
 
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser

@@ -9,6 +9,7 @@ import logging
 
 # Local modules
 from app.core.config import settings
+from app.utils.cost_optimized_ai import CostOptimizedAI, log_cost_info
 
 # groq is an optional dependency across the codebase – we always import it
 # behind a try/except so local development keeps working even if the API key
@@ -152,11 +153,18 @@ The response MUST be valid JSON without markdown fences or additional text.
         )
         
         api_start_time = time.time()
+        # Use cost-optimized model selection
+        model_name = CostOptimizedAI.get_optimal_model()
+        max_tokens = CostOptimizedAI.get_optimal_max_tokens()
+        
+        # Optimize prompt for cost in development
+        optimized_prompt = CostOptimizedAI.optimize_prompt_for_cost(prompt)
+        
         response = _groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt}],
+            model=model_name,
+            messages=[{"role": "user", "content": optimized_prompt}],
             temperature=0.2,
-            max_tokens=300,
+            max_tokens=max_tokens,
         )
         api_time = time.time() - api_start_time
 
@@ -166,7 +174,10 @@ The response MUST be valid JSON without markdown fences or additional text.
 
         branding: Dict[str, Any] = json.loads(raw_content)
 
-        # Log successful API response
+        # Log successful API response and cost info
+        tokens_used = getattr(response, 'usage', {}).get('total_tokens', 0)
+        log_cost_info(model_name, tokens_used)
+        
         logger.info(
             "AI_BRANDING_API_SUCCESS",
             extra={
@@ -174,7 +185,9 @@ The response MUST be valid JSON without markdown fences or additional text.
                 "request_id": request_id,
                 "response_length": len(raw_content),
                 "api_time_ms": round(api_time * 1000, 2),
-                "tokens_used": getattr(response, 'usage', {}).get('total_tokens', 'unknown'),
+                "tokens_used": tokens_used,
+                "model_used": model_name,
+                "cost_optimized": settings.environment == "development",
                 "timestamp": datetime.utcnow().isoformat()
             }
         )

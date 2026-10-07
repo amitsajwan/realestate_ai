@@ -1,0 +1,212 @@
+"""Listing lifecycle + reads. Owner scoping: every agent-side read/write filters by agent_id and
+returns 404 (never 403) for other agents' listings."""
+import re
+import uuid
+from datetime import datetime
+from typing import Callable, List, Optional
+
+from .freshness import LIVE_STATUSES, freshness_of, is_hidden
+from .schemas import (PUBLIC_STATUSES, PUBLIC_VISIBILITIES, Listing, ListingCreate, ListingUpdate,
+                      PublicAgent, PublicListing)
+
+# from -> allowed targets via POST /{id}/status. draft -> live goes through publish (validation).
+TRANSITIONS = {
+    "draft": set(),
+    "live": {"under_offer", "sold", "rented", "paused", "expired"},
+    "under_offer": {"live", "sold", "rented", "paused", "expired"},
+    "paused": {"live", "expired"},
+    "expired": {"live"},
+    "sold": set(),
+    "rented": set(),
+}
+FINGERPRINT_FIELDS = ("city", "locality", "project_name", "bhk", "carpet_sqft", "transaction")
+CARPET_BUCKET = 50
+MAX_PUBLIC = 500  # public listings considered per agent site
+
+
+def indexable(profile: dict) -> bool:
+    """False for the fictional demo agent and for preview sites the agent has not agreed to publish (owner-only flags)."""
+    b = profile.get("branding_data") or {}
+    return not (b.get("demo") or b.get("preview"))
+
+
+class ListingError(Exception):
+    def __init__(self, message: str, status_code: int = 400, detail=None):
+        super().__init__(message)
+        self.status_code = status_code
+        self.detail = detail if detail is not None else message
+
+
+def _norm(s) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", str(s or "").lower()).strip()
+
+
+def compute_fingerprint(doc: dict) -> str:
+    """city|locality|project|bhk|carpet bucket|transaction, normalised, for duplicate detection."""
+    bhk = doc.get("bhk")
+    carpet = doc.get("carpet_sqft")
+    return "|".join([
+        _norm(doc.get("city")), _norm(doc.get("locality")), _norm(doc.get("project_name")),
+        f"{float(bhk):g}" if bhk is not None else "",
+        str(int(round(carpet / CARPET_BUCKET)) * CARPET_BUCKET) if carpet else "",
+        _norm(doc.get("transaction")),
+    ])
+
+
+def missing_for_publish(doc: dict) -> List[str]:
+    missing = [f for f in ("title", "transaction", "property_type", "price_inr", "city", "locality") if not doc.get(f)]
+    if not ((doc.get("description") or {}).get("en") or "").strip():
+        missing.append("description.en")
+    return missing
+
+
+class ListingService:
+    def __init__(self, db, now: Callable[[], datetime] = datetime.utcnow):
+        self.listings = db.get_collection("listings")
+        self.profiles = db.get_collection("agent_public_profiles")
+        self.now = now
+
+    async def _mine(self, agent_id: str, listing_id: str) -> dict:
+        doc = await self.listings.find_one({"_id": listing_id, "agent_id": agent_id})
+        if not doc:
+            raise ListingError("Listing not found", 404)
+        return doc
+
+    def _out(self, doc: dict) -> Listing:
+        freshness, days = freshness_of(doc, self.now())
+        return Listing.model_validate({**doc, "id": doc["_id"], "freshness": freshness, "days_since_confirmed": days})
+
+    # ---- agent side -------------------------------------------------------------------------
+    async def create(self, agent_id: str, body: ListingCreate) -> Listing:
+        now = self.now()
+        lid = uuid.uuid4().hex
+        doc = {**body.model_dump(), "_id": lid, "id": lid, "agent_id": agent_id, "status": "draft",
+               "created_at": now, "updated_at": now, "published_at": None, "freshness_confirmed_at": None}
+        await self.listings.insert_one(doc)
+        return self._out(doc)
+
+    async def list_mine(self, agent_id: str, status: Optional[str] = None, limit: int = 50) -> List[Listing]:
+        flt = {"agent_id": agent_id}
+        if status:
+            flt["status"] = status
+        docs = await self.listings.find(flt).sort("created_at", -1).limit(limit).to_list(limit)
+        return [self._out(d) for d in docs]
+
+    async def get_mine(self, agent_id: str, listing_id: str) -> Listing:
+        return self._out(await self._mine(agent_id, listing_id))
+
+    async def patch(self, agent_id: str, listing_id: str, body: ListingUpdate) -> Listing:
+        doc = await self._mine(agent_id, listing_id)
+        changes = body.model_dump(exclude_unset=True)
+        merged = {**doc, **changes}
+        if doc["status"] != "draft" and (changes.keys() & set(FINGERPRINT_FIELDS)):
+            changes["fingerprint"] = compute_fingerprint(merged)
+        changes["updated_at"] = self.now()
+        await self.listings.update_one({"_id": listing_id, "agent_id": agent_id}, {"$set": changes})
+        return self._out({**doc, **changes})
+
+    async def publish(self, agent_id: str, listing_id: str) -> Listing:
+        doc = await self._mine(agent_id, listing_id)
+        if doc["status"] != "draft":
+            raise ListingError(f"Only draft listings can be published (status is {doc['status']})", 409)
+        missing = missing_for_publish(doc)
+        if missing:
+            raise ListingError("Missing required fields to publish", 422,
+                               {"message": "Missing required fields to publish", "missing": missing})
+        now = self.now()
+        changes = {"status": "live", "published_at": now, "freshness_confirmed_at": now,
+                   "updated_at": now, "fingerprint": compute_fingerprint(doc)}
+        await self.listings.update_one({"_id": listing_id, "agent_id": agent_id}, {"$set": changes})
+        return self._out({**doc, **changes})
+
+    async def change_status(self, agent_id: str, listing_id: str, target: str) -> Listing:
+        doc = await self._mine(agent_id, listing_id)
+        current = doc["status"]
+        if current == "draft" and target == "live":
+            raise ListingError("Use publish to make a draft live", 409)
+        if target not in TRANSITIONS[current]:
+            raise ListingError(f"Cannot change status from {current} to {target}", 409)
+        now = self.now()
+        changes = {"status": target, "updated_at": now}
+        if target == "live" and current in ("paused", "expired"):
+            changes["freshness_confirmed_at"] = now  # re-activating confirms the listing is still available
+        await self.listings.update_one({"_id": listing_id, "agent_id": agent_id}, {"$set": changes})
+        return self._out({**doc, **changes})
+
+    async def confirm_available(self, agent_id: str, listing_id: str) -> Listing:
+        """'Yes, still available': restarts the freshness clock. Only live / under_offer listings can be confirmed."""
+        doc = await self._mine(agent_id, listing_id)
+        if doc["status"] not in LIVE_STATUSES:
+            raise ListingError(f"Only live or under offer listings can be confirmed (status is {doc['status']})", 409)
+        now = self.now()
+        changes = {"freshness_confirmed_at": now, "updated_at": now}
+        await self.listings.update_one({"_id": listing_id, "agent_id": agent_id}, {"$set": changes})
+        return self._out({**doc, **changes})
+
+    # ---- public side ------------------------------------------------------------------------
+    @staticmethod
+    def _agent(profile: dict) -> PublicAgent:
+        return PublicAgent(slug=profile["slug"], agent_name=profile.get("agent_name"),
+                           phone=profile.get("phone"), photo=profile.get("photo"))
+
+    @staticmethod
+    def _public_flt(**extra) -> dict:
+        return {"status": {"$in": list(PUBLIC_STATUSES)}, "visibility": {"$in": list(PUBLIC_VISIBILITIES)}, **extra}
+
+    async def public_list(self, slug: str, limit: int = 20, offset: int = 0):
+        profile = await self.profiles.find_one({"slug": slug, "is_public": True})
+        if not profile:
+            raise ListingError("Agent site not found", 404)
+        flt = self._public_flt(agent_id=profile["agent_id"])
+        # hidden (stale) listings are dropped here, so page in Python over the agent's newest MAX_PUBLIC listings
+        docs = await self.listings.find(flt).sort("published_at", -1).to_list(MAX_PUBLIC)
+        now = self.now()
+        docs = [d for d in docs if not is_hidden(d, now)]
+        agent = self._agent(profile)
+        items = [PublicListing.model_validate({**d, "id": d["_id"], "agent": agent})
+                 for d in docs[offset:offset + limit]]
+        return items, len(docs)
+
+    async def public_by_locality(self, locality: str, limit: int = 12):
+        """Real, currently visible listings in a locality across all public agents. Sample (illustrative) listings are never included."""
+        want = (locality or "").strip().lower()
+        if not want:
+            return [], 0
+        docs = await self.listings.find(self._public_flt()).sort("published_at", -1).to_list(MAX_PUBLIC)
+        now = self.now()
+        docs = [d for d in docs if (d.get("locality") or "").strip().lower() == want and not is_hidden(d, now)
+                and not (d.get("title") or "").strip().lower().startswith("sample")]
+        profiles: dict = {}
+        items = []
+        for d in docs:
+            if d["agent_id"] not in profiles:
+                profiles[d["agent_id"]] = await self.profiles.find_one({"agent_id": d["agent_id"], "is_public": True})
+            if profiles[d["agent_id"]]:
+                items.append(PublicListing.model_validate({**d, "id": d["_id"], "agent": self._agent(profiles[d["agent_id"]])}))
+        return items[:limit], len(items)
+
+    async def sitemap_entries(self, limit: int = 5000) -> List[dict]:
+        """Every listing a search engine may index: visible on a public agent site that is neither the fictional demo nor an
+        unpublished preview, and not a sample. Newest first, as {agent_slug, id, updated_at}."""
+        docs = await self.listings.find(self._public_flt()).sort("published_at", -1).to_list(limit)
+        now = self.now()
+        profiles: dict = {}
+        out = []
+        for d in docs:
+            if is_hidden(d, now) or (d.get("title") or "").strip().lower().startswith("sample"):
+                continue
+            if d["agent_id"] not in profiles:
+                profiles[d["agent_id"]] = await self.profiles.find_one({"agent_id": d["agent_id"], "is_public": True})
+            profile = profiles[d["agent_id"]]
+            if not profile or not indexable(profile):
+                continue
+            out.append({"agent_slug": profile["slug"], "id": d["_id"], "updated_at": d.get("updated_at"),
+                        "locality": d.get("locality")})
+        return out
+
+    async def public_get(self, listing_id: str) -> PublicListing:
+        doc = await self.listings.find_one(self._public_flt(_id=listing_id))
+        profile = await self.profiles.find_one({"agent_id": doc["agent_id"], "is_public": True}) if doc else None
+        if not doc or not profile or is_hidden(doc, self.now()):
+            raise ListingError("Listing not found", 404)
+        return PublicListing.model_validate({**doc, "id": doc["_id"], "agent": self._agent(profile)})

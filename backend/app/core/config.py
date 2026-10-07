@@ -12,11 +12,14 @@ class Settings(BaseSettings):
     # =============================================================================
     # APPLICATION SETTINGS
     # =============================================================================
-    app_name: str = "PropertyAI"
+    app_name: str = "Avasetu"  # same as the brand name (app/core/brand.py)
     app_version: str = "1.0.0"
     debug: bool = False
     environment: str = "development"
-    
+    # RUN_BACKGROUND_LOOPS: the API process starts the background loops (engage, newsroom, calendar, listing reels).
+    # Set false where `python -m app.worker` runs them (deploy/gcp/docker-compose.yml). Leases keep it safe if both run.
+    run_background_loops: bool = True
+
     # Demo/Sample data settings
     enable_sample_data: bool = False
     create_demo_posts: bool = False
@@ -26,6 +29,13 @@ class Settings(BaseSettings):
     # =============================================================================
     mongodb_url: str = "mongodb://localhost:27017"
     database_name: str = "propertyai"
+
+    # Base URL where agent websites are served (used to build the link returned at onboarding)
+    public_site_url: str = "http://localhost:3000"
+
+    # Agent signup: "otp" = SMS/console OTP (development), "invite" = personal invite codes (pilot).
+    join_mode: str = "otp"
+    join_token_days: int = 30  # agents stay signed in on their phone
     
     # =============================================================================
     # SECURITY SETTINGS
@@ -148,6 +158,13 @@ class Settings(BaseSettings):
     GROQ_API_KEY: Optional[str] = None  # Alternative naming for compatibility
     google_maps_api_key: Optional[str] = None
     
+    # AI Model Configuration
+    ai_model_development: str = "llama-3.1-8b-instant"  # Fast, cheap model for development
+    ai_model_production: str = "llama-3.3-70b-versatile"  # High-quality model for production
+    ai_max_tokens_development: int = 800  # Reduced token limit for development
+    ai_max_tokens_production: int = 1500  # Full token limit for production
+    ai_enable_fallback: bool = True  # Enable fallback to cheaper models
+    
     # =============================================================================
     # SOCIAL MEDIA INTEGRATIONS
     # =============================================================================
@@ -155,6 +172,8 @@ class Settings(BaseSettings):
     facebook_app_id: Optional[str] = None
     facebook_app_secret: Optional[str] = None
     facebook_access_token: Optional[str] = None
+    facebook_oauth_redirect_uri: Optional[str] = None
+    facebook_graph_api_version: str = "v25.0"
     
     # Instagram
     instagram_app_id: Optional[str] = None

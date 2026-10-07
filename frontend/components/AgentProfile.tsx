@@ -1,7 +1,7 @@
 'use client'
 
 import { PostCard, type Post as PostCardPost } from '@/components/PostCard'
-import { Button, Card, CardBody, CardHeader } from '@/components/UI'
+import { Button, Card, CardContent, CardHeader } from '@/components/UI'
 import { useCachedData } from '@/lib/cache'
 import {
     ChatBubbleLeftRightIcon,
@@ -232,7 +232,7 @@ export function AgentProfile({ agent, properties, onContactClick }: AgentProfile
                                             Specialties
                                         </h3>
                                     </CardHeader>
-                                    <CardBody>
+                                    <CardContent>
                                         <div className="flex flex-wrap gap-3">
                                             {agent.specialties.map((specialty, index) => (
                                                 <motion.span
@@ -246,7 +246,7 @@ export function AgentProfile({ agent, properties, onContactClick }: AgentProfile
                                                 </motion.span>
                                             ))}
                                         </div>
-                                    </CardBody>
+                                    </CardContent>
                                 </Card>
                             )}
 
@@ -260,9 +260,9 @@ export function AgentProfile({ agent, properties, onContactClick }: AgentProfile
                                                 Experience
                                             </h3>
                                         </CardHeader>
-                                        <CardBody>
+                                        <CardContent>
                                             <p className="text-gray-700 text-lg leading-relaxed">{agent.experience}</p>
-                                        </CardBody>
+                                        </CardContent>
                                     </Card>
                                 )}
 
@@ -274,7 +274,7 @@ export function AgentProfile({ agent, properties, onContactClick }: AgentProfile
                                                 Languages
                                             </h3>
                                         </CardHeader>
-                                        <CardBody>
+                                        <CardContent>
                                             <div className="flex flex-wrap gap-2">
                                                 {agent.languages.map((language, index) => (
                                                     <span
@@ -285,7 +285,7 @@ export function AgentProfile({ agent, properties, onContactClick }: AgentProfile
                                                     </span>
                                                 ))}
                                             </div>
-                                        </CardBody>
+                                        </CardContent>
                                     </Card>
                                 )}
                             </div>
@@ -297,7 +297,7 @@ export function AgentProfile({ agent, properties, onContactClick }: AgentProfile
                                 <CardHeader>
                                     <h3 className="text-2xl font-bold text-gray-900 text-center">Get In Touch</h3>
                                 </CardHeader>
-                                <CardBody>
+                                <CardContent>
                                     <div className="space-y-6">
                                         {agent.phone && (
                                             <motion.div
@@ -373,7 +373,7 @@ export function AgentProfile({ agent, properties, onContactClick }: AgentProfile
                                             </Button>
                                         </Link>
                                     </div>
-                                </CardBody>
+                                </CardContent>
                             </Card>
                         </div>
                     </motion.div>
@@ -395,7 +395,7 @@ export function AgentProfile({ agent, properties, onContactClick }: AgentProfile
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {testimonials.map((testimonial) => (
                             <Card key={testimonial.id} className="hover:shadow-lg transition-shadow">
-                                <CardBody>
+                                <CardContent>
                                     <div className="flex items-center mb-4">
                                         <div className="flex text-yellow-400">
                                             {[...Array(testimonial.rating)].map((_, i) => (
@@ -416,14 +416,14 @@ export function AgentProfile({ agent, properties, onContactClick }: AgentProfile
                                             <p className="text-sm text-gray-600">{testimonial.role}</p>
                                         </div>
                                     </div>
-                                </CardBody>
+                                </CardContent>
                             </Card>
                         ))}
                     </div>
 
                     {/* Social Proof Stats */}
                     <Card className="mt-12">
-                        <CardBody>
+                        <CardContent>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
                                 <div>
                                     <div className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">50+</div>
@@ -442,7 +442,7 @@ export function AgentProfile({ agent, properties, onContactClick }: AgentProfile
                                     <div className="text-sm text-gray-600">Years Experience</div>
                                 </div>
                             </div>
-                        </CardBody>
+                        </CardContent>
                     </Card>
                 </div>
             </section>

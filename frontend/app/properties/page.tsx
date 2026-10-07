@@ -3,6 +3,7 @@
 import { API_BASE_URL } from '@/lib/config/api';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { apiService } from '@/lib/api/centralized-client';
 
 interface Property {
   id: string;
@@ -28,21 +29,8 @@ export default function PropertiesPage() {
 
   const fetchProperties = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
-
-      const response = await fetch(`${API_BASE_URL}/api/v1/properties/`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setProperties(data);
-      } else {
-        setError(`Failed to fetch properties: ${response.status} ${response.statusText}`);
-      }
+      const data = await apiService.getProperties();
+      setProperties(data);
     } catch (err) {
       setError(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {

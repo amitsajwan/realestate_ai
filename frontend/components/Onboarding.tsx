@@ -3,7 +3,7 @@
 import { LoadingButton } from '@/components/LoadingStates';
 import { useAsyncOperation, useMultipleLoading } from '@/hooks/useLoading';
 import { BrandingSuggestion } from '@/lib/agent/types';
-import { apiService } from '@/lib/api';
+import { apiService } from '@/lib/api/centralized-client';
 import { authManager, User } from '@/lib/auth';
 import { withErrorHandling } from '@/lib/error-handler';
 import { applyBrandTheme } from '@/lib/theme';
@@ -12,6 +12,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
+import { BRAND_NAME } from '@/lib/brand'
 
 const onboardingSteps = [
   { id: 1, title: 'Personal Info', icon: UserIcon },
@@ -1033,7 +1034,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                 className="mt-1"
               />
               <label htmlFor="terms" className="text-sm text-gray-700">
-                I agree to the Terms of Service and accept the conditions for using PropertyAI.
+                I agree to the Terms of Service and accept the conditions for using {BRAND_NAME}.
               </label>
             </div>
             <div className="flex items-start space-x-3">
@@ -1073,7 +1074,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ user, currentStep: initialStep,
                 Almost Done!
               </h4>
               <p className="text-green-700 text-sm">
-                Click &quot;Complete Setup&quot; to finish your onboarding and start using PropertyAI.
+                Click &quot;Complete Setup&quot; to finish your onboarding and start using {BRAND_NAME}.
               </p>
               <div className="mt-4 space-x-2">
                 <button

@@ -29,7 +29,7 @@ test.describe('Complete User Journey - Natural Language Testing', () => {
     await page.fill('input[name="confirmPassword"]', 'SecurePassword123!');
     await page.click('button[type="submit"]');
 
-    await expect(page.locator('text=Welcome to PropertyAI')).toBeVisible();
+    await expect(page.locator('text=Welcome to Avasetu')).toBeVisible();
     await page.click('button[data-testid="complete-onboarding"]');
 
     // === PHASE 2: PROPERTY MANAGEMENT ===

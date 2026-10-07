@@ -1,0 +1,50 @@
+@keyframes error-flash {
+  0% {
+    background-color: transparent;
+  }
+  25% {
+    background-color: rgb(254 226 226 / 0.5); /* red-100 at 50% opacity */
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.animate-error-flash {
+  animation: error-flash 1s ease-out;
+}
+
+/* Touch feedback */
+@media (hover: none) {
+  .form-field {
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color 0.2s ease-out;
+  }
+  
+  .form-field:active {
+    background-color: rgb(243 244 246 / 0.5); /* gray-100 at 50% opacity */
+  }
+  
+  .form-field.error {
+    transition: box-shadow 0.2s ease-out;
+  }
+  
+  .form-field.error:active {
+    box-shadow: 0 0 0 3px rgb(239 68 68 / 0.5); /* red-500 at 50% opacity */
+  }
+}
+
+/* Native form element styling */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  min-height: 52px; /* Larger touch target on mobile */
+}
+
+@media (min-width: 640px) {
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"] {
+    min-height: 44px;
+  }
+}

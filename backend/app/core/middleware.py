@@ -26,7 +26,10 @@ def get_cors_origins():
         "http://localhost:3000",  # Next.js frontend
         "http://localhost:3001",  # Next.js frontend (alternative port)
         "http://localhost:8000",  # Backend
-        "http://localhost"  # For e2e tests
+        "http://localhost",  # For e2e tests
+        "http://127.0.0.1:3000",  # Next.js frontend alternative
+        "http://127.0.0.1:8000",  # Backend alternative
+        "https://realestate-ai.vercel.app"  # Production frontend
     ]
 
     # Add custom origins from environment variable

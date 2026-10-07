@@ -1,0 +1,12 @@
+{
+  "id": "metro_line3",
+  "source": "fixture",
+  "url": "https://example.test/metro_line3",
+  "title": "Pune Metro Line 3 Hinjewadi-Shivajinagar work 78 per cent complete",
+  "text": "PUNE: Pune Metro Line 3 between Hinjewadi and Shivajinagar is 78 per cent complete, the Pune Metropolitan Region Development Authority (PMRDA) said on Saturday. Officials said 18 of the 23 stations have their structures ready. The 23.3 km elevated line is being built by a Tata-Siemens consortium. PMRDA has set a revised trial date of December 2026.",
+  "published_at": "2026-09-27T06:00:00+00:00",
+  "expect": {
+    "keep": false,
+    "reason": "off-topic"
+  }
+}

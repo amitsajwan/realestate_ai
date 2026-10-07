@@ -6,13 +6,52 @@ import { ThemeProvider } from 'next-themes'
 import { Inter } from 'next/font/google'
 import React from 'react'
 import { Toaster } from 'react-hot-toast'
+import '../styles/agent-website.css'
+import '../styles/mobile-first.css'
+import '../styles/mobile-forms.css'
 import './globals.css'
+// design system (was @import-ed inside globals.css; must come after Tailwind's rules, in this order)
+import '../styles/design-tokens.css'
+import '../styles/typography.css'
+import '../styles/colors.css'
+import '../styles/spacing.css'
+import '../styles/components.css'
+import '../styles/mobile.css'
+import { BRAND_NAME, DEFAULT_DESCRIPTION, DEFAULT_TITLE, LOGO, NAVY } from '@/lib/brand'
+import { getMarketingConfig } from '@/lib/marketing/config'
 
 const inter = Inter({ subsets: ['latin'] })
 
+// Google Search Console: paste the code from its "HTML tag" method (only the content="..." value) into this variable.
+const googleVerification = (process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || '').trim()
+// Meta Business Manager domain verification for avasetu.in (public value; Settings > Brand safety > Domains > meta-tag)
+const facebookVerification = (process.env.NEXT_PUBLIC_FACEBOOK_DOMAIN_VERIFICATION || 'ptmuazmn3xe1a79xwc1w5mnrjqmul2').trim()
+
 export const metadata: Metadata = {
-  title: 'PropertyAI - AI-Powered Real Estate Platform',
-  description: 'Modern real estate platform with AI-powered property management and lead generation',
+  metadataBase: new URL(getMarketingConfig().siteUrl),
+  title: DEFAULT_TITLE,
+  description: DEFAULT_DESCRIPTION,
+  applicationName: BRAND_NAME,
+  icons: {
+    icon: [
+      { url: LOGO.icon32, sizes: '32x32', type: 'image/png' },
+      { url: LOGO.icon192, sizes: '192x192', type: 'image/png' },
+      { url: LOGO.mark, type: 'image/svg+xml' },
+    ],
+    apple: [{ url: LOGO.appleTouch, sizes: '180x180', type: 'image/png' }],
+  },
+  verification: {
+    ...(googleVerification ? { google: googleVerification } : {}),
+    ...(facebookVerification ? { other: { 'facebook-domain-verification': facebookVerification } } : {}),
+  },
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: NAVY,
 }
 
 export default function RootLayout({

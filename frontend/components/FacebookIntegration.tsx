@@ -4,7 +4,7 @@ import { CogIcon } from '@heroicons/react/24/outline'
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { toast } from 'react-hot-toast'
-import { apiService } from '@/lib/api'
+import { apiService } from '@/lib/api/centralized-client'
 
 interface FacebookPage {
   id: string

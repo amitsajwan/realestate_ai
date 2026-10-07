@@ -1,0 +1,192 @@
+from datetime import datetime
+
+import pytest
+from pydantic import ValidationError
+
+from app.modules.agentprojects import maharera
+from app.modules.agentprojects.schemas import ProjectIn
+from app.modules.agentprojects.service import ProjectError, ProjectService
+
+from ..fakes import FakeDb
+
+NOW = datetime(2026, 10, 3, 9, 0)
+
+# The real answer for MY HOME UPPER KHARADI (2026-10-03), trimmed to the fields we read.
+GENERAL = {"message": "SUCCESS", "status": "1", "responseObject": {
+    "projectId": 53311, "projectName": "MY HOME UPPER KHARADI", "projectRegistartionNo": "P52100078796",
+    "projectTypeName": "Residential / Group Housing", "projectProposeComplitionDate": "2029-04-30",
+    "originalProjectProposeCompletionDate": "2028-12-31", "reraRegistrationDate": "2025-01-13",
+    "totalNumberOfSoldUnits": 102, "totalNumberOfUnits": 143, "revisedDate": "2029-04-30"}}
+
+
+def project(**kw) -> ProjectIn:
+    base = dict(name="Goyal My Home", builder="Goyal Properties", promoter="GODIVA PROMOTERS LLP",
+                locality="Upper Kharadi", rera_no="P52100078796", maharera_id=53311, status="live",
+                configurations=[{"label": "2 BHK", "bhk": 2, "carpet_sqft": 941, "price_inr": 9700000},
+                                {"label": "3 BHK", "bhk": 3, "carpet_sqft": 1205, "price_inr": 12500000}],
+                issues=[{"field": "possession", "theirs": "RERA possession Dec 2028",
+                         "found": "MahaRERA now shows 30 Apr 2029"}])
+    base.update(kw)
+    return ProjectIn(**base)
+
+
+def make(answer=GENERAL):
+    db = FakeDb()
+    calls = []
+
+    async def fetch(mid):
+        calls.append(mid)
+        return answer
+
+    svc = ProjectService(db, now=lambda: NOW, fetch=fetch)
+    return svc, db, calls
+
+
+async def add_profile(db, slug="house-deal", public=True):
+    await db.get_collection("agent_public_profiles").insert_one({"_id": "A1", "agent_id": "A1", "slug": slug,
+                                                                 "is_public": public})
+
+
+async def test_upsert_derives_price_per_sqft_and_range():
+    svc, db, _ = make()
+    out = await svc.upsert("A1", "goyal-my-home", project())
+    assert [c.price_per_sqft for c in out.configurations] == [10308, 10373]
+    assert (out.price_min, out.price_max, out.bhk_options) == (9700000, 12500000, [2.0, 3.0])
+    assert out.rera is None and out.issues[0].status == "open"
+    again = await svc.upsert("A1", "goyal-my-home", project(positioning="Upper Kharadi, next to Decathlon"))
+    assert again.id == out.id and len(db.get_collection("agent_projects").docs) == 1
+
+
+async def test_check_reads_maharera_and_keeps_it_across_edits():
+    svc, db, calls = make()
+    await svc.upsert("A1", "goyal-my-home", project())
+    out = await svc.check_maharera("A1", "goyal-my-home")
+    assert calls == [53311]
+    r = out.rera
+    assert (r.completion_at_registration, r.completion_now, r.units_booked, r.units_total) == ("2028-12-31", "2029-04-30", 102, 143)
+    assert r.promoter == "GODIVA PROMOTERS LLP" and r.checked_at == "2026-10-03"
+    assert r.url == "https://maharerait.maharashtra.gov.in/public/project/view/53311"
+    assert out.booked_pct == 71 and out.completion_moved_months == 4
+    kept = await svc.upsert("A1", "goyal-my-home", project(positioning="x"))
+    assert kept.rera.completion_now == "2029-04-30"
+    dropped = await svc.upsert("A1", "goyal-my-home", project(rera_no="P52100055341", maharera_id=43848))
+    assert dropped.rera is None
+
+
+async def test_check_refuses_a_different_registration_and_silence():
+    svc, _, _ = make({**GENERAL, "responseObject": {**GENERAL["responseObject"], "projectRegistartionNo": "P52100000001"}})
+    await svc.upsert("A1", "p", project())
+    with pytest.raises(ProjectError) as e:
+        await svc.check_maharera("A1", "p")
+    assert e.value.status_code == 422 and "not P52100078796" in str(e.value)
+    svc, _, _ = make(None)
+    await svc.upsert("A1", "p", project())
+    with pytest.raises(ProjectError) as e:
+        await svc.check_maharera("A1", "p")
+    assert e.value.status_code == 503
+    svc, _, _ = make()
+    await svc.upsert("A1", "p", project(maharera_id=None))
+    with pytest.raises(ProjectError) as e:
+        await svc.check_maharera("A1", "p")
+    assert e.value.status_code == 422
+
+
+async def test_public_reads_only_live_projects_of_public_agents_and_never_issues():
+    svc, db, _ = make()
+    await add_profile(db)
+    await svc.upsert("A1", "goyal-my-home", project(order=2))
+    await svc.upsert("A1", "draft-one", project(status="draft"))
+    await svc.upsert("A1", "kosmic", project(order=1, name="Kosmic Kourtyard"))
+    items = await svc.public_list("house-deal")
+    assert [p.slug for p in items] == ["kosmic", "goyal-my-home"]
+    assert "issues" not in items[0].model_dump() and "agent_id" not in items[0].model_dump()
+    assert (await svc.public_get("house-deal", "kosmic")).name == "Kosmic Kourtyard"
+    for slug, p in (("house-deal", "draft-one"), ("house-deal", "nope"), ("someone-else", "kosmic")):
+        with pytest.raises(ProjectError):
+            await svc.public_get(slug, p)
+
+
+async def test_hidden_agent_profile_hides_projects():
+    svc, db, _ = make()
+    await add_profile(db, public=False)
+    await svc.upsert("A1", "kosmic", project())
+    with pytest.raises(ProjectError) as e:
+        await svc.public_list("house-deal")
+    assert e.value.status_code == 404
+
+
+def test_input_rules():
+    with pytest.raises(ValidationError):
+        project(rera_no="HZ-33")
+    with pytest.raises(ValidationError):
+        project(possession_target="March 2028")
+    with pytest.raises(ValidationError):
+        project(unknown="x")
+    assert project(rera_no=" p52100078796 ").rera_no == "P52100078796"
+    assert project(rera_no="PR1261012601574").rera_no == "PR1261012601574"
+
+
+def test_parse_general_handles_missing_and_wrong_answers():
+    with pytest.raises(maharera.MahaReraError):
+        maharera.parse_general({"status": "0"}, "P52100078796", 1)
+    r = maharera.parse_general(GENERAL, "p52100078796", 53311)
+    assert r["registered_on"] == "2025-01-13" and r["name"] == "MY HOME UPPER KHARADI"
+
+
+async def test_sitemap_entries_list_live_projects_of_indexable_public_agents_only():
+    svc, db, _ = make()
+    profiles = db.get_collection("agent_public_profiles")
+    await add_profile(db)
+    await profiles.insert_one({"_id": "A2", "agent_id": "A2", "slug": "hidden", "is_public": False})
+    await profiles.insert_one({"_id": "A3", "agent_id": "A3", "slug": "demo", "is_public": True, "branding_data": {"demo": True}})
+    await profiles.insert_one({"_id": "A4", "agent_id": "A4", "slug": "prev", "is_public": True, "branding_data": {"preview": True}})
+    for agent in ("A1", "A2", "A3", "A4"):
+        await svc.upsert(agent, "goyal-my-home", project())
+    await svc.upsert("A1", "draft-one", project(status="draft"))
+    entries = await svc.sitemap_entries()
+    assert [(e["agent_slug"], e["slug"]) for e in entries] == [("house-deal", "goyal-my-home")]
+
+
+async def _two_agents_same_project(svc, db):
+    """House Deal and a second agent both have Goyal My Home live (under different slugs); only House Deal's is checked."""
+    profiles = db.get_collection("agent_public_profiles")
+    await add_profile(db)
+    await profiles.insert_one({"_id": "A2", "agent_id": "A2", "slug": "zeta-homes", "is_public": True, "agent_name": "Zeta",
+                               "phone": "+919800000000", "branding_data": {"business_name": "Zeta Homes"}})
+    await svc.upsert("A1", "goyal-my-home", project())
+    await svc.check_maharera("A1", "goyal-my-home")
+    await svc.upsert("A2", "my-home-upper-kharadi", project())
+
+
+async def test_catalog_gives_one_page_per_checked_registration_with_every_agent():
+    svc, db, _ = make()
+    await _two_agents_same_project(svc, db)
+    await svc.upsert("A1", "unchecked", project(name="Not Read Yet", rera_no="P52100000001"))  # no MahaRERA read: not shared
+    items = await svc.catalog()
+    assert [p.slug for p in items] == ["goyal-my-home"]
+    p = items[0]
+    assert p.catalog_slug == "goyal-my-home" and p.rera.regno == "P52100078796"
+    assert [(a.slug, a.project_slug) for a in p.agents] == [("house-deal", "goyal-my-home"), ("zeta-homes", "my-home-upper-kharadi")]
+    assert p.agents[1].name == "Zeta Homes"  # the business name when the agent has one
+    assert [x.slug for x in await svc.catalog("upper kharadi")] == ["goyal-my-home"]
+    assert await svc.catalog("Wagholi") == []
+
+
+async def test_catalog_get_finds_by_any_agents_slug_and_hides_demo_and_preview():
+    svc, db, _ = make()
+    await _two_agents_same_project(svc, db)
+    assert (await svc.catalog_get("my-home-upper-kharadi")).slug == "goyal-my-home"
+    with pytest.raises(ProjectError):
+        await svc.catalog_get("nope")
+    await db.get_collection("agent_public_profiles").update_one({"_id": "A1"}, {"$set": {"branding_data": {"preview": True}}})
+    assert await svc.catalog() == []  # the only checked record is on a preview site
+
+
+async def test_agent_copy_points_to_the_shared_page():
+    svc, db, _ = make()
+    await _two_agents_same_project(svc, db)
+    assert (await svc.public_get("house-deal", "goyal-my-home")).catalog_slug == "goyal-my-home"
+    # the second agent's copy is not checked yet, but it is the same registration: it points to the same shared page
+    assert (await svc.public_get("zeta-homes", "my-home-upper-kharadi")).catalog_slug == "goyal-my-home"
+    await svc.upsert("A1", "other", project(name="Other", rera_no="P52100000001"))  # unchecked everywhere: no shared page
+    assert (await svc.public_get("house-deal", "other")).catalog_slug is None

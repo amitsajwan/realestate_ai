@@ -4,17 +4,18 @@ import { motion } from 'framer-motion'
 import React, { useEffect, useMemo, useState } from 'react'
 // import '@/styles/components/analytics.css' // Temporarily disabled for tests
 import { crmApi, DashboardMetrics } from '@/lib/crm-api'
-import { calculatePercentage, safePropertyAccess, transformPropertiesToAnalytics, type Property } from '@/lib/data-transformers'
+import { calculatePercentage, safePropertyAccess, transformPropertiesToAnalytics } from '@/lib/data-transformers'
+import type { Property } from '@/lib/properties/types'
 import {
-  ArrowPathIcon,
-  ArrowTrendingDownIcon,
-  ArrowTrendingUpIcon,
-  CalendarIcon,
-  ChartBarIcon,
-  CurrencyDollarIcon,
-  ExclamationTriangleIcon,
-  EyeIcon,
-  HomeIcon
+    ArrowPathIcon,
+    ArrowTrendingDownIcon,
+    ArrowTrendingUpIcon,
+    CalendarIcon,
+    ChartBarIcon,
+    CurrencyDollarIcon,
+    ExclamationTriangleIcon,
+    EyeIcon,
+    HomeIcon
 } from '@heroicons/react/24/outline'
 
 interface AnalyticsProps {

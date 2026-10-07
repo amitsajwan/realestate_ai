@@ -5,20 +5,11 @@ import {
     EyeIcon,
     EyeSlashIcon,
     XMarkIcon
-} from '@heroicons/react/24/outline'
-import { motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+} from '@heroicons/react/24/outline';
+import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 
-interface DashboardWidget {
-    id: string
-    title: string
-    description: string
-    component: string
-    enabled: boolean
-    order: number
-    category: 'overview' | 'analytics' | 'content' | 'properties'
-    size: 'small' | 'medium' | 'large'
-}
+import { DashboardWidget } from '@/types/dashboard';
 
 interface DashboardCustomizationProps {
     isOpen: boolean
@@ -35,6 +26,7 @@ const defaultWidgets: DashboardWidget[] = [
         component: 'DashboardStats',
         enabled: true,
         order: 1,
+        type: 'stats',
         category: 'overview',
         size: 'large'
     },
@@ -45,6 +37,7 @@ const defaultWidgets: DashboardWidget[] = [
         component: 'RecentProperties',
         enabled: true,
         order: 2,
+        type: 'list',
         category: 'properties',
         size: 'medium'
     },
@@ -55,6 +48,7 @@ const defaultWidgets: DashboardWidget[] = [
         component: 'QuickActions',
         enabled: true,
         order: 3,
+        type: 'custom',
         category: 'overview',
         size: 'small'
     },
@@ -65,6 +59,7 @@ const defaultWidgets: DashboardWidget[] = [
         component: 'ContentPerformance',
         enabled: false,
         order: 4,
+        type: 'chart',
         category: 'analytics',
         size: 'medium'
     },
@@ -75,6 +70,7 @@ const defaultWidgets: DashboardWidget[] = [
         component: 'LeadAnalytics',
         enabled: false,
         order: 5,
+        type: 'chart',
         category: 'analytics',
         size: 'medium'
     },
@@ -85,6 +81,7 @@ const defaultWidgets: DashboardWidget[] = [
         component: 'RecentPosts',
         enabled: false,
         order: 6,
+        type: 'list',
         category: 'content',
         size: 'small'
     },
@@ -95,6 +92,7 @@ const defaultWidgets: DashboardWidget[] = [
         component: 'PropertyMap',
         enabled: false,
         order: 7,
+        type: 'custom',
         category: 'properties',
         size: 'large'
     },
@@ -105,6 +103,7 @@ const defaultWidgets: DashboardWidget[] = [
         component: 'TeamActivity',
         enabled: false,
         order: 8,
+        type: 'list',
         category: 'overview',
         size: 'small'
     }

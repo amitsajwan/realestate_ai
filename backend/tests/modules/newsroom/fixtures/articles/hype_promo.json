@@ -1,0 +1,12 @@
+{
+  "id": "hype_promo",
+  "source": "fixture",
+  "url": "https://example.test/hype_promo",
+  "title": "Booking open: Sky Heights Wagholi, last units, don't miss",
+  "text": "Booking open for Sky Heights in Wagholi! Guaranteed returns, prices will double in two years. Hurry, limited units left. Book now and schedule a site visit today.",
+  "published_at": "2026-09-29T06:00:00+00:00",
+  "expect": {
+    "keep": false,
+    "reason": "hype"
+  }
+}

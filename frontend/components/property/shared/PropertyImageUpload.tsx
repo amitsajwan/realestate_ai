@@ -3,7 +3,7 @@
 import React, { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { PhotoIcon, XMarkIcon, CloudArrowUpIcon } from '@heroicons/react/24/outline'
-import { apiService } from '@/lib/api'
+import { apiService } from '@/lib/api/centralized-client'
 import toast from 'react-hot-toast'
 
 interface PropertyImageUploadProps {

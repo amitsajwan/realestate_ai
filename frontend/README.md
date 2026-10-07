@@ -1,4 +1,4 @@
-# 🏠 PropertyAI - Next.js Frontend
+# 🏠 Avasetu - Next.js Frontend
 
 A modern, AI-powered real estate platform built with Next.js 14, TypeScript, and Tailwind CSS.
 
@@ -58,7 +58,7 @@ A modern, AI-powered real estate platform built with Next.js 14, TypeScript, and
    cp .env.example .env.local
    
    # Edit .env.local with your configuration
-   NEXT_PUBLIC_APP_NAME=PropertyAI
+   NEXT_PUBLIC_APP_NAME=Avasetu
    NEXT_PUBLIC_APP_VERSION=2.0.0
    NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
    ```
@@ -321,4 +321,4 @@ localStorage.clear()
 
 ---
 
-**PropertyAI** - Building the future of real estate with AI 🚀
+**Avasetu** - Building the future of real estate with AI 🚀

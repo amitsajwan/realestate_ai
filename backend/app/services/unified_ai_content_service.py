@@ -123,7 +123,9 @@ class UnifiedAIContentService:
             
         except Exception as e:
             self.logger.error(f"Error generating content: {e}")
-            return self._generate_fallback_content(property_data, channel, tone, language, agent_data)
+            # Re-raise the exception instead of returning fallback content
+            # This allows the endpoint to handle the error properly
+            raise
     
     def _build_unified_prompt(
         self,
@@ -551,14 +553,19 @@ FINAL LANGUAGE REQUIREMENT:
             # Create system message to reinforce language requirement
             system_message = f"You are a professional real estate content creator. You MUST generate content ONLY in the specified language. Do not mix languages or use English when a different language is requested."
             
+            # Use smaller, cheaper model for development
+            model_name = "llama-3.1-8b-instant"  # Much faster and cheaper
+            if settings.environment == "production":
+                model_name = "llama-3.3-70b-versatile"  # Use larger model only in production
+            
             response = self._groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model=model_name,
                 messages=[
                     {"role": "system", "content": system_message},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.5,  # Lower temperature for more consistent language adherence
-                max_tokens=1500,
+                max_tokens=800,  # Reduced from 1500 to save tokens
             )
             
             generated_text = response.choices[0].message.content if response.choices else ""

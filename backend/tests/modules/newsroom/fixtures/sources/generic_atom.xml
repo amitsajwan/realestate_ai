@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Sample atom</title>
+<entry><title>Metro line 3 trial run</title><link rel="alternate" href="https://atom.example.org/metro-3"/><published>2026-09-27T08:30:00Z</published><summary>Trial run completed between Hinjewadi and Shivajinagar.</summary></entry>
+</feed>

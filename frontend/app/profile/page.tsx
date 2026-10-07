@@ -1,5 +1,6 @@
 'use client';
 
+import { apiService } from '@/lib/api/centralized-client';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -36,32 +37,14 @@ export default function ProfilePage() {
 
   const fetchProfile = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-      const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+      const userData = await apiService.getCurrentUser();
+      setUser(userData);
+      setFormData({
+        first_name: userData.first_name || '',
+        last_name: userData.last_name || '',
+        phone: userData.phone || '',
+        company: userData.company || ''
       });
-
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-        setFormData({
-          first_name: userData.first_name || '',
-          last_name: userData.last_name || '',
-          phone: userData.phone || '',
-          company: userData.company || ''
-        });
-      } else {
-        setError('Failed to fetch profile');
-      }
     } catch (err) {
       setError('Network error');
     } finally {
@@ -76,25 +59,9 @@ export default function ProfilePage() {
     setSuccess('');
 
     try {
-      const token = localStorage.getItem('auth_token');
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-      const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        const updatedUser = await response.json();
-        setUser(updatedUser);
-        setSuccess('Profile updated successfully!');
-      } else {
-        const errorData = await response.json();
-        setError(errorData.detail || 'Failed to update profile');
-      }
+      const updatedUser = await apiService.updateCurrentUser(formData);
+      setUser(updatedUser);
+      setSuccess('Profile updated successfully!');
     } catch (err) {
       setError('Network error');
     } finally {
@@ -230,7 +197,21 @@ export default function ProfilePage() {
                 <div>
                   <span className="text-gray-400">Member Since:</span>
                   <span className="ml-2 text-white">
-                    {new Date(user.created_at).toLocaleDateString()}
+                    {(() => {
+                      try {
+                        let cleanDateString = user.created_at;
+                        if (cleanDateString.includes('.') && !cleanDateString.endsWith('Z') && !cleanDateString.includes('+') && !cleanDateString.includes('-', 10)) {
+                          const parts = cleanDateString.split('.');
+                          if (parts.length === 2) {
+                            const microseconds = parts[1].substring(0, 6);
+                            cleanDateString = parts[0] + '.' + microseconds + 'Z';
+                          }
+                        }
+                        return new Date(cleanDateString).toLocaleDateString();
+                      } catch {
+                        return 'Invalid Date';
+                      }
+                    })()}
                   </span>
                 </div>
               </div>

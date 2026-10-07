@@ -5,8 +5,9 @@ FastAPI Users integration with frontend-compatible endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBearer
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from app.models.user import User, UserCreate, UserUpdate, UserRead
 from app.core.auth_backend import (
     fastapi_users, 
@@ -30,6 +31,74 @@ logger = logging.getLogger(__name__)
 
 # Create router
 router = APIRouter()
+
+
+class MetaInstagramOAuthCompletion(BaseModel):
+        state: str = Field(..., min_length=16, max_length=512)
+        access_token: str = Field(..., min_length=16, max_length=8192)
+
+
+META_INSTAGRAM_CALLBACK_HTML = """<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Connecting Instagram to Avasetu</title>
+    <style>
+        body { font: 16px system-ui, sans-serif; max-width: 36rem; margin: 12vh auto; padding: 0 1.25rem; color: #172033; }
+        main { border: 1px solid #dbe2ea; border-radius: 1rem; padding: 2rem; box-shadow: 0 12px 36px #10204012; }
+        h1 { font-size: 1.4rem; } #message { line-height: 1.6; } a { color: #155eef; }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Connecting your Instagram account</h1>
+        <p id="message" role="status" aria-live="polite">Completing the secure connection…</p>
+        <a id="return-link" href="/" hidden>Return to Avasetu</a>
+    </main>
+    <script>
+        (async function () {
+            const message = document.getElementById('message');
+            const returnLink = document.getElementById('return-link');
+            const fragment = new URLSearchParams(window.location.hash.slice(1));
+            const query = new URLSearchParams(window.location.search);
+            const accessToken = fragment.get('long_lived_token') || fragment.get('access_token');
+            const state = fragment.get('state') || query.get('state');
+            const providerError = query.get('error_description') || fragment.get('error_description') || query.get('error');
+
+            // Remove tokens and state from the address bar/history before making any request.
+            window.history.replaceState({}, document.title, window.location.pathname);
+            if (providerError) {
+                message.textContent = 'Meta login was cancelled or could not be completed. Close this tab and try again.';
+                returnLink.hidden = false;
+                return;
+            }
+            if (!accessToken || !state) {
+                message.textContent = 'Meta did not return the required login details. Please close this tab and try again.';
+                returnLink.hidden = false;
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/v1/auth/facebook/complete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    cache: 'no-store',
+                    referrerPolicy: 'no-referrer',
+                    body: JSON.stringify({ state, access_token: accessToken })
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.detail || 'Meta connection failed.');
+                message.textContent = 'Instagram is connected to your Facebook Page. Return to Avasetu and refresh the Facebook integration screen.';
+                returnLink.hidden = false;
+            } catch (error) {
+                message.textContent = error instanceof Error ? error.message : 'Could not complete the Meta connection.';
+                returnLink.hidden = false;
+            }
+        })();
+    </script>
+</body>
+</html>"""
 
 # Include FastAPI Users routes with proper prefixes
 router.include_router(
@@ -214,15 +283,29 @@ async def setup_development_user():
     
     try:
         user = await development_auth_service.ensure_development_user_exists()
+        # Handle both dict and User object formats
+        if isinstance(user, dict):
+            user_id = user.get('id', user.get('_id', ''))
+            user_email = user.get('email', '')
+            user_first_name = user.get('first_name', '')
+            user_last_name = user.get('last_name', '')
+            user_onboarding_completed = user.get('onboarding_completed', False)
+        else:
+            user_id = str(user.id)
+            user_email = user.email
+            user_first_name = user.first_name
+            user_last_name = user.last_name
+            user_onboarding_completed = user.onboarding_completed
+            
         return {
             "message": "Development user setup successful",
             "user": {
-                "id": str(user.id),
-                "email": user.email,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "onboarding_completed": user.onboarding_completed,
-                "onboarding_step": user.onboarding_step
+                "id": str(user_id),
+                "email": user_email,
+                "first_name": user_first_name,
+                "last_name": user_last_name,
+                "onboarding_completed": user_onboarding_completed,
+                "onboarding_step": user.get('onboarding_step', 1) if isinstance(user, dict) else user.onboarding_step
             }
         }
     except Exception as e:
@@ -240,3 +323,32 @@ async def auth_health():
         "environment": os.getenv("ENVIRONMENT", "development"),
         "auth_mode": "hybrid" if os.getenv("ENVIRONMENT", "development") == "development" else "production"
     }
+
+
+@router.get("/facebook/callback", response_class=HTMLResponse, include_in_schema=False)
+async def meta_facebook_login_callback():
+    """Serve the browser callback that safely reads Meta's URL-fragment token."""
+    return HTMLResponse(
+        content=META_INSTAGRAM_CALLBACK_HTML,
+        headers={
+            "Cache-Control": "no-store, max-age=0",
+            "Pragma": "no-cache",
+            "Referrer-Policy": "no-referrer",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+@router.post("/facebook/complete", include_in_schema=False)
+async def complete_meta_facebook_login(
+    payload: MetaInstagramOAuthCompletion,
+    db=Depends(get_database),
+):
+    """Validate the one-use OAuth state and persist the linked Page token encrypted."""
+    from app.services.meta_instagram_oauth import MetaInstagramOAuthError, complete_login
+
+    try:
+        account = await complete_login(payload.state, payload.access_token, db)
+        return {"success": True, "account": account}
+    except MetaInstagramOAuthError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None

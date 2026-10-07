@@ -1,0 +1,13 @@
+{
+  "id": "stamp_duty",
+  "source": "fixture",
+  "url": "https://example.test/stamp_duty",
+  "title": "Maharashtra keeps stamp duty at 6 per cent; Pune ready reckoner unchanged",
+  "text": "The Maharashtra government has kept stamp duty at 6 per cent for residential property in Pune city, including Kharadi and Wagholi, and left the ready reckoner rates unchanged for the current quarter. Home buyers pay 1 per cent metro cess extra within PMC limits.",
+  "published_at": "2026-09-26T06:00:00+00:00",
+  "expect": {
+    "keep": true,
+    "pillar": "rules_money",
+    "areas": []
+  }
+}

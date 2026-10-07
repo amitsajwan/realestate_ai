@@ -5,7 +5,9 @@ FastAPI application creation and configuration
 """
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+from app.core import brand
 from app.core.config import settings
 from app.core.database import init_database, close_database
 from app.core.rate_limiting import setup_rate_limiting
@@ -16,13 +18,46 @@ from app.core.logging_config import setup_logging, get_logger
 from app.core.security import SecurityMiddleware, get_security_headers
 from app.api.v1.endpoints.health import router as health_router
 from app.services.token_cleanup_service import start_token_cleanup, stop_token_cleanup
+import asyncio
 import logging
+import json
+from bson import ObjectId
+from datetime import datetime
 
 # Import SSL configuration to initialize it
 try:
     import ssl_config
 except ImportError:
     pass
+
+
+class CustomJSONEncoder(json.JSONEncoder):
+    """Custom JSON encoder to handle MongoDB ObjectId and datetime serialization"""
+    def default(self, obj):
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+
+
+def custom_jsonable_encoder(obj, _recursion_depth=0, max_depth=10):
+    """Custom JSON encoder for FastAPI responses with recursion depth limit"""
+    if _recursion_depth > max_depth:
+        raise ValueError("Maximum recursion depth exceeded")
+
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, dict):
+        return {k: custom_jsonable_encoder(v, _recursion_depth + 1) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [custom_jsonable_encoder(item, _recursion_depth + 1) for item in obj]
+    if hasattr(obj, '__dict__'):
+        # Convert object to dict and then process
+        return custom_jsonable_encoder(obj.__dict__, _recursion_depth + 1)
+    return obj
 
 
 @asynccontextmanager
@@ -35,33 +70,70 @@ async def lifespan(app: FastAPI):
     # Startup
     try:
         await init_database()
-        logger.info("🚀 MongoDB connected successfully")
-        
-        # Initialize database collections and indexes
-        from app.utils.database_init import initialize_database
-        await initialize_database()
-        logger.info("📊 Database collections and indexes initialized")
-        
-        # Analytics service will be initialized when needed
-        logger.info("📈 Analytics service ready")
-        
-        # Start token cleanup service
-        await start_token_cleanup()
-        logger.info("🧹 Token cleanup service started")
-        
     except Exception as e:
         logger.error(f"❌ Failed to connect to MongoDB: {e}")
-        # Don't raise the exception - let the app start with mock database
-        logger.warning("⚠️ Continuing with mock database")
-    
+        if settings.environment == "production":
+            raise  # never serve production without its database: crash so the container restarts once Mongo is up
+        logger.warning("⚠️ Continuing without a database (development only)")
+    else:
+        try:
+            logger.info("🚀 MongoDB connected successfully")
+
+            # Initialize database collections and indexes
+            from app.utils.database_init import initialize_database
+            await initialize_database()
+            logger.info("📊 Database collections and indexes initialized")
+
+            # Analytics service will be initialized when needed
+            logger.info("📈 Analytics service ready")
+
+            # Start token cleanup service
+            await start_token_cleanup()
+            logger.info("🧹 Token cleanup service started")
+
+            # Background loops. Each runs in one process only, however many processes start it (app/platform/leases.py).
+            # With RUN_BACKGROUND_LOOPS=false the worker process runs them instead (python -m app.worker).
+            if settings.run_background_loops:
+                start_background_loops(app)
+            else:
+                logger.info("Background loops are left to the worker process (RUN_BACKGROUND_LOOPS=false)")
+        except Exception as e:
+            logger.error(f"❌ Startup step failed after the database connected: {e}")
+
     yield
     
     # Shutdown
+    tasks = [t for t in (getattr(app.state, n, None) for n in ("engage_task", "newsroom_task", "calendar_task", "listing_reel_task")) if t]
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)  # let each loop release its runner lease before the database closes
     await stop_token_cleanup()
     logger.info("🧹 Token cleanup service stopped")
     
     await close_database()
     logger.info("📊 Database connection closed")
+
+
+def start_background_loops(app: FastAPI) -> None:
+    """Start the 4 background loops in this (API) process, each under its runner lease."""
+    from app.core.database import get_database
+    from app.platform.leases import run_as_leader
+
+    # Comment assistant (does nothing unless ENGAGE_ENABLED=true)
+    from app.modules.engage.runner import loop as engage_loop
+    app.state.engage_task = asyncio.create_task(run_as_leader("engage", engage_loop, get_database))
+
+    # Newsroom content agent (idle unless NEWSROOM_ENABLED=true)
+    from app.modules.newsroom.runner import loop as newsroom_loop
+    app.state.newsroom_task = asyncio.create_task(run_as_leader("newsroom", newsroom_loop, get_database))
+
+    # Content calendar: evergreen posts for Facebook and Instagram (idle unless CALENDAR_ENABLED=true)
+    from app.modules.calendar.runner import loop as calendar_loop
+    app.state.calendar_task = asyncio.create_task(run_as_leader("calendar", calendar_loop, get_database))
+
+    # Listing reels: renders the reels agents ask for from a listing (idle when the queue is empty)
+    from app.modules.reels import listing_reel
+    app.state.listing_reel_task = listing_reel.ensure_worker()
 
 
 def create_application() -> FastAPI:
@@ -77,15 +149,25 @@ def create_application() -> FastAPI:
     for module in ['app.services.auth_service', 'app.repositories.user_repository', 'app.api.v1.endpoints.auth']:
         logging.getLogger(module).setLevel(logging.DEBUG)
 
-    # Create FastAPI app
+    # Create FastAPI app with custom JSON encoder
     app = FastAPI(
-        title="PropertyAI API",
+        title=f"{brand.NAME} API",
         description="AI-powered real estate platform API",
         version="2.0.0",
         docs_url="/docs" if settings.environment != "production" else None,
         redoc_url="/redoc" if settings.environment != "production" else None,
         lifespan=lifespan,
+        default_response_class=JSONResponse,
     )
+    
+    # Override the default JSON encoder to handle ObjectId serialization
+    from fastapi.encoders import jsonable_encoder
+    import fastapi.encoders
+    
+    def custom_jsonable_encoder_wrapper(obj, **kwargs):
+        return jsonable_encoder(custom_jsonable_encoder(obj), **kwargs)
+    
+    fastapi.encoders.jsonable_encoder = custom_jsonable_encoder_wrapper
 
     # Register error handlers first
     register_error_handlers(app)

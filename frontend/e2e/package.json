@@ -1,7 +1,7 @@
 {
   "name": "propertyai-e2e-tests",
   "version": "1.0.0",
-  "description": "End-to-end tests for PropertyAI platform",
+  "description": "End-to-end tests for Avasetu platform",
   "scripts": {
     "test": "playwright test",
     "test:headed": "playwright test --headed",

@@ -1,0 +1,12 @@
+{
+  "id": "stale_metro",
+  "source": "fixture",
+  "url": "https://example.test/stale_metro",
+  "title": "Pune Metro extension to Kharadi proposed",
+  "text": "A proposal to extend the Pune Metro from Ramwadi to Kharadi has been sent to the state government. The extension would be 5 km long and add 4 stations near EON IT Park.",
+  "published_at": "2026-08-01T06:00:00+00:00",
+  "expect": {
+    "keep": false,
+    "reason": "stale"
+  }
+}

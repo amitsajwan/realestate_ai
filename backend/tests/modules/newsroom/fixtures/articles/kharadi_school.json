@@ -1,0 +1,16 @@
+{
+  "id": "kharadi_school",
+  "source": "fixture",
+  "url": "https://example.test/kharadi_school",
+  "title": "New CBSE school and hospital planned in Upper Kharadi",
+  "text": "A 500-bed hospital and a CBSE school are planned on a 6 acre plot in Upper Kharadi, the trust behind the project said. Construction is expected to begin in January 2027. The plot is 2 km from EON IT Park.",
+  "published_at": "2026-09-24T06:00:00+00:00",
+  "expect": {
+    "keep": true,
+    "pillar": "locality_life",
+    "areas": [
+      "kharadi",
+      "upper_kharadi"
+    ]
+  }
+}

@@ -1,6 +1,6 @@
-# 🪟 PropertyAI - Windows Setup Guide
+# 🪟 Avasetu - Windows Setup Guide
 
-Complete step-by-step guide to set up PropertyAI on Windows.
+Complete step-by-step guide to set up Avasetu on Windows.
 
 ## 🎯 Quick Start (Recommended for Windows)
 
@@ -403,7 +403,7 @@ After setup, you should have:
 ✅ **Monitoring dashboards accessible**  
 ✅ **90%+ test success rate**  
 
-**Your PropertyAI platform is now running on Windows! 🎉**
+**Your Avasetu platform is now running on Windows! 🎉**
 
 ---
 

@@ -1,0 +1,132 @@
+import React from 'react'
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import ContactButtons from '@/components/site/ContactButtons'
+import DescriptionSwitch from '@/components/site/DescriptionSwitch'
+import EnquiryForm from '@/components/site/EnquiryForm'
+import Gallery from '@/components/site/Gallery'
+import ListingAbout from '@/components/site/ListingAbout'
+import ListingFacts from '@/components/site/ListingFacts'
+import { isSampleListing } from '@/lib/site/format'
+import ShareButton from '@/components/site/ShareButton'
+import SiteShell from '@/components/site/SiteShell'
+import StickyBar from '@/components/site/StickyBar'
+import TrackingBeacon from '@/components/site/TrackingBeacon'
+import VerifiedFacts from '@/components/site/VerifiedFacts'
+import { getAgent, getCatalog, getListing, getPropertyFacts } from '@/lib/site/api'
+import { formatPrice } from '@/lib/site/format'
+import { whatsappMessage } from '@/lib/site/links'
+import { jsonLdString, listingJsonLd, listingMetadata } from '@/lib/site/seo'
+import { agentPath, normalizeSlug, siteOrigin } from '@/lib/site/slug'
+import { localityByName, localitySlug } from '@/lib/marketing/localities'
+import { BRAND_NAME } from '@/lib/brand'
+import DemoRibbon from '../../DemoRibbon'
+import type { CatalogProject, PublicListing } from '@/lib/site/types'
+
+interface Props {
+  params: Promise<{ slug: string; id: string }>
+}
+
+function norm(s: string | null | undefined): string {
+  return (s || '').trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function projectForListing(listing: PublicListing, projects: CatalogProject[]): CatalogProject | null {
+  const rera = norm(listing.rera_no)
+  if (rera) {
+    const byRera = projects.find((p) => norm(p.rera_no) === rera)
+    if (byRera) return byRera
+  }
+  const name = norm(listing.project_name || listing.about?.project_name)
+  return name ? projects.find((p) => norm(p.name) === name || p.agents.some((a) => norm(a.project_slug).replace(/-/g, ' ') === name)) || null : null
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug: rawSlug, id } = await params
+  const slug = normalizeSlug(rawSlug)
+  const agent = slug ? await getAgent(slug) : null
+  const listing = slug && agent ? await getListing(slug, id) : null
+  if (!agent || !listing) return { title: 'Property not found', robots: { index: false } }
+  return listingMetadata(agent, listing)
+}
+
+export default async function ListingPage({ params }: Props) {
+  const { slug: rawSlug, id } = await params
+  const slug = normalizeSlug(rawSlug)
+  const agent = slug ? await getAgent(slug) : null
+  if (!slug || !agent) notFound()
+  const l = await getListing(slug, id)
+  if (!l) notFound()
+
+  const url = siteOrigin() + agentPath(slug, 'listings/' + l.id)
+  const msg = whatsappMessage(agent.agent_name, l, url)
+  const phone = agent.phone || (l.agent && l.agent.phone)
+  const locality = localityByName(l.locality)
+  const fallbackLocalitySlug = locality ? '' : localitySlug(l.locality)
+  const localityHref = locality ? `/localities/${locality.slug}` : (fallbackLocalitySlug ? `/localities/${fallbackLocalitySlug}` : '')
+  const projectName = (l.project_name || '').trim()
+  const project = projectName || l.rera_no || l.about?.project_name ? projectForListing(l, await getCatalog()) : null
+  const projectLabel = projectName || project?.name || ''
+  const facts = await getPropertyFacts({ rera: l.rera_no || project?.rera_no, project: projectLabel, locality: l.locality })
+
+  return (
+    <SiteShell agent={agent} bottomPad>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(listingJsonLd(agent, l)) }} />
+      <TrackingBeacon agentSlug={slug} listingId={l.id} />
+      <DemoRibbon agent={agent} />
+      <Gallery media={l.media} title={l.title} />
+
+      <div className="mx-auto max-w-5xl space-y-8 px-4 py-6">
+        <p className="text-sm">
+          <Link href={agentPath(slug) + '#listings'} className="inline-flex min-h-[44px] items-center text-[var(--site-primary)]">&larr; All properties</Link>
+        </p>
+        <header>
+          <p className="text-3xl font-extrabold text-[var(--site-primary)]">{formatPrice(l.price_inr, l.transaction)}</p>
+          {isSampleListing(l.title) && (
+            <p role="note" className="mt-2 rounded-lg bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-900">
+              Sample listing: an illustration of how a listing looks on {BRAND_NAME}. This home is not available. Tell us what you are looking for and we will find real options.
+            </p>
+          )}
+          <h1 className="mt-1 text-2xl font-bold leading-snug">{l.title}</h1>
+          <p className="mt-1 text-slate-600">
+            {project ? (
+              <Link href={`/projects/${project.slug}`} className="font-semibold text-[var(--site-primary)] underline underline-offset-2">{projectLabel}</Link>
+            ) : projectLabel}
+            {projectLabel && (l.locality || l.city) ? ', ' : ''}
+            {localityHref ? (
+              <Link href={localityHref} className="font-semibold text-[var(--site-primary)] underline underline-offset-2">{l.locality}</Link>
+            ) : l.locality}
+            {l.locality && l.city ? ', ' : ''}
+            {l.city}
+            {l.status === 'under_offer' && <span className="ml-2 rounded-full bg-amber-300 px-2 py-0.5 text-xs font-semibold">Under offer</span>}
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <ShareButton agentSlug={slug} listingId={l.id} title={l.title} />
+            <div className="hidden min-w-[280px] flex-1 md:flex md:max-w-sm">
+              <ContactButtons agentSlug={slug} phone={phone} waMessage={msg} listingId={l.id} size="md" />
+            </div>
+          </div>
+        </header>
+
+        <ListingFacts listing={l} />
+        <DescriptionSwitch description={l.description} />
+        <VerifiedFacts f={facts} />
+
+        {l.amenities.length > 0 && (
+          <section aria-labelledby="amen-title">
+            <h2 id="amen-title" className="text-lg font-bold">Amenities</h2>
+            <ul className="mt-2 flex list-none flex-wrap gap-2 p-0">
+              {l.amenities.map((a) => <li key={a} className="rounded-full bg-slate-100 px-3 py-1.5 text-sm">{a}</li>)}
+            </ul>
+          </section>
+        )}
+
+        <ListingAbout about={l.about} listingAmenities={l.amenities} />
+
+        <EnquiryForm agentSlug={slug} agentName={BRAND_NAME} agentPhone={phone} listingId={l.id} waMessage={msg} id="enquire" />
+      </div>
+      <StickyBar agentSlug={slug} phone={phone} waMessage={msg} listingId={l.id} />
+    </SiteShell>
+  )
+}

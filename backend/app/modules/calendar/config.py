@@ -1,0 +1,57 @@
+"""Calendar settings from the environment, read at call time. Safe defaults: off, every 5 minutes, at most 3 attempts per post."""
+import os
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Tuple
+
+TRUE = ("1", "true", "yes", "on")
+MAX_ATTEMPTS = 3          # the first try plus at most two retries
+RETRY_AFTER_S = 600       # wait this long before a retry
+COLLECTION = "content_calendar"
+STATUS_COLLECTION = "calendar_status"
+
+
+def _env(name: str, default: str = "") -> str:
+    return (os.environ.get(name) or default).strip()
+
+
+def _int(name: str, default: int) -> int:
+    try:
+        return int(_env(name) or default)
+    except ValueError:
+        return default
+
+
+@dataclass(frozen=True)
+class CalendarConfig:
+    enabled: bool = False
+    interval_s: int = 300
+    stale_hours: int = 48            # a post this long overdue is skipped, never burst out late
+    owner_ids: Tuple[str, ...] = ()  # user ids allowed to use the owner endpoints; empty = superusers only
+    # Facebook shows a multi-photo post as a grid, not a swipeable carousel: its copy of a carousel goes out as a Reel of the slides
+    fb_carousel_as_reel: bool = True
+    # The daily reel rhythm (plan.build_daily_plan): off until the owner switches it on, so merging it changes nothing that is posted
+    daily_reels: bool = False
+    daily_per_day: int = 2           # 3 later; a third reel a day uses a 6 hour gap instead of 12
+    # Testing pace (pre-launch): when > 0, approving a post moves it to the next free slot on its channel this many minutes
+    # after the previous one, instead of its planned day. 0 keeps the planned times (normal running).
+    pace_minutes: int = 0
+    # "Post now" never sends two posts on one channel closer than this: the rest queue a few minutes apart (Meta's limits)
+    post_now_gap_minutes: int = 10
+
+
+def load() -> CalendarConfig:
+    return CalendarConfig(
+        enabled=_env("CALENDAR_ENABLED").lower() in TRUE,
+        interval_s=max(30, _int("CALENDAR_INTERVAL_SECONDS", 300)),
+        stale_hours=max(1, _int("CALENDAR_STALE_HOURS", 48)),
+        owner_ids=tuple(s.strip() for s in _env("CALENDAR_OWNER_IDS").split(",") if s.strip()),
+        fb_carousel_as_reel=_env("CALENDAR_FB_CAROUSEL_AS_REEL", "on").lower() in TRUE,
+        daily_reels=_env("CALENDAR_DAILY_REELS").lower() in TRUE,
+        daily_per_day=max(1, min(3, _int("CALENDAR_DAILY_REELS_PER_DAY", 2))),
+        pace_minutes=max(0, _int("CALENDAR_PACE_MINUTES", 0)),
+        post_now_gap_minutes=max(1, _int("CALENDAR_POST_NOW_GAP_MINUTES", 10)))
+
+
+def uploads_dir() -> Path:
+    return Path(_env("UPLOAD_DIRECTORY", "uploads"))

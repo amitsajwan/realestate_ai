@@ -25,7 +25,6 @@ export default function SearchBar() {
     { id: '1', title: 'Properties', type: 'page', url: '/properties', description: 'Manage your properties' },
     { id: '2', title: 'Dashboard', type: 'page', url: '/dashboard', description: 'View your dashboard' },
     { id: '3', title: 'Analytics', type: 'page', url: '/analytics', description: 'Business analytics' },
-    { id: '4', title: 'Social Publishing', type: 'page', url: '/social-publishing', description: 'AI content generation' },
     { id: '5', title: 'Profile', type: 'page', url: '/profile', description: 'User profile settings' },
     { id: '6', title: 'Agent Website', type: 'page', url: '/agent', description: 'Public agent profiles' },
     { id: '7', title: 'Create Property', type: 'page', url: '/properties/create', description: 'Add new property' },

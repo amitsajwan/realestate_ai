@@ -1,0 +1,332 @@
+/* Agent Website Refinements */
+
+/* === MAIN CONTAINER CONSTRAINTS === */
+.agent-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+@media (min-width: 640px) {
+    .agent-container {
+        padding: 0 1.5rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .agent-container {
+        padding: 0 2rem;
+    }
+}
+
+/* === POST CARD IMPROVEMENTS === */
+.agent-post-card {
+    background: white;
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    border: 1px solid #f3f4f6;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.agent-post-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
+}
+
+/* === HEADER IMPROVEMENTS === */
+.agent-header {
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+    backdrop-filter: blur(8px);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+.agent-header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+/* === CONTENT AREA === */
+.agent-content {
+    min-height: 100vh;
+    background: #f9fafb;
+    padding: 1.5rem 0;
+}
+
+.agent-content-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+/* === MOBILE OPTIMIZATIONS === */
+@media (max-width: 768px) {
+    .agent-content {
+        padding: 1rem 0;
+    }
+
+    .agent-post-card {
+        margin-bottom: 1rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .agent-container {
+        padding: 0 1rem;
+    }
+
+    /* Mobile Post Header */
+    .agent-post-header {
+        padding: 0.75rem;
+    }
+
+    .agent-post-header .flex {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .agent-post-header .flex>div:first-child {
+        width: 100%;
+    }
+
+    .agent-post-header .flex>div:last-child {
+        align-self: flex-end;
+        margin-top: 0.5rem;
+    }
+
+    /* Mobile Post Content */
+    .agent-post-content {
+        padding: 0.75rem;
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+
+    /* Mobile Images */
+    .agent-post-images {
+        margin: 0 -0.75rem 0.75rem -0.75rem;
+    }
+
+    .agent-post-images img {
+        max-height: 250px;
+        object-fit: cover;
+    }
+
+    /* Mobile Engagement */
+    .agent-engagement {
+        padding: 0.5rem 0.75rem;
+    }
+
+    .agent-engagement-actions {
+        gap: 0.25rem;
+    }
+
+    .agent-engagement-button {
+        padding: 0.5rem 0.25rem;
+        font-size: 0.875rem;
+        min-height: 44px;
+    }
+
+    /* Mobile Profile Avatar */
+    .agent-profile-avatar {
+        width: 2.5rem;
+        height: 2.5rem;
+        font-size: 1rem;
+    }
+
+    /* Mobile Post Meta */
+    .agent-post-meta {
+        font-size: 0.8rem;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+}
+
+/* === POST HEADER STYLING === */
+.agent-post-header {
+    padding: 1rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.agent-profile-avatar {
+    width: 3rem;
+    height: 3rem;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 1.125rem;
+}
+
+.agent-post-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.agent-post-content {
+    padding: 1rem;
+}
+
+.agent-post-text {
+    color: #111827;
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+/* === IMAGE STYLING === */
+.agent-post-images {
+    margin-bottom: 1rem;
+}
+
+.agent-post-image {
+    width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.agent-post-image:hover {
+    opacity: 0.95;
+}
+
+/* === ENGAGEMENT STYLING === */
+.agent-engagement {
+    border-top: 1px solid #e5e7eb;
+    padding: 0.75rem 1rem;
+}
+
+.agent-engagement-stats {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.agent-engagement-actions {
+    display: flex;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 0.5rem;
+}
+
+.agent-engagement-button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    color: #6b7280;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    transition: background-color 0.2s ease;
+}
+
+.agent-engagement-button:hover {
+    background-color: #f3f4f6;
+}
+
+/* === RESPONSIVE DESIGN === */
+@media (max-width: 640px) {
+    .agent-engagement-actions {
+        gap: 0.25rem;
+    }
+
+    .agent-engagement-button {
+        padding: 0.5rem;
+        font-size: 0.875rem;
+    }
+}
+
+/* === AGENT WEBSITE HEADER === */
+.agent-website-header {
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1rem 0;
+}
+
+.agent-website-header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.agent-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: #111827;
+}
+
+.agent-logo-icon {
+    width: 2rem;
+    height: 2rem;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.agent-nav {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+}
+
+.agent-nav-link {
+    color: #6b7280;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.agent-nav-link:hover,
+.agent-nav-link.active {
+    color: #3b82f6;
+}
+
+.agent-nav-button {
+    background: #3b82f6;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background-color 0.2s ease;
+}
+
+.agent-nav-button:hover {
+    background: #2563eb;
+}
+
+/* === MOBILE NAVIGATION === */
+@media (max-width: 768px) {
+    .agent-nav {
+        display: none;
+    }
+
+    .agent-website-header-content {
+        justify-content: space-between;
+    }
+}

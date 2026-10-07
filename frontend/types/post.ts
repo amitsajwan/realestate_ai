@@ -22,6 +22,9 @@ export interface Post {
     created_at: string;
     updated_at: string;
     analytics?: PostAnalytics;
+    // Media fields for image display
+    media_urls?: string[];
+    media_types?: string[];
 }
 
 export interface PostAnalytics {

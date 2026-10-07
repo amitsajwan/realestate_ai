@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><title>Sample civic feed</title>
+<item><title>PMRDA invites objections on ring road alignment</title><link>https://civic.example.org/news/ring-road?utm_source=rss&amp;id=7#top</link><pubDate>Tue, 29 Sep 2026 10:00:00 +0530</pubDate><description>&lt;p&gt;The authority has published the &lt;b&gt;draft alignment&lt;/b&gt; &amp;amp; invites objections.&lt;/p&gt;</description></item>
+<item><title>Item with no date</title><link>https://civic.example.org/news/no-date</link><description>Plain text body.</description></item>
+<item><title>No link here</title><description>skipped</description></item>
+</channel></rss>

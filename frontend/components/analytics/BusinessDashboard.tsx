@@ -2,7 +2,7 @@
 
 import { Badge } from '@/components/UI/Badge';
 import { Button } from '@/components/UI/Button';
-import { Card, CardBody as CardContent, CardHeader, CardTitle } from '@/components/UI/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/UI/Card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UI/Tabs';
 import {
   DollarSign,

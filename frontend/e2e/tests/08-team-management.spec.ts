@@ -19,7 +19,7 @@ test.describe('Team Management System', () => {
         body: JSON.stringify({
           team: {
             id: 'team-1',
-            name: 'PropertyAI Team',
+            name: 'Avasetu Team',
             members: [
               {
                 id: 'member-1',

@@ -1,0 +1,12 @@
+{
+  "id": "horoscope",
+  "source": "fixture",
+  "url": "https://example.test/horoscope",
+  "title": "Horoscope today: Kharadi astrologer predicts lucky week for Leo",
+  "text": "Astrologer from Kharadi says Leo natives will have a lucky number this week. Zodiac signs Taurus and Virgo should avoid travel.",
+  "published_at": "2026-09-29T06:00:00+00:00",
+  "expect": {
+    "keep": false,
+    "reason": "horoscope"
+  }
+}

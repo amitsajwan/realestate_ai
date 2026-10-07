@@ -1,0 +1,13 @@
+{
+  "id": "corridor_no_area",
+  "source": "fixture",
+  "url": "https://example.test/corridor_no_area",
+  "title": "Purandar airport land acquisition notices issued",
+  "text": "Notices for land acquisition for the Purandar airport were issued to 1,285 landowners in seven villages near Pune. The state has offered compensation under the new policy.",
+  "published_at": "2026-09-26T06:00:00+00:00",
+  "expect": {
+    "keep": true,
+    "pillar": "infrastructure",
+    "areas": []
+  }
+}

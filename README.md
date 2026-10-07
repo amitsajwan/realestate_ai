@@ -1,4 +1,4 @@
-# 🏠 PropertyAI - AI-Powered Real Estate Platform
+# 🏠 Avasetu - AI-Powered Real Estate Platform
 
 A comprehensive, production-ready real estate platform with AI-powered content generation, social media publishing, and advanced analytics.
 
@@ -400,7 +400,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 If you've followed this guide, you should now have:
 
-✅ **A fully functional PropertyAI Platform**  
+✅ **A fully functional Avasetu Platform**  
 ✅ **Frontend and backend running**  
 ✅ **Database connected and working**  
 ✅ **Authentication system operational**  

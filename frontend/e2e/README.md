@@ -1,6 +1,6 @@
-# PropertyAI E2E Tests
+# Avasetu E2E Tests
 
-This directory contains comprehensive end-to-end tests for the PropertyAI platform using Playwright.
+This directory contains comprehensive end-to-end tests for the Avasetu platform using Playwright.
 
 ## Test Coverage
 

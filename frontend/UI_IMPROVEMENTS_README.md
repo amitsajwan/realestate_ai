@@ -1,6 +1,6 @@
 # UI Improvements Implementation
 
-This document outlines the high-priority UI improvements that have been implemented to enhance the user experience of the PropertyAI application.
+This document outlines the high-priority UI improvements that have been implemented to enhance the user experience of the Avasetu application.
 
 ## 🎯 Implemented Features
 

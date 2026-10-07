@@ -119,6 +119,13 @@ const LoginPage: React.FC = () => {
           fullUser: authState.user
         });
 
+        // Additional debugging
+        console.log('[LoginPage] Current URL before redirect:', window.location.href);
+        console.log('[LoginPage] Router object:', router);
+
+        // Wait a moment to ensure token is fully propagated to all API clients
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         // Check onboarding status and redirect accordingly
         if (authState.user?.onboarding_completed) {
           // Check if we came from an agent page and redirect back there
@@ -131,11 +138,38 @@ const LoginPage: React.FC = () => {
             window.location.href = redirectTo;
           } else {
             console.log('[LoginPage] Redirecting to dashboard...');
-            router.push('/');
+            try {
+              // Try router.push first
+              router.push('/');
+              // Add a small delay to ensure the navigation happens
+              setTimeout(() => {
+                if (window.location.pathname === '/login') {
+                  console.log('[LoginPage] Router.push failed, using window.location as fallback');
+                  window.location.href = '/';
+                }
+              }, 100);
+            } catch (error) {
+              console.error('[LoginPage] Router.push failed:', error);
+              console.log('[LoginPage] Using window.location as fallback');
+              window.location.href = '/';
+            }
           }
         } else {
           console.log('[LoginPage] Redirecting to onboarding...');
-          router.push('/onboarding');
+          try {
+            router.push('/onboarding');
+            // Add a small delay to ensure the navigation happens
+            setTimeout(() => {
+              if (window.location.pathname === '/login') {
+                console.log('[LoginPage] Router.push failed for onboarding, using window.location as fallback');
+                window.location.href = '/onboarding';
+              }
+            }, 100);
+          } catch (error) {
+            console.error('[LoginPage] Router.push failed for onboarding:', error);
+            console.log('[LoginPage] Using window.location as fallback for onboarding');
+            window.location.href = '/onboarding';
+          }
         }
       } else {
         console.log('[LoginPage] Login failed:', result.error);
@@ -160,6 +194,9 @@ const LoginPage: React.FC = () => {
       console.log('[LoginPage] Registration result:', result);
 
       if (result.success) {
+        // Wait a moment to ensure token is fully propagated to all API clients
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         // Check if user was automatically authenticated during registration
         const authState = authManager.getState();
         console.log('[LoginPage] Auth state after registration:', {

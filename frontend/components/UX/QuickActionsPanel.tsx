@@ -48,7 +48,7 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
       id: 'create-post',
       label: 'Create Post',
       icon: DocumentTextIcon,
-      section: 'posts',
+      section: 'property-marketing-hub',
       color: 'bg-green-500',
       description: 'Generate AI content for social media'
     },

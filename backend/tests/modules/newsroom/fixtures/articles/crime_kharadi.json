@@ -1,0 +1,12 @@
+{
+  "id": "crime_kharadi",
+  "source": "fixture",
+  "url": "https://example.test/crime_kharadi",
+  "title": "Man stabbed in Kharadi after argument, accused arrested",
+  "text": "A 32-year-old man was stabbed near a bar in Kharadi on Friday night. Police arrested the accused within hours. A case of attempt to murder has been registered at Chandan Nagar police station.",
+  "published_at": "2026-09-29T06:00:00+00:00",
+  "expect": {
+    "keep": false,
+    "reason": "crime"
+  }
+}

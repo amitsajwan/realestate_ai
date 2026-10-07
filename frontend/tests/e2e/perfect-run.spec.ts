@@ -12,7 +12,7 @@ test.describe('PERFECT RUN - Complete Application Verification', () => {
     await page.screenshot({ path: 'screenshots/01-home-page.png', fullPage: true });
     
     const homeTitle = await page.title();
-    expect(homeTitle).toContain('PropertyAI');
+    expect(homeTitle).toContain('Avasetu');
     console.log('✅ Home page: WORKING');
     
     // Test 2: Login Page

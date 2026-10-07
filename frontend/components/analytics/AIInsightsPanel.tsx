@@ -1,19 +1,16 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardBody as CardContent, CardHeader, CardTitle } from '@/components/UI/Card';
-import { Button } from '@/components/UI/Button';
 import { Badge } from '@/components/UI/Badge';
-import { 
-  LightBulbIcon, 
-  ArrowTrendingUpIcon, 
+import { Button } from '@/components/UI/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/UI/Card';
+import {
+  ArrowTrendingUpIcon,
   ChartBarIcon,
-  SparklesIcon,
   EyeIcon,
-  HeartIcon,
-  ShareIcon,
-  ChatBubbleLeftIcon
+  LightBulbIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
+import { useEffect, useState } from 'react';
 
 interface AIInsight {
   id: string;
@@ -185,8 +182,8 @@ export default function AIInsightsPanel({ performanceData, userId }: AIInsightsP
     }
   };
 
-  const filteredInsights = selectedCategory === 'all' 
-    ? insights 
+  const filteredInsights = selectedCategory === 'all'
+    ? insights
     : insights.filter(insight => insight.category === selectedCategory);
 
   const categories = [

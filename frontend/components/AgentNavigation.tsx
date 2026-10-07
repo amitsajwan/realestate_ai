@@ -11,6 +11,7 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { BRAND_NAME } from '@/lib/brand'
 
 interface AgentNavigationProps {
   agent: {
@@ -62,7 +63,7 @@ export default function AgentNavigation({ agent }: AgentNavigationProps) {
               <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center group-hover:bg-slate-700 transition-colors">
                 <HomeIcon className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-slate-900">PropertyAI</span>
+              <span className="text-xl font-bold text-slate-900">{BRAND_NAME}</span>
             </Link>
             <span className="hidden md:block text-gray-400">|</span>
             <div className="hidden md:block">
