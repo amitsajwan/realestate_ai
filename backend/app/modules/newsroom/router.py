@@ -89,6 +89,47 @@ async def queue(limit: int = 50, user: User = Depends(owner_only), store: Store 
     return out
 
 
+# The owner's lists besides the queue. 'scheduled' includes approved items: they wait for their time (or the next run) to go out.
+LISTS = {"scheduled": ("approved", "scheduled"), "published": ("published",), "rejected": ("rejected",)}
+DEFAULT_REJECT_NOTE = "rejected by owner"
+
+
+def _iso(d) -> Optional[str]:
+    return _utc(d).isoformat() if isinstance(d, datetime) else (str(d) if d else None)
+
+
+def _last_note(doc: dict, status: str) -> Optional[str]:
+    for h in reversed(doc.get("history") or []):
+        if h.get("status") == status:
+            return h.get("note") or None
+    return None
+
+
+def _listed(doc: dict, now: datetime) -> dict:
+    """One row of a list: what it is, where it went (each channel's permalink and our public news page), when, and why not."""
+    from . import public
+    base = _view(doc, now)
+    pub = doc.get("publish") or {}
+    status = doc.get("status")
+    reason = _last_note(doc, "rejected") if status == "rejected" else None
+    return {"id": base["id"], "title": base["title"], "pillar": base["pillar"], "areas": base["areas"], "age_days": base["age_days"],
+            "check": doc.get("check"), "status": status,
+            "scheduled_for": _iso(pub.get("scheduled_for")), "published_at": _iso(doc.get("published_at")),
+            "updated_at": _iso(doc.get("updated_at")),
+            "permalinks": {p["channel"]: p["url"] for p in public._permalinks(doc)},
+            "news_url": f"{brand.site()}/news/{public.slug(doc)}" if public._is_public(doc) else None,
+            "reason": None if reason == DEFAULT_REJECT_NOTE else reason}
+
+
+@router.get("/items")
+async def list_items(status: str, limit: int = 50, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> List[dict]:
+    """Scheduled (approved and waiting, or scheduled), published or rejected items, most recently changed first."""
+    if status not in LISTS:
+        raise HTTPException(422, f"status must be one of {', '.join(LISTS)}")
+    now = datetime.now(timezone.utc)
+    return [_listed(d, now) for d in await store.by_status(list(LISTS[status]), max(1, min(limit, 200)))]
+
+
 class PreviewBody(BaseModel):
     text: Optional[str] = None
 
@@ -147,7 +188,7 @@ async def approve(id: str, body: ApproveBody, user: User = Depends(owner_only), 
 async def reject(id: str, body: Optional[RejectBody] = None, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> dict:
     await _pending(store, id)
     reason = ((body.reason if body else None) or "").strip()[:300]
-    await store.move(id, "rejected", reason or "rejected by owner",
+    await store.move(id, "rejected", reason or DEFAULT_REJECT_NOTE,
                      review={"by": str(user.id), "at": datetime.now(timezone.utc), "edits": False})
     return {"id": id, "status": "rejected"}
 

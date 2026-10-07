@@ -66,6 +66,10 @@ class Store:
     async def queue(self, limit: int = 50) -> List[dict]:
         return await self.items.find({"status": "pending_review"}).sort("updated_at", -1).limit(limit).to_list(limit)
 
+    async def by_status(self, statuses: List[str], limit: int = 50) -> List[dict]:
+        """Items in any of `statuses`, most recently changed first (the owner's Scheduled, Published and Rejected lists)."""
+        return await self.items.find({"status": {"$in": list(statuses)}}).sort("updated_at", -1).limit(limit).to_list(limit)
+
     async def insert_item(self, doc: dict) -> bool:
         """Insert a ready-made item (the weekly digest); False when that id already exists."""
         if await self.items.find_one({"_id": doc["_id"]}):
