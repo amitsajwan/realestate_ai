@@ -105,7 +105,7 @@ export function ContentCard({ group, open = false, onToggle, onApprove, onSkip, 
         <Thumb item={first} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[15px] font-semibold text-gray-900" data-testid="row-title">{title(first)}</span>
-          <span className="mt-1 items-center gap-1.5 text-xs text-gray-600 tabular-nums [display:flex]">
+          <span className="mt-1 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-gray-600 tabular-nums [display:flex]">
             {group.items.map((i) => <ChannelIcon key={i.id} channel={i.channel} />)}
             {showType && <TypeTag>{typeTag(first.group)}</TypeTag>}
             <span className="whitespace-nowrap">{kindLabel(first.kind)}</span>

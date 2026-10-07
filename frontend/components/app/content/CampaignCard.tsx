@@ -57,7 +57,7 @@ export function CampaignCard({ title, groups, open = false, onToggle, onApprove,
         )}
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[15px] font-semibold text-gray-900" data-testid="row-title">{title} · {plural(groups.length, 'post')}</span>
-          <span className="mt-1 flex-wrap items-center gap-1.5 text-xs text-gray-600 [display:flex]">
+          <span className="mt-1 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-gray-600 [display:flex]">
             <TypeTag>Listing</TypeTag>
             <span className="whitespace-nowrap">Campaign</span>
             {plannedPosts > 0 ? <StatusPill tone="action">{plannedPosts} need your OK</StatusPill>
