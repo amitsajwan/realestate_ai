@@ -30,6 +30,8 @@ MAX_TEXT = 500
 MAX_REPLIES_PER_HOUR = 30
 STOP_RX = re.compile(r"^\W*(stop|stop all|unsubscribe|opt ?out|cancel|end|quit|band karo|बंद करो|बंद|थांबवा)\W*$", re.I)
 START_RX = re.compile(r"^\W*(start|unstop|resume|subscribe)\W*$", re.I)
+# An agent claiming the free trial ("TRIAL", "free trial", "claim my free trial", ट्रायल): answered with his sign-up code, never as a buyer
+TRIAL_RX = re.compile(r"^\W*(?:i\s+want\s+(?:a|the|my)?\s*|claim\s+(?:my\s+|your\s+|the\s+|a\s+)?)?(?:free\s+)?trial\b[\w\s.!]{0,40}$|^\W*(?:फ्री\s+)?ट्रायल", re.I)
 MEDIA_TYPES = ("image", "audio", "video", "document", "sticker", "voice")
 
 
@@ -165,6 +167,9 @@ class WhatsAppService:
             return await self._finish(conv, mid, None, "opted_out", now, text, mtype)
 
         await self._mark_read(pid, mid)
+        if text and TRIAL_RX.match(text) and adapters.trial_claims_on():
+            conv["trial_claimed_at"] = now   # an agent, not a buyer: no lead, no buyer notice
+            return await self._finish(conv, mid, await adapters.claim_trial(self.db, "+" + wa_id, lang, now), "trial", now, text, mtype)
         agent_id = conv.get("agent_id")
         if mtype == "location":
             reply = L.pick(L.LOCATION, lang)

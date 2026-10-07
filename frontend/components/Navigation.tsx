@@ -65,7 +65,7 @@ export default function Navigation() {
   // Agent websites, /join and /studio are their own branded surfaces: no platform navigation around them.
   // The public front door (landing, invite request, legal pages) is standalone too.
   if (pathname?.startsWith('/agent/') || pathname?.startsWith('/join') || pathname?.startsWith('/studio')) return null;
-  if (pathname === '/' || ['/for-agents', '/localities', '/insights', '/request-invite', '/privacy', '/terms', '/data-deletion', '/i/', '/go', '/posts', '/news', '/projects', '/2-bhk', '/3-bhk', '/price/'].some((p) => pathname?.startsWith(p))) return null;
+  if (pathname === '/' || ['/for-agents', '/localities', '/insights', '/request-invite', '/trial', '/privacy', '/terms', '/data-deletion', '/i/', '/go', '/posts', '/news', '/projects', '/2-bhk', '/3-bhk', '/price/'].some((p) => pathname?.startsWith(p))) return null;
 
   return (
     <nav className="bg-white dark:bg-gray-900 shadow-lg border-b border-gray-200 dark:border-gray-700" ref={navRef}>

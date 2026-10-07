@@ -405,21 +405,21 @@ ENTRIES: List[Entry] = [
 
     # ---------------------------------------------------------------- agent pitch
     _e("agent-consistent-posting", "agent", "FOR PUNE AGENTS", "Posting regularly is hard when you are busy showing flats",
-       ["Post a property from your phone", "Ready-made posts for Facebook, Instagram and WhatsApp", "Your own website is ready", "Free, invite-only pilot"],
+       ["Post a property from your phone", "Ready-made posts for Facebook, Instagram and WhatsApp", "Your own website is ready", "Free trial: your first 3 properties"],
        "\U0001F91D Property agent in Pune? Posting regularly is hard when you are busy showing flats \U0001F447\n\n"
        "✅ Post a property from your phone\n✅ Get ready-made posts for Facebook, Instagram and WhatsApp\n✅ Your own website is ready\n\n"
-       "The pilot is free and invite-only. \U0001F4E4 Know an agent who would like this? Share this post.",
+       "Claim your free trial: your first 3 properties marketed free. \U0001F4E4 Know an agent who would like this? Share this post.",
        (B, "#RealEstateAgent", "#PuneAgents", "#PuneRealEstate"),
-       "Claims mirror the published brand posts (agents, agents-problem). No pricing or result claims. Pilot is free and invite-only per existing brand copy.",
-       link="/request-invite"),
+       "Claims mirror the published brand posts (agents, agents-problem). No pricing or result claims. Free trial (first 3 properties free, no card) per brand copy of 2026-10-07.",
+       link="/trial"),
     _e("agent-buyer-summary", "agent", "FOR PUNE AGENTS", "Which enquiry is serious? A summary for each buyer",
-       ["Comments like INTERESTED are answered for you", "Each buyer summarised: budget, BHK, timing", "How warm they are, at a glance", "Free, invite-only pilot"],
+       ["Comments like INTERESTED are answered for you", "Each buyer summarised: budget, BHK, timing", "How warm they are, at a glance", "Free trial: your first 3 properties"],
        "\U0001F4CA When enquiries arrive as comments and messages, it is hard to tell which buyer is serious \U0001F447\n\n"
        "✅ Comments like INTERESTED are answered for you\n✅ Each buyer summarised: budget, BHK and timing\n✅ How warm they are, at a glance\n\n"
-       "Free, invite-only pilot. \U0001F4AC Agents: what is your biggest enquiry headache?",
+       "Claim your free trial: your first 3 properties free. \U0001F4AC Agents: what is your biggest enquiry headache?",
        (B, "#RealEstateAgent", "#PuneAgents", "#PuneRealEstate"),
        "Claims mirror published brand post agents-problem. No result claims.",
-       link="/request-invite"),
+       link="/trial"),
     _e("agent-hindi", "agent", "पुणे के एजेंट्स के लिए", "एक प्रॉपर्टी दीजिए, पूरा मार्केटिंग कैंपेन पाइए",
        ["मोबाइल से प्रॉपर्टी डालें, वेबसाइट अपने-आप तैयार", "फेसबुक, इंस्टाग्राम और व्हाट्सऐप के लिए तैयार पोस्ट", "कमेंट में INTERESTED लिखने वालों को जवाब",
         "हर खरीदार का सार: बजट, BHK, समय, कितना गंभीर"],
@@ -429,7 +429,7 @@ ENTRIES: List[Entry] = [
        "पायलट मुफ़्त है और सिर्फ़ इन्विटेशन से। किसी एजेंट दोस्त को यह पोस्ट शेयर करें।",
        (B, "#PuneAgents", "#RealEstateAgent", "#PuneRealEstate"),
        "Hindi text adapted from the already-published brand post agents-hindi; have a Hindi reader approve before seeding. Card is the pre-rendered Chrome card (Pillow cannot shape Devanagari).",
-       link="/request-invite", cta_ig="इन्विटेशन के लिए बायो में दिया लिंक (link in our bio) देखें।", card_from="agents-hindi"),
+       link="/trial", cta_ig="इन्विटेशन के लिए बायो में दिया लिंक (link in our bio) देखें।", card_from="agents-hindi"),
     _e("agent-marathi", "agent", "पुण्यातील एजंट्ससाठी", "एक प्रॉपर्टी द्या, पूर्ण मार्केटिंग कॅम्पेन मिळवा",
        ["मोबाईलवरून प्रॉपर्टी टाका, वेबसाइट आपोआप तयार", "फेसबुक, इंस्टाग्राम आणि व्हॉट्सअ‍ॅपसाठी तयार पोस्ट", "कमेंटमध्ये INTERESTED लिहिणाऱ्यांना उत्तर",
         "प्रत्येक खरेदीदाराचा सारांश: बजेट, BHK, वेळ, किती गंभीर"],
@@ -439,7 +439,7 @@ ENTRIES: List[Entry] = [
        "पायलट मोफत आहे आणि फक्त आमंत्रणाने. एखाद्या एजंट मित्राला हे पोस्ट शेअर करा.",
        (B, "#PuneAgents", "#RealEstateAgent", "#PuneRealEstate"),
        "Marathi text adapted from the already-published brand post agents-marathi; have a Marathi reader approve before seeding. Card is the pre-rendered Chrome card.",
-       link="/request-invite", cta_ig="आमंत्रणासाठी बायोमधील लिंक (link in our bio) पाहा.", card_from="agents-marathi"),
+       link="/trial", cta_ig="आमंत्रणासाठी बायोमधील लिंक (link in our bio) पाहा.", card_from="agents-marathi"),
 ]
 
 BY_SLUG: Dict[str, Entry] = {e.slug: e for e in ENTRIES}

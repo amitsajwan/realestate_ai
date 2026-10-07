@@ -64,6 +64,6 @@ TEXT_POSTS: List[Dict] = [
             "2️⃣ Answering the same questions again and again\n"
             "3️⃣ Finding out who is serious\n"
             "4️⃣ Following up\n\n"
-            "Comment your number. We are building " + brand.NAME + " to take these off your plate. It is a free, invite-only pilot: {link}\n\n#PuneAgents " + TAGS),
+            "Comment your number. We are building " + brand.NAME + " to take these off your plate. Claim your free trial (your first 3 properties free): {link}\n\n#PuneAgents " + TAGS),
     },
 ]

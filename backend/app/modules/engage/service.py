@@ -113,7 +113,7 @@ class EngageService:
         """{facts, link, listing_id, agent_id, grounding} for a post. Listing posts use the listing's facts; calendar posts use their verified
         text (or the sample home); other posts use the post's own text. `grounding` is what a question about the post may be answered from."""
         ctx = await self._base_context(post, channel)
-        if self.interest_url is not None and ctx.get("audience") != "agents":  # agents get the pilot link, not a buyer interest link
+        if self.interest_url is not None and ctx.get("audience") != "agents":  # agents get the free-trial link, not a buyer interest link
             url = self.interest_url(ctx, channel)
             url = await url if hasattr(url, "__await__") else url
             if url:
@@ -144,8 +144,8 @@ class EngageService:
             message = "\n".join(grounding.facts)[:1400]
             landing = grounding.links["page"] + "#enquire"
         agents = bool(item) and _audience(item) == "agents"
-        if agents and self.cfg.site_url:  # our recruitment posts: agents asking "how do I use this" go to the pilot sign-up
-            landing = f"{self.cfg.site_url}/pilot"
+        if agents and self.cfg.site_url:  # our recruitment posts: agents asking "how do I use this" go to the free-trial page
+            landing = f"{self.cfg.site_url}/trial"
             code = (item.get("creative") or {}).get("reel_code")
             reel_source = _audience_of.get("reel_source")
             if code and reel_source:  # an agent reel: the sign-up is traced back to this reel (scripts/agent_reels.py report)
@@ -239,7 +239,7 @@ class EngageService:
                     await self.comments.insert_one(doc)
                     counts[doc["status"]] = counts.get(doc["status"], 0) + 1
                     if doc["intent"] in LEAD_INTENTS and doc.get("audience") != "agents" \
-                            and doc["status"] in ("replied", "needs_human", "dry_run", "capped"):  # an agent asking about the pilot is not a buyer lead
+                            and doc["status"] in ("replied", "needs_human", "dry_run", "capped"):  # an agent asking about the free trial is not a buyer lead
                         try:
                             await self._record_lead(doc, post)
                         except Exception:  # a lead problem must never stop replies

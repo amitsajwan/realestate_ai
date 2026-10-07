@@ -13,16 +13,16 @@ describe('landing page', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/get more enquiries\.\s*know who to call first\./i)
     const hero = screen.getByRole('heading', { level: 1 }).closest('section')!
-    expect(within(hero).getByRole('link', { name: /join the free pilot/i })).toHaveAttribute('href', '#invite')
-    expect(within(screen.getByTestId('sticky-join')).getByRole('link', { name: /join the free pilot/i, hidden: true })).toHaveAttribute('href', '#invite')
-    expect(screen.getByTestId('header-cta')).toHaveAttribute('href', '/request-invite')
+    expect(within(hero).getByRole('link', { name: /claim your free trial/i })).toHaveAttribute('href', '/trial')
+    expect(within(screen.getByTestId('sticky-join')).getByRole('link', { name: /claim your free trial/i, hidden: true })).toHaveAttribute('href', '/trial')
+    expect(screen.getByTestId('header-cta')).toHaveAttribute('href', '/trial')
     expect(document.getElementById('invite')).not.toBeNull()
   })
 
   it('links to sign in and the legal pages', () => {
     render(<LandingPage />)
     expect(screen.getAllByRole('link', { name: /sign in/i })[0]).toHaveAttribute('href', '/studio') // header: studio sends a signed-out agent to /join
-    expect(screen.getByRole('link', { name: /already invited\? sign in/i })).toHaveAttribute('href', '/join')
+    expect(screen.getByRole('link', { name: /already have your code\? sign in/i })).toHaveAttribute('href', '/join')
     const footer = screen.getByRole('contentinfo')
     expect(within(footer).getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy')
     expect(within(footer).getByRole('link', { name: 'Terms' })).toHaveAttribute('href', '/terms')
@@ -35,7 +35,7 @@ describe('landing page', () => {
     for (const banned of [/testimonial/i, /rated/i, /\d+\s*\+?\s*(agents|customers|users|properties)/i, /trusted by/i, /five.star|5.star/i, /\[(confirm|pilot agent|agent name|founder|one line)/i]) {
       expect(text).not.toMatch(banned)
     }
-    expect(text).toMatch(/free during the pilot/i)
+    expect(text).toMatch(/your first 3 properties free/i)
   })
 
   it('keeps it short: no publishing box, no "what is next" lists', () => {
@@ -91,7 +91,7 @@ describe('landing page', () => {
 
   it('answers the first worry, cost, leads and RERA in the FAQ, and the form is short', () => {
     const { container } = render(<LandingPage />)
-    for (const q of [/what happens after i ask for an invite/i, /is it really free/i, /who sees my buyer leads/i, /what about rera/i, /which languages/i]) {
+    for (const q of [/how do i start/i, /is it really free/i, /who sees my buyer leads/i, /what about rera/i, /which languages/i]) {
       expect(screen.getByText(q)).toBeInTheDocument()
     }
     const form = container.querySelector('#invite form')!
@@ -123,7 +123,7 @@ describe('request invite page', () => {
   it('renders the form standalone with no duplicate header call to action', () => {
     const { container } = render(<RequestInvitePage />)
     expect(container.querySelector('[data-surface="v2"]')).not.toBeNull()
-    expect(screen.getByRole('heading', { level: 1, name: /request an invite/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: /ask us to call you/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /send request/i })).toBeInTheDocument()
     expect(container.querySelector('input[name="website"]')).not.toBeNull()
     expect(within(screen.getByRole('banner')).queryByRole('link', { name: /request an invite/i })).toBeNull()

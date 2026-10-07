@@ -45,8 +45,8 @@ ENTRIES: List[Entry] = [
           "Listings marked SAMPLE are illustrations of how a listing looks. For real availability, tell us what you are looking for and our team will confirm current options."),
     Entry("negotiation", ("negotiable", "negotiate", "discount", "reduce price", "best price", "final price"),
           "Whether a price can move depends on the seller. Our team can find out for the homes you like. Tell us your area, BHK and budget to start."),
-    Entry("agent", ("i am an agent", "list my property", "join the pilot", "become an agent", "sell my"),
-          "If you are an agent or owner in Pune, our pilot is free and invite-only. Request an invite at /request-invite."),
+    Entry("agent", ("i am an agent", "list my property", "join the pilot", "free trial", "become an agent", "sell my"),
+          "If you are an agent in Pune, claim your free trial: your first 3 properties are marketed free, no card. Start at /trial."),
     Entry("who", ("who are you", "what is avasetu", "what is pune property", "what do you do"),
           brand.NAME + " helps people understand and find homes in Pune: clear guides, honest listings and a team that answers your questions. Tell me what you are looking for and I will help."),
 ]

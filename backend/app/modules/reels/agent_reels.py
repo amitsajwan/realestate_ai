@@ -1,7 +1,7 @@
 """Agent reels: 10 to 15 second Reels that recruit Pune property agents (not buyers). One reel = one message, in five scenes:
 
   HOOK (about 2 s, no logo: the viewer's problem, "for Pune property agents" on frame one) -> PAIN -> PRODUCT (a real Avasetu
-  screen in a phone, sample data) -> RESULT -> CTA ("Comment AGENT": the comment assistant answers with the pilot link).
+  screen in a phone, sample data) -> RESULT -> CTA ("Comment AGENT": the comment assistant answers with the free-trial link).
 
 The ten scripts below are the first experiment (docs/plan/agent-reels.md): 3 pain, 3 product demo, 2 before/after, 2 result.
 They are written and reviewed by people, not by the LLM, and `check_script` keeps them to what the product really does:
@@ -31,7 +31,7 @@ GROUPS = ("pain", "demo", "before_after", "result")
 HOOK_SECONDS, PAIN_SECONDS, SCREEN_SECONDS, RESULT_SECONDS, CTA_SECONDS = 2.0, 2.4, 3.4, 2.4, 2.8
 XFADE = 0.4
 KICKER = "Pune property agents"
-PILOT_PATH = "/pilot"
+PILOT_PATH = "/trial"
 
 # Sample data on the screenshots that must not appear in a reel: boxes (x0, y0, x1, y1) in screenshot pixels, painted over with
 # the screen's own background. 19-lead-detail shows a sample buyer's phone number; reels never show a phone number.
@@ -79,7 +79,7 @@ SCRIPTS: Tuple[Script, ...] = (
            "WhatsApp pe *ek tap* mein bhejo.", "New property? See which of your buyers match it."),
     Script("D1", "result", "New agents", "Naye agent ho? *Shuruaat* yahan se.",
            "Website banwana *mehenga* lagta hai?", "12-site-home.jpg", "Aapki property *website*, aapke naam se",
-           "Pilot mein *free*.", "Just started as an agent? Get your own property website."),
+           "Pehli 3 properties *free*.", "Just started as an agent? Get your own property website."),
     Script("D2", "result", "Agents with many properties", "50+ properties? *Kisko* pehle call?",
            "Itne buyers. Itne messages. *Confusion.*", "30-home-actions.jpg", "Har subah: *aaj* kisko call karna hai",
            "Leads *sorted*, aapke liye.", "Managing 50+ properties? See who to call first, every morning."),
@@ -90,7 +90,8 @@ BY_CODE: Dict[str, Script] = {s.code: s for s in SCRIPTS}
 BANNED = re.compile(r"\b(seconds?|secs?|minutes?|instant\w*|publish\w*|auto[- ]?post\w*|24\s*/\s*7|guarantee\w*|best|no\.?\s*1|"
                     r"automatic\w*|sell faster|more leads|double)\b", re.I)
 NUMBER = re.compile(r"\d+")
-ALLOWED_NUMBERS = {"D2": {"50"}}   # "50+ properties" describes the viewer, not a result we promise
+ALLOWED_NUMBERS = {"D2": {"50"},   # "50+ properties" describes the viewer, not a result we promise
+                   "D1": {"3"}}     # the free-trial offer (onboarding/trial.py TRIAL_PROPERTIES), not a result
 MAX_HOOK_WORDS = 7
 
 
@@ -196,7 +197,7 @@ def scenes(s: Script) -> Tuple[List[Scene], Dict]:
         Scene(image=still, screen=True, layout="top", lines=[TextLine(s.screen_line, size=74, max_lines=2)],
               kicker="After: with Avasetu" if before_after else "With Avasetu", seconds=SCREEN_SECONDS, seed=f"agent-{s.code}-screen"),
         Scene(image=blurred, lines=[TextLine(s.result, size=112, max_lines=3)], seconds=RESULT_SECONDS, seed=f"agent-{s.code}-result"),
-        Scene(lines=[TextLine(f"*{CTA_WORD}* comment karein", size=112), TextLine("Pune agents ke liye free pilot", size=58)],
+        Scene(lines=[TextLine(f"*{CTA_WORD}* comment karein", size=112), TextLine("Free trial: pehli 3 properties free", size=58)],
               seconds=CTA_SECONDS, seed=f"agent-{s.code}-cta"),
     ]
     return out, {"transition": "fade", "xfade": XFADE, "hook_tag": False}
@@ -217,14 +218,14 @@ def pilot_link(code: str, channel: str) -> str:
 
 
 def caption(code: str, channel: str) -> str:
-    """The caption: the one message, what the pilot is, the comment keyword; Facebook also gets the tagged pilot link.
+    """The caption: the one message, the free-trial offer, the comment keyword; Facebook also gets the tagged trial link.
     Hashtags are added at publish time by calendar.reach (agent tags)."""
     s = BY_CODE[code]
     lines = [s.caption,
              "Avasetu is for Pune property agents: your listings, posts and leads in one place. Screens show sample data.",
-             f"Comment {CTA_WORD} and we will send you the free pilot link."]
+             f"Comment {CTA_WORD} and we will send you the link to claim your free trial (your first 3 properties free)."]
     if channel != "instagram":
-        lines.append(f"Or join here: {pilot_link(code, channel)}")
+        lines.append(f"Or claim it here: {pilot_link(code, channel)}")
     return "\n\n".join(lines)
 
 

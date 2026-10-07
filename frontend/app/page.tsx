@@ -51,7 +51,7 @@ export default function LandingPage() {
             </h1>
             <p className="mt-5 max-w-[52ch] text-lg leading-8 text-slate-100 sm:text-xl">{H.lead}</p>
             <div id="hero-ctas" className="mt-7 flex flex-wrap gap-3">
-              <a href="#invite" className={goldBtn + ' w-full sm:w-auto'}>{H.cta}</a>
+              <a href="/trial" className={goldBtn + ' w-full sm:w-auto'}>{H.cta}</a>
               {cfg.whatsappUrl ? (
                 <a href={cfg.whatsappUrl} target="_blank" rel="noopener noreferrer" className={outlineOnNavy + ' w-full sm:w-auto'}>
                   {H.whatsapp}<span className="sr-only"> (opens in a new tab)</span>
@@ -219,7 +219,7 @@ export default function LandingPage() {
       </section>
       <NewsSection />
 
-      <StickyJoinBar watchId="hero-ctas" formId="invite" label={L.sticky.cta} whatsappUrl={cfg.whatsappUrl} whatsappLabel={L.sticky.whatsapp} />
+      <StickyJoinBar watchId="hero-ctas" formId="invite" href="/trial" label={L.sticky.cta} whatsappUrl={cfg.whatsappUrl} whatsappLabel={L.sticky.whatsapp} />
     </MarketingShell>
   )
 }

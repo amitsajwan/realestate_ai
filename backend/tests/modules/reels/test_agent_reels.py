@@ -74,9 +74,9 @@ def test_the_sample_phone_number_on_the_lead_screen_is_covered():
     assert box.getextrema()[1] - box.getextrema()[0] <= 2   # one flat colour: no digits left
 
 
-def test_captions_carry_the_keyword_and_on_facebook_the_tagged_pilot_link():
+def test_captions_carry_the_keyword_and_on_facebook_the_tagged_trial_link():
     fb, ig = ar.caption("B2", "facebook_page"), ar.caption("B2", "instagram")
-    assert "Comment AGENT" in fb and fb.endswith("/pilot?src=reel_b2_fb") and "sample data" in fb
+    assert "Comment AGENT" in fb and fb.endswith("/trial?src=reel_b2_fb") and "free trial" in fb and "sample data" in fb
     assert "Comment AGENT" in ig and "http" not in ig
     assert not ar.BANNED.search(fb)
 
@@ -105,7 +105,7 @@ def test_agent_rows_get_the_footer_but_no_buyer_interest_line():
     doc = {"_id": "x", "slug": "agent-reel-a1", "kind": "reel", "channel": "facebook_page", "caption": ar.caption("A1", "facebook_page"),
            "creative": {"source": "agent_reels"}}
     out = asyncio.run(adapters.with_interest(FakeDb(), doc))
-    assert "Interested? One tap" not in out["caption"] and "/pilot?src=reel_a1_fb" in out["caption"]
+    assert "Interested? One tap" not in out["caption"] and "/trial?src=reel_a1_fb" in out["caption"]
 
 
 def test_funnel_traces_requests_signups_and_first_property_to_the_reel():

@@ -18,7 +18,7 @@ export const PATHS = {
 
 export const NAV = {
   signIn: 'Sign in',
-  requestInvite: 'Request an invite',
+  requestInvite: 'Claim your free trial',
   primaryLabel: 'Main',
   footerLabel: 'Legal and help',
   legal: [
@@ -29,7 +29,7 @@ export const NAV = {
 }
 
 export const FOOTER = {
-  tagline: TAGLINE + '. A free pilot for real estate agents in Pune.',
+  tagline: TAGLINE + '. Free trial for real estate agents in Pune: your first 3 properties free.',
   contactUnset: 'Contact details are shared when you request an invite.',
   contactHeading: 'Contact',
 }
@@ -66,21 +66,21 @@ export const SHOTS = {
 export const SAMPLE_NOTE = 'Screens show sample data.'
 
 export const LANDING = {
-  metaTitle: `${BRAND_NAME}: ${TAGLINE} | Free pilot for real estate agents in Pune`,
+  metaTitle: `${BRAND_NAME}: ${TAGLINE} | Free trial for real estate agents in Pune`,
   metaDescription:
-    'Free pilot for Pune real estate agents: your own website, posts and reels made for you, MahaRERA-checked projects, and every enquiry as a lead card.',
-  metaOrgDescription: 'A free, invite-only pilot that helps real estate agents in Pune get buyer enquiries and follow them up.',
+    'Free trial for Pune real estate agents: your first 3 properties marketed free. Your own website, posts and reels made for you, MahaRERA-checked projects, and every enquiry as a lead card.',
+  metaOrgDescription: 'Helps real estate agents in Pune market their properties, get buyer enquiries and follow them up. Free trial: the first 3 properties.',
   hero: {
     eyebrow: 'For real estate agents in Pune',
-    pilot: 'Free pilot',
+    pilot: 'Free trial',
     titleLines: ['Get more enquiries.', 'Know who to call first.'],
     lead:
       'Your website, posts and reels, made for you. Every enquiry becomes a lead card.',
-    cta: 'Join the free pilot',
+    cta: 'Claim your free trial',
     whatsapp: 'Ask us on WhatsApp',
     secondary: 'See an example agent page',
-    facts: 'Free during the pilot · No app · English, हिंदी, मराठी',
-    signInLead: 'Already invited?',
+    facts: 'First 3 properties free · No card · No app · English, हिंदी, मराठी',
+    signInLead: 'Already have your code?',
     signIn: 'Sign in',
   },
   problem: {
@@ -134,20 +134,20 @@ export const LANDING = {
   },
   cost: {
     id: 'cost',
-    title: 'Free during the pilot.',
-    body: 'After it, a small monthly fee. You see the price first, then decide.',
+    title: 'Your first 3 properties free.',
+    body: 'No card. After that, a small monthly fee. You see the price first, then decide.',
   },
   faq: {
     id: 'faq',
     heading: 'Questions',
     items: [
       {
-        q: 'What happens after I ask for an invite?',
-        a: 'We call you back. Then we set up your website and pages with you.',
+        q: 'How do I start?',
+        a: 'Tap Claim your free trial and send TRIAL to us on WhatsApp. Your sign-up code comes back at once; sign in and add your first property.',
       },
       {
         q: 'Is it really free?',
-        a: 'Yes, during the pilot. After it, a small monthly fee. You see the price first.',
+        a: 'Your first 3 properties are free, no card. After that, a small monthly fee. You see the price first.',
       },
       {
         q: 'Do you post on my own Facebook and Instagram?',
@@ -179,24 +179,24 @@ export const LANDING = {
     whatsapp: 'Or message us on WhatsApp',
     fullForm: 'Add your city or a note',
   },
-  sticky: { cta: 'Join the free pilot', whatsapp: 'WhatsApp us' },
+  sticky: { cta: 'Claim your free trial', whatsapp: 'WhatsApp us' },
 }
 
 // ---------------------------------------------------------------------------------------------------------
 // Request invite
 // ---------------------------------------------------------------------------------------------------------
 export const INVITE = {
-  metaTitle: 'Request an invite | Pilot for real estate agents in Pune',
-  metaDescription: 'Ask for a place in the free, invite-only pilot for real estate agents in Pune.',
-  title: 'Request an invite',
-  lead: 'The pilot is free and invite-only, for real estate agents in Pune. Tell us who you are and we will get in touch.',
+  metaTitle: 'Ask us to call you | Free trial for real estate agents in Pune',
+  metaDescription: 'Leave your number and we call you back about your free trial: your first 3 properties marketed free.',
+  title: 'Ask us to call you',
+  lead: 'Free trial for real estate agents in Pune: your first 3 properties marketed free. Quickest start: send TRIAL to us on WhatsApp. Or tell us who you are and we will call you.',
   labels: {
     name: 'Your name',
     phone: 'Mobile number',
     city: 'City',
     message: 'Anything you would like us to know',
     optional: '(optional)',
-    consent: 'OK to contact me about the pilot',
+    consent: 'OK to contact me about my free trial',
     submit: 'Send request',
     sending: 'Sending...',
   },
@@ -206,14 +206,14 @@ export const INVITE = {
     phone: 'Enter a valid 10-digit Indian mobile number (starts with 6, 7, 8 or 9).',
     city: 'Please enter your city.',
     message: 'Please keep your note under 500 characters.',
-    consent: 'Please tick the box so we can contact you about the pilot.',
+    consent: 'Please tick the box so we can contact you about your free trial.',
     invalid: 'Some details were not accepted. Please check them and try again.',
     tooMany: 'Too many requests from this number or connection. Please wait an hour and try again.',
     network: 'We could not send your request. Please check your connection and try again.',
   },
   success: {
     title: (first: string) => (first ? 'Thank you, ' + first + '.' : 'Thank you.'),
-    body: (phone: string) => 'We have your request and will contact you on ' + phone + ' about the pilot.',
+    body: (phone: string) => 'We have your request and will contact you on ' + phone + ' about your free trial.',
     back: 'Back to the home page',
   },
   privacyNote: 'We use your details only to reply to your request.',

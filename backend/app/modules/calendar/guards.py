@@ -26,7 +26,7 @@ def site_paths(frontend: Optional[Path] = None) -> Optional[Set[str]]:
     root = frontend or FRONTEND
     if not (root / "lib" / "marketing" / "insights.ts").is_file():
         return None
-    paths = {"/", "/localities", "/insights", "/request-invite"}
+    paths = {"/", "/localities", "/insights", "/request-invite", "/trial"}
     ins = root / "lib" / "marketing" / "insights.ts"
     loc = root / "lib" / "marketing" / "localities.ts"
     if ins.is_file():

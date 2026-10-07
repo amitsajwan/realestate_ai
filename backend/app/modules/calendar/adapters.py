@@ -271,7 +271,7 @@ class ReelSpec:
 
 PITCH_CAPTION_BODY = ("\U0001F91D Property agent in Pune?\n\nBuyers message all day, and the same questions come back every time.\n\n"
                       "✅ Post a property from your phone\n✅ Ready-made posts for Facebook, Instagram and WhatsApp\n✅ Your own website is ready\n\n"
-                      "The pilot is free and invite-only. \U0001F4E4 Know an agent who would like this? Share this reel.")
+                      "Claim your free trial: your first 3 properties marketed free. \U0001F4E4 Know an agent who would like this? Share this reel.")
 
 
 def reel_caption(spec: ReelSpec, channel: str, entry: Optional[Entry] = None) -> str:
@@ -303,7 +303,7 @@ def reel_scenes(spec: ReelSpec, entry: Optional[Entry] = None):
         return t.listing_tour(photos, facts, sample=True)
     return t.agent_pitch(problem="Buyers message you all day. *Same* questions. Every time.",
                          solution="Post a property from your phone. Your own website is *ready*.",
-                         proof=("Ready-made posts for social", "Free, invite-only pilot"), cta="Request your invite.")
+                         proof=("Ready-made posts for social", "Free trial: 3 properties"), cta="Claim your free trial.")
 
 
 def render_reel(spec: ReelSpec, uploads: Path, entry: Optional[Entry] = None, composer: Optional[Callable] = None) -> str:
@@ -469,7 +469,7 @@ async def with_interest(db, doc: dict) -> dict:
         from .footer import with_footer
         channel = "instagram" if doc["channel"] == "instagram" else "facebook"
         from .reach import audience
-        if audience(doc) == "agents":  # recruitment posts carry their own pilot link and comment keyword, not a buyer interest link
+        if audience(doc) == "agents":  # recruitment posts carry their own free-trial link and comment keyword, not a buyer interest link
             return {**doc, "caption": with_footer(doc["caption"], channel)}
         agent = doc.get("agent_id") or _owner_agent()  # an agent's own post (agentprojects) sends interest to that agent
         caption = doc["caption"]
