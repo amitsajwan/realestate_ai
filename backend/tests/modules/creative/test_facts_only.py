@@ -37,7 +37,7 @@ def test_sales_claims_are_refused_in_every_language(text, why):
 
 def test_plain_facts_pass():
     for ok in ("EMI of ₹22,425 a month for this plot.", "Gulmohar City is 3 km from IndoSpace.", "Not only the price: check the NA order.",
-               "गुलमोहर सिटी IndoSpace पासून 3 km.", "Ask what the price includes."):
+               "गुलमोहर सिटी IndoSpace पासून 3 km.", "Ask what the price includes.", "Check every switch, tap and wall."):
         assert problems_in(ok, FACTS) == [], ok
 
 

@@ -92,5 +92,5 @@ def test_an_agents_cards_carry_the_listing_price_and_maharera_number():
     agent = CardBrand("House Deal", "Call / WhatsApp +91 99219 93099", phone="+91 99219 93099")
     for _, brief in campaign.plan(gulmohar(), card_brand=agent, language="mr"):
         assert brief.card_brand.price == "₹32.3 lakh" and brief.card_brand.rera == "P52100076768"
-        assert brief.link_line.endswith("बायोमधील लिंक.")
+        assert brief.link_line.endswith("बायोमधील लिंक.") and "Gulmohar City, रांजणगाव" in brief.link_line
     assert all(b.card_brand is None for _, b in campaign.plan(gulmohar()))

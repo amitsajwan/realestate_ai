@@ -45,7 +45,9 @@ PROMISE = re.compile(r"\byour (?:new|future|own|forever|perfect) home\b|\bhome o
                      + _dev("तुमचे नवीन घर", "तुमचं नवीन घर", "तुमचे स्वतःचे घर", "तुमचं स्वतःचं घर", "स्वप्नातील", "स्वप्नातलं",
                             "आपका नया घर", "आपका अपना घर", "सपनों का", "तुमचे हक्काचे", "तुमचं हक्काचं"), re.I)
 # Nothing on an Instagram card or caption can be tapped or clicked.
-TAP = re.compile(r"\b(?:tap|taps|tapping|click|clicking)\b|" + _dev("टॅप", "टैप", "क्लिक"), re.I)
+# (An instruction to tap, not a water tap: "check every tap and switch" is a fine possession tip.)
+TAP = re.compile(r"\b(?:double[- ])?(?:tap|click)(?:ing)?\s+(?:to|the link|here|on|below|this|that|link|now)\b|"
+                 r"\b(?:double[- ]tap|click here|tap here)\b|" + _dev("टॅप कर", "टैप कर", "क्लिक कर"), re.I)
 # "only", "just": a minimiser that sells ("only 3 km", "just ₹32 lakh"). "not only" and "if only" are ordinary English.
 MINIMISER = re.compile(r"(?<!\bnot )(?<!\bif )\b(?:only|just|merely)\b|" + _dev("फक्त", "केवळ", "केवल", "सिर्फ़", "सिर्फ"), re.I)
 # Real listings are real: never "sample".

@@ -8,7 +8,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-from app.modules.creative import pipeline
+from app.modules.creative import i18n, pipeline
 from app.modules.creative.hooks import PATTERNS
 from app.modules.creative.listing_brief import price_label
 from app.modules.creative.models import Brief, CardBrand, CreativePack, Voice
@@ -73,6 +73,8 @@ ASKS: Dict[str, Dict[str, str]] = {
 
 def link_line_for(where: str, language: str = "en") -> str:
     """Instagram's pointer to the listing page (Facebook swaps it for the link itself: schedule.facebook_caption)."""
+    if language in ("mr", "hi"):  # a place name as the language spells it (Ranjangaon -> रांजणगाव); project names stay
+        where = ", ".join(i18n.PLACES.get(p.strip(), {}).get(language, p.strip()) for p in where.split(","))
     return LINK_LINE.get(language, LINK_LINE["en"]).format(where=where)
 
 

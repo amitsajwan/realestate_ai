@@ -396,6 +396,11 @@ class Canvas:
         except Exception:
             self.circle((x + d // 2, y + d // 2), d // 2, self.pal.accent_fill)
             self.shapes.append((x, y, x + d, y + d))
+            initials = "".join(w[0] for w in (agent.name if agent else "").split()[:2] if w[:1].isalnum()).upper()
+            if initials:  # an agent without a logo: their initials in the disc
+                fs = int(d * 0.4)
+                font = load_font(fs, "bold")
+                self.d.text((x + d / 2, y + d / 2), initials, font=font, fill=self.pal.accent_ink, anchor="mm")
             return
         if agent:  # an agent's logo is usually a square photo: draw it in a circle
             mask = Image.new("L", (d * AA, d * AA), 0)
@@ -452,7 +457,7 @@ class Canvas:
         self.text(label, tx, ly + 10, lw + 4, 26, "semibold", pal.card_muted, 1, role="brand", balance=False, bg_hint=panel)
         self.text(b.phone, tx + lw + 16, ly, x1 - pad - (tx + lw + 16), 40, "bold", pal.accent, 1, role="brand", balance=False,
                   bg_hint=panel, min_size=28)
-        facts = [f"{ui('price')} {b.price}" if b.price else "", f"{ui('maharera')} {b.rera}" if b.rera else ""]
+        facts = [f"{ui('price')} {i18n.money(b.price, language())}" if b.price else "", f"{ui('maharera')} {b.rera}" if b.rera else ""]
         info = "  ·  ".join(f for f in facts if f)
         if info:
             self.text(info, x0 + pad, y1 - pad - int(26 * (cap() + DESC)) + 2, x1 - x0 - 2 * pad, 26, "semibold", pal.card_ink, 1,
@@ -466,32 +471,36 @@ class Canvas:
         w = self.right - self.left
         if kicker:
             self.chip(kicker, self.left, self.top, icon="home")
-        y = self.top + 120
-        d = 132
-        self.logo(self.left, y, d)
-        self.text(b.name, self.left + d + 32, y + (d - int(58 * cap())) // 2 - 4, w - d - 32, 58, "bold", pal.ink, 2, pitch=1.08,
-                  role="hook", balance=False, min_size=40)
-        y += d + 56
         panel = pal.card if not pal.light else (255, 255, 255)
-        rows = [(ui("call"), b.phone, 64)]
+        rows = [(ui("call"), b.phone, 84)]
         if b.price:
-            rows.append((ui("price"), b.price, 56))
+            rows.append((ui("price"), i18n.money(b.price, language()), 68))
         if b.rera:
-            rows.append((ui("maharera"), b.rera, 48))
-        row_h = [34 + 18 + int(size * (cap() + DESC)) for _, _, size in rows]
-        ph = 44 + sum(row_h) + 34 * (len(rows) - 1) + 40
+            rows.append((ui("maharera"), b.rera, 56))
+        lab = 32
+        row_h = [int(lab * (cap() + DESC)) + 16 + int(size * (cap() + DESC)) for _, _, size in rows]
+        gap = 40
+        ph = 48 + sum(row_h) + gap * (len(rows) - 1) + 44
+        d = 132
+        total = d + 60 + ph + (40 + 44 if save else 0)
+        top, bottom = self.top + 100, self.bottom - 90          # under the chip, above the progress dots
+        y = top + max(0, (bottom - top - total) // 2)
+        self.logo(self.left, y, d)
+        self.text(b.name, self.left + d + 32, y + (d - int(60 * cap())) // 2 - 4, w - d - 32, 60, "bold", pal.ink, 2, pitch=1.08,
+                  role="hook", balance=False, min_size=40)
+        y += d + 60
         self.rrect((self.left, y, self.right, y + ph), 36, panel, outline=pal.accent_fill, width=4, shadow=True)
-        ry = y + 44
+        ry = y + 48
         for (label, value, size), h in zip(rows, row_h):
-            self.text(label, self.left + 44, ry, w - 88, 30, "semibold", pal.card_muted, 1, role="label", balance=False, bg_hint=panel)
-            self.text(value, self.left + 44, ry + 30 + 22, w - 88, size, "bold", pal.accent if label == rows[0][0] else pal.card_ink, 1,
-                      role="label", balance=False, bg_hint=panel, min_size=32)
-            ry += h + 34
+            self.text(label, self.left + 48, ry, w - 96, lab, "semibold", pal.card_muted, 1, role="label", balance=False, bg_hint=panel)
+            self.text(value, self.left + 48, ry + int(lab * (cap() + DESC)) + 16, w - 96, size, "bold",
+                      pal.accent if label == rows[0][0] else pal.card_ink, 1, role="label", balance=False, bg_hint=panel, min_size=32)
+            ry += h + gap
         if save:
-            sy = y + ph + 52
-            if sy + 40 < self.bottom - 90:
-                self.icon("bookmark", (self.left + 20, sy + 16), 40, pal.accent, 5)
-                self.text(save, self.left + 56, sy, w - 56, 36, "semibold", pal.muted, 1, role="support", balance=False)
+            sy = y + ph + 44
+            if sy + 44 <= bottom:
+                self.icon("bookmark", (self.left + 20, sy + 18), 40, pal.accent, 5)
+                self.text(save, self.left + 60, sy, w - 60, 38, "semibold", pal.muted, 1, role="support", balance=False)
 
     def chip(self, label: str, x: int, y: int, fill: Optional[RGB] = None, ink: Optional[RGB] = None, size: int = 26,
              outline: Optional[RGB] = None, icon: Optional[str] = None, align_right: bool = False) -> Box:

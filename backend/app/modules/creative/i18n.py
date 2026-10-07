@@ -45,6 +45,17 @@ def ui(key: str, lang: str = "en", **fmt) -> str:
     return text.format(**fmt) if fmt else text
 
 
+_MONEY = {"mr": {"lakh": "लाख", "crore": "कोटी"}, "hi": {"lakh": "लाख", "crore": "करोड़"}}
+
+
+def money(text: str, lang: str) -> str:
+    """'₹32.3 lakh' -> '₹32.3 लाख' on a Marathi/Hindi card (the digits stay as they are)."""
+    words = _MONEY.get(lang)
+    if not words or not text:
+        return text
+    return re.sub(r"\b(lakh|crore)s?\b", lambda m: words[m.group(1).lower()], text, flags=re.I)
+
+
 def known(text: str, lang: str) -> Optional[str]:
     """The fixed translation of a code-chosen English string, or None when `text` is not one."""
     row = KNOWN.get((text or "").strip())
