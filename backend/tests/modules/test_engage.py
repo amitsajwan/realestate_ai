@@ -478,3 +478,27 @@ async def test_a_dm_without_a_valid_mobile_leaves_the_lead_waiting():
     g.convs = [{"messages": {"data": [{"message": "call me on 12345", "from": {"id": "psid-C1"}}]}}]
     assert await svc.run_once() == {}
     assert db.get_collection("contacts").docs[0]["phone"] == ""
+
+
+# ---- a question in words no keyword knows, on a post we have facts for ------------------------------------------------
+class ScriptedLLM:
+    def __init__(self, *replies):
+        self.replies, self.calls = list(replies), 0
+
+    async def json(self, system, user):
+        self.calls += 1
+        return self.replies.pop(0) if self.replies else None
+
+
+async def test_a_question_without_a_keyword_is_answered_from_the_posts_facts_and_a_gap_is_recorded():
+    from app.modules.knowledge.grounding import listing_grounding
+    g = listing_grounding({"_id": "L1", "agent_id": "A1", "title": "2 BHK in Kharadi", "transaction": "sale", "property_type": "apartment",
+                           "price_inr": 8_500_000, "city": "Pune", "locality": "Kharadi", "bhk": 2, "carpet_sqft": 1100, "status": "live",
+                           "about": {"nearby": [{"type": "school", "name": "City School", "minutes": 8}]}})
+    llm = ScriptedLLM({"intent": "question", "language": "en"},
+                      {"answerable": True, "answer": "It is a 2 BHK with a carpet area of 1,100 sq ft, and City School is about 8 minutes away."})
+    d = await decide("Is it good for a family?", "Asha", FACTS, LINK, llm, grounding=g)
+    assert d.intent == "question" and "City School is about 8 minutes away" in d.reply and not d.needs_human
+    nothing = ScriptedLLM({"intent": "question", "language": "en"}, {"answerable": False, "answer": ""})
+    d2 = await decide("Is it good for a family?", "Asha", FACTS, LINK, nothing, grounding=g)
+    assert d2.needs_human and d2.gaps == ["other"] and LINK in d2.reply      # said plainly, with the link; the gap is recorded

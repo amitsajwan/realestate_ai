@@ -381,3 +381,20 @@ async def test_with_an_llm_the_rules_hold_and_unsafe_drafts_never_reach_the_buye
     texts = replies(tr)
     assert not any("9876543210" in t for t in texts) and count(CONSENT, texts) == 1 and count(PHONE_ASK, texts) <= 2
     assert count(ASKS["tx"], texts[2:]) == 0 and tr[5][1]["lead_created"] and any(r["cards"] for _, r in tr)
+
+
+# ---- a question about the home in words no keyword knows ------------------------------------------------------------
+async def test_a_question_with_no_keyword_on_a_listing_page_is_answered_from_that_home():
+    """'Is it good for a family?' used to skip the home's facts (no keyword) and fall to the general answers, which have nothing on it."""
+    from app.modules.knowledge.grounding import listing_grounding
+    g = listing_grounding({"_id": "L1", "agent_id": "A1", "title": "2 BHK in Kharadi", "transaction": "sale", "property_type": "apartment",
+                           "price_inr": 8_500_000, "city": "Pune", "locality": "Kharadi", "bhk": 2, "carpet_sqft": 1100, "status": "live",
+                           "about": {"nearby": [{"type": "school", "name": "City School", "minutes": 8}]}})
+    llm = FakeLLM({"answerable": True, "answer": "It is a 2 BHK with a carpet area of 1,100 sq ft, and City School is about 8 minutes away."})
+    d = engine.new_data()
+    t = await engine.turn(d, "Is it good for a family?", llm, g)
+    assert "City School is about 8 minutes away" in t.reply and not t.needs_human
+    # with nothing to go on, the gap is recorded for the agent (the answer-gap loop) and a person is asked
+    d2 = engine.new_data()
+    t2 = await engine.turn(d2, "Is it good for a family?", FakeLLM({"answerable": False, "answer": ""}), g)
+    assert t2.needs_human and d2.get("gaps") == ["other"]

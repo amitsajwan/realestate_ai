@@ -81,6 +81,7 @@ class Decision:
     reason: str = ""
     missing: Optional[str] = None                      # what the grounded reply could not answer (for the owner)
     basis: List[str] = field(default_factory=list)     # the facts the reply rests on (stored as answer_basis)
+    gaps: List[str] = field(default_factory=list)      # topics the grounded reply could not answer ('other' = no known topic)
 
 
 def detect_language(text: str) -> str:
@@ -176,7 +177,8 @@ async def grounded_decision(text: str, grounding, link: str, llm, channel: str) 
     r = await grounded_answer(text, grounding, channel, llm)
     reply = r.text.replace("{interest_url}", link)
     reason = "grounded answer" if r.confident else f"not in our facts: {r.missing}"
-    return Decision("question", REPLY_LANG.get(r.language, "en"), reply, needs_human=not r.confident, reason=reason, missing=r.missing, basis=r.basis)
+    return Decision("question", REPLY_LANG.get(r.language, "en"), reply, needs_human=not r.confident, reason=reason, missing=r.missing, basis=r.basis,
+                    gaps=list(r.gaps))
 
 
 async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm, channel: str = "facebook", handle: str = "", grounding=None,
@@ -234,6 +236,10 @@ async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm
         return Decision("praise", lang, render("praise", lang, from_name, link, channel))
     if intent == "greeting":
         return Decision("greeting", lang, render("greeting", lang, from_name, link, channel))
+    if intent == "question" and grounding is not None:
+        # a question in words no keyword knows: answered from everything we know about the post (and its gap recorded), not from the
+        # short post summary alone
+        return await grounded_decision(text, grounding, link, llm, channel)
     if intent == "question":
         draft = (raw.get("reply") or "").strip()
         if raw.get("answerable") is True and valid_reply(draft, facts, link):

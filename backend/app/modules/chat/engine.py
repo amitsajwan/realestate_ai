@@ -540,15 +540,22 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
         if not r.confident:
             d["needs_human"] = needs_human = True
             d.setdefault("missing", []).append((r.missing or "")[:100])
+            d.setdefault("gaps", []).extend(r.gaps)
     elif is_question(text) and not (d["asked"] and not kb.search(text, 1) and len(text.split()) <= 3):
         d["questions"].append(text[:200])
-        ans = await answer(text, llm)
+        # A question about this home in words no keyword knows ('good for a family?', or most Hindi and Marathi): the home's own facts
+        # are tried first (reasoned by the LLM, checked), unless our general answers already have a direct hit
+        r = await grounded_answer(text, grounding, "chat", llm) if grounding is not None and llm is not None and not kb.best(text, min_score=1) else None
+        ans = r.text if r is not None and r.confident else await answer(text, llm)
         if ans:
             parts.append(ans)
             d["value_given"] = True
         else:
             d["needs_human"] = needs_human = True
             parts.append(say("dont_guess", lang))
+            if r is not None:
+                d.setdefault("missing", []).append((r.missing or text)[:100])
+                d.setdefault("gaps", []).extend(r.gaps or ["other"])
     ack = _ack(new, d)
     if ack and not parts:
         parts.append(ack)

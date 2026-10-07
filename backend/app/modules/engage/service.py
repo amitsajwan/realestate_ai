@@ -178,7 +178,7 @@ class EngageService:
         d: Decision = await decide(c.get("message") or "", sender.get("name"), ctx["facts"], ctx["link"], self.llm, grounding=ctx.get("grounding"),
                                    audience=ctx.get("audience") or "buyers", **extra)
         doc = {**base, "audience": ctx.get("audience") or "buyers", "calendar_id": ctx.get("calendar_id"), "intent": d.intent, "language": d.language, "reply": d.reply, "needs_human": d.needs_human, "reason": d.reason, "status": "ignored",
-               "answer_basis": d.basis, "missing": d.missing}
+               "answer_basis": d.basis, "missing": d.missing, "gaps": d.gaps}
         if d.needs_human and not d.reply:
             doc["status"] = "needs_human"
         if not d.reply:
