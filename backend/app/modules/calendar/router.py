@@ -12,6 +12,7 @@ from app.platform.meta_graph.config import load as load_social
 
 from .config import load
 from . import liveness
+from .groups import campaign_id, group_of
 from .store import OPEN, Store
 
 router = APIRouter()
@@ -37,7 +38,26 @@ def _view(d: dict, rows: Optional[list] = None) -> dict:
             "creative": {k: c.get(k) for k in ("role", "path", "layout", "format", "hook", "template", "area", "ok", "problems") if k in c},
             "attempts": d.get("attempts", 0), "error": d.get("error"), "permalink": d.get("permalink"),
             "published_at": d.get("published_at"), "note": ((d.get("history") or [{}])[-1] or {}).get("note"),
-            "duplicate_of": _dup_view(d, rows)}
+            "duplicate_of": _dup_view(d, rows), "source": c.get("source") or None, "group": group_of(d), "campaign": _campaign(d)}
+
+
+def _campaign(d: dict) -> Optional[dict]:
+    cid = campaign_id(d)
+    return {"id": cid, "title": None} if cid else None
+
+
+async def _titled(views: list, store: Store) -> list:
+    """Fill each property campaign's title (the listing's project name, else its title) with one listings lookup."""
+    ids = sorted({v["campaign"]["id"] for v in views if v.get("campaign")})
+    if not ids:
+        return views
+    names = {}
+    for l in await store.db.get_collection("listings").find({"_id": {"$in": ids}}).to_list(len(ids)):
+        names[l["_id"]] = (l.get("project_name") or l.get("title") or "").strip() or None
+    for v in views:
+        if v.get("campaign"):
+            v["campaign"]["title"] = names.get(v["campaign"]["id"]) or "Property campaign"
+    return views
 
 
 def _dup_view(d: dict, rows: Optional[list]) -> Optional[dict]:
@@ -51,7 +71,7 @@ def _dup_view(d: dict, rows: Optional[list]) -> Optional[dict]:
 @router.get("/upcoming")
 async def upcoming(limit: int = 30, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> list:
     rows = await store.all()
-    return [_view(d, rows) for d in await store.upcoming(max(1, min(limit, 200)))]
+    return await _titled([_view(d, rows) for d in await store.upcoming(max(1, min(limit, 200)))], store)
 
 
 @router.get("/status")
@@ -67,7 +87,7 @@ async def status(user: User = Depends(owner_only), store: Store = Depends(get_st
 async def recent(hours: int = 72, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> list:
     """What finished lately: posted (with the link), failed (with the reason), removed. Newest first."""
     since = datetime.now(timezone.utc) - timedelta(hours=max(1, min(hours, 24 * 30)))
-    return [_view(d) for d in await store.recent(since)]
+    return await _titled([_view(d) for d in await store.recent(since)], store)
 
 
 @router.post("/items/{id}/approve")

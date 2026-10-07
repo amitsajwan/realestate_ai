@@ -99,3 +99,18 @@ async def test_upcoming_shows_kind_images_and_planned_items_and_approve_moves_th
     assert c.post(f"/calendar/items/{pid}/approve").status_code == 409
     assert c.post("/calendar/items/nope/approve").status_code == 404
     assert c.post(f"/calendar/items/{rid}/skip").json()["status"] == "skipped"
+
+
+async def test_rows_carry_group_source_and_campaign_title():
+    c, store = setup()
+    await store.db.get_collection("listings").insert_one({"_id": "L1", "project_name": "Gulmohar City", "title": "2 BHK in Wagholi"})
+    camp = await store.add("campaign-L1-price", "instagram", "Gulmohar City price", "", NOW + timedelta(days=1), status="planned",
+                           creative={"source": "campaign", "role": "listing"}, extra={"listing_id": "L1"})
+    gone = await store.add("campaign-L2-price", "instagram", "Old", "", NOW + timedelta(days=2), status="planned",
+                           creative={"source": "campaign"}, extra={"listing_id": "L2"})
+    guide = await store.add("carpet-under-rera", "facebook_page", "Carpet", "", NOW + timedelta(days=3), creative={"source": "library"})
+    rows = {r["id"]: r for r in c.get("/calendar/upcoming").json()}
+    assert rows[camp]["group"] == "listings" and rows[camp]["source"] == "campaign"
+    assert rows[camp]["campaign"] == {"id": "L1", "title": "Gulmohar City"}
+    assert rows[gone]["campaign"] == {"id": "L2", "title": "Property campaign"}
+    assert rows[guide]["group"] == "guides" and rows[guide]["source"] == "library" and rows[guide]["campaign"] is None

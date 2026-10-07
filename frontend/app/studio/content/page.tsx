@@ -1,10 +1,13 @@
 'use client'
 import React, { useState } from 'react'
+import { CampaignCard } from '@/components/app/content/CampaignCard'
 import { ContentCard } from '@/components/app/content/ContentCard'
+import { TYPE_FILTERS, TypeChips } from '@/components/app/content/TypeChips'
+import type { TypeFilter } from '@/components/app/content/TypeChips'
 import { PostedList } from '@/components/app/content/PostedList'
 import { ConfirmSheet, TabBar, UndoBar, useUndo, useUrlTab } from '@/components/app/list'
 import { ErrorBox, PageTitle, Spinner } from '@/components/app/ui'
-import { contentApi, groupItems } from '@/lib/app/content'
+import { contentApi, foldCampaigns, groupItems, ofType, typeCounts, typeLabel } from '@/lib/app/content'
 import type { ContentGroup, ContentItem, ContentStatus } from '@/lib/app/content'
 import { useAsync } from '@/lib/app/useAsync'
 
@@ -30,6 +33,9 @@ export default function ContentPage() {
   const posted = recent.filter((i) => i.status === 'published' || i.status === 'removed')
   const problems = groupItems(recent.filter((i) => i.status === 'failed'))
   const [tab, setTab] = useUrlTab('tab', waiting.length ? 'approve' : 'going', TABS)
+  const [type, setType] = useUrlTab('type', 'all', TYPE_FILTERS) as [TypeFilter, (k: string) => void]
+  const inTab = tab === 'approve' ? waiting : tab === 'going' ? going : tab === 'problems' ? problems : groupItems(posted)
+  const shown = ofType(inTab, type)
 
   if (loading && !data) return <Spinner />
   if (error && !data) return <ErrorBox message={error} onRetry={reload} />
@@ -51,22 +57,26 @@ export default function ContentPage() {
   const approveAll = async () => {
     setBulkBusy(true)
     try {
-      for (const g of waiting) for (const i of g.items.filter((x) => x.status === 'planned')) await approve(i.id)
+      for (const g of shown) for (const i of g.items.filter((x) => x.status === 'planned')) await approve(i.id)
     } finally {
       setBulkBusy(false)
       setBulk(false)
     }
   }
 
+  const toggle = (key: string) => () => setOpenKey((k) => (k === key ? null : key))
+  const actions = { onApprove: approve, onSkip: skip, onPostNow: postNow, onUnapprove: unapprove, onRetry: retry }
   const cards = (gs: ContentGroup[]) => (
     <ul className="space-y-2 p-0">
-      {gs.map((g) => (
-        <ContentCard key={g.key} group={g} open={openKey === g.key} onToggle={() => setOpenKey((k) => (k === g.key ? null : g.key))}
-          onApprove={approve} onSkip={skip} onPostNow={postNow} onUnapprove={unapprove} onRetry={retry} />
-      ))}
+      {foldCampaigns(gs).map((r) => r.type === 'campaign'
+        ? <CampaignCard key={r.key} title={r.title} groups={r.groups} open={openKey === r.key} onToggle={toggle(r.key)} {...actions} />
+        : <ContentCard key={r.key} group={r.group} open={openKey === r.key} onToggle={toggle(r.key)} {...actions} />)}
     </ul>
   )
-  const empty = (text: string) => <p className="rounded-2xl bg-white p-4 text-sm text-gray-600">{text}</p>
+  const none = (text: string) => empty(type === 'all' ? text : `No ${typeLabel(type).toLowerCase()} here.`)
+  function empty(text: string) {
+    return <p className="rounded-2xl bg-white p-4 text-sm text-gray-600">{text}</p>
+  }
 
   return (
     <div className="space-y-3 pb-24">
@@ -80,22 +90,23 @@ export default function ContentPage() {
         { key: 'posted', label: 'Posted', count: groupItems(posted).length },
       ]} />
       {error && <ErrorBox message={error} onRetry={reload} />}
+      <TypeChips counts={typeCounts(inTab)} value={type} onChange={(t) => { setType(t); setOpenKey(null) }} />
       <p className="text-xs text-gray-600">Nothing goes out until you approve it. Tap a post to see it in full.</p>
 
-      {tab === 'approve' && (waiting.length ? cards(waiting) : empty('Nothing is waiting for your OK. Approved posts are under Going out.'))}
-      {tab === 'going' && (going.length ? cards(going) : empty('Nothing approved is waiting to go out.'))}
-      {tab === 'problems' && (problems.length ? cards(problems) : empty('No problems.'))}
-      {tab === 'posted' && <PostedList items={posted} kind="posted" />}
+      {tab === 'approve' && (shown.length ? cards(shown) : none('Nothing is waiting for your OK. Approved posts are under Going out.'))}
+      {tab === 'going' && (shown.length ? cards(shown) : none('Nothing approved is waiting to go out.'))}
+      {tab === 'problems' && (shown.length ? cards(shown) : none('No problems.'))}
+      {tab === 'posted' && <PostedList items={posted.filter((i) => type === 'all' || i.group === type)} kind="posted" />}
 
-      {tab === 'approve' && waiting.length > 1 && (
+      {tab === 'approve' && shown.length > 1 && (
         <div className="fixed inset-x-0 z-40 border-t border-gray-200 bg-white/95 px-4 py-2 backdrop-blur" style={{ bottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}>
           <button type="button" onClick={() => setBulk(true)} className="mx-auto block min-h-[48px] w-full max-w-md rounded-xl bg-[#0f2340] text-base font-semibold text-white">
-            Approve all {waiting.length}
+            Approve all {shown.length}{type === 'all' ? '' : ` ${typeLabel(type).toLowerCase()}`}
           </button>
         </div>
       )}
       {bulk && (
-        <ConfirmSheet title={`Approve all ${waiting.length} posts?`} confirmLabel={`Approve ${waiting.length}`} busy={bulkBusy}
+        <ConfirmSheet title={`Approve all ${shown.length} ${type === 'all' ? 'posts' : typeLabel(type).toLowerCase()}?`} confirmLabel={`Approve ${shown.length}`} busy={bulkBusy}
           onCancel={() => setBulk(false)} onConfirm={approveAll}>
           <p>Each goes out at its time, one post per channel at a time. Check Going out for the times.</p>
         </ConfirmSheet>
