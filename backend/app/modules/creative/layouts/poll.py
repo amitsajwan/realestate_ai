@@ -2,7 +2,7 @@
 from typing import List
 
 from ..models import Copy, Design
-from .base import Canvas, Rendered
+from .base import Canvas, Rendered, footer_h, ui
 from .palette import get
 
 
@@ -20,7 +20,7 @@ def render(copy: Copy, design: Design) -> List[Rendered]:
     qh = c.measure(question, w, q_size, "bold", 3, pitch=1.08, min_size=52)
     c.text(question, c.left, qy, w, q_size, "bold", pal.ink, 3, pitch=1.08, min_size=52, emph=design.emphasis, role="hook")
     btn_h = 104 if tall else 92
-    btn_y = c.bottom - 64 - 34 - btn_h
+    btn_y = c.bottom - footer_h() - 34 - btn_h
     cards_top = qy + qh + 56
     _cap = 560 if tall else 420
     cards_bot = btn_y - 44
@@ -45,12 +45,12 @@ def render(copy: Copy, design: Design) -> List[Rendered]:
     # VS badge between the cards
     bx, by = c.W // 2, cards_top + (cards_bot - cards_top) // 2
     c.circle((bx, by), 44, pal.accent_fill if pal.light else (255, 255, 255), shadow=True)
-    c.text("VS", bx - 40, by - 16, 80, 32, "bold", (24, 30, 44), 1, align="center", balance=False, role="chip",
+    c.text(ui("vs"), bx - 40, by - 16, 80, 32, "bold", (24, 30, 44), 1, align="center", balance=False, role="chip",
            bg_hint=pal.accent_fill if pal.light else (255, 255, 255))
     # vote button
     c.rrect((c.left, btn_y, c.right, btn_y + btn_h), btn_h // 2, pal.accent_fill, shadow=True)
     c.icon("bubble", (c.left + 86, btn_y + btn_h // 2), 50, pal.accent_ink)
-    c.text(copy.card_cta if "vote" in (copy.card_cta or "").lower() else "Vote A or B in the comments", c.left + 136, btn_y + (btn_h - int(0.7 * 36)) // 2, w - 170, 36,
+    c.text(ui("vote_ab"), c.left + 136, btn_y + (btn_h - int(0.7 * 36)) // 2, w - 170, 36,
            "bold", pal.accent_ink, 1, balance=False, role="chip", bg_hint=pal.accent_fill, min_size=26)
     c.brand_bar(dark_bg=not pal.light)
     return [c.finish()]

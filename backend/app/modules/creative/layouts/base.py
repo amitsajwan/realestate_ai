@@ -12,6 +12,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageOps, 
 from app.core import brand
 from app.modules.marketing.images import LOGO_PATH, MARGIN, load_font as _latin_font, wrap
 
+from .. import i18n
 from ..models import CardBrand
 from .palette import Palette, contrast, luminance
 
@@ -27,22 +28,44 @@ FONT_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
 DEVANAGARI_FONTS = {"regular": "Mukta-Regular.ttf", "medium": "Mukta-Medium.ttf", "semibold": "Mukta-SemiBold.ttf",
                     "bold": "Mukta-Bold.ttf"}  # Mukta (SIL OFL): Devanagari, Latin and ₹; Pillow shapes it with libraqm
 
-# What the card being rendered needs: Devanagari fonts (a Marathi/Hindi post) and whose footer (an agent's or ours).
-_CARD: contextvars.ContextVar = contextvars.ContextVar("creative_card", default=(False, None))
+# What the card being rendered needs: its language (Devanagari fonts and the card's fixed words for a Marathi/Hindi post)
+# and whose footer (an agent's or ours).
+_CARD: contextvars.ContextVar = contextvars.ContextVar("creative_card", default=("en", None))
+STRIP_H = 188   # height of an agent's contact strip at the bottom of a card (FOOTER_H: our one-line footer)
+FOOTER_H = 64
 
 
 @contextmanager
-def card(devanagari: bool = False, card_brand: Optional[CardBrand] = None) -> Iterator[None]:
-    """Render inside this to draw Devanagari text and/or an agent's footer (layouts.render_layout does it)."""
-    token = _CARD.set((devanagari, card_brand))
+def card(devanagari: bool = False, card_brand: Optional[CardBrand] = None, language: Optional[str] = None) -> Iterator[None]:
+    """Render inside this to draw Devanagari text, the card's fixed words in `language`, and/or an agent's footer
+    (layouts.render_layout does it)."""
+    token = _CARD.set((language or ("mr" if devanagari else "en"), card_brand))
     try:
         yield
     finally:
         _CARD.reset(token)
 
 
+def language() -> str:
+    return _CARD.get()[0]
+
+
+def devanagari() -> bool:
+    return language() in ("mr", "hi")
+
+
+def ui(key: str, **fmt) -> str:
+    """A card's fixed word ("Swipe", "MYTH") in the card's language."""
+    return i18n.ui(key, language(), **fmt)
+
+
+def known(text: str) -> str:
+    """A code-chosen English card string ("Save this") in the card's language (itself when there is no translation)."""
+    return i18n.known(text, language()) or text
+
+
 def load_font(size: int, weight: str = "regular"):
-    if _CARD.get()[0]:
+    if devanagari():
         try:
             return ImageFont.truetype(str(FONT_DIR / DEVANAGARI_FONTS.get(weight, DEVANAGARI_FONTS["regular"])), size)
         except OSError:
@@ -53,7 +76,7 @@ def load_font(size: int, weight: str = "regular"):
 def cap() -> float:
     """Height above the baseline the layout reserves for a line: Poppins' cap height, or Devanagari's taller letters with
     their vowel signs (measured 0.91 of the size in Mukta), so Marathi text never rises past the safe margin."""
-    return CAP_DEVANAGARI if _CARD.get()[0] else CAP
+    return CAP_DEVANAGARI if devanagari() else CAP
 
 
 def card_brand() -> Optional[CardBrand]:
@@ -63,6 +86,17 @@ def card_brand() -> Optional[CardBrand]:
 def brand_name() -> str:
     b = card_brand()
     return b.name if b else brand.NAME
+
+
+def strip_on() -> bool:
+    """An agent's card with a phone: single cards end in a contact strip and a carousel's last slide is a contact card."""
+    b = card_brand()
+    return bool(b and b.phone)
+
+
+def footer_h() -> int:
+    """Height a layout keeps free above the bottom margin for the footer."""
+    return STRIP_H if strip_on() else FOOTER_H
 
 
 @dataclass
@@ -362,6 +396,11 @@ class Canvas:
         except Exception:
             self.circle((x + d // 2, y + d // 2), d // 2, self.pal.accent_fill)
             self.shapes.append((x, y, x + d, y + d))
+            initials = "".join(w[0] for w in (agent.name if agent else "").split()[:2] if w[:1].isalnum()).upper()
+            if initials:  # an agent without a logo: their initials in the disc
+                fs = int(d * 0.4)
+                font = load_font(fs, "bold")
+                self.d.text((x + d / 2, y + d / 2), initials, font=font, fill=self.pal.accent_ink, anchor="mm")
             return
         if agent:  # an agent's logo is usually a square photo: draw it in a circle
             mask = Image.new("L", (d * AA, d * AA), 0)
@@ -372,7 +411,10 @@ class Canvas:
 
     def brand_bar(self, y: Optional[int] = None, right: Optional[str] = None, dark_bg: bool = True) -> None:
         """Logo + name + second line at the bottom margin (or at y); an optional cue on the right. Ours: the Avasetu mark,
-        wordmark and tagline. An agent's: their logo, name and phone (CardBrand)."""
+        wordmark and tagline. An agent's: their logo, name and phone (CardBrand); with a phone, at the bottom margin, the
+        contact strip instead (see contact_strip)."""
+        if y is None and strip_on():
+            return self.contact_strip(right)
         d = 64
         y = self.bottom - d if y is None else y
         self.logo(self.left, y, d)
@@ -387,6 +429,78 @@ class Canvas:
         if right:
             self.text(right, self.right - 360, y + 14, 360, 28, "semibold", self.pal.accent if dark_bg else self.pal.muted, 1, align="right",
                       role="brand", balance=False)
+
+    def contact_strip(self, cue: Optional[str] = None) -> None:
+        """An agent's contact strip across the bottom (STRIP_H tall): logo and name, 'Call / WhatsApp' and the phone, then
+        the price and MahaRERA number when known; `cue` ("Save this") at the top right. Drawn by code from CardBrand, so a
+        model never writes a phone number."""
+        b = card_brand()
+        pal = self.pal
+        x0, y0, x1, y1 = self.left, self.bottom - STRIP_H, self.right, self.bottom
+        panel = pal.card if not pal.light else (255, 255, 255)
+        self.rrect((x0, y0, x1, y1), 30, panel, outline=pal.accent_fill, width=3, shadow=True)
+        pad, d = 26, 72
+        self.logo(x0 + pad, y0 + pad, d)
+        tx = x0 + pad + d + 20
+        cue_w = 0
+        if cue:
+            font = load_font(24, "semibold")
+            cue_w = min(300, int(self.d.textlength(cue, font=font)) + 8)
+            self.text(cue, x1 - pad - cue_w, y0 + pad + 6, cue_w, 24, "semibold", pal.card_muted, 1, align="right", role="brand",
+                      balance=False, bg_hint=panel)
+        self.text(b.name, tx, y0 + pad + 4, x1 - pad - tx - (cue_w + 24 if cue_w else 0), 32, "semibold", pal.card_ink, 1,
+                  role="brand", balance=False, bg_hint=panel, min_size=24)
+        label = ui("call")
+        ly = y0 + pad + 4 + 50
+        lfont = load_font(26, "semibold")
+        lw = int(self.d.textlength(label, font=lfont))
+        self.text(label, tx, ly + 10, lw + 4, 26, "semibold", pal.card_muted, 1, role="brand", balance=False, bg_hint=panel)
+        self.text(b.phone, tx + lw + 16, ly, x1 - pad - (tx + lw + 16), 40, "bold", pal.accent, 1, role="brand", balance=False,
+                  bg_hint=panel, min_size=28)
+        facts = [f"{ui('price')} {i18n.money(b.price, language())}" if b.price else "", f"{ui('maharera')} {b.rera}" if b.rera else ""]
+        info = "  ·  ".join(f for f in facts if f)
+        if info:
+            self.text(info, x0 + pad, y1 - pad - int(26 * (cap() + DESC)) + 2, x1 - x0 - 2 * pad, 26, "semibold", pal.card_ink, 1,
+                      role="brand", balance=False, bg_hint=panel, min_size=20)
+
+    def contact_card(self, kicker: str = "", save: str = "") -> None:
+        """A carousel's last slide for an agent: who to call, the phone, the price and MahaRERA number, big; a short
+        'Save this' line under them. Fills the safe area above the progress dots (which the caller draws)."""
+        b = card_brand()
+        pal = self.pal
+        w = self.right - self.left
+        if kicker:
+            self.chip(kicker, self.left, self.top, icon="home")
+        panel = pal.card if not pal.light else (255, 255, 255)
+        rows = [(ui("call"), b.phone, 84)]
+        if b.price:
+            rows.append((ui("price"), i18n.money(b.price, language()), 68))
+        if b.rera:
+            rows.append((ui("maharera"), b.rera, 56))
+        lab = 32
+        row_h = [int(lab * (cap() + DESC)) + 16 + int(size * (cap() + DESC)) for _, _, size in rows]
+        gap = 40
+        ph = 48 + sum(row_h) + gap * (len(rows) - 1) + 44
+        d = 132
+        total = d + 60 + ph + (40 + 44 if save else 0)
+        top, bottom = self.top + 100, self.bottom - 90          # under the chip, above the progress dots
+        y = top + max(0, (bottom - top - total) // 2)
+        self.logo(self.left, y, d)
+        self.text(b.name, self.left + d + 32, y + (d - int(60 * cap())) // 2 - 4, w - d - 32, 60, "bold", pal.ink, 2, pitch=1.08,
+                  role="hook", balance=False, min_size=40)
+        y += d + 60
+        self.rrect((self.left, y, self.right, y + ph), 36, panel, outline=pal.accent_fill, width=4, shadow=True)
+        ry = y + 48
+        for (label, value, size), h in zip(rows, row_h):
+            self.text(label, self.left + 48, ry, w - 96, lab, "semibold", pal.card_muted, 1, role="label", balance=False, bg_hint=panel)
+            self.text(value, self.left + 48, ry + int(lab * (cap() + DESC)) + 16, w - 96, size, "bold",
+                      pal.accent if label == rows[0][0] else pal.card_ink, 1, role="label", balance=False, bg_hint=panel, min_size=32)
+            ry += h + gap
+        if save:
+            sy = y + ph + 44
+            if sy + 44 <= bottom:
+                self.icon("bookmark", (self.left + 20, sy + 18), 40, pal.accent, 5)
+                self.text(save, self.left + 60, sy, w - 60, 38, "semibold", pal.muted, 1, role="support", balance=False)
 
     def chip(self, label: str, x: int, y: int, fill: Optional[RGB] = None, ink: Optional[RGB] = None, size: int = 26,
              outline: Optional[RGB] = None, icon: Optional[str] = None, align_right: bool = False) -> Box:

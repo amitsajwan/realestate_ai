@@ -29,7 +29,7 @@ def test_each_prompt_version_pins_its_text():
 async def test_a_pack_records_the_prompts_it_kept(tmp_path):
     clean = {"first_line": "One check before you book.", "question": "What would you add?"}
     pack = await pipeline.make(simple_brief(), "buyer", "instagram", FakeLlm(None, clean), out_dir=tmp_path, reviewer=None)
-    assert pack.used_llm and pack.prompts == ["copywriter@1/brand"]   # the strategist reply was None: rules, so no tag
+    assert pack.used_llm and pack.prompts == ["copywriter@2/brand"]   # the strategist reply was None: rules, so no tag
     rules = await pipeline.make(simple_brief(), "buyer", "instagram", None, out_dir=tmp_path / "rules", reviewer=None)
     assert rules.prompts == []
 

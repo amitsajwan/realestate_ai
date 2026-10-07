@@ -10,7 +10,7 @@ from typing import Any, List, Optional, Sequence
 
 from . import hooks, prompts
 from .catalog import layouts_for
-from .guards import GENERIC_HOOK, problems_in, tidy, word_count
+from .guards import GENERIC_HOOK, problems_in, repair, tidy, word_count
 from .models import AUDIENCES, CHANNELS, Angle, Brief
 
 log = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ def rule_angle(brief: Brief, audience: str, channel: str, seed: int, recent_layo
 def _valid_hook(h: Any, corpus: str) -> Optional[str]:
     if not isinstance(h, str):
         return None
-    h = tidy(h).strip().strip('"').strip()
+    h = repair(tidy(h).strip().strip('"').strip())
     if not h or not (2 <= word_count(h) <= hooks.HOOK_MAX_WORDS) or GENERIC_HOOK.match(h):
         return None
     return None if problems_in(h, corpus) else h
@@ -128,7 +128,9 @@ async def plan(brief: Brief, audience: str, channel: str, llm: Any = None, seed:
     if not isinstance(data, dict):
         return base
     corpus = brief.corpus()
-    hook = _valid_hook(data.get("hook"), corpus)
+    # A brief with written hooks (a property campaign: "₹32.3 lakh for a plot in Gulmohar City") keeps its own: the headline
+    # is the fact the post is about, and a model's hook drifts to another subject ("the site-visit mistake ...").
+    hook = None if brief.hooks else _valid_hook(data.get("hook"), corpus)
     fmt = data.get("format") if data.get("format") in fmts else base.fmt
     pattern = data.get("pattern") if data.get("pattern") in hooks.PATTERNS else base.pattern
     proof = _valid_proof(data.get("proof"), brief) or base.proof

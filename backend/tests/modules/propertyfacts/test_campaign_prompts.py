@@ -51,4 +51,7 @@ async def test_a_clean_reply_with_the_listed_price_is_kept(tmp_path):
     llm = FakeLlm(None, good)
     pack = await pipeline.make(price_reveal(), "buyer", "instagram", llm, out_dir=tmp_path, reviewer=None)
     assert pack.report["ok"] and pack.used_llm
-    assert pack.caption.startswith(good["first_line"])
+    # the caption opens with the card's headline, never the model's own first line; the model's body is kept
+    assert pack.caption.startswith(pack.angle["hook"]) and not pack.caption.startswith(good["first_line"])
+    assert good["body"].splitlines()[0] in pack.caption
+    assert "What would you ask about this price?" in pack.caption        # the angle's own question, not the model's

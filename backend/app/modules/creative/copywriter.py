@@ -11,7 +11,7 @@ import re
 from typing import Any, Dict, List, Optional, Sequence
 
 from . import prompts
-from .guards import filler_hits, problems_in, tidy, word_count
+from .guards import filler_hits, problems_in, repair, tidy, word_count
 from .models import Angle, Brief, Copy
 
 log = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ BUYER_TAGS = ["#PuneProperty", "#Kharadi", "#HomeBuyingTips", "#PuneRealEstate",
 AGENT_TAGS = ["#PuneRealEstate", "#RealEstateAgent", "#PropertyAgentIndia", "#LeadGeneration", "#PuneProperty", "#RealEstateMarketing"]
 
 QUESTION = {
-    "stat": "How many did you do before you booked? Tell us below.",
+    "stat": "Did this number surprise you? Tell us below.",
     "myth-vs-fact": "Did you believe this one? Tell us below.",
     "poll": "Your pick? Tell us in the comments.",
     "before-after": "Which side does your paperwork look like? Tell us below.",
@@ -80,13 +80,25 @@ def _tags(brief: Brief, audience: str, channel: str) -> List[str]:
     return tags[:6] if channel == "instagram" else tags[:3]
 
 
-def _first_line(angle: Angle) -> str:
-    h = angle.hook.strip()
-    if angle.pattern == "question" and not h.endswith("?"):
+def first_line_for(hook: str, question: bool = False) -> str:
+    """The caption's first line: the card's headline itself (the same claim, in the same words), closed by a stop."""
+    h = hook.strip()
+    if not h:
+        return h
+    if question and not h.endswith("?"):
         h += "?"
-    elif h[-1] not in ".?!:”\"'":
+    elif h[-1] not in ".?!:”\"'।":
         h += "."
     return h
+
+
+def _first_line(angle: Angle) -> str:
+    return first_line_for(angle.hook, angle.pattern == "question")
+
+
+def same_headline(first_line: str, hook: str) -> bool:
+    norm = lambda s: re.sub(r"[\s.?!:”\"'।]+$", "", (s or "").strip()).casefold()  # noqa: E731
+    return norm(first_line) == norm(hook)
 
 
 def _support(brief: Brief, angle: Angle) -> str:
@@ -125,14 +137,17 @@ def _body(brief: Brief, angle: Angle) -> str:
 def rule_copy(angle: Angle, brief: Brief) -> Copy:
     audience_q = QUESTION_AGENT if angle.audience == "agent" else QUESTION
     q = audience_q.get(angle.fmt) or (AGENT_DEFAULT_Q if angle.audience == "agent" else QUESTION[angle.fmt])
+    if brief.asks.get("en"):  # a question written for this post's subject (a campaign angle)
+        q = brief.asks["en"]
     cta = "Comment INTERESTED" if angle.audience == "agent" else CARD_CTA.get(angle.fmt, "Save this")
     if brief.cta:
         cta = brief.cta
     if angle.audience == "agent":
         q = f"{q} Or comment INTERESTED to see how it works." if angle.fmt not in ("poll",) else q
-    return Copy(hook=angle.hook, support=_support(brief, angle),
-                slides=list(brief.steps[:5]) if angle.fmt in ("carousel", "checklist") else [],
-                caption_first_line=_first_line(angle), body=_body(brief, angle), cta_question=q,
+    hook = repair(angle.hook)
+    return Copy(hook=hook, support=repair(_support(brief, angle)),
+                slides=[repair(s) for s in brief.steps[:5]] if angle.fmt in ("carousel", "checklist") else [],
+                caption_first_line=first_line_for(hook, angle.pattern == "question"), body=repair(_body(brief, angle)), cta_question=q,
                 hashtags=_tags(brief, angle.audience, angle.channel), card_cta=cta,
                 payload=_payload(brief, angle), link_line=brief.link_line, contact=list(brief.contact), source="rules")
 
@@ -156,7 +171,7 @@ def build_user(angle: Angle, brief: Brief, feedback: Optional[str]) -> str:
 def _clean_str(v: Any, corpus: str, max_words: Optional[int] = None, max_chars: Optional[int] = None) -> Optional[str]:
     if not isinstance(v, str) or not v.strip():
         return None
-    s = tidy(v).strip()
+    s = repair(tidy(v).strip())
     if max_words and word_count(s) > max_words:
         return None
     if max_chars and len(s) > max_chars:
@@ -175,7 +190,7 @@ async def write(angle: Angle, brief: Brief, llm: Any = None, languages: Sequence
             log.warning("copywriter LLM failed; using rules", exc_info=True)
             data = None
         if isinstance(data, dict):
-            copy = _merge(base, data, angle, corpus, brief.voice.team)
+            copy = _merge(base, data, angle, corpus, brief.voice.team, fixed_question=bool(brief.asks.get("en")))
             if brief.hashtags:  # the brief chose its tags (a property's locality): the model does not replace them
                 copy.hashtags = base.hashtags
     if llm is not None and languages:
@@ -186,7 +201,9 @@ async def write(angle: Angle, brief: Brief, llm: Any = None, languages: Sequence
     return copy
 
 
-def _merge(base: Copy, data: dict, angle: Angle, corpus: str, sign_off: str = SIGN_OFF) -> Copy:
+def _merge(base: Copy, data: dict, angle: Angle, corpus: str, sign_off: str = SIGN_OFF, fixed_question: bool = False) -> Copy:
+    """The model's fields where they pass the guards. Never its first line: the caption opens with the card's headline
+    (a model rewrites hooks), and never its question when the brief wrote one for the subject."""
     support = _clean_str(data.get("support"), corpus, SLIDE_MAX_WORDS) if data.get("support") else None
     slides = base.slides
     raw = data.get("slides")
@@ -194,20 +211,19 @@ def _merge(base: Copy, data: dict, angle: Angle, corpus: str, sign_off: str = SI
         cleaned = [_clean_str(s, corpus, SLIDE_MAX_WORDS) for s in raw]
         if all(cleaned):
             slides = cleaned  # type: ignore[assignment]
-    first = _clean_str(data.get("first_line"), corpus, max_chars=FIRST_LINE_MAX)
     body = _clean_str(data.get("body"), corpus, max_chars=BODY_MAX)
     if body and sign_off not in body:
         body = f"{body}\n- {sign_off}"
-    question = _clean_str(data.get("question"), corpus, max_chars=140)
+    question = None if fixed_question else _clean_str(data.get("question"), corpus, max_chars=140)
     if question and "?" not in question and "comment" not in question.lower():
         question = None
     tags = [t for t in (data.get("hashtags") or []) if isinstance(t, str) and TAG.match(t.strip())] if isinstance(data.get("hashtags"), list) else []
     lo = 3
     tags = list(dict.fromkeys(t.strip() for t in tags))
     tags = tags[:6] if angle.channel == "instagram" else tags[:3]
-    llm_used = any([support, first, body, question, slides is not base.slides])
+    llm_used = any([support, body, question, slides is not base.slides])
     return Copy(hook=base.hook, support=support if support is not None else base.support, slides=slides,
-                caption_first_line=first or base.caption_first_line, body=body or base.body,
+                caption_first_line=base.caption_first_line, body=body or base.body,
                 cta_question=question or base.cta_question, hashtags=tags if len(tags) >= lo else base.hashtags,
                 card_cta=base.card_cta, payload=base.payload, link_line=base.link_line, contact=base.contact,
                 source="llm" if llm_used else "rules")
@@ -223,8 +239,8 @@ async def _variant(llm: Any, lang: str, copy: Copy, corpus: str, brief: Brief) -
         return None
     if not out or len(out) > 1200:
         return None
-    from .guards import HYPE, PHONE, URL, unsupported_numbers
-    if PHONE.search(out) or HYPE.search(out) or URL.search(out) or unsupported_numbers(out, corpus):
+    out = repair(out)
+    if problems_in(out, corpus):
         return None
     return out.strip() + "\n\n" + " ".join(copy.hashtags)
 
@@ -239,6 +255,8 @@ def review_copy(copy: Copy, corpus: str, channel: str) -> List[str]:
             out += [f"{name}: {p}" for p in problems_in(text, corpus)]
     if len(copy.caption_first_line) > FIRST_LINE_MAX:
         out.append("first line too long for the preview")
+    if copy.hook and not same_headline(copy.caption_first_line, copy.hook):
+        out.append("the caption's first line is not the card's headline")
     if channel == "instagram" and not 3 <= len(copy.hashtags) <= 8:
         out.append("Instagram needs 3 to 8 hashtags")
     if filler_hits(copy.hook):

@@ -10,11 +10,12 @@ version here; `tests/modules/creative/test_prompts.py` fails until you do (it pi
 """
 from typing import List
 
+from . import i18n
 from .models import Voice
 
 BRAND, LISTING = "brand", "listing"
 MODES = (BRAND, LISTING)
-VERSIONS = {"strategist": 1, "copywriter": 1, "translator": 1, "critic": 1, "card_translator": 2}
+VERSIONS = {"strategist": 1, "copywriter": 2, "translator": 1, "critic": 2, "card_translator": 3}
 LANGUAGE_NAMES = {"mr": "Marathi (Devanagari script)", "hi": "Hindi (Devanagari script)"}
 
 
@@ -32,6 +33,10 @@ def used(mode: str, strategist: bool = False, copywriter: bool = False, translat
 
 _LISTING_FACTS = ("Use ONLY the supplied facts: the price, the project name, the builder and the MahaRERA details may be "
                   "used exactly as the facts state them; add no other number, no predictions, no phone numbers, no personal names.")
+# Listing posts state facts; they never sell. (Brand-mode prompts stay byte-identical: see test_prompts.)
+_NO_SALES = ("State facts, never sell: no value judgements (affordable, cheap, value for money, without overpaying), no "
+             "promises (your new home), no 'only' or 'just', no 'tap' or 'click' (nothing on Instagram is tappable), never "
+             "the word 'sample'. ")
 
 
 def _areas(v: Voice) -> str:
@@ -61,7 +66,8 @@ def copywriter(v: Voice, mode: str = BRAND) -> str:
     if mode == LISTING:
         head = (f"You are the copywriter of {v.name}, an Indian real-estate brand. This post markets one property in "
                 f"{_areas(v)}. Write the post copy for the given angle.\n")
-        facts = _LISTING_FACTS + " No superlatives (best, perfect, dream, guaranteed). "
+        facts = _LISTING_FACTS + " No superlatives (best, perfect, dream, guaranteed). " + _NO_SALES + (
+            "The caption opens with the card's headline as given (code puts it there); your first_line is not used. ")
     else:
         head = (f"You are the copywriter of {v.name}, an Indian real-estate brand (home buyers and property agents in Kharadi, "
                 "Upper Kharadi and Wagholi, Pune). Write the post copy for the given angle.\n")
@@ -90,20 +96,25 @@ def card_translator(v: Voice, mode: str = BRAND, language: str = "mr") -> str:
             "The input is a JSON object; reply with ONE JSON object with exactly the same keys and the same shape (a list stays "
             "a list of the same length), every text translated. Keep every number exactly as written, in Western digits 0-9, "
             "with ₹, 'sq ft', 'BHK', '%' and dates' numbers unchanged; MahaRERA numbers such as P52100076768 stay as they are. "
-            "Project, place and company names (Gulmohar City, Ranjangaon, MahaRERA, IndoSpace...) stay exactly as written, in "
-            "English letters. Translate, do not rewrite: every sentence says what the English says and nothing more; never add "
-            "an opinion, a promise or a new claim (such as who it suits or whether it fits a budget), no phone numbers, no URLs, "
-            "no superlatives. Use the plain words a Pune agent uses with buyers, for example: per month = दरमहा, plot = प्लॉट, "
-            "possession = ताबा, site visit = साइट व्हिजिट, token = टोकन, Save this = सेव्ह करा, Swipe = पुढे पाहा, EMI and sq ft "
-            "stay as they are. Cards have little room: keep each text about as short as the original.")
+            "Project and company names (Gulmohar City, MahaRERA, IndoSpace Industrial Park Ranjangaon...) stay exactly as written, "
+            "in English letters. A place name on its own is written as this glossary spells it: " + i18n.glossary(language) + ". "
+            "Translate, do not rewrite: every text says what the English says and nothing more; the headline (hook) keeps the "
+            "same claim and the same numbers; never add an opinion, a promise or a new claim (such as who it suits, whether it "
+            "is affordable or fits a budget, 'your new home'), never add 'only' (फक्त, केवळ, केवल, सिर्फ), no phone numbers, no "
+            "URLs, no superlatives. Use the plain words a Pune agent uses with buyers, for example: per month = दरमहा, plot = "
+            "प्लॉट, possession = ताबा, site visit = साइट व्हिजिट, token = टोकन, EMI and sq ft stay as they are. Cards have "
+            "little room: keep each text about as short as the original.")
 
 
 def critic(v: Voice, mode: str = BRAND) -> str:
+    rules = ""
     if mode == LISTING:
         what = f"a social post that markets one property in {_areas(v)} for an Indian real-estate brand"
         who = f"a buyer looking for property in {_areas(v)}"
+        rules = ("Flag any sales claim (affordable, value for money, without overpaying, only/just, tap/click, a promise "
+                 "such as your new home) and a caption first line that differs from the card headline. ")
     else:
         what, who = "a social post for an Indian real-estate brand", "a Pune buyer or property agent"
     return (f"You are a harsh art director and copy chief reviewing {what}. Judge ONLY what you are given. Would {who} stop "
-            "scrolling? Reply with ONE JSON object: "
+            "scrolling? " + rules + "Reply with ONE JSON object: "
             '{"stops_scroll": bool, "problems": [str] (at most 3, concrete), "better_hook": str (at most 9 words, or "")}')

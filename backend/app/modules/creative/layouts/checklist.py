@@ -1,13 +1,12 @@
 """Layout 3, checklist / carousel: a cover with a huge hook and a swipe cue, one idea per slide with a big numeral and progress
-dots, and a closing save-this slide."""
+dots, and a closing slide: for an agent, a contact card (name, phone, price, MahaRERA number); otherwise save-this."""
 from typing import List
 
 from PIL import Image, ImageDraw
 
-from app.modules.marketing.images import load_font
 
 from ..models import Copy, Design
-from .base import Canvas, Rendered, brand_name, mix
+from .base import Canvas, Rendered, brand_name, card_brand, known, load_font, mix, strip_on, ui
 from .palette import get
 
 
@@ -24,10 +23,19 @@ def _cue(c: Canvas, n: int, active: int, last: bool) -> None:
             c.circle((x0 + 8, y), 8, mix(pal.ink, pal.bg_bottom, 0.7 if not pal.light else 0.55))
             x0 += 16 + 14
     if not last:
-        w = 214
+        label = ui("swipe")
+        tw = int(c.d.textlength(label, font=load_font(28, "bold")))
+        w = 34 + tw + 18 + 34 + 30
         c.rrect((c.right - w, y - 34, c.right, y + 34), 34, pal.accent_fill, shadow=True)
-        c.text("Swipe", c.right - w + 34, y - 13, 110, 28, "bold", pal.accent_ink, 1, balance=False, role="chip", bg_hint=pal.accent_fill)
+        c.text(label, c.right - w + 34, y - 13, tw + 8, 28, "bold", pal.accent_ink, 1, balance=False, role="chip", bg_hint=pal.accent_fill)
         c.icon("chevrons", (c.right - 46, y), 34, pal.accent_ink, 5)
+
+
+def _agent_line(c: Canvas, x: int, y: int, w: int, align: str = "left") -> None:
+    """The agent's phone under (or beside) their name on a slide's top bar."""
+    b = card_brand()
+    if b and b.phone:
+        c.text(b.phone, x, y, w, 26, "semibold", c.pal.accent, 1, align=align, balance=False, role="brand")
 
 
 def _cover(copy: Copy, design: Design, n: int) -> Rendered:
@@ -36,13 +44,14 @@ def _cover(copy: Copy, design: Design, n: int) -> Rendered:
     c = Canvas(design.size, pal, "checklist", 0, pattern="dots", glow_at=(0.9, 0.05))
     w = c.right - c.left
     c.logo(c.left, c.top, 64)
-    c.text(brand_name(), c.left + 82, c.top + 14, 420, 30, "semibold", pal.ink, 1, balance=False, role="brand")
+    c.text(brand_name(), c.left + 82, c.top + (2 if strip_on() else 14), 420, 30, "semibold", pal.ink, 1, balance=False, role="brand")
+    _agent_line(c, c.left + 82, c.top + 42, 420)
     c.chip(str(copy.payload.get("kicker", "SAVE THIS")), c.right, c.top + 4, icon="bookmark", align_right=True, size=24)
     top, cue_top = c.top + 130, c.bottom - 40 - 34 - 40
     skel_h = 250 if tall else 150
     hook_size = 122 if tall else 104
     hook_h = c.measure(copy.hook, w, hook_size, "bold", 3, pitch=1.06, min_size=64)
-    sub = copy.support or f"{len(copy.slides)} things, one per slide"
+    sub = copy.support or ui("n_things", n=len(copy.slides))
     sub_h = c.measure(sub, w, 40, "medium", 2, pitch=1.3)
     total = hook_h + 34 + sub_h
     y = top + max(0, (cue_top - skel_h - 40 - top - total) // 2)
@@ -73,6 +82,10 @@ def _slide(copy: Copy, design: Design, idx: int, n: int, text: str) -> Rendered:
     c.img.paste(pal.accent_fill, (0, 0), ghost)
     c.text(f"{idx:02d} / {n - 2:02d}", c.left, c.top + 16, 300, 30, "semibold", pal.muted, 1, balance=False, role="meta")
     c.logo(c.right - 56, c.top + 4, 56)
+    if strip_on():  # the agent's name and phone beside their logo on every slide
+        c.text(brand_name(), c.left + 320, c.top + 2, c.right - 72 - c.left - 320, 26, "semibold", pal.ink, 1, align="right",
+               balance=False, role="brand")
+        _agent_line(c, c.left + 320, c.top + 36, c.right - 72 - c.left - 320, "right")
     # numeral in a big accent disc, then the idea
     r = 92 if tall else 70
     cy = c.top + 130 + r
@@ -94,9 +107,13 @@ def _closing(copy: Copy, design: Design, n: int) -> Rendered:
     tall = H > W
     c = Canvas(design.size, pal, "checklist", n - 1, pattern="rings", glow_at=(0.5, 0.45))
     w = c.right - c.left
+    if strip_on():  # an agent's carousel ends with who to call, not a generic save-this slide
+        c.contact_card(str(copy.payload.get("kicker") or ""), known("Save this"))
+        _cue(c, n, n - 1, True)
+        return c.finish()
     c.icon("bookmark", (c.left + 80, c.top + (190 if tall else 130)), 170 if tall else 120, pal.accent, 6)
     y = c.top + (330 if tall else 250)
-    y = c.text("Save this" if copy.card_cta in ("Swipe", "") else copy.card_cta, c.left, y, w, 150 if tall else 110, "bold", pal.ink, 2, pitch=1.06, role="hook")
+    y = c.text(known("Save this" if copy.card_cta in ("Swipe", "") else copy.card_cta), c.left, y, w, 150 if tall else 110, "bold", pal.ink, 2, pitch=1.06, role="hook")
     y = c.text(copy.cta_question, c.left, y + 40, w, 56 if tall else 44, "medium", pal.muted, 4, pitch=1.3, balance=False, role="support")
     c.brand_bar(y=c.bottom - 130, dark_bg=not pal.light)
     _cue(c, n, n - 1, True)

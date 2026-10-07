@@ -74,3 +74,23 @@ async def test_make_renders_a_guard_clean_campaign(tmp_path):
     assert len(packs) >= 10, dropped
     for aid, p in packs:
         assert p.report["ok"] and p.images and "#Ranjangaon" in p.caption
+        assert "How many did you do" not in p.caption
+
+
+def test_every_angle_asks_its_own_question_in_every_language():
+    b = dict(campaign.plan(gulmohar()))
+    for aid, brief in b.items():
+        assert set(brief.asks) == {"en", "mr", "hi"}, aid
+        for text in brief.asks.values():
+            assert "?" in text and problems_in(text, brief.corpus()) == [], (aid, text)
+    assert b["emi"].asks["en"] == "What EMI did you plan for? Tell us below."
+    assert len({brief.asks["en"] for brief in b.values()}) == len(b)        # no two posts ask the same thing
+
+
+def test_an_agents_cards_carry_the_listing_price_and_maharera_number():
+    from app.modules.creative.models import CardBrand
+    agent = CardBrand("House Deal", "Call / WhatsApp +91 99219 93099", phone="+91 99219 93099")
+    for _, brief in campaign.plan(gulmohar(), card_brand=agent, language="mr"):
+        assert brief.card_brand.price == "₹32.3 lakh" and brief.card_brand.rera == "P52100076768"
+        assert brief.link_line.endswith("बायोमधील लिंक.") and "Gulmohar City, रांजणगाव" in brief.link_line
+    assert all(b.card_brand is None for _, b in campaign.plan(gulmohar()))

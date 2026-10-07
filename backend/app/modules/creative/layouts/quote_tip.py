@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw
 from app.modules.marketing.images import load_font
 
 from ..models import Copy, Design
-from .base import Canvas, Rendered
+from .base import Canvas, Rendered, footer_h
 from .palette import get
 
 
@@ -21,7 +21,7 @@ def render(copy: Copy, design: Design) -> List[Rendered]:
     c.img.paste(pal.accent_fill, (0, 0), mask)
     c.chip(str(copy.payload.get("kicker", "QUICK TIP")), c.left, c.top, icon="bolt")
     c.brand_bar(dark_bg=not pal.light)
-    top, bottom = c.top + (270 if tall else 200), c.bottom - 64 - 40
+    top, bottom = c.top + (270 if tall else 200), c.bottom - footer_h() - 40
     sup = copy.support or str(copy.payload.get("tip") or "")
     size = 100 if tall else 84
     hh = c.measure(copy.hook, w, size, "bold", 3, pitch=1.1, min_size=56)
