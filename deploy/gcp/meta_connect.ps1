@@ -69,7 +69,7 @@ $exp = if ($dbg.expires_at -eq 0) { "never expires" } else { "expires " + [DateT
 Write-Host "valid=$($dbg.is_valid)  $exp"
 Write-Host "permissions: $($dbg.scopes -join ', ')"
 if (-not $dbg.is_valid) { throw "Meta says the Page token is not valid" }
-foreach ($need in "pages_manage_posts", "pages_read_engagement") { if ($dbg.scopes -notcontains $need) { Write-Host "MISSING permission: $need (add it in Graph API Explorer and run this again)" -ForegroundColor Yellow } }
+foreach ($need in "pages_manage_posts", "pages_read_engagement", "instagram_manage_insights") { if ($dbg.scopes -notcontains $need) { Write-Host "MISSING permission: $need (add it in Graph API Explorer and run this again)" -ForegroundColor Yellow } }
 
 $igId = if ($page.instagram_business_account) { $page.instagram_business_account.id } else { "" }
 if ($igId) { Write-Host "Instagram business account linked: $igId" } else { Write-Host "No Instagram account linked to the Page yet (Facebook posting will work; add Instagram later and re-run)." -ForegroundColor Yellow }
