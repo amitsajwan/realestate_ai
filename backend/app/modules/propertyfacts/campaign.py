@@ -25,9 +25,17 @@ def day(iso: str) -> str:
     return f"{int(iso[8:10])} {MONTHS[int(iso[5:7]) - 1]} {iso[:4]}"
 
 
-def link_line_for(where: str) -> str:
-    """Instagram's pointer to the listing page (Facebook swaps it for the link itself: schedule.facebook_caption)."""
-    return f"Full details of {where}, with its MahaRERA record: link in bio."
+LINK_LINES = {
+    "en": "Full details of {where}, with its MahaRERA record: link in bio.",
+    "mr": "{where} ची संपूर्ण माहिती आणि MahaRERA नोंद: बायोमधील लिंक.",
+    "hi": "{where} की पूरी जानकारी और MahaRERA रिकॉर्ड: बायो में लिंक।",
+}
+
+
+def link_line_for(where: str, language: str = "en") -> str:
+    """Instagram's pointer to the listing page, in the posts' language (Facebook swaps it for the link itself:
+    schedule.facebook_caption, which finds it by this same text)."""
+    return LINK_LINES.get(language, LINK_LINES["en"]).format(where=where)
 
 
 class Ctx:
@@ -59,7 +67,7 @@ class Ctx:
         kw.setdefault("kicker", self.project.upper()[:28])
         where = self.where or "this property"
         kw.setdefault("intro", f"{where}." if self.where else "")
-        kw.setdefault("link_line", link_line_for(where))
+        kw.setdefault("link_line", link_line_for(where, self.language))
         kw.setdefault("writer_note", f"This post markets one property: {where}. Its listed price, project name, MahaRERA "
                                      "details and nearby places are facts you may use exactly as written; add no other number.")
         kw.setdefault("hashtags", self.tags())

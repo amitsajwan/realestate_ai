@@ -88,3 +88,36 @@ async def test_an_agents_marathi_campaign(tmp_path):
     _, created = await runs.create("a1", "L1", language="en")      # another language makes a new run
     assert created
     assert LISTING["_id"] == "L1"
+
+
+def test_claims_seen_live_are_refused_unless_the_facts_say_so():
+    from app.modules.creative.guards import problems_in
+    facts = "A 1,927 sq ft plot at Gulmohar City is listed at ₹32.3 lakh. EMI of ₹22,425 a month."
+    for line in ("₹22,425 monthly EMI makes this plot affordable.", "Is this the right investment for you?",
+                 "Secure your land without overpaying.", "तुमच्या जीवनशैलीला बसणारा आकार", "सर्व खर्च आधीच दाखवले आहेत.",
+                 "निश्चित 2029 तारीख", "साइट व्हिजिटची सर्वात मोठी चूक"):
+        assert any(p.startswith("claim not in facts") for p in problems_in(line, facts)), line
+    assert problems_in("A 1,927 sq ft plot listed at ₹32.3 lakh.", facts) == []
+
+
+def test_property_posts_ask_a_question_that_fits_and_the_link_line_is_in_the_posts_language():
+    from app.modules.creative import copywriter, strategist
+    from app.modules.propertyfacts import campaign
+    from .test_campaign import gulmohar
+    for aid, brief in campaign.plan(gulmohar()):
+        copy = copywriter.rule_copy(strategist.rule_angle(brief, "buyer", "instagram", 0, []), brief)
+        assert "How many did you do" not in copy.cta_question, aid
+    mr = dict(campaign.plan(gulmohar(), language="mr"))["price_reveal"]
+    assert mr.link_line == "Gulmohar City, Ranjangaon ची संपूर्ण माहिती आणि MahaRERA नोंद: बायोमधील लिंक."
+
+
+async def test_a_rate_limited_translation_is_asked_again(monkeypatch):
+    monkeypatch.setattr(translate, "RETRY_WAITS", (0, 0))
+    calls = []
+
+    def flaky(s):
+        calls.append(1)
+        return None if len(calls) < 3 else {**s, "hook": "गुलमोहर सिटीत प्लॉट ₹32.3 lakh"}
+    brief = Brief(topic="Price", facts=["A plot at Gulmohar City is listed at ₹32.3 lakh."], language="mr")
+    out = await translate.translate(_copy(), brief, Translator(flaky))
+    assert len(calls) == 3 and out.hook == "गुलमोहर सिटीत प्लॉट ₹32.3 lakh" and out.language == "mr"

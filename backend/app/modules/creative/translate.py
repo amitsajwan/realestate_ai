@@ -4,6 +4,7 @@ translated in one LLM call (prompts.card_translator).
 A translated text is kept only when it carries exactly the same numbers as the English (same price, dates and sizes, in
 Western digits) and passes the copy guards; anything else keeps its English text, so a failed or partial translation can
 never change a fact. Hashtags, the contact block and the link line are not translated."""
+import asyncio
 import json
 import logging
 from collections import Counter
@@ -17,6 +18,7 @@ from .models import Brief, Copy
 log = logging.getLogger(__name__)
 
 PAYLOAD_TEXT = ("kicker", "value", "label", "myth", "truth", "question", "options", "messy", "clean", "compare", "steps", "tip")
+RETRY_WAITS = (8.0, 20.0)  # seconds before the 2nd and 3rd try when no translation came back
 MAX_GROWTH = 2.2          # a translation may be at most this many times the English length (cards have little room)
 
 
@@ -54,11 +56,17 @@ async def translate(copy: Copy, brief: Brief, llm: Any) -> Copy:
     if lang not in prompts.LANGUAGE_NAMES or llm is None:
         return copy
     src = source(copy)
-    try:
-        data = await llm.json(prompts.card_translator(brief.voice, brief.mode, lang), json.dumps(src, ensure_ascii=False))
-    except Exception:
-        log.warning("card translation failed; keeping English", exc_info=True)
-        return copy
+    data = None
+    for wait in (0, *RETRY_WAITS):  # free tiers rate-limit: wait and ask again before settling for English
+        if wait:
+            await asyncio.sleep(wait)
+        try:
+            data = await llm.json(prompts.card_translator(brief.voice, brief.mode, lang), json.dumps(src, ensure_ascii=False))
+        except Exception:
+            log.warning("card translation failed", exc_info=True)
+            data = None
+        if isinstance(data, dict):
+            break
     if not isinstance(data, dict):
         return copy
     corpus = brief.corpus()
