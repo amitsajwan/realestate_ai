@@ -43,6 +43,10 @@ TAGLINE = brand.TAGLINE
 # a run of 9+ digits that does not start inside a word: 'A51800012345' (a MahaRERA agent number) is not a phone number
 PHONE_RE = re.compile(r"(?<![A-Za-z0-9])(?:\+?\d[\s\-]?){9,}")
 PAD = 28
+TEXT_IN = 0.22         # a later scene's text is fully in this many seconds after its cut (no delay: never an empty screen)
+PUNCH_SCALE = 0.06     # each later scene starts 6% zoomed in ...
+PUNCH_SECONDS = 0.35   # ... and settles in this many seconds
+MAX_SCREEN_WORDS = 8   # on-screen text longer than this is split over quick screens (most people watch muted and read)
 TAG_Y = TEXT_TOP               # the brand tag row (logo + name), under the progress bar
 CONTENT_TOP = TAG_Y + 94       # 362: below the brand tag row
 
@@ -155,6 +159,35 @@ def stretch(durations: Sequence[float], xfade: float, min_total: float = MIN_SEC
     xf = plan(durs, xfade).xfade
     k = (min_total + xf * (len(durs) - 1)) / sum(durs)
     return [d * k for d in durs]
+
+
+def split_screens(text: str, max_words: int = MAX_SCREEN_WORDS) -> List[str]:
+    """Split on-screen text into screens of at most `max_words` words: at sentence ends first, then at commas, then near the
+    middle. Never inside a *gold* span. 'Ask for the *RERA number*. Then look it up on the MahaRERA site.' -> two screens."""
+    words = text.split()
+    if len(words) <= max_words:
+        return [text.strip()] if text.strip() else []
+
+    def open_gold(i):  # True when the cut after words[:i] would fall inside a *gold* span
+        return " ".join(words[:i]).count("*") % 2 == 1
+
+    cuts = [i for i in range(1, len(words)) if not open_gold(i)]
+    if not cuts:
+        return [text.strip()]
+    mid = len(words) / 2
+    for ends in ((".", "?", "!"), (",", ";", ":")):
+        good = [i for i in cuts if words[i - 1].rstrip("*").endswith(ends)]
+        if good:
+            i = min(good, key=lambda k: abs(k - mid))
+            break
+    else:
+        i = min(cuts, key=lambda k: abs(k - mid))
+    return split_screens(" ".join(words[:i]), max_words) + split_screens(" ".join(words[i:]), max_words)
+
+
+def read_seconds(text: str) -> float:
+    """How long a screen of text stays up: enough to read it muted (about 3.5 words a second), never a long hold."""
+    return max(1.5, min(3.0, 0.8 + 0.3 * len(text.split())))
 
 
 def clamp01(x: float) -> float:
@@ -461,9 +494,11 @@ class _Prepared:
         self.items = layout_scene(scene)
         self.badge = _chip_item(scene.badge, CONTENT_TOP - 4, "left", filled=False) if scene.badge else None
         # The opening scene has no entrance animation: frame one already shows the whole hook, so it is readable before anyone
-        # swipes away (and the cover image, a still of that frame, shows it too). Later scenes ease their text in.
+        # swipes away (and the cover image, a still of that frame, shows it too). Later scenes pop their text in from the cut:
+        # a slow fade after a delay left the screen empty for about a second right after the hook (the moment viewers decide).
         self.animate = not is_first
-        self.delay, self.fade, self.stagger = 0.30, 0.6, 0.16
+        self.delay, self.fade, self.stagger = 0.0, TEXT_IN, 0.05
+        self.punch = 0.0 if is_first or scene.screen else PUNCH_SCALE   # each cut lands slightly zoomed in and settles: motion on every cut
 
     def _scrim_mask(self) -> Image.Image:
         if self.scene.screen:
@@ -477,8 +512,8 @@ class _Prepared:
             lut = [int(255 * (0.52 + 0.28 * v / 255)) for v in range(256)]
         return grad.point(lut)
 
-    def background(self, p: float) -> Image.Image:
-        z = self.z0 + (self.z1 - self.z0) * p
+    def background(self, p: float, lt: float = 1.0) -> Image.Image:
+        z = (self.z0 + (self.z1 - self.z0) * p) * (1 + self.punch * (1 - ease_out_cubic(lt / PUNCH_SECONDS)))
         bw, bh = self.base.size
         ww, wh = min(W / z, bw), min(H / z, bh)
         cx = (self.fx0 + (self.fx1 - self.fx0) * p) * bw
@@ -496,18 +531,18 @@ class _Prepared:
         return parallax(view, d, shift_x=34 * swing, shift_y=-10 * swing)
 
     def badge_alpha(self, lt: float) -> float:
-        return ease_out_cubic((lt - 0.1) / 0.5) if self.animate else 1.0
+        return ease_out_cubic(lt / TEXT_IN) if self.animate else 1.0
 
     def item_alpha(self, k: int, lt: float) -> float:
         """Opacity (and so the rise offset) of the k-th text item at scene time lt: 1.0 means in its final place."""
         return ease_out_cubic((lt - self.delay - self.stagger * k) / self.fade) if self.animate else 1.0
 
     def frame(self, lt: float, p: float) -> Image.Image:
-        img = Image.composite(self.solid, self.background(p), self.mask)
+        img = Image.composite(self.solid, self.background(p, lt), self.mask)
         if self.badge:
             _blit(img, self.badge, self.badge_alpha(lt), rise=0)
         for k, it in enumerate(self.items):
-            _blit(img, it, self.item_alpha(k, lt), rise=46)
+            _blit(img, it, self.item_alpha(k, lt), rise=24)
         return img
 
 

@@ -175,7 +175,8 @@ def test_tour_with_a_price_opens_with_guess_the_price_and_reveals_it_last():
     sc, _ = templates.listing_tour(PHOTOS6, facts)
     texts = [[l.text if isinstance(l, TextLine) else l for l in s.lines] for s in sc]
     assert "Guess the *price*" in texts[0] and not any("Rs" in t for t in texts[0])
-    assert texts[-2][0] == "Rs 85 Lakh" and "Did you guess right?" in texts[-2]  # last scene before the call to action
+    assert texts[-1][0] == "Rs 85 Lakh" and "Did you guess right?" in texts[-1]  # the payoff closes the reel ...
+    assert any("INTERESTED" in t for t in texts[-1])                                  # ... together with the call to action
     assert sc[0].seconds <= 2.5
 
 
@@ -186,7 +187,8 @@ def test_frame_zero_shows_the_complete_hook_and_later_scenes_still_animate():
     r = compose.Renderer(scenes, end_card=False)
     first, second = r.prep
     assert all(first.item_alpha(k, 0.0) == 1.0 for k in range(len(first.items))) and first.badge_alpha(0.0) == 1.0
-    assert second.item_alpha(0, 0.0) == 0.0 < second.item_alpha(0, 0.5) < 1.0   # later scenes keep their entrance
+    assert second.item_alpha(0, 0.0) == 0.0 < second.item_alpha(0, 0.1) < 1.0   # later scenes keep a quick entrance ...
+    assert second.item_alpha(0, compose.TEXT_IN) == 1.0                          # ... that starts at the cut and is over at once
     # the rendered pixels: the hook's white headline is fully painted on frame 0 (identical to a frame later in the scene)
     f0, f1 = r.frame_at(0.0), r.frame_at(1.0)
     x0, y0, x1, y1 = first.items[1].box     # items[0] is the kicker chip
@@ -232,14 +234,14 @@ def _images(scenes):
 def test_tour_uses_each_photo_once_and_drops_fact_scenes_when_photos_run_out():
     facts = {**templates.SAMPLE_FACTS["kharadi"], "furnishing": "Semi-furnished", "price_text": "Rs 85 Lakh"}
     full, _ = templates.listing_tour(PHOTOS6, facts)
-    assert len(full) == 6 and _images(full) == PHOTOS6
-    four, _ = templates.listing_tour(PHOTOS6[:4] + PHOTOS6[:2], facts)   # duplicates in the input count once
+    assert len(full) == 5 and _images(full) == PHOTOS6[:5]   # hook, area, possession, furnishing, price + call to action
+    four, _ = templates.listing_tour(PHOTOS6[:3] + PHOTOS6[:2], facts)   # duplicates in the input count once
     texts = [s.lines[0].text for s in four]
-    assert _images(four) == PHOTOS6[:4] and len(set(_images(four))) == 4
-    assert texts[0] == "Guess the *price*" and "Rs 85 Lakh" in texts and "1,050" in texts   # price and area kept
-    assert "Semi-furnished" not in texts and "Ready to move" not in texts                   # the least important dropped
+    assert _images(four) == PHOTOS6[:3] and len(set(_images(four))) == 3
+    assert texts[0] == "Guess the *price*" and texts[-1] == "Rs 85 Lakh" and "1,050" in texts   # price and area kept
+    assert "Semi-furnished" not in texts and "Ready to move" not in texts                       # the least important dropped
     two, _ = templates.listing_tour(PHOTOS6[:2], facts)
-    assert _images(two) == PHOTOS6[:2] and two[0].lines[0].text != "Guess the *price*"     # opening + CTA; no price hook
+    assert _images(two) == PHOTOS6[:2] and two[0].lines[0].text == "Guess the *price*"         # hook + reveal still work
     one, _ = templates.listing_tour(PHOTOS6[:1], facts)                                      # the minimum still works
     assert len(one) == 2
 
@@ -258,3 +260,32 @@ def test_tip_and_pitch_open_on_a_hook_card_with_quick_cuts():
         first = scenes[0]
         assert first.image is None and first.kicker is None and first.seconds <= 2.6
         assert opts["hook_tag"] is False and opts["xfade"] <= 0.2
+
+
+# ---- short screens and no empty frame after a cut ----------------------------------------------------------------------------
+def test_split_screens_keeps_screens_short_and_gold_spans_whole():
+    assert compose.split_screens("Ask for the *RERA number*. Then look it up on the MahaRERA site.") == [
+        "Ask for the *RERA number*.", "Then look it up on the MahaRERA site."]
+    assert compose.split_screens("Visit on a *weekday evening* to see traffic and parking.") == [
+        "Visit on a *weekday evening*", "to see traffic and parking."]
+    assert compose.split_screens("Short and sweet.") == ["Short and sweet."]
+    long = "word " * 30 + "*a gold span that is long*"
+    parts = compose.split_screens(long)
+    assert all(p.count("*") % 2 == 0 for p in parts) and " ".join(parts).split() == long.split()
+
+
+def test_tip_screens_are_short_enough_to_read_muted():
+    scenes, _ = templates.tip_reel(templates.TIP_LINES)
+    for s in scenes[1:]:
+        words = len(s.lines[0].text.split())
+        assert words <= compose.MAX_SCREEN_WORDS and s.seconds <= 3.0
+    assert [s.kicker for s in scenes[1:3]] == ["Tip 1 of 3", "Tip 1 of 3"]   # one long tip, two quick screens
+
+
+def test_the_screen_is_never_empty_right_after_the_hook():
+    """The first slide reels lost most viewers in the first two seconds; the cut after the hook used to show an empty background
+    for about a second while the next text faded in. Now every text item of the next scene is fully drawn within 0.35 s of its cut."""
+    scenes, opts = templates.tip_reel(templates.TIP_LINES)
+    second = compose.Renderer(scenes, **opts).prep[1]
+    assert len(second.items) >= 2   # the 'Tip 1 of 3' chip and the text
+    assert second.item_alpha(0, 0.05) > 0 and all(second.item_alpha(k, 0.35) == 1.0 for k in range(len(second.items)))
