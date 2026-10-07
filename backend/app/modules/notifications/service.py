@@ -7,7 +7,8 @@ import uuid
 from datetime import datetime
 from typing import Callable, Optional
 
-KINDS = ("new_whatsapp_lead", "whatsapp_needs_you", "new_chat_lead", "chat_needs_you", "invite_request")
+KINDS = ("new_whatsapp_lead", "whatsapp_needs_you", "new_chat_lead", "chat_needs_you", "invite_request",
+         "content_needs_you")  # content_needs_you: the system cannot fix it alone (e.g. a missing Meta permission)
 MAX_SUMMARY = 300
 
 

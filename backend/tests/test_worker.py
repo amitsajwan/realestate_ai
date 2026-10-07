@@ -92,15 +92,16 @@ async def test_worker_in_production_refuses_to_start_without_the_database(events
     assert started == []
 
 
-def test_the_worker_runs_the_six_loops_under_the_api_lease_names():
+def test_the_worker_runs_the_seven_loops_under_the_api_lease_names():
     from app.modules.calendar.runner import loop as calendar_loop
+    from app.modules.insights.collector import loop as insights_loop
     from app.modules.engage.runner import loop as engage_loop
     from app.modules.newsroom.runner import loop as newsroom_loop
     from app.modules.propertyfacts.jobs import loop as marketing_loop
     from app.modules.areastats.enrich import loop as enrich_loop
     assert worker.loops() == {"engage": engage_loop, "newsroom": newsroom_loop, "calendar": calendar_loop,
                               "listing_reels": listing_reel.loop, "marketing_runs": marketing_loop,
-                              "project_enrich": enrich_loop}
+                              "project_enrich": enrich_loop, "insights": insights_loop}
 
 
 # ---- --check ----------------------------------------------------------------------------------------------------------
@@ -141,10 +142,11 @@ async def test_check_says_so_when_it_cannot_read_the_heartbeats(capsys):
 
 
 def test_disabled_loops_are_not_expected(monkeypatch):
-    for k in ("ENGAGE_ENABLED", "NEWSROOM_ENABLED", "CALENDAR_ENABLED"):
+    for k in ("ENGAGE_ENABLED", "NEWSROOM_ENABLED", "CALENDAR_ENABLED", "SOCIAL_DRY_RUN"):
         monkeypatch.delenv(k, raising=False)
     got = worker.expected_intervals()
     assert got["engage"] is None and got["newsroom"] is None and got["calendar"] is None
+    assert got["insights"] is None   # dry run (the default): nothing real is published, so there is nothing to read
     assert got["listing_reels"] == listing_reel.HEARTBEAT_INTERVAL_S
     monkeypatch.setenv("CALENDAR_ENABLED", "true")
     monkeypatch.setenv("CALENDAR_INTERVAL_SECONDS", "120")

@@ -1,5 +1,8 @@
 """Which insights can our Meta token read? (docs/CONTENT_PLATFORM.md, X-1). Read-only: it never posts, edits or deletes anything.
 
+Optional: the worker's insights collector (app/modules/insights) finds this out by itself and tells the owners when a permission is
+missing. This script is for looking at the same answer by hand, on demand.
+
 For the most recent published calendar row of each kind (Instagram reel, Instagram post, Facebook reel, Facebook post) it asks the
 Graph API for every candidate metric ONE AT A TIME (a single unknown or retired metric fails the whole request otherwise) and prints
 a table: metric, available yes/no, the value or Meta's reason. It also prints the token's permissions when Meta shows them.
@@ -15,85 +18,13 @@ import asyncio
 import sys
 from datetime import date
 from pathlib import Path
-from typing import Awaitable, Callable, Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 BACKEND = Path(__file__).resolve().parents[1]
 if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
-# The candidates: names Meta has used for these numbers. Some are retired or renamed; finding out which is the point.
-CANDIDATES: Dict[str, Tuple[str, List[str]]] = {
-    # target: (endpoint under the object, metrics)
-    "instagram reel": ("insights", ["views", "reach", "likes", "comments", "shares", "saved", "total_interactions",
-                                    "ig_reels_avg_watch_time", "ig_reels_video_view_total_time", "profile_visits", "follows", "plays"]),
-    "instagram post": ("insights", ["views", "reach", "likes", "comments", "shares", "saved", "total_interactions",
-                                    "profile_visits", "follows", "impressions"]),
-    "facebook reel": ("video_insights", ["blue_reels_play_count", "fb_reels_total_plays", "fb_reels_replay_count",
-                                         "post_video_avg_time_watched", "post_video_view_time", "post_impressions_unique",
-                                         "post_video_followers", "post_video_social_actions", "post_video_retention_graph",
-                                         "total_video_views"]),
-    "facebook post": ("insights", ["post_impressions_unique", "post_media_view", "post_clicks", "post_reactions_by_type_total",
-                                   "post_activity_by_action_type", "post_impressions"]),
-}
-Get = Callable[[str, dict], Awaitable[Tuple[int, dict]]]
-
-
-def clean(text: str, secrets: List[str]) -> str:
-    for s in secrets:
-        if s:
-            text = text.replace(s, "[token]")
-    return " ".join(text.split())[:160]
-
-
-def target_of(row: dict) -> Optional[str]:
-    """Which candidate list fits a calendar row. A carousel sent to Facebook as a Reel of its slides counts as a Facebook reel."""
-    reel = row.get("kind") == "reel" or (row.get("tags") or {}).get("published_as") == "reel"
-    if row.get("channel") == "instagram":
-        return "instagram reel" if reel else "instagram post"
-    if row.get("channel") == "facebook_page":
-        return "facebook reel" if reel else "facebook post"
-    return None
-
-
-def _value(data: dict):
-    """The number in one metric's answer (Instagram: values[0].value or total_value.value)."""
-    for m in data.get("data") or []:
-        if m.get("total_value") is not None:
-            return m["total_value"].get("value")
-        vals = m.get("values") or []
-        if vals:
-            return vals[0].get("value")
-    return None
-
-
-async def probe(get: Get, base: str, external_id: str, target: str, token: str) -> List[dict]:
-    """One request per metric. Each result: {metric, ok, value, reason}."""
-    endpoint, metrics = CANDIDATES[target]
-    out = []
-    for metric in metrics:
-        try:
-            status, body = await get(f"{base}/{external_id}/{endpoint}", {"metric": metric, "access_token": token})
-        except Exception as e:  # network: report it, never the request (it holds the token)
-            out.append({"metric": metric, "ok": False, "value": None, "reason": f"request failed ({type(e).__name__})"})
-            continue
-        err = (body or {}).get("error")
-        if status >= 400 or err:
-            out.append({"metric": metric, "ok": False, "value": None,
-                        "reason": clean(str((err or {}).get("message") or f"HTTP {status}"), [token])})
-            continue
-        value = _value(body or {})
-        out.append({"metric": metric, "ok": value is not None or bool((body or {}).get("data")), "value": value,
-                    "reason": "" if (body or {}).get("data") else "no data returned"})
-    return out
-
-
-async def permissions(get: Get, base: str, token: str) -> List[str]:
-    """The token's scopes as Meta reports them (debug_token), or [] when Meta does not say."""
-    try:
-        status, body = await get(f"{base}/debug_token", {"input_token": token, "access_token": token})
-    except Exception:
-        return []
-    return sorted((body or {}).get("data", {}).get("scopes") or []) if status < 400 else []
+from app.modules.insights.graph import CANDIDATES, permissions, probe, target_of  # noqa: E402  (one copy: the collector's)
 
 
 def table(results: Dict[str, Tuple[dict, List[dict]]], scopes: List[str]) -> str:
