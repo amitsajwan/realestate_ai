@@ -46,6 +46,12 @@ def _rel(path: str) -> str:
     return path[len("/uploads/"):] if path.startswith("/uploads/") else path.lstrip("/")
 
 
+def property_of(listing: dict) -> Dict[str, str]:
+    """What calendar.reach reads first for the hashtags (locality, project, type), so the tags do not depend on the caption's wording."""
+    keys = {"project_name": "project_name", "locality": "locality", "property_type": "property_type"}
+    return {k: str(listing[src]).strip() for k, src in keys.items() if listing.get(src) and str(listing[src]).strip()}
+
+
 def items(run: dict, link_line: str) -> List[Dict]:
     """What goes into the calendar, in campaign order: every post on both channels; each slides reel on Instagram only
     (Facebook already turns a carousel into a reel when it posts it, calendar.runner); the walkthrough reel, once rendered,
@@ -57,7 +63,7 @@ def items(run: dict, link_line: str) -> List[Dict]:
         if channel != "instagram":
             caption = facebook_caption(caption, link_line, page, angle)
         creative = {"role": "listing", "source": "campaign", "path": "campaign", "angle": angle, "ok": True,
-                    "hook": (caption.splitlines() or [""])[0], **extra_creative}
+                    "hook": (caption.splitlines() or [""])[0], **(run.get("property") or {}), **extra_creative}
         out.append({"slug": slug, "channel": channel, "kind": kind, "caption": caption, "images": images, "video": video,
                     "angle": angle, "creative": creative})
 
