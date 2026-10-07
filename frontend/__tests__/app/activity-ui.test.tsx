@@ -47,7 +47,7 @@ describe('Listing activity screen', () => {
     expect(await screen.findByRole('heading', { level: 1, name: '2 BHK in Baner' })).toBeInTheDocument()
     expect(getListingActivity).toHaveBeenCalledWith('l1', 50)
     expect(screen.getByText('₹85 L')).toBeInTheDocument()
-    expect(screen.getByText('live')).toBeInTheDocument()
+    expect(screen.getByText('On sale')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/studio/listings/l1')
   })
 

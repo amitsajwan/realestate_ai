@@ -1,7 +1,9 @@
 'use client'
 import React from 'react'
 import { t } from '@/lib/app/strings'
-import type { ListingStatus, Stage, Temperature } from '@/lib/app/types'
+import type { ListingStatus, Stage, Temperature, Transaction } from '@/lib/app/types'
+import { StatusPill } from './list'
+import type { PillTone } from './list'
 
 type BtnProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'secondary' | 'whatsapp' | 'danger' | 'ghost'
@@ -54,11 +56,19 @@ export function Chip({ children, tone = 'gray', className = '' }: { children: Re
   return <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${tones[tone] ?? tones.gray} ${className}`}>{children}</span>
 }
 
-const STATUS_TONE: Record<ListingStatus, string> = {
-  draft: 'gray', live: 'green', under_offer: 'amber', sold: 'purple', rented: 'purple', paused: 'gray', expired: 'red',
+const STATUS_TONE: Record<ListingStatus, PillTone> = {
+  draft: 'muted', live: 'ok', under_offer: 'info', sold: 'done', rented: 'done', paused: 'muted', expired: 'bad',
 }
-export function StatusChip({ status }: { status: ListingStatus }) {
-  return <Chip tone={STATUS_TONE[status]}>{status.replace('_', ' ')}</Chip>
+const STATUS_WORD: Record<Exclude<ListingStatus, 'live'>, string> = {
+  draft: 'Draft', under_offer: 'Under offer', sold: 'Sold', rented: 'Rented', paused: 'Paused', expired: 'Expired',
+}
+/** The plain word for a listing's status: On sale / For rent / Under offer / Sold / Rented / Paused / Draft / Expired. */
+export function listingStatusWord(status: ListingStatus, transaction?: Transaction | null): string {
+  if (status === 'live') return transaction === 'rent' ? 'For rent' : 'On sale'
+  return STATUS_WORD[status] ?? status
+}
+export function StatusChip({ status, transaction }: { status: ListingStatus; transaction?: Transaction | null }) {
+  return <StatusPill tone={STATUS_TONE[status] ?? 'muted'}>{listingStatusWord(status, transaction)}</StatusPill>
 }
 
 const TEMP_TONE: Record<Temperature, string> = { hot: 'red', warm: 'amber', cold: 'blue' }

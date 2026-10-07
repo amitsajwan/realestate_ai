@@ -33,10 +33,10 @@ describe('BusinessToday', () => {
 
     expect(await screen.findByTestId('headline')).toHaveTextContent("2 buyers haven't been contacted today.")
     const tile = (label: string) => screen.getAllByText(label).map((e) => e.closest('a')).find(Boolean)!
-    expect(tile('New enquiries')).toHaveAttribute('href', '/studio/leads?filter=new')
-    expect(tile('Hot buyers')).toHaveAttribute('href', '/studio/leads?filter=hot')
-    expect(tile('Site visits')).toHaveAttribute('href', '/studio/leads?filter=site_visit')
-    expect(tile('Follow-ups due')).toHaveAttribute('href', '/studio/leads?filter=followups')
+    expect(tile('New enquiries')).toHaveAttribute('href', '/studio/leads?tab=new')
+    expect(tile('Hot buyers')).toHaveAttribute('href', '/studio/leads?tab=all&hot=1')
+    expect(tile('Site visits')).toHaveAttribute('href', '/studio/leads?tab=site_visit')
+    expect(tile('Follow-ups due')).toHaveAttribute('href', '/studio/leads?tab=today')
     expect(within(tile('Hot buyers')).getByText('2')).toBeInTheDocument()
 
     const hot = screen.getByRole('region', { name: 'Hot buyers' })

@@ -8,6 +8,7 @@ import { PhotoPicker } from '@/components/app/PhotoPicker'
 import { ListingPhotos } from '@/components/app/quality/ListingPhotos'
 import { ReviewForm } from '@/components/app/ReviewForm'
 import { ShareBar } from '@/components/app/ShareBar'
+import { ConfirmSheet } from '@/components/app/list'
 import { Btn, ErrorBox, LinkBtn, Spinner, StatusChip } from '@/components/app/ui'
 import { ApiError } from '@/lib/app/api'
 import { api, errorMessage } from '@/lib/app/client'
@@ -19,6 +20,13 @@ import { t } from '@/lib/app/strings'
 import { useAsync } from '@/lib/app/useAsync'
 import type { Listing, ListingInput, ListingStatus } from '@/lib/app/types'
 import { FIELD_LABELS, missingFields } from '@/lib/app/validate'
+
+/** Sold, rented and paused take the listing away from buyers: each asks first. */
+const ASK: Partial<Record<ListingStatus, (title: string) => { title: string; body: string }>> = {
+  sold: (title) => ({ title: `Mark ${title || 'this listing'} sold?`, body: 'Buyers stop seeing it and no more posts go out for it. You can make it live again later.' }),
+  rented: (title) => ({ title: `Mark ${title || 'this listing'} rented?`, body: 'Buyers stop seeing it and no more posts go out for it. You can make it live again later.' }),
+  paused: (title) => ({ title: `Pause ${title || 'this listing'}?`, body: 'Buyers cannot see it until you make it live again.' }),
+}
 
 function actionsFor(l: Listing): Array<{ label: string; status: ListingStatus | 'publish'; variant?: 'secondary' | 'danger' }> {
   const closed: ListingStatus = l.transaction === 'rent' ? 'rented' : 'sold'
@@ -51,6 +59,15 @@ export default function ListingDetailPage() {
   const [busy, setBusy] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [newPhotos, setNewPhotos] = useState<File[]>([])
+  const [asking, setAsking] = useState<{ status: ListingStatus; label: string } | null>(null)
+  // How many posts the marketing run made, for the Marketing button (a nice-to-have: no count when it cannot be loaded).
+  const campaign = useAsync(async () => {
+    try {
+      return (await api.getMarketingRun(id))?.posts?.length ?? 0
+    } catch {
+      return 0
+    }
+  }, [id])
 
   useEffect(() => {
     if (data) {
@@ -97,7 +114,7 @@ export default function ListingDetailPage() {
       <div className="flex items-center gap-2">
         <Link href="/studio/listings" className="flex min-h-[44px] min-w-[44px] items-center text-xl" aria-label={t('back')}>←</Link>
         <h1 className="flex-1 truncate text-xl font-bold">{listing.title || 'Listing'}</h1>
-        <StatusChip status={listing.status} />
+        <StatusChip status={listing.status} transaction={listing.transaction} />
       </div>
 
       <FreshnessSection listings={[listing]} onUpdated={(l) => setData(l)} />
@@ -114,8 +131,12 @@ export default function ListingDetailPage() {
       )}
 
       {shareable && (
-        <div className="grid grid-cols-2 gap-3">
-          <LinkBtn variant="secondary" href={`/studio/listings/${listing.id}/marketing`}>{t('marketing')}</LinkBtn>
+        <div className="space-y-2">
+          <a href={`/studio/listings/${listing.id}/marketing`} data-testid="marketing-button"
+            className="min-h-[56px] w-full items-center justify-center gap-2 rounded-xl bg-[#0f2340] px-5 text-base font-semibold text-white active:opacity-90 [display:flex]">
+            {t('marketing')}
+            {campaign.data ? <span className="rounded-full bg-[#f0b440] px-2 text-sm font-bold text-[#0f2340]">{campaign.data} {campaign.data === 1 ? 'post' : 'posts'}</span> : null}
+          </a>
           <LinkBtn variant="secondary" href={`/studio/listings/${listing.id}/marketing#buyers`}>{t('buyersWhoMatch')}</LinkBtn>
         </div>
       )}
@@ -133,12 +154,27 @@ export default function ListingDetailPage() {
               <Btn key="p" disabled={busy} onClick={() => setConfirming(true)}>{a.label}</Btn>
             )
           ) : (
-            <Btn key={a.label} variant={a.variant ?? 'primary'} disabled={busy} onClick={() => run(() => api.setListingStatus(listing.id, a.status as ListingStatus), a.label)}>
+            <Btn key={a.label} variant={a.variant ?? 'primary'} disabled={busy} onClick={() => {
+              const status = a.status as ListingStatus
+              if (ASK[status]) setAsking({ status, label: a.label })
+              else run(() => api.setListingStatus(listing.id, status), a.label)
+            }}>
               {a.label}
             </Btn>
           ),
         )}
       </div>
+      {asking && (
+        <ConfirmSheet title={ASK[asking.status]!(listing.title).title} confirmLabel={asking.label} busy={busy}
+          onCancel={() => setAsking(null)}
+          onConfirm={async () => {
+            const { status, label } = asking
+            await run(() => api.setListingStatus(listing.id, status), label)
+            setAsking(null)
+          }}>
+          <p>{ASK[asking.status]!(listing.title).body}</p>
+        </ConfirmSheet>
+      )}
       {msg && <p role="status" className="rounded-xl bg-green-50 p-3 text-center text-sm font-semibold text-green-800">{msg}</p>}
       {err && <ErrorBox message={err} />}
 

@@ -89,7 +89,7 @@ function ListingRow({ l, agent, onPost, onChanged }: { l: Listing; agent: AgentD
           <p className="truncate font-semibold text-gray-900">{l.title}</p>
           <p className="truncate text-sm text-gray-600">{formatPrice(l.price_inr, l.transaction === 'rent')} · {l.locality}</p>
         </div>
-        <StatusChip status={l.status} />
+        <StatusChip status={l.status} transaction={l.transaction} />
       </div>
       {l.status === 'draft' && <Btn variant="secondary" onClick={publish} disabled={busy} className="!min-h-[44px]">{busy ? 'Publishing...' : 'Publish'}</Btn>}
       {l.status === 'live' && <Btn variant="secondary" onClick={() => onPost(l)} className="!min-h-[44px]">Post to {BRAND_NAME}</Btn>}

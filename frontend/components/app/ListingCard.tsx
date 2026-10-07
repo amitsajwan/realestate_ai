@@ -49,11 +49,15 @@ export function FreshnessChip({ listing }: { listing: Listing }) {
   )
 }
 
-export function ListingCard({ listing, performance }: { listing: Listing; performance?: PerformanceItem | null }) {
+/**
+ * One listing row. `href` overrides where it opens (an owner looking at another agent's listing goes to that agent's page,
+ * and the Activity link, which is only for your own listings, is left out).
+ */
+export function ListingCard({ listing, performance, href }: { listing: Listing; performance?: PerformanceItem | null; href?: string }) {
   const thumb = listing.media?.[0]?.url
   return (
     <div className="rounded-2xl border border-gray-200 bg-white">
-      <Link href={`/studio/listings/${listing.id}`} className="block min-h-[88px] rounded-t-2xl p-3 active:bg-gray-50">
+      <Link href={href ?? `/studio/listings/${listing.id}`} className="block min-h-[88px] rounded-t-2xl p-3 active:bg-gray-50">
         <div className="flex gap-3">
           {thumb ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -66,7 +70,7 @@ export function ListingCard({ listing, performance }: { listing: Listing; perfor
             <p className="truncate text-sm text-gray-500">{[listing.locality, listing.city].filter(Boolean).join(', ')}</p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <span className="font-bold text-blue-700">{formatPrice(listing.price_inr, listing.transaction === 'rent') || '-'}</span>
-              <StatusChip status={listing.status} />
+              <StatusChip status={listing.status} transaction={listing.transaction} />
               <FreshnessChip listing={listing} />
             </div>
           </div>
@@ -74,7 +78,7 @@ export function ListingCard({ listing, performance }: { listing: Listing; perfor
         {performance && <PerformanceRow perf={performance} />}
         {performance && <DealsLine perf={performance} />}
       </Link>
-      {listing.status !== 'draft' && (
+      {listing.status !== 'draft' && !href && (
         <div className="border-t border-gray-100 px-3 py-1">
           <Link
             href={`/studio/listings/${listing.id}/activity`}

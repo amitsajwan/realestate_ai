@@ -16,10 +16,10 @@ import { useAsync } from '@/lib/app/useAsync'
 import type { BusinessToday as Today, RecommendedAction, RecommendedActionType, TodayFollowUp, TodayHotBuyer, TodayResults } from '@/lib/app/types'
 
 export const TILE_LINKS = [
-  { key: 'new_enquiries_24h', label: 'tileNew', href: '/studio/leads?filter=new' },
-  { key: 'hot', label: 'tileHot', href: '/studio/leads?filter=hot' },
-  { key: 'site_visits', label: 'tileVisits', href: '/studio/leads?filter=site_visit' },
-  { key: 'follow_ups_due', label: 'tileFollowUps', href: '/studio/leads?filter=followups' },
+  { key: 'new_enquiries_24h', label: 'tileNew', href: '/studio/leads?tab=new' },
+  { key: 'hot', label: 'tileHot', href: '/studio/leads?tab=all&hot=1' },
+  { key: 'site_visits', label: 'tileVisits', href: '/studio/leads?tab=site_visit' },
+  { key: 'follow_ups_due', label: 'tileFollowUps', href: '/studio/leads?tab=today' },
 ] as const
 
 export function CountTiles({ counts }: { counts: Today['counts'] }) {

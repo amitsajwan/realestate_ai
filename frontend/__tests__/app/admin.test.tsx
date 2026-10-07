@@ -37,12 +37,12 @@ beforeEach(() => {
 })
 
 describe('Admin home', () => {
-  it('opening it clears the "new request to join" alerts, and only those', async () => {
-    const { markNotificationRead } = jest.requireMock('@/lib/app/whatsapp') as { markNotificationRead: jest.Mock }
+  it('no longer clears the "new request to join" alerts (the requests live under Agents now)', async () => {
+    const { getNotifications } = jest.requireMock('@/lib/app/whatsapp') as { getNotifications: jest.Mock }
+    getNotifications.mockClear()
     render(<AdminPage />)
     await screen.findByTestId('admin-screen')
-    await waitFor(() => expect(markNotificationRead).toHaveBeenCalledWith('n1'))
-    expect(markNotificationRead).not.toHaveBeenCalledWith('n2')
+    expect(getNotifications).not.toHaveBeenCalled()
   })
   it('shows the sections in order: Add agent, Today, Needs you, Agents, Health, Controls', async () => {
     render(<AdminPage />)
@@ -64,38 +64,15 @@ describe('Admin home', () => {
     expect(screen.getByTestId('tile-news')).toHaveAttribute('href', '/studio/newsroom')
   })
 
-  it('Needs you lists approvals and website requests; Invite shows the code and message once', async () => {
-    mockAdmin.invite.mockResolvedValue({
-      agent: { ...AGENTS[2], name: 'Vikram Joshi' }, created: true, code: '123456', reissued: false,
-      whatsapp_message: 'Hi Vikram, welcome to Avasetu! Open https://x/join, enter 9876500021 and your personal code 123456.', whatsapp_url: 'https://wa.me/919876500021',
-      request: { ...fixtureOverview().invite_requests[0], status: 'invited' },
-    })
+  it('Needs you lists approvals and links the website requests to Agents > Asked to join', async () => {
     render(<AdminPage />)
     expect(await screen.findByTestId('needs-posts')).toHaveAttribute('href', '/studio/content')
     expect(screen.getByTestId('needs-posts')).toHaveTextContent('4 posts wait for your approval')
     expect(screen.getByTestId('needs-news')).toHaveTextContent('2 news stories to review')
-    const rows = screen.getAllByTestId('invite-row')
-    expect(rows).toHaveLength(2)
-    expect(within(rows[0]).getByText(/98\*{6}21/)).toBeInTheDocument()
-    fireEvent.click(within(rows[0]).getByRole('button', { name: 'Invite' }))
-    expect(await screen.findByTestId('invite-code')).toHaveTextContent('123456')
-    expect(mockAdmin.invite).toHaveBeenCalledWith('fx-r1')
-    expect((screen.getByLabelText('WhatsApp message') as HTMLTextAreaElement).value).toContain('welcome to Avasetu')
-    fireEvent.click(screen.getByRole('button', { name: 'Copy message' }))
-    expect(await screen.findByRole('button', { name: 'Copied!' })).toBeInTheDocument()
-    expect(mockAdmin.overview).toHaveBeenCalledTimes(2) // refreshed after the invite
-  })
-
-  it('Dismiss asks first and only then dismisses', async () => {
-    mockAdmin.dismiss.mockResolvedValue({ status: 'dismissed' })
-    render(<AdminPage />)
-    const row = (await screen.findAllByTestId('invite-row'))[1]
-    fireEvent.click(within(row).getByRole('button', { name: 'Dismiss' }))
-    fireEvent.click(within(row).getByRole('button', { name: 'Keep' }))
-    expect(mockAdmin.dismiss).not.toHaveBeenCalled()
-    fireEvent.click(within(row).getByRole('button', { name: 'Dismiss' }))
-    fireEvent.click(within(row).getByRole('button', { name: 'Yes, dismiss' }))
-    await waitFor(() => expect(mockAdmin.dismiss).toHaveBeenCalledWith('fx-r2'))
+    const asked = screen.getByTestId('needs-asked')
+    expect(asked).toHaveTextContent('2 asked to join on the website')
+    expect(asked).toHaveAttribute('href', '/studio/agents?tab=asked')
+    expect(screen.queryByTestId('invite-row')).toBeNull()
   })
 
   it('shows a calm empty state when nothing waits', async () => {
