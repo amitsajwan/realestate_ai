@@ -152,6 +152,7 @@ export default function NewsroomPage() {
         )
       )}
 
+      <a href="/studio/newsroom/projects" className="flex min-h-[44px] items-center justify-center text-sm font-semibold text-[#0f2340] underline">Project pages: what is enriched and checked</a>
       <button type="button" onClick={refresh} className="min-h-[44px] w-full text-sm font-semibold text-[#0f2340] underline">Refresh</button>
     </div>
   )

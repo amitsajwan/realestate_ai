@@ -108,10 +108,68 @@ def paragraph(doc: dict) -> str:
     return " ".join(out)
 
 
-def view(doc: dict, same_area: List[dict]) -> dict:
+_LEGAL = re.compile(r"\b(m s|private|pvt|limited|ltd|llp|the|and|co|company|corporation|corp)\b")
+
+
+def promoter_key(name: Optional[str]) -> str:
+    """'M/s. Rohan Builders Pvt. Ltd.' and 'ROHAN BUILDERS PRIVATE LIMITED' -> 'rohan builders'."""
+    words = " ".join(_WORDS.findall(_ascii(name or "")))
+    return " ".join(_LEGAL.sub(" ", words).split())
+
+
+def months_later(doc: dict) -> Optional[int]:
+    """Whole months the filed completion date moved later since registration; 0 when it did not; None when unknown."""
+    now, first = _day(doc.get("completion_now")), _day(doc.get("completion_at_registration"))
+    if not now or not first:
+        return None
+    (y1, m1, d1), (y2, m2, d2) = (map(int, first.split("-")), map(int, now.split("-")))
+    n = (y2 - y1) * 12 + (m2 - m1) - (1 if d2 < d1 - 3 else 0)
+    return max(0, n) if now > first else 0
+
+
+def _served(d: dict) -> bool:
+    return bool(d.get("page_slug")) and (d.get("locality") in BY_KEY or bool(d.get("watched_by")))
+
+
+def track_record(doc: dict, docs: List[dict]) -> Optional[dict]:
+    """The promoter's projects in our register: how many, how many moved their completion date later and by how much."""
+    key = promoter_key(doc.get("promoter"))
+    if not key:
+        return None
+    mine = [d for d in docs if promoter_key(d.get("promoter")) == key]
+    moved = [m for m in (months_later(d) for d in mine) if m]
+    mine.sort(key=lambda d: (_day(d.get("completion_now")) or "9999", d.get("name", "")))
+    return {"name": doc.get("promoter"), "count": len(mine), "with_dates": sum(1 for d in mine if months_later(d) is not None),
+            "moved_later": len(moved), "avg_months_later": round(sum(moved) / len(moved)) if moved else None,
+            "projects": [{"name": d.get("name", ""), "regno": d.get("regno") or d["_id"], "slug": d["page_slug"] if _served(d) else None,
+                          "completion_now": _day(d.get("completion_now")), "months_later": months_later(d),
+                          "this": d["_id"] == doc["_id"]} for d in mine[:30]]}
+
+
+def details(doc: dict) -> dict:
+    """The 'Project details' grid: MahaRERA's buildings totals and the record's own numbers (None where unknown)."""
+    t = doc.get("building_totals") or {}
+    total, sold = _count(doc.get("units_total")), booked(doc)
+    return {"towers": t.get("towers"), "max_floors": t.get("max_floors"),
+            "units_total": total or t.get("units_total"), "units_residential": t.get("units_residential"),
+            "units_other": t.get("units_other"),
+            "booked_pct": round(100 * sold / total) if total and sold is not None and sold <= total else None,
+            "registered_on": _day(doc.get("registered_on")), "completion_moved_months": months_later(doc)}
+
+
+def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) -> dict:
     area = BY_KEY.get(doc.get("locality") or "")
     read = doc.get("details_checked_at")
+    geo = doc.get("geo") or {}
+    checked = ((doc.get("enrichment") or {}).get("steps") or {}).get("places") or {}
     return {
+        "details": details(doc),
+        "buildings": [{k: b.get(k) for k in ("name", "wing", "floors", "units_residential", "units_other", "units_total")}
+                      for b in doc.get("buildings") or []],
+        # a position only when the check put it near the pincode's centre
+        "map": {"lat": geo["lat"], "lon": geo["lon"]} if geo.get("lat") is not None and checked.get("ok") else None,
+        "builder": track_record(doc, docs) if docs is not None else None,
+        "place": doc.get("place_locality") or None, "taluka": doc.get("taluka") or None,
         "slug": doc.get("page_slug"), "name": doc.get("name", ""), "regno": doc.get("regno") or doc["_id"],
         "promoter": doc.get("promoter") or None, "pincode": doc.get("pincode") or None,
         "area": {"key": area.key, "slug": area.slug, "name": area.name} if area else None,
@@ -142,8 +200,9 @@ async def project_page(db, slug: str) -> Optional[dict]:
     doc = await store.projects.find_one({"page_slug": slug})
     if doc is None or not (doc.get("locality") in BY_KEY or doc.get("watched_by")):
         return None
-    peers = await store.projects_in([doc["locality"]], limit=2000) if doc.get("locality") else []
-    return view(doc, _similar(doc, peers))
+    docs = await store.all_projects()   # about a thousand records: the same-area list and the builder's track record
+    peers = [d for d in docs if doc.get("locality") and d.get("locality") == doc["locality"]]
+    return view(doc, _similar(doc, peers), docs)
 
 
 async def page_for(db, regno: str) -> Optional[dict]:
