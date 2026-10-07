@@ -3,7 +3,8 @@
 The approval gate: only rows the owner approved (status `approved`, or the legacy `scheduled`) are ever due. `planned` rows are never touched.
 One pass (`run_once`): at most one post per channel; SOCIAL_DRY_RUN marks the post published with a fake id and no network;
 a failure is recorded with a sanitised reason and retried at most twice; a post far overdue (server was down) is skipped, not burst out.
-Kinds: post (1 image, or an Instagram carousel), showcase (through showcase.publish), reel (video staged, then Instagram Reel or Page Reel).
+Kinds: post (1 image, or an Instagram carousel), reel (video staged, then Instagram Reel or Page Reel). A leftover `showcase` row
+(a sample home, retired 2026-10-07) is skipped, never posted.
 A carousel's Facebook copy goes out as a Page Reel of its slides (Facebook shows a multi-photo post as a grid, not a swipe), unless
 CALENDAR_FB_CAROUSEL_AS_REEL=off; if that reel cannot be made, the slides go out as one multi-photo post as before.
 Reels take about a minute to render, so `prerender_reels` renders them in the background up to two hours before they are due.
@@ -55,7 +56,6 @@ async def prerender_reels(store: Store, now: datetime, uploads: Optional[Path] =
 
 async def run_once(store: Store, publisher, social: SocialConfig, cfg: CalendarConfig, now: datetime, uploads: Optional[Path] = None,
                    render_reel: Callable = adapters.render_reel_for, publish_reel: Callable = adapters.publish_reel,
-                   publish_showcase: Callable = adapters.publish_showcase,
                    render_slides_reel: Callable = adapters.render_slides_reel_for) -> Dict[str, int]:
     """Publish what is due and approved. `publisher` is used only when SOCIAL_DRY_RUN is off. Returns counts and records them in calendar_status."""
     counts = {"published": 0, "failed": 0, "retry": 0, "skipped": 0, "waiting": 0}
@@ -65,6 +65,10 @@ async def run_once(store: Store, publisher, social: SocialConfig, cfg: CalendarC
     seen = set()
     for doc in due:
         ch = doc["channel"]
+        if doc.get("kind") == "showcase":  # sample homes are retired: never posted
+            await store.skip(doc["_id"], "sample homes are retired: not posted")
+            counts["skipped"] += 1
+            continue
         dup = liveness.duplicate_of(doc, rows, now)
         if dup is not None:  # the same opening line already went out on this channel: never post it twice
             when = aware(dup["published_at"]).strftime("%d %b") if isinstance(dup.get("published_at"), datetime) else "earlier"
@@ -84,7 +88,7 @@ async def run_once(store: Store, publisher, social: SocialConfig, cfg: CalendarC
             counts["waiting"] += 1
             continue
         seen.add(ch)
-        outcome = await _publish_one(store, publisher, social, doc, uploads, render_reel, publish_reel, publish_showcase,
+        outcome = await _publish_one(store, publisher, social, doc, uploads, render_reel, publish_reel,
                                      render_slides_reel if cfg.fb_carousel_as_reel else None)
         counts[outcome] += 1
     await store.set_run(last_run_at=now, last_counts=counts, last_error=None if not counts["failed"] and not counts["retry"] else "see items")
@@ -116,7 +120,7 @@ async def _slides_reel(store: Store, doc: dict, uploads: Path, render: Callable)
 
 
 async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict, uploads: Path, render_reel: Callable, publish_reel: Callable,
-                       publish_showcase: Callable, render_slides_reel: Optional[Callable] = None) -> str:
+                       render_slides_reel: Optional[Callable] = None) -> str:
     attempts = int(doc.get("attempts") or 0) + 1
     try:
         kind = doc.get("kind") or "post"
@@ -134,8 +138,6 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
                 await store.set_video(doc["_id"], video)
                 doc = {**doc, "video": video}
             res = await _once(store, doc, lambda: publish_reel(doc, social, uploads))
-        elif kind == "showcase":
-            res = await _once(store, doc, lambda: publish_showcase(doc, social, publisher, uploads))
         else:
             imgs = _images(doc)
             if not imgs:

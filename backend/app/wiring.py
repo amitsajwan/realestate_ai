@@ -10,7 +10,6 @@ def wire() -> None:
     from app.modules.concierge.attribution import attribution_text, register_hub_item
     from app.modules.concierge.config import is_operator
     from app.modules.engage import service as engage_service
-    from app.modules.interest import router as interest_routes
     from app.modules.knowledge import grounding
     from app.modules.marketing.content import link_line
     from app.modules.marketing.facts import Facts
@@ -27,9 +26,8 @@ def wire() -> None:
     # the quality route: the operator may review any agent's listing cards; calendar and news items are found by their owners
     quality_routes.configure(is_operator=is_operator,
                              resolvers={"calendar": calendar_quality.review_target, "news": news_quality.review_target})
-    # the interest hub shows the labelled sample homes while nothing real is published
-    interest_routes.configure(sample_entry=samples.catalogue_entry, sample_slugs=samples.catalogue_slugs)
-    # grounded answers know the sample homes and the verified evergreen posts; comment replies show listing facts
+    # grounded answers know the sample homes (comments on sample posts published before they were retired, and the demo
+    # agent's listings) and the verified evergreen posts; comment replies show listing facts
     grounding.configure(sample_home=samples.get, icon_labels=samples.ICON_LABELS, evergreen_post=calendar_library.BY_SLUG.get)
     # comment replies know which posts are our agent promos (content's rule, calendar.reach)
     from app.modules.reels.agent_reels import source_tag as agent_reel_source

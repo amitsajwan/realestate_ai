@@ -264,18 +264,16 @@ async def test_missing_image_file_is_a_recorded_failure():
     assert "missing" in (await store.get(i))["error"] and pub.posts == []
 
 
-async def test_showcase_rows_go_through_the_showcase_publisher():
+async def test_a_leftover_sample_home_row_is_skipped_never_posted():
     store, pub, render = make()
     i = await store.add("kharadi-2bhk-ready", "instagram", "sample caption", "showcase/kharadi-2bhk-ready/1.jpg", NOW - timedelta(hours=1),
                         kind="showcase", status="approved")
-    seen = []
-
-    async def fake_showcase(doc, social, publisher, uploads):
-        seen.append((doc["slug"], doc["channel"], doc["caption"]))
-        return Result("show1", "https://ig.test/p/1")
-
-    await run(store, pub, render, publish_showcase=fake_showcase)
-    assert len(seen) == 1 and seen[0][:2] == ("kharadi-2bhk-ready", "instagram") and seen[0][2].startswith("sample caption") and (await store.get(i))["external_id"] == "show1" and pub.posts == []
+    nxt = await add(store, "carpet-under-rera", "instagram", NOW - timedelta(minutes=30))
+    counts = await run(store, pub, render)
+    row = await store.get(i)
+    assert row["status"] == "skipped" and "retired" in row["history"][-1]["note"] and not row.get("external_id")
+    assert counts["skipped"] == 1 and counts["published"] == 1 and (await store.get(nxt))["status"] == "published"   # the slot goes on
+    assert all("showcase" not in str(p) for p in pub.posts)
 
 
 async def reel_row(store, channel, due, status="approved", video=None, key="reel-w1-tip"):
@@ -325,12 +323,12 @@ async def test_reel_publish_uses_the_prerendered_video_and_renders_late_if_neede
 async def test_dry_run_publishes_nothing_for_any_kind_and_does_not_render():
     store, pub, render = make()
     r = await reel_row(store, "instagram", NOW - timedelta(hours=1))
-    s = await store.add("kharadi-2bhk-ready", "facebook_page", "c", "x.jpg", NOW - timedelta(hours=1), kind="showcase", status="approved")
+    s = await add(store, "carpet-under-rera", "facebook_page", NOW - timedelta(hours=1))
 
     async def never(*a, **k):
         raise AssertionError("must not be called in a dry run")
 
-    counts = await run(store, pub, render, social=DRY, publish_reel=never, publish_showcase=never)
+    counts = await run(store, pub, render, social=DRY, publish_reel=never)
     assert counts["published"] == 2 and render.calls == [] and pub.posts == []
     assert (await store.get(r))["external_id"].startswith("dryrun_")
 

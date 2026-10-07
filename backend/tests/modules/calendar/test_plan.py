@@ -11,7 +11,7 @@ import pytest
 from PIL import Image
 
 from app.modules.calendar import adapters, builder, library
-from app.modules.calendar.plan import AREAS, build_plan
+from app.modules.calendar.plan import build_plan
 from app.modules.calendar.schedule import IST
 from app.modules.calendar.store import Store
 
@@ -40,26 +40,25 @@ def test_four_weeks_five_items_per_channel_per_week():
         assert Counter(i.week for i in rows) == {1: 5, 2: 5, 3: 5, 4: 5}, ch
 
 
-def test_instagram_week_has_showcase_checklist_myth_poll_or_number_agent_and_a_reel():
+def test_instagram_week_has_educational_checklist_myth_poll_or_number_agent_and_a_reel():
     for w, rows in weeks_of(by_channel(build_plan(START, 4))["instagram"]).items():
-        assert Counter(i.role for i in rows) == {"showcase": 1, "checklist": 1, "mythpoll": 1, "agent": 1, "reel": 1}, w
-        assert Counter(i.kind for i in rows) == {"showcase": 1, "post": 3, "reel": 1}
+        assert Counter(i.role for i in rows) == {"edu_a": 1, "checklist": 1, "mythpoll": 1, "agent": 1, "reel": 1}, w
+        assert Counter(i.kind for i in rows) == {"post": 4, "reel": 1}
 
 
-def test_facebook_week_has_two_educational_a_showcase_an_agent_or_poll_and_the_reel():
+def test_facebook_week_has_two_educational_a_myth_poll_or_number_an_agent_or_poll_and_the_reel():
     for w, rows in weeks_of(by_channel(build_plan(START, 4))["facebook_page"]).items():
         roles = Counter(i.role for i in rows)
-        assert roles["edu_a"] == 1 and roles["edu_b"] == 1 and roles["showcase"] == 1 and roles["reel"] == 1
+        assert roles["edu_a"] == 1 and roles["edu_b"] == 1 and roles["mythpoll"] == 1 and roles["reel"] == 1
         assert roles["agent"] + roles["poll"] == 1
     kinds = [next(i.role for i in rows if i.role in ("agent", "poll")) for _, rows in sorted(weeks_of(by_channel(build_plan(START, 4))["facebook_page"]).items())]
     assert kinds == ["agent", "poll", "agent", "poll"]
 
 
 def test_the_myth_poll_number_slot_rotates():
-    mp = [i for i in by_channel(build_plan(START, 4))["instagram"] if i.role == "mythpoll"]
-    assert [library.BY_SLUG[i.ref].pillar for i in mp][:2] == ["myth", "poll"]
-    assert mp[2].prefer == "stat" and mp[2].ref in adapters.STAT_SLUGS
-    assert library.BY_SLUG[mp[3].ref].pillar == "myth"
+    mp = sorted((i for i in build_plan(START, 4) if i.role == "mythpoll"), key=lambda i: i.due_at)
+    assert {library.BY_SLUG[i.ref].pillar for i in mp[:3]} >= {"myth", "poll"}
+    assert any(i.prefer == "stat" and i.ref in adapters.STAT_SLUGS for i in mp)
 
 
 def test_times_are_10_or_19_ist_and_gaps_are_at_least_12_hours():
@@ -83,14 +82,9 @@ def test_a_library_slug_never_repeats_within_60_days_on_either_channel():
         assert all(b - a >= timedelta(days=60) for a, b in zip(times, times[1:])), slug
 
 
-def test_showcase_homes_rotate_through_the_three_areas():
-    items = by_channel(build_plan(START, 4))
-    for ch, first in (("instagram", 0), ("facebook_page", 1)):
-        rows = sorted((i for i in items[ch] if i.kind == "showcase"), key=lambda i: i.due_at)
-        areas = [adapters.get_home(i.ref).locality for i in rows]
-        assert areas == [AREAS[(first + k) % 3] for k in range(4)]
-    homes = [i.ref for i in items["instagram"] if i.kind == "showcase"]
-    assert len(set(homes)) == len(homes)
+def test_no_sample_homes_are_planned():
+    items = build_plan(START, 8)
+    assert not [i for i in items if i.kind == "showcase" or i.source == "home" or i.template == "tour"]
 
 
 def test_reel_templates_alternate_and_both_channels_share_one_reel():
@@ -99,11 +93,11 @@ def test_reel_templates_alternate_and_both_channels_share_one_reel():
     for i in items:
         if i.kind == "reel":
             reels[i.week][i.channel] = i
-    assert [reels[w]["instagram"].template for w in (1, 2, 3, 4)] == ["tip", "tour", "pitch", "tip"]
+    assert [reels[w]["instagram"].template for w in (1, 2, 3, 4)] == ["tip", "pitch", "tip", "pitch"]
     for w, pair in reels.items():
         assert pair["instagram"].ref == pair["facebook_page"].ref and pair["instagram"].reel_ref == pair["facebook_page"].reel_ref
     assert library.BY_SLUG[reels[1]["instagram"].reel_ref].pillar in ("checklist", "explainer")
-    assert adapters.get_home(reels[2]["instagram"].reel_ref)
+    assert reels[2]["instagram"].reel_ref == ""
 
 
 def test_agent_attraction_is_about_one_in_four():
@@ -160,17 +154,14 @@ def test_images_exist_with_the_right_sizes_and_facebook_has_one_image(built):
     uploads, rows, _, _ = built
     for r in rows:
         if r["kind"] == "reel":
-            assert r["images"] == [] and r["video"] is None and r["creative"]["template"] in ("tip", "tour", "pitch")
+            assert r["images"] == [] and r["video"] is None and r["creative"]["template"] in ("tip", "pitch")
             continue
         assert r["images"] and r["image_path"] == r["images"][0]
         if r["channel"] == "facebook_page":
             assert len(r["images"]) == 1
         for rel in r["images"]:
             with Image.open(uploads / rel) as im:
-                if r["kind"] == "showcase":
-                    assert im.size in ((1080, 1350), (1200, 630))
-                else:
-                    assert im.size == ((1080, 1350) if r["channel"] == "instagram" else (1080, 1080)), (r["slug"], im.size)
+                assert im.size == ((1080, 1350) if r["channel"] == "instagram" else (1080, 1080)), (r["slug"], im.size)
     assert any(len(r["images"]) >= 4 for r in rows if r["channel"] == "instagram" and r["kind"] == "post")  # a real carousel exists
 
 
@@ -190,10 +181,5 @@ def test_captions_are_clean_and_instagram_has_no_url(built):
         if r["channel"] == "instagram":
             assert "http" not in r["caption"] and "www." not in r["caption"], r["slug"]
         assert r["creative"].get("ok", True), (r["slug"], r["creative"].get("problems"))
-        assert r["creative"]["path"] in ("rules", "showcase", "reel")
-
-
-def test_showcase_items_are_labelled_samples(built):
-    _, rows, _, _ = built
-    shows = [r for r in rows if r["kind"] == "showcase"]
-    assert len(shows) == 8 and all("Sample listing" in r["caption"] for r in shows)
+        assert r["creative"]["path"] in ("rules", "reel")
+        assert "sample" not in r["caption"].lower(), r["slug"]

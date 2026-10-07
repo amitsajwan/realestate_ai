@@ -46,9 +46,9 @@ def test_easing_is_monotonic_and_bounded():
 
 
 def test_default_templates_stay_under_30_seconds():
-    facts = {**templates.SAMPLE_FACTS["kharadi"], "furnishing": "Semi-furnished", "price_text": "Rs 85 Lakh"}
+    facts = {**templates.DEMO_FACTS["kharadi"], "furnishing": "Semi-furnished", "price_text": "Rs 85 Lakh"}
     for scenes, opts in (templates.tip_reel(templates.TIP_LINES), templates.agent_pitch(),
-                         templates.listing_tour(PHOTOS6, facts, sample=True)):
+                         templates.listing_tour(PHOTOS6, facts, badge="Artist's impression")):
         tl = compose.plan([s.seconds or 3.0 for s in scenes], opts.get("xfade", 0.45))   # no end card by default
         assert 8 < tl.total < 30
 
@@ -68,9 +68,9 @@ ZONE_TOP, ZONE_BOTTOM, ZONE_RIGHT = 0.14 * H, 0.72 * H, 0.88 * W
 def _all_scenes():
     tip, _ = templates.tip_reel(templates.TIP_LINES)
     pitch, _ = templates.agent_pitch()
-    facts = {**templates.SAMPLE_FACTS["wagholi"], "price_text": "Rs 1.2 Cr", "furnishing": "Semi-furnished"}
-    tour, _ = templates.listing_tour([Image.new("RGB", (1600, 1000), "gray")], facts, sample=True)
-    plain, _ = templates.listing_tour(PHOTOS6, templates.SAMPLE_FACTS["kharadi"])
+    facts = {**templates.DEMO_FACTS["wagholi"], "price_text": "Rs 1.2 Cr", "furnishing": "Semi-furnished"}
+    tour, _ = templates.listing_tour([Image.new("RGB", (1600, 1000), "gray")], facts, badge="Artist's impression")
+    plain, _ = templates.listing_tour(PHOTOS6, templates.DEMO_FACTS["kharadi"])
     # as rendered: the last scene of each reel carries the brand mark; the optional end card is checked too
     return [s for group in (tip, pitch, tour, plain) for s in compose.finish_scenes(group)] + [compose.end_scene()]
 
@@ -90,7 +90,7 @@ def test_every_text_box_of_every_template_is_inside_the_instagram_safe_zone():
 
 
 def test_lower_layout_text_and_the_cta_sit_above_the_caption_area():
-    sc, _ = templates.listing_tour(PHOTOS6, templates.SAMPLE_FACTS["kharadi"])
+    sc, _ = templates.listing_tour(PHOTOS6, templates.DEMO_FACTS["kharadi"])
     cta = compose.layout_scene(compose.finish_scenes(sc)[-1])
     assert max(it.box[3] for it in cta) <= ZONE_BOTTOM and max(it.box[2] for it in cta) <= ZONE_RIGHT
 
@@ -116,12 +116,12 @@ def test_gold_markup_and_glued_punctuation():
     assert ("Then", False, False) in toks
 
 
-def test_tour_shows_no_price_unless_given_and_labels_samples():
-    sc, _ = templates.listing_tour(["p.jpg"], templates.SAMPLE_FACTS["kharadi"], sample=True)
+def test_tour_shows_no_price_unless_given_and_labels_renders():
+    sc, _ = templates.listing_tour(["p.jpg"], templates.DEMO_FACTS["kharadi"], badge="Artist's impression")
     text = " ".join(l.text if isinstance(l, TextLine) else l for s in sc for l in s.lines)
     assert "Price" not in text and "Rs" not in text and "₹" not in text
-    assert all(s.badge == "Sample listing" for s in sc)
-    with_price, _ = templates.listing_tour(PHOTOS6, {**templates.SAMPLE_FACTS["kharadi"], "price_text": "Rs 85 Lakh"})
+    assert all(s.badge == "Artist's impression" for s in sc)
+    with_price, _ = templates.listing_tour(PHOTOS6, {**templates.DEMO_FACTS["kharadi"], "price_text": "Rs 85 Lakh"})
     assert any("Rs 85 Lakh" in (l.text if isinstance(l, TextLine) else l) for s in with_price for l in s.lines)
     assert all(s.badge is None for s in with_price)
 
@@ -141,7 +141,7 @@ def test_frames_are_full_size_including_the_end_card():
 @pytest.mark.skipif(not ffmpeg.available(), reason="ffmpeg cannot run here")
 def test_tiny_reel_file_checks(tmp_path):
     photo = Image.new("RGB", (1600, 1000), (60, 120, 180))
-    scenes = [Scene(image=photo, lines=["A photo scene"], layout="lower", badge="Sample listing", seconds=1.2),
+    scenes = [Scene(image=photo, lines=["A photo scene"], layout="lower", badge="Artist's impression", seconds=1.2),
               Scene(lines=["Text *only*"], kicker="Tip", seconds=1.2)]
     out = compose.make_reel(scenes, tmp_path / "t.mp4", xfade=0.3, transition="slide")
     p = ffmpeg.probe(out)
@@ -171,7 +171,7 @@ def test_ffmpeg_errors_are_sanitised_and_music_path_checked(tmp_path):
 
 
 def test_tour_with_a_price_opens_with_guess_the_price_and_reveals_it_last():
-    facts = {**templates.SAMPLE_FACTS["kharadi"], "price_text": "Rs 85 Lakh"}
+    facts = {**templates.DEMO_FACTS["kharadi"], "price_text": "Rs 85 Lakh"}
     sc, _ = templates.listing_tour(PHOTOS6, facts)
     texts = [[l.text if isinstance(l, TextLine) else l for l in s.lines] for s in sc]
     assert "Guess the *price*" in texts[0] and not any("Rs" in t for t in texts[0])
@@ -181,7 +181,7 @@ def test_tour_with_a_price_opens_with_guess_the_price_and_reveals_it_last():
 
 # ---- the hook frame -----------------------------------------------------------------------------------------------------------
 def test_frame_zero_shows_the_complete_hook_and_later_scenes_still_animate():
-    scenes = [Scene(lines=["HOOK HERE", "second line"], kicker="Quick tip", badge="Sample", seconds=2.0, seed="h"),
+    scenes = [Scene(lines=["HOOK HERE", "second line"], kicker="Quick tip", badge="Artist's impression", seconds=2.0, seed="h"),
               Scene(lines=["Beat"], seconds=2.0, seed="b")]
     r = compose.Renderer(scenes, end_card=False)
     first, second = r.prep
@@ -230,7 +230,7 @@ def _images(scenes):
 
 
 def test_tour_uses_each_photo_once_and_drops_fact_scenes_when_photos_run_out():
-    facts = {**templates.SAMPLE_FACTS["kharadi"], "furnishing": "Semi-furnished", "price_text": "Rs 85 Lakh"}
+    facts = {**templates.DEMO_FACTS["kharadi"], "furnishing": "Semi-furnished", "price_text": "Rs 85 Lakh"}
     full, _ = templates.listing_tour(PHOTOS6, facts)
     assert len(full) == 6 and _images(full) == PHOTOS6
     four, _ = templates.listing_tour(PHOTOS6[:4] + PHOTOS6[:2], facts)   # duplicates in the input count once

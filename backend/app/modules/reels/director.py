@@ -29,7 +29,7 @@ SYSTEM = (
     "screen: at most 6 words, Roman letters only (English or Hinglish), wrap ONE key word in *stars* for gold. "
     "voice: one natural spoken sentence of at most 16 words in the requested voice language (Hindi = Devanagari script, Marathi = Devanagari, "
     "English = English). Use ONLY the facts given: never invent numbers, distances, prices, schools, builders or promises. "
-    "Never mention phone numbers. If the subject is a sample home say it is a sample. "
+    "Never mention phone numbers. "
     "cta: ask viewers to comment the word INTERESTED for details (never a link in bio, never 'tap'). cta_screen: "
     "'Comment *INTERESTED* for details' in English, or Hinglish with INTERESTED in Roman capitals such as "
     "'Details ke liye *INTERESTED* comment karein'; cta_voice says the same in the voice language (Hindi/Marathi: इंटरेस्टेड)."

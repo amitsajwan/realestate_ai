@@ -1,6 +1,6 @@
 """Reels admin: make a short vertical video from our own images and publish it.
 
-  python scripts/reels_admin.py preview --template tip|tour|pitch [--out DIR] [--photos a.jpg b.jpg ...]
+  python scripts/reels_admin.py preview --template tip|pitch [--out DIR] [--photos a.jpg b.jpg ...]
         render <template>.mp4 and <template>.png (a contact sheet of 8 frames) into DIR and print the file checks (no network)
   python scripts/reels_admin.py post --file reel.mp4 --channel instagram|facebook --caption "..." [--dry-run | --live]
         stage the file under <uploads>/reels/, then publish it as a Reel. SOCIAL_DRY_RUN is honoured (default: dry run, fake ids);
@@ -32,10 +32,6 @@ def report(path: Path) -> None:
 def build(template: str, photos):
     if template == "tip":
         return templates.tip_reel(templates.TIP_LINES, images=photos or None)
-    if template == "tour":
-        if not photos:
-            sys.exit("the tour template needs --photos (your own listing photos)")
-        return templates.listing_tour(photos, templates.SAMPLE_FACTS["kharadi"], sample=True)
     return templates.agent_pitch(images=photos or None)
 
 
@@ -81,7 +77,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     pv = sub.add_parser("preview")
-    pv.add_argument("--template", choices=templates.TEMPLATES, default="tip")
+    pv.add_argument("--template", choices=("tip", "pitch"), default="tip")
     pv.add_argument("--out", default="reel-preview")
     pv.add_argument("--photos", nargs="*", default=[])
     pv.add_argument("--music", help="optional royalty-free audio file you have the rights to (nothing is bundled)")

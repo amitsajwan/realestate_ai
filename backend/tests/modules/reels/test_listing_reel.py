@@ -145,20 +145,24 @@ async def test_worker_renders_with_the_listing_photos_the_listed_by_line_and_no_
     call = r.calls[0]
     assert call["lang"] == "mr" and [p.name for p in call["photos"]] == ["p0.jpg", "p1.jpg"]
     assert call["closing"] == "Listed by Rahul Homes · RERA A51800012345" and "98765" not in str(call)
-    assert call["badge"] is None and call["kicker"] == "KHARADI, PUNE" and call["voiced"] is False
+    assert "badge" not in call and call["kicker"] == "KHARADI, PUNE" and call["voiced"] is False
     assert out["script"]["made_by"] == "rules"
     assert not re.search(r"[ऀ-ॿ]", " ".join(b["screen"] for b in out["script"]["beats"]))  # Roman on screen
     assert re.search(r"[ऀ-ॿ]", out["script"]["beats"][0]["voice"])                        # Marathi voice
 
 
-async def test_sample_listing_carries_the_sample_badge_and_says_so(tmp_path):
+async def test_a_sample_listing_gets_no_reel(tmp_path):
     r = Renderer()
     jobs, db = await setup(tmp_path, title="Sample: 2 BHK in Kharadi", renderer=r)
-    await jobs.create(AGENT, "L1", "en")
+    with pytest.raises(lr.ReelJobError) as e:
+        await jobs.create(AGENT, "L1", "en")
+    assert e.value.status_code == 409 and db.get_collection("reel_jobs").docs == []
+    # a job queued before the rule (or a listing renamed since) fails instead of rendering
+    await db.get_collection("reel_jobs").insert_one({"_id": "j1", "listing_id": "L1", "agent_id": AGENT, "lang": "en", "status": "queued",
+                                                     "created_at": datetime(2026, 10, 1)})
     await jobs.run_once()
-    assert r.calls[0]["badge"] == "Sample listing"
-    assert "sample" in r.calls[0]["script"]["cta_voice"].lower()
-    assert db.get_collection("reel_jobs").docs[0]["sample"] is True
+    doc = db.get_collection("reel_jobs").docs[0]
+    assert doc["status"] == "failed" and "Sample" in doc["error"] and r.calls == []
 
 
 async def test_worker_failure_is_stored_with_a_safe_message(tmp_path):
@@ -219,7 +223,7 @@ async def test_llm_script_used_only_when_it_keeps_to_the_facts(tmp_path):
 @pytest.mark.parametrize("lang", ["en", "hi", "mr"])
 async def test_rules_script_passes_the_director_rules_in_every_language(lang):
     for listing in (
-        dict(_id="a", title="Sample flat", transaction="sale", price_inr=12500000, city="Pune", locality="Baner", bhk=3,
+        dict(_id="a", title="Flat", transaction="sale", price_inr=12500000, city="Pune", locality="Baner", bhk=3,
              carpet_sqft=1050, floor=4, total_floors=12, furnishing="furnished", possession="under_construction", amenities=["Pool"]),
         dict(_id="b", title="Flat", transaction="rent", price_inr=45000, city="Pune", locality="Wakad", bhk=1),
         dict(_id="c", title="Plot", transaction="sale", property_type="plot", city="Pune"),
@@ -276,11 +280,11 @@ def _script():
 
 def test_render_voiced_mixes_voice_and_music_and_closes_with_listed_by(tmp_path, stubs):
     photos = ["a.jpg", "b.jpg", "c.jpg", "d.jpg", "e.jpg"]
-    out = lr.render(_script(), photos, "hi", tmp_path / "r.mp4", badge="Sample listing", kicker="KHARADI",
+    out = lr.render(_script(), photos, "hi", tmp_path / "r.mp4", badge="Artist's impression", kicker="KHARADI",
                     closing="Listed by Rahul Homes · RERA A51800012345", voiced=True)
     assert out == {"audio": "voice+music", "note": ""}
     scenes = stubs["scenes"]
-    assert len(scenes) == 5 and all(s.badge == "Sample listing" for s in scenes)
+    assert len(scenes) == 5 and all(s.badge == "Artist's impression" for s in scenes)
     assert [s.image for s in scenes] == photos   # one photo per scene, none twice
     assert scenes[0].kicker == "KHARADI" and scenes[1].kicker is None
     assert [l.text for l in scenes[-1].lines[1:]] == ["Listed by Rahul Homes", "RERA A51800012345"]
@@ -386,31 +390,20 @@ async def test_concierge_reel_routes_are_owner_only(monkeypatch):
     assert c.post("/concierge/agents/a/listings/l/reel/post", json={}).status_code == 403
 
 
-def test_sales_words_are_refused_and_sample_homes_do_not_offer_a_visit():
-    from app.modules.reels.listing_reel import for_sample, pushy
+def test_sales_words_are_refused():
+    from app.modules.reels.listing_reel import pushy
     hype = {"beats": [{"screen": "Only *78 Lakh*", "voice": "Priced at just 78 lakh."}], "cta_screen": "x", "cta_voice": "y"}
     assert pushy(hype)
     assert pushy({"beats": [{"screen": "Price", "voice": "कीमत केवल 95 लाख रुपये।"}]})
     calm = {"beats": [{"screen": "Price *78 Lakh*", "voice": "The price is 78 lakh."}],
             "cta_screen": "Message to book a *visit*", "cta_voice": "Message us to book a visit."}
     assert not pushy(calm)
-    for lang in ("en", "hi", "mr"):
-        s = for_sample(calm, lang)
-        assert "visit" not in s["cta_screen"].lower() and "visit" not in s["cta_voice"].lower() and s["beats"] == calm["beats"]
-        assert s["cta_voice"].startswith(("This is a sample", "यह एक सैंपल", "ही एक सॅम्पल"))
 
 
-def test_a_sample_home_is_never_called_for_sale():
-    from app.modules.reels.listing_reel import for_sample
-    hi = {"beats": [{"screen": "Wagholi *3 BHK*", "voice": "वाघोली में यह 3 बीएचके अपार्टमेंट बिक्री के लिए उपलब्ध है।"},
-                    {"screen": "Price *82 Lakh*", "voice": "कीमत 82 लाख रुपये है।"}],
-          "cta_screen": "Message to book a *visit*", "cta_voice": "विज़िट बुक करें।"}
-    s = for_sample(hi, "hi")
-    assert s["beats"][0]["voice"] == "वाघोली में यह 3 बीएचके अपार्टमेंट है।" and "सैंपल" in s["cta_voice"]
-    en = {"beats": [{"screen": "Sample *2 BHK*", "voice": "This is a sample 2 BHK apartment for sale in Upper Kharadi."}],
-          "cta_screen": "x", "cta_voice": "y"}
-    s = for_sample(en, "en")
-    assert s["beats"][0]["voice"] == "This is a sample 2 BHK apartment in Upper Kharadi." and "visit" not in s["cta_voice"]
+def test_no_sample_wording_is_left_in_the_listing_reel():
+    src = Path(lr.__file__).read_text(encoding="utf-8")
+    assert not hasattr(lr, "for_sample") and not hasattr(lr, "SAMPLE_BADGE") and "say it is a sample" not in lr.SYSTEM
+    assert "सैंपल" not in src and "Sample listing, shown" not in src
 
 
 async def test_concierge_reel_post_sends_the_cover_to_instagram_when_the_reel_has_one(tmp_path):
@@ -466,10 +459,10 @@ def test_every_reel_cta_asks_for_the_interested_comment_in_roman_letters():
     import re as _re
     from app.modules.engage.brain import INTERESTED
     from app.modules.reels import director, templates
-    from app.modules.reels.listing_reel import _WORDS, for_sample, with_cta
+    from app.modules.reels.listing_reel import _WORDS, with_cta
     llm_cta = {**GOOD, "cta_screen": "Message to book a *visit*", "cta_voice": "Message us."}
     for lang in ("en", "hi", "mr"):
-        for s in (with_cta(llm_cta, lang), for_sample(llm_cta, lang)):
+        for s in (with_cta(llm_cta, lang),):
             screen = s["cta_screen"].replace("*", "")
             assert "INTERESTED" in screen and INTERESTED.search(screen) and not _re.search(r"[\u0900-\u097f]", screen)
             assert INTERESTED.search(s["cta_voice"]) and "bio" not in screen.lower() + s["cta_voice"].lower()
@@ -477,5 +470,5 @@ def test_every_reel_cta_asks_for_the_interested_comment_in_roman_letters():
         assert "visit" not in _WORDS[lang]["cta_s"].lower()
     assert director.CTA_SCREEN["en"] == "Comment *INTERESTED* for details"
     assert "comment the word INTERESTED" in director.SYSTEM and "tap 'interested'" not in director.SYSTEM
-    tour, _ = templates.listing_tour(["a.jpg", "b.jpg"], templates.SAMPLE_FACTS["kharadi"])
+    tour, _ = templates.listing_tour(["a.jpg", "b.jpg"], templates.DEMO_FACTS["kharadi"])
     assert tour[-1].lines[0].text == "Comment *INTERESTED* for details"

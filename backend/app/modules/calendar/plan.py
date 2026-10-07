@@ -1,10 +1,11 @@
 """The weekly content rhythm. Pure: no I/O, no clock, no network. Decides WHAT goes WHERE and WHEN; the builder makes the creative.
 
 Per week (default 4 weeks), 10:00 or 19:00 IST on varied days:
-  Instagram (5): a showcase carousel, a checklist carousel, a myth / poll / big-number card, an agent product card, the week's reel
-  Facebook  (5): two educational posts, a showcase card, an agent post or a poll (alternating), the same reel
-Reel templates alternate tip, tour, pitch. A library slug is never reused within 60 days (on either channel). Showcase homes rotate through
-Kharadi, Upper Kharadi and Wagholi. Hindi and Marathi agent posts are left out unless include_local is set.
+  Instagram (5): an educational post, a checklist carousel, a myth / poll / big-number card, an agent product card, the week's reel
+  Facebook  (5): two educational posts, a myth / poll / big-number card, an agent post or a poll (alternating), the same reel
+Reel templates alternate tip and pitch. A library slug is never reused within 60 days (on either channel). No sample homes: they
+were retired (2026-10-07); real homes come from agents' own listings and projects. Hindi and Marathi agent posts are left out
+unless include_local is set.
 
 The daily reel rhythm (`build_daily_plan`, opt-in: CALENDAR_DAILY_REELS) is separate: 2 reels a day (3 later) on both channels,
 a morning area insight and an evening real project (consented agents only) or buyer-guide reel.
@@ -14,14 +15,14 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
-from .adapters import AGENT_POOL, AREAS, STAT_SLUGS, homes_in
+from .adapters import AGENT_POOL, STAT_SLUGS
 from .library import ENTRIES, Entry
 from .schedule import CHANNELS, IST, MIN_GAP, NO_REPEAT, slot_times
 
 PER_WEEK = 5
-IG_ROLES = ("showcase", "checklist", "mythpoll", "agent", "reel")
-FB_ROLES = ("edu_a", "edu_b", "showcase", "agentpoll", "reel")
-REEL_TEMPLATES = ("tip", "tour", "pitch")
+IG_ROLES = ("edu_a", "checklist", "mythpoll", "agent", "reel")
+FB_ROLES = ("edu_a", "edu_b", "mythpoll", "agentpoll", "reel")
+REEL_TEMPLATES = ("tip", "pitch")
 MYTHPOLL_CYCLE = ("myth", "poll", "stat")
 # Agent posts, most "product card" first (single image = the phone mock layout).
 AGENT_ORDER = ("agent-lead-cards", "agent-consistent-posting", "agent-buyer-summary", "agent-post-to-lead", "agent-comment-not-lead",
@@ -32,15 +33,15 @@ LOCAL_AGENT_SLUGS = ("agent-hindi", "agent-marathi")
 @dataclass(frozen=True)
 class Item:
     channel: str            # facebook_page | instagram
-    kind: str               # post | showcase | reel
+    kind: str               # post | reel
     due_at: datetime        # UTC
     week: int               # 1-based
     role: str
-    source: str             # library | agent | home | reel
-    ref: str                # library slug, agent slug, home slug, or for a reel the reel key
+    source: str             # library | agent | reel
+    ref: str                # library slug, agent slug, or for a reel the reel key
     prefer: str = ""        # creative format wanted
-    template: str = ""      # reel: tip | tour | pitch
-    reel_ref: str = ""      # reel: entry slug (tip), home slug (tour), area key (area) or project slug (project)
+    template: str = ""      # reel: tip | pitch
+    reel_ref: str = ""      # reel: entry slug (tip), area key (area) or project slug (project)
     area: str = ""          # app.core.areas key the item is about, when it is about one area
     agent_id: str = ""      # project reel: the agent whose project it is (and who consented)
 
@@ -65,10 +66,8 @@ class _Picker:
             self.by_pillar[e.pillar].append(e.slug)
         self.entries = {e.slug: e for e in entries}
         self.used: Dict[str, List[datetime]] = defaultdict(list)
-        self.home_uses: Dict[str, int] = defaultdict(int)
         for _, slug, due in existing:
             self.used[slug].append(_aware(due))
-            self.home_uses[slug] += 1
 
     def _ok(self, slug: str, due: datetime) -> bool:
         return all(abs(due - t) >= NO_REPEAT for t in self.used[slug])
@@ -99,16 +98,6 @@ class _Picker:
         if not s:
             return None
         return ("agent" if s in AGENT_POOL else "library"), s
-
-    def home(self, area: str, due: datetime) -> Optional[str]:
-        pool = [h.slug for h in homes_in(area)]
-        if not pool:
-            return None
-        # Sample homes are labelled illustrations, so they may come round again: least used first, never the same one twice in a row.
-        pick = min(pool, key=lambda s: (self.home_uses[s], self._last(s), pool.index(s)))
-        self.home_uses[pick] += 1
-        self.used[pick].append(due)
-        return pick
 
 
 def _week_groups(times: Sequence[datetime]) -> List[List[datetime]]:
@@ -149,20 +138,13 @@ def build_plan(start: date, weeks: int = 4, include_local: bool = False, existin
 def _make(ch: str, role: str, due: datetime, k: int, p: _Picker, counters, reels, include_local: bool) -> Optional[Item]:
     wk = k + 1
     ig = ch == "instagram"
-    if role == "showcase":
-        area = AREAS[k % 3] if ig else AREAS[(k + 1) % 3]
-        slug = p.home(area, due)
-        return Item(ch, "showcase", due, wk, role, "home", slug) if slug else None
     if role == "reel":
         if wk not in reels:
-            tpl = REEL_TEMPLATES[k % 3]
+            tpl = REEL_TEMPLATES[k % len(REEL_TEMPLATES)]
             ref = ""
             if tpl == "tip":
                 got = p.take_first(("checklist", "explainer"), due)
                 ref = got[1] if got else ""
-                tpl = tpl if ref else "pitch"
-            elif tpl == "tour":
-                ref = p.home(AREAS[(k + 2) % 3], due) or ""
                 tpl = tpl if ref else "pitch"
             reels[wk] = (tpl, f"reel-w{wk}-{tpl}", ref)
         tpl, key, ref = reels[wk]

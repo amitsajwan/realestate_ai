@@ -1,4 +1,4 @@
-"""Dataset invariants: believable, labelled, credited, light, and free of personal data."""
+"""The demo agent's sample homes: believable, credited, light, free of personal data; and nothing plans or posts them."""
 import re
 from pathlib import Path
 
@@ -7,7 +7,7 @@ from PIL import Image
 
 from app.platform.text import PHONE
 from app.modules.showcase import samples
-from app.modules.showcase.samples import AREA_LINES, HOMES, ICON_LABELS, PHOTO_DIR
+from app.modules.showcase.samples import HOMES, ICON_LABELS, PHOTO_DIR
 
 ROOT = Path(__file__).resolve().parents[4]
 CREDITS = (ROOT / "docs" / "brand" / "photo-credits.md").read_text(encoding="utf-8")
@@ -42,16 +42,17 @@ def test_home_is_realistic(h):
 
 def test_no_phone_numbers_or_personal_names_in_dataset_text():
     blob = " ".join(str(v) for h in HOMES for v in (h.title, h.highlights, h.possession, h.furnishing, h.price_text, h.amenities))
-    blob += " ".join(line for ls in AREA_LINES.values() for line in ls)
     assert not PHONE.search(blob)
     assert not re.search(r"@|\+91|\bMr\b|\bMrs\b|\bShri\b", blob)
 
 
-def test_area_lines_are_stable_facts_not_predictions():
-    banned = re.compile(r"\b(will|soon|upcoming|expected|appreciat\w*|boom|best|guarantee\w*|return|invest\w*)\b", re.I)
-    for lines in AREA_LINES.values():
-        assert len(lines) == 2
-        assert not any(banned.search(line) for line in lines)
+def test_sample_home_posting_is_gone():
+    import importlib.util
+    for mod in ("render", "captions", "publish", "plan", "icons"):
+        assert importlib.util.find_spec(f"app.modules.showcase.{mod}") is None, mod
+    scripts = ROOT / "backend" / "scripts"
+    for name in ("showcase_admin.py", "post_samples.py", "make_voiced_reels.py", "post_voiced_reels.py"):
+        assert not (scripts / name).exists(), name
 
 
 def test_photo_files_exist_small_and_credited():
