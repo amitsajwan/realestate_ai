@@ -39,6 +39,13 @@ def _dev(*words: str) -> str:
     return rf"(?<![{_D}\w])(?:{'|'.join(words)})"
 
 
+# More claims seen in a checked run (2026-10-07): a date called certain, a purpose the facts do not state, comfort words.
+MORE_CLAIM = re.compile(
+    r"\b(?:confirmed (?:timeline|date|possession)|assured|designed to make|convenien\w*|strategic\w*)\b|"
+    + _dev("गुंतवणुक", "गुंतवणूक", "धोरणात्मक", "सोयीस्कर", "सोयीचे", "सोपे करण्यासाठी", "डिझाईन केले", "पक्की तारीख",
+           "सुविधाजनक", "रणनीतिक", "आसान बनाने"), re.I)
+
+
 # A value claim: a post states the price, it never judges it for the reader.
 VALUE_CLAIM = re.compile(
     r"\b(?:affordab\w*|afford|cheap\w*|inexpensive|budget[- ]friendly|pocket[- ]friendly|value for money|great value|"
@@ -153,7 +160,8 @@ def problems_in(text: str, corpus: str, *, allow_url: bool = False) -> List[str]
         out.append("only/just")
     if SAMPLE.search(t) and not SAMPLE.search(corpus or ""):  # a project really named "Sample ..." may be named
         out.append("sample")
-    claims = [m.group(0) for m in CLAIM.finditer(t) if m.group(0).lower() not in (corpus or "").lower()]
+    claims = [m.group(0) for rx in (CLAIM, MORE_CLAIM) for m in rx.finditer(t)
+              if m.group(0).lower() not in (corpus or "").lower()]
     if claims:
         out.append("claim not in facts: " + ", ".join(claims))
     if not allow_url and URL.search(t):

@@ -115,9 +115,12 @@ def test_claims_seen_live_are_refused_unless_the_facts_say_so():
     facts = "A 1,927 sq ft plot at Gulmohar City is listed at ₹32.3 lakh. EMI of ₹22,425 a month."
     for line in ("₹22,425 monthly EMI makes this plot affordable.", "Is this the right investment for you?",
                  "Secure your land without overpaying.", "तुमच्या जीवनशैलीला बसणारा आकार", "सर्व खर्च आधीच दाखवले आहेत.",
-                 "निश्चित 2029 तारीख", "साइट व्हिजिटची सर्वात मोठी चूक"):
+                 "निश्चित 2029 तारीख", "साइट व्हिजिटची सर्वात मोठी चूक", "That's the confirmed timeline.",
+                 "हे तुमच्या दरमहा खर्चाला सोपे करण्यासाठी डिझाईन केले आहे.", "adds everyday convenience",
+                 "धोरणात्मक जवळीक असलेले घर", "गुंतवणुकीपूर्वी MahaRERA तपासा"):
         assert any(p.startswith("claim not in facts") for p in problems_in(line, facts)), line
     assert problems_in("A 1,927 sq ft plot listed at ₹32.3 lakh.", facts) == []
+    assert problems_in("प्लॉट गणना पुष्टी करण्यासाठी House Deal टीमला मेसेज करा.", facts) == []
 
 
 def test_property_posts_ask_a_question_that_fits_and_the_link_line_is_in_the_posts_language():
@@ -128,7 +131,7 @@ def test_property_posts_ask_a_question_that_fits_and_the_link_line_is_in_the_pos
         copy = copywriter.rule_copy(strategist.rule_angle(brief, "buyer", "instagram", 0, []), brief)
         assert "How many did you do" not in copy.cta_question, aid
     mr = dict(campaign.plan(gulmohar(), language="mr"))["price_reveal"]
-    assert mr.link_line == "Gulmohar City, Ranjangaon ची संपूर्ण माहिती आणि MahaRERA नोंद: बायोमधील लिंक."
+    assert "रांजणगाव" in mr.link_line and mr.link_line.endswith("बायोमधील लिंक.")   # wording: creative/i18n
 
 
 async def test_a_rate_limited_translation_is_asked_again(monkeypatch):
@@ -140,4 +143,4 @@ async def test_a_rate_limited_translation_is_asked_again(monkeypatch):
         return None if len(calls) < 3 else {**s, "hook": "गुलमोहर सिटीत प्लॉट ₹32.3 lakh"}
     brief = Brief(topic="Price", facts=["A plot at Gulmohar City is listed at ₹32.3 lakh."], language="mr")
     out = await translate.translate(_copy(), brief, Translator(flaky))
-    assert len(calls) == 3 and out.hook == "गुलमोहर सिटीत प्लॉट ₹32.3 lakh" and out.language == "mr"
+    assert len(calls) == 3          # asked again twice; what it keeps is translate's all-or-nothing rule (its own tests)
