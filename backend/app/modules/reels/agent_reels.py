@@ -1,7 +1,9 @@
 """Agent reels: 10 to 15 second Reels that recruit Pune property agents (not buyers). One reel = one message, in five scenes:
 
   HOOK (about 2 s, no logo: the viewer's problem, "for Pune property agents" on frame one) -> PAIN -> PRODUCT (a real Avasetu
-  screen in a phone, sample data) -> RESULT -> CTA ("Comment AGENT": the comment assistant answers with the pilot link).
+  screen in a phone) -> RESULT -> CTA ("Comment AGENT": the comment assistant answers with the pilot link).
+Screens that show buyers or leads use made-up demo people (never a real buyer); the listing-reel screen (B3) is the opening frame
+of a reel of a real House Deal project (their consent, 2026-10-06), its builder's render labelled "Artist's impression".
 
 The ten scripts below are the first experiment (docs/plan/agent-reels.md): 3 pain, 3 product demo, 2 before/after, 2 result.
 They are written and reviewed by people, not by the LLM, and `check_script` keeps them to what the product really does:
@@ -26,6 +28,10 @@ from app.modules.marketing.images import brand_background
 from .compose import H, W, Scene, TextLine, make_reel
 
 SCREENS = Path(__file__).resolve().parent / "assets" / "screens"
+# A real project for the listing-reel screen: House Deal's Anshul Medora (agent_projects, MahaRERA P52100079331), the builder's
+# render from house-deal.com, the same image and label as on their project page.
+REEL_PROJECT = {"name": "Anshul Medora", "locality": "Wagholi", "bhk": "2 & 3 BHK", "listed_by": "House Deal",
+                "image": Path(__file__).resolve().parent / "assets" / "projects" / "anshul-medora.jpg", "label": "Artist's impression"}
 CTA_WORD = "AGENT"
 GROUPS = ("pain", "demo", "before_after", "result")
 HOOK_SECONDS, PAIN_SECONDS, SCREEN_SECONDS, RESULT_SECONDS, CTA_SECONDS = 2.0, 2.4, 3.4, 2.4, 2.8
@@ -33,8 +39,8 @@ XFADE = 0.4
 KICKER = "Pune property agents"
 PILOT_PATH = "/pilot"
 
-# Sample data on the screenshots that must not appear in a reel: boxes (x0, y0, x1, y1) in screenshot pixels, painted over with
-# the screen's own background. 19-lead-detail shows a sample buyer's phone number; reels never show a phone number.
+# Demo data on the screenshots that must not appear in a reel: boxes (x0, y0, x1, y1) in screenshot pixels, painted over with
+# the screen's own background. 19-lead-detail shows a demo buyer's phone number; reels never show a phone number.
 REDACT = {"19-lead-detail.jpg": [(56, 180, 420, 242)]}
 
 
@@ -45,7 +51,7 @@ class Script:
     theme: str          # the one agent problem this reel is about
     hook: str           # at most 7 words: the viewer's problem, on screen from the first frame
     pain: str
-    screen: str         # a file in assets/screens, or "reel" (a listing reel's first frame, drawn from a sample home)
+    screen: str         # a file in assets/screens, or "reel" (a listing reel's first frame, drawn from REEL_PROJECT)
     screen_line: str    # what the product does, above the phone
     result: str
     caption: str        # first line of the caption (English: captions are read, not heard)
@@ -146,14 +152,15 @@ def _screen_image(name: str) -> Image.Image:
 
 @lru_cache(maxsize=1)
 def _reel_frame() -> Image.Image:
-    """What a listing reel looks like: the first frame of a 'tour' reel of a labelled sample home (the feature 'Make reel' makes)."""
-    from app.modules.showcase.samples import get
+    """What a listing reel looks like: the opening frame of a reel of a real project (REEL_PROJECT), drawn like the reels 'Make
+    reel' makes (the area as the kicker, what and where in big type, 'Listed by' under it), the render labelled as one."""
     from .compose import Renderer
-    from .templates import listing_tour
-    h = get("kharadi-2bhk-ready")
-    facts = {"bhk": h.bhk, "locality": h.locality, "area_sqft": h.carpet_sqft, "possession": "ready" if h.ready else "under_construction"}
-    scenes, _ = listing_tour([p.path for p in h.photos], facts, sample=True)
-    return Renderer(scenes[:2], hook_tag=False).cover()   # the opening frame as viewers see it (two scenes: no brand mark on it)
+    p = REEL_PROJECT
+    first = Scene(image=p["image"], kicker=f"{p['locality'].upper()}, PUNE", layout="lower", badge=p["label"], seed="agent-reel-project",
+                  lines=[TextLine(p["name"], size=108), TextLine(f"*{p['bhk']}* in {p['locality']}", size=64, weight="semibold"),
+                         TextLine(f"Listed by {p['listed_by']}", size=44, weight="medium")])
+    second = Scene(image=p["image"], lines=[TextLine(p["name"])], layout="lower", seed="agent-reel-project-2")
+    return Renderer([first, second], hook_tag=False).cover()   # the opening frame as viewers see it (two scenes: no brand mark on it)
 
 
 def phone_still(screen: str, seed: str, top: float = 0.0) -> Image.Image:
@@ -216,12 +223,16 @@ def pilot_link(code: str, channel: str) -> str:
     return f"{brand.SITE}{PILOT_PATH}?src={source_tag(code, channel)}"
 
 
+PRODUCT_LINE = ("Avasetu is made for Pune property agents: your listings, ready-made posts, your own property website and "
+                "your buyer leads, all in one place.")
+
+
 def caption(code: str, channel: str) -> str:
     """The caption: the one message, what the pilot is, the comment keyword; Facebook also gets the tagged pilot link.
     Hashtags are added at publish time by calendar.reach (agent tags)."""
     s = BY_CODE[code]
     lines = [s.caption,
-             "Avasetu is for Pune property agents: your listings, posts and leads in one place. Screens show sample data.",
+             PRODUCT_LINE,
              f"Comment {CTA_WORD} and we will send you the free pilot link."]
     if channel != "instagram":
         lines.append(f"Or join here: {pilot_link(code, channel)}")

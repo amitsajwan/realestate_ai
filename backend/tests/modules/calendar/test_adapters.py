@@ -106,14 +106,9 @@ async def test_llm_failure_falls_back_to_the_deterministic_path_and_says_so():
     assert how2 == "rules"
 
 
-def test_showcase_item_renders_labelled_images_and_a_valid_caption():
-    uploads = Path(tempfile.mkdtemp(prefix="show-"))
-    home = adapters.get_home("kharadi-2bhk-ready")
-    ig = adapters.showcase_item(home, "instagram", uploads)
-    fb = adapters.showcase_item(home, "facebook_page", uploads)
-    assert len(ig["images"]) == 5 and fb["images"] == ["showcase/kharadi-2bhk-ready/facebook.jpg"]
-    assert all((uploads / p).is_file() for p in ig["images"] + fb["images"])
-    assert "Sample listing" in ig["caption"] and "http" not in ig["caption"] and "link in our bio" in ig["caption"]
+def test_the_calendar_has_no_sample_home_path():
+    for name in ("showcase_item", "publish_showcase", "get_home", "homes_in", "AREAS"):
+        assert not hasattr(adapters, name), name
 
 
 def test_reel_item_scripts_captions_and_render_with_a_stub_composer():
@@ -125,8 +120,6 @@ def test_reel_item_scripts_captions_and_render_with_a_stub_composer():
     assert adapters.reel_caption(spec, "instagram", entry) == entry.ig_caption
     pitch = adapters.ReelSpec("pitch", "reel-w3-pitch", "")
     assert "http" not in adapters.reel_caption(pitch, "instagram") and "http" in adapters.reel_caption(pitch, "facebook_page")
-    tour = adapters.ReelSpec("tour", "reel-w2-tour", "kharadi-2bhk-ready")
-    assert "Sample listing" in adapters.reel_caption(tour, "facebook_page")
     calls = []
 
     def composer(scenes, dest, **options):
@@ -136,8 +129,7 @@ def test_reel_item_scripts_captions_and_render_with_a_stub_composer():
 
     assert adapters.render_reel(spec, uploads, entry, composer) == "calendar/reels/reel-w1-tip.mp4"
     assert adapters.render_reel(spec, uploads, entry, composer) == "calendar/reels/reel-w1-tip.mp4" and len(calls) == 1  # already rendered
-    for s in (tour, pitch):
-        assert adapters.reel_scenes(s)[0]
+    assert adapters.reel_scenes(pitch)[0]
 
 
 async def test_publish_reel_dry_run_and_live_call_shape(monkeypatch):

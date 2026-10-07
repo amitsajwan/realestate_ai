@@ -80,12 +80,6 @@ async def build_and_store(store: Store, start: date, weeks: int, uploads: Path, 
                          problems=[p["message"] for p in pack.report.get("problems", []) if p.get("severity") == "error"], alt_text=pack.alt_text,
                          hook=pack.angle.get("hook"), slides=pack.design.get("slides", 1), llm=pack.used_llm,
                          prompts=pack.prompts)
-        elif it.kind == "showcase":
-            home = adapters.get_home(it.ref)
-            made = adapters.showcase_item(home, it.channel, uploads)
-            images, caption = made["images"], made["caption"]
-            how = "showcase"
-            notes.update(path=how, layout="showcase", area=home.locality, ok=True)
         else:
             spec = adapters.ReelSpec(it.template, it.ref, it.reel_ref)
             entry = BY_SLUG.get(it.reel_ref)

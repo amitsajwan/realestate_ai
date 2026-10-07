@@ -45,7 +45,7 @@ async def test_plan_preview_approve_skip_flow(admin, tmp_path, capsys):
     for p in paths.values():
         assert p.is_file() and p.stat().st_size < 1_000_000
     text = (tmp_path / "review" / "week-1-captions.txt").read_text(encoding="utf8")
-    assert "instagram" in text and "id=" in text and "Sample listing" in text
+    assert "instagram" in text and "id=" in text and "Sample listing" not in text
 
     assert await admin.approve(store, None, 1, False) == 10  # --week 1
     assert {r["status"] for r in await store.all() if r["week"] == 1} == {"approved"}

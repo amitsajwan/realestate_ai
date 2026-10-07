@@ -4,15 +4,13 @@
   GET  /public/interest/{code}              what the landing page shows
   POST /public/interest/{code}/click        a visit
   POST /public/interest/{code}              the one-tap interest (details optional, only with consent)
-  GET  /public/interest/sample-image/{slug} small photo of a labelled sample home (for the hub and landing)
   GET  /public/hub                          the Instagram bio-link page data (cached 60 s)
 `router` is mounted at /interest (bearer auth): POST /interest/links, GET /interest/links/{ref}.
 """
 from app.core import brand
-import io
 import os
 import time
-from typing import Callable, Dict, Optional
+from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
@@ -28,30 +26,7 @@ public_router = APIRouter()
 
 HUB_LIMIT = 12
 HUB_TTL_S = 60
-SAMPLE_IMAGE_PATH = "/api/v1/public/interest/sample-image/"
 _hub_cache: Dict[str, object] = {"at": 0.0, "data": None}
-_image_cache: Dict[str, bytes] = {}
-
-
-# ---- the labelled sample homes, a catalogue passed in at startup (app/wiring.py: showcase's) ----
-# sample_entry(slug) -> {slug, title, locality, possession, label, note, image_file} or None; sample_slugs() -> [slug, ...]
-_catalogue: Dict[str, Callable] = {"entry": lambda slug: None, "slugs": lambda: []}
-
-
-def configure(sample_entry: Callable[[str], Optional[dict]], sample_slugs: Callable[[], list]) -> None:
-    _catalogue.update(entry=sample_entry, slugs=sample_slugs)
-
-
-def _sample_home(ref: str) -> Optional[dict]:
-    home = _catalogue["entry"](ref)
-    if not home:
-        return None
-    return {"title": f"{home['label']}: {home['title']}", "locality": home["locality"],
-            "subtitle": f"{home['possession']}. {home['note']}", "image_url": SAMPLE_IMAGE_PATH + home["slug"]}
-
-
-def _sample_slugs() -> list:
-    return list(_catalogue["slugs"]())
 
 
 async def _owner_agent_id() -> Optional[str]:
@@ -65,7 +40,7 @@ async def _owner_agent_id() -> Optional[str]:
 
 
 def get_service() -> InterestService:
-    return InterestService(get_database(), samples=_sample_home, owner_agent_id=_owner_agent_id)
+    return InterestService(get_database(), owner_agent_id=_owner_agent_id)
 
 
 def _ip(request: Request) -> Optional[str]:
@@ -103,25 +78,6 @@ class LinkIn(BaseModel):
 
 
 # ---- public ----
-@public_router.get("/interest/sample-image/{slug}")
-async def sample_image(slug: str):
-    home = _catalogue["entry"](slug)
-    if not home:
-        raise HTTPException(404, "Not found")
-    if slug not in _image_cache:
-        raw = home["image_file"].read_bytes()
-        try:
-            from PIL import Image
-            im = Image.open(io.BytesIO(raw)).convert("RGB")
-            im.thumbnail((900, 900))
-            buf = io.BytesIO()
-            im.save(buf, "JPEG", quality=80)
-            raw = buf.getvalue()
-        except Exception:  # no Pillow: serve the original
-            pass
-        _image_cache[slug] = raw
-    return Response(_image_cache[slug], media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
-
 
 @public_router.get("/interest/{code}")
 async def interest_page(code: str, svc: InterestService = Depends(get_service)):
@@ -155,15 +111,6 @@ async def build_hub(svc: InterestService) -> dict:
         items.append({"kind": d["kind"], "ref": d["ref"], "title": d["title"], "subtitle": d.get("subtitle", ""),
                       "image_url": d.get("image_url", ""), "interest_code": d.get("interest_code") or None,
                       "permalink": d.get("permalink") or None, "sample": bool(d.get("sample"))})
-    if not items:  # nothing published yet: show the labelled sample homes so the page is never empty
-        owner = await _owner_agent_id() if svc.owner_agent_id else None
-        for slug in _sample_slugs()[:HUB_LIMIT]:
-            home = svc.samples(slug)
-            code = None
-            if owner:
-                code = (await svc.create_link("listing", slug, owner, "instagram"))["code"]
-            items.append({"kind": "listing", "ref": slug, "title": home["title"], "subtitle": home["subtitle"],
-                          "image_url": home["image_url"], "interest_code": code, "permalink": None, "sample": True})
     site = site_url()
     return {
         "brand": os.environ.get("NEXT_PUBLIC_BUSINESS_NAME") or brand.NAME,

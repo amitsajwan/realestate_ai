@@ -1,25 +1,16 @@
-"""Sample-home dataset for the showcase posts.
+"""The nine made-up sample homes: the listings of the fictional demo agent (/agent/demo, scripts/create_demo_agent.py), and what
+comment replies may say about the sample-home posts published before sample-home posting was retired (2026-10-07; knowledge.grounding).
 
-Every home here is an ILLUSTRATION: labelled 'Sample listing' on every image and in every caption, not available for sale,
-with stock photos (free licence, credited in docs/brand/photo-credits.md). Numbers are labelled sample figures only.
-Real agent listings (future) use the agent's own photos; nothing here ever stands in for one.
+Nothing plans or posts these homes any more. Every one is an ILLUSTRATION, not for sale, with stock photos (free licence, credited in
+docs/brand/photo-credits.md); numbers are sample figures only. Real agent listings use the agent's own photos.
 """
-from app.core import brand
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from app.platform.text import bhk_label, money, sqft
 
 PHOTO_DIR = Path(__file__).parent / "assets" / "photos"
-
-SAMPLE_LABEL = "Sample listing"
-SAMPLE_RIBBON = "SAMPLE HOME"
-SAMPLE_NOTE = "Illustrative home, not available for sale; real agent listings coming"
-RERA_LINE = "RERA number: shown on real listings"
-IG_CTA = "Comment INTERESTED for details on this sample"
-AGENTS_CTA = "Agents: list your homes free, link in bio"
-BRAND = brand.NAME
 
 
 @dataclass(frozen=True)
@@ -90,17 +81,7 @@ ICON_LABELS: Dict[str, str] = {
     "security": "Security", "garden": "Garden", "power": "Power backup", "play": "Play area",
 }
 
-# Two honest, stable lines per locality: facts about where it is, no predictions and no price claims.
-AREA_LINES: Dict[str, Tuple[str, str]] = {
-    "Kharadi": ("An established IT-office hub on Pune's east side, home to EON IT Park and World Trade Center Pune.",
-                "Many residents can walk or take a short ride to work, which can save the long daily commute."),
-    "Upper Kharadi": ("Just beyond Kharadi's IT offices, so the same workplaces are a short ride away.",
-                      "Newer, quieter residential pockets, with more open space between buildings than central Pune."),
-    "Wagholi": ("On the Pune-Nagar road, east of the city, with schools and daily shops inside the locality.",
-                "Homes here generally cost less than in Kharadi, so first-time buyers often start their search here."),
-}
 
-_T = "Photos: Unsplash"
 
 HOMES: List[Home] = [
     Home("kharadi-2bhk-ready", "Kharadi", 2, 780, 7, 22, "Ready to move", True, 9_800_000, "Semi-furnished",
@@ -161,24 +142,3 @@ def get(slug: str) -> Home:
         return BY_SLUG[slug]
     except KeyError:
         raise KeyError(f"unknown showcase slug {slug!r}; known: {', '.join(BY_SLUG)}")
-
-
-def area_lines(h: Home) -> Tuple[str, str]:
-    return AREA_LINES[h.locality]
-
-
-def label_text(h: Home) -> str:
-    return f"{SAMPLE_LABEL}: {h.title}"
-
-
-# ---- the catalogue other modules get at startup (app/wiring.py; the buyers' interest hub shows these when it is empty) ----
-def catalogue_entry(slug: str) -> Optional[dict]:
-    home = BY_SLUG.get(slug)
-    if not home:
-        return None
-    return {"slug": home.slug, "title": home.title, "locality": home.locality, "possession": home.possession,
-            "label": SAMPLE_LABEL, "note": SAMPLE_NOTE, "image_file": home.exterior.path}
-
-
-def catalogue_slugs() -> List[str]:
-    return [h.slug for h in HOMES]

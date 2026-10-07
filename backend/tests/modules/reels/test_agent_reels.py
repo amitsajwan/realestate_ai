@@ -67,7 +67,7 @@ def test_no_brand_tag_on_the_hook_frames_but_from_scene_two(monkeypatch):
     assert r.frame_at(r.tl.starts[2] + 1.0).tobytes() == plain.frame_at(r.tl.starts[2] + 1.0).tobytes()  # and back later
 
 
-def test_the_sample_phone_number_on_the_lead_screen_is_covered():
+def test_the_demo_phone_number_on_the_lead_screen_is_covered():
     img = ar._screen_image("19-lead-detail.jpg")
     x0, y0, x1, y1 = ar.REDACT["19-lead-detail.jpg"][0]
     box = img.crop((x0, y0, x1, y1)).convert("L")
@@ -76,9 +76,47 @@ def test_the_sample_phone_number_on_the_lead_screen_is_covered():
 
 def test_captions_carry_the_keyword_and_on_facebook_the_tagged_pilot_link():
     fb, ig = ar.caption("B2", "facebook_page"), ar.caption("B2", "instagram")
-    assert "Comment AGENT" in fb and fb.endswith("/pilot?src=reel_b2_fb") and "sample data" in fb
+    assert "Comment AGENT" in fb and fb.endswith("/pilot?src=reel_b2_fb") and ar.PRODUCT_LINE in fb
     assert "Comment AGENT" in ig and "http" not in ig
     assert not ar.BANNED.search(fb)
+
+
+def test_captions_sell_the_product_and_never_say_sample():
+    for code in ar.BY_CODE:
+        for ch in ("instagram", "facebook_page"):
+            text = ar.caption(code, ch)
+            assert "sample" not in text.lower() and ar.PRODUCT_LINE in text, (code, ch)
+            assert not ar.BANNED.search(text) and not (set(ar.NUMBER.findall(text.split("?src=")[0]))
+                                                      - ar.ALLOWED_NUMBERS.get(code, set())), (code, ch)
+
+
+def test_the_listing_reel_screen_is_a_real_project_with_its_render_labelled():
+    p = ar.REEL_PROJECT
+    assert p["image"].is_file() and p["label"] == "Artist's impression" and p["listed_by"] == "House Deal"
+    ar._reel_frame.cache_clear()
+    seen = []
+    orig = compose.Renderer.__init__
+
+    def spy(self, scenes, *a, **k):
+        seen.extend(scenes)
+        orig(self, scenes, *a, **k)
+    compose.Renderer.__init__ = spy
+    try:
+        frame = ar._reel_frame()
+    finally:
+        compose.Renderer.__init__ = orig
+    assert frame.size == (compose.W, compose.H)
+    texts = [str(getattr(l, "text", l)) for s in seen for l in s.lines] + [s.badge or "" for s in seen] + [s.kicker or "" for s in seen]
+    assert seen[0].badge == "Artist's impression" and seen[0].image == p["image"]
+    assert any("Anshul Medora" in t for t in texts) and not any("sample" in t.lower() for t in texts)
+
+
+def test_no_scene_of_any_reel_says_sample():
+    for s in ar.SCRIPTS:
+        scenes, _ = ar.scenes(s)
+        texts = [str(getattr(l, "text", l)) for sc in scenes for l in sc.lines] + [sc.badge or "" for sc in scenes] + \
+                [sc.kicker or "" for sc in scenes]
+        assert not any("sample" in t.lower() for t in texts), s.code
 
 
 def test_plan_adds_one_planned_reel_a_day_for_agents_only_once():

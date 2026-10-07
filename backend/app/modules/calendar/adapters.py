@@ -1,9 +1,8 @@
-"""The only place where the calendar touches the creative, showcase and reels modules (they never import the calendar).
+"""The only place where the calendar touches the creative and reels modules (they never import the calendar).
 
   entry_to_brief / make_pack     library entry -> creative Brief -> CreativePack (images + caption), for Instagram or Facebook
   agent_item_to_brief            the agent-attraction briefs (product benefits only, same claims as the library's agent posts)
-  showcase_item / publish_showcase   a labelled sample home as an Instagram carousel or Facebook card
-  reel_item / render_reel / publish_reel   a short vertical video (tip, tour, pitch) and its publication
+  reel_item / render_reel / publish_reel   a short vertical video (tip, pitch) and its publication
   consented_projects / project_reel_caption   live projects of agents who consented to be featured, for the daily evening reel
   render_reel_for               also renders the daily reels: an area insight (area_reels) or an agent's project (agentprojects.reel)
 
@@ -23,18 +22,12 @@ from app.modules.creative.models import Brief, CreativePack
 from app.modules.reels import compose as _reel_compose
 from app.modules.social import reel_publish as _reel_publish
 from app.modules.reels import templates as _reel_templates
-from app.modules.showcase import captions as _show_captions
-from app.modules.showcase import publish as _show_publish
-from app.modules.showcase import render as _show_render
-from app.modules.showcase.samples import HOMES, Home
-from app.modules.showcase.samples import get as get_home
 from app.platform.meta_graph.config import SocialConfig
 from app.platform.meta_graph.publisher import PublishError, Result
 
 from . import render as _cards
 from .library import SITE, Entry
 
-AREAS = ("Kharadi", "Upper Kharadi", "Wagholi")
 CHANNEL_OF = {"facebook_page": "facebook", "instagram": "instagram", "facebook": "facebook"}
 REEL_DIR = "calendar/reels"
 SLIDES_REEL_DIR = "calendar/slidereels"
@@ -234,39 +227,12 @@ async def make_agent_pack(slug: str, channel: str, llm=None, recent_layouts: Seq
     return await _creative_make(b, "agent", CHANNEL_OF[channel], llm, seed=seed, recent_layouts=list(recent_layouts), out_dir=out_dir)
 
 
-# ---- showcase -----------------------------------------------------------------------------------------------------------------------------
-def homes_in(area: str) -> List[Home]:
-    return [h for h in HOMES if h.locality == area]
-
-
-def showcase_item(home: Home, channel: str, uploads: Path) -> Dict:
-    """Render the home's images under <uploads>/showcase/<slug>/ and return {images (relative to uploads), caption}."""
-    folder = _show_publish.ensure_rendered(home, Path(uploads) / "showcase")
-    ig = channel == "instagram"
-    names = [f"{i}.jpg" for i in range(1, 6)] if ig else ["facebook.jpg"]
-    caption = _show_captions.instagram_caption(home) if ig else _show_captions.facebook_caption(home)
-    problems = _show_captions.validate(caption, "instagram" if ig else "facebook")
-    if problems:
-        raise ValueError(f"showcase caption for {home.slug}: {problems}")
-    return {"images": [f"showcase/{folder.name}/{n}" for n in names], "caption": caption}
-
-
-async def publish_showcase(doc: dict, social: SocialConfig, publisher, uploads: Path) -> Result:
-    """Post a showcase row through showcase.publish (it validates the caption and builds the media URLs)."""
-    fn = _show_publish.publish_instagram if doc["channel"] == "instagram" else _show_publish.publish_facebook
-    try:
-        res = await fn(doc["slug"], cfg=social, publisher=publisher, caption=doc["caption"], root=Path(uploads) / "showcase")
-    except _show_publish.ShowcaseError as e:
-        raise PublishError(str(e))
-    return Result(res.external_id or "", res.permalink)
-
-
 # ---- reels --------------------------------------------------------------------------------------------------------------------------------
 @dataclass(frozen=True)
 class ReelSpec:
-    template: str                 # tip | tour | pitch
+    template: str                 # tip | pitch
     key: str                      # file stem, shared by the Instagram and the Facebook row
-    ref: str                      # entry slug (tip), home slug (tour) or "" (pitch)
+    ref: str                      # entry slug (tip) or "" (pitch)
 
 
 PITCH_CAPTION_BODY = ("\U0001F91D Property agent in Pune?\n\nBuyers message all day, and the same questions come back every time.\n\n"
@@ -277,9 +243,6 @@ PITCH_CAPTION_BODY = ("\U0001F91D Property agent in Pune?\n\nBuyers message all 
 def reel_caption(spec: ReelSpec, channel: str, entry: Optional[Entry] = None) -> str:
     if spec.template == "tip" and entry is not None:
         return entry.ig_caption if channel == "instagram" else entry.fb_caption
-    if spec.template == "tour":
-        h = get_home(spec.ref)
-        return _show_captions.instagram_caption(h) if channel == "instagram" else _show_captions.facebook_caption(h)
     tags = "#PuneAgents #RealEstateAgent #PuneRealEstate"
     if channel == "instagram":
         return PITCH_CAPTION_BODY + "\n\nRequest your invite: link in our bio.\n\n" + tags + " " + brand.HASHTAG
@@ -295,12 +258,6 @@ def reel_scenes(spec: ReelSpec, entry: Optional[Entry] = None):
         from app.modules.creative.layouts.base import PHOTO_DIR
         photos = [PHOTO_DIR / f"{k}.jpg" for k in DARK_PHOTOS + ("living-room",) if (PHOTO_DIR / f"{k}.jpg").is_file()]
         return t.tip_reel([entry.title.strip('"')] + pts + ["Save this for when you need it."], images=photos or None, seed=spec.key)
-    if spec.template == "tour":
-        h = get_home(spec.ref)
-        photos = [p.path for p in h.photos]
-        facts = {"bhk": h.bhk, "locality": h.locality, "area_sqft": h.carpet_sqft, "possession": "ready" if h.ready else "under_construction",
-                 "furnishing": h.furnishing}
-        return t.listing_tour(photos, facts, sample=True)
     return t.agent_pitch(problem="Buyers message you all day. *Same* questions. Every time.",
                          solution="Post a property from your phone. Your own website is *ready*.",
                          proof=("Ready-made posts for social", "Free, invite-only pilot"), cta="Request your invite.")
@@ -465,7 +422,7 @@ async def with_interest(db, doc: dict) -> dict:
         agent = doc.get("agent_id") or _owner_agent()  # an agent's own post (agentprojects) sends interest to that agent
         caption = doc["caption"]
         if agent:
-            kind = "listing" if doc.get("kind") == "showcase" else "post"
+            kind = "post"
             url = await interest_url(db, kind=kind, ref=doc["slug"], agent_id=agent, channel=channel,
                                      title=(caption.splitlines() or [""])[0][:140])
             if "link in our bio" not in caption and channel == "instagram":
@@ -491,13 +448,13 @@ async def register_hub(db, doc: dict, permalink: str = "") -> None:
         agent = _owner_agent()
         if not agent:
             return
-        kind = "listing" if doc.get("kind") == "showcase" else "post"
+        kind = "post"
         channel = "instagram" if doc["channel"] == "instagram" else "facebook"
         url = await interest_url(db, kind=kind, ref=doc["slug"], agent_id=agent, channel=channel)
         code = url.rsplit("/", 1)[-1]
         first = (doc.get("images") or [doc.get("image_path")])[0]
         base = os.environ.get("PUBLIC_MEDIA_BASE_URL", "").rstrip("/")
         await upsert_hub_item(db, kind, doc["slug"], (doc["caption"].splitlines() or [""])[0][:140], f"{base}/uploads/{first}" if base else "",
-                              "Sample home" if doc.get("kind") == "showcase" else "", code, permalink or "", sample=doc.get("kind") == "showcase")
+                              "", code, permalink or "")
     except Exception:
         return

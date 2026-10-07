@@ -25,15 +25,10 @@ def test_the_quality_route_lets_the_operator_review_any_listing(monkeypatch):
     assert quality_routes._operator(SimpleNamespace(id="agent7", is_superuser=True))
 
 
-def test_the_interest_hub_gets_the_sample_catalogue():
+def test_the_interest_hub_has_no_sample_catalogue():
     from app.modules.interest import router as interest_routes
-    from app.modules.showcase import samples
 
-    slugs = interest_routes._sample_slugs()
-    assert slugs == samples.catalogue_slugs() and slugs
-    home = interest_routes._sample_home(slugs[0])
-    assert home["title"].startswith(samples.SAMPLE_LABEL + ": ")
-    assert home["image_url"] == interest_routes.SAMPLE_IMAGE_PATH + slugs[0]
+    assert not hasattr(interest_routes, "configure") and not hasattr(interest_routes, "_sample_home")
 
 
 def test_social_posts_use_marketings_link_line_in_the_packs_language():

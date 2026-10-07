@@ -7,7 +7,7 @@ POST /listings/{id}/reel {lang} queues a job; the worker renders ONE job at a ti
   * 'Listed by <business> · RERA <no>' on the closing scene (never a phone number), with the small Avasetu mark (no end card),
   * a voiceover in English, Hindi or Marathi (Google TTS) with Hinglish/Roman on-screen text (the renderer cannot shape
     Devanagari), over our own generated music bed. Without the TTS key the reel is made with music only, and the job says so.
-Sample listings carry the 'Sample listing' badge on every scene.
+A sample listing (title starting 'Sample', e.g. the demo agent's) gets no reel: reels are for real homes.
 
 Limits: 5 reels per agent per rolling 24 hours (failed ones do not count), one active job per listing + language (a re-request
 returns it), and a finished reel is returned again unless the listing changed since or `again` is asked for.
@@ -44,7 +44,6 @@ MAX_SCENE_PHOTOS = 5
 MARKETABLE = ("live", "under_offer")
 STALE_AFTER = timedelta(minutes=15)       # a 'rendering' job older than this was lost (process restart): marked failed
 SILENT_SECONDS = 3.0                      # scene length when there is no voice to time it
-SAMPLE_BADGE = "Sample listing"
 NO_VOICE_NOTE = "Made without a voiceover: the voice service is not set up on the server (GOOGLE_TTS_API_KEY). Music only."
 VOICE_FAILED_NOTE = "Made without a voiceover: the voice service did not answer. Music only."
 
@@ -56,7 +55,7 @@ SYSTEM = (
     "voice: one natural spoken sentence of at most 16 words in the requested voice language (Hindi = Devanagari script, "
     "Marathi = Devanagari, English = English). Write numbers as digits exactly as they appear in the facts. "
     "Use ONLY the facts given: never invent numbers, distances, prices, schools, builders, views or promises. "
-    "Never mention phone numbers, names of people or the agent. If the facts say it is a sample listing, say it is a sample. "
+    "Never mention phone numbers, names of people or the agent. "
     "Plain, calm words: no sales words such as only, just, best, hurry, grab or limited. "
     "cta: ask viewers to comment the word INTERESTED for details, with INTERESTED in Roman capitals on screen "
     "(our own closing line replaces it, so every reel ends with the same comment keyword)."
@@ -100,7 +99,7 @@ def reel_facts(listing: dict, profile: Optional[dict]) -> Tuple[str, List[str], 
     """(subject, fact lines, Facts): everything the script may say, from the listing and its `about` only."""
     f = Facts.from_docs(listing, {k: v for k, v in (profile or {}).items() if k != "phone"}, "")  # the reel never needs his number
     about = listing.get("about") or {}
-    subject = f.title_line("en") + (" (sample listing, shown for illustration, not available)" if f.sample else "")
+    subject = f.title_line("en")
     lines: List[str] = [f.title_line("en")]
     if f.price_text:
         lines.append(f"Price {f.price_text}")
@@ -128,8 +127,6 @@ def reel_facts(listing: dict, profile: Optional[dict]) -> Tuple[str, List[str], 
     for key in ("builder_known_as", "water", "power_backup", "parking", "society", "possession_note"):
         if about.get(key):
             lines.append(f"{key.replace('_', ' ').capitalize()}: {about[key]}")
-    if f.sample:
-        lines.append("This is a sample listing shown for illustration, not available")
     return subject, lines, f
 
 
@@ -137,20 +134,11 @@ def reel_facts(listing: dict, profile: Optional[dict]) -> Tuple[str, List[str], 
 _UNIT = {"hi": {"Lakh": "लाख", "Cr": "करोड़", "/month": " महीना"}, "mr": {"Lakh": "लाख", "Cr": "कोटी", "/month": " दरमहा"}}
 _WORDS = {
     "en": {"price": "Price {p}.", "area": "{a} square feet {k} area", "sqft": "sq ft", "look": "Take a *look* inside",
-           "look_v": "Take a look inside.", "cta_s": CTA_SCREEN["en"], "cta_v": CTA_VOICE["en"],
-           "sample": "This is a sample listing, shown for illustration. ", "with": "with", "in": "{w} in {l}",
-           "cta_sample_s": "Want a real one? Comment *INTERESTED*",
-           "cta_sample_v": "Want a real one like it? Comment interested, and we will find one for you."},
+           "look_v": "Take a look inside.", "cta_s": CTA_SCREEN["en"], "cta_v": CTA_VOICE["en"], "with": "with", "in": "{w} in {l}"},
     "hi": {"price": "कीमत {p}।", "area": "{a} स्क्वेयर फीट {k} एरिया", "look": "Andar ek *nazar*", "look_v": "अंदर एक नज़र डालिए।",
-           "cta_s": CTA_SCREEN["hi"], "cta_v": CTA_VOICE["hi"],
-           "sample": "यह एक सैंपल लिस्टिंग है, सिर्फ़ दिखाने के लिए। ", "with": "साथ में", "in": "{l} mein {w}",
-           "cta_sample_s": "Asli ghar chahiye? *INTERESTED* comment karein",
-           "cta_sample_v": "असली घर चाहिए? कमेंट में इंटरेस्टेड लिखिए, हम आपके लिए ढूँढेंगे।"},
+           "cta_s": CTA_SCREEN["hi"], "cta_v": CTA_VOICE["hi"], "with": "साथ में", "in": "{l} mein {w}"},
     "mr": {"price": "किंमत {p}.", "area": "{a} स्क्वेअर फूट {k} एरिया", "look": "Aat ek *nazar*", "look_v": "आत एक नजर टाका.",
-           "cta_s": CTA_SCREEN["mr"], "cta_v": CTA_VOICE["mr"],
-           "sample": "ही एक सॅम्पल लिस्टिंग आहे, फक्त दाखवण्यासाठी. ", "with": "सोबत", "in": "{l} madhye {w}",
-           "cta_sample_s": "Khara ghar hava? *INTERESTED* comment kara",
-           "cta_sample_v": "खरं घर हवं? कमेंटमध्ये इंटरेस्टेड लिहा, आम्ही शोधून देऊ."},
+           "cta_s": CTA_SCREEN["mr"], "cta_v": CTA_VOICE["mr"], "with": "सोबत", "in": "{l} madhye {w}"},
 }
 _KIND = {"hi": {"carpet": "कार्पेट", "super built-up": "सुपर बिल्ट-अप"}, "mr": {"carpet": "कार्पेट", "super built-up": "सुपर बिल्ट-अप"}}
 
@@ -209,8 +197,6 @@ def rules_script(f: Facts, lang: str) -> Dict:
         beats.append({"screen": _short(h, 6), "voice": h if lang == "en" else f.highlights[0]})
     while len(beats) < 3:
         beats.append({"screen": w["look"], "voice": w["look_v"]})
-    if f.sample:  # a sample home cannot be visited: ask what they want instead
-        return {"beats": beats[:5], "cta_screen": w["cta_sample_s"], "cta_voice": w["sample"] + w["cta_sample_v"]}
     return {"beats": beats[:5], "cta_screen": w["cta_s"], "cta_voice": w["cta_v"]}
 
 
@@ -223,22 +209,11 @@ def pushy(script: Dict) -> bool:
     return any(_PUSHY.search(f"{b.get('screen', '')} {b.get('voice', '')}") for b in beats if isinstance(b, dict))
 
 
-_ON_SALE = re.compile(r"\s*(for sale|for rent|on sale|बिक्री के लिए( उपलब्ध)?|किराये के लिए|विक्रीसाठी|भाड्याने)", re.I)
-
 
 def with_cta(script: Dict, lang: str) -> Dict:
     """Every listing reel closes with the same call to action: comment INTERESTED (the comment assistant answers it)."""
     w = _WORDS[lang]
     return {**script, "cta_screen": w["cta_s"], "cta_voice": w["cta_v"]}
-
-
-def for_sample(script: Dict, lang: str) -> Dict:
-    """A sample home is not for sale and cannot be visited: no 'for sale' wording, and the closing says it is a sample and
-    asks what the viewer wants instead of offering a visit (the badge is on every scene too)."""
-    w = _WORDS[lang]
-    beats = [{**b, "screen": _ON_SALE.sub("", str(b.get("screen", ""))).strip(),
-              "voice": _ON_SALE.sub("", str(b.get("voice", ""))).strip()} for b in script.get("beats") or []]
-    return {**script, "beats": beats, "cta_screen": w["cta_sample_s"], "cta_voice": w["sample"] + w["cta_sample_v"]}
 
 
 async def write_script(subject: str, facts: Sequence[str], lang: str, llm, fallback: Dict) -> Dict:
@@ -326,8 +301,13 @@ def job_out(doc: Optional[dict], base_url: str = "") -> Optional[dict]:
     return {"id": doc["_id"], "listing_id": doc["listing_id"], "lang": doc["lang"], "status": doc["status"],
             "video_path": path, "video_url": (base_url.rstrip("/") + path if base_url and path else path),
             "script": doc.get("script"), "audio": doc.get("audio"), "note": doc.get("note") or "", "error": doc.get("error") or "",
-            "sample": bool(doc.get("sample")), "created_at": _iso(doc.get("created_at")), "finished_at": _iso(doc.get("finished_at")),
+            "created_at": _iso(doc.get("created_at")), "finished_at": _iso(doc.get("finished_at")),
             "posts": doc.get("posts") or []}
+
+
+def is_sample(listing: dict) -> bool:
+    """A labelled sample listing (title 'Sample...', e.g. the demo agent's): never made into a reel."""
+    return (listing.get("title") or "").strip().lower().startswith("sample")
 
 
 def _safe_id(s: str) -> str:
@@ -361,6 +341,8 @@ class ReelJobs:
         listing = await self._listing(agent_id, listing_id)
         if listing.get("status") not in MARKETABLE:
             raise ReelJobError("Only live or under-offer listings can have a reel. Publish this listing first.", 409)
+        if is_sample(listing):
+            raise ReelJobError("Sample listings cannot have a reel. Reels are for real homes.", 409)
         active = await self._latest({"listing_id": listing_id, "agent_id": agent_id, "lang": lang, "status": {"$in": list(ACTIVE)}})
         if active:
             return active, False
@@ -378,8 +360,7 @@ class ReelJobs:
             raise ReelJobError(f"You can make {DAILY_LIMIT} reels a day. Try again tomorrow.", 429)
         jid = uuid.uuid4().hex
         doc = {"_id": jid, "listing_id": listing_id, "agent_id": agent_id, "lang": lang, "status": "queued", "video_path": None,
-               "script": None, "error": None, "note": None, "audio": None, "created_at": now, "started_at": None, "finished_at": None,
-               "sample": (listing.get("title") or "").strip().lower().startswith("sample")}
+               "script": None, "error": None, "note": None, "audio": None, "created_at": now, "started_at": None, "finished_at": None}
         await self.jobs.insert_one(doc)
         return doc, True
 
@@ -427,6 +408,8 @@ class ReelJobs:
             listing = await self.listings.find_one({"_id": job["listing_id"], "agent_id": job["agent_id"]})
             if not listing:
                 return await self._finish(jid, status="failed", error="The listing was removed.")
+            if is_sample(listing):
+                return await self._finish(jid, status="failed", error="Sample listings cannot have a reel.")
             photos = listing_photos(listing, self.uploads_dir)
             if len(photos) < MIN_PHOTOS:
                 return await self._finish(jid, status="failed", error="Add at least 2 photos")
@@ -434,14 +417,13 @@ class ReelJobs:
             subject, facts, f = reel_facts(listing, profile)
             llm = self.llm_factory() if self.llm_factory else None
             script = await write_script(subject, facts, job["lang"], llm, rules_script(f, job["lang"]))
-            script = for_sample(script, job["lang"]) if f.sample else with_cta(script, job["lang"])
+            script = with_cta(script, job["lang"])
             await self.jobs.update_one({"_id": jid}, {"$set": {"script": script}})
             name = f"listing-{_safe_id(job['listing_id'])}-{job['lang']}-{jid[:8]}.mp4"
             out = self.uploads_dir / "reels" / name
             kicker = _short(f.loc.upper(), 5) or None
             result = await asyncio.to_thread(
-                self.renderer, script, photos[:MAX_SCENE_PHOTOS], job["lang"], out, badge=SAMPLE_BADGE if f.sample else None,
-                kicker=kicker, closing=listed_by_line(profile), voiced=self.voice_available())
+                self.renderer, script, photos[:MAX_SCENE_PHOTOS], job["lang"], out, kicker=kicker, closing=listed_by_line(profile), voiced=self.voice_available())
             await self._finish(jid, status="done", video_path=f"/uploads/reels/{name}", audio=result.get("audio"),
                                note=result.get("note") or "", error=None)
         except Exception as e:  # ffmpeg missing, disk full, a bad photo...
@@ -519,10 +501,7 @@ def caption(listing: dict, attribution: str) -> str:
     """Caption for posting the reel on the Avasetu pages: what and where, price, the 'Listed by' attribution, the brand."""
     f = Facts.from_docs(listing, None, "")
     bits = " · ".join(x for x in (f.price_text, f.area_text and f"{f.area_text} {f.area_kind}") if x)
-    title = _ON_SALE.sub("", f.title_line("en")).strip() if f.sample else f.title_line("en")  # a sample is not for sale
-    lines = [title + (f"\n{bits}" if bits else "")]
-    if f.sample:
-        lines.append("Sample listing, shown for illustration. Not available.")
+    lines = [f.title_line("en") + (f"\n{bits}" if bits else "")]
     if attribution:
         lines.append(attribution)
     lines.append(f"{brand.NAME} · {brand.TAGLINE} {brand.HASHTAG}")

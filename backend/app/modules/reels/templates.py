@@ -1,6 +1,6 @@
 """Three reel templates. Each returns (scenes, options) to pass to compose.make_reel(scenes, out, **options).
 
-Rules (docs/NEWSROOM_PLAN.md, brand): no phone numbers, no invented facts, no price unless given, samples are labelled.
+Rules (docs/NEWSROOM_PLAN.md, brand): no phone numbers, no invented facts, no price unless given; a builder's render is labelled (badge).
 """
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -36,10 +36,10 @@ def tip_reel(lines: Sequence[str], images: Optional[Sequence] = None, seed: str 
     return _at_least_min(scenes, QUICK_XFADE), dict(HOOK_OPTIONS)
 
 
-def listing_tour(photos: Sequence, facts: Dict, sample: bool = False) -> Tuple[List[Scene], Dict]:
+def listing_tour(photos: Sequence, facts: Dict, badge: Optional[str] = None) -> Tuple[List[Scene], Dict]:
     """'Listing tour': photos plus key facts. facts keys: bhk (number), property_type (default 'apartment'), locality, city (default 'Pune'),
     area_sqft, possession ('ready' | 'under_construction' or free text), price_text (shown only when provided), furnishing.
-    `sample=True` adds a 'SAMPLE LISTING' label on every scene.
+    `badge` (e.g. "Artist's impression" for a builder's render) is shown on every scene.
     One photo per scene: with fewer distinct photos than facts, the least important fact scenes are left out (furnishing, then
     possession, then area, then the price) rather than a photo shown twice; the opening and the call to action always stay."""
     photos = distinct_photos(photos)
@@ -54,7 +54,6 @@ def listing_tour(photos: Sequence, facts: Dict, sample: bool = False) -> Tuple[L
     ptype = facts.get("property_type") or "apartment"
     locality, city = facts.get("locality") or "", facts.get("city") or "Pune"
     head = (f"{int(bhk) if float(bhk).is_integer() else bhk} BHK " if bhk else "") + ptype
-    badge = "Sample listing" if sample else None
     where = f"{locality}, {city}" if locality else city
 
     def ph(i):
@@ -118,8 +117,8 @@ def _at_least_min(scenes: List[Scene], xfade: float) -> List[Scene]:
     return scenes
 
 
-# Sample listing facts (labelled samples only; same localities as scripts/seed_samples.py)
-SAMPLE_FACTS = {
+# Made-up listing facts for tests and local previews only: never posted.
+DEMO_FACTS = {
     "kharadi": {"bhk": 2, "locality": "Kharadi", "area_sqft": 1050, "possession": "ready", "property_type": "apartment"},
     "wagholi": {"bhk": 3, "locality": "Wagholi", "area_sqft": 1420, "possession": "under_construction", "property_type": "apartment"},
 }
@@ -131,5 +130,3 @@ TIP_LINES = [
     "Visit on a *weekday evening* to see traffic and parking.",
     "Follow for more Pune property tips.",
 ]
-
-TEMPLATES = ("tip", "tour", "pitch")

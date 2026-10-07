@@ -279,15 +279,10 @@ def test_upsert_hub_item_updates_in_place(env):
     assert len(docs) == 1 and docs[0]["title"] == "Renamed" and docs[0]["interest_code"] == "abc"
 
 
-def test_hub_falls_back_to_labelled_samples_with_interest_links(env, monkeypatch):
+def test_an_empty_hub_shows_no_sample_homes(env, monkeypatch):
     c, svc, db, loop = env
-    svc.samples = ir._sample_home  # the real showcase adapter
     monkeypatch.setenv("INTEREST_OWNER_AGENT_ID", "OWNER")
     body = c.get("/public/hub").json()
-    assert len(body["items"]) == 9
-    assert all(i["sample"] and i["title"].startswith("Sample listing") and i["interest_code"] for i in body["items"])
-    assert body["items"][0]["image_url"].startswith("/api/v1/public/interest/sample-image/")
-    assert body["links"]["invite"].endswith("/request-invite")
-    assert len(db.get_collection("interest_links").docs) == 9
-    assert c.get(body["items"][0]["image_url"].replace("/api/v1", "")).headers["content-type"] == "image/jpeg"
-    assert c.get("/public/interest/sample-image/nope").status_code == 404
+    assert body["items"] == [] and body["links"]["invite"].endswith("/request-invite")
+    assert db.get_collection("interest_links").docs == []
+    assert c.get("/public/interest/sample-image/kharadi-2bhk-ready").status_code != 200   # the sample photo route is gone
