@@ -2,7 +2,7 @@
 from typing import List
 
 from ..models import Copy, Design
-from .base import Canvas, Rendered, mix
+from .base import Canvas, Rendered, footer_h, known, mix
 from .palette import get
 
 
@@ -14,7 +14,7 @@ def render(copy: Copy, design: Design) -> List[Rendered]:
     value, label = str(p.get("value", "")), str(p.get("label", ""))
     c.chip(str(p.get("kicker", "WORTH REMEMBERING")), c.left, c.top, icon="star")
     w = c.right - c.left
-    top, bottom = c.top + 110, c.bottom - 64 - 110
+    top, bottom = c.top + 110, c.bottom - footer_h() - 110
     num_size = 470 if tall else 380
     num_fs, _, num_h, _ = c.fit(value, w, num_size, "bold", 1, int(num_size * 0.26), balance=False)
     lab_size = 68 if tall else 58
@@ -31,5 +31,5 @@ def render(copy: Copy, design: Design) -> List[Rendered]:
     y = c.text(label, c.left, y, w, lab_size, "bold", pal.ink, 3, pitch=1.14, role="label")
     if copy.support:
         c.text(copy.support, c.left, y + gap, w, 36, "medium", pal.muted, 2, pitch=1.3, balance=False, role="support")
-    c.brand_bar(right=copy.card_cta or "Save this", dark_bg=not pal.light)
+    c.brand_bar(right=known(copy.card_cta or "Save this"), dark_bg=not pal.light)
     return [c.finish()]

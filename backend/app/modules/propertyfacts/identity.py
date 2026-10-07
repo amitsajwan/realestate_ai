@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
+from app.modules.creative import i18n
 from app.modules.creative.models import CardBrand, Voice
 
 OFFICIAL_SLUG = os.environ.get("INTEREST_OWNER_SLUG") or "avasetu"
@@ -52,5 +53,6 @@ def identity(profile: Optional[dict], site: str, uploads_dir: Path, language: st
         contact.append(f"\U0001F310 {web}: {bare_url(bd['website'])}")
     contact.append(f"\U0001F3E0 {ours}: {bare_url(site)}/agent/{profile['slug']}")
     return Identity(voice=Voice(name=name, team=f"{name} team"),
-                    card_brand=CardBrand(name=name, line=f"Call {phone}" if phone else (bd.get("tagline") or ""), logo=logo_file),
+                    card_brand=CardBrand(name=name, line=f"{i18n.ui('call', language)} {phone}" if phone else (bd.get("tagline") or ""),
+                                         logo=logo_file, phone=phone),
                     contact=contact)

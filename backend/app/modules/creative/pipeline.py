@@ -18,7 +18,7 @@ from app.modules.marketing.images import save_jpeg
 from . import art_director, copywriter, critic, prompts, strategist, translate
 from .layouts import render_layout
 from .layouts.base import Rendered
-from .models import Angle, Brief, Copy, CreativePack, Design, Report
+from .models import Angle, Brief, Copy, CreativePack, Design, Problem, Report
 
 log = logging.getLogger(__name__)
 
@@ -33,6 +33,9 @@ async def _attempt(brief: Brief, audience: str, channel: str, llm: Any, seed: in
     design.brand = brief.card_brand
     rendered = await asyncio.to_thread(render_layout, copy, design)
     report = critic.review(copy, design, rendered, brief.corpus(), channel, recent)
+    if translator is not None and brief.language in prompts.LANGUAGE_NAMES and copy.language != brief.language:
+        # the translation never passed: try again (another attempt) rather than post English in a Marathi campaign
+        report.problems.append(Problem("language", f"the post is not in {brief.language}: no translation passed the checks"))
     return angle, copy, design, rendered, report
 
 

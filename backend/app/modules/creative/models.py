@@ -25,6 +25,10 @@ class CardBrand:
     name: str
     line: str = ""                        # second footer line: "Call +91 99219 93099" (or a tagline)
     logo: str = ""                        # local image file; a square logo is drawn in a circle; missing -> a plain disc
+    phone: str = ""                       # "+91 99219 93099": with it, single cards and a carousel's last slide carry a
+                                          # contact strip (name, phone, price, MahaRERA number)
+    price: str = ""                       # "₹32.3 lakh" (the listing's price, when known)
+    rera: str = ""                        # "P52100076768" (the MahaRERA number, when known)
 
 
 LANGUAGES = ("en", "mr", "hi")
@@ -63,6 +67,8 @@ class Brief:
     card_brand: Optional[CardBrand] = None  # an agent's footer on the cards; None = the brand's own
     contact: List[str] = field(default_factory=list)  # lines code adds to every caption ("📞 +91 ...", "🌐 house-deal.com")
     language: str = "en"                  # "mr"/"hi": the cards and caption are translated after the English copy passes
+    asks: Dict[str, str] = field(default_factory=dict)  # the caption's closing question by language ("en", "mr", "hi"),
+                                          # written for this post's subject; replaces the format's generic question
     listing_transaction: str = ""
     listing_property_type: str = ""
     listing_price_inr: str = ""

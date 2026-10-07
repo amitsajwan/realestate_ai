@@ -3,7 +3,7 @@ import math
 from typing import List
 
 from ..models import Copy, Design
-from .base import Canvas, Rendered, mix
+from .base import Canvas, Rendered, mix, footer_h
 from .palette import FACT_GREEN, MYTH_RED, get
 
 
@@ -74,7 +74,7 @@ def render(copy: Copy, design: Design) -> List[Rendered]:
     hsize = 84 if tall else 68
     hh = c.measure(copy.hook, w, hsize, "bold", 2, pitch=1.08, min_size=50)
     c.text(copy.hook, c.left, hy, w, hsize, "bold", pal.ink, 2, pitch=1.08, min_size=50, emph=design.emphasis, role="hook")
-    top, bottom = hy + hh + 40, c.bottom - 64 - 34
+    top, bottom = hy + hh + 40, c.bottom - footer_h() - 34
     gap = 28
     cw = (w - gap) // 2
     _column(c, (c.left, top, c.left + cw, bottom), [str(x) for x in p.get("messy", [])], False, tall)

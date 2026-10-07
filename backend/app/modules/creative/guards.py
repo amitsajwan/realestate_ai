@@ -25,6 +25,32 @@ FILLER = (
 GENERIC_HOOK = re.compile(r"^(?:tips? (?:for|to)|things to|guide to|all about|introducing|welcome to|important|know about)\b", re.I)
 CLICKBAIT = re.compile(r"\b(you won'?t believe|shocking|secret they|doctors hate|this one trick|mind-?blowing|must[- ]see)\b", re.I)
 
+# Facts only, in English, Hindi and Marathi. Devanagari vowel signs are not \w, so Devanagari words are bounded by explicit
+# look-arounds (a word may carry a suffix: परवडणारे, सस्ता).
+_D = "ऀ-ॿ"
+
+
+def _dev(*words: str) -> str:
+    return rf"(?<![{_D}\w])(?:{'|'.join(words)})"
+
+
+# A value claim: a post states the price, it never judges it for the reader.
+VALUE_CLAIM = re.compile(
+    r"\b(?:affordab\w*|afford|cheap\w*|inexpensive|budget[- ]friendly|pocket[- ]friendly|value for money|great value|"
+    r"good value|bargain|steal deal|great deal|good deal|worth (?:it|every)|overpay\w*|low(?:est)? price|reasonabl[ey] priced|"
+    r"secure your (?:land|plot|home|flat))\b|"
+    + _dev("सस्त", "किफ़ायत", "किफायत", "परवड", "स्वस्त", "बजेटमध्ये", "बजट में", "पैसा वसूल"), re.I)
+# A promise about the reader's life or home.
+PROMISE = re.compile(r"\byour (?:new|future|own|forever|perfect) home\b|\bhome of your\b|"
+                     + _dev("तुमचे नवीन घर", "तुमचं नवीन घर", "तुमचे स्वतःचे घर", "तुमचं स्वतःचं घर", "स्वप्नातील", "स्वप्नातलं",
+                            "आपका नया घर", "आपका अपना घर", "सपनों का", "तुमचे हक्काचे", "तुमचं हक्काचं"), re.I)
+# Nothing on an Instagram card or caption can be tapped or clicked.
+TAP = re.compile(r"\b(?:tap|taps|tapping|click|clicking)\b|" + _dev("टॅप", "टैप", "क्लिक"), re.I)
+# "only", "just": a minimiser that sells ("only 3 km", "just ₹32 lakh"). "not only" and "if only" are ordinary English.
+MINIMISER = re.compile(r"(?<!\bnot )(?<!\bif )\b(?:only|just|merely)\b|" + _dev("फक्त", "केवळ", "केवल", "सिर्फ़", "सिर्फ"), re.I)
+# Real listings are real: never "sample".
+SAMPLE = re.compile(r"\bsamples?\b|" + _dev("नमुना", "सॅम्पल", "सैंपल"), re.I)
+
 
 _ODD = {"‐": "-", "‑": "-", "‒": "-", " ": " ", " ": " ", " ": " ", " ": " ", "​": "", "⁠": "", "­": ""}
 
@@ -32,6 +58,19 @@ _ODD = {"‐": "-", "‑": "-", "‒": "-", " ": " ", " ": " ", " ": " ", "
 def tidy(s: str) -> str:
     """Replace characters the card font cannot draw (non-breaking hyphen, thin spaces, zero-width marks) with plain ones."""
     return "".join(_ODD.get(ch, ch) for ch in s or "")
+
+
+def repair(s: str) -> str:
+    """Drop the minimisers ("only 3 km" -> "3 km", "फक्त 3 km" -> "3 km") and tidy the spacing; a claim is not repaired
+    (problems_in rejects it). The first letter keeps its case ("Just 3 km" -> "3 km")."""
+    if not s or not MINIMISER.search(s):
+        return s
+    out = MINIMISER.sub("", s)
+    out = re.sub(r"[ \t]{2,}", " ", out)
+    out = re.sub(r"(?m)^[ \t]+|[ \t]+(?=[.,!?:;])", "", out)
+    if s[:1].isupper() and out[:1].islower():
+        out = out[0].upper() + out[1:]
+    return out
 
 
 def words(s: str) -> List[str]:
@@ -97,6 +136,16 @@ def problems_in(text: str, corpus: str, *, allow_url: bool = False) -> List[str]
         out.append("name not in facts: " + ", ".join(orgs))
     if CLICKBAIT.search(t):
         out.append("clickbait")
+    if VALUE_CLAIM.search(t):
+        out.append("value claim")
+    if PROMISE.search(t):
+        out.append("promise")
+    if TAP.search(t):
+        out.append("tap or click")
+    if MINIMISER.search(t):
+        out.append("only/just")
+    if SAMPLE.search(t) and not SAMPLE.search(corpus or ""):  # a project really named "Sample ..." may be named
+        out.append("sample")
     if not allow_url and URL.search(t):
         out.append("url")
     bad = unsupported_numbers(t, corpus)

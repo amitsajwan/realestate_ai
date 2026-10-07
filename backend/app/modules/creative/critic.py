@@ -21,6 +21,7 @@ MAX_CARD_WORDS = 48
 MIN_FONT = 24
 MAX_COVER_LINES = 3
 MAX_GAP_FRACTION = 0.34
+TRANSLATED_EXTRA_WORDS = 3   # a translated headline may run a few words longer (the card still fits it or reports truncation)
 
 
 def _add(out: List[Problem], rule: str, msg: str, sev: str = "error") -> None:
@@ -42,8 +43,9 @@ def review(copy: Copy, design: Design, rendered: Sequence[Rendered], corpus: str
            recent_layouts: Sequence[str] = ()) -> Report:
     out: List[Problem] = []
     n = word_count(copy.hook)
-    if not 2 <= n <= HOOK_MAX_WORDS:
-        _add(out, "hook_length", f"hook has {n} words (2 to {HOOK_MAX_WORDS})")
+    most = HOOK_MAX_WORDS + (TRANSLATED_EXTRA_WORDS if copy.language != "en" else 0)  # Marathi says it in a few more words
+    if not 2 <= n <= most:
+        _add(out, "hook_length", f"hook has {n} words (2 to {most})")
     for i, s in enumerate(copy.slides, 1):
         if word_count(s) > SLIDE_MAX_WORDS:
             _add(out, "slide_length", f"slide {i} has {word_count(s)} words (max {SLIDE_MAX_WORDS})")
