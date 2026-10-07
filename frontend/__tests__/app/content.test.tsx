@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import React from 'react'
 import ContentPage from '@/app/studio/content/page'
-import { FIXTURE_ITEMS, countdown, createContentApi, groupItems, createFixtureContentApi, dueLabel, mediaUrl, normalizeItem, statusLabel } from '@/lib/app/content'
+import { FIXTURE_ITEMS, countdown, createContentApi, groupItems, createFixtureContentApi, dueLabel, foldCampaigns, mediaUrl, normalizeItem, ofType, statusLabel, typeCounts } from '@/lib/app/content'
 import type { ContentItem } from '@/lib/app/content'
 import { ApiError } from '@/lib/app/api'
 
@@ -31,7 +31,10 @@ jest.mock('@/lib/app/content', () => ({
 }))
 
 const okRes = (body: unknown, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(body) })
-const items = (): ContentItem[] => FIXTURE_ITEMS.map((i) => ({ ...i }))
+// the first three fixtures: two to approve (a guide and a sample home), one approved
+const BASE = FIXTURE_ITEMS.slice(0, 3)
+const items = (): ContentItem[] => BASE.map((i) => ({ ...i }))
+const all = (): ContentItem[] => FIXTURE_ITEMS.map((i) => ({ ...i }))
 
 beforeEach(() => {
   ;[getUpcoming, approve, skip, postNow, getRecent, unapprove, retry].forEach((m) => m.mockReset())
@@ -198,7 +201,9 @@ describe('Instagram and Facebook copies, duplicates, posted and problems', () =>
 describe('content client', () => {
   it('normalizes loose rows', () => {
     const n = normalizeItem({ id: 7, kind: 'weird', channel: 'facebook_page', image_urls: null, status: 'approved', week: '2' })
-    expect(n).toMatchObject({ id: '7', kind: 'post', channel: 'facebook_page', image_urls: [], status: 'approved', week: null, video_url: null })
+    expect(n).toMatchObject({ id: '7', kind: 'post', channel: 'facebook_page', image_urls: [], status: 'approved', week: null, video_url: null, group: 'other', campaign: null })
+    expect(normalizeItem({ group: 'listings', source: 'campaign', campaign: { id: 'L1', title: ' ' } })).toMatchObject({ group: 'listings', source: 'campaign', campaign: { id: 'L1', title: 'Property campaign' } })
+    expect(normalizeItem({ group: 'nope', campaign: { title: 'x' } })).toMatchObject({ group: 'other', campaign: null })
   })
 
   it('formats due times in India time and builds media urls', () => {
@@ -234,7 +239,7 @@ describe('content client', () => {
   })
 
   it('the fixture api approves once, then refuses, and skip removes', async () => {
-    const api = createFixtureContentApi()
+    const api = createFixtureContentApi(BASE)
     await api.approve('fx-1')
     await expect(api.approve('fx-1')).rejects.toMatchObject({ status: 409 })
     await api.skip('fx-2')
@@ -244,3 +249,85 @@ describe('content client', () => {
 })
 
 
+
+
+describe('Types: chips, campaign cards, labels', () => {
+  const chips = () => within(screen.getByRole('group', { name: 'Type' }))
+
+  it('chips with counts inside the tab, empty types hidden, the choice kept in the address', async () => {
+    getUpcoming.mockResolvedValue(all())
+    render(<ContentPage />)
+    await screen.findAllByTestId('content-card')
+    expect(chips().getAllByRole('button').map((b) => b.textContent)).toEqual(['All10', 'Listings5', 'News1', 'Guides2', 'Agents1', 'Other1'])
+    expect(chips().getByRole('button', { name: /All/ })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(chips().getByRole('button', { name: /Agents/ }))
+    expect(window.location.search).toContain('type=agents')
+    const cards = screen.getAllByTestId('content-card')
+    expect(cards).toHaveLength(1)
+    expect(within(cards[0]).getByTestId('type-tag')).toHaveTextContent('Agent recruiting')
+    fireEvent.click(screen.getByRole('tab', { name: /Going out/ }))
+    expect(screen.queryByRole('group', { name: 'Type' })).not.toBeNull() // the chosen type still shows
+    expect(screen.getByText('No agents here.')).toBeInTheDocument()
+  })
+
+  it('opens on the type in the address', async () => {
+    window.history.replaceState(null, '', '/studio/content?type=guides')
+    getUpcoming.mockResolvedValue(all())
+    render(<ContentPage />)
+    const cards = await screen.findAllByTestId('content-card')
+    expect(cards.map((c) => within(c).getByTestId('type-tag').textContent)).toEqual(['Guide', 'Guide'])
+    expect(screen.getByRole('button', { name: 'Approve all 2 guides' })).toBeInTheDocument()
+    window.history.replaceState(null, '', '/studio/content')
+  })
+
+  it('a campaign is one card; approve all and skip all ask first', async () => {
+    getUpcoming.mockResolvedValue(all())
+    window.history.replaceState(null, '', '/studio/content?type=listings')
+    render(<ContentPage />)
+    const camp = await screen.findByTestId('campaign-card')
+    expect(within(camp).getByTestId('row-title')).toHaveTextContent('Gulmohar City · 4 posts')
+    expect(within(camp).getByText('4 need your OK')).toBeInTheDocument()
+    expect(screen.getAllByTestId('content-card')).toHaveLength(1) // Goyal My Home, not part of a campaign
+    fireEvent.click(within(camp).getAllByRole('button')[0])
+    const open = within(screen.getByTestId('campaign-card'))
+    expect(open.getAllByTestId('content-card')).toHaveLength(4)
+    expect(open.queryByTestId('type-tag')).not.toBeNull() // the campaign's own tag; posts inside carry none
+    expect(open.getAllByTestId('type-tag')).toHaveLength(1)
+    fireEvent.click(open.getByRole('button', { name: 'Approve all 4' }))
+    expect(approve).not.toHaveBeenCalled()
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Approve all 4 posts of Gulmohar City?' })).getByRole('button', { name: 'Approve 4' }))
+    await waitFor(() => expect(approve).toHaveBeenCalledTimes(7))
+    expect(approve.mock.calls.map((c) => c[0])).toContain('fx-gc-price-fb')
+  })
+
+  it('skip all for a campaign confirms, then skips every copy after the undo time', async () => {
+    getUpcoming.mockResolvedValue(all())
+    window.history.replaceState(null, '', '/studio/content?type=listings')
+    render(<ContentPage />)
+    const camp = await screen.findByTestId('campaign-card')
+    fireEvent.click(within(camp).getAllByRole('button')[0])
+    fireEvent.click(within(screen.getByTestId('campaign-card')).getByRole('button', { name: 'Skip all 4' }))
+    jest.useFakeTimers()
+    try {
+      fireEvent.click(within(screen.getByRole('dialog', { name: /Skip all 4 posts of Gulmohar City/ })).getByRole('button', { name: 'Skip 4' }))
+      expect(screen.queryByTestId('campaign-card')).toBeNull()
+      expect(skip).not.toHaveBeenCalled()
+      jest.advanceTimersByTime(8100)
+    } finally {
+      jest.useRealTimers()
+    }
+    await waitFor(() => expect(skip).toHaveBeenCalledTimes(7))
+  })
+
+  it('grouping helpers: counts, filter, campaign folding', () => {
+    const gs = groupItems(all())
+    expect(typeCounts(gs)).toEqual({ listings: 5, news: 1, guides: 3, agents: 1, other: 1 })
+    expect(ofType(gs, 'news').map((g) => g.key)).toEqual(['area-wagholi-20261013'])
+    expect(ofType(gs, 'all')).toHaveLength(gs.length)
+    const rows = foldCampaigns(ofType(gs, 'listings'))
+    expect(rows.map((r) => r.type)).toEqual(['campaign', 'post'])
+    expect(rows[0]).toMatchObject({ title: 'Gulmohar City', key: 'campaign:fx-listing-gulmohar' })
+    const one = gs.filter((g) => g.key === 'campaign-fx-listing-gulmohar-price')
+    expect(foldCampaigns(one).map((r) => r.type)).toEqual(['post']) // a campaign with one post left is a plain card
+  })
+})

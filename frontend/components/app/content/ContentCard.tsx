@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react'
 import { Btn, ErrorBox } from '@/components/app/ui'
 import { ConfirmSheet, LinkOut, StatusPill } from '@/components/app/list'
 import type { PillTone } from '@/components/app/list'
-import { channelLabel, countdown, dueLabel, friendlyContentError, kindLabel, mediaUrl } from '@/lib/app/content'
+import { channelLabel, countdown, dueLabel, friendlyContentError, kindLabel, mediaUrl, typeTag } from '@/lib/app/content'
 import type { ContentGroup, ContentItem } from '@/lib/app/content'
 import { ReviewChip } from '../quality/ReviewChip'
 
@@ -18,6 +18,8 @@ export interface ContentCardProps {
   onPostNow: (id: string) => Promise<void>
   onUnapprove?: (id: string) => Promise<void>
   onRetry?: (id: string) => Promise<void>
+  /** The small "Listing" / "Guide" label; off inside a campaign card, where every post is a listing. */
+  showType?: boolean
 }
 
 const OPEN = ['planned', 'approved', 'scheduled']
@@ -65,7 +67,12 @@ function Thumb({ item }: { item: ContentItem }) {
   return <span aria-hidden className="h-14 w-14 flex-none items-center justify-center rounded-xl bg-[#0f2340] text-xs font-bold text-[#f0b440] [display:flex]">{item.kind === 'reel' ? 'Reel' : 'Post'}</span>
 }
 
-export function ContentCard({ group, open = false, onToggle, onApprove, onSkip, onPostNow, onUnapprove, onRetry }: ContentCardProps) {
+/** What a post is about, as a small label on its card. */
+export function TypeTag({ children }: { children: React.ReactNode }) {
+  return <span className="whitespace-nowrap rounded bg-[#e7ebf2] px-1.5 py-0.5 text-[11px] font-semibold leading-none text-[#0f2340]" data-testid="type-tag">{children}</span>
+}
+
+export function ContentCard({ group, open = false, onToggle, onApprove, onSkip, onPostNow, onUnapprove, onRetry, showType = true }: ContentCardProps) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirm, setConfirm] = useState(false)
@@ -100,8 +107,8 @@ export function ContentCard({ group, open = false, onToggle, onApprove, onSkip, 
           <span className="block truncate text-[15px] font-semibold text-gray-900" data-testid="row-title">{title(first)}</span>
           <span className="mt-1 items-center gap-1.5 text-xs text-gray-600 tabular-nums [display:flex]">
             {group.items.map((i) => <ChannelIcon key={i.id} channel={i.channel} />)}
-            <span className="text-gray-400">·</span>
-            <span>{kindLabel(first.kind)}</span>
+            {showType && <TypeTag>{typeTag(first.group)}</TypeTag>}
+            <span className="whitespace-nowrap">{kindLabel(first.kind)}</span>
             <StatusPill tone={head.tone}>{head.text}</StatusPill>
           </span>
         </span>

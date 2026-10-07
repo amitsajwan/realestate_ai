@@ -6,6 +6,8 @@ import { getToken } from './session'
 import { HASHTAG } from '@/lib/brand'
 
 export type ContentKind = 'post' | 'showcase' | 'reel'
+/** What a post is about (calendar.groups on the server): the Content screen's type filter. */
+export type ContentType = 'listings' | 'news' | 'guides' | 'agents' | 'other'
 export type ContentStatus = 'planned' | 'approved' | 'scheduled' | 'published' | 'failed' | 'skipped' | 'removed'
 
 export interface ContentItem {
@@ -28,6 +30,12 @@ export interface ContentItem {
   note?: string | null
   /** A post already published on this channel with the same opening line: the publisher holds this one back. */
   duplicate_of?: { slug: string; published_at: string | null; permalink: string | null } | null
+  /** What it is about; 'other' when the server does not say. */
+  group: ContentType
+  /** Where the row came from (campaign, library, agent_reels, ...), for the record. */
+  source?: string | null
+  /** The property campaign (one per listing, "Start marketing") this post belongs to. */
+  campaign?: { id: string; title: string } | null
 }
 
 /** The Instagram and Facebook copies of one post (same slug), shown and handled as one card. */
@@ -39,6 +47,7 @@ export interface ContentGroup {
 }
 
 const KINDS: ContentKind[] = ['post', 'showcase', 'reel']
+export const CONTENT_TYPES: ContentType[] = ['listings', 'news', 'guides', 'agents', 'other']
 
 /** Tolerate loose rows (missing arrays, unknown kinds). */
 export function normalizeItem(raw: unknown): ContentItem {
@@ -61,7 +70,17 @@ export function normalizeItem(raw: unknown): ContentItem {
     permalink: typeof r.permalink === 'string' ? r.permalink : null,
     published_at: typeof r.published_at === 'string' ? r.published_at : null,
     note: typeof r.note === 'string' ? r.note : null,
+    group: CONTENT_TYPES.includes(r.group as ContentType) ? (r.group as ContentType) : 'other',
+    source: typeof r.source === 'string' ? r.source : null,
+    campaign: campaignOf(r.campaign),
   }
+}
+
+function campaignOf(raw: unknown): ContentItem['campaign'] {
+  if (!raw || typeof raw !== 'object') return null
+  const c = raw as Record<string, unknown>
+  if (typeof c.id !== 'string' || !c.id) return null
+  return { id: c.id, title: typeof c.title === 'string' && c.title.trim() ? c.title.trim() : 'Property campaign' }
 }
 
 function dupOf(raw: unknown): ContentItem['duplicate_of'] {
@@ -83,6 +102,53 @@ export function groupItems(items: ContentItem[]): ContentGroup[] {
       const due = sorted.map((i) => i.due_at).filter(Boolean).sort((a, b) => ts(a) - ts(b))[0] ?? ''
       return { key, items: sorted, due_at: due }
     })
+}
+
+/** The filter chip: "Listings", "Agents". */
+export function typeLabel(t: ContentType | 'all'): string {
+  return { all: 'All', listings: 'Listings', news: 'News', guides: 'Guides', agents: 'Agents', other: 'Other' }[t]
+}
+
+/** The small label on a card: what one post is. */
+export function typeTag(t: ContentType): string {
+  return { listings: 'Listing', news: 'News', guides: 'Guide', agents: 'Agent recruiting', other: 'Other' }[t]
+}
+
+/** Cards per type, in filter order. */
+export function typeCounts(groups: ContentGroup[]): Record<ContentType, number> {
+  const out = { listings: 0, news: 0, guides: 0, agents: 0, other: 0 } as Record<ContentType, number>
+  for (const g of groups) out[g.items[0]?.group ?? 'other'] += 1
+  return out
+}
+
+export function ofType(groups: ContentGroup[], t: ContentType | 'all'): ContentGroup[] {
+  return t === 'all' ? groups : groups.filter((g) => (g.items[0]?.group ?? 'other') === t)
+}
+
+/** A row of the list: one post (its IG and FB copies), or every post of one property campaign folded into one card. */
+export type ContentRow =
+  | { type: 'post'; key: string; group: ContentGroup }
+  | { type: 'campaign'; key: string; id: string; title: string; groups: ContentGroup[] }
+
+/** Fold each campaign's posts into one row, where its first post was; a campaign with a single post stays a plain row. */
+export function foldCampaigns(groups: ContentGroup[]): ContentRow[] {
+  const by = new Map<string, ContentGroup[]>()
+  for (const g of groups) {
+    const c = g.items[0]?.campaign
+    if (c) by.set(c.id, [...(by.get(c.id) ?? []), g])
+  }
+  const rows: ContentRow[] = []
+  const done = new Set<string>()
+  for (const g of groups) {
+    const c = g.items[0]?.campaign
+    const mine = c ? by.get(c.id) ?? [] : []
+    if (!c || mine.length < 2) rows.push({ type: 'post', key: g.key, group: g })
+    else if (!done.has(c.id)) {
+      done.add(c.id)
+      rows.push({ type: 'campaign', key: `campaign:${c.id}`, id: c.id, title: c.title, groups: mine })
+    }
+  }
+  return rows
 }
 
 /** "in 2h 14m", "in 3 days", or null when the time has come. */
@@ -220,6 +286,8 @@ export const FIXTURE_ITEMS: ContentItem[] = [
     image_urls: [card('#16213f', 'Cover'), card('#2a1c4a', '1. Where does the water come from?'), card('#2a1c4a', '2. How much storage?')],
     video_url: null,
     error: null,
+    group: 'guides',
+    source: 'library',
   },
   {
     id: 'fx-2',
@@ -233,6 +301,8 @@ export const FIXTURE_ITEMS: ContentItem[] = [
     image_urls: [card('#0e3b4a', 'Sample home')],
     video_url: null,
     error: null,
+    group: 'other',
+    source: 'home',
   },
   {
     id: 'fx-3',
@@ -246,8 +316,44 @@ export const FIXTURE_ITEMS: ContentItem[] = [
     image_urls: [],
     video_url: null,
     error: null,
+    group: 'guides',
+    source: 'reel',
   },
+  ...campaignFixtures(),
+  fx('fx-hd', 'hd-goyal-my-home', 'post', 'instagram', day(2, 19), 'planned', 'listings', 'agentprojects',
+    '3 BHK at Goyal My Home, Wagholi. MahaRERA registered, possession Dec 2027.\n\nMessage us for the floor plan.', [card('#3a2a10', 'Goyal My Home')]),
+  fx('fx-area', 'area-wagholi-20261013', 'reel', 'instagram', day(1, 8), 'planned', 'news', 'area_insight',
+    'Wagholi in MahaRERA records: 142 projects, 38 due by 2027.', []),
+  fx('fx-trend', 'flat-60-lakh-real-cost', 'reel', 'facebook_page', day(3, 20), 'planned', 'guides', 'trend_reels',
+    'A ₹60 lakh flat really costs ₹66 lakh. Here is where the rest goes.', []),
+  fx('fx-agent', 'agent-a1', 'reel', 'instagram', day(2, 8), 'planned', 'agents', 'agent_reels',
+    'Pune agents: buyers ask the same five questions. Let your page answer them.', []),
 ]
+
+function fx(id: string, slug: string, kind: ContentKind, channel: ContentItem['channel'], due_at: string, status: ContentStatus,
+  group: ContentType, source: string, caption: string, image_urls: string[], campaign: ContentItem['campaign'] = null): ContentItem {
+  return { id, slug, kind, channel, due_at, status, week: 1, caption, image_urls, video_url: null, error: null, group, source, campaign }
+}
+
+/** Gulmohar City: a property campaign from "Start marketing", three posts on both channels and a reel. */
+function campaignFixtures(): ContentItem[] {
+  const c = { id: 'fx-listing-gulmohar', title: 'Gulmohar City' }
+  const angles: Array<[string, string]> = [
+    ['price', 'Gulmohar City, Wagholi: 2 BHK from ₹62 lakh, all-inclusive.'],
+    ['location', 'Gulmohar City is 12 minutes from EON IT Park, Kharadi.'],
+    ['amenities', 'Gulmohar City: clubhouse, pool and a 1 acre garden.'],
+  ]
+  const out: ContentItem[] = []
+  angles.forEach(([angle, caption], n) => {
+    for (const ch of ['instagram', 'facebook_page'] as const) {
+      out.push(fx(`fx-gc-${angle}-${ch === 'instagram' ? 'ig' : 'fb'}`, `campaign-${c.id}-${angle}`, 'post', ch, day(5 + n, 19), 'planned',
+        'listings', 'campaign', caption + '\n\nFull details and the MahaRERA record: link in bio.', [card('#0f2340', `Gulmohar · ${angle}`)], c))
+    }
+  })
+  out.push(fx('fx-gc-reel', `campaign-${c.id}-price-reel`, 'reel', 'instagram', day(8, 19), 'planned', 'listings', 'campaign',
+    'Gulmohar City in 20 seconds.', [], c))
+  return out
+}
 
 export function createFixtureContentApi(seed: ContentItem[] = FIXTURE_ITEMS): ContentApi {
   let items = seed.map((i) => ({ ...i }))
