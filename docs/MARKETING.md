@@ -73,12 +73,12 @@ Three rules hold everywhere:
 |---|---|
 | `creative` | The pipeline: strategist, copywriter, art director, render, critic, one regeneration. 8 card layouts, guards, Hindi and Marathi translation. Works without an LLM. |
 | `marketing` | The agent pack: copy from listing facts, cards, WhatsApp text; brand fonts and mark. |
-| `calendar` | The approval calendar: plan, build, store, runner, caption guards, hashtags, duplicate and deletion checks, public feed. `adapters.py` is its only link to creative, reels, showcase and agent projects. |
+| `calendar` | The approval calendar: plan, build, store, runner, caption guards, hashtags, duplicate and deletion checks, public feed. `adapters.py` is its only link to creative, reels and agent projects. |
 | `propertyfacts` | Listing campaigns: fact sheet, posts per angle, send to calendar, edit and redo; the public "Checked for you" facts. |
 | `reels` | Video: compositor, slides reels, walkthrough reels, recruitment and trend reels, voice, music. |
 | `social` | `distribution.py` (the one way out), `service.py` (pack posting), `reel_publish.py` (Reels upload). |
 | `interest`, `engage`, `tracking` | After posting: interest links and hub, comment replies, visits and enquiries. |
-| `newsroom`, `agentprojects`, `areastats`, `showcase` | Content sources: news and the MahaRERA register, agents' builder projects, area numbers, labelled sample homes. |
+| `newsroom`, `agentprojects`, `areastats` | Content sources: news and the MahaRERA register, agents' builder projects, area numbers. |
 | `backend/app/platform/meta_graph` | Graph API client and settings, dry-run publisher, error sanitising. |
 
 `backend/app/wiring.py` connects modules at startup with callbacks, so no module imports one above it.
@@ -148,9 +148,10 @@ The calendar runner (`calendar/runner.py`, every 120 seconds in production):
 - posts at most one due row per channel per pass;
 - holds back a row whose opening line already went out on that channel recently, and skips a row more than 48 hours late,
   so an outage never causes a burst;
-- adds the interest line, the footer and 3 to 5 targeted hashtags;
-- posts by kind: an image or Instagram carousel, a Reel, or a sample-home showcase. Facebook's copy of a carousel goes out as a
-  slides Reel, because Facebook shows a multi-photo post as a grid;
+- adds the interest line and the footer, and replaces the caption's hashtags with one line of the best few: 5 on Instagram,
+  3 on Facebook, most specific first (locality, project, property type), from `calendar/reach.py`;
+- posts by kind: an image or Instagram carousel, or a Reel. Facebook's copy of a carousel goes out as a slides Reel, because
+  Facebook shows a multi-photo post as a grid. Sample-home showcase posts are retired: a leftover showcase row is never posted;
 - retries a failure after 10 minutes, at most 3 tries, with a sanitised reason shown in Problems;
 - adds image posts to the `/go` hub and marks posts deleted on the platform as `removed`.
 
