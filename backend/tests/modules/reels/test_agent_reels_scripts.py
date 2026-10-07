@@ -56,7 +56,7 @@ def test_fix_rewrites_open_agent_reel_captions_and_drops_the_render(tmp_path):
     assert "BEFORE:" in "\n".join(said) and "Screens show sample data" in "\n".join(said)
     assert asyncio.run(fix.run(db, tmp_path, apply=True, say=said.append)) == 2
     assert docs[0]["caption"] == ar.caption("B3", "instagram") and "video" not in docs[0] and docs[0]["status"] == "approved"
-    assert docs[1]["caption"] == ar.caption("B3", "facebook_page") and "/pilot?src=reel_b3_fb" in docs[1]["caption"]
+    assert docs[1]["caption"] == ar.caption("B3", "facebook_page") and "/trial?src=reel_b3_fb" in docs[1]["caption"]
     assert docs[2]["caption"] == OLD and docs[3]["caption"] == OLD                      # history and other rows untouched
     assert not any(old.iterdir())                                                        # the stale render is gone
     assert asyncio.run(fix.run(db, tmp_path, apply=True, say=said.append)) == 0          # idempotent
