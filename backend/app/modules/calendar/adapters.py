@@ -322,6 +322,15 @@ def spec_of(doc: dict) -> ReelSpec:
     return ReelSpec(c.get("template", "tip"), c.get("reel_key") or doc["slug"], c.get("ref", ""))
 
 
+def video_info(rel: str, uploads: Path) -> Dict:
+    """{duration_s, render} of a rendered video (relative to uploads), for the row's tags; {} when it cannot be read."""
+    try:
+        from app.modules.reels import ffmpeg as _ffmpeg
+        return {"duration_s": round(_ffmpeg.probe(Path(uploads) / rel).duration, 1), "render": _reel_compose.RENDER_VERSION}
+    except Exception:
+        return {}
+
+
 def render_reel_for(doc: dict, uploads: Path) -> str:
     """Runner hook: render the reel behind a calendar row."""
     from .library import BY_SLUG

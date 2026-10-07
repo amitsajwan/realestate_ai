@@ -46,9 +46,10 @@ async def prerender_reels(store: Store, now: datetime, uploads: Optional[Path] =
         except Exception as e:
             log.warning("calendar: reel render for %s failed: %s", doc["slug"], sanitize(str(e)))
             continue
+        info = adapters.video_info(video, uploads)
         for sib in await store.all():
             if sib.get("kind") == "reel" and sib["slug"] == doc["slug"] and not sib.get("video"):
-                await store.set_video(sib["_id"], video)
+                await store.set_video(sib["_id"], video, info)
         done += 1
     return done
 
@@ -111,7 +112,7 @@ async def _slides_reel(store: Store, doc: dict, uploads: Path, render: Callable)
     except Exception as e:
         log.warning("calendar: slides reel for %s failed, posting the photos instead: %s", doc["slug"], sanitize(str(e)))
         return None
-    await store.set_video(doc["_id"], video)
+    await store.set_video(doc["_id"], video, adapters.video_info(video, uploads))
     return {**doc, "video": video}
 
 
@@ -131,7 +132,7 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
         if kind == "reel":
             if not doc.get("video"):  # not pre-rendered in time: render now
                 video = await asyncio.to_thread(render_reel, doc, uploads)
-                await store.set_video(doc["_id"], video)
+                await store.set_video(doc["_id"], video, adapters.video_info(video, uploads))
                 doc = {**doc, "video": video}
             res = await _once(store, doc, lambda: publish_reel(doc, social, uploads))
         elif kind == "showcase":

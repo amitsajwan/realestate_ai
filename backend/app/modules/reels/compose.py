@@ -43,6 +43,9 @@ TAGLINE = brand.TAGLINE
 # a run of 9+ digits that does not start inside a word: 'A51800012345' (a MahaRERA agent number) is not a phone number
 PHONE_RE = re.compile(r"(?<![A-Za-z0-9])(?:\+?\d[\s\-]?){9,}")
 PAD = 28
+# Which version of the look a reel was drawn with, kept in the calendar row's tags so results before and after a change of the
+# look can be told apart. Bump it with every change viewers would notice (timing, transitions, text size).
+RENDER_VERSION = "2026-10-07-smooth"   # quick text entrance, gentle punch-in, 0.35 s blends, short screens
 TEXT_IN = 0.22         # a later scene's text is fully in this many seconds after its cut (no delay: never an empty screen)
 PUNCH_SCALE = 0.035    # each new picture starts 3.5% zoomed in ...
 PUNCH_SECONDS = 0.7    # ... and eases out over this long: a gentle push, not a jolt
