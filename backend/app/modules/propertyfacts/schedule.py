@@ -5,7 +5,7 @@ Each row's slug is unique per listing and angle and carries the listing's agent,
 (calendar.adapters.with_interest, keyed by slug) counts enquiries per post. Facebook captions also carry the listing page link
 with `?src=`, so visits per post show in tracking; Instagram keeps "link in bio"."""
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from app.modules.calendar.store import Store as CalendarStore, aware
 
@@ -46,10 +46,18 @@ def _rel(path: str) -> str:
     return path[len("/uploads/"):] if path.startswith("/uploads/") else path.lstrip("/")
 
 
-def property_of(listing: dict) -> Dict[str, str]:
-    """What calendar.reach reads first for the hashtags (locality, project, type), so the tags do not depend on the caption's wording."""
-    keys = {"project_name": "project_name", "locality": "locality", "property_type": "property_type"}
-    return {k: str(listing[src]).strip() for k, src in keys.items() if listing.get(src) and str(listing[src]).strip()}
+def property_of(listing: dict, facts: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
+    """What calendar.reach reads first for the hashtags (locality, project, type), so the tags do not depend on the caption's wording.
+    The checked fact sheet wins ("Ranjangaon", "Gulmohar City" from MahaRERA); the listing as the agent typed it is the fallback
+    ("Shikarapur maltan highway near ranjangaon midc", "Gulmohor city")."""
+    from .facts import USABLE
+    out: Dict[str, str] = {}
+    for key in ("project_name", "locality", "property_type"):
+        f = (facts or {}).get(key)
+        val = f.value if f is not None and getattr(f, "level", None) in USABLE and isinstance(f.value, str) else listing.get(key)
+        if val and str(val).strip():
+            out[key] = str(val).strip()
+    return out
 
 
 def items(run: dict, link_line: str) -> List[Dict]:

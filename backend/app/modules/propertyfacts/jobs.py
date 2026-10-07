@@ -146,7 +146,8 @@ class MarketingRuns:
             raise RunError("Make the posts first: start marketing and wait until the posts are ready.", 409)
         first = start or (self.now() + timedelta(days=1)).date()
         listing = await self.listings.find_one({"_id": listing_id, "agent_id": agent_id}) or {}
-        added = await schedule.queue(CalendarStore(self.db), {**run, "property": schedule.property_of(listing)}, run.get("link_line") or "", first)
+        prop = schedule.property_of(listing, await self._facts(run, listing) if listing else {})
+        added = await schedule.queue(CalendarStore(self.db), {**run, "property": prop}, run.get("link_line") or "", first)
         rows = (run.get("calendar") or []) + [{**a, "due_at": a["due_at"]} for a in added]
         await self._set(run["_id"], calendar=rows, calendar_at=self.now())
         return {**run, "calendar": rows}
