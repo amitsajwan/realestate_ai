@@ -40,7 +40,7 @@ def wire() -> None:
     register_watch.add_source("agent_projects", _agent_project_watch)
     # project pages are enriched slowly in the background with the property-facts gatherer (areastats.enrich, PROJECT_ENRICH_*)
     from app.modules.areastats import enrich as project_enrich
-    project_enrich.configure(gather=_gather_project)
+    project_enrich.configure(gather=_gather_project, sheet=_project_sheet, pincode_centre=_pincode_centre)
     register_watch.add_source("property_facts", _property_facts_watch)  # every project we gathered facts for to market it
 
 
@@ -84,3 +84,22 @@ async def _gather_project(db, regno, name, locality, city="Pune", now=None):
     from app.modules.propertyfacts.enrich import gather_project
 
     return await gather_project(db, regno, name, locality, city=city, now=now)
+
+
+async def _project_sheet(db, regno):
+    """The kept property-facts sheet for a registration number (raw document), for the enrichment's place fill and checks."""
+    from app.modules.propertyfacts.store import FactsStore
+
+    return await FactsStore(db).find(regno)
+
+
+async def _pincode_centre(db, pincode):
+    """(lat, lon) of an Indian pincode from Nominatim, through the gatherer's shared polite client (1 request a second, cached)."""
+    from app.modules.propertyfacts import place
+    from app.modules.propertyfacts.enrich import _shared_clients
+
+    rows = await _shared_clients(db).get_json(place.NOMINATIM, {"postalcode": pincode, "country": "India", "format": "jsonv2", "limit": 1})
+    try:
+        return (float(rows[0]["lat"]), float(rows[0]["lon"])) if rows else None
+    except (KeyError, TypeError, ValueError, IndexError):
+        return None

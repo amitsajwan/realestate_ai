@@ -208,3 +208,14 @@ async def maharera_roundup(user: User = Depends(owner_only), store: Store = Depe
         raise HTTPException(422, str(e))
     doc = out["doc"]
     return {"id": doc["_id"], "created": out["created"], "projects": len((doc.get("facts") or {}).get("facts") or [])}
+
+
+@router.get("/project-enrichment")
+async def project_enrichment(status: Optional[str] = None, limit: int = 300, user: User = Depends(owner_only),
+                             store: Store = Depends(get_store)) -> dict:
+    """Our project pages and what their enrichment found and checked (areastats.enrich): counts ok / partial / failed /
+    waiting, and the projects, optionally one status's."""
+    from app.modules.areastats import enrich
+    if status and status not in enrich.STATUSES:
+        raise HTTPException(422, "status is one of " + ", ".join(enrich.STATUSES))
+    return await enrich.status_list(store, status, max(1, min(limit, 2000)))

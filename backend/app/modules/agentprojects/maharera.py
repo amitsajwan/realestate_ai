@@ -5,7 +5,7 @@ The promoter name is not in this answer, so callers keep it from the search card
 """
 import asyncio
 import logging
-from typing import Awaitable, Callable, Optional
+from typing import Awaitable, Callable, List, Optional
 
 import httpx
 
@@ -13,6 +13,8 @@ log = logging.getLogger(__name__)
 
 API = ("https://maharerait.maharashtra.gov.in/api/maha-rera-public-view-project-registration-service/public/"
        "projectregistartion/getProjectGeneralDetailsByProjectId")
+BUILDINGS_API = ("https://maharerait.maharashtra.gov.in/api/maha-rera-public-view-project-registration-service/public/"
+                 "projectregistartion/getBuildingWingUnitSummary")  # open, same {"projectId"} body (verified 2026-10-07)
 VIEW = "https://maharerait.maharashtra.gov.in/public/project/view/"
 TIMEOUT_S = 30.0
 TRIES = 3
@@ -63,21 +65,76 @@ def parse_general(body: dict, regno: str, maharera_id: int) -> dict:
     }
 
 
-def make_fetch(transport: Optional[httpx.AsyncBaseTransport] = None) -> Fetch:
+def _name(v) -> Optional[str]:
+    s = str(v or "").strip()
+    return None if s.upper() in ("", "NA", "N/A", "-", "NONE", "NULL") else s
+
+
+def parse_buildings(body: dict, regno: str, maharera_id: int) -> List[dict]:
+    """MahaRERA's building/wing summary -> [{name, wing, floors, units_residential, units_other, units_total}]. [] when the
+    project has no buildings (a plotted layout answers with none). Raises when the answer is not this project's: every row's
+    projectId must be `maharera_id` and its projectRegistartionNo `regno`. Floors: sanctioned, else proposed (MahaRERA also
+    gives habitable floors, often fewer: 15 sanctioned, 12 habitable for Anshul Medora C). Wing "NA" means no wings."""
+    if not isinstance(body, dict) or str(body.get("status")) != "1":
+        raise MahaReraError("MahaRERA did not return the buildings")
+    rows = body.get("responseObject") or []
+    if not isinstance(rows, list):
+        raise MahaReraError("MahaRERA buildings answer is not a list")
+    out = []
+    for r in rows:
+        if not isinstance(r, dict) or r.get("isActive") == 0:
+            continue
+        got = str(r.get("projectRegistartionNo") or "").strip().upper()
+        if got != regno.upper() or _int(r.get("projectId")) != int(maharera_id):
+            raise MahaReraError(f"MahaRERA buildings for id {maharera_id} are {got or 'unknown'}, not {regno}")
+        res, other = _int(r.get("residentialUnitCount")), _int(r.get("nonResidentialUnitCount"))
+        out.append({
+            "name": _name(r.get("advertisedBuildingNameNumber")) or _name(r.get("buildingNameNumber")),
+            "wing": _name(r.get("buildingWingsNameNumber")),
+            "floors": _int(r.get("noOfBuildingWingFloorSanctioned")) or _int(r.get("noOfBuildingWingFloorProposed")),
+            "units_residential": res, "units_other": other,
+            "units_total": _int(r.get("totalUnitCount")) or ((res or 0) + (other or 0)) or None,
+        })
+    return out
+
+
+def building_totals(buildings: List[dict]) -> dict:
+    """{towers, max_floors, units_total, units_residential, units_other}; a tower is a distinct building name."""
+    names = {(b.get("name") or f"#{i}") for i, b in enumerate(buildings)}
+    floors = [b["floors"] for b in buildings if b.get("floors")]
+
+    def total(k: str) -> Optional[int]:
+        return sum(b.get(k) or 0 for b in buildings) or None
+
+    return {"towers": len(names) if buildings else None, "max_floors": max(floors) if floors else None,
+            "units_total": total("units_total"), "units_residential": total("units_residential"), "units_other": total("units_other")}
+
+
+def _make(url: str, what: str, transport: Optional[httpx.AsyncBaseTransport] = None) -> Fetch:
     async def fetch(maharera_id: int) -> Optional[dict]:
         delay = RETRY_DELAY
         for attempt in range(TRIES):
             try:
                 async with httpx.AsyncClient(timeout=TIMEOUT_S, transport=transport,
                                              headers={"User-Agent": "Mozilla/5.0 (Avasetu project check)"}) as c:
-                    res = await c.post(API, json={"projectId": int(maharera_id)})
+                    res = await c.post(url, json={"projectId": int(maharera_id)})
                 if res.status_code == 200:
                     return res.json()
-                log.warning("MahaRERA project %s answered %s", maharera_id, res.status_code)
+                log.warning("MahaRERA %s %s answered %s", what, maharera_id, res.status_code)
             except (httpx.HTTPError, ValueError) as e:
-                log.warning("MahaRERA project %s failed: %s", maharera_id, e)
+                log.warning("MahaRERA %s %s failed: %s", what, maharera_id, e)
             if attempt < TRIES - 1:
                 await asyncio.sleep(delay)
                 delay *= 2
         return None
     return fetch
+
+
+def make_fetch(transport: Optional[httpx.AsyncBaseTransport] = None) -> Fetch:
+    return _make(API, "project", transport)
+
+
+def make_fetch_buildings(transport: Optional[httpx.AsyncBaseTransport] = None) -> Fetch:
+    """The open building/wing summary (no login, no captcha). MahaRERA's other detail endpoints (amenities, land, geo, unit
+    types) need its login and captcha: never used."""
+    return _make(BUILDINGS_API, "buildings", transport)
