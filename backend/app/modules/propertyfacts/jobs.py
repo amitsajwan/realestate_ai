@@ -383,10 +383,10 @@ class MarketingRuns:
             ctx = campaign.Ctx(sheet.facts)
             where = ctx.where or "this property"
             await self._set(jid, posts=posts, dropped={k: str(v)[:300] for k, v in dropped.items()},
-                            link_line=campaign.link_line_for(where))
+                            link_line=campaign.link_line_for(where, job.get("language") or "en"))
             # step 3 (best effort, never fails the run): reels from the best carousels, and the walkthrough reel
             step = "reels"
-            reels = await self._reels(job, listing, posts, out, ctx.project, campaign.link_line_for(where))
+            reels = await self._reels(job, listing, posts, out, ctx.project, campaign.link_line_for(where, job.get("language") or "en"))
             await self._set(jid, status="done", reels=reels, error=None, finished_at=self.now())
         except Exception:
             log.exception("marketing run %s failed in step %s", jid, step)

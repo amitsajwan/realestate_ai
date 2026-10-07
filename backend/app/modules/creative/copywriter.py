@@ -39,6 +39,14 @@ QUESTION_AGENT = {
     "myth-vs-fact": "Which side are you on? Tell us below.",
     "before-after": "Which column is your week? Tell us below.",
 }
+LISTING_QUESTION = {
+    "poll": "Your pick? Tell us in the comments.",
+    "myth-vs-fact": "Did you believe this one? Tell us below.",
+    "checklist": "Which one would you check first? Tell us below.",
+    "carousel": "Which one would you check first? Tell us below.",
+    "single": "What would you ask before a site visit? Tell us below.",
+    "stat": "What would you ask before a site visit? Tell us below.",
+}
 AGENT_DEFAULT_Q = "How do you follow up on comments today? Tell us below."
 INTRO = {
     "stat": "One number worth remembering.", "myth-vs-fact": "A belief that costs people time and money.",
@@ -139,6 +147,8 @@ def rule_copy(angle: Angle, brief: Brief) -> Copy:
     q = audience_q.get(angle.fmt) or (AGENT_DEFAULT_Q if angle.audience == "agent" else QUESTION[angle.fmt])
     if brief.asks.get("en"):  # a question written for this post's subject (a campaign angle)
         q = brief.asks["en"]
+    elif brief.mode == "listing" and angle.audience == "buyer":  # the explainer questions ("How many did you do...") fit no property
+        q = LISTING_QUESTION.get(angle.fmt, LISTING_QUESTION["single"])
     cta = "Comment INTERESTED" if angle.audience == "agent" else CARD_CTA.get(angle.fmt, "Save this")
     if brief.cta:
         cta = brief.cta

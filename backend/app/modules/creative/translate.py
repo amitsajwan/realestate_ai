@@ -10,6 +10,7 @@ reports it). Code, not the model, supplies the rest:
 - the closing question comes from Brief.asks (written per subject and language) when the brief has one;
 - fixed card words (CTA, default kickers) come from i18n.KNOWN.
 Hashtags, the contact block and the link line are not translated."""
+import asyncio
 import json
 import logging
 import re
@@ -25,6 +26,7 @@ from .models import Brief, Copy
 log = logging.getLogger(__name__)
 
 PAYLOAD_TEXT = ("kicker", "value", "label", "myth", "truth", "question", "options", "messy", "clean", "compare", "steps", "tip")
+RETRY_WAITS = (8.0, 20.0)  # seconds before the 2nd and 3rd try when no translation came back
 MAX_GROWTH = 2.2          # a translation may be at most this many times the English length (cards have little room)
 TRIES = 3                 # LLM calls per post before it stays English
 _LATIN_WORD = re.compile(r"\b[A-Za-z]{3,}\b")
@@ -132,8 +134,10 @@ async def translate(copy: Copy, brief: Brief, llm: Any) -> Copy:
         again = f"\nYour last reply could not be used ({why}): translate faithfully and keep every number exactly." if why else ""
         try:
             data = await llm.json(system + again, user)
-        except Exception:
+        except Exception:  # free tiers rate-limit: wait, then ask again before settling for English
             log.warning("card translation failed", exc_info=True)
+            if n < len(RETRY_WAITS):
+                await asyncio.sleep(RETRY_WAITS[n])
             continue
         out, why = _apply(copy, brief, data, src, lang)
         if out is not None:

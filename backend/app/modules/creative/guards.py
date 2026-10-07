@@ -23,6 +23,11 @@ FILLER = (
     "tips and tricks", "everything you need to know", "now more than ever", "at the end of the day", "stay tuned",
 )
 GENERIC_HOOK = re.compile(r"^(?:tips? (?:for|to)|things to|guide to|all about|introducing|welcome to|important|know about)\b", re.I)
+# Claims a post may not make about a property unless its facts say so (seen live 2026-10-06: "makes this plot affordable",
+# "fits your lifestyle", "all costs already shown", "the fixed 2029 date", "the biggest mistake"), in English, Marathi, Hindi
+CLAIM = re.compile(r"\b(?:affordab\w*|investment|lifestyle|value for money|secure your|biggest mistake|all costs|fixed date|"
+                   r"no hidden)\b|परवडण\w*|गुंतवणूक|जीवनशैली|सर्वात मोठी चूक|सर्व खर्च|निश्चित|किफायती|निवेश|"
+                   r"सबसे बड़ी गलती|सारे खर्च", re.I)
 CLICKBAIT = re.compile(r"\b(you won'?t believe|shocking|secret they|doctors hate|this one trick|mind-?blowing|must[- ]see)\b", re.I)
 
 # Facts only, in English, Hindi and Marathi. Devanagari vowel signs are not \w, so Devanagari words are bounded by explicit
@@ -148,6 +153,9 @@ def problems_in(text: str, corpus: str, *, allow_url: bool = False) -> List[str]
         out.append("only/just")
     if SAMPLE.search(t) and not SAMPLE.search(corpus or ""):  # a project really named "Sample ..." may be named
         out.append("sample")
+    claims = [m.group(0) for m in CLAIM.finditer(t) if m.group(0).lower() not in (corpus or "").lower()]
+    if claims:
+        out.append("claim not in facts: " + ", ".join(claims))
     if not allow_url and URL.search(t):
         out.append("url")
     bad = unsupported_numbers(t, corpus)
