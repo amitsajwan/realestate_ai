@@ -9,10 +9,12 @@ jest.mock('@/lib/app/session', () => ({ getToken: () => 'tok' }))
 
 const item = (over: Partial<NewsroomItem> = {}): NewsroomItem => ({ ...FIXTURE_QUEUE[0], ...over })
 const noop = jest.fn().mockResolvedValue(undefined)
+/** The text box only appears after 'Edit text'. */
+const editBox = () => { fireEvent.click(screen.getByRole('button', { name: 'Edit text' })); return screen.getByLabelText('Post text') }
 
 describe('Studio preview before Approve', () => {
   it('shows the card, the channels it goes to and the exact captions', () => {
-    render(<QueueCard item={item()} onApprove={noop} onReject={noop} />)
+    render(<QueueCard item={item()} open onApprove={noop} onReject={noop} />)
     const pv = screen.getByTestId('post-preview')
     const ch = within(screen.getByTestId('preview-channels'))
     expect(ch.getByText(/Facebook Page/)).toBeInTheDocument()
@@ -27,20 +29,20 @@ describe('Studio preview before Approve', () => {
   })
 
   it('lists only the channels that will be used and says when the card is not drawn yet', () => {
-    render(<QueueCard item={FIXTURE_QUEUE[1]} onApprove={noop} onReject={noop} />)
+    render(<QueueCard item={FIXTURE_QUEUE[1]} open onApprove={noop} onReject={noop} />)
     expect(within(screen.getByTestId('preview-channels')).queryByText(/Instagram/)).toBeNull()
     expect(screen.getByTestId('preview-no-card')).toBeInTheDocument()
     expect(screen.queryByTestId('preview-dry-run')).toBeNull()
   })
 
   it('shows nothing extra for an old server that sends no preview fields', () => {
-    render(<QueueCard item={normalizeItem({ id: 'x', title: 'T', draft: 'body', check: { ok: true, problems: [] } })} onApprove={noop} onReject={noop} />)
+    render(<QueueCard item={normalizeItem({ id: 'x', title: 'T', draft: 'body', check: { ok: true, problems: [] } })} open onApprove={noop} onReject={noop} />)
     expect(screen.queryByTestId('post-preview')).toBeNull()
     expect(screen.getByRole('button', { name: 'Approve' })).toBeEnabled()
   })
 
   it('blocks Approve and shows the reason when a caption fails the checks', () => {
-    render(<QueueCard item={item({ captionProblems: { instagram: ['Copies more than 15 words in a row from the source: reword it'] } })} onApprove={noop} onReject={noop} />)
+    render(<QueueCard item={item({ captionProblems: { instagram: ['Copies more than 15 words in a row from the source: reword it'] } })} open onApprove={noop} onReject={noop} />)
     expect(screen.getByTestId('caption-problems-instagram')).toHaveTextContent('Copies more than 15 words')
     expect(screen.getByTestId('approve-blocked')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled()
@@ -52,8 +54,8 @@ describe('Studio preview before Approve', () => {
 
     it('asks the server for the captions of the edited text, after a pause, and shows them', async () => {
       const onPreview = jest.fn().mockResolvedValue({ card: null, channels: [], captions: { facebook: 'EDITED FB CAPTION', instagram: 'EDITED IG CAPTION' }, captionProblems: {}, dryRun: true })
-      render(<QueueCard item={item()} onApprove={noop} onReject={noop} onPreview={onPreview} />)
-      fireEvent.change(screen.getByLabelText('Post text'), { target: { value: 'My own words. Thoughts?' } })
+      render(<QueueCard item={item()} open onApprove={noop} onReject={noop} onPreview={onPreview} />)
+      fireEvent.change(editBox(), { target: { value: 'My own words. Thoughts?' } })
       expect(onPreview).not.toHaveBeenCalled() // debounced
       expect(screen.getAllByText('Updating...').length).toBeGreaterThan(0)
       await act(async () => { jest.advanceTimersByTime(700) })
@@ -67,8 +69,8 @@ describe('Studio preview before Approve', () => {
       const onPreview = jest.fn()
         .mockResolvedValueOnce({ card: null, channels: [], captions: { facebook: 'a', instagram: 'b' }, captionProblems: { facebook: ['Figures not found in the source: 99'] }, dryRun: false })
         .mockResolvedValueOnce({ card: null, channels: [], captions: { facebook: 'c', instagram: 'd' }, captionProblems: {}, dryRun: false })
-      render(<QueueCard item={item()} onApprove={noop} onReject={noop} onPreview={onPreview} />)
-      const box = screen.getByLabelText('Post text')
+      render(<QueueCard item={item()} open onApprove={noop} onReject={noop} onPreview={onPreview} />)
+      const box = editBox()
       fireEvent.change(box, { target: { value: 'Costs 99 crore. Thoughts?' } })
       await act(async () => { jest.advanceTimersByTime(700) })
       expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled()
@@ -80,8 +82,8 @@ describe('Studio preview before Approve', () => {
 
     it('keeps the current captions when the preview cannot be loaded, and returns to the stored ones when the edit is undone', async () => {
       const onPreview = jest.fn().mockRejectedValue(new Error('down'))
-      render(<QueueCard item={item()} onApprove={noop} onReject={noop} onPreview={onPreview} />)
-      const box = screen.getByLabelText('Post text')
+      render(<QueueCard item={item()} open onApprove={noop} onReject={noop} onPreview={onPreview} />)
+      const box = editBox()
       fireEvent.change(box, { target: { value: 'Changed. Thoughts?' } })
       await act(async () => { jest.advanceTimersByTime(700) })
       expect(screen.getByTestId('caption-facebook').textContent).toBe(FIXTURE_QUEUE[0].captions.facebook)

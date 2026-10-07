@@ -65,6 +65,57 @@ export interface RoundupResult {
   created: boolean
   projects: number
 }
+/** The owner's lists besides the queue (GET /newsroom/items?status=). 'scheduled' also holds approved items waiting for their time. */
+export type NewsroomListStatus = 'scheduled' | 'published' | 'rejected'
+export const LIST_STATUSES: NewsroomListStatus[] = ['scheduled', 'published', 'rejected']
+/** One row of a list: where it went (each channel's live post, our public news page), when, and why not (rejected). */
+export interface NewsroomListItem {
+  id: string
+  title: string
+  pillar: string
+  areas: string[]
+  status: string
+  age_days: number
+  check: NewsroomCheck | null
+  scheduled_for: string | null
+  published_at: string | null
+  updated_at: string | null
+  permalinks: { facebook?: string; instagram?: string }
+  news_url: string | null
+  reason: string | null
+}
+
+const httpsOrUndef = (u: unknown): string | undefined => (typeof u === 'string' && /^https?:\/\//.test(u) ? u : undefined)
+const strOrNull = (u: unknown): string | null => (typeof u === 'string' && u ? u : null)
+
+export function normalizeListItem(raw: unknown): NewsroomListItem {
+  const r = (raw ?? {}) as Record<string, unknown>
+  const links = (r.permalinks ?? {}) as Record<string, unknown>
+  const check = r.check as { ok?: boolean; problems?: unknown } | null | undefined
+  const problems = check && Array.isArray(check.problems) ? check.problems.map(String) : []
+  return {
+    id: String(r.id ?? ''),
+    title: String(r.title ?? ''),
+    pillar: String(r.pillar ?? ''),
+    areas: Array.isArray(r.areas) ? r.areas.map(String) : [],
+    status: String(r.status ?? ''),
+    age_days: typeof r.age_days === 'number' ? r.age_days : 0,
+    check: check ? { ok: check.ok === true && problems.length === 0, problems } : null,
+    scheduled_for: strOrNull(r.scheduled_for),
+    published_at: strOrNull(r.published_at),
+    updated_at: strOrNull(r.updated_at),
+    permalinks: { facebook: httpsOrUndef(links.facebook), instagram: httpsOrUndef(links.instagram) },
+    news_url: httpsOrUndef(r.news_url) ?? null,
+    reason: strOrNull(r.reason),
+  }
+}
+
+/** Tab counts from the status counts: approved items count as Scheduled (they wait for their time or the next run). */
+export function tabCounts(counts: Record<string, number>): Record<'review' | NewsroomListStatus, number> {
+  const n = (k: string) => counts[k] ?? 0
+  return { review: n('pending_review'), scheduled: n('approved') + n('scheduled'), published: n('published'), rejected: n('rejected') }
+}
+
 /** The approve answer is not frozen by the contract: tolerate anything. */
 export type ApproveResult = Record<string, unknown>
 
@@ -176,6 +227,8 @@ export interface NewsroomApi {
   preview(id: string, text?: string): Promise<NewsroomPreview>
   /** Queue the 'New on MahaRERA' carousel and post for the last 30 days (one waiting already: that one comes back). */
   mahareraRoundup?(): Promise<RoundupResult>
+  /** Scheduled (and approved, waiting), published or rejected items, most recently changed first. */
+  list(status: NewsroomListStatus, limit?: number): Promise<NewsroomListItem[]>
 }
 
 export function createNewsroomApi(opts: { getToken: () => string | null; baseUrl?: string; fetchImpl?: typeof fetch }): NewsroomApi {
@@ -219,6 +272,10 @@ export function createNewsroomApi(opts: { getToken: () => string | null; baseUrl
     },
     preview: async (id, text) => normalizePreview(await request<unknown>(`/items/${encodeURIComponent(id)}/preview`, { method: 'POST', json: text ? { text } : {} })),
     mahareraRoundup: () => request<RoundupResult>('/maharera-roundup', { method: 'POST' }),
+    list: async (status, limit = 50) => {
+      const r = await request<unknown[]>(`/items?status=${encodeURIComponent(status)}&limit=${limit}`)
+      return (Array.isArray(r) ? r : []).map(normalizeListItem)
+    },
   }
 }
 
@@ -286,6 +343,26 @@ export const FIXTURE_STATUS: NewsroomStatus = {
   last_error: null,
 }
 
+const iso = (minutesFromNow: number) => new Date(Date.now() + minutesFromNow * 60_000).toISOString()
+export const FIXTURE_LISTS: Record<NewsroomListStatus, NewsroomListItem[]> = {
+  scheduled: [{
+    id: 'gn-ring-road-wagholi-1', title: 'PMRDA ring road: land acquisition notice for Wagholi stretch', pillar: 'infrastructure', areas: ['Wagholi'],
+    status: 'approved', age_days: 1, check: { ok: true, problems: [] }, scheduled_for: iso(180), published_at: null, updated_at: iso(-30),
+    permalinks: {}, news_url: `${DEFAULT_SITE_URL}/news/pmrda-ring-road-land-acquisition-notice-wagholi-gnring`, reason: null,
+  }],
+  published: [{
+    id: 'gn-kharadi-bridge-1', title: 'Kharadi-Mundhwa bridge opens to traffic', pillar: 'infrastructure', areas: ['Kharadi'],
+    status: 'published', age_days: 2, check: { ok: true, problems: [] }, scheduled_for: null, published_at: iso(-300), updated_at: iso(-300),
+    permalinks: { facebook: 'https://www.facebook.com/example/posts/1', instagram: 'https://www.instagram.com/p/example1/' },
+    news_url: `${DEFAULT_SITE_URL}/news/kharadi-mundhwa-bridge-opens-to-traffic-gnkhar`, reason: null,
+  }],
+  rejected: [{
+    id: 'gn-old-1', title: 'Pune property prices rose in 2024', pillar: 'rules_money', areas: [],
+    status: 'rejected', age_days: 9, check: { ok: true, problems: [] }, scheduled_for: null, published_at: null, updated_at: iso(-1440),
+    permalinks: {}, news_url: null, reason: 'old news',
+  }],
+}
+
 export function createFixtureNewsroomApi(seed: NewsroomItem[] = FIXTURE_QUEUE, status: NewsroomStatus = FIXTURE_STATUS): NewsroomApi {
   let queue = seed.map((i) => ({ ...i }))
   const done = (id: string) => {
@@ -308,6 +385,7 @@ export function createFixtureNewsroomApi(seed: NewsroomItem[] = FIXTURE_QUEUE, s
       return { card: item.card, channels: item.channels, captions, captionProblems: item.captionProblems, dryRun: item.dryRun }
     },
     mahareraRoundup: async () => ({ id: 'maharera-fixture', created: true, projects: 3 }),
+    list: async (s) => FIXTURE_LISTS[s].map((i) => ({ ...i })),
   }
 }
 
@@ -327,4 +405,5 @@ export const newsroomApi: NewsroomApi = {
     if (!api.mahareraRoundup) throw new ApiError(0, 'Not available')
     return api.mahareraRoundup()
   },
+  list: (status, limit) => impl().list(status, limit),
 }
