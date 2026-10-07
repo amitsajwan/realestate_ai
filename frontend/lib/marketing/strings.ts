@@ -3,9 +3,9 @@ import type { MarketingConfig } from './config'
 import { BRAND_NAME, TAGLINE } from '@/lib/brand'
 
 export const LEGAL_LAST_UPDATED_ISO = '2026-09-29'
-export const LEGAL_LAST_UPDATED = '29 September 2026'
+export const LEGAL_LAST_UPDATED = '7 October 2026'
 export const LEGAL_NOTICE =
-  'This page is written in plain language to explain how the pilot works. It is not legal advice.'
+  'This page is written in plain language to explain how the service works. It is not legal advice.'
 
 export const PATHS = {
   home: '/',
@@ -262,7 +262,7 @@ export function privacyDoc(cfg: MarketingConfig): LegalDoc {
       {
         id: 'who-we-are', heading: 'Who we are',
         paragraphs: [
-          n + ' ("we", "us") runs a free pilot in Pune that helps real estate agents publish properties, share them, and follow up buyer enquiries. We decide why and how the personal data described here is used.',
+          n + ' ("we", "us") runs a service in Pune that helps real estate agents publish properties, share them, and follow up buyer enquiries. We decide why and how the personal data described here is used.',
         ],
       },
       {
@@ -270,7 +270,8 @@ export function privacyDoc(cfg: MarketingConfig): LegalDoc {
         paragraphs: ['What we collect depends on who you are.'],
         bullets: [
           'Agents: name, mobile number, city, languages and specialities you choose, your photo, the properties you post (details and photos), and how you use the service.',
-          'People who ask for an invite: name, mobile number, city, an optional note, and your consent. To prevent abuse we also keep a scrambled (hashed) version of your connection\'s IP address. We do not keep the IP address itself.',
+          'Agents who claim the free trial on WhatsApp: your WhatsApp number and the message you send, so we can send your sign-up code back.',
+          'People who ask us to call them: name, mobile number, city, an optional note, and your consent. To prevent abuse we also keep a scrambled (hashed) version of your connection\'s IP address. We do not keep the IP address itself.',
           'Buyers who send an enquiry through an agent\'s website: name, mobile number, your message, and any preferences you choose to share (for example bedrooms, budget, timing, home loan).',
           'Buyers browsing an agent\'s website: which pages you view, linked to a random id stored in your browser (not your name), and the link you came from, so the agent can see which properties get attention.',
         ],
@@ -281,14 +282,14 @@ export function privacyDoc(cfg: MarketingConfig): LegalDoc {
           'To connect buyers with the agent they contacted.',
           'To show agents their enquiries and what each buyer is looking for.',
           'To create and run agents\' websites and share-ready marketing.',
-          'To reply to invite requests and run the pilot.',
+          'To reply to free-trial claims and call-back requests, and to run the free trial.',
           'To keep the service safe and to improve it.',
         ],
       },
       {
         id: 'consent', heading: 'Consent',
         paragraphs: [
-          'Buyers are asked to agree to be contacted on the enquiry form before anything is sent. People who ask for an invite tick a box to agree we may contact them about the pilot. You can withdraw your consent at any time (see "Your rights").',
+          'Buyers are asked to agree to be contacted on the enquiry form before anything is sent. People who ask us to call them tick a box to agree we may contact them about their free trial. An agent who sends TRIAL to us on WhatsApp asks us to reply there with his sign-up code. You can withdraw your consent at any time (see "Your rights").',
         ],
       },
       {
@@ -355,15 +356,15 @@ export function termsDoc(cfg: MarketingConfig): LegalDoc {
   const n = cfg.businessName
   return {
     metaTitle: 'Terms of service | ' + n,
-    metaDescription: 'Plain-language terms for the ' + n + ' pilot: who can use it, what agents are responsible for, and how the service is provided.',
+    metaDescription: 'Plain-language terms for ' + n + ': who can use it, what agents are responsible for, and how the service is provided.',
     title: 'Terms of service',
     intro:
-      'These are the terms for using the ' + n + ' pilot. By using the service you agree to them. If you do not agree, please do not use it.',
+      'These are the terms for using ' + n + '. By using the service you agree to them. If you do not agree, please do not use it.',
     sections: [
       {
-        id: 'about', heading: 'About the pilot',
+        id: 'about', heading: 'About the service',
         paragraphs: [
-          n + ' is a pilot service for real estate agents in Pune. It lets an agent post properties, get a website and share-ready marketing, and see buyer enquiries. It is free during the pilot and may change.',
+          n + ' is a service for real estate agents in Pune. It lets an agent post properties, get a website and share-ready marketing, and see buyer enquiries. The free trial covers an agent\'s first 3 properties and needs no card. We tell you the price of anything after the trial before it applies, and the service may change.',
         ],
       },
       {
@@ -409,13 +410,13 @@ export function termsDoc(cfg: MarketingConfig): LegalDoc {
       {
         id: 'as-is', heading: 'Service provided as is',
         paragraphs: [
-          'The pilot is provided "as is" and "as available". It may have errors, change or pause without notice. We do not promise a number of enquiries or any result for your business. We do not check listings and are not a party to any deal between an agent and a buyer.',
+          'The service is provided "as is" and "as available". It may have errors, change or pause without notice. We do not promise a number of enquiries or any result for your business. We do not check listings and are not a party to any deal between an agent and a buyer.',
         ],
       },
       {
         id: 'liability', heading: 'Liability',
         paragraphs: [
-          'To the extent the law allows, we are not responsible for indirect or business losses, such as lost deals or income, arising from using the pilot. Nothing here limits any right you have that cannot be limited by law.',
+          'To the extent the law allows, we are not responsible for indirect or business losses, such as lost deals or income, arising from using the service. Nothing here limits any right you have that cannot be limited by law.',
         ],
       },
       {
