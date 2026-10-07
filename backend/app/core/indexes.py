@@ -44,6 +44,9 @@ INDEXES: Iterable[Tuple[str, list, dict]] = [
     ("marketing_packs", [("agent_id", ASC)], {}),
     ("publications", [("listing_id", ASC), ("channel", ASC), ("pack_version", ASC)], {}),
     ("publications", [("agent_id", ASC), ("created_at", DESC)], {}),
+    # post results (modules/insights): one snapshot per post and age; read grouped by what the post was
+    ("content_metrics", [("post_id", ASC), ("age_label", ASC)], {"unique": True}),
+    ("content_metrics", [("tags.format", ASC), ("age_label", ASC), ("at", DESC)], {}),
 ]
 
 

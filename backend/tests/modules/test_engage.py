@@ -318,7 +318,7 @@ async def test_other_facebook_errors_do_not_ask_for_a_reconnect():
     assert db.get_collection("engage_status").docs[0]["reconnect"] is False
 
 
-async def test_interest_on_our_agent_promo_goes_to_the_pilot_signup():
+async def test_interest_on_our_agent_promo_goes_to_the_free_trial_page():
     """Live 2026-10-04: an agent asked 'is it free, how can I use this' under the promo and got the old buyer landing link."""
     svc, g, db = make([post([comment("C1", "INTERESTED")], pid="PAGE_900", message="Pune property agents: stop chasing comments")])
     db.get_collection("content_calendar").docs.append({"_id": "CALP", "slug": "promo-v2-group", "kind": "post", "channel": "facebook_page",
@@ -326,7 +326,7 @@ async def test_interest_on_our_agent_promo_goes_to_the_pilot_signup():
                                                       "creative": {"source": "promo_agents_v2"}})
     await svc.run_once()
     doc = db.get_collection("engage_comments").docs[0]
-    assert "https://site.test/pilot" in doc["reply"] and "agent/rahul" not in doc["reply"]
+    assert "https://site.test/trial" in doc["reply"] and "agent/rahul" not in doc["reply"]
 
 
 async def test_a_question_on_a_project_post_is_answered_from_the_project_record():
@@ -407,14 +407,14 @@ async def test_a_refused_private_message_is_recorded_and_the_public_reply_still_
     assert doc["dm_status"] == "failed" and "pages_messaging" in doc["dm_error"] and len(g.replies) == 1
 
 
-async def test_agents_asking_under_our_promo_get_the_pilot_message():
+async def test_agents_asking_under_our_promo_get_the_free_trial_message():
     svc, g, db = make_dm([post([comment("C1", "INTERESTED")], pid="PAGE_900", message="Pune property agents: stop chasing comments")])
     db.get_collection("content_calendar").docs.append({"_id": "CALP", "slug": "promo-v2-group", "kind": "post", "channel": "facebook_page",
                                                       "external_id": "PAGE_900", "caption": "", "status": "published",
                                                       "creative": {"source": "promo_agents_v2"}})
     await svc.run_once()
     text = g.dms[0][1]
-    assert "pilot is free" in text and "areas you work in" in text and "https://site.test/pilot" in text
+    assert "Claim your free trial" in text and "first 3 properties" in text and "areas you work in" in text and "https://site.test/trial" in text
 
 
 def _agent_reel_row(db, pid="PAGE_920", code="C1"):
@@ -423,22 +423,22 @@ def _agent_reel_row(db, pid="PAGE_920", code="C1"):
                                                       "creative": {"source": "agent_reels", "template": "agent", "reel_code": code}})
 
 
-async def test_comment_agent_under_an_agent_reel_gets_the_pilot_reply_tagged_with_the_reel():
-    """'Comment AGENT' reels: the public reply and the DM are about the pilot (never price lists or floor plans), the link carries
+async def test_comment_agent_under_an_agent_reel_gets_the_free_trial_reply_tagged_with_the_reel():
+    """'Comment AGENT' reels: the public reply and the DM are about the free trial (never price lists or floor plans), the link carries
     the reel's code, and the agent is not recorded as a buyer lead."""
     svc, g, db = make_dm([post([comment("C1", "AGENT")], pid="PAGE_920", message="Leads abhi bhi diary mein?")])
     _agent_reel_row(db)
     await svc.run_once()
     doc = db.get_collection("engage_comments").docs[0]
     assert doc["intent"] == "interested" and doc["audience"] == "agents" and doc["calendar_id"] == "CALA"
-    assert "pilot is free" in doc["reply"] and "price list" not in doc["reply"] and "floor plan" not in doc["reply"]
-    assert "https://site.test/pilot?src=reel_c1_fb" in doc["reply"]
-    assert "https://site.test/pilot?src=reel_c1_fb" in g.dms[0][1]
+    assert "free Avasetu trial" in doc["reply"] and "price list" not in doc["reply"] and "floor plan" not in doc["reply"]
+    assert "https://site.test/trial?src=reel_c1_fb" in doc["reply"]
+    assert "https://site.test/trial?src=reel_c1_fb" in g.dms[0][1]
     assert db.get_collection("contacts").docs == []
 
 
-@pytest.mark.parametrize("text", ["Agent", "interested", "how to join?", "is it free", "एजेंट"])
-async def test_agent_reel_keywords_in_any_form_get_the_pilot_reply(text):
+@pytest.mark.parametrize("text", ["Agent", "interested", "how to join?", "is it free", "एजेंट", "TRIAL", "free trial"])
+async def test_agent_reel_keywords_in_any_form_get_the_free_trial_reply(text):
     reply = (await decide(text, "Amit", "", "https://site.test/pilot?src=reel_a1_fb", None, audience="agents")).reply
     assert reply and "site.test/pilot?src=reel_a1_fb" in reply
 
@@ -478,3 +478,27 @@ async def test_a_dm_without_a_valid_mobile_leaves_the_lead_waiting():
     g.convs = [{"messages": {"data": [{"message": "call me on 12345", "from": {"id": "psid-C1"}}]}}]
     assert await svc.run_once() == {}
     assert db.get_collection("contacts").docs[0]["phone"] == ""
+
+
+# ---- a question in words no keyword knows, on a post we have facts for ------------------------------------------------
+class ScriptedLLM:
+    def __init__(self, *replies):
+        self.replies, self.calls = list(replies), 0
+
+    async def json(self, system, user):
+        self.calls += 1
+        return self.replies.pop(0) if self.replies else None
+
+
+async def test_a_question_without_a_keyword_is_answered_from_the_posts_facts_and_a_gap_is_recorded():
+    from app.modules.knowledge.grounding import listing_grounding
+    g = listing_grounding({"_id": "L1", "agent_id": "A1", "title": "2 BHK in Kharadi", "transaction": "sale", "property_type": "apartment",
+                           "price_inr": 8_500_000, "city": "Pune", "locality": "Kharadi", "bhk": 2, "carpet_sqft": 1100, "status": "live",
+                           "about": {"nearby": [{"type": "school", "name": "City School", "minutes": 8}]}})
+    llm = ScriptedLLM({"intent": "question", "language": "en"},
+                      {"answerable": True, "answer": "It is a 2 BHK with a carpet area of 1,100 sq ft, and City School is about 8 minutes away."})
+    d = await decide("Is it good for a family?", "Asha", FACTS, LINK, llm, grounding=g)
+    assert d.intent == "question" and "City School is about 8 minutes away" in d.reply and not d.needs_human
+    nothing = ScriptedLLM({"intent": "question", "language": "en"}, {"answerable": False, "answer": ""})
+    d2 = await decide("Is it good for a family?", "Asha", FACTS, LINK, nothing, grounding=g)
+    assert d2.needs_human and d2.gaps == ["other"] and LINK in d2.reply      # said plainly, with the link; the gap is recorded

@@ -278,3 +278,12 @@ def test_render_reel_for_draws_area_and_project_reels():
         pdoc = {"slug": "amco-equa-reel", "creative": {"template": "project", "reel_key": "amco-equa-reel", "project": {"x": 1}, "agent": {"name": "A"}}}
         adapters._render_daily(pdoc, up, composer=lambda *a: calls.append(a))
         assert calls[1][:2] == ({"x": 1}, {"name": "A"})
+
+
+
+def test_daily_reel_rows_are_tagged_with_format_and_area():
+    made, rows, _ = _build(True)
+    assert rows and all(r["tags"]["kind"] == "reel" for r in rows)
+    formats = {r["tags"]["format"] for r in rows}
+    assert "area" in formats and formats <= {"area", "project", "tip", "tour", "pitch"}
+    assert all(r["tags"]["area"] != "unknown" for r in rows if r["tags"]["format"] in ("area", "project"))

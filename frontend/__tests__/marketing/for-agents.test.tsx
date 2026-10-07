@@ -12,7 +12,7 @@ describe('/for-agents brochure', () => {
   it('has one h1 and every section, in the brochure order', () => {
     const { container } = render(<ForAgentsPage />)
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-    const order = [/problem every agent knows/i, /four steps/i, /what you get/i, /what it costs/i, /set up with you/i, /keep it honest/i, /see it live/i, /request an invite/i]
+    const order = [/problem every agent knows/i, /four steps/i, /what you get/i, /what it costs/i, /set up with you/i, /keep it honest/i, /see it live/i, /claim your free trial/i]
     const h2s = Array.from(container.querySelectorAll('article h2')).map((h) => h.textContent || '')
     let at = -1
     for (const re of order) {
@@ -28,18 +28,18 @@ describe('/for-agents brochure', () => {
     expect(steps).toEqual(['Create', 'Attract', 'Qualify', 'Close'])
     const text = container.textContent || ''
     for (const must of [/hindi voice/i, /tap-to-show-interest/i, /BHK, budget, timing/i, /RERA agent number/i, /your own instagram and facebook page/i, /weekly results/i,
-      /free during the pilot/i, /tell you the price before anything changes/i, /own WhatsApp number/i, /posts go out in your name/i,
+      /your first 3 properties free/i, /tell you the price before anything changes/i, /own WhatsApp number/i, /posts go out in your name/i,
       /nothing is sent to a buyer without you/i, /labelled as samples/i, /no invented AI percentages/i, /consent .* recorded/i]) {
       expect(text).toMatch(must)
     }
   })
 
-  it('links to the invite form, the demo agent page, Instagram, /go and /news', () => {
+  it('links to the free-trial page, the demo agent page, Instagram, /go and /news', () => {
     render(<ForAgentsPage />)
     const article = screen.getByRole('article')
     const hrefs = within(article).getAllByRole('link').map((a) => a.getAttribute('href'))
-    expect(hrefs).toEqual(expect.arrayContaining(['/request-invite', '/agent/demo', socialLinks().instagram, '/go', '/news']))
-    expect(within(article).getAllByRole('link', { name: /request an invite/i }).length).toBeGreaterThanOrEqual(2)
+    expect(hrefs).toEqual(expect.arrayContaining(['/trial', '/agent/demo', socialLinks().instagram, '/go', '/news']))
+    expect(within(article).getAllByRole('link', { name: /claim your free trial/i }).length).toBeGreaterThanOrEqual(2)
   })
 
   it('prints the links as addresses and keeps the brand colours in print', () => {
@@ -47,7 +47,7 @@ describe('/for-agents brochure', () => {
     const host = siteUrl().replace(/^https?:\/\//, '')
     expect(container.textContent).toContain(host + '/agent/demo')
     expect(container.textContent).toContain(host + '/go')
-    expect(screen.getByTestId('print-invite')).toHaveTextContent(host + '/request-invite')
+    expect(screen.getByTestId('print-invite')).toHaveTextContent(host + '/trial')
     const css = container.querySelector('style')!.innerHTML
     expect(css).toMatch(/@media print/)
     expect(css).toMatch(/size: A4/)
@@ -58,7 +58,7 @@ describe('/for-agents brochure', () => {
     render(<ForAgentsPage />)
     const qr = screen.getByTestId('invite-qr')
     expect(qr.tagName.toLowerCase()).toBe('svg')
-    expect(qr.getAttribute('data-value')).toBe(siteUrl() + '/request-invite')
+    expect(qr.getAttribute('data-value')).toBe(siteUrl() + '/trial')
     expect(qr.querySelector('path')!.getAttribute('d')!.length).toBeGreaterThan(500)
     expect(screen.getByText(FOR_AGENTS.cta.qr)).toBeInTheDocument()
   })

@@ -3,9 +3,9 @@ import type { MarketingConfig } from './config'
 import { BRAND_NAME, TAGLINE } from '@/lib/brand'
 
 export const LEGAL_LAST_UPDATED_ISO = '2026-09-29'
-export const LEGAL_LAST_UPDATED = '29 September 2026'
+export const LEGAL_LAST_UPDATED = '7 October 2026'
 export const LEGAL_NOTICE =
-  'This page is written in plain language to explain how the pilot works. It is not legal advice.'
+  'This page is written in plain language to explain how the service works. It is not legal advice.'
 
 export const PATHS = {
   home: '/',
@@ -18,7 +18,7 @@ export const PATHS = {
 
 export const NAV = {
   signIn: 'Sign in',
-  requestInvite: 'Request an invite',
+  requestInvite: 'Claim your free trial',
   primaryLabel: 'Main',
   footerLabel: 'Legal and help',
   legal: [
@@ -29,7 +29,7 @@ export const NAV = {
 }
 
 export const FOOTER = {
-  tagline: TAGLINE + '. A free pilot for real estate agents in Pune.',
+  tagline: TAGLINE + '. Free trial for real estate agents in Pune: your first 3 properties free.',
   contactUnset: 'Contact details are shared when you request an invite.',
   contactHeading: 'Contact',
 }
@@ -66,21 +66,21 @@ export const SHOTS = {
 export const SAMPLE_NOTE = 'Screens show sample data.'
 
 export const LANDING = {
-  metaTitle: `${BRAND_NAME}: ${TAGLINE} | Free pilot for real estate agents in Pune`,
+  metaTitle: `${BRAND_NAME}: ${TAGLINE} | Free trial for real estate agents in Pune`,
   metaDescription:
-    'Free pilot for Pune real estate agents: your own website, posts and reels made for you, MahaRERA-checked projects, and every enquiry as a lead card.',
-  metaOrgDescription: 'A free, invite-only pilot that helps real estate agents in Pune get buyer enquiries and follow them up.',
+    'Free trial for Pune real estate agents: your first 3 properties marketed free. Your own website, posts and reels made for you, MahaRERA-checked projects, and every enquiry as a lead card.',
+  metaOrgDescription: 'Helps real estate agents in Pune market their properties, get buyer enquiries and follow them up. Free trial: the first 3 properties.',
   hero: {
     eyebrow: 'For real estate agents in Pune',
-    pilot: 'Free pilot',
+    pilot: 'Free trial',
     titleLines: ['Get more enquiries.', 'Know who to call first.'],
     lead:
       'Your website, posts and reels, made for you. Every enquiry becomes a lead card.',
-    cta: 'Join the free pilot',
+    cta: 'Claim your free trial',
     whatsapp: 'Ask us on WhatsApp',
     secondary: 'See an example agent page',
-    facts: 'Free during the pilot · No app · English, हिंदी, मराठी',
-    signInLead: 'Already invited?',
+    facts: 'First 3 properties free · No card · No app · English, हिंदी, मराठी',
+    signInLead: 'Already have your code?',
     signIn: 'Sign in',
   },
   problem: {
@@ -134,20 +134,20 @@ export const LANDING = {
   },
   cost: {
     id: 'cost',
-    title: 'Free during the pilot.',
-    body: 'After it, a small monthly fee. You see the price first, then decide.',
+    title: 'Your first 3 properties free.',
+    body: 'No card. After that, a small monthly fee. You see the price first, then decide.',
   },
   faq: {
     id: 'faq',
     heading: 'Questions',
     items: [
       {
-        q: 'What happens after I ask for an invite?',
-        a: 'We call you back. Then we set up your website and pages with you.',
+        q: 'How do I start?',
+        a: 'Tap Claim your free trial and send TRIAL to us on WhatsApp. Your sign-up code comes back at once; sign in and add your first property.',
       },
       {
         q: 'Is it really free?',
-        a: 'Yes, during the pilot. After it, a small monthly fee. You see the price first.',
+        a: 'Your first 3 properties are free, no card. After that, a small monthly fee. You see the price first.',
       },
       {
         q: 'Do you post on my own Facebook and Instagram?',
@@ -179,24 +179,24 @@ export const LANDING = {
     whatsapp: 'Or message us on WhatsApp',
     fullForm: 'Add your city or a note',
   },
-  sticky: { cta: 'Join the free pilot', whatsapp: 'WhatsApp us' },
+  sticky: { cta: 'Claim your free trial', whatsapp: 'WhatsApp us' },
 }
 
 // ---------------------------------------------------------------------------------------------------------
 // Request invite
 // ---------------------------------------------------------------------------------------------------------
 export const INVITE = {
-  metaTitle: 'Request an invite | Pilot for real estate agents in Pune',
-  metaDescription: 'Ask for a place in the free, invite-only pilot for real estate agents in Pune.',
-  title: 'Request an invite',
-  lead: 'The pilot is free and invite-only, for real estate agents in Pune. Tell us who you are and we will get in touch.',
+  metaTitle: 'Ask us to call you | Free trial for real estate agents in Pune',
+  metaDescription: 'Leave your number and we call you back about your free trial: your first 3 properties marketed free.',
+  title: 'Ask us to call you',
+  lead: 'Free trial for real estate agents in Pune: your first 3 properties marketed free. Quickest start: send TRIAL to us on WhatsApp. Or tell us who you are and we will call you.',
   labels: {
     name: 'Your name',
     phone: 'Mobile number',
     city: 'City',
     message: 'Anything you would like us to know',
     optional: '(optional)',
-    consent: 'OK to contact me about the pilot',
+    consent: 'OK to contact me about my free trial',
     submit: 'Send request',
     sending: 'Sending...',
   },
@@ -206,14 +206,14 @@ export const INVITE = {
     phone: 'Enter a valid 10-digit Indian mobile number (starts with 6, 7, 8 or 9).',
     city: 'Please enter your city.',
     message: 'Please keep your note under 500 characters.',
-    consent: 'Please tick the box so we can contact you about the pilot.',
+    consent: 'Please tick the box so we can contact you about your free trial.',
     invalid: 'Some details were not accepted. Please check them and try again.',
     tooMany: 'Too many requests from this number or connection. Please wait an hour and try again.',
     network: 'We could not send your request. Please check your connection and try again.',
   },
   success: {
     title: (first: string) => (first ? 'Thank you, ' + first + '.' : 'Thank you.'),
-    body: (phone: string) => 'We have your request and will contact you on ' + phone + ' about the pilot.',
+    body: (phone: string) => 'We have your request and will contact you on ' + phone + ' about your free trial.',
     back: 'Back to the home page',
   },
   privacyNote: 'We use your details only to reply to your request.',
@@ -262,7 +262,7 @@ export function privacyDoc(cfg: MarketingConfig): LegalDoc {
       {
         id: 'who-we-are', heading: 'Who we are',
         paragraphs: [
-          n + ' ("we", "us") runs a free pilot in Pune that helps real estate agents publish properties, share them, and follow up buyer enquiries. We decide why and how the personal data described here is used.',
+          n + ' ("we", "us") runs a service in Pune that helps real estate agents publish properties, share them, and follow up buyer enquiries. We decide why and how the personal data described here is used.',
         ],
       },
       {
@@ -270,7 +270,8 @@ export function privacyDoc(cfg: MarketingConfig): LegalDoc {
         paragraphs: ['What we collect depends on who you are.'],
         bullets: [
           'Agents: name, mobile number, city, languages and specialities you choose, your photo, the properties you post (details and photos), and how you use the service.',
-          'People who ask for an invite: name, mobile number, city, an optional note, and your consent. To prevent abuse we also keep a scrambled (hashed) version of your connection\'s IP address. We do not keep the IP address itself.',
+          'Agents who claim the free trial on WhatsApp: your WhatsApp number and the message you send, so we can send your sign-up code back.',
+          'People who ask us to call them: name, mobile number, city, an optional note, and your consent. To prevent abuse we also keep a scrambled (hashed) version of your connection\'s IP address. We do not keep the IP address itself.',
           'Buyers who send an enquiry through an agent\'s website: name, mobile number, your message, and any preferences you choose to share (for example bedrooms, budget, timing, home loan).',
           'Buyers browsing an agent\'s website: which pages you view, linked to a random id stored in your browser (not your name), and the link you came from, so the agent can see which properties get attention.',
         ],
@@ -281,14 +282,14 @@ export function privacyDoc(cfg: MarketingConfig): LegalDoc {
           'To connect buyers with the agent they contacted.',
           'To show agents their enquiries and what each buyer is looking for.',
           'To create and run agents\' websites and share-ready marketing.',
-          'To reply to invite requests and run the pilot.',
+          'To reply to free-trial claims and call-back requests, and to run the free trial.',
           'To keep the service safe and to improve it.',
         ],
       },
       {
         id: 'consent', heading: 'Consent',
         paragraphs: [
-          'Buyers are asked to agree to be contacted on the enquiry form before anything is sent. People who ask for an invite tick a box to agree we may contact them about the pilot. You can withdraw your consent at any time (see "Your rights").',
+          'Buyers are asked to agree to be contacted on the enquiry form before anything is sent. People who ask us to call them tick a box to agree we may contact them about their free trial. An agent who sends TRIAL to us on WhatsApp asks us to reply there with his sign-up code. You can withdraw your consent at any time (see "Your rights").',
         ],
       },
       {
@@ -355,15 +356,15 @@ export function termsDoc(cfg: MarketingConfig): LegalDoc {
   const n = cfg.businessName
   return {
     metaTitle: 'Terms of service | ' + n,
-    metaDescription: 'Plain-language terms for the ' + n + ' pilot: who can use it, what agents are responsible for, and how the service is provided.',
+    metaDescription: 'Plain-language terms for ' + n + ': who can use it, what agents are responsible for, and how the service is provided.',
     title: 'Terms of service',
     intro:
-      'These are the terms for using the ' + n + ' pilot. By using the service you agree to them. If you do not agree, please do not use it.',
+      'These are the terms for using ' + n + '. By using the service you agree to them. If you do not agree, please do not use it.',
     sections: [
       {
-        id: 'about', heading: 'About the pilot',
+        id: 'about', heading: 'About the service',
         paragraphs: [
-          n + ' is a pilot service for real estate agents in Pune. It lets an agent post properties, get a website and share-ready marketing, and see buyer enquiries. It is free during the pilot and may change.',
+          n + ' is a service for real estate agents in Pune. It lets an agent post properties, get a website and share-ready marketing, and see buyer enquiries. The free trial covers an agent\'s first 3 properties and needs no card. We tell you the price of anything after the trial before it applies, and the service may change.',
         ],
       },
       {
@@ -409,13 +410,13 @@ export function termsDoc(cfg: MarketingConfig): LegalDoc {
       {
         id: 'as-is', heading: 'Service provided as is',
         paragraphs: [
-          'The pilot is provided "as is" and "as available". It may have errors, change or pause without notice. We do not promise a number of enquiries or any result for your business. We do not check listings and are not a party to any deal between an agent and a buyer.',
+          'The service is provided "as is" and "as available". It may have errors, change or pause without notice. We do not promise a number of enquiries or any result for your business. We do not check listings and are not a party to any deal between an agent and a buyer.',
         ],
       },
       {
         id: 'liability', heading: 'Liability',
         paragraphs: [
-          'To the extent the law allows, we are not responsible for indirect or business losses, such as lost deals or income, arising from using the pilot. Nothing here limits any right you have that cannot be limited by law.',
+          'To the extent the law allows, we are not responsible for indirect or business losses, such as lost deals or income, arising from using the service. Nothing here limits any right you have that cannot be limited by law.',
         ],
       },
       {

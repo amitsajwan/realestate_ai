@@ -5,7 +5,7 @@ import pytest
 
 from app.modules.knowledge import Ref, answer, facts_for
 from app.modules.knowledge.grounding import listing_grounding
-from app.modules.knowledge.reply import detect_language, has_topic, topics_in, valid_text
+from app.modules.knowledge.reply import detect_language, has_topic, topics_in, understand, valid_text
 from app.platform.text import HYPE, PHONE
 
 pytestmark = pytest.mark.asyncio
@@ -169,6 +169,11 @@ def good(text):
     return {"answerable": True, "answer": text}
 
 
+def UND(english, topics=()):
+    """What the model returns when it reads a question that is not in English (reply.understand)."""
+    return {"english": english, "topics": list(topics)}
+
+
 async def test_a_valid_llm_answer_is_used_and_the_prompt_holds_only_the_grounding_and_the_question():
     g = await grounding("L")
     llm = FakeLLM(good("It is ready to move, on floor 7 of 20."))
@@ -242,22 +247,26 @@ async def test_hindi_and_marathi_answers_are_localised_by_the_llm_only_when_the_
     g = await grounding("L")
     """The grounded English sentence is picked first; the model only translates it, and the translation is checked against that sentence."""
     g = await grounding("L")
-    hi = FakeLLM({"text": "यह रेडी टू मूव है।"})
+    # calls: 1 understand the question, 2 reason an English answer (None here: the grounded sentence is used), 3 translate it
+    hi = FakeLLM(UND("Is it ready to move?", ["possession"]), None, {"text": "यह रेडी टू मूव है।"})
     r = await answer("क्या यह रेडी टू मूव है?", g, "facebook", hi)
-    assert r.language == "hi" and r.via == "llm" and r.text.startswith("यह रेडी टू मूव है।") and "Hindi in Devanagari" in hi.prompts[0][0]
-    assert hi.prompts[0][1] == "TEXT:\nIt is ready to move."                       # the model sees the grounded sentence, nothing else
-    bad = FakeLLM({"text": "यह तैयार है और कीमत 90 लाख है।"})                       # an invented number: rejected, the English fact stays
+    assert r.language == "hi" and r.via == "llm" and r.text.startswith("यह रेडी टू मूव है।") and "Hindi in Devanagari" in hi.prompts[2][0]
+    assert hi.prompts[2][1] == "TEXT:\nIt is ready to move."                       # the model sees the grounded sentence, nothing else
+    bad = FakeLLM(UND("Is it ready to move?", ["possession"]), None, {"text": "यह तैयार है और कीमत 90 लाख है।"})  # an invented number
     r2 = await answer("क्या यह रेडी टू मूव है?", g, "facebook", bad)
     assert r2.via == "rules" and "It is ready to move." in r2.text and "90" not in r2.text
-    r3 = await answer("carpet area किती आहे?", g, "facebook", FakeLLM({"text": "कार्पेट एरिया 1,100 sq ft आहे."}))
+    r3 = await answer("carpet area किती आहे?", g, "facebook", FakeLLM(UND("What is the carpet area?", ["carpet"]), None,
+                                                                      {"text": "कार्पेट एरिया 1,100 sq ft आहे."}))
     assert r3.language == "mr" and r3.via == "llm" and r3.text.startswith("कार्पेट एरिया 1,100 sq ft आहे.") and r3.text.endswith("{interest_url}")
-    r4 = await answer("carpet area किती आहे?", g, "facebook", FakeLLM({"text": "कार्पेट एरिया 1,200 sq ft आहे."}))
+    r4 = await answer("carpet area किती आहे?", g, "facebook", FakeLLM(UND("What is the carpet area?", ["carpet"]), None,
+                                                                      {"text": "कार्पेट एरिया 1,200 sq ft आहे."}))
     assert r4.via == "rules" and "1,100 sq ft" in r4.text
 
 
 async def test_hinglish_is_answered_in_hinglish_framing():
     g = await grounding("L")
-    r = await answer("maintenance kitna hai", g, "facebook", FakeLLM({"text": "Maintenance 3 rupees per sq ft per month hai."}))
+    r = await answer("maintenance kitna hai", g, "facebook", FakeLLM(UND("What is the maintenance?", ["maintenance"]), None,
+                                                                   {"text": "Maintenance 3 rupees per sq ft per month hai."}))
     assert r.language == "hinglish" and r.via == "llm" and r.text.startswith("Maintenance 3 rupees per sq ft per month hai.") and r.text.endswith("{interest_url}")
     r2 = await answer("swimming pool hai kya", g, "facebook", None)
     assert "ki jaankari mere paas nahi hai" in r2.text and "Gym, Lift, Clubhouse" in r2.text and "us amenity ki confirmation" in r2.text
@@ -285,3 +294,48 @@ def test_valid_text_rules():
     assert not valid_text("The carpet area is 1,200 sq ft.", src, "facebook", 260)
     assert not valid_text("It is near Phoenix Mall.", src, "facebook", 260)
     assert valid_text("It is in Kharadi, near EON IT Park.", src, "facebook", 260)
+
+
+# ---- questions not in English: understood first, then the same grounded reasoning ----------------------------------
+async def test_a_hinglish_question_with_no_keyword_is_understood_and_answered_from_the_facts():
+    """Before: no keyword matched, the LLM was never asked (it only reasoned over English), so the buyer got 'I do not have that detail'."""
+    g = await grounding("L")
+    q = "family ke liye theek rahega kya?"
+    assert topics_in(q) == []
+    assert "do not have" in (await answer(q, g, "facebook", None)).text.lower() or "nahi hai" in (await answer(q, g, "facebook", None)).text
+    llm = FakeLLM(UND("Is it suitable for a family?"),
+                  good("It is a 2 BHK with a carpet area of 1,100 sq ft, and City School is about 8 minutes away."),
+                  {"text": "Yeh 2 BHK hai, carpet area 1,100 sq ft hai, aur City School lagbhag 8 minute door hai."})
+    r = await answer(q, g, "facebook", llm)
+    assert r.confident and r.via == "llm" and r.language == "hinglish" and r.gaps == []
+    assert r.text.startswith("Yeh 2 BHK hai, carpet area 1,100 sq ft hai") and r.text.endswith("{interest_url}")
+    assert llm.prompts[1][1].endswith("QUESTION:\nIs it suitable for a family?")      # the reasoning step works on the English meaning
+    assert any("City School" in b for b in r.basis)
+
+
+async def test_understanding_adds_a_topic_the_keywords_missed_and_an_honest_gap_is_kept():
+    g = await grounding("L")
+    q = "गाडी ठेवायला जागा आहे का?"                          # 'is there space to keep a car?' (Marathi), no parking keyword
+    assert "parking" not in topics_in(q)
+    r = await answer(q, g, "facebook", FakeLLM(UND("Is there space to park a car?", ["parking"]), None, {"text": "एक कव्हर्ड स्लॉट आहे."}))
+    assert r.confident and "parking" not in r.gaps                    # found through the topic the model named
+    g2 = listing_grounding({**LISTING, "about": {k: v for k, v in LISTING["about"].items() if k != "parking"}})
+    r2 = await answer(q, g2, "facebook", FakeLLM(UND("Is there space to park a car?", ["parking"]), None, None))
+    assert not r2.confident and r2.gaps == ["parking"] and "parking" in (r2.missing or "")   # no fact: said plainly, recorded
+
+
+async def test_a_misreading_or_an_invented_claim_never_reaches_the_buyer():
+    g = await grounding("L")
+    q = "family ke liye theek rahega kya?"
+    # the model 'understands' a number the buyer never wrote: the understanding is dropped
+    assert await understand("flat kitne ka hai?", FakeLLM(UND("Is the flat 90 lakh?", ["price"]))) is None
+    # the reasoning step claims something the facts do not say: rejected, the honest answer stays
+    r = await answer(q, g, "facebook", FakeLLM(UND("Is it suitable for a family?"), good("It is very safe for children and quiet at night."), None))
+    assert not r.confident and "safe" not in r.text and "quiet" not in r.text and r.gaps == ["other"]
+
+
+async def test_english_answers_and_gaps_are_unchanged_and_gaps_are_structured():
+    g = await grounding("L")
+    llm = FakeLLM()
+    r = await answer("is there a swimming pool?", g, "facebook", llm)
+    assert not r.confident and r.gaps == ["amenities"] and llm.calls == 0   # an English keyword gap: no LLM call, said plainly

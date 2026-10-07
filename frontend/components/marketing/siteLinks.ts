@@ -13,7 +13,7 @@ export interface SiteLink {
 }
 
 export const FOR_AGENTS_PATH = '/for-agents'
-export const INVITE_PATH = '/request-invite'
+export const INVITE_PATH = '/trial'   // 'Claim your free trial' (WhatsApp TRIAL); the call-back form stays at /request-invite
 /** Studio is the agent's app; it sends a signed-out visitor to the sign-in screen (/join). */
 export const SIGN_IN_PATH = '/studio'
 /** A buyer's 'tell us what you need': the house agent site's existing enquiry form (the same place the area guides send buyers). */
@@ -31,7 +31,7 @@ export function siteLinks() {
   const areas: SiteLink = { href: '/localities', label: 'Area guides' }
   const projects: SiteLink = { href: '/projects', label: 'Projects' }
   const insights: SiteLink = { href: '/insights', label: 'Insights' }
-  const invite: SiteLink = { href: INVITE_PATH, label: 'Join the free pilot' }
+  const invite: SiteLink = { href: INVITE_PATH, label: 'Claim your free trial' }
   const signIn: SiteLink = { href: SIGN_IN_PATH, label: 'Sign in' }
   const need: SiteLink = { href: buyerEnquirePath(), label: 'Tell us what you need' }
   const ig: SiteLink = { href: instagram, label: 'Instagram', external: true }

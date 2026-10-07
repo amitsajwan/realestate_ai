@@ -66,6 +66,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...agents.listings.map((l) => at(agentPath(l.agent_slug, 'listings/' + l.id), 0.6, l.updated_at)),
     at('/for-agents', 0.6),
     at('/request-invite', 0.3),
+    at('/trial', 0.6),
     at('/privacy', 0.2),
     at('/terms', 0.2),
   ]

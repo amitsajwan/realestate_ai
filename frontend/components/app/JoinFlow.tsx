@@ -28,6 +28,10 @@ export function JoinFlow() {
   const router = useRouter()
   const [step, setStep] = useState<Step>('phone')
   const [phoneRaw, setPhoneRaw] = useState('')
+  useEffect(() => { // /join?phone=9876543210 (the link in the free-trial WhatsApp reply) fills the number in
+    const p = new URLSearchParams(window.location.search).get('phone')
+    if (p && /^[6-9]\d{9}$/.test(p)) setPhoneRaw(p)
+  }, [])
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
   const [devCode, setDevCode] = useState<string | null>(null)
@@ -145,9 +149,9 @@ export function JoinFlow() {
             {error && <ErrorBox message={error} />}
             <Btn type="submit" disabled={busy}>{busy ? t('loading') : t('sendOtp')}</Btn>
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-gray-800">
-              <p className="font-semibold">Free, invite-only pilot for agents in Pune.</p>
+              <p className="font-semibold">Free trial for agents in Pune: your first 3 properties free. No code yet? Send TRIAL to Avasetu on WhatsApp.</p>
               <p className="mt-1">Your phone number is never shown publicly. No app to install.</p>
-              <Link href="/request-invite" className="mt-2 flex min-h-[44px] items-center font-semibold text-blue-800 underline">No invite yet? Request one</Link>
+              <Link href="/trial" className="mt-2 flex min-h-[44px] items-center font-semibold text-blue-800 underline">No code yet? Claim your free trial</Link>
             </div>
           </form>
         )}

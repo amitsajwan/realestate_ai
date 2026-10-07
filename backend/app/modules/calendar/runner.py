@@ -47,9 +47,10 @@ async def prerender_reels(store: Store, now: datetime, uploads: Optional[Path] =
         except Exception as e:
             log.warning("calendar: reel render for %s failed: %s", doc["slug"], sanitize(str(e)))
             continue
+        info = adapters.video_info(video, uploads)
         for sib in await store.all():
             if sib.get("kind") == "reel" and sib["slug"] == doc["slug"] and not sib.get("video"):
-                await store.set_video(sib["_id"], video)
+                await store.set_video(sib["_id"], video, info)
         done += 1
     return done
 
@@ -115,7 +116,7 @@ async def _slides_reel(store: Store, doc: dict, uploads: Path, render: Callable)
     except Exception as e:
         log.warning("calendar: slides reel for %s failed, posting the photos instead: %s", doc["slug"], sanitize(str(e)))
         return None
-    await store.set_video(doc["_id"], video)
+    await store.set_video(doc["_id"], video, adapters.video_info(video, uploads))
     return {**doc, "video": video}
 
 
@@ -135,7 +136,7 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
         if kind == "reel":
             if not doc.get("video"):  # not pre-rendered in time: render now
                 video = await asyncio.to_thread(render_reel, doc, uploads)
-                await store.set_video(doc["_id"], video)
+                await store.set_video(doc["_id"], video, adapters.video_info(video, uploads))
                 doc = {**doc, "video": video}
             res = await _once(store, doc, lambda: publish_reel(doc, social, uploads))
         else:
@@ -170,6 +171,7 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
 async def loop() -> None:
     log.info("calendar: loop started")
     rendering: Optional[asyncio.Task] = None
+    tagged = False   # rows written before tags existed get them once per start, by the system itself (idempotent)
     while True:
         cfg = load()
         try:
@@ -180,6 +182,14 @@ async def loop() -> None:
                     social = load_social()
                     store = Store(get_database())
                     now = datetime.now(timezone.utc)
+                    if not tagged:
+                        tagged = True
+                        try:   # tags help measure results; they must never hold up publishing
+                            n = await store.backfill_tags()
+                            if n:
+                                log.info("calendar: tagged %s older rows", n)
+                        except Exception as e:
+                            log.warning("calendar: tagging older rows failed: %s", type(e).__name__)
                     if rendering is None or rendering.done():  # reels render in the background so a pass is never held up
                         rendering = asyncio.create_task(prerender_reels(store, now))
                     counts = await run_once(store, graph_publisher(social), social, cfg, now)

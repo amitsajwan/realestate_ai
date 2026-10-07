@@ -183,3 +183,15 @@ def test_captions_are_clean_and_instagram_has_no_url(built):
         assert r["creative"].get("ok", True), (r["slug"], r["creative"].get("problems"))
         assert r["creative"]["path"] in ("rules", "reel")
         assert "sample" not in r["caption"].lower(), r["slug"]
+
+
+def test_every_planned_row_carries_tags_with_a_known_format_and_hook(built):
+    """X-3: results can only be compared by what a post was if every row says it (calendar/tags.py)."""
+    _, rows, _, _ = built
+    for r in rows:
+        t = r["tags"]
+        assert t["schema"] == 1 and t["kind"] == r["kind"]
+        assert t["format"] != "unknown" and t["hook_type"] != "unknown" and t["hook"], (r["slug"], t)
+        assert t["audience"] in ("buyers", "agents") and t["pillar"] != "unknown"
+    assert {r["tags"]["format"] for r in rows if r["kind"] == "reel"} <= \
+        {"tip", "tour", "pitch", "area", "project", "agent_ad", "trend", "listing", "slides"}

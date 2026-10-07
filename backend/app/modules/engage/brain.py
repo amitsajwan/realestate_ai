@@ -81,6 +81,7 @@ class Decision:
     reason: str = ""
     missing: Optional[str] = None                      # what the grounded reply could not answer (for the owner)
     basis: List[str] = field(default_factory=list)     # the facts the reply rests on (stored as answer_basis)
+    gaps: List[str] = field(default_factory=list)      # topics the grounded reply could not answer ('other' = no known topic)
 
 
 def detect_language(text: str) -> str:
@@ -94,13 +95,13 @@ def first_name(name: Optional[str]) -> str:
     return f" {n}" if n and re.fullmatch(r"[A-Za-zऀ-ॿ.'-]{1,30}", n) else ""
 
 
-# Comments on our agent-recruitment posts and reels ("Comment AGENT"): the reply is about the pilot, never price lists or floor plans.
-AGENT_ASK = re.compile(r"\b(agents?|join|pilot|interested|intrested|details|demo|how|kaise|cost|charges?|free|yes|haan|ha)\b|एजेंट|इंटरेस्टेड|जानकारी", re.I)
+# Comments on our agent-recruitment posts and reels ("Comment AGENT"): the reply is about the free trial, never price lists or floor plans.
+AGENT_ASK = re.compile(r"\b(agents?|join|pilot|trial|interested|intrested|details|demo|how|kaise|cost|charges?|free|yes|haan|ha)\b|एजेंट|इंटरेस्टेड|जानकारी|ट्रायल", re.I)
 AGENT_TEMPLATES = {
-    "en": {"facebook": "Thanks{name}! The Avasetu pilot is free for Pune property agents. Join here: {link} . We have also sent you a message.",
-           "instagram": "Thanks{name}! We have sent you a message with the free pilot link. It is also at the link in our bio."},
-    "hi": {"facebook": "धन्यवाद{name}! पुणे के प्रॉपर्टी एजेंट्स के लिए Avasetu पायलट फ्री है। यहाँ जुड़ें: {link} . हमने आपको मैसेज भी भेजा है।",
-           "instagram": "धन्यवाद{name}! हमने आपको फ्री पायलट का लिंक मैसेज में भेजा है। यह हमारे बायो के लिंक में भी है।"},
+    "en": {"facebook": "Thanks{name}! Claim your free Avasetu trial: your first 3 properties marketed free, no card. Claim it here: {link} . We have also sent you a message.",
+           "instagram": "Thanks{name}! We have sent you a message with the link to claim your free trial. It is also at the link in our bio."},
+    "hi": {"facebook": "धन्यवाद{name}! Avasetu का फ्री ट्रायल लें: पहली 3 प्रॉपर्टी की मार्केटिंग फ्री, कोई कार्ड नहीं। यहाँ क्लेम करें: {link} . हमने आपको मैसेज भी भेजा है।",
+           "instagram": "धन्यवाद{name}! हमने आपको फ्री ट्रायल का लिंक मैसेज में भेजा है। यह हमारे बायो के लिंक में भी है।"},
 }
 
 
@@ -176,7 +177,8 @@ async def grounded_decision(text: str, grounding, link: str, llm, channel: str) 
     r = await grounded_answer(text, grounding, channel, llm)
     reply = r.text.replace("{interest_url}", link)
     reason = "grounded answer" if r.confident else f"not in our facts: {r.missing}"
-    return Decision("question", REPLY_LANG.get(r.language, "en"), reply, needs_human=not r.confident, reason=reason, missing=r.missing, basis=r.basis)
+    return Decision("question", REPLY_LANG.get(r.language, "en"), reply, needs_human=not r.confident, reason=reason, missing=r.missing, basis=r.basis,
+                    gaps=list(r.gaps))
 
 
 async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm, channel: str = "facebook", handle: str = "", grounding=None,
@@ -189,7 +191,7 @@ async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm
     if audience == "agents" and intent not in ("spam", "complaint") and AGENT_ASK.search(text or ""):
         said = lang if lang in AGENT_TEMPLATES else "en"
         return Decision("interested", said, agent_reply(said, from_name, link, channel),
-                        reason="agent asks about the pilot")
+                        reason="agent asks about the free trial")
     if ig:
         link = BIO["en"]  # never put a URL in an Instagram reply
     if grounding is not None and intent is None and asks_about_the_post(text):
@@ -234,6 +236,10 @@ async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm
         return Decision("praise", lang, render("praise", lang, from_name, link, channel))
     if intent == "greeting":
         return Decision("greeting", lang, render("greeting", lang, from_name, link, channel))
+    if intent == "question" and grounding is not None:
+        # a question in words no keyword knows: answered from everything we know about the post (and its gap recorded), not from the
+        # short post summary alone
+        return await grounded_decision(text, grounding, link, llm, channel)
     if intent == "question":
         draft = (raw.get("reply") or "").strip()
         if raw.get("answerable") is True and valid_reply(draft, facts, link):
@@ -254,7 +260,7 @@ DM_TEMPLATES = {
     "mr": "नमस्कार{name}, तुमच्या कमेंटसाठी{topic} धन्यवाद. प्राइस लिस्ट आणि फ्लोअर प्लॅन WhatsApp वर पाठवण्यासाठी इथेच उत्तर द्या: "
           "1) तुमचा WhatsApp नंबर, 2) तुमचे बजेट, 3) तुम्ही कधी खरेदी करणार. माहिती: {link}",
 }
-DM_AGENTS = ("Hi{name}, thanks for asking about Avasetu. The pilot is free. Reply here with your WhatsApp number and the areas you work in, "
+DM_AGENTS = ("Hi{name}, thanks for asking about Avasetu. Claim your free trial: your first 3 properties marketed free, no card. Reply here with your WhatsApp number and the areas you work in, "
              "and we will set it up with you. Or join here: {link}")
 
 

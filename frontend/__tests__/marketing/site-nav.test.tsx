@@ -44,11 +44,11 @@ describe('site header', () => {
     expect(hrefOf(header, /^for agents$/i)).toBe('/for-agents')  // still a normal link
   })
 
-  it('agent pages get "Request an invite"; the invite page itself gets no button', () => {
+  it('agent pages get "Claim your free trial"; the invite page itself gets no button', () => {
     const { unmount } = render(<SiteHeader businessName="Avasetu" cta="agent" />)
     const cta = within(screen.getByRole('banner')).getByTestId('header-cta')
-    expect(cta).toHaveTextContent('Request an invite')
-    expect(cta).toHaveAttribute('href', '/request-invite')
+    expect(cta).toHaveTextContent('Claim your free trial')
+    expect(cta).toHaveAttribute('href', '/trial')
     expect(within(screen.getByRole('banner')).queryByRole('link', { name: /tell us what you need/i })).toBeNull()
     unmount()
     render(<SiteHeader businessName="Avasetu" cta="none" />)
@@ -73,7 +73,7 @@ describe('site footer', () => {
     render(<SiteFooter cfg={cfg} />)
     const footer = screen.getByRole('contentinfo')
     for (const [name, href] of EXPECTED) expect(hrefOf(footer, name)).toBe(href)
-    expect(hrefOf(footer, /^request an invite$/i)).toBe('/request-invite')
+    expect(hrefOf(footer, /^claim your free trial$/i)).toBe('/trial')
     for (const [name, href] of [[/^privacy$/i, '/privacy'], [/^terms$/i, '/terms'], [/^data deletion$/i, '/data-deletion']] as const) {
       expect(hrefOf(footer, name)).toBe(href)
     }
@@ -85,9 +85,9 @@ describe('site footer', () => {
 })
 
 describe('landing hero', () => {
-  it('leads with "Join the free pilot" and offers "See an example agent page" second', () => {
+  it('leads with "Claim your free trial" and offers "See an example agent page" second', () => {
     render(<LandingPage />)
-    expect(screen.getAllByRole('link', { name: /^join the free pilot$/i })[0]).toHaveAttribute('href', '#invite') // the short form on the page
+    expect(screen.getAllByRole('link', { name: /^claim your free trial$/i })[0]).toHaveAttribute('href', '/trial') // WhatsApp TRIAL, code back at once
     expect(screen.getByRole('link', { name: /^see an example agent page$/i })).toHaveAttribute('href', '/agent/house-deal')
   })
 })

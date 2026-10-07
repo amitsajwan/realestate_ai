@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Callable, Dict, List, Optional, Tuple
 
+from . import tags as _tags
 from .config import COLLECTION, STATUS_COLLECTION
 
 STATUSES = ("planned", "approved", "scheduled", "published", "failed", "skipped", "removed")  # removed: deleted on the platform
@@ -34,12 +35,24 @@ class Store:
         now = self.clock()
         id = uuid.uuid4().hex
         imgs = list(images) if images else ([image_path] if image_path else [])
-        await self.items.insert_one({"_id": id, "slug": slug, "kind": kind, "channel": channel, "caption": caption, "image_path": imgs[0] if imgs else image_path,
-                                     "images": imgs, "video": video, "creative": creative or {}, "week": week, "due_at": aware(due_at),
-                                     "status": status, "external_id": None, "permalink": None, "error": None, "attempts": 0,
-                                     "created_at": now, "updated_at": now, "history": [{"at": now, "status": status, "note": "created"}],
-                                     **(extra or {})})
+        row = {"_id": id, "slug": slug, "kind": kind, "channel": channel, "caption": caption, "image_path": imgs[0] if imgs else image_path,
+               "images": imgs, "video": video, "creative": creative or {}, "week": week, "due_at": aware(due_at),
+               "status": status, "external_id": None, "permalink": None, "error": None, "attempts": 0,
+               "created_at": now, "updated_at": now, "history": [{"at": now, "status": status, "note": "created"}],
+               **(extra or {})}
+        row["tags"] = _tags.derive(row)   # every row, whoever writes it: what the post was, for comparing results later
+        await self.items.insert_one(row)
         return id
+
+    async def backfill_tags(self) -> int:
+        """Put tags on rows written before tags existed (or with an older tag schema). Returns how many rows were updated."""
+        n = 0
+        for d in await self.all(limit=100000):
+            if (d.get("tags") or {}).get("schema") == _tags.TAGS_SCHEMA:
+                continue
+            await self.items.update_one({"_id": d["_id"]}, {"$set": {"tags": _tags.derive(d)}})
+            n += 1
+        return n
 
     async def get(self, id: str) -> Optional[dict]:
         return await self.items.find_one({"_id": id})
@@ -66,8 +79,15 @@ class Store:
         return [d for d in await self.all() if d["status"] in PUBLISHABLE and d.get("kind") == "reel" and not d.get("video")
                 and aware(d["due_at"]) <= now + lead]
 
-    async def set_video(self, id: str, video: str) -> None:
-        await self.items.update_one({"_id": id}, {"$set": {"video": video, "updated_at": self.clock()}})
+    async def set_video(self, id: str, video: str, info: Optional[dict] = None) -> None:
+        """`info` = {duration_s, render} of the rendered file, kept in the row's tags. A post (carousel) that gets a video is going
+        out as a Reel of its slides: its tags say so (published_as)."""
+        doc = await self.get(id) or {}
+        tags = dict(doc.get("tags") or (_tags.derive(doc) if doc else {}))
+        tags.update(info or {})
+        if doc.get("kind") == "post":
+            tags["published_as"] = "reel"
+        await self.items.update_one({"_id": id}, {"$set": {"video": video, "tags": tags, "updated_at": self.clock()}})
 
     async def set_planned(self, id: str, caption: Optional[str] = None, images: Optional[List[str]] = None) -> bool:
         """Change a row's caption or images while it is still planned (an agent edited the post before approval);

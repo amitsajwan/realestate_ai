@@ -9,6 +9,7 @@
   python scripts/calendar_admin.py skip <id>                                 drop one item
   python scripts/calendar_admin.py list [--status planned|approved|published|failed|skipped]
   python scripts/calendar_admin.py status
+  python scripts/calendar_admin.py tag-backfill                              tag older rows (what each post was: format, hook type, area...)
   python scripts/calendar_admin.py --dry-check                               run the caption guards over the library (exit 1 on any problem)
   python scripts/calendar_admin.py preview-offline --start 2026-10-12 --weeks 4 --out DIR   (no database) plan, render and sheet in a folder
 Run on the server:  docker compose exec -T -e PYTHONPATH=. backend python scripts/calendar_admin.py plan --start 2026-10-12 --weeks 4 --llm
@@ -124,7 +125,7 @@ async def offline(start: date, weeks: int, out: Path, use_llm: bool, include_loc
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("mode", nargs="?", choices=["plan", "daily", "preview-plan", "approve", "skip", "list", "status", "preview-offline"])
+    ap.add_argument("mode", nargs="?", choices=["plan", "daily", "preview-plan", "approve", "skip", "list", "status", "preview-offline", "tag-backfill"])
     ap.add_argument("id", nargs="?")
     ap.add_argument("--start", default=None, help="first day (default: next Monday)")
     ap.add_argument("--weeks", type=int, default=4)
@@ -161,6 +162,8 @@ def main(argv=None) -> int:
                 print("refusing to plan: fix the guard failures first")
                 return 1
             await plan(store, start, a.weeks, a.llm, a.include_local_languages, a.render_reels, uploads)
+        elif a.mode == "tag-backfill":   # tags (what each post was) on rows written before tags existed; safe to run again
+            print(f"{await store.backfill_tags()} row(s) tagged")
         elif a.mode == "daily":
             made = await builder.build_daily_and_store(store, start, a.days, uploads, now=datetime.now(IST), say=print)
             print(f"{len(made)} daily reel row(s) planned (status `planned`: nothing posts until you approve).")

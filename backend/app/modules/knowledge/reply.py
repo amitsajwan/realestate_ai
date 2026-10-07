@@ -8,7 +8,11 @@ Flow of `answer(question, grounding, channel, llm)`:
      every number and proper noun is in the grounding or the question, with no phone, link, hype or prediction. Otherwise the sentences
      are used as they are (the deterministic path, also the fallback when the LLM fails).
   4. Part (or all) not covered -> a plain, honest sentence naming what we do not have, with the interest link so the agent can share it.
-     `confident` is then False and `missing` names the gap for the owner. Never 'we will forward your query'.
+     `confident` is then False, `missing` names the gap for the owner and `gaps` lists the topics (the answer-gap loop reads them).
+     Never 'we will forward your query'. The LLM is NOT asked to rescue a gap: our checks stop invented facts but cannot tell a half
+     answer ('there is a clubhouse' to 'pool or clubhouse?'), and an honest gap is what gets the fact added.
+  Questions not in English: the LLM first reads them (`understand`: the meaning in English and the topics), so they get the same
+  lookup and reasoning as English ones; the answer is then put into the buyer's language and checked again.
 Sample homes: availability and visit questions say honestly that it is an illustration; price questions give only the labelled sample figure.
 Channels: 'facebook' (public reply with the {interest_url} placeholder), 'instagram' (never a URL: 'link in our bio'), 'chat' (website widget).
 """
@@ -155,6 +159,7 @@ class Reply:
     basis: List[str] = field(default_factory=list)   # the facts the answer rests on (for the owner's audit)
     language: str = "en"
     via: str = "rules"                                # 'llm' | 'rules'
+    gaps: List[str] = field(default_factory=list)     # topic names not answered ('other' = no known topic): the answer-gap loop reads these
 
 
 CHANNELS = ("facebook", "instagram", "chat")
@@ -237,10 +242,10 @@ def _pick(topic: str, pool: List[str], limit: int = 1) -> List[str]:
     return out[:limit]
 
 
-def plan(question: str, g: Grounding) -> Plan:
+def plan(question: str, g: Grounding, topics: Optional[List[str]] = None) -> Plan:
     p = Plan()
     q = _norm(question)
-    qt = topics_in(question)
+    qt = topics if topics is not None else topics_in(question)
     for topic in qt:
         multi = 3 if topic in ("school", "hospital", "market", "metro", "nearby") else 1
         if g.sample and topic in SAMPLE_TOPICS:
@@ -407,6 +412,49 @@ def _basis_for(text: str, g: Grounding) -> List[str]:
     return out[:4]
 
 
+# ---- understanding a question in any language ------------------------------------------------------------------------
+UNDERSTAND_SYSTEM = (
+    "A home buyer in Pune wrote a question in Hindi, Marathi or a mix with English. Reply with ONE JSON object: "
+    '{"english": "...", "topics": [...]}. english: the question in plain English, meaning only, adding nothing (keep every number and '
+    "name exactly). topics: the subjects it asks about, chosen ONLY from this list: " + ", ".join(TOPICS) + ". Use [] when none fits."
+)
+
+
+@dataclass
+class Understanding:
+    english: str
+    topics: List[str]
+
+
+async def understand(question: str, llm) -> Optional[Understanding]:
+    """The question in English and the topics it asks about, from the LLM; None when there is no LLM or its answer is unusable. Used for
+    questions not in English: the keyword rules miss much of how people ask in Hindi and Marathi, and the grounded answer step reasons in
+    English. Nothing from here is ever stated to the buyer as a fact: it only decides what to look up."""
+    if llm is None or not hasattr(llm, "json"):
+        return None
+    try:
+        raw = await llm.json(UNDERSTAND_SYSTEM, f"QUESTION:\n{question[:400]}")
+    except Exception:
+        return None
+    if not isinstance(raw, dict):
+        return None
+    english = " ".join(str(raw.get("english") or "").split())[:400]
+    topics = [t for t in (raw.get("topics") if isinstance(raw.get("topics"), list) else []) if t in TOPICS]
+    if not english or DEV.search(english) or not (_nums(english) <= _nums(question)):   # a number the buyer did not write is a misreading
+        return None
+    return Understanding(english, list(dict.fromkeys(topics)))
+
+
+async def _reasoned(question_en: str, g: Grounding, lang: str, ch: str, llm) -> Optional[Tuple[str, bool]]:
+    """An answer the LLM reasons out of the grounding for an English question, put into the buyer's language -> (text, localised), or None."""
+    status, text = await _llm_answer(question_en, g, "en", ch, llm)
+    if not text:
+        return None
+    if lang == "en":
+        return text, False
+    return await _localise(text, lang, ch, llm)
+
+
 # ---- entry point ----------------------------------------------------------------------------------------------------
 def _cap(sentence: str, limit: int) -> str:
     """Keep a long list sentence within the limit by cutting at a comma, never mid-word."""
@@ -437,14 +485,24 @@ async def answer(question: str, grounding: Grounding, channel: str = "facebook",
     ch, g = _channel(channel), grounding
     q = (question or "").strip()
     lang = detect_language(q)
-    pl = plan(q, g)
+    topics = topics_in(q)
+    # Not English: the LLM reads the question (meaning + topics), so Hindi and Marathi questions reach the same reasoning as English ones
+    u = await understand(q, llm) if lang != "en" else None
+    if u:
+        topics = list(dict.fromkeys(topics + u.topics))
+    q_en = u.english if u else (q if lang == "en" else "")
+    pl = plan(q, g, topics)
     tail = TAIL[lang][ch].replace("{interest_url}", INTEREST)
 
-    if not topics_in(q):  # no known topic: the LLM may answer from the grounding; without it, the best matching sentence
-        status, text = await _llm_answer(q, g, lang, ch, llm)
+    if not topics:  # no known topic: the LLM may answer from the grounding; without it, the best matching sentence
+        status, text = await _llm_answer(q, g, lang, ch, llm) if lang == "en" else ("fail", None)
         if text:
             return Reply(f"{text} {tail}".strip(), True, None, _basis_for(text, g), lang, "llm")
-        hit = overlap_hit(q, g) if status == "fail" else None
+        if q_en and lang != "en":
+            got = await _reasoned(q_en, g, lang, ch, llm)
+            if got:
+                return Reply(f"{got[0]} {tail}".strip(), True, None, _basis_for(got[0], g), lang, "llm")
+        hit = overlap_hit(q_en or q, g) if status == "fail" else None
         if hit:
             text, done = await _localise(_cap(hit, MAX_BODY[ch]), lang, ch, llm)
             return Reply(f"{text} {tail}".strip(), True, None, [hit], lang, "llm" if done else "rules")
@@ -455,6 +513,10 @@ async def answer(question: str, grounding: Grounding, channel: str = "facebook",
         status, text = await _llm_answer(q, g, lang, ch, llm)
         if text:
             return Reply(f"{text} {tail}".strip(), True, None, basis, lang, "llm")
+        if q_en and lang != "en":
+            got = await _reasoned(q_en, g, lang, ch, llm)
+            if got:
+                return Reply(f"{got[0]} {tail}".strip(), True, None, basis, lang, "llm")
         text, done = await _localise(" ".join(_body(pl.found, ch, MAX_FOUND[ch])), lang, ch, llm)
         return Reply(f"{text} {tail}".strip(), True, None, basis, lang, "llm" if done else "rules")
 
@@ -466,6 +528,6 @@ async def answer(question: str, grounding: Grounding, channel: str = "facebook",
     if found and lang != "en":
         text, _ = await _localise(text, lang, ch, llm)
     gap = "; ".join(q[:100] if m == "other" else (OVERRIDE[pl.over[m]]["en"] if m in pl.over else _label(m, "en")) for m in pl.missing)
-    return Reply(f"{text} {unknown}".strip(), False, gap, [s for _, s in pl.found], lang, "rules")
+    return Reply(f"{text} {unknown}".strip(), False, gap, [s for _, s in pl.found], lang, "rules", list(pl.missing))
 
 

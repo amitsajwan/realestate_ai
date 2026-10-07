@@ -64,16 +64,16 @@ POSTS: List[Dict] = [
             "\U0001F4A1 Tip: compare flats by price per sq ft of CARPET area, so you compare like with like.\n\n" + TAGS),
     },
     {
-        "slug": "agents", "kicker": "FOR PUNE AGENTS", "title": "Property agent in Pune? Join our pilot",
+        "slug": "agents", "kicker": "FOR PUNE AGENTS", "title": "Property agent in Pune? Claim your free trial",
         "points": ["Your own website in minutes", "Ready-made posts for Facebook, Instagram and WhatsApp", "Buyers tracked in one simple inbox",
-                   "Invite-only pilot, free to start"],
+                   "Free trial: your first 3 properties"],
         "caption": (
-            "\U0001F91D Property agent in Pune? Join our pilot\n\n"
+            "\U0001F91D Property agent in Pune? Claim your free trial\n\n"
             "✅ Your own website in minutes\n"
             "✅ Ready-made posts for Facebook, Instagram and WhatsApp\n"
             "✅ Buyers tracked in one simple inbox\n\n"
-            "The pilot is invite-only and free to start. Request an invite:\n"
-            f"\U0001F517 {SITE}/request-invite\n\n" + TAGS),
+            "Claim your free trial: your first 3 properties marketed free, no card:\n"
+            f"\U0001F517 {SITE}/trial\n\n" + TAGS),
     },
     {
         "slug": "kharadi-choose", "kicker": "KHARADI - UPPER KHARADI - WAGHOLI", "title": "Which one suits you? Start with your commute",
@@ -128,8 +128,8 @@ POSTS: List[Dict] = [
             "\u2705 Ready-made posts for Facebook, Instagram and WhatsApp\n"
             "\u2705 Comments like INTERESTED are answered for you\n"
             "\u2705 Every buyer summarised: budget, BHK, timing and how warm they are\n\n"
-            "Free, invite-only pilot. Request your invite:\n"
-            f"\U0001F517 {SITE}/request-invite\n\n" + TAGS + " #RealEstateAgent #PuneAgents"),
+            "Claim your free trial (your first 3 properties free):\n"
+            f"\U0001F517 {SITE}/trial\n\n" + TAGS + " #RealEstateAgent #PuneAgents"),
     },
     {
         "slug": "agents-hindi", "kicker": "पुणे के एजेंट्स के लिए", "title": "एक प्रॉपर्टी दीजिए, पूरा मार्केटिंग कैंपेन पाइए",
@@ -142,7 +142,7 @@ POSTS: List[Dict] = [
             "\u2705 कमेंट में INTERESTED लिखने वालों को जवाब हम देते हैं\n"
             "\u2705 हर खरीदार का सार: बजट, BHK, समय और कितना गंभीर\n\n"
             "पायलट मुफ़्त है और सिर्फ़ इन्विटेशन से। अपना इन्विटेशन माँगें:\n"
-            f"\U0001F517 {SITE}/request-invite\n\n" + TAGS + " #PuneAgents"),
+            f"\U0001F517 {SITE}/trial\n\n" + TAGS + " #PuneAgents"),
     },
     {
         "slug": "agents-marathi", "kicker": "पुण्यातील एजंट्ससाठी", "title": "एक प्रॉपर्टी द्या, पूर्ण मार्केटिंग कॅम्पेन मिळवा",
@@ -155,7 +155,7 @@ POSTS: List[Dict] = [
             "\u2705 कमेंटमध्ये INTERESTED लिहिणाऱ्यांना आम्ही उत्तर देतो\n"
             "\u2705 प्रत्येक खरेदीदाराचा सारांश: बजेट, BHK, वेळ आणि किती गंभीर\n\n"
             "पायलट मोफत आहे आणि फक्त आमंत्रणाने. तुमचे आमंत्रण मागवा:\n"
-            f"\U0001F517 {SITE}/request-invite\n\n" + TAGS + " #PuneAgents"),
+            f"\U0001F517 {SITE}/trial\n\n" + TAGS + " #PuneAgents"),
     },
 ]
 
