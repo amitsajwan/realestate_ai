@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 MAX_PAGES = 10          # pages rendered into pictures
 READ_PAGES = 4          # pages the vision model reads for claims (each page costs ~2k tokens)
 PAGE_W = 1080
-MAX_CLAIMS = 12
+MAX_CLAIMS = 25        # a 4-page brochure: travel times alone fill a dozen
 CLAIM_MAX_CHARS = 160
 RERA = re.compile(r"\bP\d{11}\b", re.I)
 PHONE = re.compile(r"(?:\d[\s-]?){8,}")
@@ -34,7 +34,10 @@ INVEST = re.compile(r"\b(investment|returns?|appreciation|profit|earning)\b|ग�
 READ_PROMPT = (
     "These are pages of a real-estate project brochure (India). List what the BUILDER claims about the project, one short "
     "plain sentence each, in English: location and distances, land area, plot or flat sizes, roads, water, power, amenities, "
-    "approvals, prices or offers as written. Copy numbers exactly as printed. Leave out slogans and adjectives (dream, best, "
+    "approvals, prices or offers as written. Copy numbers exactly as printed. Text may be in Marathi or Hindi: write "
+    "place names as they are known in English, for example शिक्रापूर Shikrapur, मळठण Malthan, रांजणगाव Ranjangaon, चाकण "
+    "Chakan, शिरूर Shirur, लोणी काळभोर Loni Kalbhor, राजगुरूनगर Rajgurunagar, वाघोली Wagholi, सणसवाडी Sanaswadi; a name "
+    "you cannot read, leave out rather than guess. Leave out slogans and adjectives (dream, best, "
     "safe investment, high returns). Copy any MahaRERA registration number (P followed by 11 digits) exactly, or \"\". Reply "
     'with JSON only: {"claims": ["..."], "rera_no": "..."}'
 )
