@@ -5,7 +5,8 @@ goes at the end, most specific first:
   1. the locality: one of our areas (app.core.areas, with its own tags) or any other locality the row names
      ("Gulmohar City, Ranjangaon." -> #Ranjangaon), so a plot in Ranjangaon is not tagged as only "Pune";
   2. the project, when the row is about a named one (#GulmoharCity);
-  3. the property type when it is known (#PlotsInPune, #FlatsInPune, ...);
+  3. the property type when it is known (#PlotsInPune, #FlatsInPune, ...; not on Facebook when there is a project tag),
+     then #<Locality>RealEstate (#WagholiRealEstate);
   4. the caption's own specific tags (the generator put them there on purpose: #StampDuty on a stamp-duty guide; a tag
      counts as specific when its words are in the caption), then #PuneProperty and #MahaRERA (when the row has a MahaRERA
      number or tag), then the area's second tag, the caption's other tags and fillers.
@@ -178,7 +179,11 @@ def hashtags(doc: dict) -> List[str]:
     own_topical = [t for t in own if t.lower() not in _GENERIC and t not in own_specific and not names_other_area(t)]
     own_generic = [t for t in own if t.lower() in _GENERIC and t.lower() not in _BROAD]
     rera = bool(_RERA_NO.search(caption)) or "#maharera" in {t.lower() for t in own}
-    tags = (loc_tags[:1] + [camel_tag(proj) if proj and _squash(proj) != _squash(loc) else ""] + [TYPE_TAGS.get(kind, "")]
+    proj_tag = camel_tag(proj) if proj and _squash(proj) != _squash(loc) else ""
+    # Facebook's 3 tags: locality and project say more than the type when the row names a project
+    type_tag = "" if proj_tag and doc.get("channel") == "facebook_page" else TYPE_TAGS.get(kind, "")
+    local_tag = camel_tag(f"{loc} Real Estate") if loc else ""  # #WagholiRealEstate: narrower than #PuneProperty
+    tags = (loc_tags[:1] + [proj_tag, type_tag, local_tag]
             + own_specific + ["#PuneProperty"] + ["#MahaRERA"] * rera + loc_tags[1:] + own_local + own_topical + own_generic
             + ([] if kind == "plot" else [HOMES_TAG]) + FILLER_TAGS + [t for t in own if t.lower() in _BROAD])
     out, seen = [], set()
