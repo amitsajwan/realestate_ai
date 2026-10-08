@@ -6,6 +6,7 @@ same for a project's own page.
 `router` (mounted at /api/v1/listings, bearer auth, owner only): `POST /{listing_id}/campaign` starts marketing a listing
 (step 1 facts and page, then step 2 posts; see jobs.py), `GET /{listing_id}/campaign` its latest run,
 `POST /{listing_id}/campaign/calendar` sends its posts to the approval calendar (schedule.py),
+`GET /{listing_id}/campaign/results` each post's calendar state with its clicks and interests (results.py),
 `PATCH /{listing_id}/campaign/posts/{angle}` saves an edited caption, `POST .../posts/{angle}/redo` remakes it with a note."""
 from typing import Any, Literal, Optional
 
@@ -112,6 +113,18 @@ async def send_to_calendar(listing_id: str, request: Request, user: User = Depen
     except jobs.RunError as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     return {"run": jobs.run_out(doc, str(request.base_url))}
+
+
+@router.get("/{listing_id}/campaign/results")
+async def campaign_results(listing_id: str, user: User = Depends(current_active_user),
+                           runs: jobs.MarketingRuns = Depends(get_runs), db=Depends(get_db)) -> dict:
+    """Read only: each calendar row of the latest run (when, where, waiting/approved/posted) with its clicks and interests."""
+    from .results import results
+    try:
+        doc = await runs.latest(str(user.id), listing_id)
+    except jobs.RunError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    return {"items": await results(db, doc) if doc else []}
 
 
 @router.patch("/{listing_id}/campaign/posts/{angle}")

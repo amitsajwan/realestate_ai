@@ -1,140 +1,11 @@
 /**
- * Fixture-mode builders for the Sprint 3 features (marketing pack, reverse matching, performance, recommended actions).
- * Deterministic and fact-only, like the backend contract (docs/contracts/marketing.md): nothing is invented.
+ * Fixture-mode builders for reverse matching, performance and recommended actions.
+ * Deterministic and fact-only, like the backend: nothing is invented.
  */
-import { formatInr, formatPrice } from './format'
+import { formatInr } from './format'
 import { dealsForListing } from './fixtures-outcomes'
 import { budgetRange } from './leads'
-import type {
-  DraftLanguage,
-  ImageAsset,
-  LeadDetail,
-  LeadMatch,
-  Listing,
-  MarketingPack,
-  MatchingBuyer,
-  PerformanceItem,
-  RecommendedAction,
-} from './types'
-
-const CEILINGS: Array<[number, string]> = [
-  [5_000_000, 'Rs 50 L'], [7_500_000, 'Rs 75 L'], [10_000_000, 'Rs 1 Cr'], [15_000_000, 'Rs 1.5 Cr'],
-  [20_000_000, 'Rs 2 Cr'], [30_000_000, 'Rs 3 Cr'], [50_000_000, 'Rs 5 Cr'], [100_000_000, 'Rs 10 Cr'],
-]
-
-/** Smallest round ceiling above the price: "under Rs 1 Cr". Empty for rent or very large prices. */
-export function budgetBucket(price: number): string {
-  const hit = CEILINGS.find(([limit]) => price < limit)
-  return hit ? `under ${hit[1]}` : ''
-}
-
-const TYPE_LABEL: Record<string, string> = {
-  apartment: 'apartment', villa: 'villa', house: 'house', plot: 'plot', commercial: 'commercial space', office: 'office', shop: 'shop',
-}
-
-function possessionLabel(l: Listing): string {
-  if (l.possession === 'ready') return 'Ready-to-move'
-  if (l.possession === 'under_construction') return 'Under-construction'
-  return ''
-}
-
-function unitLabel(l: Listing): string {
-  const bhk = l.bhk ? `${l.bhk} BHK ` : ''
-  return `${bhk}${TYPE_LABEL[l.property_type] ?? l.property_type}`
-}
-
-export function packAngle(l: Listing): string {
-  const bucket = l.transaction === 'sale' ? budgetBucket(l.price_inr) : ''
-  return [possessionLabel(l), unitLabel(l), `in ${l.locality}`, bucket].filter(Boolean).join(' ')
-}
-
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-
-/** Small SVG data URI standing in for the server-rendered card. */
-export function cardImage(kind: ImageAsset['kind'], lines: string[], width = 1080, height = 1080): ImageAsset {
-  const palette: Record<string, [string, string]> = {
-    cover: ['#1e3a8a', '#3b82f6'], facts: ['#14532d', '#22c55e'], amenities: ['#7c2d12', '#f97316'],
-    cta: ['#581c87', '#a855f7'], status: ['#0f172a', '#0ea5e9'],
-  }
-  const [a, b] = palette[kind]
-  const start = height / 2 - (lines.length * 90) / 2
-  const text = lines
-    .map((line, i) => `<text x="${width / 2}" y="${start + i * 90}" font-size="${i === 0 ? 72 : 52}" font-weight="${i === 0 ? 700 : 400}" text-anchor="middle" fill="#fff" font-family="sans-serif">${esc(line)}</text>`)
-    .join('')
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><rect width="${width}" height="${height}" fill="url(#g)"/>${text}</svg>`
-  return { kind, url: 'data:image/svg+xml;utf8,' + encodeURIComponent(svg), width, height }
-}
-
-function factsLines(l: Listing): string[] {
-  return [
-    formatPrice(l.price_inr, l.transaction === 'rent'),
-    unitLabel(l),
-    [l.locality, l.city].filter(Boolean).join(', '),
-    l.carpet_sqft ? `${l.carpet_sqft} sq ft carpet` : '',
-  ].filter(Boolean)
-}
-
-export function buildFixturePack(
-  l: Listing, language: DraftLanguage, version: number, shareUrl: string, agentName = 'Your agent',
-): MarketingPack {
-  // Marathi falls back to English (allowed by the contract); `language` reports what was really used.
-  const used: DraftLanguage = language === 'hi' ? 'hi' : 'en'
-  const price = formatPrice(l.price_inr, l.transaction === 'rent')
-  const unit = unitLabel(l)
-  const place = [l.locality, l.city].filter(Boolean).join(', ')
-  const area = l.carpet_sqft ? `${l.carpet_sqft} sq ft carpet` : ''
-  const angle = packAngle(l)
-  const amenities = l.amenities ?? []
-  const tags = [l.city, l.locality, l.bhk ? `${l.bhk}BHK` : '', TYPE_LABEL[l.property_type] ?? '', l.transaction === 'rent' ? 'ForRent' : 'ForSale', 'RealEstate']
-    .filter(Boolean)
-    .map((x) => x.replace(/\s+/g, ''))
-
-  const images: ImageAsset[] = [
-    cardImage('cover', [angle.slice(0, 34), place]),
-    cardImage('facts', factsLines(l)),
-  ]
-  if (amenities.length) images.push(cardImage('amenities', ['Amenities', ...amenities.slice(0, 5)]))
-  images.push(cardImage('cta', ['Book a visit', agentName, 'Message me on WhatsApp']))
-
-  const caption = used === 'hi'
-    ? `${unit} ${place} में, ${price}.${area ? ` ${area}.` : ''} साइट विज़िट के लिए आज ही WhatsApp करें.`
-    : `${unit} in ${place} for ${price}.${area ? ` ${area}.` : ''}${l.possession === 'ready' ? ' Ready possession.' : ''} Message me on WhatsApp to book a visit.`
-  const facebook = used === 'hi'
-    ? `नई प्रॉपर्टी: ${l.title}\n\n${unit} ${place} में, कीमत ${price}.${area ? ` ${area}.` : ''}\n\n${l.description.hi ?? l.description.en}\n\nविवरण: ${shareUrl}`
-    : `New property: ${l.title}\n\n${unit} in ${place}, priced at ${price}.${area ? ` ${area}.` : ''}\n\n${l.description.en}\n\nSee full details and photos: ${shareUrl}`
-  const message = used === 'hi'
-    ? `नमस्ते! ${unit}, ${place}, ${price}. विवरण: ${shareUrl}`
-    : `Hi! ${unit} in ${place}, ${price}.\nSee details and photos: ${shareUrl}\nHappy to arrange a visit.`
-
-  return {
-    listing_id: l.id,
-    language: used,
-    version,
-    generated_at: new Date().toISOString(),
-    angle,
-    headline: `${unit} in ${l.locality} for ${price}`.slice(0, 90),
-    instagram: { caption, hashtags: tags.slice(0, 12), images },
-    facebook: { post: facebook },
-    whatsapp: {
-      message,
-      status_text: `${unit} in ${l.locality} - ${price}`,
-      status_image: cardImage('status', factsLines(l), 1080, 1920),
-    },
-    reel: {
-      hook: `Looking for a ${unit} in ${l.locality}?`,
-      beats: [
-        { seconds: '0-3', text: `Looking for a ${unit} in ${l.locality}?`, visual: 'Front view of the building' },
-        { seconds: '3-7', text: `${unit}${area ? `, ${area}` : ''}`, visual: 'Walk through the living room' },
-        { seconds: '7-10', text: place, visual: 'Street or landmark nearby' },
-        { seconds: '10-13', text: `Priced at ${price}`, visual: 'Price on screen' },
-        { seconds: '13-15', text: 'Message me on WhatsApp to visit', visual: 'Your face or your number' },
-      ],
-      cta: 'Message me on WhatsApp to book a visit',
-      duration_s: 15,
-    },
-    share_url: shareUrl,
-  }
-}
+import type { LeadDetail, LeadMatch, Listing, MatchingBuyer, PerformanceItem, RecommendedAction } from './types'
 
 /** Reverse matching draft: only says "fits your budget" when the price is inside the stated budget. */
 export function buyerDraft(l: Listing, lead: LeadDetail, shareUrl: string): string {
@@ -197,7 +68,6 @@ export function performanceFor(listings: Listing[], leads: LeadDetail[]): Perfor
 export function actionsFor(
   listings: Listing[],
   leads: LeadDetail[],
-  packs: Record<string, MarketingPack>,
   buyerCount: (l: Listing) => number,
 ): RecommendedAction[] {
   const out: RecommendedAction[] = []
@@ -218,7 +88,7 @@ export function actionsFor(
     }
   }
   for (const l of live) {
-    if (!packs[l.id]) out.push({ type: 'create_marketing', title: `Create marketing for ${l.title}`, detail: 'Get ready-to-share posts and a WhatsApp message', priority: 3, listing_id: l.id })
+    out.push({ type: 'create_marketing', title: `Create marketing for ${l.title}`, detail: 'Get ready-to-share posts and a WhatsApp message', priority: 3, listing_id: l.id })
   }
   return out.sort((a, b) => a.priority - b.priority).slice(0, 6)
 }
