@@ -125,8 +125,10 @@ class OpenAIVision:
     """OpenAI-compatible chat completions with image parts (Groq, OpenRouter, Gemini's OpenAI endpoint)."""
 
     def __init__(self, api_key: str, model: str, base_url: str, timeout: float = TIMEOUT, client: Optional[httpx.AsyncClient] = None,
-                 max_images: int = MAX_IMAGES):
+                 max_images: int = MAX_IMAGES, trusted: bool = True):
+        """`trusted`: False for a small model whose readings of numbers are not relied on (the brochure reader skips them)."""
         self.api_key, self.model, self.timeout, self._client, self.max_images = api_key, model, timeout, client, max_images
+        self.trusted = trusted
         self.url = f"{base_url.rstrip('/')}/chat/completions"
 
     async def review(self, images: List[bytes], prompt: str) -> Optional[Dict[str, Any]]:
@@ -159,11 +161,12 @@ class OpenAIVision:
 
 
 # More free providers that read images, tried after the ones above when their key is set:
-# (key env, base url, model env, model, images per request).
+# (key env, base url, model env, model, images per request, trusted).
 EXTRA_VISION_PROVIDERS = (
-    ("GITHUB_MODELS_TOKEN", "https://models.github.ai/inference", "AI_GITHUB_VISION_MODEL", "openai/gpt-4.1-mini", MAX_IMAGES),
-    ("NVIDIA_API_KEY", "https://integrate.api.nvidia.com/v1", "AI_NVIDIA_VISION_MODEL", "meta/llama-3.2-11b-vision-instruct", 1),
+    ("GITHUB_MODELS_TOKEN", "https://models.github.ai/inference", "AI_GITHUB_VISION_MODEL", "openai/gpt-4.1-mini", MAX_IMAGES, True),
+    ("NVIDIA_API_KEY", "https://integrate.api.nvidia.com/v1", "AI_NVIDIA_VISION_MODEL", "meta/llama-3.2-11b-vision-instruct", 1, False),
 )
+OPENROUTER_VISION_MODEL = "google/gemma-4-31b-it:free"   # reads Marathi and Hindi brochures well
 
 
 def default_clients() -> List[VisionClient]:
@@ -175,17 +178,22 @@ def default_clients() -> List[VisionClient]:
         from app.platform.llm import groq_api_key
         key = groq_api_key()
     base = os.environ.get("AI_VISION_BASE_URL") or os.environ.get("AI_LLM_BASE_URL") or "https://api.groq.com/openai/v1"
-    if key:
+    from app.platform.llm import extra_keys
+    keys = [key] * bool(key) + [k for k in extra_keys("GROQ_API_KEYS") if k != key]
+    for k in keys:   # every Groq key has its own per-minute limit: a busy one passes to the next
         for model in [m.strip() for m in (os.environ.get("AI_VISION_MODEL") or DEFAULT_VISION_MODEL).split(",") if m.strip()]:
-            out.append(OpenAIVision(key, model, base))
+            out.append(OpenAIVision(k, model, base))
+    for k in extra_keys("OPENROUTER_API_KEYS"):
+        out.append(OpenAIVision(k, os.environ.get("AI_OPENROUTER_VISION_MODEL") or OPENROUTER_VISION_MODEL, "https://openrouter.ai/api/v1"))
     fb_model = os.environ.get("AI_VISION_FALLBACK_MODEL")
     fb_key = os.environ.get("AI_VISION_FALLBACK_API_KEY") or os.environ.get("AI_LLM_FALLBACK_API_KEY")
     fb_base = os.environ.get("AI_VISION_FALLBACK_BASE_URL") or os.environ.get("AI_LLM_FALLBACK_BASE_URL")
     if fb_model and fb_key and fb_base:
         out.append(OpenAIVision(fb_key, fb_model, fb_base))
-    for key_var, base, model_var, model, per_request in EXTRA_VISION_PROVIDERS:
+    for key_var, base, model_var, model, per_request, trusted in EXTRA_VISION_PROVIDERS:
         if os.environ.get(key_var):
-            out.append(OpenAIVision(os.environ[key_var], os.environ.get(model_var) or model, base, max_images=per_request))
+            out.append(OpenAIVision(os.environ[key_var], os.environ.get(model_var) or model, base, max_images=per_request,
+                                    trusted=trusted))
     return out
 
 

@@ -109,7 +109,7 @@ async def read_pages(pages: List[str]) -> Dict[str, Any]:
                 claims += [x for x in data.get("claims") or [] if x not in claims]
                 rera_no = rera_no or data.get("rera_no")
             if claims:
-                return {"claims": claims, "rera_no": rera_no}
+                return {"claims": claims, "rera_no": rera_no, "weak": not getattr(client, "trusted", True)}
         except Exception as e:
             resp = getattr(e, "response", None)
             log.info("project files: brochure read via %s failed (%s%s)", client.model, type(e).__name__,
@@ -176,7 +176,7 @@ async def read_brochure(pdf: Path, out_dir: Path) -> Dict[str, Any]:
         text = ""
     found = RERA.search(f"{read.get('rera_no') or ''} {text}")
     return {"pages": pages, "claims": clean_claims(read.get("claims")), "rera_no": found.group(0).upper() if found else None,
-            "rera_missing": not found, "read_by_ai": bool(read)}
+            "rera_missing": not found, "read_by_ai": bool(read), "weak": bool(read.get("weak"))}
 
 
 async def save_claims(listings, listing_id: str, *, brochure: Optional[List[str]] = None, video: Optional[List[str]] = None,

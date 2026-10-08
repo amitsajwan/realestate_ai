@@ -31,6 +31,11 @@ STT_TIMEOUT = 30.0
 STT_BUDGET = 45.0   # total budget for one transcription, all failover attempts included
 
 
+def extra_keys(var: str) -> list[str]:
+    """More keys for one provider (GROQ_API_KEYS, OPENROUTER_API_KEYS: comma-separated), each its own rate limit."""
+    return [k.strip() for k in (os.environ.get(var) or "").split(",") if k.strip()]
+
+
 def groq_api_key() -> Optional[str]:
     key = os.environ.get("AI_LLM_API_KEY") or os.environ.get("GROQ_API_KEY")
     if not key:
@@ -148,10 +153,11 @@ class GroqLLM:
         self.url = url or GROQ_CHAT_URL
         self.health = health if health is not None else HEALTH
         self.host = httpx.URL(self.url).host
+        self.health_key = f"{self.url}#{(api_key or '')[-6:]}"   # one rate limit per key: a busy key rests, the others go on
 
     def resting(self) -> bool:
         """Every model of this provider is resting (retired or rate-limited): a round-robin tries it last."""
-        return self.health.resting(self.url, list(dict.fromkeys(model_order(self.model))))
+        return self.health.resting(self.health_key, list(dict.fromkeys(model_order(self.model))))
 
     async def _chat(self, system: str, user: str) -> Optional[dict[str, Any]]:
         order = model_order(self.model)
@@ -167,7 +173,7 @@ class GroqLLM:
 
         try:
             r = await post_with_failover(order, send, per_attempt=self.timeout / 2 if len(set(order)) > 1 else self.timeout,
-                                         budget=self.timeout, health=self.health, url=self.url)
+                                         budget=self.timeout, health=self.health, url=self.health_key)
             r.raise_for_status()
             data = json.loads(r.json()["choices"][0]["message"]["content"])
             return data if isinstance(data, dict) else None
@@ -192,7 +198,7 @@ class GroqLLM:
 
         try:
             r = await post_with_failover(order, send, per_attempt=budget / 2 if len(set(order)) > 1 else budget, budget=budget,
-                                         health=self.health, url=self.url)
+                                         health=self.health, url=self.health_key)
             r.raise_for_status()
             return (r.json()["choices"][0]["message"]["content"] or "").strip() or None
         except Exception as e:
@@ -310,6 +316,7 @@ class FallbackLLM:
         return await self._first("text", system, user, timeout)
 
 
+OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 GEMINI_OPENAI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 GITHUB_MODELS_URL = "https://models.github.ai/inference/chat/completions"
 NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
@@ -325,12 +332,15 @@ def default_llm() -> Optional[LLM]:
     key = groq_api_key()
     primary = GroqLLM(key) if key else None
     providers = [primary] if primary else []
+    providers += [GroqLLM(k) for k in extra_keys("GROQ_API_KEYS") if k != key]
 
     fallback_key = os.environ.get("AI_LLM_FALLBACK_API_KEY")
     fallback_base = os.environ.get("AI_LLM_FALLBACK_BASE_URL", "").rstrip("/")
     fallback_model = os.environ.get("AI_LLM_PROVIDER_FALLBACK_MODEL", "openai/gpt-oss-120b")
     if fallback_key and fallback_base:
         providers.append(GroqLLM(fallback_key, model=fallback_model, url=f"{fallback_base}/chat/completions"))
+    providers += [GroqLLM(k, model=fallback_model, url=f"{OPENROUTER_BASE}/chat/completions")
+                  for k in extra_keys("OPENROUTER_API_KEYS") if k != fallback_key]
 
     gkey = os.environ.get("GEMINI_API_KEY")
     if (os.environ.get("AI_LLM_FALLBACK") or "on").strip().lower() != "off" and gkey:

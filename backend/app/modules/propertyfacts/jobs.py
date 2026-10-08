@@ -356,7 +356,7 @@ class MarketingRuns:
         info = await files.read_brochure(pdf, out / "brochure")
         await files.save_claims(self.listings, listing["_id"], brochure=info["claims"], rera_on_brochure=info["rera_no"],
                                 now=self.now())
-        summary = {k: info.get(k) for k in ("claims", "rera_no", "rera_missing", "error")}
+        summary = {k: info.get(k) for k in ("claims", "rera_no", "rera_missing", "error", "weak")}
         await self._set(job["_id"], files={"brochure": {**summary, "pages": len(info["pages"])}})
         return info
 
@@ -499,7 +499,9 @@ class MarketingRuns:
         """(questions, changed): reads the listing and the builder's claims (understand.py), sets what is certain on the
         listing and returns what the agent must answer. Never raises: a failure asks nothing."""
         try:
-            claims = list(brochure.get("claims") or []) + list(((listing.get("file_claims") or {}).get("video")) or [])
+            # a brochure only a small model could read: its numbers are not put to the agent as questions
+            claims = [] if brochure.get("weak") else list(brochure.get("claims") or [])
+            claims += list(((listing.get("file_claims") or {}).get("video")) or [])
             seen = await understand.read(listing, claims, llm)
             rera = sheet.facts.get("rera_no")
             units = sheet.facts.get("units_total")
