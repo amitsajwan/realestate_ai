@@ -8,7 +8,7 @@ import { formatInr, parseInr } from './format'
 import { budgetRange, buildWhatsappUrl } from './leads'
 import { activityFor } from './fixtures-activity'
 import { computeFreshness } from './freshness'
-import { actionsFor, matchingFor, performanceFor } from './fixtures-marketing'
+import { actionsFor, performanceFor } from './fixtures-marketing'
 import { nextOutcome, resultsFor } from './fixtures-outcomes'
 import { outcomePatchError } from './outcomes'
 import type {
@@ -394,10 +394,6 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
   const view = (l: Listing): Listing => ({ ...l, ...computeFreshness(l) })
   const stamp = <T extends Listing>(l: T): T => ({ ...l, updated_at: new Date().toISOString() })
   const shareUrlFor = (id: string) => `https://example.test/agent/${load().site?.slug ?? 'demo'}/listings/${id}?src=whatsapp`
-  const matchesFor = (l: Listing) => {
-    const st = load()
-    return matchingFor(l, st.leads.map((x) => enrich(x, st.listings)), scoreMatch, shareUrlFor(l.id), buildWhatsappUrl)
-  }
 
   return {
     async requestOtp() { return { sent: true, dev_code: FIXTURE_OTP } },
@@ -556,7 +552,7 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
         counts,
         headline,
         results: resultsFor(st.leads),
-        actions: actionsFor(st.listings, leads, (l) => matchesFor(l).length),
+        actions: actionsFor(st.listings, leads),
         hot_buyers: open
           .filter((l) => l.temperature === 'hot')
           .sort((a, b) => b.score - a.score)

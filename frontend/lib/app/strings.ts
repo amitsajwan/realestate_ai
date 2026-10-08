@@ -185,7 +185,6 @@ const en = {
   approveInCalendar: 'Approve them in Content',
   runFailed: 'Something went wrong.',
   aiRecommends: 'AI recommends',
-  actSendProperty: 'Send property',
   actCreateMarketing: 'Create marketing',
   marketing: 'Marketing',
   buyersWhoMatch: 'Buyers who match',

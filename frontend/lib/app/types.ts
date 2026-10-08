@@ -358,7 +358,7 @@ export interface TodayResults {
   lost_reasons: Partial<Record<LostReason, number>>
 }
 
-export type RecommendedActionType = 'call' | 'follow_up' | 'send_property' | 'create_marketing' | 'confirm_listing'
+export type RecommendedActionType = 'call' | 'follow_up' | 'create_marketing' | 'confirm_listing'
 
 export interface RecommendedAction {
   type: RecommendedActionType
@@ -367,7 +367,6 @@ export interface RecommendedAction {
   priority: 1 | 2 | 3
   lead_id?: string
   listing_id?: string
-  buyer_count?: number
 }
 
 export interface LeadEvent {
@@ -405,18 +404,6 @@ export interface UploadedFile {
   quality?: PhotoQuality | null
   enhanced_url?: string | null
   use_enhanced?: boolean | null
-}
-
-export interface MatchingBuyer {
-  lead_id: string
-  name: string
-  phone: string
-  temperature: Temperature
-  score: number
-  requirement_line: string | null
-  match_pct: number
-  reasons: string[]
-  draft: { message: string; whatsapp_url: string }
 }
 
 export interface PerformanceItem {

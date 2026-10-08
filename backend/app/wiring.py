@@ -16,12 +16,9 @@ def wire() -> None:
     from app.modules.newsroom import quality as news_quality
     from app.modules.photoquality import router as quality_routes
     from app.modules.showcase import samples
-    from app.modules.social import router as social_routes
     from app.modules.social import service as social_service
     from app.modules.waitlist import router as waitlist_routes
 
-    # social posts carry the "Listed by" lines and register the Instagram post as a hub item
-    social_routes.configure(attribution=attribution_text, on_instagram_published=register_hub_item)
     social_service.configure(link_line=link_line)  # the pack's link line, in marketing's words
     # the quality route: the operator may review any agent's listing cards; calendar and news items are found by their owners
     quality_routes.configure(is_operator=is_operator,

@@ -7,7 +7,6 @@ export function actionHref(a: RecommendedAction): string {
     case 'call':
     case 'follow_up':
       return a.lead_id ? `/studio/leads/${a.lead_id}` : '/studio/leads'
-    case 'send_property':
     case 'create_marketing':
       return a.listing_id ? `/studio/listings/${a.listing_id}/marketing` : '/studio/listings'
     case 'confirm_listing':

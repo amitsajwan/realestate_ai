@@ -143,8 +143,6 @@ t = c.get(f"{B}/inbox/today", headers=H).json()
 types = [a["type"] for a in t["actions"]]
 check("actions include call, and create_marketing for the Wakad flat", "call" in types and any(a["type"] == "create_marketing" and a["listing_id"] == wakad for a in t["actions"]), types)
 check("no create_marketing for the Baner flat that has a pack", not any(a["type"] == "create_marketing" and a["listing_id"] == baner for a in t["actions"]))
-check("send_property names exactly the 1 matching buyer for the Baner flat", any(a["type"] == "send_property" and a["listing_id"] == baner and a.get("buyer_count") == 1 for a in t["actions"]), t["actions"])
-check("no send_property for the Wakad flat (all three already enquired on it)", not any(a["type"] == "send_property" and a["listing_id"] == wakad for a in t["actions"]), t["actions"])
 check("existing /today fields intact", {"counts", "hot_buyers", "follow_ups", "headline"} <= set(t))
 
 # ---- isolation
