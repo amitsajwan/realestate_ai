@@ -22,6 +22,10 @@ import { useAsync } from '@/lib/app/useAsync'
 import type { Listing, ListingInput, ListingStatus } from '@/lib/app/types'
 import { FIELD_LABELS, missingFields } from '@/lib/app/validate'
 
+/** A marketing run still working on this listing (its worker steps; "asking" waits for the agent's answers). */
+const ACTIVE_RUN: readonly string[] = ['queued', 'facts', 'asking', 'posts']
+
+
 /** Sold, rented and paused take the listing away from buyers: each asks first. */
 const ASK: Partial<Record<ListingStatus, (title: string) => { title: string; body: string }>> = {
   sold: (title) => ({ title: `Mark ${title || 'this listing'} sold?`, body: 'Buyers stop seeing it and no more posts go out for it. You can make it live again later.' }),
@@ -61,14 +65,22 @@ export default function ListingDetailPage() {
   const [confirming, setConfirming] = useState(false)
   const [newPhotos, setNewPhotos] = useState<File[]>([])
   const [asking, setAsking] = useState<{ status: ListingStatus; label: string } | null>(null)
-  // How many posts the marketing run made, for the Marketing button (a nice-to-have: no count when it cannot be loaded).
+  // The marketing run: its post count for the Marketing button, and whether it is still working — while it is, status
+  // changes and file removals wait, so the posts are never made for a listing that was just sold, paused or emptied.
   const campaign = useAsync(async () => {
     try {
-      return (await api.getMarketingRun(id))?.posts?.length ?? 0
+      return await api.getMarketingRun(id)
     } catch {
-      return 0
+      return null
     }
   }, [id])
+  const marketingActive = !!campaign.data && ACTIVE_RUN.includes(campaign.data.status)
+  const postCount = campaign.data?.posts?.length ?? 0
+  useEffect(() => {
+    if (!marketingActive) return
+    const timer = setTimeout(() => void campaign.reload(), 3000)
+    return () => clearTimeout(timer)
+  }, [marketingActive, campaign.data, campaign.reload])
 
   useEffect(() => {
     if (data) {
@@ -153,13 +165,18 @@ export default function ListingDetailPage() {
           <a href={`/studio/listings/${listing.id}/marketing`} data-testid="marketing-button"
             className="min-h-[56px] w-full items-center justify-center gap-2 rounded-xl bg-[#0f2340] px-5 text-base font-semibold text-white active:opacity-90 [display:flex]">
             {t('marketing')}
-            {campaign.data ? <span className="rounded-full bg-[#f0b440] px-2 text-sm font-bold text-[#0f2340]">{campaign.data} {campaign.data === 1 ? 'post' : 'posts'}</span> : null}
+            {postCount > 0 && <span className="rounded-full bg-[#f0b440] px-2 text-sm font-bold text-[#0f2340]">{postCount} {postCount === 1 ? 'post' : 'posts'}</span>}
           </a>
           <LinkBtn variant="secondary" href={`/studio/listings/${listing.id}/marketing#buyers`}>{t('buyersWhoMatch')}</LinkBtn>
         </div>
       )}
 
       <div className="space-y-2">
+        {marketingActive && (
+          <p role="status" className="rounded-xl bg-blue-50 p-3 text-center text-sm font-semibold text-blue-900">
+            Marketing is in progress — marking it sold, rented or paused waits until the posts are ready.
+          </p>
+        )}
         {actionsFor(listing).map((a) =>
           a.status === 'publish' ? (
             confirming ? (
@@ -172,7 +189,7 @@ export default function ListingDetailPage() {
               <Btn key="p" disabled={busy} onClick={() => setConfirming(true)}>{a.label}</Btn>
             )
           ) : (
-            <Btn key={a.label} variant={a.variant ?? 'primary'} disabled={busy} onClick={() => {
+            <Btn key={a.label} variant={a.variant ?? 'primary'} disabled={busy || marketingActive} onClick={() => {
               const status = a.status as ListingStatus
               if (ASK[status]) setAsking({ status, label: a.label })
               else run(() => api.setListingStatus(listing.id, status), a.label)
@@ -214,7 +231,7 @@ export default function ListingDetailPage() {
         {videos.map((v) => (
           <div key={v.url} className="space-y-2">
             <video src={v.url} controls preload="metadata" playsInline className="max-h-80 rounded-lg bg-black" />
-            <Btn disabled={busy} onClick={() => removeFile(v.url, 'Video')}>Remove video</Btn>
+            <Btn disabled={busy || marketingActive} onClick={() => removeFile(v.url, 'Video')}>Remove video</Btn>
           </div>
         ))}
         {videos.length === 0 && (
@@ -229,7 +246,7 @@ export default function ListingDetailPage() {
         {brochures.map((b) => (
           <div key={b.url} className="flex items-center justify-between gap-2">
             <a href={b.url} target="_blank" rel="noopener noreferrer" className="flex min-h-[44px] items-center font-semibold text-blue-700 underline">Open brochure (PDF)</a>
-            <Btn block={false} variant="secondary" disabled={busy} onClick={() => removeFile(b.url, 'Brochure')}>Remove</Btn>
+            <Btn block={false} variant="secondary" disabled={busy || marketingActive} onClick={() => removeFile(b.url, 'Brochure')}>Remove</Btn>
           </div>
         ))}
         {brochures.length === 0 && (

@@ -2,8 +2,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { api, errorMessage } from '@/lib/app/client'
 import { t } from '@/lib/app/strings'
-import type { DraftLanguage, MarketingRun, RunQuestion } from '@/lib/app/types'
+import type { DraftLanguage, Listing, MarketingRun, RunQuestion } from '@/lib/app/types'
 import { CampaignPostEditor } from './CampaignPostEditor'
+import { FilesUpload } from './FilesUpload'
 import { Btn, ErrorBox } from './ui'
 
 const POLL_MS = 3000
@@ -98,10 +99,17 @@ function ProjectFilesRead({ run }: { run: MarketingRun }) {
   )
 }
 
-/** What the run could not work out by itself: one quick choice per question; the last answer lets it make the posts. */
-function RunQuestions({ questions, onAnswer }: { questions: RunQuestion[]; onAnswer: (key: string, value: unknown) => Promise<void> }) {
+/** What the run could not work out by itself: one quick choice per question; the last answer lets it make the posts.
+ *  The "add them now" question carries its uploaders, so files are added without leaving the run. */
+function RunQuestions({ questions, onAnswer, listing, onListingUpdated }: {
+  questions: RunQuestion[]
+  onAnswer: (key: string, value: unknown) => Promise<void>
+  listing?: Listing | null
+  onListingUpdated?: (l: Listing) => void
+}) {
   const [typed, setTyped] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState<string | null>(null)
+  const [filesBusy, setFilesBusy] = useState(false)
   const send = async (key: string, value: unknown) => {
     setBusy(key)
     try {
@@ -116,8 +124,11 @@ function RunQuestions({ questions, onAnswer }: { questions: RunQuestion[]; onAns
         A few quick questions before the posts are made. Only what you confirm goes into the posts.
       </p>
       {questions.map((q) => (
-        <fieldset key={q.key} disabled={busy !== null} className="space-y-2">
+        <fieldset key={q.key} disabled={busy !== null || filesBusy} className="space-y-2">
           <legend className="text-sm font-medium text-gray-900">{q.text}</legend>
+          {q.key === 'files' && listing && onListingUpdated && (
+            <FilesUpload listing={listing} onUpdated={onListingUpdated} onBusyChange={setFilesBusy} />
+          )}
           <div className="flex flex-wrap gap-2">
             {q.options.map((o) => (
               <button key={o.label} type="button" onClick={() => void send(q.key, o.value)}
@@ -140,7 +151,11 @@ function RunQuestions({ questions, onAnswer }: { questions: RunQuestion[]; onAns
   )
 }
 
-export function MarketingRunCard({ listingId }: { listingId: string }) {
+export function MarketingRunCard({ listingId, listing, onListingUpdated }: {
+  listingId: string
+  listing?: Listing | null
+  onListingUpdated?: (l: Listing) => void
+}) {
   const [run, setRun] = useState<MarketingRun | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -235,7 +250,7 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
         <ol className="list-none space-y-4 p-0">
           <Step n={1} title={t('stepFacts')} state={s1}>
             {run.status === 'asking' && (run.questions?.length ?? 0) > 0 && (
-              <RunQuestions questions={run.questions!} onAnswer={answer} />
+              <RunQuestions questions={run.questions!} onAnswer={answer} listing={listing} onListingUpdated={onListingUpdated} />
             )}
             {f && (
               <div className="mt-1 space-y-1 text-sm text-gray-700">

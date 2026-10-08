@@ -166,7 +166,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
             <LinkBtn variant="secondary" href={`/studio/listings/${posted.id}`}>Add photos</LinkBtn>
           </div>
         )}
-        <MarketingScreen listingId={posted.id} autoCreate />
+        <MarketingScreen listingId={posted.id} autoCreate listing={posted} onListingUpdated={setPosted} />
         <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4">
           <p className="break-all text-sm text-blue-700">{link}</p>
           <ShareBar url={link} message={`New property: ${posted.title}.`} />

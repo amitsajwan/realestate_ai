@@ -10,7 +10,7 @@ import { useAsync } from '@/lib/app/useAsync'
 
 export default function ListingMarketingPage() {
   const { id } = useParams<{ id: string }>()
-  const { data, error, loading, reload } = useAsync(() => api.getListing(id), [id])
+  const { data, error, loading, reload, setData } = useAsync(() => api.getListing(id), [id])
   if (loading && !data) return <Spinner />
   if (error || !data) return <ErrorBox message={error ?? t('notFound')} onRetry={reload} />
   const live = data.status === 'live' || data.status === 'under_offer'
@@ -23,7 +23,7 @@ export default function ListingMarketingPage() {
           <p className="truncate text-sm text-gray-600">{data.title}</p>
         </div>
       </div>
-      {live ? <MarketingScreen listingId={id} /> : <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Post this property first, then you can create its marketing.</p>}
+      {live ? <MarketingScreen listingId={id} listing={data} onListingUpdated={setData} /> : <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Post this property first, then you can create its marketing.</p>}
     </div>
   )
 }

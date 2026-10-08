@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError } from '@/lib/app/api'
 import { api, errorMessage } from '@/lib/app/client'
 import { t } from '@/lib/app/strings'
-import type { DraftLanguage, MarketingPack } from '@/lib/app/types'
+import type { DraftLanguage, Listing, MarketingPack } from '@/lib/app/types'
 import { MarketingPackView } from './MarketingPackView'
 import { MarketingRunCard } from './MarketingRunCard'
 import { MatchingBuyersCard } from './MatchingBuyersCard'
@@ -34,8 +34,14 @@ function PackSkeleton() {
 /**
  * Marketing pack + "buyers who match" for one live listing. Never blocks: a failure only shows a friendly retry.
  * autoCreate = generate straight away (right after posting); otherwise open the saved pack and create one if none exists.
+ * `listing` (with `onListingUpdated`) lets the run's "add them now" question upload photos and files in place.
  */
-export function MarketingScreen({ listingId, autoCreate = false }: { listingId: string; autoCreate?: boolean }) {
+export function MarketingScreen({ listingId, autoCreate = false, listing, onListingUpdated }: {
+  listingId: string
+  autoCreate?: boolean
+  listing?: Listing | null
+  onListingUpdated?: (l: Listing) => void
+}) {
   const [pack, setPack] = useState<MarketingPack | null>(null)
   const [busy, setBusy] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -96,7 +102,7 @@ export function MarketingScreen({ listingId, autoCreate = false }: { listingId: 
 
   return (
     <div className="space-y-4">
-      <MarketingRunCard listingId={listingId} />
+      <MarketingRunCard listingId={listingId} listing={listing} onListingUpdated={onListingUpdated} />
       <div className="flex items-center gap-2" role="group" aria-label={t('packLanguage')}>
         <span className="text-sm text-gray-600">{t('packLanguage')}</span>
         {LANGS.map((l) => (
