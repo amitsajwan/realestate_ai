@@ -407,37 +407,6 @@ export interface UploadedFile {
   use_enhanced?: boolean | null
 }
 
-export type ImageKind = 'cover' | 'facts' | 'amenities' | 'cta' | 'status'
-
-export interface ImageAsset {
-  kind: ImageKind
-  url: string
-  width: number
-  height: number
-}
-
-export interface ReelBeat {
-  seconds: string
-  text: string
-  visual: string
-}
-
-/** docs/contracts/marketing.md section 1. */
-export interface MarketingPack {
-  listing_id: string
-  language: DraftLanguage
-  version: number
-  generated_at: string
-  angle: string
-  headline: string
-  instagram: { caption: string; hashtags: string[]; images: ImageAsset[] }
-  facebook: { post: string }
-  whatsapp: { message: string; status_text: string; status_image: ImageAsset | null }
-  group?: { post: string } | null
-  reel: { hook: string; beats: ReelBeat[]; cta: string; duration_s: number }
-  share_url: string
-}
-
 export interface MatchingBuyer {
   lead_id: string
   name: string
@@ -448,12 +417,6 @@ export interface MatchingBuyer {
   match_pct: number
   reasons: string[]
   draft: { message: string; whatsapp_url: string }
-}
-
-/** GET /inbox/matching-leads?listing_id= (contract section 2). */
-export interface MatchingLeads {
-  listing: { id: string; title: string; price_inr: number; locality: string; share_url: string }
-  buyers: MatchingBuyer[]
 }
 
 export interface PerformanceItem {
@@ -471,43 +434,6 @@ export interface PerformanceItem {
   deals?: number
   deal_value_inr?: number
   deals_by_source?: Record<string, number>
-}
-
-export type SocialChannel = 'facebook_page' | 'instagram'
-export type PublicationStatus = 'queued' | 'published' | 'failed' | 'dry_run'
-
-/** docs/contracts/social.md: one attempt to post a listing's marketing pack to one brand channel. */
-export interface Publication {
-  id: string
-  listing_id: string
-  agent_id: string
-  channel: SocialChannel
-  pack_version: number
-  status: PublicationStatus
-  external_id: string | null
-  permalink: string | null
-  error: string | null
-  consent: { given_at: string; text: string }
-  approved_at: string
-  created_at: string
-  updated_at: string
-  attempts: number
-  payload: { text: string; image_urls: string[] }
-}
-
-/** GET /social/status (no secrets). */
-export interface SocialStatus {
-  dry_run: boolean
-  channels: Record<SocialChannel, boolean>
-  brand: string
-  media_url_ok: boolean
-}
-
-export interface SocialPublishRequest {
-  channels: SocialChannel[]
-  approve: boolean
-  consent: boolean
-  force?: boolean
 }
 
 export type ActivityEventType = 'view' | 'whatsapp_click' | 'call_click' | 'share' | 'enquiry'
@@ -578,10 +504,6 @@ export interface AppApi {
   updateLead(id: string, stageOrPatch: Stage | LeadPatch, note?: string): Promise<LeadDetail>
   getToday(): Promise<BusinessToday>
   createFollowupDraft(id: string, language?: DraftLanguage): Promise<FollowupDraft>
-  /** Generate or regenerate the marketing pack (version += 1). 409 when the listing is not live. */
-  createMarketingPack(listingId: string, language?: DraftLanguage): Promise<MarketingPack>
-  /** The existing pack, or a 404 ApiError when none was generated yet. */
-  getMarketingPack(listingId: string): Promise<MarketingPack>
   /** Start marketing: step 1 gathers the property facts (shown on the listing page), step 2 makes the posts. 409 unless live. */
   startMarketingRun(listingId: string, again?: boolean, language?: DraftLanguage): Promise<MarketingRun>
   /** The latest run, or null when marketing was never started for this listing. */
@@ -594,20 +516,13 @@ export interface AppApi {
   editRunPost(listingId: string, angle: string, caption: string): Promise<{ run: MarketingRun; problems: string[] }>
   /** Make one post again with a note ("mention MIDC"), from the kept facts and under every check. 422 when no version passes. */
   redoRunPost(listingId: string, angle: string, note: string): Promise<MarketingRun>
-  getMatchingLeads(listingId: string): Promise<MatchingLeads>
+  /** Each calendar row of the latest run: when, where, waiting/approved/posted, with its clicks and interests. */
+  getCampaignResults(listingId: string): Promise<CampaignResult[]>
   getPerformance(): Promise<PerformanceItem[]>
   /** Per-listing activity (views, sources, people, feed). 404 for a listing that is not yours. */
   getListingActivity(id: string, limit?: number): Promise<ListingActivity>
   /** "Yes, still available": stamps the listing as confirmed. 409 unless it is live or under offer. */
   confirmAvailable(id: string): Promise<Listing>
-  /** Social publishing to the Avasetu brand accounts (docs/contracts/social.md). */
-  getSocialStatus(): Promise<SocialStatus>
-  /** Posts only on this call; needs approve and consent both true. 409: no pack yet, listing not live, or already posted (without force). */
-  publishToSocial(listingId: string, req: SocialPublishRequest): Promise<Publication[]>
-  /** Newest first. */
-  listPublications(listingId: string): Promise<Publication[]>
-  /** Only for a failed publication. */
-  retryPublication(id: string): Promise<Publication>
 }
 
 /** One "Start marketing" run (POST/GET /listings/{id}/campaign): facts first, then posts (drafts; posting needs approval). */
@@ -642,4 +557,17 @@ export interface MarketingRun {
   files?: { brochure?: { claims?: string[]; rera_no?: string | null; rera_missing?: boolean; error?: string | null; pages?: number } }
   /** Rows planned in the approval calendar, once sent. */
   calendar?: { angle: string; channel: string; row_id: string; due_at: string }[]
+}
+
+/** GET /listings/{id}/campaign/results: one calendar row of the latest run with the leads its interest link brought. */
+export interface CampaignResult {
+  angle: string
+  kind: 'post' | 'reel' | string
+  channel: 'instagram' | 'facebook_page' | string
+  state: 'waiting' | 'approved' | 'posted' | 'failed' | 'skipped' | 'removed'
+  due_at: string | null
+  posted_at: string | null
+  permalink: string | null
+  clicks: number
+  interests: number
 }
