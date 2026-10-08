@@ -94,26 +94,34 @@ async def read_pages(pages: List[str]) -> Dict[str, Any]:
         buf = io.BytesIO()
         im.save(buf, "JPEG", quality=80)
         images.append({"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()}})
-    for client in default_clients():
-        per = max(1, getattr(client, "max_images", READ_PAGES))  # a one-image provider reads the pages one at a time
-        claims: List[str] = []
-        rera_no = None
-        try:
-            for i in range(0, len(images), per):
-                body = {"model": client.model, "temperature": 0, "max_completion_tokens": 1200,
-                        "messages": [{"role": "user", "content": [{"type": "text", "text": READ_PROMPT}, *images[i:i + per]]}]}
+    # One page per request: a page is ~2k tokens and a free key allows ~7k a minute, so several pages in one request fail
+    # even on a fresh key. Each page goes to the readers in order until one answers; a busy key passes to the next.
+    clients = default_clients()
+    claims: List[str] = []
+    rera_no = None
+    weak = False
+    for page in images:
+        for client in clients:
+            body = {"model": client.model, "temperature": 0, "max_completion_tokens": 1200,
+                    "messages": [{"role": "user", "content": [{"type": "text", "text": READ_PROMPT}, page]}]}
+            try:
                 async with httpx.AsyncClient(timeout=60.0) as c:
                     r = await c.post(client.url, json=body, headers={"Authorization": f"Bearer {client.api_key}"})
                 r.raise_for_status()
                 data = parse_reply(r.json()["choices"][0]["message"]["content"] or "") or {}
-                claims += [x for x in data.get("claims") or [] if x not in claims]
+            except Exception as e:
+                resp = getattr(e, "response", None)
+                log.info("project files: brochure read via %s failed (%s%s)", client.model, type(e).__name__,
+                         f" HTTP {resp.status_code}: {resp.text[:200]}" if resp is not None else "")
+                continue
+            trusted = getattr(client, "trusted", True)
+            claims += [x for x in data.get("claims") or [] if x not in claims]
+            if trusted:  # a small model makes up registration numbers: only a trusted reader's is kept
                 rera_no = rera_no or data.get("rera_no")
-            if claims:
-                return {"claims": claims, "rera_no": rera_no, "weak": not getattr(client, "trusted", True)}
-        except Exception as e:
-            resp = getattr(e, "response", None)
-            log.info("project files: brochure read via %s failed (%s%s)", client.model, type(e).__name__,
-                     f" HTTP {resp.status_code}: {resp.text[:200]}" if resp is not None else "")
+            weak = weak or not trusted
+            break
+    if claims:
+        return {"claims": claims, "rera_no": rera_no, "weak": weak}
     return {}
 
 
