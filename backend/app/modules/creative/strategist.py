@@ -107,6 +107,8 @@ def build_user(brief: Brief, audience: str, channel: str, fmts: List[str], patte
              *[f"- {f}" for f in brief.facts],
              f"Allowed formats: {', '.join(fmts)}",
              f"Suggested hook pattern: {pat.id} ({pat.idea}). Examples of the pattern: " + " | ".join(examples)]
+    if brief.writer_note:  # who reads it, what was posted before (a listing campaign)
+        lines.append(brief.writer_note)
     if feedback:
         lines.append(f"A reviewer rejected the last attempt: {feedback}. Fix that.")
     return "\n".join(lines)

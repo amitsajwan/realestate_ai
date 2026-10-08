@@ -471,8 +471,9 @@ class MarketingRuns:
             step = "posts"
             dropped: Dict[str, Any] = {}
             photos = await self._photo_pool(listing, out) + brochure.get("pages", [])
+            previous = await self._live_posts(job, listing)
             packs = await campaign.make(sheet.facts, out, llm=llm, photo=self._photo(listing), link=page, dropped=dropped,
-                                        photos=photos, **self._who(job, await self._identity(job)))
+                                        photos=photos, previous=previous, **self._who(job, await self._identity(job)))
             posts: List[dict] = []
             for aid, p in packs:
                 imgs = ["/uploads/" + Path(i).resolve().relative_to(self.uploads_dir.resolve()).as_posix() for i in p.images]
@@ -494,6 +495,31 @@ class MarketingRuns:
             if step == "reels":  # the posts are made: the run is usable without reels
                 return await self._set(jid, status="done", reels=[], error=msg, finished_at=self.now())
             await self._set(jid, status="failed", error=msg, finished_at=self.now())
+
+    async def _live_posts(self, job: dict, listing: dict) -> List[str]:
+        """Opening lines of this property's posts that are already published, newest first: those of this listing's earlier
+        runs, and any live post that names the project (a listing made again for the same project). [] on any failure."""
+        try:
+            ids: List[str] = []
+            async for r in self.runs.find({"listing_id": listing["_id"], "_id": {"$ne": job["_id"]}}, {"calendar": 1}):
+                ids += [c["row_id"] for c in r.get("calendar") or [] if c.get("row_id")]
+            flt: List[dict] = [{"_id": {"$in": ids}}] if ids else []
+            name = (listing.get("project_name") or "").strip()
+            if len(name) >= 4:
+                flt.append({"caption": {"$regex": re.escape(name), "$options": "i"}})
+            if not flt:
+                return []
+            rows = await self.db.get_collection("content_calendar").find(
+                {"status": "published", "$or": flt}, {"caption": 1, "channel": 1}).sort("published_at", -1).to_list(40)
+            out: List[str] = []
+            for row in rows:
+                first = next((ln.strip() for ln in (row.get("caption") or "").splitlines() if ln.strip()), "")
+                if first and first not in out:
+                    out.append(first[:160])
+            return out[:12]
+        except Exception:
+            log.warning("marketing: could not read the live posts of listing %s", listing.get("_id"), exc_info=True)
+            return []
 
     async def _understand(self, listing: dict, sheet, brochure: Dict[str, Any], llm) -> tuple:
         """(questions, changed): reads the listing and the builder's claims (understand.py), sets what is certain on the

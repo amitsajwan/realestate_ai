@@ -87,12 +87,55 @@ def link_line_for(where: str, language: str = "en", registered: bool = True) -> 
     return lines.get(language, lines["en"]).format(where=where)
 
 
+# Towns along one road whose buyers look at each other's property (a Ranjangaon MIDC worker looks at Shirur and Shikrapur).
+CORRIDORS: Dict[str, Tuple[str, ...]] = {
+    "the Pune-Ahmednagar road": ("Kharadi", "Wagholi", "Lonikand", "Koregaon Bhima", "Sanaswadi", "Shikrapur", "Malthan",
+                                 "Karegaon", "Ranjangaon", "Shirur"),
+}
+
+
+def corridor(*places: str) -> Tuple[str, Tuple[str, ...]]:
+    """(road, its towns) for the first place that lies on a known corridor; ("", ()) otherwise."""
+    for road, towns in CORRIDORS.items():
+        low = {t.lower() for t in towns}
+        if any((p or "").strip().lower() in low for p in places):
+            return road, towns
+    return "", ()
+
+
+def reader_note(v: Dict[str, Any], plot: bool, layout: bool) -> str:
+    """Who sees this post and how they may be spoken to: guidance for the writing models, never a fixed line."""
+    loc = v.get("locality") or ""
+    road, towns = corridor(loc, v.get("taluka") or "")
+    work = [p["name"] for p in (v.get("nearby.industry") or [])[:2] if isinstance(p, dict) and p.get("name")]
+    who = [f"people who live or work in and around {loc}" if loc else "Pune property buyers"]
+    if towns:
+        who.append(f"families and workers along {road} ({', '.join(towns)})")
+    if work:
+        who.append(f"people who work at {' or '.join(work)}")
+    kind = ("plot buyers (a home to build later, or land near their work)" if plot else "home buyers") + (
+        "; this is a whole project, so the price is where it starts" if layout else "")
+    return ("Who sees this post: " + "; ".join(who) + f"; mostly {kind}. Write for them, in their terms. When it fits this "
+            "post (not every post, vary it), you may speak to them directly: a question about where they live or work, a "
+            "nearby town or workplace that a fact above names, or a closing question they answer by naming their town. "
+            "Never invent a distance, a time or a place that the facts do not give.")
+
+
+def previous_note(previous: Sequence[str]) -> str:
+    if not previous:
+        return ""
+    return ("Already posted for this property (do not repeat these openings; take a new angle or a new detail of the same "
+            "fact):\n" + "\n".join(f"- {p}" for p in previous[:12]))
+
+
 class Ctx:
     """Usable fact values, with the names every angle needs."""
 
     def __init__(self, facts: Dict[str, Fact], photo: str = "none", link: str = "", voice: Optional[Voice] = None,
-                 card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (), language: str = "en"):
+                 card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (), language: str = "en",
+                 previous: Sequence[str] = ()):
         self.v: Dict[str, Any] = {k: f.value for k, f in facts.items() if f.usable}
+        self.previous = list(previous)   # opening lines of this property's posts that are already live
         self.photo, self.link = photo, link
         self.project = self.v.get("project_name") or ""
         self.locality = self.v.get("locality") or ""
@@ -110,6 +153,7 @@ class Ctx:
         self.layout = self.v.get("listing_scope") == "layout"   # a whole project: the price is a starting price
         self.registered = bool(self.v.get("rera_no"))
         self.sqft = self.v.get("size_min_sqft") or self.v.get("plot_sqft") or self.v.get("carpet_sqft")
+        self.readers = reader_note(self.v, self.plot, self.layout)
 
     def tags(self) -> List[str]:
         words = [w.capitalize() for w in self.locality.split()]
@@ -127,8 +171,9 @@ class Ctx:
         kw.setdefault("intro", f"{where}." if self.where else "")
         kw.setdefault("link_line", link_line_for(where, self.language, self.registered))
         what = f"a project of many {self.kind}s, {where}, whose price is a starting price" if self.layout else f"one property: {where}"
-        kw.setdefault("writer_note", f"This post markets {what}. Its listed price, project name, MahaRERA "
-                                     "details and nearby places are facts you may use exactly as written; add no other number.")
+        kw.setdefault("writer_note", "\n".join(n for n in (
+            f"This post markets {what}. Its listed price, project name, MahaRERA details and nearby places are facts you "
+            "may use exactly as written; add no other number.", self.readers, previous_note(self.previous)) if n))
         kw.setdefault("hashtags", self.tags())
         kw.setdefault("photo", self.photo)
         kw.setdefault("link", self.link)
@@ -319,9 +364,10 @@ ANGLES: Tuple[AngleDef, ...] = tuple(AngleDef(f.__name__, f) for f in (
 
 def plan(facts: Dict[str, Fact], photo: str = "none", link: str = "", angles: Sequence[AngleDef] = ANGLES,
          voice: Optional[Voice] = None, card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (),
-         language: str = "en") -> List[Tuple[str, Brief]]:
-    """`voice`, `card_brand`, `contact`, `language`: whose posts these are (default ours) and in which language."""
-    c = Ctx(facts, photo, link, voice, card_brand, contact, language)
+         language: str = "en", previous: Sequence[str] = ()) -> List[Tuple[str, Brief]]:
+    """`voice`, `card_brand`, `contact`, `language`: whose posts these are (default ours) and in which language;
+    `previous`: opening lines of this property's posts already live (the writers are told not to repeat them)."""
+    c = Ctx(facts, photo, link, voice, card_brand, contact, language, previous)
     out = []
     for a in angles:
         b = a.build(c)
@@ -333,7 +379,8 @@ def plan(facts: Dict[str, Fact], photo: str = "none", link: str = "", angles: Se
 SHARPEN_SYSTEM = (
     "You are the headline writer of an Indian real-estate agent's Instagram. You rewrite one card headline so a home buyer "
     "stops scrolling: concrete, human, about the buyer's life (their commute, their family, their papers, their money), a "
-    "question or a surprising contrast is welcome. Hard rules: keep every number exactly as written (same digits, same "
+    "question or a surprising contrast is welcome. You are told who sees the post: speak to them when it fits (where they "
+    "live or work), but not in the same way every time, and never like the headlines already posted. Hard rules: keep every number exactly as written (same digits, same "
     "units, same rupee amounts) and add no other number; add no fact that is not in the headline or the facts; no hype "
     "(best, perfect, dream, luxury, premium, guaranteed, safe investment, returns), no 'only/just', no emojis, at most 10 "
     'words. Reply with JSON only: {"headline": "..."}'
@@ -354,7 +401,7 @@ async def sharpen(brief: Brief, llm: Any) -> Brief:
         return brief
     facts = "; ".join(str(f) for f in (brief.facts or []))[:1500]
     try:
-        reply = await llm.json(SHARPEN_SYSTEM, f"Headline: {old}\nFacts: {facts}") or {}
+        reply = await llm.json(SHARPEN_SYSTEM, f"Headline: {old}\nFacts: {facts}\n{brief.writer_note}") or {}
     except Exception:
         return brief
     new = re.sub(r"\s+", " ", str(reply.get("headline") or "")).strip().strip('"')
@@ -370,13 +417,14 @@ RETRIES = 3  # other seeds (other layouts) to try before an angle is dropped: so
 async def make(facts: Dict[str, Fact], out_dir: Path, llm: Any = None, photo: str = "none", link: str = "",
                channel: str = "instagram", dropped: Optional[Dict[str, Any]] = None,
                voice: Optional[Voice] = None, card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (),
-               language: str = "en", photos: Sequence[str] = ()) -> List[Tuple[str, CreativePack]]:
+               language: str = "en", photos: Sequence[str] = (), previous: Sequence[str] = ()) -> List[Tuple[str, CreativePack]]:
     """Render every planned angle; consecutive posts avoid repeating a layout. `photos` (the property's own: listing photos and
     the best frames of its video, best first) are shared out so each post shows a different one behind its text. An angle that fails a guard is retried with
     other seeds, then dropped (its problems go into `dropped` when given). `voice`: who speaks (default the brand desk)."""
     packs: List[Tuple[str, CreativePack]] = []
     recent: List[str] = []
-    for i, (aid, brief) in enumerate(plan(facts, photo, link, voice=voice, card_brand=card_brand, contact=contact, language=language)):
+    for i, (aid, brief) in enumerate(plan(facts, photo, link, voice=voice, card_brand=card_brand, contact=contact, language=language,
+                                          previous=previous)):
         if photos:
             brief = replace(brief, photo=photos[i % len(photos)])
         if llm is not None and brief.hooks:
