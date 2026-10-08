@@ -6,7 +6,7 @@
                 Nothing publishes from here: posting goes through approval.
 
 Jobs live in `marketing_runs`; the worker loop "marketing_runs" (app/worker.py) runs one at a time under its runner lease.
-A job cut off by a restart (a deploy) is queued again once when the runner starts; cut off twice, it fails with a message.
+A job cut off by a restart (a deploy) is queued again once when the runner starts; cut off twice, it fails with a message."""
 import asyncio
 import logging
 import re
