@@ -105,7 +105,9 @@ async def read_pages(pages: List[str]) -> Dict[str, Any]:
             if data.get("claims"):
                 return data
         except Exception as e:
-            log.info("project files: brochure read via %s failed (%s)", client.model, type(e).__name__)
+            resp = getattr(e, "response", None)
+            log.info("project files: brochure read via %s failed (%s%s)", client.model, type(e).__name__,
+                     f" HTTP {resp.status_code}: {resp.text[:200]}" if resp is not None else "")
     return {}
 
 

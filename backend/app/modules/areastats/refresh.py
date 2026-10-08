@@ -27,7 +27,7 @@ from app.modules.newsroom.policy import AREA_PINCODES, SHARED_PINCODES
 from app.modules.newsroom.sources import maharera as search
 from app.modules.newsroom.store import Store
 
-from . import pages
+from . import pages as page_slugs
 from . import watch as watchlist
 
 log = logging.getLogger(__name__)
@@ -161,7 +161,7 @@ async def step(store: Store, get, fetch: project_api.Fetch, now: datetime, pages
     out: dict = {"mode": "catch-up" if catching_up else "steady"}
     for name, part in (("sweep", lambda: sweep(store, get, now, pages)), ("relabel", lambda: relabel(store)),
                        ("watch", lambda: watchlist.sync(store, now)), ("details", lambda: details(store, fetch, now, limit)),
-                       ("pages", lambda: pages.assign_all(store))):
+                       ("pages", lambda: page_slugs.assign_all(store))):
         try:
             out[name] = await part()
         except Exception:

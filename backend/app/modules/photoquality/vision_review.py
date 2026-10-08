@@ -157,6 +157,13 @@ class OpenAIVision:
             return None
 
 
+# More free providers that read images, tried after the ones above when their key is set: (key env, base url, model env, model).
+EXTRA_VISION_PROVIDERS = (
+    ("GITHUB_MODELS_TOKEN", "https://models.github.ai/inference", "AI_GITHUB_VISION_MODEL", "openai/gpt-4.1-mini"),
+    ("NVIDIA_API_KEY", "https://integrate.api.nvidia.com/v1", "AI_NVIDIA_VISION_MODEL", "meta/llama-3.2-11b-vision-instruct"),
+)
+
+
 def default_clients() -> List[VisionClient]:
     if (os.environ.get("AI_VISION_REVIEW") or "on").strip().lower() == "off":
         return []
@@ -174,6 +181,9 @@ def default_clients() -> List[VisionClient]:
     fb_base = os.environ.get("AI_VISION_FALLBACK_BASE_URL") or os.environ.get("AI_LLM_FALLBACK_BASE_URL")
     if fb_model and fb_key and fb_base:
         out.append(OpenAIVision(fb_key, fb_model, fb_base))
+    for key_var, base, model_var, model in EXTRA_VISION_PROVIDERS:
+        if os.environ.get(key_var):
+            out.append(OpenAIVision(os.environ[key_var], os.environ.get(model_var) or model, base))
     return out
 
 

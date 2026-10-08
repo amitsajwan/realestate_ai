@@ -58,7 +58,7 @@ class Transcriber(Protocol):
     async def transcribe(self, data: bytes, filename: str, content_type: str, language: Optional[str] = None) -> str: ...
 
 
-FAILOVER_STATUS = (404, 429, 500, 503)  # model retired, daily quota used up, provider error, busy: try the next model
+FAILOVER_STATUS = (402, 404, 429, 500, 503)  # out of credit, model retired, daily quota used up, provider error, busy: try the next model
 
 
 def model_order(spec: str) -> list[str]:
@@ -68,6 +68,7 @@ def model_order(spec: str) -> list[str]:
 
 
 RETIRED_COOLDOWN = 24 * 3600.0   # a 404 model (retired free model) is skipped for a day
+NO_ACCESS_COOLDOWN = 3600.0      # 401/402/403 (bad key, no credit): skipped for an hour, then tried again
 BUSY_COOLDOWN = 60.0              # a 429 model is rested this long, or as long as the provider's Retry-After says
 MAX_COOLDOWN = 15 * 60.0
 
@@ -93,6 +94,8 @@ class ModelHealth:
     def note(self, url: str, model: str, r: httpx.Response) -> None:
         if r.status_code == 404:
             self.until[(url, model)] = self.clock() + RETIRED_COOLDOWN
+        elif r.status_code in (401, 402, 403):
+            self.until[(url, model)] = self.clock() + NO_ACCESS_COOLDOWN
         elif r.status_code == 429:
             try:
                 wait = float(r.headers.get("retry-after") or BUSY_COOLDOWN)
@@ -308,10 +311,17 @@ class FallbackLLM:
 
 
 GEMINI_OPENAI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+GITHUB_MODELS_URL = "https://models.github.ai/inference/chat/completions"
+NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
+# More free OpenAI-compatible providers, used when their key is set: (key env, url, model env, default models).
+EXTRA_TEXT_PROVIDERS = (
+    ("GITHUB_MODELS_TOKEN", GITHUB_MODELS_URL, "AI_GITHUB_MODEL", "openai/gpt-4.1-mini,openai/gpt-4o-mini"),
+    ("NVIDIA_API_KEY", NVIDIA_URL, "AI_NVIDIA_MODEL", "openai/gpt-oss-20b"),
+)
 
 
 def default_llm() -> Optional[LLM]:
-    """Use the configured provider, then an optional OpenAI-compatible backup, then Gemini if enabled."""
+    """Use the configured provider, then an optional OpenAI-compatible backup, then Gemini if enabled, then GitHub Models and NVIDIA."""
     key = groq_api_key()
     primary = GroqLLM(key) if key else None
     providers = [primary] if primary else []
@@ -324,8 +334,11 @@ def default_llm() -> Optional[LLM]:
 
     gkey = os.environ.get("GEMINI_API_KEY")
     if (os.environ.get("AI_LLM_FALLBACK") or "on").strip().lower() != "off" and gkey:
-        backup = GroqLLM(gkey, model=os.environ.get("AI_LLM_FALLBACK_MODEL", "gemini-2.5-flash,gemini-2.5-flash-lite"), url=GEMINI_OPENAI_URL)
+        backup = GroqLLM(gkey, model=os.environ.get("AI_LLM_FALLBACK_MODEL", "gemini-3.8-flash,gemini-3.5-flash-lite"), url=GEMINI_OPENAI_URL)
         providers.append(backup)
+    for key_var, url, model_var, model in EXTRA_TEXT_PROVIDERS:
+        if os.environ.get(key_var):
+            providers.append(GroqLLM(os.environ[key_var], model=os.environ.get(model_var, model), url=url))
     if not providers:
         return None
     return providers[0] if len(providers) == 1 else FallbackLLM(providers)
