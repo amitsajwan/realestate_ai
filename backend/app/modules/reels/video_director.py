@@ -82,16 +82,17 @@ async def transcribe(audio: Path, language: str = "mr") -> List[Dict[str, Any]]:
 
 
 # ---- 2. look -----------------------------------------------------------------------------------------------------------
-def contact_sheet(src: Path, duration: float, work: Path) -> Tuple[bytes, List[float]]:
-    """A 4x3 JPEG of SHEET_TILES frames, each labelled with its time, and those times."""
+def contact_sheet(src: Path, duration: float, work: Path, crop: str = "") -> Tuple[bytes, List[float]]:
+    """A 4x3 JPEG of SHEET_TILES frames, each labelled with its time, and those times. `crop` (video_reel.strip_crop) shows
+    each frame as the reel will: without the contact strip we remove."""
+    from .video_reel import H, W, _fit
     times = [round(duration * (i + 0.5) / SHEET_TILES, 1) for i in range(SHEET_TILES)]
     tw, th = 270, 480
     sheet = Image.new("RGB", (tw * 4, th * 3), (0, 0, 0))
     d = ImageDraw.Draw(sheet)
     for i, t in enumerate(times):
         p = work / f"t{i}.jpg"
-        ffmpeg.run(["-ss", f"{t:.2f}", "-i", str(src), "-frames:v", "1", "-vf", f"scale={tw}:{th}:force_original_aspect_ratio=decrease,"
-                    f"pad={tw}:{th}:(ow-iw)/2:(oh-ih)/2", str(p), "-y"])
+        ffmpeg.run(["-ss", f"{t:.2f}", "-i", str(src), "-frames:v", "1", "-vf", f"{_fit(W, H)}{crop},scale={tw}:{th}", str(p), "-y"])
         x, y = (i % 4) * tw, (i // 4) * th
         sheet.paste(Image.open(p).convert("RGB"), (x, y))
         d.rectangle([x, y, x + 92, y + 34], fill=(0, 0, 0))
@@ -109,6 +110,33 @@ LOOK_PROMPT = (
     "picture (subtitles, words, logos larger than a corner badge). Reply with JSON only: "
     '{"shots": [{"t": <seconds>, "what": "...", "score": <0-10>, "phone_on_screen": <true|false>, "text_on_screen": <true|false>}]}'
 )
+
+
+SPAN = 0.9   # the part of a video that is surveyed: the last 10% is usually a closing card with a phone number
+_SURVEYS: Dict[Tuple[str, float, float], Tuple[List[Dict[str, Any]], str, List[float]]] = {}
+
+
+async def survey(src: Path, duration: float) -> Tuple[List[Dict[str, Any]], str, List[float]]:
+    """(shots, strip crop, tile times) for this video, asked of the vision model ONCE per file (the edit and the stills both
+    use it; a second call within a minute hits the free tier's rate limit). The tiles are cropped like the reel, so a phone
+    number in the strip we remove is not reported."""
+    from .video_reel import _sample_frames, find_bottom_bar, strip_crop
+    key = (str(src), src.stat().st_mtime, round(duration, 1))
+    if key in _SURVEYS:
+        return _SURVEYS[key]
+    work = Path(tempfile.mkdtemp(prefix="video-survey-"))
+    try:
+        crop = strip_crop(find_bottom_bar(await asyncio.to_thread(_sample_frames, src, duration, work)))
+        sheet, times = await asyncio.to_thread(contact_sheet, src, duration * SPAN, work, crop)
+        shots = await look(sheet)
+    finally:
+        import shutil
+        shutil.rmtree(work, ignore_errors=True)
+    if len(_SURVEYS) > 16:
+        _SURVEYS.clear()
+    if shots:   # a failed look is not remembered: the next step may try again
+        _SURVEYS[key] = (shots, crop, times)
+    return shots, crop, times
 
 
 async def look(sheet_jpeg: bytes) -> List[Dict[str, Any]]:
@@ -140,20 +168,15 @@ async def best_frames(src, out_dir, keep: int = FRAMES_KEPT) -> List[str]:
     """Stills for the campaign's post cards: SHEET_TILES frames across the video (the last 10% left out: closing cards carry
     phone numbers), the burned-in contact strip cropped off, the vision model's best `keep` (score >= FRAME_MIN_SCORE, no
     phone on screen), best first. Without the vision model: evenly spaced frames. Paths of JPEGs in `out_dir`, or []."""
-    from .video_reel import H, W, find_bottom_bar, strip_crop, _fit
+    from .video_reel import H, W, _fit
     src, out_dir = Path(src), Path(out_dir)
     try:
         p = ffmpeg.probe(src)
         if not p.duration or not p.width:
             return []
-        usable = p.duration * 0.9
-        work = Path(tempfile.mkdtemp(prefix="video-frames-"))
-        try:
-            sheet, times = await asyncio.to_thread(contact_sheet, src, usable, work)
-            shots = await look(sheet)
-        finally:
-            import shutil
-            shutil.rmtree(work, ignore_errors=True)
+        usable = p.duration * SPAN
+        shots, crop, times = await survey(src, p.duration)
+        times = times or [round(usable * (i + 0.5) / SHEET_TILES, 1) for i in range(SHEET_TILES)]
         if shots:
             # clean shots first (our card text goes on top: the video's own captions would collide with it), then the rest
             ranked = sorted((s for s in shots if not s.get("phone_on_screen") and _score(s) >= FRAME_MIN_SCORE),
@@ -168,13 +191,6 @@ async def best_frames(src, out_dir, keep: int = FRAMES_KEPT) -> List[str]:
             if len(chosen) >= keep:
                 break
         out_dir.mkdir(parents=True, exist_ok=True)
-        probe_frames = []
-        for i, t in enumerate(chosen[:3]):
-            f = out_dir / f"probe{i}.png"
-            await asyncio.to_thread(ffmpeg.run, ["-ss", f"{t:.2f}", "-i", str(src), "-frames:v", "1", "-vf", _fit(W, H), str(f), "-y"])
-            probe_frames.append(Image.open(f).convert("RGB"))
-            f.unlink(missing_ok=True)
-        crop = strip_crop(find_bottom_bar(probe_frames)) if probe_frames else ""
         out = []
         for i, t in enumerate(chosen):
             f = out_dir / f"frame{i:02d}.jpg"
@@ -186,6 +202,13 @@ async def best_frames(src, out_dir, keep: int = FRAMES_KEPT) -> List[str]:
     except Exception as e:
         log.info("video director: frames failed (%s)", type(e).__name__)
         return []
+
+
+def _t(s: Dict[str, Any]) -> float:
+    try:
+        return float(s.get("t") or 0)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def _score(s: Dict[str, Any]) -> float:
@@ -278,8 +301,8 @@ async def plan(src, *, facts: Dict[str, str], language: str = "mr", llm=None, ma
     work = Path(tempfile.mkdtemp(prefix="video-director-"))
     try:
         audio = await asyncio.to_thread(_audio_for_stt, src, work) if p.has_audio else None
-        sheet, _ = await asyncio.to_thread(contact_sheet, src, usable, work)
-        speech, shots = await asyncio.gather(transcribe(audio, language) if audio else _none(), look(sheet))
+        speech, (shots, _, _) = await asyncio.gather(transcribe(audio, language) if audio else _none(), survey(src, p.duration))
+        shots = [s for s in shots if _t(s) < usable]
         speech = [s for s in speech if s["start"] < usable]
         try:
             reply = await llm.json(EDIT_SYSTEM, _edit_prompt(usable, speech, shots, facts, language)) or {}

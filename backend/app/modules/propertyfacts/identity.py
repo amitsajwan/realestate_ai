@@ -28,10 +28,19 @@ class Identity:
 WA_MARK = "\U0001F4AC"   # the speech bubble that starts the WhatsApp line of a caption (calendar.adapters finds it)
 
 
+def posts_whatsapp_number() -> Optional[str]:
+    """The WhatsApp number public posts show, as wa.me digits: WHATSAPP_PUBLIC_NUMBER only (never the website chat's
+    NEXT_PUBLIC_WHATSAPP_NUMBER, which may be a test number that answers only allowed phones). None: posts carry only the
+    tracked link."""
+    d = re.sub(r"\D", "", os.environ.get("WHATSAPP_PUBLIC_NUMBER") or "")
+    if re.fullmatch(r"[6-9]\d{9}", d):
+        d = "91" + d
+    return d if 11 <= len(d) <= 15 else None
+
+
 def whatsapp_label() -> str:
     """Our public WhatsApp number as '+91 98765 43210', or '' when none is configured (then captions carry only the link)."""
-    from app.modules.chat.service import platform_whatsapp_number
-    num = platform_whatsapp_number()
+    num = posts_whatsapp_number()
     return phone_label("+" + num) if num else ""
 
 

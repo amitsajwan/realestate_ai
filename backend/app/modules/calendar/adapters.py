@@ -425,20 +425,21 @@ def whatsapp_lines(caption: str, code: str, channel: str) -> str:
     link, so it says what to send. Without our number configured the WhatsApp line is dropped and the interest link remains."""
     from urllib.parse import quote
 
-    from app.modules.chat.service import platform_whatsapp_number
-    from app.modules.propertyfacts.identity import WA_MARK, phone_label
-    num = platform_whatsapp_number()
+    from app.modules.propertyfacts.identity import WA_MARK, phone_label, posts_whatsapp_number
+    num = posts_whatsapp_number()
+    line = ""
+    if num:
+        line = (f"{WA_MARK} WhatsApp: https://wa.me/{num}?text={quote(f'Hi, I am interested in {code}')}" if channel == "facebook"
+                else f"{WA_MARK} WhatsApp {phone_label('+' + num)} and send: interested in {code}")
     out = []
     for ln in caption.splitlines():
         s = ln.strip()
         if s.startswith("\U0001F4DE"):
             continue
         if s.startswith(WA_MARK):
-            if not num:
+            if not line:
                 continue
-            msg = f"Hi, I am interested in {code}"
-            ln = (f"{WA_MARK} WhatsApp: https://wa.me/{num}?text={quote(msg)}" if channel == "facebook"
-                  else f"{WA_MARK} WhatsApp {phone_label('+' + num)} and send: interested in {code}")
+            ln = line
         out.append(ln)
     return "\n".join(out)
 
