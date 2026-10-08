@@ -149,6 +149,13 @@ async def get_agent(agent_id: str, user: User = Depends(owner_only), svc: Concie
     return await _run(svc.get_agent(agent_id))
 
 
+@router.post("/agents/{agent_id}/login-code")
+async def new_login_code(agent_id: str, user: User = Depends(writer("invite", 10, 3600)),
+                         svc: ConciergeService = Depends(get_service)):
+    """A fresh login code for the agent's mobile (the old one stops working)."""
+    return await _run(svc.new_login_code(str(user.id), agent_id))
+
+
 @router.post("/agents/{agent_id}/consent")
 async def record_consent(agent_id: str, body: Optional[ConsentIn] = None, user: User = Depends(writer("write", 60)),
                          svc: ConciergeService = Depends(get_service)):

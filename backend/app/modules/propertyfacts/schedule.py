@@ -10,8 +10,8 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from app.modules.calendar.store import Store as CalendarStore, aware
 
 IST = timezone(timedelta(hours=5, minutes=30))
-POST_AT = time(19, 0)          # 7 pm IST: after work, when buyers browse
-MIN_GAP = timedelta(hours=12)  # the calendar's own rule: posts on a channel at least 12 hours apart
+POST_TIMES = (time(11, 0), time(19, 0))   # 2 a day on each channel (owner, 2026-10-08): lunchtime and after work, IST
+MIN_GAP = timedelta(hours=6)   # posts on a channel at least 6 hours apart (calendar.plan.daily_gap for more than one a day)
 CHANNELS = ("instagram", "facebook_page")
 SEARCH_DAYS = 60
 
@@ -28,16 +28,18 @@ def facebook_caption(caption: str, link_line: str, page_url: str, angle: str) ->
 
 
 def slots(start: date, n: int, taken: Sequence[datetime]) -> List[datetime]:
-    """n daily 7 pm IST times from `start`, each at least MIN_GAP from `taken` and from each other."""
+    """n times from `start` at POST_TIMES (IST) each day, each at least MIN_GAP from `taken` and from each other: a time
+    too close to a post already on that channel is skipped, so the campaign takes the next free slot."""
     out: List[datetime] = []
     busy = [t if t.tzinfo else t.replace(tzinfo=timezone.utc) for t in taken]
     d = start
     for _ in range(SEARCH_DAYS + n):
-        if len(out) == n:
-            break
-        at = datetime.combine(d, POST_AT, tzinfo=IST).astimezone(timezone.utc)
-        if all(abs(at - b) >= MIN_GAP for b in busy + out):
-            out.append(at)
+        for hm in POST_TIMES:
+            if len(out) == n:
+                return out
+            at = datetime.combine(d, hm, tzinfo=IST).astimezone(timezone.utc)
+            if all(abs(at - b) >= MIN_GAP for b in busy + out):
+                out.append(at)
         d += timedelta(days=1)
     return out
 

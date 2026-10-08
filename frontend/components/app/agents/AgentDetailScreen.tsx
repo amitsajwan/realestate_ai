@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import React, { useState } from 'react'
 import { CONSENT_TEXT, conciergeApi, firstName, friendlyConciergeError } from '@/lib/app/concierge'
-import type { AgentDetail } from '@/lib/app/concierge'
+import type { AgentDetail, LoginCode } from '@/lib/app/concierge'
 import { formatPrice, timeAgo } from '@/lib/app/format'
 import { useAsync } from '@/lib/app/useAsync'
 import type { Listing } from '@/lib/app/types'
@@ -107,6 +107,41 @@ function ListingRow({ l, agent, onPost, onChanged }: { l: Listing; agent: AgentD
   )
 }
 
+/** A new login code for the agent (forgotten code, new phone): shown once with a ready WhatsApp message. */
+function LoginCodeCard({ agent }: { agent: AgentDetail }) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [result, setResult] = useState<LoginCode | null>(null)
+  async function issue() {
+    if (!window.confirm(`Make a new login code for ${agent.name}? The old code will stop working.`)) return
+    setBusy(true)
+    setErr('')
+    try {
+      setResult(await conciergeApi.newLoginCode(agent.id))
+    } catch (e) {
+      setErr(friendlyConciergeError(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <section aria-label="Login code" className={card}>
+      <h2 className="text-base font-bold text-gray-900">Login code</h2>
+      <p className="text-sm text-gray-600">{firstName(agent.name)} signs in at /join with {agent.mobile} and a personal code. Forgot it? Make a new one; the old code stops working.</p>
+      {result ? (
+        <div className="space-y-2 rounded-xl bg-emerald-50 p-3" role="status">
+          <p className="text-sm text-emerald-900">New code for {result.mobile} (shown only now):</p>
+          <p className="text-3xl font-bold tracking-widest text-emerald-900" data-testid="login-code">{result.code}</p>
+          <LinkBtn href={result.whatsapp_url} target="_blank" rel="noopener noreferrer">Send on WhatsApp</LinkBtn>
+        </div>
+      ) : (
+        <Btn variant="secondary" disabled={busy} onClick={issue}>{busy ? 'Making a code…' : 'New login code'}</Btn>
+      )}
+      {err && <p role="alert" className="text-sm font-semibold text-red-800">{err}</p>}
+    </section>
+  )
+}
+
 /** One agent: checklist, brand, listings, consent, preview of his page. */
 export function AgentDetailScreen({ id }: { id: string }) {
   const { data: agent, error, loading, reload } = useAsync(() => conciergeApi.get(id), [id])
@@ -130,6 +165,7 @@ export function AgentDetailScreen({ id }: { id: string }) {
       {error && <ErrorBox message={error} onRetry={reload} />}
 
       <Checklist agent={agent} />
+      <LoginCodeCard agent={agent} />
       {agent.slug && <LinkBtn variant="secondary" href={`/agent/${agent.slug}`} target="_blank" rel="noopener noreferrer">Preview {first}&apos;s page</LinkBtn>}
 
       <section aria-label="Brand" className={card}>

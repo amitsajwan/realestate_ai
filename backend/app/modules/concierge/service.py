@@ -136,6 +136,21 @@ class ConciergeService:
             out["whatsapp_url"] = f"https://wa.me/{phone.lstrip('+')}?text={urllib.parse.quote(msg)}"
         return out
 
+    async def new_login_code(self, owner_id: str, agent_id: str) -> dict:
+        """A fresh login code for an existing agent's own mobile (forgotten or lost code). The old code stops working and any
+        lockout is cleared. Returns the code once, with the WhatsApp message to send it."""
+        rec = await self._agent(agent_id)
+        phone = rec.get("phone") or ""
+        if not phone:
+            raise ConciergeError("This agent has no mobile number on record", 409)
+        code = await self.invites.issue(phone, rec.get("label") or rec.get("name") or "")
+        await self._audit(owner_id, "invite.reissue", agent_id, ["invite"])
+        first = ((rec.get("name") or "").split() or ["there"])[0]
+        msg = (f"Hi {first}, your new {brand.NAME} login code is {code}. Open {self.site}/join, enter {phone[3:]} and this "
+               f"code. Please don't share it.")
+        return {"agent_id": agent_id, "mobile": mask_phone(phone), "code": code, "whatsapp_message": msg,
+                "whatsapp_url": f"https://wa.me/{phone.lstrip('+')}?text={urllib.parse.quote(msg)}"}
+
     async def list_agents(self, limit: int = 200) -> List[dict]:
         recs = await self.agents.find({}).sort("created_at", -1).limit(limit).to_list(limit)
         return [await self._summary(r) for r in recs]

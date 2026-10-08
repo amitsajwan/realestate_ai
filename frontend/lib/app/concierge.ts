@@ -72,8 +72,17 @@ export interface PostResult {
 /** Same shape the Brand editor (A1) loads and saves; kept loose so new fields need no change here. */
 export type BrandingData = Record<string, unknown>
 
+/** A fresh login code for an existing agent (shown once; the old code stops working). */
+export interface LoginCode {
+  agent_id: string
+  mobile: string
+  code: string
+  whatsapp_message: string
+  whatsapp_url: string
+}
 export interface ConciergeApi {
   list(): Promise<AgentSummary[]>
+  newLoginCode(id: string): Promise<LoginCode>
   create(input: CreateAgentInput): Promise<CreatedAgent>
   get(id: string): Promise<AgentDetail>
   setConsent(id: string, given: boolean): Promise<ConsentState>
@@ -138,6 +147,7 @@ export function createConciergeApi(opts: { getToken: () => string | null; baseUr
     list: async () => (await request<{ items: AgentSummary[] }>('/agents')).items ?? [],
     create: (input) => request<CreatedAgent>('/agents', { method: 'POST', json: input }),
     get: (id) => request<AgentDetail>(a(id)),
+    newLoginCode: (id) => request<LoginCode>(`${a(id)}/login-code`, { method: 'POST' }),
     setConsent: (id, given) => request<ConsentState>(`${a(id)}/consent`, { method: 'POST', json: given ? { given: true, text: CONSENT_TEXT } : { given: false } }),
     createListing: (id, body) => request<Listing>(`${a(id)}/listings`, { method: 'POST', json: body }),
     updateListing: (id, lid, body) => request<Listing>(l(id, lid), { method: 'PATCH', json: body }),
@@ -218,6 +228,12 @@ export function createFixtureConciergeApi(): ConciergeApi {
       return { agent, created: true, code, reissued: false, whatsapp_message: msg, whatsapp_url: `https://wa.me/91${digits}?text=${encodeURIComponent(msg)}` }
     },
     get: async (id) => ({ ...find(id) }),
+    newLoginCode: async (id) => {
+      const a = find(id)
+      const code = String(Math.floor(100000 + Math.random() * 900000))
+      const msg = `Hi ${firstName(a.name)}, your new ${BRAND_NAME} login code is ${code}.`
+      return { agent_id: id, mobile: a.mobile, code, whatsapp_message: msg, whatsapp_url: `https://wa.me/?text=${encodeURIComponent(msg)}` }
+    },
     setConsent: async (id, given) => {
       const a = find(id)
       a.consent_given = given
@@ -274,6 +290,7 @@ export const conciergeApi: ConciergeApi = {
   list: () => impl().list(),
   create: (i) => impl().create(i),
   get: (id) => impl().get(id),
+  newLoginCode: (id) => impl().newLoginCode(id),
   setConsent: (id, g) => impl().setConsent(id, g),
   createListing: (id, b) => impl().createListing(id, b),
   updateListing: (id, l, b) => impl().updateListing(id, l, b),

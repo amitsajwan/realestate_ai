@@ -155,8 +155,9 @@ async def test_send_to_calendar_plans_rows_for_approval(tmp_path):
     assert all(r["video"].startswith("campaigns/L1/") and r["video"].endswith(".mp4") for r in reels)
     assert all(r["agent_id"] == "a1" and r["listing_id"] == "L1" for r in rows)
     ig = sorted((r for r in rows if r["channel"] == "instagram"), key=lambda r: r["due_at"])
-    assert ig[0]["due_at"].astimezone(schedule.IST).hour == 19 and ig[0]["due_at"].date().isoformat() == "2026-10-07"
-    assert ig[1]["due_at"].astimezone(schedule.IST).date().isoformat() == "2026-10-09"   # the 8th is within 12 h of the brand post
+    when = [r["due_at"].astimezone(schedule.IST).strftime("%m-%d %H:%M") for r in ig[:4]]
+    # two a day (11:00 and 19:00 IST); the 8th's 19:00 is within 6 h of the brand post at 19:30, so the next free slot follows
+    assert when == ["10-07 11:00", "10-07 19:00", "10-08 11:00", "10-09 11:00"]
     assert all(not i.startswith("/") and i.startswith("campaigns/L1/") for r in posts for i in r["images"])
     fb = next(r for r in rows if r["channel"] == "facebook_page")
     assert PROJECT_URL + "?src=fb_" in fb["caption"] and "link in bio" not in fb["caption"]
@@ -164,7 +165,7 @@ async def test_send_to_calendar_plans_rows_for_approval(tmp_path):
     again = await runs.to_calendar("a1", "L1")                # pressing twice adds nothing
     assert len([r for r in await cal.all() if r["slug"].startswith("campaign-L1-")]) == 2 * n + 2
     assert len(again["calendar"]) == 2 * n + 2
-    assert jobs.run_out(again)["calendar"][0]["due_at"] == "2026-10-07T13:30:00Z"   # 7 pm IST
+    assert jobs.run_out(again)["calendar"][0]["due_at"] == "2026-10-07T05:30:00Z"   # 11 am IST
     # the walkthrough reel renders later (its own worker): sending again then adds it on both channels
     runs.reel_jobs.render()
     d = await runs.latest("a1", "L1")
