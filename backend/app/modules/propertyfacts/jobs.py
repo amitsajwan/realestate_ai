@@ -531,8 +531,10 @@ class MarketingRuns:
             seen = await understand.read(listing, claims, llm)
             rera = sheet.facts.get("rera_no")
             units = sheet.facts.get("units_total")
+            files = bool(brochure) or self._video(listing) is not None   # a PDF that failed to render still counts as attached
             auto, questions = understand.decide(listing, seen, bool(rera and rera.usable),
-                                                units.value if units and units.usable and isinstance(units.value, int) else None)
+                                                units.value if units and units.usable and isinstance(units.value, int) else None,
+                                                has_files=files)
             if auto:
                 await self.listings.update_one({"_id": listing["_id"]}, {"$set": auto})
             return questions, bool(auto)
@@ -557,7 +559,9 @@ class MarketingRuns:
             await self.listings.update_one({"_id": listing_id}, {"$set": fields})
         left = [q for q in run["questions"] if q["key"] != key]
         change: Dict[str, Any] = {"questions": left, f"answers.{key}": value}
-        if not left:
+        if key == "files" and value == "added":  # start over: read the new files, then ask again only what they leave open
+            change.update(status="queued", questions=[], understood=False, started_at=None, files={})
+        elif not left:
             change.update(status="queued", understood=True, started_at=None)
         await self.runs.update_one({"_id": run["_id"], "status": "asking"}, {"$set": change})
         return await self.runs.find_one({"_id": run["_id"]})

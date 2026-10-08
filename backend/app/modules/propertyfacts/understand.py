@@ -111,11 +111,15 @@ def _q(key: str, text: str, options: List[Tuple[str, Any]], free_text: str = "")
     return q
 
 
-def decide(listing: dict, seen: Dict[str, Any], registered: bool, units_total: Optional[int] = None) -> Tuple[Dict[str, Any], List[dict]]:
+def decide(listing: dict, seen: Dict[str, Any], registered: bool, units_total: Optional[int] = None,
+           has_files: bool = True) -> Tuple[Dict[str, Any], List[dict]]:
     """(fields to set now, questions for the agent). `registered`: the facts already hold a usable MahaRERA number;
-    `units_total`: MahaRERA's count of units, when known. Pure: no I/O."""
+    `units_total`: MahaRERA's count of units, when known; `has_files`: a brochure or video is attached. Pure: no I/O."""
     auto: Dict[str, Any] = {}
     ask: List[dict] = []
+    if not has_files:  # asked first: agents often start before uploading, and the files change everything below
+        ask.append(_q("files", "No brochure or video is attached. Add them now (the posts get the builder's details and "
+                      "pictures), or go on without?", [("I've added them now", "added"), ("Go on without", "skip")]))
 
     # what it is
     ptype = listing.get("property_type")
@@ -176,7 +180,7 @@ def decide(listing: dict, seen: Dict[str, Any], registered: bool, units_total: O
 
 def apply_answer(key: str, value: Any) -> Dict[str, Any]:
     """The listing fields one answer sets ({} for "not sure"). Raises ValueError for an answer that does not fit."""
-    if value is None:
+    if value is None or key == "files":
         return {}
     if key == "property_type":
         if value not in TYPES:
