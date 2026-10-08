@@ -110,7 +110,9 @@ LOOK_PROMPT = (
     "copy any phone number you can actually read in the picture digit by digit (\"\" if none; never guess). Reply with JSON "
     'only: {"shots": [{"t": <seconds>, "what": "...", "score": <0-10>, "caption": "...", "digits": "..."}]}'
 )
-PHONE_DIGITS = 8   # digits read in a frame from which it counts as showing a phone number
+PHONE_DIGITS = 8
+# a still with a dated offer or festival line burned in (it goes stale, and offers are not ours to repeat)
+OFFER = re.compile(r"ऑफर|मोफत|फ्री|नवरात्र|दसर|दसऱ|विजयादशमी|दिवाळी|गुढी|offer|free|discount|navratri|dussehra|diwali", re.I)   # digits read in a frame from which it counts as showing a phone number
 
 
 def _flags(shot: Dict[str, Any]) -> Dict[str, Any]:
@@ -190,10 +192,11 @@ async def best_frames(src, out_dir, keep: int = FRAMES_KEPT) -> List[str]:
         if shots:
             # clean shots first (our card text goes on top: the video's own captions would collide with it), then the rest;
             # when fewer than MIN_STILLS score well, any phone-free shot is used rather than plain cards
-            safe = [s for s in shots if not s.get("phone_on_screen")]
+            safe = [s for s in shots if not s.get("phone_on_screen") and not OFFER.search(str(s.get("caption") or ""))]
             good = [s for s in safe if _score(s) >= FRAME_MIN_SCORE]
             ranked = sorted(good if len(good) >= MIN_STILLS else safe, key=lambda s: (bool(s.get("text_on_screen")), -_score(s)))
-            picks = [_t(s) for s in ranked]
+            # the exact tile time the model judged (it answers rounded seconds; captions change within a second)
+            picks = [min(times, key=lambda x: abs(x - _t(s))) for s in ranked]
         else:
             picks = times[1:-1]
         chosen: List[float] = []
