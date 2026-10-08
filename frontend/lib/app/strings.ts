@@ -185,7 +185,7 @@ const en = {
   walkthroughReel: 'Walkthrough reel',
   walkthroughMaking: 'being made; send to the calendar again once it is ready',
   walkthroughSkipped: 'not made',
-  sentToCalendar: 'planned in the calendar, one a day from',
+  sentToCalendar: 'planned in the calendar, two a day from',
   approveInCalendar: 'Approve them in Content',
   runFailed: 'Something went wrong.',
   marketingFailed: 'We could not create your marketing right now. Your property is already live.',
