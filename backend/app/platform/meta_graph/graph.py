@@ -1,4 +1,5 @@
-"""Real Meta Graph API publisher (Facebook Page photo/feed post, Instagram single image or carousel)."""
+"""Real Meta Graph API publisher (Facebook Page photo/feed post, Instagram single image or carousel). A post's location_id
+(a Facebook place id) goes out as `location_id` on Instagram and `place` on the Page."""
 import asyncio
 import json
 import time
@@ -96,10 +97,11 @@ class GraphPublisher:
     # ---- Facebook Page ---------------------------------------------------------------------------------------
     async def _facebook(self, post: Post) -> Result:
         page = self.cfg.page_id
+        place = {"place": post.location_id} if post.location_id else {}
         if len(post.image_urls) > 1:
             return await self._facebook_album(post)
         if post.image_urls:
-            body = await self._call("POST", f"{page}/photos", {"url": post.image_urls[0], "caption": post.text, "published": "true"})
+            body = await self._call("POST", f"{page}/photos", {"url": post.image_urls[0], "caption": post.text, "published": "true", **place})
             post_id = body.get("post_id")
             ext = str(post_id) if post_id else self._need_id(body, "the photo")
             link = await self._fb_permalink(ext) if post_id else None
@@ -109,7 +111,7 @@ class GraphPublisher:
                 except PublishError:
                     link = None
             return Result(ext, link)
-        params = {"message": post.text}
+        params = {"message": post.text, **place}
         if post.link:
             params["link"] = post.link
         body = await self._call("POST", f"{page}/feed", params)
@@ -123,7 +125,7 @@ class GraphPublisher:
         for url in post.image_urls[:MAX_CAROUSEL]:
             body = await self._call("POST", f"{page}/photos", {"url": url, "published": "false"})
             ids.append(self._need_id(body, "a photo of the post"))
-        params = {"message": post.text}
+        params = {"message": post.text, **({"place": post.location_id} if post.location_id else {})}
         for i, fbid in enumerate(ids):
             params[f"attached_media[{i}]"] = json.dumps({"media_fbid": fbid})
         ext = self._need_id(await self._call("POST", f"{page}/feed", params), "the post")

@@ -1,4 +1,4 @@
-"""Reach: each post's best few hashtags (5 on Instagram, 3 on Facebook) and an Instagram location tag.
+"""Reach: each post's best few hashtags (5 on Instagram, 3 on Facebook) and a location tag.
 
 Applied to every calendar row just before it is published. The caption's own hashtags are taken off and one line of tags
 goes at the end, most specific first:
@@ -13,7 +13,8 @@ Duplicates are dropped whatever their case. Agent-recruitment posts get the agen
 other localities are worked out here and never added there (that list drives area pages and the daily area reels).
 
 Location tags need Facebook place ids from the environment: one per area (`Area.location_env`, e.g. IG_LOCATION_WAGHOLI),
-one per other locality (IG_LOCATION_<NAME>, e.g. IG_LOCATION_RANJANGAON), else IG_LOCATION_PUNE; left out when unset.
+one per other locality (IG_LOCATION_<NAME>, e.g. IG_LOCATION_RANJANGAON), else IG_LOCATION_PUNE; left out when unset. Instagram posts and reels carry it as `location_id`, Facebook Page
+posts as `place` (Facebook Page reels go out without one).
 """
 import os
 import re
@@ -202,7 +203,7 @@ def location_env(name: str) -> str:
 def location_id(doc: dict) -> Optional[str]:
     """The Facebook place id for the row's locality (area or not), else Pune; None when not configured (the post goes out
     without one)."""
-    if doc.get("channel") != "instagram":
+    if doc.get("channel") not in ("instagram", "facebook_page"):
         return None
     loc, a = locality(doc)
     envs = [a.location_env] if a else ([location_env(loc)] if loc else [])

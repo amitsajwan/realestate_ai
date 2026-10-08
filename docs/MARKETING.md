@@ -30,7 +30,7 @@ Every part below carries one status:
 | Public feed of our posts (`/posts`) | LIVE | |
 | Project page enrichment from MahaRERA | LIVE | |
 | Daily reels (area insight + project, 2 a day) | BUILT, OFF | `CALENDAR_DAILY_REELS` unset. |
-| Instagram location tags | BUILT, OFF | Needs `IG_LOCATION_*` place ids. |
+| Location tags (Instagram, Facebook Page posts) | BUILT, OFF | Needs `IG_LOCATION_*` place ids. Not on Facebook Page reels. |
 | Reading reach, plays and watch time back from Meta | TARGET | Nothing reads results yet. |
 | Shared store of verified facts | TARGET | Facts live in three places today. |
 | Builder record, portal prices, road distances | TARGET | Campaign facts come from MahaRERA, OpenStreetMap and calculators only. |
