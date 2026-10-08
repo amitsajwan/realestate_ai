@@ -11,6 +11,7 @@ import time
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 from fastapi import Request, HTTPException, status
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -31,6 +32,15 @@ REFRESH_TOKEN_EXPIRE_DAYS = 7
 RATE_LIMIT_STORE = {}
 RATE_LIMIT_WINDOW = 60  # seconds
 RATE_LIMIT_MAX_REQUESTS = 100
+
+
+def is_internal_ip(ip: str) -> bool:
+    """A private, loopback or link-local address: a container on our own network, never a visitor (Caddy passes theirs on)."""
+    try:
+        a = ipaddress.ip_address((ip or "").strip())
+    except ValueError:
+        return False
+    return a.is_private or a.is_loopback or a.is_link_local
 
 # Security headers
 SECURITY_HEADERS = {
@@ -98,6 +108,10 @@ class SecurityManager:
     
     def check_rate_limit(self, client_ip: str) -> bool:
         """Check if client has exceeded rate limit"""
+        # our own servers (the Next.js frontend renders every page with several API calls from one private address):
+        # limiting them turns a busy minute or a search engine's crawl into errors on every page
+        if is_internal_ip(client_ip):
+            return True
         current_time = time.time()
         
         # Clean old entries
