@@ -3,7 +3,9 @@ from pathlib import Path
 from typing import List
 
 from ..models import Copy, Design
-from .base import Canvas, Rendered, footer_h, known, photo, photo_keys, scrim, ui
+from PIL import ImageFilter
+
+from .base import PHOTO_BLUR, Canvas, Rendered, footer_h, known, photo, photo_keys, scrim, ui, video_still
 from .palette import get
 
 
@@ -15,6 +17,8 @@ def render(copy: Copy, design: Design) -> List[Rendered]:
     keys = photo_keys()
     key = design.photo if design.photo in keys or design.photo == "none" or Path(design.photo).is_file() else (keys[0] if keys else "")
     img = photo(key, design.size, centering=(0.5, 0.42)) if key and key != "none" else None
+    if img is not None and video_still(key):   # a still from a builder video has its own captions burned in: soften them
+        img = img.filter(ImageFilter.GaussianBlur(PHOTO_BLUR))
     if img is None:
         from .base import gradient
         img = gradient(design.size, pal.bg_top, pal.bg_bottom)

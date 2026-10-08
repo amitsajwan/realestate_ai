@@ -36,7 +36,8 @@ FOOTER_H = 64
 
 
 _PHOTO: contextvars.ContextVar = contextvars.ContextVar("creative_card_photo", default=None)
-PHOTO_DIM = 0.38        # how much of the photo shows through the palette on a text card (the rest is the card's own colours)
+PHOTO_BLUR = 7         # px at card size
+PHOTO_DIM = 0.32        # how much of the photo shows through the palette on a text card (the rest is the card's own colours)
 
 
 @contextmanager
@@ -49,6 +50,12 @@ def card_photo(path: Optional[str]) -> Iterator[None]:
         _PHOTO.reset(token)
 
 
+def video_still(path: str) -> bool:
+    """A still taken from a listing's video (reels.video_director.best_frames writes them as <run>/frames/frameNN.jpg)."""
+    p = Path(path or "")
+    return p.parent.name == "frames" and p.name.startswith("frame")
+
+
 def photo_backdrop(size: Tuple[int, int], pal: "Palette") -> Optional[Image.Image]:
     """The card's photo, darkened and tinted with the palette so any text on it stays as legible as on the gradient: the
     property shows through, the layout reads the same. None when this card has no photo."""
@@ -56,7 +63,8 @@ def photo_backdrop(size: Tuple[int, int], pal: "Palette") -> Optional[Image.Imag
     img = photo(path, size, centering=(0.5, 0.45)) if path else None
     if img is None:
         return None
-    img = ImageEnhance.Color(img).enhance(0.85)
+    # softly blurred: the place stays recognisable, any words burned into a video still stop competing with the card's text
+    img = ImageEnhance.Color(img.filter(ImageFilter.GaussianBlur(PHOTO_BLUR))).enhance(0.85)
     tint = gradient(size, pal.bg_top, pal.bg_bottom)
     return Image.blend(tint, img, PHOTO_DIM if not pal.light else PHOTO_DIM * 0.7)
 
