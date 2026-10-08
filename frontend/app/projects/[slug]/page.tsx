@@ -46,14 +46,22 @@ async function loadRegister(params: Props['params']) {
   return SLUG.test(slug) ? getRegisterProject(slug) : null
 }
 
+/** The paragraph cut at a word boundary to fit a search snippet (about 155 characters). */
+function snippet(text: string, max = 155): string {
+  const t = text.replace(/\s+/g, ' ').trim()
+  if (t.length <= max) return t
+  const cut = t.slice(0, max - 1)
+  return cut.slice(0, cut.lastIndexOf(' ')).replace(/[,;:.\s]+$/, '') + '…'
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = await load(params)
   if (p && p.agents.length) return catalogProjectMetadata(p, priceRange(p) + ', ' + bhkRange(p.bhk_options))
   const r = await loadRegister(params)
   if (!r) return { title: 'Project not found', robots: { index: false } }
   const meta = pageMetadata(getMarketingConfig(), {
-    title: `${r.name}${r.area ? `, ${r.area.name}` : ''}: MahaRERA completion date and homes booked`,
-    description: r.paragraph.slice(0, 155),
+    title: `${r.name}${r.area ? `, ${r.area.name}` : ''}: possession date, MahaRERA ${r.regno}`,
+    description: snippet(r.paragraph),
     path: `/projects/${r.slug}`,
   })
   return r.indexable ? meta : { ...meta, robots: { index: false, follow: true } }   // thin pages stay out of search until filled in

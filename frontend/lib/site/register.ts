@@ -128,7 +128,11 @@ export interface RegisterListItem {
   /** enrichment checks passed (null: our crawler has not reached it yet) out of checks_total */
   checked?: number | null
   checks_total?: number
+  /** false: finished more than a year ago; the page stays, the lists leave it out */
+  active?: boolean
   listed_or_updated: string | null
+  /** newest of MahaRERA's update and our crawler's checks */
+  page_updated?: string | null
   indexable: boolean
 }
 

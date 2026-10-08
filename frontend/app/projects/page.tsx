@@ -31,9 +31,10 @@ export default async function ProjectsPage() {
   const groups = byLocality(catalog)
   const listed = new Set(catalog.map((p) => p.rera_no))
   const everything = await getRegisterProjects(undefined, true)
-  const register = everything.filter((r) => r.indexable && !listed.has(r.regno))
+  const register = everything.filter((r) => r.indexable && r.active !== false && !listed.has(r.regno))
+  const finished = everything.filter((r) => r.active === false).length
   const areaNames = Object.fromEntries(LOCALITIES.map((l) => [l.key, l.name]))
-  const searchItems = everything.map(({ slug, name, regno, promoter, area, completion_now, checked, checks_total }) => ({ slug, name, regno, promoter, area, completion_now, checked, checks_total }))
+  const searchItems = everything.map(({ slug, name, regno, promoter, area, completion_now, checked, checks_total, active }) => ({ slug, name, regno, promoter, area, completion_now, checked, checks_total, active }))
   const byArea = LOCALITIES.map((l) => ({ l, items: register.filter((r) => r.area === l.key).sort((a, b) => a.name.localeCompare(b.name)) }))
     .filter((g) => g.items.length > 0)
   return (
@@ -80,7 +81,8 @@ export default async function ProjectsPage() {
             <h2 id="register-title" className="text-2xl font-bold text-slate-900">Every MahaRERA project in our areas</h2>
             <p className="mt-2 max-w-3xl text-slate-700">
               Our page for each project: the completion date filed with MahaRERA and how many homes are booked, with the date we read
-              the record. {register.length} projects so far; new ones are added as MahaRERA lists them. Every page starts from MahaRERA;
+              the record. {register.length} projects being built or just finished; new ones are added as MahaRERA lists them.
+              {finished > 0 && <> {finished} older, finished projects are left out of these lists; search finds them.</>} Every page starts from MahaRERA;
               <span className="whitespace-nowrap"> <CheckBadge checked={4} total={4} compact /></span> means our crawler has also checked it
               against other sources (buildings, location, nearby places).
             </p>

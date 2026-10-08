@@ -37,6 +37,7 @@ DETAILS_PER_STEP = 15
 CATCHUP_PAGES = 10              # while behind: about 10 x 2 s of searches and 50 x 2 s of project reads per step
 CATCHUP_DETAILS = 50
 DETAILS_MAX_AGE_DAYS = 30
+OLD_DETAILS_MAX_AGE_DAYS = 180   # finished projects (pages.is_old): their record rarely changes
 DETAILS_RETRY_DAYS = 1  # after a failed read
 PAUSE = 2.0  # seconds between MahaRERA requests; tests set it to 0
 SKIP_AFTER_MISSES = 3  # a sweep page still empty after this many steps is skipped until the next round
@@ -104,7 +105,7 @@ def _due(d: dict, now: datetime) -> bool:
     at = d.get("details_checked_at")
     if not isinstance(at, datetime):
         return True
-    wait = DETAILS_MAX_AGE_DAYS if d.get("details_ok") else DETAILS_RETRY_DAYS
+    wait = (OLD_DETAILS_MAX_AGE_DAYS if page_slugs.is_old(d, now.date()) else DETAILS_MAX_AGE_DAYS) if d.get("details_ok") else DETAILS_RETRY_DAYS
     return now - _aware(at) >= timedelta(days=wait)
 
 
@@ -124,10 +125,10 @@ async def behind(store: Store, now: datetime, docs: Optional[List[dict]] = None)
 
 async def details(store: Store, fetch: project_api.Fetch, now: datetime, limit: int = DETAILS_PER_STEP,
                   docs: Optional[List[dict]] = None) -> dict:
-    """Fill completion dates and homes from MahaRERA's project API for the records that need it most (never read first)."""
+    """Fill completion dates and homes from MahaRERA's project API for the records that need it most (never read first, newest first)."""
     docs = docs if docs is not None else await store.all_projects()
     due = [d for d in docs if _wanted(d) and _due(d, now)]
-    due.sort(key=lambda d: (isinstance(d.get("details_checked_at"), datetime),
+    due.sort(key=lambda d: (isinstance(d.get("details_checked_at"), datetime), -page_slugs.recency(d),
                             _aware(d["details_checked_at"]) if isinstance(d.get("details_checked_at"), datetime) else now))
     out = {"read": 0, "failed": 0}
     for i, d in enumerate(due[:max(0, limit)]):

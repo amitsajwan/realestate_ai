@@ -13,6 +13,7 @@ export interface SearchItem {
   completion_now?: string | null
   checked?: number | null
   checks_total?: number
+  active?: boolean
 }
 
 /** Lowercase, letters and digits only: "P521-0001 2345" and "p52100012345" match the same project. */
@@ -58,7 +59,8 @@ export default function ProjectSearch({ items, areaNames }: { items: SearchItem[
                   <Link href={`/projects/${it.slug}`} className="flex min-h-[48px] flex-wrap items-baseline justify-between gap-x-3 py-2 hover:bg-slate-50">
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold text-[#0f2340] underline-offset-2 hover:underline">{it.name}</span>
-                      <CheckBadge checked={it.checked} total={it.checks_total} />
+                      {it.active === false ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-300">Finished</span>
+                        : <CheckBadge checked={it.checked} total={it.checks_total} />}
                     </span>
                     <span className="text-sm text-slate-600">
                       {[it.promoter, areaNames[it.area || ''], it.regno].filter(Boolean).join(' · ')}

@@ -86,6 +86,8 @@ def priority(d: dict, urgent: set, now: datetime) -> Optional[tuple]:
     regno = d.get("regno") or d["_id"]
     if regno in urgent:
         return (0, 0)
+    if pages.is_old(d, now.date()):
+        return None                                             # finished more than a year ago: MahaRERA facts only
     done = d.get("enriched_at")
     seen = int(d.get("gsc_impressions") or 0)
     if isinstance(done, datetime) and not d.get("enrichment"):
@@ -96,7 +98,7 @@ def priority(d: dict, urgent: set, now: datetime) -> Optional[tuple]:
         return (5, _aware(done).timestamp())                   # due for a refresh, oldest first
     if seen:
         return (1, -seen)                                       # Google already shows it: most impressions first
-    return (3 if pages.indexable(d) else 4, -(int(d.get("units_total") or 0)))   # bigger projects first
+    return (3 if pages.indexable(d) else 4, -pages.recency(d), -(int(d.get("units_total") or 0)))   # newest first, then bigger
 
 
 async def next_project(store: Store, now: datetime) -> Optional[dict]:

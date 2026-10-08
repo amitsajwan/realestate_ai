@@ -337,6 +337,11 @@ export default function RegisterProjectPage({ p, siteUrl, facts }: { p: Register
     '@context': 'https://schema.org', '@type': 'ApartmentComplex', name: p.name, url,
     address: { '@type': 'PostalAddress', addressLocality: p.area ? p.area.name : 'Pune', addressRegion: 'Maharashtra', postalCode: p.pincode || undefined, addressCountry: 'IN' },
     ...(p.units_total ? { numberOfAccommodationUnits: p.units_total } : {}),
+    identifier: { '@type': 'PropertyValue', propertyID: 'MahaRERA registration', value: p.regno },
+    ...(p.map ? { geo: { '@type': 'GeoCoordinates', latitude: p.map.lat, longitude: p.map.lon } } : {}),
+    ...(p.promoter ? { additionalProperty: [{ '@type': 'PropertyValue', name: 'Promoter', value: p.promoter }] } : {}),
+    ...(p.maharera_url ? { sameAs: p.maharera_url } : {}),
+    description: p.paragraph,
   }
   const nearby = (facts as unknown as { nearby?: Near[] } | null)?.nearby ?? []
   const faq = projectFaq(p, nearby)

@@ -10,7 +10,7 @@ list first (areastats.watch), and then has its page at once.
 """
 import re
 import unicodedata
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import List, Optional
 
 from app.core import brand
@@ -63,6 +63,22 @@ async def assign_all(store: Store, docs: Optional[List[dict]] = None) -> int:
 def completion_passed(doc: dict, today: Optional[date] = None) -> bool:
     day = _day(doc.get("completion_now"))
     return bool(day) and day < (today or date.today()).isoformat()
+
+
+OLD_AFTER_DAYS = 365   # a project whose filed completion date passed longer ago than this is finished: page kept, not worked on
+
+
+def is_old(doc: dict, today: Optional[date] = None) -> bool:
+    """Finished: the filed completion date passed more than OLD_AFTER_DAYS ago. Its page stays (search, resale buyers) but it is left
+    out of the /projects lists, the crawler's checks and the monthly MahaRERA re-reads."""
+    day = _day(doc.get("completion_now"))
+    return bool(day) and day < ((today or date.today()) - timedelta(days=OLD_AFTER_DAYS)).isoformat()
+
+
+def recency(doc: dict) -> int:
+    """Day number of the newest date we hold for the project (registered on, or last modified on MahaRERA); 0 when none."""
+    days = [d for d in (_day(doc.get("registered_on")), _day(doc.get("last_modified"))) if d]
+    return date.fromisoformat(max(days)).toordinal() if days else 0
 
 
 def booked(doc: dict) -> Optional[int]:
@@ -247,7 +263,7 @@ async def page_for(db, regno: str) -> Optional[dict]:
 
 
 async def listing(db, area: Optional[str] = None, only_indexable: bool = True, limit: int = 2000) -> List[dict]:
-    """Pages for the sitemap, area pages and search: {slug, regno, name, area, promoter, completion_now, checked, indexable}, newest listed first."""
+    """Pages for the sitemap, area pages and search: {slug, regno, name, area, promoter, completion_now, checked, active, indexable}, newest listed first."""
     store = Store(db)
     docs = [d for d in await store.all_projects() if d.get("page_slug") and (d.get("locality") in BY_KEY or d.get("watched_by"))]
     if area:
@@ -258,5 +274,8 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
     docs.sort(key=lambda d: (_day(d.get("last_modified")) or "", d.get("name", "")), reverse=True)
     return [{"slug": d["page_slug"], "regno": d.get("regno") or d["_id"], "name": d.get("name", ""), "area": d.get("locality"),
              "promoter": d.get("promoter") or None, "completion_now": _day(d.get("completion_now")),
-             "checked": checked_count(d), "checks_total": len(CHECK_LABELS),
-             "listed_or_updated": _day(d.get("last_modified")), "indexable": indexable(d)} for d in docs[:limit]]
+             "checked": checked_count(d), "checks_total": len(CHECK_LABELS), "active": not is_old(d),
+             "listed_or_updated": _day(d.get("last_modified")),
+             # the page last changed: MahaRERA's own update or our crawler's checks, whichever is newer (the sitemap's lastmod)
+             "page_updated": max(filter(None, (_day(d.get("last_modified")), _day(d.get("enriched_at")))), default=None),
+             "indexable": indexable(d)} for d in docs[:limit]]
