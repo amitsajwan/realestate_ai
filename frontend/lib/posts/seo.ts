@@ -6,11 +6,14 @@ import { postPath, type PublicPostFull } from './data'
 
 const clip = (s: string, n: number) => (s.length <= n ? s : s.slice(0, n - 1).replace(/\s+\S*$/, '') + '…')
 
-/** The search snippet: the text after the title line, in one line. */
+/** The search snippet: the title, then the text after the title line, in one line. The title leads because posts of one series
+ *  open with the same sentence, and Google treats pages sharing a description as duplicates. */
 export function postDescription(post: PublicPostFull): string {
   const body = post.text.split('\n').map((l) => l.trim()).filter(Boolean)
   const rest = (body[0] && post.title.startsWith(body[0].slice(0, 40)) ? body.slice(1) : body).join(' ')
-  return clip((rest || post.excerpt || post.title).replace(/https?:\/\/\S+/g, '').replace(/\s+/g, ' ').trim(), 160)
+  const text = (rest || post.excerpt || '').replace(/https?:\/\/\S+/g, '').replace(/\s+/g, ' ').trim()
+  const title = post.title.replace(/[.:!?\s]+$/, '')
+  return clip(text ? `${title}: ${text}` : post.title, 160)
 }
 
 /** Page metadata for one post: its own title, its picture as the shared preview, canonical /posts/<slug>. */
