@@ -74,6 +74,29 @@ function LanguagePicker({ value, onChange }: { value: DraftLanguage; onChange: (
   )
 }
 
+/** What Start marketing read from the listing's project files: the builder's claims, kept for the assistant. */
+function ProjectFilesRead({ run }: { run: MarketingRun }) {
+  const b = run.files?.brochure
+  const heard = run.reels?.find((r) => r.kind === 'video')?.heard ?? []
+  if (!b && heard.length === 0) return null
+  return (
+    <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm">
+      <p className="font-semibold text-gray-800">From the project files (the builder&apos;s claims, not checked by us)</p>
+      {b?.rera_missing && <p role="alert" className="rounded-lg bg-amber-50 p-2 font-semibold text-amber-900">The brochure shows no MahaRERA number. Ask the builder for it before marketing a project that must be registered.</p>}
+      {b?.rera_no && <p className="text-gray-700">MahaRERA number on the brochure: {b.rera_no}</p>}
+      {b?.error && <p className="text-red-800">{b.error}</p>}
+      {(b?.claims?.length ?? 0) > 0 && (
+        <div><p className="text-gray-600">Brochure{b?.pages ? ` (${b.pages} pages; its maps and plans are used behind the posts)` : ''}:</p>
+          <ul className="list-disc pl-5 text-gray-800">{b!.claims!.map((c) => <li key={c}>{c}</li>)}</ul></div>
+      )}
+      {heard.length > 0 && (
+        <div><p className="text-gray-600">Said in the video:</p><ul className="list-disc pl-5 text-gray-800">{heard.map((c) => <li key={c}>{c}</li>)}</ul></div>
+      )}
+      <p className="text-xs text-gray-500">The assistant answers buyers with these as &quot;the builder says&quot;.</p>
+    </div>
+  )
+}
+
 export function MarketingRunCard({ listingId }: { listingId: string }) {
   const [run, setRun] = useState<MarketingRun | null>(null)
   const [loading, setLoading] = useState(true)
@@ -225,6 +248,7 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
                     ))}
                   </div>
                 )}
+                <ProjectFilesRead run={run} />
                 {run.calendar && run.calendar.length > 0 ? (
                   <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">
                     {run.calendar.length} {t('sentToCalendar')} {firstDay(run.calendar)}.{' '}

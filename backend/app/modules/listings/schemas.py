@@ -52,7 +52,7 @@ class PhotoQuality(BaseModel):
 class Media(BaseModel):
     model_config = ConfigDict(extra="forbid")
     url: str = Field(..., min_length=1, max_length=2000)
-    kind: Literal["image", "video"] = "image"
+    kind: Literal["image", "video", "document"] = "image"
     order: StrictInt = Field(0, ge=0)
     # photo quality (optional): the enhanced copy stored beside the original, and whether to show it instead
     quality: Optional[PhotoQuality] = None
@@ -83,7 +83,7 @@ class Media(BaseModel):
 class PublicMedia(BaseModel):
     """What public pages see: one url per photo (the enhanced copy when the agent chose it)."""
     url: str
-    kind: Literal["image", "video"] = "image"
+    kind: Literal["image", "video", "document"] = "image"
     order: int = 0
 
 

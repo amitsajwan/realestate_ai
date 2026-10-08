@@ -16,7 +16,7 @@ import { compressImage } from '@/lib/app/imageCompress'
 import { qualityFields } from '@/lib/app/quality'
 import { getSiteUrl } from '@/lib/app/session'
 import { listingLink } from '@/lib/app/share'
-import { MAX_VIDEO_MB, uploadVideo } from '@/lib/app/video'
+import { MAX_BROCHURE_MB, MAX_VIDEO_MB, uploadBrochure, uploadVideo } from '@/lib/app/video'
 import { t } from '@/lib/app/strings'
 import { useAsync } from '@/lib/app/useAsync'
 import type { Listing, ListingInput, ListingStatus } from '@/lib/app/types'
@@ -112,8 +112,15 @@ export default function ListingDetailPage() {
       return api.updateListing(listing.id, { media: [...listing.media, { url: up.url, kind: 'video' as const, order: listing.media.length }] })
     }, 'Video added. Start marketing again to make a reel from it.')
   }
-  function removeVideo(url: string) {
-    return run(() => api.updateListing(listing.id, { media: listing.media.filter((m) => m.url !== url) }), 'Video removed.')
+  function removeFile(url: string, what: string) {
+    return run(() => api.updateListing(listing.id, { media: listing.media.filter((m) => m.url !== url) }), `${what} removed.`)
+  }
+  const brochures = listing.media.filter((m) => m.kind === 'document')
+  async function addBrochure(file: File) {
+    await run(async () => {
+      const up = await uploadBrochure(file)
+      return api.updateListing(listing.id, { media: [...listing.media, { url: up.url, kind: 'document' as const, order: listing.media.length }] })
+    }, 'Brochure added. Start marketing again to use it.')
   }
   const link = listingLink(getSiteUrl(), listing.id)
   const shareable = listing.status === 'live' || listing.status === 'under_offer'
@@ -199,13 +206,15 @@ export default function ListingDetailPage() {
         {newPhotos.length > 0 && <Btn disabled={busy} onClick={addPhotos}>Add {newPhotos.length} photo{newPhotos.length > 1 ? 's' : ''}</Btn>}
       </section>
 
-      <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4" aria-label="Video">
-        <p className="font-semibold">Video</p>
-        <p className="text-sm text-gray-600">A site walkthrough from you or the builder (up to 3 minutes, {MAX_VIDEO_MB} MB). We turn it into a reel with your logo, remove a phone-number strip along the bottom, and add your tracked link to the caption.</p>
+      <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4" aria-label="Project files">
+        <p className="font-semibold">Project files</p>
+        <p className="text-sm text-gray-600">The builder&apos;s video and brochure, for this listing only. They are never shown to buyers as they are: Start marketing makes your reel from the video, uses the brochure&apos;s maps and plans behind your posts, and teaches the assistant what the builder says (as the builder&apos;s claims).</p>
+        <p className="text-sm font-semibold text-gray-800">Video</p>
+        <p className="text-sm text-gray-600">A site walkthrough (up to 3 minutes, {MAX_VIDEO_MB} MB). A phone-number strip along the bottom is removed and your logo is added.</p>
         {videos.map((v) => (
           <div key={v.url} className="space-y-2">
             <video src={v.url} controls preload="metadata" playsInline className="max-h-80 rounded-lg bg-black" />
-            <Btn disabled={busy} onClick={() => removeVideo(v.url)}>Remove video</Btn>
+            <Btn disabled={busy} onClick={() => removeFile(v.url, 'Video')}>Remove video</Btn>
           </div>
         ))}
         {videos.length === 0 && (
@@ -213,6 +222,21 @@ export default function ListingDetailPage() {
             {busy ? 'Uploading…' : 'Add a video'}
             <input type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" className="sr-only" disabled={busy}
               onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void addVideo(f) }} />
+          </label>
+        )}
+        <p className="text-sm font-semibold text-gray-800">Brochure</p>
+        <p className="text-sm text-gray-600">The builder&apos;s PDF (up to {MAX_BROCHURE_MB} MB).</p>
+        {brochures.map((b) => (
+          <div key={b.url} className="flex items-center justify-between gap-2">
+            <a href={b.url} target="_blank" rel="noopener noreferrer" className="flex min-h-[44px] items-center font-semibold text-blue-700 underline">Open brochure (PDF)</a>
+            <Btn block={false} variant="secondary" disabled={busy} onClick={() => removeFile(b.url, 'Brochure')}>Remove</Btn>
+          </div>
+        ))}
+        {brochures.length === 0 && (
+          <label className="flex min-h-[44px] cursor-pointer items-center justify-center rounded-xl border border-dashed border-gray-300 p-3 text-sm font-semibold text-blue-700">
+            {busy ? 'Uploading…' : 'Add the brochure (PDF)'}
+            <input type="file" accept="application/pdf,.pdf" className="sr-only" disabled={busy}
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void addBrochure(f) }} />
           </label>
         )}
       </section>

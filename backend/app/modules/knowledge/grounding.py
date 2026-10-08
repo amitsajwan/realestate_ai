@@ -185,6 +185,16 @@ def listing_grounding(doc: dict) -> Grounding:
             _add(f, f"{label}: {about[key]}")
     g.faq = _faq(about.get("faq"))
     g.sources.append("the agent's listing")
+    # the agent's project files read by propertyfacts.files: the BUILDER's claims, said as such, never as checked facts
+    fc = doc.get("file_claims") if isinstance(doc.get("file_claims"), dict) else {}
+    for c in (fc.get("brochure") or [])[:12]:
+        _add(f, f"The builder's brochure says: {c}")
+    for c in (fc.get("video") or [])[:12]:
+        _add(f, f"In the builder's site video: {c}")
+    if fc.get("brochure") and not fc.get("rera_on_brochure") and not doc.get("rera_no"):
+        _add(f, "The brochure shows no MahaRERA registration number; ask the agent for it before booking.")
+    if fc.get("brochure") or fc.get("video"):
+        g.sources.append("the builder's brochure and video (the builder's claims, not checked by us)")
     _area_part(g, area_facts(doc.get("locality")))
     return g
 

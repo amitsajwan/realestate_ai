@@ -51,9 +51,10 @@ def card_photo(path: Optional[str]) -> Iterator[None]:
 
 
 def video_still(path: str) -> bool:
-    """A still taken from a listing's video (reels.video_director.best_frames writes them as <run>/frames/frameNN.jpg)."""
+    """A still from a listing's video or a page of its brochure (<run>/frames/frameNN.jpg, <run>/brochure/pageNN.jpg): both carry
+    the builder's own words, which are blurred behind the card's text."""
     p = Path(path or "")
-    return p.parent.name == "frames" and p.name.startswith("frame")
+    return (p.parent.name == "frames" and p.name.startswith("frame")) or (p.parent.name == "brochure" and p.name.startswith("page"))
 
 
 def photo_backdrop(size: Tuple[int, int], pal: "Palette") -> Optional[Image.Image]:

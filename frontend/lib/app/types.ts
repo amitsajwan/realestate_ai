@@ -9,7 +9,7 @@ export type Furnishing = 'unfurnished' | 'semi' | 'furnished'
 
 export interface Media {
   url: string
-  kind: 'image' | 'video'
+  kind: 'image' | 'video' | 'document'
   order: number
   /** Photo quality (lib/app/quality.ts): the analysis, the enhanced copy beside the original, and which one to show. */
   quality?: PhotoQuality | null
@@ -625,7 +625,9 @@ export interface MarketingRun {
   facts_done_at?: string | null
   finished_at?: string | null
   /** Slides reels from the carousels, and the walkthrough reel (rendered by its own queue: status may lag). */
-  reels?: { kind: 'slides' | 'walkthrough' | 'video'; angle?: string; video?: string | null; status?: string; note?: string; caption?: string }[]
+  reels?: { kind: 'slides' | 'walkthrough' | 'video'; angle?: string; video?: string | null; status?: string; note?: string; caption?: string; heard?: string[] }[]
+  /** What the listing's project files said (the builder's claims, not checked facts). */
+  files?: { brochure?: { claims?: string[]; rera_no?: string | null; rera_missing?: boolean; error?: string | null; pages?: number } }
   /** Rows planned in the approval calendar, once sent. */
   calendar?: { angle: string; channel: string; row_id: string; due_at: string }[]
 }

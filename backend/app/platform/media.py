@@ -48,11 +48,12 @@ def display_url(m: Dict[str, Any]) -> str:
 
 
 def public_media(media: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Media for public pages: the chosen url only (no quality details, no second url)."""
+    """Media for public pages: photos only, the chosen url only (no quality details, no second url). An agent's project files
+    (the builder's raw video and brochure) are working material for Studio, never shown as they are."""
     out = []
     for m in media or []:
         if hasattr(m, "model_dump"):
             m = m.model_dump()
-        if isinstance(m, dict):
+        if isinstance(m, dict) and (m.get("kind") or "image") == "image":
             out.append({"url": display_url(m), "kind": m.get("kind") or "image", "order": m.get("order") or 0})
     return out

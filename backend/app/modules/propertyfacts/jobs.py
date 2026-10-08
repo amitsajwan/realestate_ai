@@ -62,7 +62,8 @@ def run_out(doc: Optional[dict], base_url: str = "") -> Optional[dict]:
             "calendar": [{**c, "due_at": _iso(c.get("due_at"))} for c in doc.get("calendar") or []],
             "reels": [{**r, "video": (base + r["video"] if base and (r.get("video") or "").startswith("/") else r.get("video"))}
                       for r in doc.get("reels") or []],
-            "facts_done_at": _iso(doc.get("facts_done_at")), "finished_at": _iso(doc.get("finished_at"))}
+            "facts_done_at": _iso(doc.get("facts_done_at")), "finished_at": _iso(doc.get("finished_at")),
+            "files": doc.get("files") or {}}
 
 
 def _safe(s: str) -> str:
@@ -337,6 +338,20 @@ class MarketingRuns:
                 reels.append({"kind": "walkthrough", "status": "skipped", "note": str(getattr(e, "detail", "") or "not made")})
         return reels
 
+    async def _brochure(self, job: dict, listing: dict, out: Path) -> Dict[str, Any]:
+        """The listing's brochure PDF, if any: its pages (for the cards) and the builder's claims, kept on the listing for the
+        assistant (files.save_claims) and summarised on the run for Studio. {} without a brochure; never raises."""
+        from . import files
+        pdf = files.brochure_pdf(listing, self.uploads_dir)
+        if not pdf:
+            return {}
+        info = await files.read_brochure(pdf, out / "brochure")
+        await files.save_claims(self.listings, listing["_id"], brochure=info["claims"], rera_on_brochure=info["rera_no"],
+                                now=self.now())
+        summary = {k: info.get(k) for k in ("claims", "rera_no", "rera_missing", "error")}
+        await self._set(job["_id"], files={"brochure": {**summary, "pages": len(info["pages"])}})
+        return info
+
     async def _photo_pool(self, listing: dict, out: Path) -> List[str]:
         """The property's own pictures for the post cards, one per post: its photos and the best stills of its video,
         alternating (photos are sharper, stills show the site). Never stock photos; [] keeps the plain cards."""
@@ -387,9 +402,14 @@ class MarketingRuns:
         except Exception as e:
             log.warning("marketing run %s: video reel failed", job["_id"], exc_info=True)
             return {"kind": "video", "status": "skipped", "note": str(getattr(e, "args", [""])[0] or "not made")[:200]}
+        from . import files
+        heard = await files.video_claims(edit.speech, self.llm_factory() if self.llm_factory else None)
+        if heard:   # what the presenter says, for the assistant (the builder's claims)
+            await files.save_claims(self.listings, listing["_id"], video=heard, now=self.now())
         caption = (edit.caption + "\n\n" + "\n".join(who.contact)) if edit.caption else reel_caption(listing, "")
         return {"kind": "video", "status": "done", "seconds": res["seconds"], "removed_strip": bool(res["removed_strip"]),
                 "edit": {"by": edit.source, "segments": edit.segments, "hook": edit.hook, "notes": edit.notes},
+                "heard": heard,
                 "video": "/uploads/" + dest.resolve().relative_to(self.uploads_dir.resolve()).as_posix(),
                 "caption": caption + "\n\n" + link_line}
 
@@ -432,7 +452,8 @@ class MarketingRuns:
             out = self.uploads_dir / "campaigns" / _safe(job["listing_id"]) / jid[:8]
             dropped: Dict[str, Any] = {}
             llm = self.llm_factory() if self.llm_factory else None
-            photos = await self._photo_pool(listing, out)
+            brochure = await self._brochure(job, listing, out)
+            photos = await self._photo_pool(listing, out) + brochure.get("pages", [])
             packs = await campaign.make(sheet.facts, out, llm=llm, photo=self._photo(listing), link=page, dropped=dropped,
                                         photos=photos, **self._who(job, await self._identity(job)))
             posts: List[dict] = []

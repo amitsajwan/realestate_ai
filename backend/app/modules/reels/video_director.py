@@ -43,6 +43,7 @@ class EditPlan:
     caption: str = ""                              # '' = the caller's own caption
     source: str = "rules"                          # "ai" when the LLM made the edit
     notes: List[str] = field(default_factory=list)
+    speech: List[Dict[str, Any]] = field(default_factory=list)   # the transcript ([{start, end, text}]) the edit was made from
 
     @property
     def seconds(self) -> float:
@@ -333,10 +334,11 @@ async def plan(src, *, facts: Dict[str, str], language: str = "mr", llm=None, ma
         notes = [f"speech segments: {len(speech)}", f"shots: {len(shots)}"]
         if sum(b - a for a, b in segs) < TARGET_MIN * 0.6:
             fallback.notes += notes + ["the AI edit was too short or unusable: the whole clip"]
+            fallback.speech = speech
             return fallback
         corpus = " ".join([*(s["text"] for s in speech), *(str(v) for v in facts.values())])
         return EditPlan(segments=segs, hook=_clean_text(reply.get("hook"), corpus, HOOK_MAX_WORDS),
-                        caption=_clean_text(reply.get("caption"), corpus), source="ai", notes=notes)
+                        caption=_clean_text(reply.get("caption"), corpus), source="ai", notes=notes, speech=speech)
     finally:
         import shutil
         shutil.rmtree(work, ignore_errors=True)

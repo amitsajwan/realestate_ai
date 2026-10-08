@@ -275,6 +275,42 @@ async def upload_video(request: Request, file: UploadFile = File(...), agent_id:
     return {"url": f"{base_url}/uploads/videos/{name}", "seconds": round(p.duration, 1), "width": p.width, "height": p.height}
 
 
+MAX_BROCHURE_SIZE = 30 * 1024 * 1024  # a designed brochure is mostly pictures
+
+
+@router.post("/brochures")
+@limiter.limit("5/minute")
+async def upload_brochure(request: Request, file: UploadFile = File(...), agent_id: str = Depends(get_current_user_id)):
+    """The builder's brochure (PDF) for a listing. Stored as it is under /uploads/documents; 'Start marketing' reads it
+    (propertyfacts.files). Response {url, pages}; the client adds {url, kind: 'document'} to the listing's media."""
+    if file.content_type != "application/pdf" and Path(file.filename or "").suffix.lower() != ".pdf":
+        raise HTTPException(status_code=400, detail="Please choose a PDF.")
+    DOCUMENTS_DIR.mkdir(parents=True, exist_ok=True)
+    name = f"{uuid.uuid4()}.pdf"
+    dest = DOCUMENTS_DIR / name
+    size = 0
+    try:
+        async with aiofiles.open(dest, "wb") as out:
+            while chunk := await file.read(1024 * 1024):
+                size += len(chunk)
+                if size > MAX_BROCHURE_SIZE:
+                    raise HTTPException(status_code=413, detail="This PDF is too large. Keep it under 30 MB.")
+                await out.write(chunk)
+        try:
+            import pypdfium2 as pdfium
+            doc = pdfium.PdfDocument(str(dest))
+            pages = len(doc)
+            doc.close()
+        except Exception:
+            raise HTTPException(status_code=400, detail="We could not read this PDF. Try saving it again as a PDF.")
+    except Exception:
+        dest.unlink(missing_ok=True)
+        raise
+    base_url = str(request.base_url).rstrip('/')
+    logger.info(f"brochure uploaded by {agent_id}: {name} ({size} bytes, {pages} pages)")
+    return {"url": f"{base_url}/uploads/documents/{name}", "pages": pages}
+
+
 @router.post("/documents")
 @limiter.limit("5/minute")
 async def upload_documents(
