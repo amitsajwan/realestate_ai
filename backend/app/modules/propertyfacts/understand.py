@@ -139,10 +139,11 @@ def decide(listing: dict, seen: Dict[str, Any], registered: bool, units_total: O
     scope = listing.get("listing_scope")
     sizes = seen.get("sizes") or []
     if not scope:
-        if seen.get("scope") and seen.get("scope_sure"):
-            scope = auto["listing_scope"] = seen["scope"]
-        elif len(sizes) > 1 or (units_total or 0) > 1:
+        # MahaRERA's unit count and the brochure's several sizes outrank the wording ("a plot is available...")
+        if len(sizes) > 1 or (units_total or 0) > 1:
             scope = auto["listing_scope"] = "layout"
+        elif seen.get("scope") and seen.get("scope_sure"):
+            scope = auto["listing_scope"] = seen["scope"]
         else:
             ask.append(_q("listing_scope", f"Is this one {word}, or a whole project with many {words}?",
                           [(f"One {word}", "single"), (f"Many {words} (a layout or project)", "layout")]))

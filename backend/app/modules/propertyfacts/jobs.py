@@ -6,7 +6,7 @@
                 Nothing publishes from here: posting goes through approval.
 
 Jobs live in `marketing_runs`; the worker loop "marketing_runs" (app/worker.py) runs one at a time under its runner lease.
-A job interrupted by a restart is marked failed after STALE_AFTER, keeping whatever step already finished."""
+A job cut off by a restart (a deploy) is queued again once when the runner starts; cut off twice, it fails with a message.
 import asyncio
 import logging
 import re
@@ -232,11 +232,14 @@ class MarketingRuns:
 
     # ---- worker side ------------------------------------------------------------------------------------------------
     async def fail_stale(self) -> None:
-        cutoff = self.now() - STALE_AFTER
+        """At the runner's start (one runner, under its lease): a run still in "facts" or "posts" was cut off by a restart
+        (a deploy). It is queued again once, from the start; cut off a second time, it fails with a message."""
         for d in await self.runs.find({"status": {"$in": ["facts", "posts"]}}).to_list(100):
-            if isinstance(d.get("started_at"), datetime) and d["started_at"] < cutoff:
-                await self.runs.update_one({"_id": d["_id"], "status": d["status"]}, {"$set": {
-                    "status": "failed", "error": "Marketing was interrupted. Please start it again.", "finished_at": self.now()}})
+            if d.get("resumed"):
+                change = {"status": "failed", "error": "Marketing was interrupted. Please start it again.", "finished_at": self.now()}
+            else:
+                change = {"status": "queued", "step": "facts", "resumed": True, "started_at": None, "posts": [], "error": None}
+            await self.runs.update_one({"_id": d["_id"], "status": d["status"]}, {"$set": change})
 
     async def claim(self) -> Optional[dict]:
         docs = await self.runs.find({"status": "queued"}).sort("created_at", 1).limit(1).to_list(1)
