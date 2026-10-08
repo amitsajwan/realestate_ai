@@ -4,14 +4,25 @@ Overpass answers everything in one query but the public server is often busy (50
 when it fails each category is asked of Nominatim instead (one request a second, bounded to the area). Distances are
 straight-line ("about 2.3 km away") for now; road distance (OSRM) can replace `km` later without changing callers. OSM is sparse
 outside the city, so a category with nothing found is noted rather than implied absent. To add a category, add one line to
-CATEGORIES."""
+CATEGORIES.
+
+Our own copy comes first: data/pune_places.json.gz, the named places of these categories around Pune from a Geofabrik
+OpenStreetMap extract (scripts/build_osm_places.py, made once). A place inside its box is answered from it with no network;
+Overpass and Nominatim are only asked for places outside it. When no source could be read, the note says so instead of
+claiming there is nothing nearby."""
+import gzip
+import json
 import math
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from .facts import Reading
 from .place import NOMINATIM, GetJson
 
 OVERPASS = "https://overpass-api.de/api/interpreter"
+LOCAL_PLACES = Path(__file__).resolve().parent / "data" / "pune_places.json.gz"
+LOCAL_BOX = (17.85, 19.40, 73.30, 75.20)   # south, north, west, east: where the copy covers a full 10 km radius
 RADIUS_M = 10000
 PER_CATEGORY = 3
 
@@ -102,21 +113,53 @@ def from_nominatim(cat: str, rows: Any, lat: float, lon: float, best: Dict[str, 
             _add(best, cat, name, d, f"https://www.openstreetmap.org/{r.get('osm_type')}/{r.get('osm_id')}")
 
 
+@lru_cache(maxsize=1)
+def _local_rows() -> Tuple[Tuple[Any, ...], ...]:
+    try:
+        with gzip.open(LOCAL_PLACES, "rt", encoding="utf-8") as f:
+            return tuple(tuple(r) for r in json.load(f))
+    except (OSError, ValueError):
+        return ()
+
+
+def from_local(lat: float, lon: float) -> Optional[Dict[str, List[Dict[str, Any]]]]:
+    """The nearest named places from our copy; None when the copy is missing or does not cover this place."""
+    s, n, w, e = LOCAL_BOX
+    rows = _local_rows()
+    if not rows or not (s <= lat <= n and w <= lon <= e):
+        return None
+    best: Dict[str, List[Dict[str, Any]]] = {}
+    dlat = RADIUS_M / 111000
+    for cat, name, plat, plon, kind, oid in rows:
+        if abs(plat - lat) > dlat or abs(plon - lon) > dlat * 1.1:
+            continue
+        d = km(lat, lon, plat, plon)
+        if d <= RADIUS_M / 1000:
+            _add(best, cat, name, d, f"https://www.openstreetmap.org/{kind}/{oid}")
+    return best
+
+
 async def around(get_json: GetJson, lat: float, lon: float, now=None) -> Tuple[List[Reading], List[str]]:
     """(readings "nearby.<category>" = [{name, km}], notes about categories with nothing found)."""
-    data = await get_json(OVERPASS, {"data": query(lat, lon)})
-    if isinstance(data, dict) and isinstance(data.get("elements"), list):
-        best = from_overpass(data["elements"], lat, lon)
-    else:
-        best = {}
-        d = RADIUS_M / 111000  # degrees of latitude in the radius; good enough for a search box
-        for cat, (_, _, phrase) in CATEGORIES.items():
-            rows = await get_json(NOMINATIM, {"q": phrase, "format": "jsonv2", "limit": 10, "bounded": 1,
-                                              "viewbox": f"{lon - d},{lat + d},{lon + d},{lat - d}"})
-            from_nominatim(cat, rows, lat, lon, best)
+    best = from_local(lat, lon)
+    checked = best is not None
+    if best is None:
+        data = await get_json(OVERPASS, {"data": query(lat, lon)})
+        if isinstance(data, dict) and isinstance(data.get("elements"), list):
+            best, checked = from_overpass(data["elements"], lat, lon), True
+        else:
+            best = {}
+            d = RADIUS_M / 111000  # degrees of latitude in the radius; good enough for a search box
+            for cat, (_, _, phrase) in CATEGORIES.items():
+                rows = await get_json(NOMINATIM, {"q": phrase, "format": "jsonv2", "limit": 10, "bounded": 1,
+                                                  "viewbox": f"{lon - d},{lat + d},{lon + d},{lat - d}"})
+                checked = checked or isinstance(rows, list)
+                from_nominatim(cat, rows, lat, lon, best)
     rs = [Reading(f"nearby.{k}", [{"name": i["name"], "km": i["km"]} for i in v], "osm", v[0]["url"], now)
           for k, v in best.items()]
     missing = [CATEGORIES[k][0].lower() for k in CATEGORIES if k not in best]
+    if not checked:
+        return rs, ["nearby places could not be checked right now (the map service did not answer)"]
     notes = [f"no named {', '.join(missing)} mapped within {RADIUS_M // 1000} km"] if missing else []
     return rs, notes
 
