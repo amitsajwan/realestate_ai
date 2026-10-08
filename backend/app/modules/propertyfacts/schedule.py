@@ -78,7 +78,8 @@ def items(run: dict, link_line: str) -> List[Dict]:
                     "angle": angle, "creative": creative})
 
     for channel in CHANNELS:
-        for p in run.get("posts") or []:
+        # the overview takes the first slot (slots are in time order); the rest keep the campaign's order
+        for p in sorted(run.get("posts") or [], key=lambda p: p["angle"] != "overview"):
             add(slug_for(lid, p["angle"]), channel, "post", p["caption"], [_rel(i) for i in p["images"]], None, p["angle"],
                 {"layout": p.get("layout"), "format": p.get("format"), "llm": p.get("used_llm"), "prompts": p.get("prompts") or []})
         for r in run.get("reels") or []:
