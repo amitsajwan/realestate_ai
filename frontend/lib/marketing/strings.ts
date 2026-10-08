@@ -66,9 +66,9 @@ export const SHOTS = {
 export const SAMPLE_NOTE = 'Screens show sample data.'
 
 export const LANDING = {
-  metaTitle: `${BRAND_NAME}: ${TAGLINE} | Free trial for real estate agents in Pune`,
+  metaTitle: `${BRAND_NAME} | Free trial for real estate agents in Pune`,
   metaDescription:
-    'Free trial for Pune real estate agents: your first 3 properties marketed free. Your own website, posts and reels made for you, MahaRERA-checked projects, and every enquiry as a lead card.',
+    'Free trial for Pune real estate agents: first 3 properties marketed free. Your own website, posts and reels made for you, and every enquiry as a lead card.',
   metaOrgDescription: 'Helps real estate agents in Pune market their properties, get buyer enquiries and follow them up. Free trial: the first 3 properties.',
   hero: {
     eyebrow: 'For real estate agents in Pune',

@@ -50,6 +50,17 @@ export function generateStaticParams() {
   return LOCALITIES.map((l) => ({ slug: l.slug }))
 }
 
+/** The area's first sentence plus what the page has, within a search snippet (160 characters); a long first sentence alone,
+ *  cut at a word. */
+function areaDescription(summary: string): string {
+  const first = summary.split('. ')[0].replace(/\.$/, '')
+  const full = `${first}. Projects, MahaRERA records and what to check before you buy.`
+  if (full.length <= 160) return full
+  if (first.length <= 159) return first + '.'
+  const cut = first.slice(0, 158)
+  return cut.slice(0, cut.lastIndexOf(' ')).replace(/[,;:\s]+$/, '') + '…'
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const slug = (await params).slug
   const l = getLocality(slug)
@@ -63,7 +74,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
   return pageMetadata(getMarketingConfig(), {
     title: `${l.name}, Pune: projects, MahaRERA records and buyer guide`,
-    description: `${l.summary.split('. ')[0].replace(/\.$/, '')}. Projects, MahaRERA records, getting around and what to check before you buy.`,
+    description: areaDescription(l.summary),
     path: `/localities/${l.slug}`,
   })
 }

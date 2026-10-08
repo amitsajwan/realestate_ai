@@ -5,7 +5,7 @@ import AgentStrip from '@/components/marketing/AgentStrip'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { INSIGHTS, INSIGHT_NOTE } from '@/lib/marketing/insights'
-import { pageMetadata } from '@/lib/marketing/seo'
+import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 
 export function generateMetadata(): Metadata {
   return pageMetadata(getMarketingConfig(), {
@@ -18,6 +18,9 @@ export function generateMetadata(): Metadata {
 export default function InsightsPage() {
   return (
     <MarketingShell>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(breadcrumbJsonLd(getMarketingConfig().siteUrl, [
+        { name: 'Home', path: '/' }, { name: 'Insights', path: '/insights' },
+      ])) }} />
       <div className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Pune property insights</h1>
         <p className="mt-3 text-lg leading-relaxed text-slate-700">

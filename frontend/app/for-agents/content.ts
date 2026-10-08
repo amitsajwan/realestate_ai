@@ -7,7 +7,7 @@ import { BRAND_NAME } from '@/lib/brand'
 export const FOR_AGENTS = {
   metaTitle: `For agents: what ${BRAND_NAME} does for you | Free trial in Pune`,
   metaDescription:
-    `${BRAND_NAME} for real estate agents in Pune: add a home from your phone, get designed posts, reels and your own branded page, and see every enquiry as a lead card with who to call first. Your first 3 properties free.`,
+    `${BRAND_NAME} for real estate agents in Pune: add a home from your phone, get posts, reels and your own page, and see every enquiry as a lead card. First 3 properties free.`,
   eyebrow: 'For real estate agents in Pune',
   pilot: 'Free trial: first 3 properties',
   title: 'Every enquiry in one place, and the right buyer to call first.',

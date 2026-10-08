@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import NewsGrid from '@/components/news/NewsGrid'
 import { getMarketingConfig } from '@/lib/marketing/config'
-import { pageMetadata } from '@/lib/marketing/seo'
+import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import { fetchNews, NEWS_TEXT } from '@/lib/news/data'
 
 export const revalidate = 60
@@ -18,6 +18,9 @@ export default async function NewsPage() {
   const res = await fetchNews(24)
   return (
     <MarketingShell>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(breadcrumbJsonLd(getMarketingConfig().siteUrl, [
+        { name: 'Home', path: '/' }, { name: 'News', path: '/news' },
+      ])) }} />
       <section aria-labelledby="news-page-title" className="py-8 sm:py-14">
         <div className="mx-auto max-w-3xl px-4">
           <h1 id="news-page-title" className="text-3xl font-extrabold tracking-tight text-[#0f2340] sm:text-4xl">{NEWS_TEXT.heading}</h1>
