@@ -38,6 +38,11 @@ HOMES_TAG = "#PuneHomes"                               # a filler for anything b
 AGENT_SOURCES = ("promo_agents", "promo_agents_v2", "agent_reels")
 PROJECT_SOURCES = ("campaign", "agentprojects")
 PER_CHANNEL = {"instagram": 5, "facebook_page": 3}
+# The Pune-Nagar road corridor: a post from one town also reaches the next hub buyers search for (a Shirur plot is sold on
+# Ranjangaon MIDC jobs). Locality (lower case, no spaces) -> the corridor tag that goes right after its own.
+CORRIDOR = {"shirur": "#Ranjangaon", "malthan": "#Ranjangaon", "ranjangaon": "#Shirur", "karegaon": "#Ranjangaon",
+            "shikrapur": "#Ranjangaon", "sanaswadi": "#Shikrapur", "koregaonbhima": "#Shikrapur", "lonikand": "#Wagholi",
+            "wagholi": "#Kharadi"}
 TYPE_TAGS = {"plot": "#PlotsInPune", "apartment": "#FlatsInPune", "flat": "#FlatsInPune", "villa": "#VillasInPune",
              "house": "#IndependentHousePune", "commercial": "#CommercialPropertyPune", "office": "#CommercialPropertyPune",
              "shop": "#CommercialPropertyPune"}
@@ -183,8 +188,12 @@ def hashtags(doc: dict) -> List[str]:
     # Facebook's 3 tags: locality and project say more than the type when the row names a project
     type_tag = "" if proj_tag and doc.get("channel") == "facebook_page" else TYPE_TAGS.get(kind, "")
     local_tag = camel_tag(f"{loc} Real Estate") if loc else ""  # #WagholiRealEstate: narrower than #PuneProperty
-    tags = (loc_tags[:1] + [proj_tag, type_tag, local_tag]
-            + own_specific + ["#PuneProperty"] + ["#MahaRERA"] * rera + loc_tags[1:] + own_local + own_topical + own_generic
+    corridor = CORRIDOR.get(_squash(loc), "") if loc else ""
+    if corridor and corridor.lower() in {t.lower() for t in loc_tags}:
+        corridor = ""
+    # with a corridor tag the narrow #<Locality>RealEstate waits until after #PuneProperty
+    tags = (loc_tags[:1] + [corridor, proj_tag, type_tag] + ([] if corridor else [local_tag])
+            + own_specific + ["#PuneProperty"] + ([local_tag] if corridor else []) + ["#MahaRERA"] * rera + loc_tags[1:] + own_local + own_topical + own_generic
             + ([] if kind == "plot" else [HOMES_TAG]) + FILLER_TAGS + [t for t in own if t.lower() in _BROAD])
     out, seen = [], set()
     for t in tags:
