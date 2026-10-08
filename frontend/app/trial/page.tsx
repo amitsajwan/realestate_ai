@@ -10,8 +10,8 @@ import { claimHref } from '@/lib/marketing/trial'
  *  at once with his sign-up code (backend onboarding/trial.py). Without a platform WhatsApp number the button falls back to the request
  *  form. The ?src= tag travels along so the owner sees which post or group brought the agent. */
 export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
-  title: 'Claim your free trial: your first 3 properties marketed free | Avasetu for Pune agents',
-  description: 'Give Avasetu one property and watch it become a property page, posts for Facebook and Instagram, a Reel and a WhatsApp message. Buyers get answered and enquiries come to you. Your first 3 properties free, no card.',
+  title: 'Free trial for Pune agents: 3 properties marketed free | Avasetu',
+  description: 'Give Avasetu a property: get its page, Facebook and Instagram posts, a Reel and a WhatsApp message. Enquiries come to you. First 3 free, no card.',
   path: '/trial',
   image: { path: '/promo/og-pilot.jpg', width: 1200, height: 630, alt: 'Stop chasing “Price?” comments. Get buyers you can call. A sample lead card: 2 BHK in Kharadi, 80 lakh to 1.2 crore, 1 to 3 months, home loan, call today.' },
 })

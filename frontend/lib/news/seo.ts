@@ -8,8 +8,11 @@ const clip = (s: string, n: number) => (s.length <= n ? s : s.slice(0, n - 1).re
 /** Page metadata for one news item. The shared preview is our own card, so a link on Facebook or WhatsApp shows us, not Google. */
 export function newsMetadata(cfg: MarketingConfig, item: NewsItem): Metadata {
   const path = newsPath(item.id) // the canonical address: always the current slug, also when an old one was opened
-  const description = clip(item.summary || item.headline, 200)
-  const base = pageMetadata(cfg, { title: `${item.headline} | ${cfg.businessName}`, description, path })
+  const description = clip(item.summary || item.headline, 160)
+  // a search result shows about 65 characters: the brand only when the headline leaves room for it
+  const branded = `${item.headline} | ${cfg.businessName}`
+  const title = branded.length <= 65 ? branded : clip(item.headline, 65)
+  const base = pageMetadata(cfg, { title, description, path })
   const image = item.image_url ? { url: item.image_url, width: 1080, height: 1080, alt: item.headline } : undefined
   const url = cfg.siteUrl + path
   return {
