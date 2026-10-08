@@ -219,6 +219,10 @@ export function createApiClient(opts: ClientOptions): AppApi {
     getMarketingRun: async (listingId) => (await request<{ run: MarketingRun | null }>(`/listings/${listingId}/campaign`)).run,
     sendRunToCalendar: async (listingId) =>
       (await request<{ run: MarketingRun }>(`/listings/${listingId}/campaign/calendar`, { method: 'POST' })).run,
+    answerRunQuestion: async (listingId, key, value) =>
+      (await request<{ run: MarketingRun }>(`/listings/${listingId}/campaign/answer`, {
+        method: 'POST', json: { key, value },
+      })).run,
     editRunPost: async (listingId, angle, caption) => {
       const r = await request<{ run: MarketingRun; problems: string[] }>(`/listings/${listingId}/campaign/posts/${encodeURIComponent(angle)}`,
         { method: 'PATCH', json: { caption } })

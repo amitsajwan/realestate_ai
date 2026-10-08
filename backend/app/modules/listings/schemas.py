@@ -108,6 +108,12 @@ class _Fields(BaseModel):
     possession: Optional[str] = Field(None, max_length=60)
     rera_no: Optional[str] = Field(None, max_length=60)
     amenities: List[str] = Field(default_factory=list, max_length=60)
+    # what is on offer, filled in or confirmed when marketing starts (propertyfacts/understand.py)
+    listing_scope: Optional[Literal["single", "layout"]] = None   # one plot or flat, or a whole project
+    size_min_sqft: Optional[StrictInt] = Field(None, gt=0)
+    size_max_sqft: Optional[StrictInt] = Field(None, gt=0)
+    total_acres: Optional[float] = Field(None, gt=0)
+    rera_status: Optional[Literal["not_registered"]] = None
     media: List[Media] = Field(default_factory=list, max_length=MAX_PHOTOS)
     about: Optional[About] = None  # project and area knowledge (docs/contracts/engagement.md); optional, never migrated
 

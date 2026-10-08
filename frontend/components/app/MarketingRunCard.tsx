@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { api, errorMessage } from '@/lib/app/client'
 import { t } from '@/lib/app/strings'
-import type { DraftLanguage, MarketingRun } from '@/lib/app/types'
+import type { DraftLanguage, MarketingRun, RunQuestion } from '@/lib/app/types'
 import { CampaignPostEditor } from './CampaignPostEditor'
 import { Btn, ErrorBox } from './ui'
 
@@ -17,6 +17,7 @@ function stepStates(run: MarketingRun | null): [StepState, StepState] {
   if (run.status === 'failed') return factsDone ? ['done', 'failed'] : ['failed', 'waiting']
   if (run.status === 'done') return ['done', 'done']
   if (run.status === 'posts') return ['done', 'working']
+  if (run.status === 'asking') return ['working', 'waiting']
   return ['working', 'waiting']
 }
 
@@ -97,6 +98,48 @@ function ProjectFilesRead({ run }: { run: MarketingRun }) {
   )
 }
 
+/** What the run could not work out by itself: one quick choice per question; the last answer lets it make the posts. */
+function RunQuestions({ questions, onAnswer }: { questions: RunQuestion[]; onAnswer: (key: string, value: unknown) => Promise<void> }) {
+  const [typed, setTyped] = useState<Record<string, string>>({})
+  const [busy, setBusy] = useState<string | null>(null)
+  const send = async (key: string, value: unknown) => {
+    setBusy(key)
+    try {
+      await onAnswer(key, value)
+    } finally {
+      setBusy(null)
+    }
+  }
+  return (
+    <div className="mt-2 space-y-3 rounded-xl border border-amber-300 bg-amber-50 p-3">
+      <p className="text-sm font-semibold text-amber-900">
+        A few quick questions before the posts are made. Only what you confirm goes into the posts.
+      </p>
+      {questions.map((q) => (
+        <fieldset key={q.key} disabled={busy !== null} className="space-y-2">
+          <legend className="text-sm font-medium text-gray-900">{q.text}</legend>
+          <div className="flex flex-wrap gap-2">
+            {q.options.map((o) => (
+              <button key={o.label} type="button" onClick={() => void send(q.key, o.value)}
+                className="min-h-[44px] rounded-full border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-800">
+                {o.label}
+              </button>
+            ))}
+          </div>
+          {q.free_text && (
+            <form className="flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); if (typed[q.key]?.trim()) void send(q.key, typed[q.key].trim()) }}>
+              <input aria-label={q.free_text} placeholder={q.free_text} value={typed[q.key] ?? ''}
+                onChange={(e) => setTyped({ ...typed, [q.key]: e.target.value })}
+                className="min-h-[44px] min-w-0 flex-1 rounded-lg border border-gray-300 px-3 text-sm" />
+              <Btn type="submit" block={false}>Save</Btn>
+            </form>
+          )}
+        </fieldset>
+      ))}
+    </div>
+  )
+}
+
 export function MarketingRunCard({ listingId }: { listingId: string }) {
   const [run, setRun] = useState<MarketingRun | null>(null)
   const [loading, setLoading] = useState(true)
@@ -147,6 +190,16 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
     }
   }
 
+  const answer = async (key: string, value: unknown) => {
+    setError(null)
+    try {
+      const r = await api.answerRunQuestion(listingId, key, value)
+      if (alive.current) setRun(r)
+    } catch (e) {
+      if (alive.current) setError(errorMessage(e))
+    }
+  }
+
   const toCalendar = async () => {
     setError(null)
     try {
@@ -181,6 +234,9 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
       {run && (
         <ol className="list-none space-y-4 p-0">
           <Step n={1} title={t('stepFacts')} state={s1}>
+            {run.status === 'asking' && (run.questions?.length ?? 0) > 0 && (
+              <RunQuestions questions={run.questions!} onAnswer={answer} />
+            )}
             {f && (
               <div className="mt-1 space-y-1 text-sm text-gray-700">
                 <p>

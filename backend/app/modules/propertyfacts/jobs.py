@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from . import campaign, identity
+from . import campaign, identity, understand
 from .facts import USABLE
 from .gather import Clients, gather
 from .store import FactsStore, facts_of
@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 
 COLLECTION = "marketing_runs"
 MARKETABLE = ("live", "under_offer")
-ACTIVE = ("queued", "facts", "posts")
+ACTIVE = ("queued", "facts", "asking", "posts")  # asking: waiting for the agent's answers (understand.py)
 SLIDE_REELS = 2  # slides reels per campaign, from its first carousel posts
 CAPTION_MAX = 2200  # Instagram's caption limit
 NOTE_MAX = 300
@@ -63,7 +63,7 @@ def run_out(doc: Optional[dict], base_url: str = "") -> Optional[dict]:
             "reels": [{**r, "video": (base + r["video"] if base and (r.get("video") or "").startswith("/") else r.get("video"))}
                       for r in doc.get("reels") or []],
             "facts_done_at": _iso(doc.get("facts_done_at")), "finished_at": _iso(doc.get("finished_at")),
-            "files": doc.get("files") or {}}
+            "files": doc.get("files") or {}, "questions": doc.get("questions") or []}
 
 
 def _safe(s: str) -> str:
@@ -340,11 +340,19 @@ class MarketingRuns:
 
     async def _brochure(self, job: dict, listing: dict, out: Path) -> Dict[str, Any]:
         """The listing's brochure PDF, if any: its pages (for the cards) and the builder's claims, kept on the listing for the
-        assistant (files.save_claims) and summarised on the run for Studio. {} without a brochure; never raises."""
+        assistant (files.save_claims) and summarised on the run for Studio. {} without a brochure; never raises.
+        A run resumed after the agent's answers reuses the claims it read before (only the pages are drawn again)."""
         from . import files
         pdf = files.brochure_pdf(listing, self.uploads_dir)
         if not pdf:
             return {}
+        before = (job.get("files") or {}).get("brochure") or {}
+        if job.get("understood") and before.get("claims"):
+            try:
+                pages = await asyncio.to_thread(files.pdf_pages, pdf, out / "brochure")
+            except Exception:
+                pages = []
+            return {**before, "pages": pages}
         info = await files.read_brochure(pdf, out / "brochure")
         await files.save_claims(self.listings, listing["_id"], brochure=info["claims"], rera_on_brochure=info["rera_no"],
                                 now=self.now())
@@ -445,14 +453,23 @@ class MarketingRuns:
                                        error=f"The facts are saved, but the project page for {regno} is not ready yet, so no "
                                              "posts were made. Please start marketing again in a few minutes.")
             page = project_url or listing_url
-            await self._set(jid, status="posts", step="posts", facts=_summary(sheet), page_url=page, listing_url=listing_url,
-                            facts_done_at=self.now())
-            # step 2: the posts, only now that the facts are kept
-            step = "posts"
             out = self.uploads_dir / "campaigns" / _safe(job["listing_id"]) / jid[:8]
-            dropped: Dict[str, Any] = {}
             llm = self.llm_factory() if self.llm_factory else None
             brochure = await self._brochure(job, listing, out)
+            # what is on offer (one plot or a layout, sizes, MahaRERA): filled in when certain, asked when not
+            if not job.get("understood"):
+                questions, changed = await self._understand(listing, sheet, brochure, llm)
+                if questions:
+                    return await self._set(jid, status="asking", step="facts", facts=_summary(sheet), page_url=page,
+                                           listing_url=listing_url, facts_done_at=self.now(), questions=questions)
+                if changed:  # the facts are gathered again with what was filled in
+                    listing = await self.listings.find_one({"_id": job["listing_id"]}) or listing
+                    sheet = await gather({**listing, "id": listing["_id"]}, clients, self.now())
+            await self._set(jid, status="posts", step="posts", facts=_summary(sheet), page_url=page, listing_url=listing_url,
+                            facts_done_at=self.now(), questions=[])
+            # step 2: the posts, only now that the facts are kept
+            step = "posts"
+            dropped: Dict[str, Any] = {}
             photos = await self._photo_pool(listing, out) + brochure.get("pages", [])
             packs = await campaign.make(sheet.facts, out, llm=llm, photo=self._photo(listing), link=page, dropped=dropped,
                                         photos=photos, **self._who(job, await self._identity(job)))
@@ -464,10 +481,10 @@ class MarketingRuns:
             ctx = campaign.Ctx(sheet.facts)
             where = ctx.where or "this property"
             await self._set(jid, posts=posts, dropped={k: str(v)[:300] for k, v in dropped.items()},
-                            link_line=campaign.link_line_for(where, job.get("language") or "en"))
+                            link_line=campaign.link_line_for(where, job.get("language") or "en", ctx.registered))
             # step 3 (best effort, never fails the run): reels from the best carousels, and the walkthrough reel
             step = "reels"
-            reels = await self._reels(job, listing, posts, out, ctx.project, campaign.link_line_for(where, job.get("language") or "en"))
+            reels = await self._reels(job, listing, posts, out, ctx.project, campaign.link_line_for(where, job.get("language") or "en", ctx.registered))
             await self._set(jid, status="done", reels=reels, error=None, finished_at=self.now())
         except Exception:
             log.exception("marketing run %s failed in step %s", jid, step)
@@ -477,6 +494,45 @@ class MarketingRuns:
             if step == "reels":  # the posts are made: the run is usable without reels
                 return await self._set(jid, status="done", reels=[], error=msg, finished_at=self.now())
             await self._set(jid, status="failed", error=msg, finished_at=self.now())
+
+    async def _understand(self, listing: dict, sheet, brochure: Dict[str, Any], llm) -> tuple:
+        """(questions, changed): reads the listing and the builder's claims (understand.py), sets what is certain on the
+        listing and returns what the agent must answer. Never raises: a failure asks nothing."""
+        try:
+            claims = list(brochure.get("claims") or []) + list(((listing.get("file_claims") or {}).get("video")) or [])
+            seen = await understand.read(listing, claims, llm)
+            rera = sheet.facts.get("rera_no")
+            units = sheet.facts.get("units_total")
+            auto, questions = understand.decide(listing, seen, bool(rera and rera.usable),
+                                                units.value if units and units.usable and isinstance(units.value, int) else None)
+            if auto:
+                await self.listings.update_one({"_id": listing["_id"]}, {"$set": auto})
+            return questions, bool(auto)
+        except Exception:
+            log.warning("marketing: understanding listing %s failed", listing.get("_id"), exc_info=True)
+            return [], False
+
+    async def answer(self, agent_id: str, listing_id: str, key: str, value: Any) -> dict:
+        """The agent's answer to one question: the listing gets the field, the question goes. The last answer queues the run
+        again; it then gathers the facts with the answers and makes the posts without asking again."""
+        listing = await self._listing(agent_id, listing_id)
+        run = await self._latest({"listing_id": listing_id, "agent_id": agent_id})
+        if not run or run["status"] != "asking":
+            raise RunError("There is no question waiting for this listing.", 409)
+        if key not in {q["key"] for q in run.get("questions") or []}:
+            raise RunError("That question was already answered.", 409)
+        try:
+            fields = understand.fill_size(listing, understand.apply_answer(key, value))
+        except ValueError as e:
+            raise RunError(str(e), 422)
+        if fields:
+            await self.listings.update_one({"_id": listing_id}, {"$set": fields})
+        left = [q for q in run["questions"] if q["key"] != key]
+        change: Dict[str, Any] = {"questions": left, f"answers.{key}": value}
+        if not left:
+            change.update(status="queued", understood=True, started_at=None)
+        await self.runs.update_one({"_id": run["_id"], "status": "asking"}, {"$set": change})
+        return await self.runs.find_one({"_id": run["_id"]})
 
     async def run_once(self) -> bool:
         job = await self.claim()

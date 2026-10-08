@@ -14,7 +14,7 @@ from app.modules.creative.hooks import PATTERNS
 from app.modules.creative.listing_brief import price_label
 from app.modules.creative.models import Brief, CardBrand, CreativePack, Voice
 
-from . import surroundings
+from . import calc, surroundings
 from .facts import Fact
 
 log = logging.getLogger(__name__)
@@ -29,6 +29,9 @@ def day(iso: str) -> str:
 LINK_LINE = {"en": "Full details of {where}, with its MahaRERA record: link in bio.",
              "mr": "{where} ची पूर्ण माहिती, MahaRERA नोंदीसह: बायोमधील लिंक.",
              "hi": "{where} की पूरी जानकारी, MahaRERA रिकॉर्ड के साथ: बायो में लिंक."}
+LINK_LINE_PLAIN = {"en": "Full details of {where}: link in bio.",   # no MahaRERA record to point to
+                   "mr": "{where} ची पूर्ण माहिती: बायोमधील लिंक.",
+                   "hi": "{where} की पूरी जानकारी: बायो में लिंक."}
 
 # The caption's closing question for each angle, in each post language: one a buyer can answer about THIS subject
 # (a price card does not ask how many site visits they made). Code-written, so a translation never changes it.
@@ -63,6 +66,9 @@ ASKS: Dict[str, Dict[str, str]] = {
     "layout_size": {"en": "Do you prefer a smaller layout or a bigger one? Tell us below.",
                     "mr": "तुम्हाला लहान ले-आउट आवडतो की मोठा? खाली सांगा.",
                     "hi": "आपको छोटा लेआउट पसंद है या बड़ा? नीचे बताइए."},
+    "land_area": {"en": "How much open space would you want in a layout? Tell us below.",
+                  "mr": "ले-आउटमध्ये तुम्हाला किती मोकळी जागा हवी? खाली सांगा.",
+                  "hi": "लेआउट में आपको कितनी खुली जगह चाहिए? नीचे बताइए."},
     "plot_or_flat": {"en": "Plot or flat: which would you pick? Tell us in the comments.",
                      "mr": "प्लॉट की फ्लॅट: तुम्ही काय निवडाल? कमेंटमध्ये सांगा.",
                      "hi": "प्लॉट या फ्लैट: आप क्या चुनेंगे? कमेंट में बताइए."},
@@ -72,11 +78,13 @@ ASKS: Dict[str, Dict[str, str]] = {
 }
 
 
-def link_line_for(where: str, language: str = "en") -> str:
-    """Instagram's pointer to the listing page (Facebook swaps it for the link itself: schedule.facebook_caption)."""
+def link_line_for(where: str, language: str = "en", registered: bool = True) -> str:
+    """Instagram's pointer to the listing page (Facebook swaps it for the link itself: schedule.facebook_caption).
+    `registered`: the property has a MahaRERA number, so the page carries its record."""
     if language in ("mr", "hi"):  # a place name as the language spells it (Ranjangaon -> रांजणगाव); project names stay
         where = ", ".join(i18n.PLACES.get(p.strip(), {}).get(language, p.strip()) for p in where.split(","))
-    return LINK_LINE.get(language, LINK_LINE["en"]).format(where=where)
+    lines = LINK_LINE if registered else LINK_LINE_PLAIN
+    return lines.get(language, lines["en"]).format(where=where)
 
 
 class Ctx:
@@ -99,7 +107,9 @@ class Ctx:
         self.where = ", ".join(p for p in (self.project, self.locality) if p)
         self.plot = self.v.get("property_type") == "plot"
         self.kind = "plot" if self.plot else "home"
-        self.sqft = self.v.get("plot_sqft") or self.v.get("carpet_sqft")
+        self.layout = self.v.get("listing_scope") == "layout"   # a whole project: the price is a starting price
+        self.registered = bool(self.v.get("rera_no"))
+        self.sqft = self.v.get("size_min_sqft") or self.v.get("plot_sqft") or self.v.get("carpet_sqft")
 
     def tags(self) -> List[str]:
         words = [w.capitalize() for w in self.locality.split()]
@@ -115,8 +125,9 @@ class Ctx:
         kw.setdefault("kicker", self.project.upper()[:28])
         where = self.where or "this property"
         kw.setdefault("intro", f"{where}." if self.where else "")
-        kw.setdefault("link_line", link_line_for(where, self.language))
-        kw.setdefault("writer_note", f"This post markets one property: {where}. Its listed price, project name, MahaRERA "
+        kw.setdefault("link_line", link_line_for(where, self.language, self.registered))
+        what = f"a project of many {self.kind}s, {where}, whose price is a starting price" if self.layout else f"one property: {where}"
+        kw.setdefault("writer_note", f"This post markets {what}. Its listed price, project name, MahaRERA "
                                      "details and nearby places are facts you may use exactly as written; add no other number.")
         kw.setdefault("hashtags", self.tags())
         kw.setdefault("photo", self.photo)
@@ -133,6 +144,12 @@ def price_reveal(c: Ctx) -> Optional[Brief]:
     if not (c.v.get("price_inr") and c.sqft):
         return None
     price = price_label(c.v["price_inr"])
+    if c.layout:
+        line = f"{c.kind.capitalize()}s at {c.where} start at {price}, for {c.sqft:,} sq ft."
+        return c.brief(angle="price_reveal", hook=f"{c.kind.capitalize()}s from {price} in {c.project or c.locality}",
+                       topic=f"Starting price at {c.where}", short="starting price", stat_value=price,
+                       stat_label=f"starting price for a {c.kind}", facts=[line],
+                       tip="Ask what the price includes: development charges, stamp duty and registration.", prefer="stat")
     line = f"A {c.sqft:,} sq ft {c.kind} at {c.where} is listed at {price}."
     return c.brief(angle="price_reveal", hook=f"{price} for a {c.kind} in {c.project or c.locality}", topic=f"Price of a {c.kind} at {c.where}", short=f"{c.kind} price", stat_value=price,
                    stat_label=f"for this {c.kind}", facts=[line],
@@ -140,6 +157,14 @@ def price_reveal(c: Ctx) -> Optional[Brief]:
 
 
 def size_in_guntha(c: Ctx) -> Optional[Brief]:
+    lo, hi = c.v.get("size_min_sqft"), c.v.get("size_max_sqft")
+    if c.plot and c.layout and lo and hi and hi > lo:
+        glo, ghi = calc.guntha(lo), calc.guntha(hi)
+        line = f"Plot sizes at {c.where}: {lo:,} to {hi:,} sq ft, that is {glo:g} to {ghi:g} guntha. 1 guntha is 1,089 sq ft."
+        return c.brief(angle="size_in_guntha", hook=f"{glo:g} to {ghi:g} guntha: plot sizes at {c.project or c.locality}",
+                       topic="How big are these plots?", short="plot sizes", stat_value=f"{glo:g}-{ghi:g} guntha",
+                       stat_label="plot sizes on offer", facts=[line],
+                       tip="Walk the boundary stones on site before you pay a token.", prefer="stat")
     g, sqm = c.v.get("plot_guntha"), c.v.get("plot_sqm")
     if not (g and c.sqft):
         return None
@@ -162,7 +187,7 @@ def rate_per_sqft(c: Ctx) -> Optional[Brief]:
 
 def emi(c: Ctx) -> Optional[Brief]:
     e = c.v.get("emi")
-    if not e:
+    if not e or c.layout:  # a starting price: an EMI on it would read as the EMI of every unit
         return None
     loan = price_label(e["loan"])
     rate = f"{e['rate']:g}%"
@@ -240,10 +265,26 @@ def layout_size(c: Ctx) -> Optional[Brief]:
                    tip="A smaller layout means fewer neighbours sharing the roads and water.", prefer="stat")
 
 
+def land_area(c: Ctx) -> Optional[Brief]:
+    acres = c.v.get("total_acres")
+    if not (c.layout and acres):
+        return None
+    units = c.v.get("units_total")
+    unit = "plots" if c.plot else "homes"
+    line = f"{c.project or c.where} is spread over {acres:g} acres" + (f", with {units} {unit}." if units else ".")
+    return c.brief(angle="land_area", hook=f"{acres:g} acres: {c.project or c.locality}", topic=f"How big is {c.project or c.where}?",
+                   short="land area", stat_value=f"{acres:g} acres", stat_label=f"of land at {c.project or c.locality}", facts=[line],
+                   tip="Ask how much of the land is roads and open space.", prefer="stat")
+
+
 def plot_or_flat(c: Ctx) -> Optional[Brief]:
     if not c.v.get("price_inr"):
         return None
     price = price_label(c.v["price_inr"])
+    if c.layout:
+        return c.brief(angle="plot_or_flat", hook=f"Plot or flat from {price}?", topic=f"Plot or flat from {price}?", short="plot or flat",
+                       question=f"Plot or flat from {price}?", options=["A plot", "A flat"],
+                       facts=[f"Plots at {c.where} start at {price}."], prefer="poll")
     return c.brief(angle="plot_or_flat", hook=f"Plot or flat for {price}?", topic=f"Plot or flat for {price}?", short="plot or flat", question=f"Plot or flat for {price}?",
                    options=["A plot", "A flat"], facts=[f"A plot at {c.where} is listed at {price}."], prefer="poll")
 
@@ -272,8 +313,8 @@ class AngleDef:
 
 
 ANGLES: Tuple[AngleDef, ...] = tuple(AngleDef(f.__name__, f) for f in (
-    price_reveal, possession, near_work, nearby, size_in_guntha, rera_check, emi, plot_checklist, rate_per_sqft, layout_size,
-    plot_or_flat, plot_myth))
+    price_reveal, possession, near_work, nearby, size_in_guntha, land_area, rera_check, emi, plot_checklist, rate_per_sqft,
+    layout_size, plot_or_flat, plot_myth))
 
 
 def plan(facts: Dict[str, Fact], photo: str = "none", link: str = "", angles: Sequence[AngleDef] = ANGLES,

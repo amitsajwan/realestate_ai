@@ -18,7 +18,9 @@ from .facts import Fact, Reading, sheet
 
 BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128 Safari/537.36"
 LISTING_KEYS = ("transaction", "property_type", "price_inr", "bhk", "carpet_sqft", "locality", "city", "project_name",
-                "rera_no", "amenities")
+                "rera_no", "amenities",
+                # set or confirmed by the agent when marketing starts (understand.py)
+                "listing_scope", "size_min_sqft", "size_max_sqft", "total_acres", "rera_status")
 
 
 @dataclass

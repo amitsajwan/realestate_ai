@@ -588,6 +588,8 @@ export interface AppApi {
   getMarketingRun(listingId: string): Promise<MarketingRun | null>
   /** Send the finished run's posts to the approval calendar as planned rows (one a day). 409 before the posts exist. */
   sendRunToCalendar(listingId: string): Promise<MarketingRun>
+  /** Answer one of the run's questions (value null = not sure); the last answer lets the run make the posts. 422 for a bad answer. */
+  answerRunQuestion(listingId: string, key: string, value: unknown): Promise<MarketingRun>
   /** Save an edited caption for one post; `problems` are the checks' warnings (the text is kept). Planned calendar rows follow. */
   editRunPost(listingId: string, angle: string, caption: string): Promise<{ run: MarketingRun; problems: string[] }>
   /** Make one post again with a note ("mention MIDC"), from the kept facts and under every check. 422 when no version passes. */
@@ -609,11 +611,21 @@ export interface AppApi {
 }
 
 /** One "Start marketing" run (POST/GET /listings/{id}/campaign): facts first, then posts (drafts; posting needs approval). */
+export interface RunQuestion {
+  key: string
+  text: string
+  options: { label: string; value: unknown }[]
+  /** When set, the agent may type an answer instead (the placeholder, e.g. a MahaRERA number). */
+  free_text?: string
+}
+
 export interface MarketingRun {
   id: string
   listing_id: string
-  status: 'queued' | 'facts' | 'posts' | 'done' | 'failed'
+  status: 'queued' | 'facts' | 'asking' | 'posts' | 'done' | 'failed'
   step?: 'facts' | 'posts' | null
+  /** While status is 'asking': what the agent must answer before the posts are made (one plot or a layout, sizes...). */
+  questions?: RunQuestion[]
   /** The posts' language (cards and captions); English when absent. */
   language?: DraftLanguage
   facts?: { usable: number; held: number; maharera?: string | null; how?: string; nearby: number; notes: string[] } | null

@@ -627,6 +627,9 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
     async sendRunToCalendar() {
       throw fixtureError(409, 'Demo mode: nothing to send to the calendar')
     },
+    async answerRunQuestion() {
+      throw fixtureError(409, 'Demo mode: no question waiting')
+    },
     async getMarketingRun(listingId) {
       find(listingId)
       return null

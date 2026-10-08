@@ -7,7 +7,7 @@ same for a project's own page.
 (step 1 facts and page, then step 2 posts; see jobs.py), `GET /{listing_id}/campaign` its latest run,
 `POST /{listing_id}/campaign/calendar` sends its posts to the approval calendar (schedule.py),
 `PATCH /{listing_id}/campaign/posts/{angle}` saves an edited caption, `POST .../posts/{angle}/redo` remakes it with a note."""
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict
@@ -59,6 +59,12 @@ class EditIn(BaseModel):
 class RedoIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     note: str = ""
+
+
+class AnswerIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    key: str
+    value: Any = None   # the chosen option's value, a typed MahaRERA number, or null for "not sure"
 
 
 class StartIn(BaseModel):
@@ -128,3 +134,14 @@ async def redo_post(listing_id: str, angle: str, body: RedoIn, request: Request,
     except jobs.RunError as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     return {"run": jobs.run_out(doc, str(request.base_url)), "synced": doc.get("synced", 0)}
+
+
+@router.post("/{listing_id}/campaign/answer")
+async def answer_question(listing_id: str, body: AnswerIn, request: Request, user: User = Depends(current_active_user),
+                          runs: jobs.MarketingRuns = Depends(get_runs), _w: None = Depends(start_worker)) -> dict:
+    """The agent's answer to one question the run asked (understand.py); the last answer lets the run make the posts."""
+    try:
+        doc = await runs.answer(str(user.id), listing_id, body.key, body.value)
+    except jobs.RunError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    return {"run": jobs.run_out(doc, str(request.base_url))}
