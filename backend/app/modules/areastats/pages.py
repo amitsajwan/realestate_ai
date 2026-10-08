@@ -157,6 +157,35 @@ def details(doc: dict) -> dict:
             "registered_on": _day(doc.get("registered_on")), "completion_moved_months": months_later(doc)}
 
 
+CHECK_LABELS = {"maharera_general": "MahaRERA record", "buildings": "Buildings and wings", "places": "Location",
+                "text": "Description"}
+
+
+def checks(doc: dict) -> List[dict]:
+    """What the enrichment checked for this page, step by step: {key, label, ok, at, note}; empty before the first round."""
+    steps = (doc.get("enrichment") or {}).get("steps") or {}
+    out = []
+    for key, label in CHECK_LABELS.items():
+        st = steps.get(key)
+        if not st:
+            continue
+        note = st.get("checked") or ""
+        if key == "text":
+            note = "written from the gathered facts; every number checked against them" if st.get("ok") else "kept our own paragraph"
+        at = st.get("at")
+        out.append({"key": key, "label": label, "ok": bool(st.get("ok")),
+                    "at": at.date().isoformat() if isinstance(at, datetime) else None, "note": note[:160]})
+    return out
+
+
+def checked_count(doc: dict) -> Optional[int]:
+    """How many of the enrichment checks passed (0 to 4); None before the crawler's first round on this project."""
+    steps = (doc.get("enrichment") or {}).get("steps")
+    if not steps:
+        return None
+    return sum(1 for k in CHECK_LABELS if (steps.get(k) or {}).get("ok"))
+
+
 def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) -> dict:
     area = BY_KEY.get(doc.get("locality") or "")
     read = doc.get("details_checked_at")
@@ -168,6 +197,8 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
                       for b in doc.get("buildings") or []],
         # a position only when the check put it near the pincode's centre
         "map": {"lat": geo["lat"], "lon": geo["lon"]} if geo.get("lat") is not None and checked.get("ok") else None,
+        "map_from": geo.get("located_from") if geo.get("lat") is not None and checked.get("ok") else None,
+        "checks": checks(doc), "text_checked": bool(doc.get("page_text")),
         "builder": track_record(doc, docs) if docs is not None else None,
         "place": doc.get("place_locality") or None, "taluka": doc.get("taluka") or None,
         "slug": doc.get("page_slug"), "name": doc.get("name", ""), "regno": doc.get("regno") or doc["_id"],
@@ -216,7 +247,7 @@ async def page_for(db, regno: str) -> Optional[dict]:
 
 
 async def listing(db, area: Optional[str] = None, only_indexable: bool = True, limit: int = 2000) -> List[dict]:
-    """Pages for the sitemap and area pages: {slug, name, area, completion_now, indexable}, newest listed first."""
+    """Pages for the sitemap, area pages and search: {slug, regno, name, area, promoter, completion_now, checked, indexable}, newest listed first."""
     store = Store(db)
     docs = [d for d in await store.all_projects() if d.get("page_slug") and (d.get("locality") in BY_KEY or d.get("watched_by"))]
     if area:
@@ -226,5 +257,6 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
         docs = [d for d in docs if indexable(d)]
     docs.sort(key=lambda d: (_day(d.get("last_modified")) or "", d.get("name", "")), reverse=True)
     return [{"slug": d["page_slug"], "regno": d.get("regno") or d["_id"], "name": d.get("name", ""), "area": d.get("locality"),
-             "completion_now": _day(d.get("completion_now")),
+             "promoter": d.get("promoter") or None, "completion_now": _day(d.get("completion_now")),
+             "checked": checked_count(d), "checks_total": len(CHECK_LABELS),
              "listed_or_updated": _day(d.get("last_modified")), "indexable": indexable(d)} for d in docs[:limit]]

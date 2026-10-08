@@ -3,6 +3,8 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import ProjectCard from '@/components/site/ProjectCard'
+import ProjectSearch from '@/components/site/ProjectSearch'
+import CheckBadge from '@/components/site/CheckBadge'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { LOCALITIES, localityByName } from '@/lib/marketing/localities'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
@@ -28,7 +30,10 @@ export default async function ProjectsPage() {
   const catalog = await getCatalog()
   const groups = byLocality(catalog)
   const listed = new Set(catalog.map((p) => p.rera_no))
-  const register = (await getRegisterProjects()).filter((r) => !listed.has(r.regno))
+  const everything = await getRegisterProjects(undefined, true)
+  const register = everything.filter((r) => r.indexable && !listed.has(r.regno))
+  const areaNames = Object.fromEntries(LOCALITIES.map((l) => [l.key, l.name]))
+  const searchItems = everything.map(({ slug, name, regno, promoter, area, completion_now, checked, checks_total }) => ({ slug, name, regno, promoter, area, completion_now, checked, checks_total }))
   const byArea = LOCALITIES.map((l) => ({ l, items: register.filter((r) => r.area === l.key).sort((a, b) => a.name.localeCompare(b.name)) }))
     .filter((g) => g.items.length > 0)
   return (
@@ -43,6 +48,8 @@ export default async function ProjectsPage() {
           date the builder has filed, whether it has moved, and how many homes are booked. When the builder&apos;s own target is
           earlier than the MahaRERA date, we say so.
         </p>
+
+        <ProjectSearch items={searchItems} areaNames={areaNames} />
 
         {groups.length === 0 ? (
           <p className="mt-8 rounded-xl bg-slate-50 p-4 text-slate-700">
@@ -73,7 +80,9 @@ export default async function ProjectsPage() {
             <h2 id="register-title" className="text-2xl font-bold text-slate-900">Every MahaRERA project in our areas</h2>
             <p className="mt-2 max-w-3xl text-slate-700">
               Our page for each project: the completion date filed with MahaRERA and how many homes are booked, with the date we read
-              the record. {register.length} projects so far; new ones are added as MahaRERA lists them.
+              the record. {register.length} projects so far; new ones are added as MahaRERA lists them. Every page starts from MahaRERA;
+              <span className="whitespace-nowrap"> <CheckBadge checked={4} total={4} compact /></span> means our crawler has also checked it
+              against other sources (buildings, location, nearby places).
             </p>
             {byArea.map(({ l, items }, i) => (
               <details key={l.key} open={i === 0} className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
@@ -84,6 +93,7 @@ export default async function ProjectsPage() {
                   {items.map((r: RegisterListItem) => (
                     <li key={r.slug} className="break-inside-avoid py-1">
                       <Link href={`/projects/${r.slug}`} className="font-medium text-[#0f2340] underline underline-offset-2">{r.name}</Link>
+                      {' '}<CheckBadge checked={r.checked} total={r.checks_total} compact />
                       {r.completion_now && <span className="ml-1 text-sm text-slate-600">· completion filed {r.completion_now.slice(0, 4)}</span>}
                     </li>
                   ))}

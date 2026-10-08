@@ -29,6 +29,19 @@ export interface RegisterProject {
   builder?: BuilderRecord | null
   place?: string | null
   taluka?: string | null
+  map_from?: string | null
+  checks?: EnrichCheck[]
+  text_checked?: boolean
+  enriched_at?: string | null
+}
+
+/** One enrichment check behind the page (areastats.enrich): passed or not, when, and what was compared. */
+export interface EnrichCheck {
+  key: 'maharera_general' | 'buildings' | 'places' | 'text'
+  label: string
+  ok: boolean
+  at: string | null
+  note: string
 }
 
 export interface ProjectDetailsGrid {
@@ -110,7 +123,11 @@ export interface RegisterListItem {
   regno: string
   name: string
   area: string | null
+  promoter?: string | null
   completion_now: string | null
+  /** enrichment checks passed (null: our crawler has not reached it yet) out of checks_total */
+  checked?: number | null
+  checks_total?: number
   listed_or_updated: string | null
   indexable: boolean
 }
@@ -144,8 +161,9 @@ export async function getRegisterProject(slug: string): Promise<RegisterProject 
 }
 
 /** Indexable project pages (for the sitemap), optionally one area's. An outage gives an empty list. */
-export async function getRegisterProjects(area?: string): Promise<RegisterListItem[]> {
-  const r = await get<RegisterListItem[]>('/api/v1/public/register/projects' + (area ? '?area=' + encodeURIComponent(area) : ''))
+export async function getRegisterProjects(area?: string, all = false): Promise<RegisterListItem[]> {
+  const q = [area ? 'area=' + encodeURIComponent(area) : '', all ? 'all=true' : ''].filter(Boolean).join('&')
+  const r = await get<RegisterListItem[]>('/api/v1/public/register/projects' + (q ? '?' + q : ''))
   return r.ok && Array.isArray(r.data) ? r.data : []
 }
 

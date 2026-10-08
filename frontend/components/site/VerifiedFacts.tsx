@@ -8,8 +8,8 @@ const km = (x: number): string => `${Number.isInteger(x) ? x : x.toFixed(1)} km`
 
 /** The facts we checked for this property: MahaRERA's record, what is nearby, and a few numbers worked out for the buyer.
  *  Each block says where it comes from. Renders nothing when we have no facts. */
-export default function VerifiedFacts({ f }: { f: PropertyFactsView | null }) {
-  if (!f || !(f.maharera || f.nearby?.length || f.numbers)) return null
+export default function VerifiedFacts({ f, hideNearby = false }: { f: PropertyFactsView | null; hideNearby?: boolean }) {
+  if (!f || !(f.maharera || (!hideNearby && f.nearby?.length) || f.numbers)) return null
   const r = f.maharera
   const n = f.numbers || {}
   return (
@@ -40,7 +40,7 @@ export default function VerifiedFacts({ f }: { f: PropertyFactsView | null }) {
         </div>
       )}
 
-      {f.nearby && f.nearby.length > 0 && (
+      {!hideNearby && f.nearby && f.nearby.length > 0 && (
         <div className="mt-4">
           <h3 className="text-sm font-bold uppercase tracking-wide text-emerald-800">Nearby</h3>
           <ul className="mt-2 grid list-none gap-2 p-0 text-sm sm:grid-cols-2">

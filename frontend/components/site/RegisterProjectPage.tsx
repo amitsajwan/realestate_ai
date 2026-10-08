@@ -6,7 +6,7 @@ import { breadcrumbJsonLd, jsonLdString } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import type { RegisterProject } from '@/lib/site/register'
 import { longDay, projectFaq } from '@/lib/site/register'
-import type { Faq } from '@/lib/site/register'
+import type { EnrichCheck, Faq } from '@/lib/site/register'
 import type { PropertyFactsView } from '@/lib/site/types'
 import { formatPrice } from '@/lib/site/format'
 
@@ -62,6 +62,126 @@ function Cell({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
+type Source = 'rera' | 'checked' | 'unchecked'
+
+/** Where a block's facts come from: MahaRERA (the regulator's own record), gathered from other sources and checked by us, or not checked. */
+function SourceTag({ kind, children }: { kind: Source; children?: React.ReactNode }) {
+  const style = kind === 'rera' ? 'bg-emerald-50 text-emerald-800 ring-emerald-200'
+    : kind === 'checked' ? 'bg-sky-50 text-sky-800 ring-sky-200' : 'bg-slate-100 text-slate-700 ring-slate-300'
+  const text = children ?? (kind === 'rera' ? 'From MahaRERA' : kind === 'checked' ? 'Gathered and checked' : 'Not checked yet')
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${style}`}>
+      <span aria-hidden>{kind === 'unchecked' ? '?' : '✓'}</span>{text}
+    </span>
+  )
+}
+
+function SectionHead({ id, title, kind, tag }: { id: string; title: string; kind?: Source; tag?: React.ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <h2 id={id} className={H2}>{title}</h2>
+      {kind && <SourceTag kind={kind}>{tag}</SourceTag>}
+    </div>
+  )
+}
+
+function Stat({ label, value, sub }: { label: string; value: React.ReactNode; sub?: React.ReactNode }) {
+  return (
+    <div className="min-w-0 rounded-xl bg-white/10 px-3 py-2.5 ring-1 ring-inset ring-white/15">
+      <dt className="text-xs text-slate-300">{label}</dt>
+      <dd className="mt-0.5 text-lg font-bold text-white">{value}</dd>
+      {sub && <dd className="text-xs text-slate-300">{sub}</dd>}
+    </div>
+  )
+}
+
+/** The page's opening: name, builder, area and registration on a dark band, with the headline numbers from MahaRERA. */
+function Hero({ p }: { p: RegisterProject }) {
+  const d = p.details
+  const moved = d?.completion_moved_months
+  const stats: [string, React.ReactNode, React.ReactNode?][] = []
+  if (p.completion_now) stats.push(['Completion filed', longDay(p.completion_now),
+    moved != null ? (moved > 0 ? `moved ${months(moved)} later` : 'not moved') : undefined])
+  if (d?.booked_pct != null) stats.push(['Booked', `${d.booked_pct}%`, p.units_booked != null && p.units_total ? `${n(p.units_booked)} of ${n(p.units_total)}` : undefined])
+  else if (p.units_total) stats.push(['Units', n(p.units_total)])
+  if (d?.towers) stats.push(['Towers', n(d.towers), d.max_floors ? `up to ${d.max_floors} floors` : undefined])
+  if (d?.registered_on) stats.push(['Registered', longDay(d.registered_on)])
+  const where = p.area ? `${p.area.name}, Pune` : [p.place, p.taluka, 'Pune district'].filter(Boolean).join(', ')
+  return (
+    <header className="overflow-hidden rounded-3xl bg-[#0f2340] px-5 py-7 text-white shadow-lg sm:px-8 sm:py-9">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-200 ring-1 ring-inset ring-emerald-300/30">
+          <span aria-hidden>✓</span> MahaRERA registered
+        </span>
+        <span className="rounded-full bg-white/10 px-3 py-1 font-mono text-xs text-slate-200">{p.regno}</span>
+        {p.completion_passed && <span className="rounded-full bg-amber-400/20 px-3 py-1 text-xs font-semibold text-amber-200">Completion date passed</span>}
+      </div>
+      <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{p.name}</h1>
+      <p className="mt-2 text-base text-slate-200">{[p.promoter && `by ${p.promoter}`, where, p.pincode].filter(Boolean).join(' · ')}</p>
+      {stats.length > 0 && (
+        <dl className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {stats.map(([l, v, sub]) => <Stat key={l} label={l} value={v} sub={sub} />)}
+        </dl>
+      )}
+      <div className="mt-6 flex flex-wrap gap-3">
+        <a href="#enquire" className="inline-flex min-h-[48px] items-center rounded-full bg-amber-400 px-6 font-bold text-slate-900 no-underline">Ask about this project</a>
+        {p.maharera_url && (
+          <a href={p.maharera_url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[48px] items-center rounded-full px-5 font-semibold text-white no-underline ring-1 ring-inset ring-white/30 hover:bg-white/10">
+            MahaRERA record<span className="sr-only"> (opens in a new tab)</span>
+          </a>
+        )}
+      </div>
+    </header>
+  )
+}
+
+const CHECK_KEYS = ['maharera_general', 'buildings', 'places', 'text'] as const
+const CHECK_NAMES: Record<string, string> = { maharera_general: 'Dates and homes booked', buildings: 'Buildings and wings',
+  places: 'Location and nearby', text: 'Description' }
+
+/** Every check behind the page: what came from MahaRERA, what we gathered elsewhere and checked, and what is still waiting. */
+function ChecksPanel({ p }: { p: RegisterProject }) {
+  const byKey = Object.fromEntries((p.checks ?? []).map((c) => [c.key, c])) as Record<string, EnrichCheck | undefined>
+  const rows: { label: string; kind: Source; note: string }[] = [
+    { label: 'Registration, promoter, pincode', kind: 'rera', note: p.listed_or_updated ? `MahaRERA listing, updated ${longDay(p.listed_or_updated)}` : 'MahaRERA listing' },
+  ]
+  for (const key of CHECK_KEYS) {
+    const c = byKey[key]
+    const label = CHECK_NAMES[key]
+    const fromRera = key === 'maharera_general' || key === 'buildings'
+    if (!c) rows.push({ label, kind: 'unchecked', note: 'Waiting for its turn; this page fills in by itself' })
+    else rows.push({ label, kind: c.ok ? (fromRera ? 'rera' : 'checked') : 'unchecked',
+      note: (c.ok ? '' : 'Not confirmed: ') + c.note + (c.at ? ` (${longDay(c.at)})` : '') })
+  }
+  const ok = rows.filter((r) => r.kind !== 'unchecked').length
+  return (
+    <section aria-labelledby="checks-title" className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5" data-testid="checks">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 id="checks-title" className="text-lg font-semibold text-slate-900">How we checked this page</h2>
+        <span className="text-sm font-semibold text-slate-700">{ok} of {rows.length}</span>
+      </div>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100" aria-hidden>
+        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.round((100 * ok) / rows.length)}%` }} />
+      </div>
+      <ul className="mt-3 list-none space-y-3 p-0">
+        {rows.map((r) => (
+          <li key={r.label}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-medium text-slate-900">{r.label}</span>
+              <SourceTag kind={r.kind} />
+            </div>
+            <p className="mt-0.5 text-xs text-slate-600">{r.note}</p>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-600">
+        <strong>From MahaRERA</strong>: the regulator&apos;s own record. <strong>Gathered and checked</strong>: found in other public
+        sources and checked by us against MahaRERA and the map. <strong>Not checked yet</strong>: still waiting, or could not be confirmed.
+      </p>
+    </section>
+  )
+}
+
 /** Towers, floors, flats, booked share, dates: from MahaRERA's buildings summary and the register record. */
 function DetailsGrid({ p }: { p: RegisterProject }) {
   const d = p.details
@@ -79,11 +199,10 @@ function DetailsGrid({ p }: { p: RegisterProject }) {
   if (cells.length < 2) return null
   return (
     <section aria-labelledby="details-title">
-      <h2 id="details-title" className={H2}>Project details</h2>
+      <SectionHead id="details-title" title="Project details" kind="rera" />
       <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {cells.map(([label, value]) => <Cell key={label} label={label} value={value} />)}
       </dl>
-      <p className="mt-2 text-xs text-slate-500">Source: MahaRERA public records.</p>
     </section>
   )
 }
@@ -93,7 +212,7 @@ function BuildingsTable({ p }: { p: RegisterProject }) {
   if (!rows.length) return null
   return (
     <section aria-labelledby="buildings-title">
-      <h2 id="buildings-title" className={H2}>Buildings</h2>
+      <SectionHead id="buildings-title" title="Buildings" kind="rera" />
       <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-slate-600">
@@ -116,20 +235,45 @@ function BuildingsTable({ p }: { p: RegisterProject }) {
   )
 }
 
-/** OpenStreetMap embed around the checked position (no Google key). */
-function MapBox({ p }: { p: RegisterProject }) {
+type Near = { label: string; name: string; km: number }
+
+/** The map: OpenStreetMap around the position we checked against the pincode; without one, a map search by name and area, marked
+ *  as not checked. Nearby places (from the gathered fact sheet, OpenStreetMap distances) sit beside it. */
+function MapBox({ p, nearby }: { p: RegisterProject; nearby: Near[] }) {
   const m = p.map
-  if (!m) return null
-  const d = 0.01
-  const bbox = [m.lon - d, m.lat - d, m.lon + d, m.lat + d].map((x) => x.toFixed(5)).join(',')
-  const src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${m.lat.toFixed(5)},${m.lon.toFixed(5)}`
-  const link = `https://www.openstreetmap.org/?mlat=${m.lat.toFixed(5)}&mlon=${m.lon.toFixed(5)}#map=15/${m.lat.toFixed(5)}/${m.lon.toFixed(5)}`
+  const where = [p.name, p.area?.name ?? p.place, 'Pune', p.pincode].filter(Boolean).join(', ')
+  let src: string, link: string
+  if (m) {
+    const d = 0.01
+    const bbox = [m.lon - d, m.lat - d, m.lon + d, m.lat + d].map((x) => x.toFixed(5)).join(',')
+    src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${m.lat.toFixed(5)},${m.lon.toFixed(5)}`
+    link = `https://www.openstreetmap.org/?mlat=${m.lat.toFixed(5)}&mlon=${m.lon.toFixed(5)}#map=15/${m.lat.toFixed(5)}/${m.lon.toFixed(5)}`
+  } else {
+    src = `https://maps.google.com/maps?q=${encodeURIComponent(where)}&z=14&output=embed`
+    link = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(where)}`
+  }
+  const km = (x: number) => `${Number.isInteger(x) ? x : x.toFixed(1)} km`
   return (
     <section aria-labelledby="map-title">
-      <h2 id="map-title" className={H2}>Map</h2>
-      <iframe title={`Map around ${p.name}`} src={src} loading="lazy" className="mt-3 h-64 w-full rounded-xl border border-slate-200 sm:h-80" />
+      <SectionHead id="map-title" title="Location" kind={m ? 'checked' : 'unchecked'} tag={m ? 'Position checked' : 'Position not checked'} />
+      <div className={`mt-3 grid gap-3 ${nearby.length ? 'lg:grid-cols-5' : ''}`}>
+        <iframe title={`Map around ${p.name}`} src={src} loading="lazy" referrerPolicy="no-referrer-when-downgrade"
+          className={`h-64 w-full rounded-xl border border-slate-200 sm:h-80 ${nearby.length ? 'lg:col-span-3' : ''}`} />
+        {nearby.length > 0 && (
+          <ul className="list-none space-y-2 p-0 lg:col-span-2" data-testid="nearby">
+            {nearby.slice(0, 8).map((x) => (
+              <li key={x.label + x.name} className="flex items-baseline justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                <span className="min-w-0"><span className="text-slate-600">{x.label}</span><span className="block truncate font-semibold text-slate-900">{x.name}</span></span>
+                <span className="whitespace-nowrap font-semibold text-slate-900">{km(x.km)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
       <p className="mt-2 text-xs text-slate-500">
-        Approximate area, from OpenStreetMap; not the exact plot.{' '}
+        {m ? "Approximate area from OpenStreetMap, checked to be near the project's pincode; not the exact plot."
+          : "A map search for the project's name and area; we have not checked this position yet."}
+        {nearby.length > 0 && ' Distances are straight-line; the drive is longer.'}{' '}
         <a href={link} target="_blank" rel="noopener noreferrer" className="text-[#0f2340] underline underline-offset-2">Open the map<span className="sr-only"> (opens in a new tab)</span></a>
       </p>
     </section>
@@ -142,7 +286,7 @@ function BuilderBox({ p }: { p: RegisterProject }) {
   const others = b.projects.filter((x) => !x.this)
   return (
     <section aria-labelledby="builder-title">
-      <h2 id="builder-title" className={H2}>About the builder</h2>
+      <SectionHead id="builder-title" title="About the builder" kind="rera" tag="From MahaRERA records" />
       <p className="mt-2 text-slate-800">
         {b.name} has {b.count} project{b.count === 1 ? '' : 's'} in our MahaRERA register for Pune.
         {b.with_dates > 0 && <> {b.moved_later} of {b.with_dates} with both dates moved the completion date later{b.avg_months_later ? `, by ${months(b.avg_months_later)} on average` : ''}.</>}
@@ -186,7 +330,6 @@ function FaqBox({ faq }: { faq: Faq[] }) {
 /** Avasetu's own page for a MahaRERA project: our facts first (each with source and date), then the official record. */
 export default function RegisterProjectPage({ p, siteUrl, facts }: { p: RegisterProject; siteUrl: string; facts: PropertyFactsView | null }) {
   const url = `${siteUrl}/projects/${p.slug}`
-  const read = p.details_read_at ? `MahaRERA, read ${longDay(p.details_read_at)}` : 'MahaRERA'
   const moved = p.completion_now && p.completion_at_registration && p.completion_now !== p.completion_at_registration
   const crumbs = [{ name: 'Home', path: '/' }, ...(p.area ? [{ name: `${p.area.name}, Pune`, path: `/localities/${p.area.slug}` }] : []),
     { name: p.name, path: `/projects/${p.slug}` }]
@@ -195,65 +338,79 @@ export default function RegisterProjectPage({ p, siteUrl, facts }: { p: Register
     address: { '@type': 'PostalAddress', addressLocality: p.area ? p.area.name : 'Pune', addressRegion: 'Maharashtra', postalCode: p.pincode || undefined, addressCountry: 'IN' },
     ...(p.units_total ? { numberOfAccommodationUnits: p.units_total } : {}),
   }
-  const faq = projectFaq(p, (facts as unknown as { nearby?: { label: string; name: string; km: number }[] } | null)?.nearby ?? [])
+  const nearby = (facts as unknown as { nearby?: Near[] } | null)?.nearby ?? []
+  const faq = projectFaq(p, nearby)
   return (
-    <div className="mx-auto max-w-3xl space-y-8 px-4 py-8 sm:py-10" style={AVASETU_SITE_VARS}>
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8" style={AVASETU_SITE_VARS}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(ld) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(breadcrumbJsonLd(siteUrl, crumbs)) }} />
       {faq.length > 0 && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString({
         '@context': 'https://schema.org', '@type': 'FAQPage',
         mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
       }) }} />}
-      <nav aria-label="Breadcrumb" className="text-sm">
+      <nav aria-label="Breadcrumb" className="mb-4 text-sm">
         <Link href="/" className="text-[#0f2340] underline underline-offset-2">Home</Link>
+        <span aria-hidden className="px-1 text-slate-400">/</span>
+        <Link href="/projects" className="text-[#0f2340] underline underline-offset-2">Projects</Link>
         {p.area && <> <span aria-hidden className="px-1 text-slate-400">/</span> <Link href={`/localities/${p.area.slug}`} className="text-[#0f2340] underline underline-offset-2">{p.area.name}</Link></>}
       </nav>
 
-      <header>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{p.name}</h1>
-        <p className="mt-1 font-semibold text-amber-700">{[p.promoter, p.area ? `${p.area.name}, Pune` : 'Pune district', `MahaRERA ${p.regno}`].filter(Boolean).join(' · ')}</p>
-        <p className="mt-5 text-lg leading-relaxed text-slate-800" data-testid="paragraph">{p.paragraph}</p>
-        <a href="#enquire" className="mt-5 inline-flex min-h-[48px] items-center rounded-full bg-amber-400 px-6 font-bold text-slate-900 no-underline">Ask about this project</a>
-      </header>
+      <Hero p={p} />
 
-      <section aria-labelledby="facts-title">
-        <h2 id="facts-title" className="text-xl font-semibold text-slate-900">The facts</h2>
-        <dl className="mt-2">
-          {p.completion_now && <Row label="Completion date filed with MahaRERA" value={longDay(p.completion_now)}
-            note={moved ? `At registration: ${longDay(p.completion_at_registration)}. ${read}.` : `${read}.`} />}
-          {p.units_total ? <Row label="Homes booked" value={p.units_booked != null ? `${p.units_booked} of ${p.units_total}` : `Not reported (${p.units_total} homes)`} note={`${read}.`} /> : null}
-          <Row label="MahaRERA registration" value={p.regno} note={p.listed_or_updated ? `Listed or updated on MahaRERA ${longDay(p.listed_or_updated)}.` : undefined} />
-          {p.promoter && <Row label="Promoter (builder)" value={p.promoter} />}
-          {p.pincode && <Row label="Pincode" value={p.pincode} />}
-        </dl>
-        {p.completion_passed && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">The filed completion date has passed. Ask for the occupancy certificate (OC) before you book.</p>}
-        {!p.completion_now && <p className="mt-3 text-sm text-slate-600">We are still reading this project&apos;s details from MahaRERA; this page fills in by itself.</p>}
-      </section>
+      <div className="mt-8 grid gap-8 lg:grid-cols-3">
+        <div className="min-w-0 space-y-10 lg:col-span-2">
+          <section aria-labelledby="about-title">
+            <SectionHead id="about-title" title={`About ${p.name}`} kind={p.text_checked ? 'checked' : 'rera'}
+              tag={p.text_checked ? 'Written from checked facts' : 'From MahaRERA'} />
+            <p className="mt-3 text-lg leading-relaxed text-slate-800" data-testid="paragraph">{p.paragraph}</p>
+          </section>
 
-      <DetailsGrid p={p} />
-      <BuildingsTable p={p} />
-      <MapBox p={p} />
-      <BuilderBox p={p} />
-      <FaqBox faq={faq} />
+          <section aria-labelledby="facts-title">
+            <SectionHead id="facts-title" title="The record" kind="rera" tag={p.details_read_at ? `From MahaRERA, read ${longDay(p.details_read_at)}` : 'From MahaRERA'} />
+            <dl className="mt-2 grid gap-x-6 sm:grid-cols-2">
+              {p.completion_now && <Row label="Completion date filed with MahaRERA" value={longDay(p.completion_now)}
+                note={moved ? `At registration: ${longDay(p.completion_at_registration)}.` : undefined} />}
+              {p.units_total ? <Row label="Homes booked" value={p.units_booked != null ? `${p.units_booked} of ${p.units_total}` : `Not reported (${p.units_total} homes)`} /> : null}
+              <Row label="MahaRERA registration" value={p.regno} note={p.listed_or_updated ? `Listed or updated on MahaRERA ${longDay(p.listed_or_updated)}.` : undefined} />
+              {p.promoter && <Row label="Promoter (builder)" value={p.promoter} />}
+              {p.pincode && <Row label="Pincode" value={p.pincode} />}
+            </dl>
+            {p.completion_passed && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">The filed completion date has passed. Ask for the occupancy certificate (OC) before you book.</p>}
+            {!p.completion_now && <p className="mt-3 text-sm text-slate-600">We are still reading this project&apos;s details from MahaRERA; this page fills in by itself.</p>}
+          </section>
 
-      <OfferBox facts={facts} />
-      <VerifiedFacts f={facts} />
+          <DetailsGrid p={p} />
+          <BuildingsTable p={p} />
+          <MapBox p={p} nearby={nearby} />
+          <BuilderBox p={p} />
+          <FaqBox faq={faq} />
 
-      {p.same_area.length > 0 && p.area && (
-        <section aria-labelledby="same-title">
-          <h2 id="same-title" className="text-xl font-semibold text-slate-900">Other projects in {p.area.name}</h2>
-          <ul className="mt-3 space-y-2 p-0">
-            {p.same_area.map((s) => (
-              <li key={s.slug} className="list-none">
-                <Link href={`/projects/${s.slug}`} className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">{s.name}</Link>
-                {s.completion_now && <span className="ml-2 text-sm text-slate-600">completion filed {longDay(s.completion_now)}</span>}
-              </li>
-            ))}
-          </ul>
-          <Link href={`/localities/${p.area.slug}`} className="mt-3 inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{p.area.name} area guide</Link>
-        </section>
-      )}
+          {p.same_area.length > 0 && p.area && (
+            <section aria-labelledby="same-title">
+              <h2 id="same-title" className={H2}>Other projects in {p.area.name}</h2>
+              <ul className="mt-3 grid list-none gap-2 p-0 sm:grid-cols-2">
+                {p.same_area.map((s) => (
+                  <li key={s.slug}>
+                    <Link href={`/projects/${s.slug}`} className="block min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 no-underline hover:border-[#0f2340]">
+                      <span className="block font-semibold text-[#0f2340]">{s.name}</span>
+                      {s.completion_now && <span className="text-sm text-slate-600">completion filed {longDay(s.completion_now)}</span>}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <Link href={`/localities/${p.area.slug}`} className="mt-3 inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{p.area.name} area guide</Link>
+            </section>
+          )}
+        </div>
 
+        <aside className="min-w-0 space-y-6 lg:sticky lg:top-20 lg:self-start">
+          <OfferBox facts={facts} />
+          <ChecksPanel p={p} />
+          <VerifiedFacts f={facts} hideNearby />
+        </aside>
+      </div>
+
+      <div className="mt-10 space-y-8">
       <section id="enquire" aria-labelledby="enq-title" className="scroll-mt-20 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
         <h2 id="enq-title" className="text-xl font-semibold text-slate-900">Ask about {p.name}</h2>
         <p className="mt-1 text-sm text-slate-600">Tell us what you are looking for. A local agent calls you back; we never share your number without your OK.</p>
@@ -268,6 +425,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts }: { p: Register
         {p.maharera_url && <a href={p.maharera_url} target="_blank" rel="noopener noreferrer" className="text-[#0f2340] underline underline-offset-2">See the official MahaRERA record<span className="sr-only"> (opens in a new tab)</span></a>}
         {' '}Facts can change; check the record and your agreement before you book.
       </footer>
+      </div>
     </div>
   )
 }

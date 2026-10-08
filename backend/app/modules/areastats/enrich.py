@@ -35,7 +35,7 @@ from .service import _day
 
 log = logging.getLogger(__name__)
 
-EVERY_MINUTES = 10
+EVERY_MINUTES = 30                    # one project every half hour (urgent campaign requests go first)
 PAUSE = 2.0                           # seconds between our two MahaRERA reads in a round (one after the other, never parallel)
 NEAR_KM = 15.0                        # the located place must be this close to the pincode's centre
 STEPS = ("maharera_general", "buildings", "places", "text")
