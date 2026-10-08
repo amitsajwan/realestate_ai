@@ -47,7 +47,12 @@ async def run(a) -> None:
         from app.platform.llm import default_llm
         llm = default_llm()
     dropped: dict = {}
-    packs = await campaign.make(s.facts, out / "posts", llm=llm, photo=a.photo or "none", link=a.link, dropped=dropped)
+    photos = []
+    if a.video:  # stills from the property's own video behind the cards (vision-picked when a vision model answers)
+        from app.modules.reels.video_director import best_frames
+        photos = await best_frames(a.video, out / "frames")
+    packs = await campaign.make(s.facts, out / "posts", llm=llm, photo=a.photo or "none", link=a.link, dropped=dropped,
+                                photos=([a.photo] if a.photo else []) + photos)
     contact_sheet([p for _, p in packs], out / "contact-sheet.jpg", "instagram")
 
     lines += ["", f"# Campaign: {len(packs)} posts", ""] + [f"Dropped {k}: {v}" for k, v in dropped.items()]
@@ -70,6 +75,7 @@ def main() -> None:
     ap.add_argument("--sqft", type=int, default=None, help="carpet area, or plot area for a plot")
     ap.add_argument("--photo", default="", help="a real photo of the property (file path); default: no photo")
     ap.add_argument("--link", default="", help="detail page URL for captions")
+    ap.add_argument("--video", default="", help="the property's own video: its best stills go behind the post cards")
     ap.add_argument("--out", default="property-campaign")
     ap.add_argument("--llm", action="store_true", help="write copy with the LLM (falls back to the rule path)")
     ap.add_argument("--db", action="store_true", help="use MongoDB: read the project register first, save the fact sheet")

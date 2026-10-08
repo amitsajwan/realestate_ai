@@ -43,7 +43,7 @@ export interface NotificationList {
 
 type FetchImpl = typeof fetch
 
-async function request<T>(path: string, init: { method?: string } = {}, fetchImpl?: FetchImpl): Promise<T> {
+export async function request<T>(path: string, init: { method?: string } = {}, fetchImpl?: FetchImpl): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' }
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`

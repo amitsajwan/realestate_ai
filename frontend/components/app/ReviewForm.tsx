@@ -74,6 +74,7 @@ function AboutSummary({ about, onEdit }: { about?: About | null; onEdit: () => v
 export function ReviewForm({ value, onChange, confidence = {}, missing = [], errors = {}, about, onEditAbout }: ReviewFormProps) {
   const [lang, setLang] = useState<'en' | 'hi' | 'mr'>('en')
   const set = (patch: ListingInput) => onChange({ ...value, ...patch })
+  const photos = (value.media ?? []).filter((m) => (m.kind ?? 'image') === 'image')
   const flag = (key: string) => {
     const req = missing.includes(key) || errors[key] === 'Required'
     const err = req ? 'Required' : errors[key]
@@ -191,10 +192,10 @@ export function ReviewForm({ value, onChange, confidence = {}, missing = [], err
         />
       </Field>
 
-      <Field label={`${t('addPhotos')} (${(value.media ?? []).length})`} {...flag('media')}>
-        {(value.media ?? []).length > 0 ? (
+      <Field label={`${t('addPhotos')} (${photos.length})`} {...flag('media')}>
+        {photos.length > 0 ? (
           <div className="flex gap-2 overflow-x-auto">
-            {(value.media ?? []).map((m) => (
+            {photos.map((m) => (
               // eslint-disable-next-line @next/next/no-img-element
               <img key={m.url} src={m.url} alt="" className="h-20 w-20 flex-none rounded-lg object-cover" />
             ))}

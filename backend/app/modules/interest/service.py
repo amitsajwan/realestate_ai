@@ -158,6 +158,7 @@ class InterestService:
             except TrackingError as e:
                 raise InterestError(str(e), e.status_code)
             await self._drop_placeholder(agent_id, anon)
+            await self._tag_lead(agent_id, anon, link["code"])
             new_lead, details_saved = res["new_lead"], True
         else:
             new_lead = await self._anonymous_lead(agent_id, link, anon, name, note, consent, context, listing_id, now)
@@ -198,6 +199,31 @@ class InterestService:
             "notes": [], "requirement": None, "interest_code": link["code"],
         })
         return True
+
+    async def _tag_lead(self, agent_id: str, anon: str, code: str) -> None:
+        """A lead with a phone remembers the first link it came from (interest_code) and every link it used (interest_codes)."""
+        col = self.tracking.contacts
+        contact = await col.find_one({"agent_id": agent_id, "anon_ids": anon, "phone": {"$ne": ""}})
+        if not contact:
+            return
+        changes: dict = {"$addToSet": {"interest_codes": code}}
+        if not contact.get("interest_code"):
+            changes["$set"] = {"interest_code": code}
+        await col.update_one({"_id": contact["_id"]}, changes)
+
+    async def report(self, agent_id: str, limit: int = 100) -> list:
+        """Per link of this agent, newest first: visits, interest taps and leads (contacts that came through it)."""
+        rows = []
+        for l in await self.store.links_for_agent(agent_id, limit):
+            code = l["code"]
+            leads = await self.tracking.contacts.count_documents(
+                {"agent_id": agent_id, "$or": [{"interest_code": code}, {"interest_codes": code}]})
+            with_phone = await self.tracking.contacts.count_documents(
+                {"agent_id": agent_id, "phone": {"$ne": ""}, "$or": [{"interest_code": code}, {"interest_codes": code}]})
+            rows.append(self.public_link(l) | {
+                "title": l.get("title") or "", "clicks": await self.store.count(code, "click"),
+                "interests": await self.store.count(code, "interest"), "leads": leads, "leads_with_phone": with_phone})
+        return rows
 
     async def _drop_placeholder(self, agent_id: str, anon: str) -> None:
         """When the visitor adds a number after the one-tap, the anonymous placeholder is replaced by the real lead."""

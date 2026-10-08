@@ -114,6 +114,15 @@ def probe(path) -> Probe:
     v = re.search(r"Stream #\S+.*?Video:\s*(\w+)[^,]*?(?:\(([^)]*)\))?[^,]*,\s*(\w+)[^,]*,\s*(\d+)x(\d+)", text)
     if v:
         p.video_codec, p.pix_fmt, p.width, p.height = v.group(1), v.group(3), int(v.group(4)), int(v.group(5))
+    else:  # e.g. 'yuv420p(tv, bt709, progressive), 1080x1920' (commas inside the pixel-format brackets)
+        line = re.search(r"Stream #\S+.*?Video:\s*(\w+).*", text)
+        if line:
+            p.video_codec = line.group(1)
+            fmt = re.search(r",\s*(\w+)\(", line.group(0))
+            p.pix_fmt = fmt.group(1) if fmt else ""
+            wh = re.search(r"\b(\d{2,5})x(\d{2,5})\b", line.group(0))
+            if wh:
+                p.width, p.height = int(wh.group(1)), int(wh.group(2))
     f = re.search(r"([\d.]+)\s*fps", text)
     if f:
         p.fps = float(f.group(1))

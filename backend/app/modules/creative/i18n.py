@@ -16,7 +16,7 @@ UI: Dict[str, Dict[str, str]] = {
     "vote_ab": {"en": "Vote A or B in the comments", "mr": "कमेंटमध्ये A किंवा B लिहा", "hi": "कमेंट में A या B लिखें"},
     "illustrative": {"en": "Illustrative photo", "mr": "प्रातिनिधिक फोटो", "hi": "प्रतीकात्मक फोटो"},
     "n_things": {"en": "{n} things, one per slide", "mr": "{n} मुद्दे, प्रत्येक स्लाइडवर एक", "hi": "{n} बातें, हर स्लाइड पर एक"},
-    "call": {"en": "Call / WhatsApp", "mr": "कॉल / WhatsApp", "hi": "कॉल / WhatsApp"},
+    "call": {"en": "WhatsApp", "mr": "WhatsApp", "hi": "WhatsApp"},   # our number (a bot that routes to the agent), not a phone line
     "price": {"en": "Price", "mr": "किंमत", "hi": "कीमत"},
     "maharera": {"en": "MahaRERA", "mr": "MahaRERA", "hi": "MahaRERA"},
     "ask": {"en": "Ask for details", "mr": "माहितीसाठी संपर्क करा", "hi": "जानकारी के लिए संपर्क करें"},

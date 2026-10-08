@@ -625,7 +625,7 @@ export interface MarketingRun {
   facts_done_at?: string | null
   finished_at?: string | null
   /** Slides reels from the carousels, and the walkthrough reel (rendered by its own queue: status may lag). */
-  reels?: { kind: 'slides' | 'walkthrough'; angle?: string; video?: string | null; status?: string; note?: string; caption?: string }[]
+  reels?: { kind: 'slides' | 'walkthrough' | 'video'; angle?: string; video?: string | null; status?: string; note?: string; caption?: string }[]
   /** Rows planned in the approval calendar, once sent. */
   calendar?: { angle: string; channel: string; row_id: string; due_at: string }[]
 }

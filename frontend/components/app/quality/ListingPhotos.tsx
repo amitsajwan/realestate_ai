@@ -9,10 +9,11 @@ import { EnhanceToggle, QualityBadge, QualityTip } from './QualityBadge'
  * exists, the 'Use enhanced' switch with a before/after peek. Tiny and scrollable on a phone.
  */
 export function ListingPhotos({ media, onToggle, busy = false }: { media: Media[]; onToggle?: (index: number, useEnhanced: boolean) => void; busy?: boolean }) {
-  if (!media.length) return null
+  const photos = media.map((m, i) => ({ m, i })).filter(({ m }) => (m.kind ?? 'image') === 'image')  // i: index in media, for onToggle
+  if (!photos.length) return null
   return (
     <ul className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-1" data-testid="listing-photos">
-      {media.map((m, i) => (
+      {photos.map(({ m, i }) => (
         <li key={m.url + i} className="w-44 flex-none snap-start space-y-1">
           <div className="relative h-28 w-44 overflow-hidden rounded-xl bg-gray-100">
             {/* eslint-disable-next-line @next/next/no-img-element */}

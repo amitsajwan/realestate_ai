@@ -159,7 +159,12 @@ async def upsert_lead(db, *, agent_id: str, phone: str, wa_id: str, name: Option
             changes["requirement"] = rq.merge(existing.get("requirement"), fields, sources)
         if not (existing.get("consent") or {}).get("given_at"):
             changes["consent"] = {"given_at": now, "purpose": "enquiry follow-up", "basis": CONSENT_BASIS, "channel": "whatsapp"}
-        await contacts.update_one({"_id": existing["_id"]}, {"$set": changes, "$addToSet": {"anon_ids": f"whatsapp:{wa_id}"}})
+        add = {"anon_ids": f"whatsapp:{wa_id}"}
+        if (interest or {}).get("code"):   # every post a buyer came through counts for that post (interest report)
+            add["interest_codes"] = interest["code"]
+            if not existing.get("interest_code"):
+                changes["interest_code"] = interest["code"]
+        await contacts.update_one({"_id": existing["_id"]}, {"$set": changes, "$addToSet": add})
         return existing["_id"], False
     cid = uuid.uuid4().hex
     await contacts.insert_one({
@@ -170,6 +175,7 @@ async def upsert_lead(db, *, agent_id: str, phone: str, wa_id: str, name: Option
         "score_base": 10, "created_at": now, "last_activity_at": now, "last_message": message[:1000], "notes": [],
         "requirement": rq.merge(None, fields, sources) if fields else None,
         "interest_code": (interest or {}).get("code"),
+        "interest_codes": [interest["code"]] if (interest or {}).get("code") else [],
         "whatsapp": {"wa_id": wa_id, "phone_number_id": phone_number_id, "summary": text, "opted_out": False, "last_inbound_at": now},
     })
     return cid, True

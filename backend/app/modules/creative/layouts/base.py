@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Iterator, List, Optional, Sequence, Tuple
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageOps, ImageStat
+from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageOps, ImageStat
 
 from app.core import brand
 from app.modules.marketing.images import LOGO_PATH, MARGIN, load_font as _latin_font, wrap
@@ -33,6 +33,32 @@ DEVANAGARI_FONTS = {"regular": "Mukta-Regular.ttf", "medium": "Mukta-Medium.ttf"
 _CARD: contextvars.ContextVar = contextvars.ContextVar("creative_card", default=("en", None))
 STRIP_H = 188   # height of an agent's contact strip at the bottom of a card (FOOTER_H: our one-line footer)
 FOOTER_H = 64
+
+
+_PHOTO: contextvars.ContextVar = contextvars.ContextVar("creative_card_photo", default=None)
+PHOTO_DIM = 0.38        # how much of the photo shows through the palette on a text card (the rest is the card's own colours)
+
+
+@contextmanager
+def card_photo(path: Optional[str]) -> Iterator[None]:
+    """Render inside this to put a real photo (the property's own) behind a text card instead of the plain gradient."""
+    token = _PHOTO.set(path)
+    try:
+        yield
+    finally:
+        _PHOTO.reset(token)
+
+
+def photo_backdrop(size: Tuple[int, int], pal: "Palette") -> Optional[Image.Image]:
+    """The card's photo, darkened and tinted with the palette so any text on it stays as legible as on the gradient: the
+    property shows through, the layout reads the same. None when this card has no photo."""
+    path = _PHOTO.get()
+    img = photo(path, size, centering=(0.5, 0.45)) if path else None
+    if img is None:
+        return None
+    img = ImageEnhance.Color(img).enhance(0.85)
+    tint = gradient(size, pal.bg_top, pal.bg_bottom)
+    return Image.blend(tint, img, PHOTO_DIM if not pal.light else PHOTO_DIM * 0.7)
 
 
 @contextmanager
@@ -168,11 +194,12 @@ class Canvas:
         self.size, self.pal, self.layout, self.index = size, pal, layout, index
         self.W, self.H = size
         self.left, self.top, self.right, self.bottom = MARGIN, MARGIN, self.W - MARGIN, self.H - MARGIN
-        self.img = bg if bg is not None else gradient(size, pal.bg_top, pal.bg_bottom)
+        backdrop = photo_backdrop(size, pal) if bg is None else None
+        self.img = bg if bg is not None else backdrop if backdrop is not None else gradient(size, pal.bg_top, pal.bg_bottom)
         self.d = ImageDraw.Draw(self.img)
         self.items: List[Item] = []
         self.shapes: List[Box] = []
-        if bg is None:
+        if bg is None and backdrop is None:
             if glow_at:
                 self.glow((int(self.W * glow_at[0]), int(self.H * glow_at[1])), int(self.W * 0.62), pal.glow, 0.22 if not pal.light else 0.35)
             if pattern:

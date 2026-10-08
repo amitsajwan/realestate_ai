@@ -17,14 +17,21 @@ HD = {"agent_id": "a1", "slug": "house-deal", "phone": "+919921993099",
                         "tagline": "Your Dream Home, Our Best Deal"}}
 
 
-def test_identity_of_an_agent_and_of_our_own_page():
+def test_identity_of_an_agent_and_of_our_own_page(monkeypatch):
+    # buyers reach the agent through OUR WhatsApp number (the chat carries the post's code), never the agent's own phone
+    monkeypatch.setenv("WHATSAPP_PUBLIC_NUMBER", "+91 90000 12345")
     who = identity.identity(HD, "https://avasetu.in", Path("/srv/uploads"), "mr")
     assert who.voice.name == "House Deal" and who.voice.team == "House Deal team"
-    assert who.card_brand == CardBrand("House Deal", "कॉल / WhatsApp +91 99219 93099", str(Path("/srv/uploads/images/hd.jpg")),
-                                       phone="+91 99219 93099")
-    assert identity.identity(HD, "https://avasetu.in", Path("/srv"), "en").card_brand.line == "Call / WhatsApp +91 99219 93099"
-    assert who.contact == ["\U0001F4DE कॉल / WhatsApp: +91 99219 93099", "\U0001F310 वेबसाइट: house-deal.com",
+    assert who.card_brand == CardBrand("House Deal", "WhatsApp +91 90000 12345", str(Path("/srv/uploads/images/hd.jpg")),
+                                       phone="+91 90000 12345")
+    assert who.contact == ["\U0001F4AC WhatsApp: +91 90000 12345", "\U0001F310 वेबसाइट: house-deal.com",
                            "\U0001F3E0 Avasetu वर: avasetu.in/agent/house-deal"]
+    assert "99219" not in json.dumps(who.contact) + who.card_brand.line
+    monkeypatch.delenv("WHATSAPP_PUBLIC_NUMBER")
+    monkeypatch.delenv("NEXT_PUBLIC_WHATSAPP_NUMBER", raising=False)
+    plain = identity.identity(HD, "https://avasetu.in", Path("/srv"), "en")   # no number of ours: no phone at all
+    assert plain.card_brand.phone == "" and plain.card_brand.line == ""
+    assert plain.contact[0].startswith("\U0001F310")
     ours = identity.identity({**HD, "slug": "avasetu"}, "https://avasetu.in", Path("/srv"), "en")
     assert ours.voice is None and ours.card_brand is None and ours.contact == []
     assert identity.identity(None, "https://avasetu.in", Path("/srv")).card_brand is None
@@ -92,7 +99,8 @@ def test_marathi_cards_use_the_devanagari_font_and_the_agents_footer(tmp_path):
     assert "House Deal" in footer and "Call +91 99219 93099" in footer and brand.NAME not in footer
 
 
-async def test_an_agents_marathi_campaign(tmp_path):
+async def test_an_agents_marathi_campaign(tmp_path, monkeypatch):
+    monkeypatch.setenv("WHATSAPP_PUBLIC_NUMBER", "+91 90000 12345")
     db, runs, _, _ = await setup(tmp_path)
     await db.get_collection("agent_public_profiles").update_one({"agent_id": "a1"}, {"$set": HD})
     runs.llm_factory = lambda: Translator(marathi)
@@ -102,7 +110,7 @@ async def test_an_agents_marathi_campaign(tmp_path):
     d = await runs.latest("a1", "L1")
     assert d["status"] == "done" and len(d["posts"]) >= 10 and jobs.run_out(d)["language"] == "mr"
     for p in d["posts"]:
-        assert "+91 99219 93099" in p["caption"] and "house-deal.com" in p["caption"] and "avasetu.in/agent/house-deal" in p["caption"]
+        assert "+91 90000 12345" in p["caption"] and "99219" not in p["caption"] and "house-deal.com" in p["caption"] and "avasetu.in/agent/house-deal" in p["caption"]
         assert p["caption"].startswith("मराठी: ") and ("खाली सांगा" in p["caption"] or "कमेंटमध्ये" in p["caption"])
         assert "card_translator@3/listing" in p["prompts"]
     _, created = await runs.create("a1", "L1", language="en")      # another language makes a new run

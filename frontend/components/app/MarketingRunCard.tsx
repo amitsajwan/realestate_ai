@@ -210,7 +210,7 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
                       {run.reels.filter((r) => r.video && (r.kind === 'slides' || r.status === 'done')).map((r) => (
                         <li key={r.kind + (r.angle || '')}>
                           <video src={r.video || undefined} controls preload="metadata" playsInline
-                            aria-label={r.kind === 'walkthrough' ? t('walkthroughReel') : r.angle}
+                            aria-label={r.kind === 'walkthrough' ? t('walkthroughReel') : r.kind === 'video' ? 'Reel from your video' : r.angle}
                             className="aspect-[9/16] w-full rounded-lg bg-black object-cover" />
                         </li>
                       ))}
@@ -219,6 +219,9 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
                       <p key="walk" className="text-xs text-gray-500">
                         {t('walkthroughReel')}: {r.status === 'skipped' ? `${t('walkthroughSkipped')}${r.note ? ` (${r.note})` : ''}` : t('walkthroughMaking')}
                       </p>
+                    ))}
+                    {run.reels.filter((r) => r.kind === 'video' && r.status === 'skipped').map((r) => (
+                      <p key="video" className="text-xs text-gray-500">Reel from your video: not made{r.note ? ` (${r.note})` : ''}</p>
                     ))}
                   </div>
                 )}

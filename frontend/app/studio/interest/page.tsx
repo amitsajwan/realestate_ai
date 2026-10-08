@@ -7,6 +7,7 @@ import { t } from '@/lib/app/strings'
 import { useAsync } from '@/lib/app/useAsync'
 import type { ChatConversation, FacebookInterest, FacebookStatus } from '@/lib/app/types'
 import { getNotifications, getWhatsAppConversations, markNotificationRead, REPLY_STATUS_LABEL, type WhatsAppConversation } from '@/lib/app/whatsapp'
+import { getInterestReport, type InterestLinkStats } from '@/lib/app/interestReport'
 import { BRAND_NAME } from '@/lib/brand'
 
 const CHIP: Record<string, string> = {
@@ -37,6 +38,28 @@ function Row({ c }: { c: FacebookInterest }) {
         {c.permalink && <a href={c.permalink} target="_blank" rel="noopener noreferrer" className="flex min-h-[44px] items-center font-semibold text-blue-700 underline">{ig ? 'Open on Instagram' : 'Open on Facebook'}</a>}
       </div>
     </li>
+  )
+}
+
+function ByPost({ links }: { links: InterestLinkStats[] }) {
+  const shown = links.filter((l) => l.clicks || l.interests || l.leads)
+  if (shown.length === 0) return null
+  return (
+    <section aria-label="Leads by post" className="space-y-2">
+      <h2 className="text-lg font-bold">Leads by post</h2>
+      <p className="text-sm text-gray-600">Each post has its own link. Visits = people who opened it; leads = people who left their details through it.</p>
+      <ul className="space-y-2">
+        {shown.map((l) => (
+          <li key={l.code} className="rounded-2xl border border-gray-200 bg-white p-3">
+            <p className="font-semibold">{l.title || l.ref}</p>
+            <p className="text-sm text-gray-600">
+              {l.channel} · {l.clicks} visit{l.clicks === 1 ? '' : 's'} · {l.interests} interested · <span className="font-semibold text-green-800">{l.leads_with_phone} lead{l.leads_with_phone === 1 ? '' : 's'} with number</span>
+            </p>
+            <p className="text-xs text-gray-500">{l.url}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
@@ -82,6 +105,7 @@ export default function InterestPage() {
     chats: await api.getChatConversations().catch(() => [] as ChatConversation[]),
     fb: await api.getFacebookStatus().catch(() => null as FacebookStatus | null),
     whatsapp: await getWhatsAppConversations().catch(() => [] as WhatsAppConversation[]),
+    links: await getInterestReport().catch(() => [] as InterestLinkStats[]),
   }), [])
   const waCount = data?.whatsapp?.length ?? 0
   React.useEffect(() => {
@@ -105,6 +129,7 @@ export default function InterestPage() {
         <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800">The Facebook connection has stopped working, so comments are not being answered right now. Ask your {BRAND_NAME} admin to reconnect it.</p>
       )}
       <p className="text-sm text-gray-600">People who commented on your posts on the {BRAND_NAME} Page and Instagram. Interested people are answered automatically; questions we cannot answer wait here for you.</p>
+      <ByPost links={data?.links ?? []} />
       {whatsapp.length > 0 && <WhatsAppChats chats={whatsapp} />}
       {chats.length > 0 && (
         <section aria-label="Website chats" className="space-y-2">

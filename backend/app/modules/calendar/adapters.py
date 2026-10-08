@@ -418,6 +418,31 @@ def _owner_agent() -> str:
     return os.environ.get("INTEREST_OWNER_AGENT_ID") or os.environ.get("ENGAGE_OWNER_AGENT_ID") or ""
 
 
+def whatsapp_lines(caption: str, code: str, channel: str) -> str:
+    """The caption's contact lines made trackable: an agent's own phone line ('📞 ...') is dropped, and the WhatsApp line ('💬 ...')
+    becomes our number with this post's code, so the chat reaches our bot, which routes it to the agent and counts the lead for this
+    post (whatsapp.adapters.codes_in reads 'interested in <code>'). Facebook gets a tap-to-chat link; Instagram captions cannot
+    link, so it says what to send. Without our number configured the WhatsApp line is dropped and the interest link remains."""
+    from urllib.parse import quote
+
+    from app.modules.chat.service import platform_whatsapp_number
+    from app.modules.propertyfacts.identity import WA_MARK, phone_label
+    num = platform_whatsapp_number()
+    out = []
+    for ln in caption.splitlines():
+        s = ln.strip()
+        if s.startswith("\U0001F4DE"):
+            continue
+        if s.startswith(WA_MARK):
+            if not num:
+                continue
+            msg = f"Hi, I am interested in {code}"
+            ln = (f"{WA_MARK} WhatsApp: https://wa.me/{num}?text={quote(msg)}" if channel == "facebook"
+                  else f"{WA_MARK} WhatsApp {phone_label('+' + num)} and send: interested in {code}")
+        out.append(ln)
+    return "\n".join(out)
+
+
 async def with_interest(db, doc: dict) -> dict:
     """The row with its caption ready to publish: a tap-to-show-interest line (a real link on Facebook, 'link in our bio' on Instagram,
     whose bio link is the /go hub) and the standard footer. Any failure returns the row unchanged: a post never waits on this."""
@@ -442,6 +467,7 @@ async def with_interest(db, doc: dict) -> dict:
                 line = ""
             if line and line not in caption:
                 caption = caption.rstrip() + "\n\n" + line
+            caption = whatsapp_lines(caption, url.rsplit("/", 1)[-1], channel)
         return {**doc, "caption": with_footer(caption, channel)}
     except Exception:
         return doc

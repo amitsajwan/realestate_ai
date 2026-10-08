@@ -4,6 +4,7 @@ Each angle is a small function: usable facts in, a creative Brief out (or None w
 a post may say is written into the Brief's facts, so the creative guards accept it and still reject anything invented.
 To add an angle: write one function and add it to ANGLES."""
 import logging
+import re
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
@@ -288,18 +289,57 @@ def plan(facts: Dict[str, Fact], photo: str = "none", link: str = "", angles: Se
     return out
 
 
+SHARPEN_SYSTEM = (
+    "You are the headline writer of an Indian real-estate agent's Instagram. You rewrite one card headline so a home buyer "
+    "stops scrolling: concrete, human, about the buyer's life (their commute, their family, their papers, their money), a "
+    "question or a surprising contrast is welcome. Hard rules: keep every number exactly as written (same digits, same "
+    "units, same rupee amounts) and add no other number; add no fact that is not in the headline or the facts; no hype "
+    "(best, perfect, dream, luxury, premium, guaranteed, safe investment, returns), no 'only/just', no emojis, at most 10 "
+    'words. Reply with JSON only: {"headline": "..."}'
+)
+_NUM = re.compile(r"\d[\d,.]*")
+
+
+def _numbers(text: str) -> List[str]:
+    return sorted(n.rstrip(".,").replace(",", "") for n in _NUM.findall(text or ""))
+
+
+async def sharpen(brief: Brief, llm: Any) -> Brief:
+    """A sharper headline from the LLM, kept only when it says the same numbers as the code's headline and passes the post
+    checks; otherwise the brief is returned unchanged. The facts stay the code's: only the words around them change."""
+    from app.modules.creative.guards import problems_in
+    old = next(iter(brief.hooks.values()), "")
+    if not old:
+        return brief
+    facts = "; ".join(str(f) for f in (brief.facts or []))[:1500]
+    try:
+        reply = await llm.json(SHARPEN_SYSTEM, f"Headline: {old}\nFacts: {facts}") or {}
+    except Exception:
+        return brief
+    new = re.sub(r"\s+", " ", str(reply.get("headline") or "")).strip().strip('"')
+    if (not new or new == old or len(new.split()) > 10 or _numbers(new) != _numbers(old)
+            or problems_in(new, f"{old} {facts}")):
+        return brief
+    return replace(brief, hooks={p: new for p in brief.hooks})
+
+
 RETRIES = 3  # other seeds (other layouts) to try before an angle is dropped: some layouts cannot fit some texts
 
 
 async def make(facts: Dict[str, Fact], out_dir: Path, llm: Any = None, photo: str = "none", link: str = "",
                channel: str = "instagram", dropped: Optional[Dict[str, Any]] = None,
                voice: Optional[Voice] = None, card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (),
-               language: str = "en") -> List[Tuple[str, CreativePack]]:
-    """Render every planned angle; consecutive posts avoid repeating a layout. An angle that fails a guard is retried with
+               language: str = "en", photos: Sequence[str] = ()) -> List[Tuple[str, CreativePack]]:
+    """Render every planned angle; consecutive posts avoid repeating a layout. `photos` (the property's own: listing photos and
+    the best frames of its video, best first) are shared out so each post shows a different one behind its text. An angle that fails a guard is retried with
     other seeds, then dropped (its problems go into `dropped` when given). `voice`: who speaks (default the brand desk)."""
     packs: List[Tuple[str, CreativePack]] = []
     recent: List[str] = []
     for i, (aid, brief) in enumerate(plan(facts, photo, link, voice=voice, card_brand=card_brand, contact=contact, language=language)):
+        if photos:
+            brief = replace(brief, photo=photos[i % len(photos)])
+        if llm is not None and brief.hooks:
+            brief = await sharpen(brief, llm)
         for attempt in range(RETRIES):
             pack = await pipeline.make(brief, "buyer", channel, llm, seed=i + 17 * attempt, recent_layouts=recent,
                                        out_dir=Path(out_dir) / aid, reviewer=None)

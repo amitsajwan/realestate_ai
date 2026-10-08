@@ -115,7 +115,7 @@ def test_a_marathi_card_is_drawn_in_marathi():
     design.brand = AGENT
     slides = render_layout(copy, design)
     texts = " ".join(_texts(r) for r in slides)
-    assert "पुढे पाहा" in texts and "कॉल / WhatsApp" in texts and "Swipe" not in texts
+    assert "पुढे पाहा" in texts and "WhatsApp" in texts and "Swipe" not in texts
     for r in slides:
         assert violations(r) == [] and not any(i.truncated for i in r.items)
     copy2, d2, _ = build("myth_fact")

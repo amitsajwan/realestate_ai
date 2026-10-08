@@ -5,7 +5,7 @@
   POST /public/interest/{code}/click        a visit
   POST /public/interest/{code}              the one-tap interest (details optional, only with consent)
   GET  /public/hub                          the Instagram bio-link page data (cached 60 s)
-`router` is mounted at /interest (bearer auth): POST /interest/links, GET /interest/links/{ref}.
+`router` is mounted at /interest (bearer auth): POST /interest/links, GET /interest/links/{ref}, GET /interest/report.
 """
 from app.core import brand
 import os
@@ -145,6 +145,12 @@ async def create_link(body: LinkIn, user: User = Depends(current_active_user), s
     except InterestError as e:
         raise _http(e)
     return svc.public_link(link)
+
+
+@router.get("/report")
+async def report(user: User = Depends(current_active_user), svc: InterestService = Depends(get_service)):
+    """Every tracked link of this agent (one per post, home and channel) with visits, taps and leads."""
+    return {"links": await svc.report(str(user.id))}
 
 
 @router.get("/links/{ref}")

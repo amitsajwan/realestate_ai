@@ -54,7 +54,7 @@ export function FreshnessChip({ listing }: { listing: Listing }) {
  * and the Activity link, which is only for your own listings, is left out).
  */
 export function ListingCard({ listing, performance, href }: { listing: Listing; performance?: PerformanceItem | null; href?: string }) {
-  const thumb = listing.media?.[0]?.url
+  const thumb = listing.media?.find((m) => (m.kind ?? 'image') === 'image')?.url
   return (
     <div className="rounded-2xl border border-gray-200 bg-white">
       <Link href={href ?? `/studio/listings/${listing.id}`} className="block min-h-[88px] rounded-t-2xl p-3 active:bg-gray-50">

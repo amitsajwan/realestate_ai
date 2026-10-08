@@ -36,6 +36,9 @@ class Store:
     async def links_for_ref(self, ref: str) -> list:
         return await self.links.find({"ref": ref}).to_list(50)
 
+    async def links_for_agent(self, agent_id: str, limit: int) -> list:
+        return await self.links.find({"agent_id": agent_id}).sort("created_at", -1).limit(limit).to_list(limit)
+
     async def add_event(self, code: str, type_: str, anon_id: str, now: datetime) -> None:
         await self.events.insert_one({"code": code, "type": type_, "anon_id": anon_id, "ts": now})
 

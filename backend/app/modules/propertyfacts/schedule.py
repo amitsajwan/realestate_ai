@@ -62,7 +62,7 @@ def property_of(listing: dict, facts: Optional[Dict[str, Any]] = None) -> Dict[s
 
 def items(run: dict, link_line: str) -> List[Dict]:
     """What goes into the calendar, in campaign order: every post on both channels; each slides reel on Instagram only
-    (Facebook already turns a carousel into a reel when it posts it, calendar.runner); the walkthrough reel, once rendered,
+    (Facebook already turns a carousel into a reel when it posts it, calendar.runner); the walkthrough reel, once rendered, and the reel from the agent's own video
     on both. Each: {slug, channel, kind, caption, images, video, angle, creative}."""
     lid, page = run["listing_id"], run.get("page_url") or ""
     out: List[Dict] = []
@@ -89,6 +89,10 @@ def items(run: dict, link_line: str) -> List[Dict]:
                 caption = r.get("caption") or (run["posts"][0]["caption"] if run.get("posts") else "")
                 add(slug_for(lid, "walkthrough"), channel, "reel", caption, [], _rel(r["video"]), "walkthrough",
                     {"layout": "walkthrough_reel", "template": "campaign"})
+            elif r["kind"] == "video" and r.get("status") == "done":   # the agent's own video, on both channels
+                caption = r.get("caption") or (run["posts"][0]["caption"] if run.get("posts") else "")
+                add(slug_for(lid, "video"), channel, "reel", caption, [], _rel(r["video"]), "video",
+                    {"layout": "video_reel", "template": "campaign"})
     return out
 
 

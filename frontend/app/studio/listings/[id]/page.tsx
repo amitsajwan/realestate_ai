@@ -16,6 +16,7 @@ import { compressImage } from '@/lib/app/imageCompress'
 import { qualityFields } from '@/lib/app/quality'
 import { getSiteUrl } from '@/lib/app/session'
 import { listingLink } from '@/lib/app/share'
+import { MAX_VIDEO_MB, uploadVideo } from '@/lib/app/video'
 import { t } from '@/lib/app/strings'
 import { useAsync } from '@/lib/app/useAsync'
 import type { Listing, ListingInput, ListingStatus } from '@/lib/app/types'
@@ -104,6 +105,16 @@ export default function ListingDetailPage() {
     await run(() => api.updateListing(listing.id, { media }), 'Photos added. Open "Marketing" and refresh your post to use them.')
     setNewPhotos([])
   }
+  const videos = listing.media.filter((m) => m.kind === 'video')
+  async function addVideo(file: File) {
+    await run(async () => {
+      const up = await uploadVideo(file)
+      return api.updateListing(listing.id, { media: [...listing.media, { url: up.url, kind: 'video' as const, order: listing.media.length }] })
+    }, 'Video added. Start marketing again to make a reel from it.')
+  }
+  function removeVideo(url: string) {
+    return run(() => api.updateListing(listing.id, { media: listing.media.filter((m) => m.url !== url) }), 'Video removed.')
+  }
   const link = listingLink(getSiteUrl(), listing.id)
   const shareable = listing.status === 'live' || listing.status === 'under_offer'
   const { media: _media, ...editable } = form
@@ -186,6 +197,24 @@ export default function ListingDetailPage() {
         <p className="font-semibold">Photos {listing.media.length === 0 && <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">None yet</span>}</p>
         <PhotoPicker files={newPhotos} onChange={setNewPhotos} />
         {newPhotos.length > 0 && <Btn disabled={busy} onClick={addPhotos}>Add {newPhotos.length} photo{newPhotos.length > 1 ? 's' : ''}</Btn>}
+      </section>
+
+      <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4" aria-label="Video">
+        <p className="font-semibold">Video</p>
+        <p className="text-sm text-gray-600">A site walkthrough from you or the builder (up to 3 minutes, {MAX_VIDEO_MB} MB). We turn it into a reel with your logo, remove a phone-number strip along the bottom, and add your tracked link to the caption.</p>
+        {videos.map((v) => (
+          <div key={v.url} className="space-y-2">
+            <video src={v.url} controls preload="metadata" playsInline className="max-h-80 rounded-lg bg-black" />
+            <Btn disabled={busy} onClick={() => removeVideo(v.url)}>Remove video</Btn>
+          </div>
+        ))}
+        {videos.length === 0 && (
+          <label className="flex min-h-[44px] cursor-pointer items-center justify-center rounded-xl border border-dashed border-gray-300 p-3 text-sm font-semibold text-blue-700">
+            {busy ? 'Uploading…' : 'Add a video'}
+            <input type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" className="sr-only" disabled={busy}
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void addVideo(f) }} />
+          </label>
+        )}
       </section>
 
       <ReviewForm value={{ ...editable, media: listing.media }} onChange={({ media, ...rest }) => setForm(rest)} missing={missing} errors={errors} />

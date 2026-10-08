@@ -232,6 +232,48 @@ async def upload_property_images(
         "files": uploaded_files
     })
 
+VIDEOS_DIR = UPLOAD_DIR / "videos"
+ALLOWED_VIDEO_TYPES = {"video/mp4", "video/quicktime", "video/webm", "video/x-m4v", "video/3gpp"}
+ALLOWED_VIDEO_EXT = {".mp4", ".mov", ".webm", ".m4v", ".3gp"}
+MAX_VIDEO_SIZE = 200 * 1024 * 1024  # 200 MB: a 2-3 minute phone or WhatsApp video
+MAX_VIDEO_SECONDS = 180
+
+
+@router.post("/videos")
+@limiter.limit("5/minute")
+async def upload_video(request: Request, file: UploadFile = File(...), agent_id: str = Depends(get_current_user_id)):
+    """One walkthrough video for a listing (a builder's or the agent's own). Stored as it is; 'Start marketing' turns it into a
+    reel. Response {url, seconds, width, height}; the client adds {url, kind: 'video'} to the listing's media."""
+    ext = Path(file.filename or "").suffix.lower()
+    if file.content_type not in ALLOWED_VIDEO_TYPES and ext not in ALLOWED_VIDEO_EXT:
+        raise HTTPException(status_code=400, detail="Please choose a video (mp4, mov or webm).")
+    VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
+    name = f"{uuid.uuid4()}{ext if ext in ALLOWED_VIDEO_EXT else '.mp4'}"
+    dest = VIDEOS_DIR / name
+    size = 0
+    try:
+        async with aiofiles.open(dest, "wb") as out:
+            while chunk := await file.read(1024 * 1024):
+                size += len(chunk)
+                if size > MAX_VIDEO_SIZE:
+                    raise HTTPException(status_code=413, detail="This video is too large. Keep it under 200 MB.")
+                await out.write(chunk)
+        if size == 0:
+            raise HTTPException(status_code=400, detail="The file is empty.")
+        from app.modules.reels import ffmpeg
+        p = await asyncio.to_thread(ffmpeg.probe, dest)
+        if not p.duration or not p.width:
+            raise HTTPException(status_code=400, detail="We could not read this video. Try exporting it again as mp4.")
+        if p.duration > MAX_VIDEO_SECONDS:
+            raise HTTPException(status_code=400, detail=f"Keep the video under {MAX_VIDEO_SECONDS // 60} minutes.")
+    except Exception:
+        dest.unlink(missing_ok=True)
+        raise
+    base_url = str(request.base_url).rstrip('/')
+    logger.info(f"video uploaded by {agent_id}: {name} ({size} bytes, {p.duration:.1f}s)")
+    return {"url": f"{base_url}/uploads/videos/{name}", "seconds": round(p.duration, 1), "width": p.width, "height": p.height}
+
+
 @router.post("/documents")
 @limiter.limit("5/minute")
 async def upload_documents(

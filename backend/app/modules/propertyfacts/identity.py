@@ -25,6 +25,16 @@ class Identity:
     contact: List[str] = field(default_factory=list)
 
 
+WA_MARK = "\U0001F4AC"   # the speech bubble that starts the WhatsApp line of a caption (calendar.adapters finds it)
+
+
+def whatsapp_label() -> str:
+    """Our public WhatsApp number as '+91 98765 43210', or '' when none is configured (then captions carry only the link)."""
+    from app.modules.chat.service import platform_whatsapp_number
+    num = platform_whatsapp_number()
+    return phone_label("+" + num) if num else ""
+
+
 def phone_label(raw: str) -> str:
     """'+919921993099' -> '+91 99219 93099'; anything else is returned trimmed."""
     d = re.sub(r"\D", "", raw or "")
@@ -44,15 +54,17 @@ def identity(profile: Optional[dict], site: str, uploads_dir: Path, language: st
     name = (bd.get("business_name") or profile.get("agent_name") or "").strip()
     if not name:
         return Identity()
-    phone = phone_label(profile.get("phone") or "")
+    # Buyers reach the agent through OUR WhatsApp number, never the agent's own phone: the chat carries the post's code, so our
+    # bot routes it to this agent and the lead is counted for that post (calendar.adapters puts the code link in at publish).
+    phone = whatsapp_label()
     logo = bd.get("logo") or ""
     logo_file = str(uploads_dir / logo[len("/uploads/"):]) if logo.startswith("/uploads/") else ""
     call, web, ours = CONTACT_LABELS.get(language, CONTACT_LABELS["en"])
-    contact = [f"\U0001F4DE {call}: {phone}"] if phone else []
+    contact = [f"{WA_MARK} WhatsApp: {phone}"] if phone else []
     if bd.get("website"):
         contact.append(f"\U0001F310 {web}: {bare_url(bd['website'])}")
     contact.append(f"\U0001F3E0 {ours}: {bare_url(site)}/agent/{profile['slug']}")
     return Identity(voice=Voice(name=name, team=f"{name} team"),
-                    card_brand=CardBrand(name=name, line=f"{i18n.ui('call', language)} {phone}" if phone else (bd.get("tagline") or ""),
+                    card_brand=CardBrand(name=name, line=f"WhatsApp {phone}" if phone else "",   # a long tagline overflows the footer
                                          logo=logo_file, phone=phone),
                     contact=contact)

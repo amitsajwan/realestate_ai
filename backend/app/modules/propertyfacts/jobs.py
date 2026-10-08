@@ -324,6 +324,9 @@ class MarketingRuns:
                               "video": "/uploads/" + dest.resolve().relative_to(self.uploads_dir.resolve()).as_posix()})
             except Exception:
                 log.warning("marketing run %s: slides reel %s failed", job["_id"], p["angle"], exc_info=True)
+        video = self._video(listing)
+        if video:
+            reels.append(await self._video_reel(job, listing, video, out, project, link_line))
         if self.reel_jobs is not None:
             try:
                 from app.modules.reels.listing_reel import caption as reel_caption
@@ -333,6 +336,62 @@ class MarketingRuns:
             except Exception as e:  # fewer than 2 photos, the daily limit...: the campaign goes on without it
                 reels.append({"kind": "walkthrough", "status": "skipped", "note": str(getattr(e, "detail", "") or "not made")})
         return reels
+
+    async def _photo_pool(self, listing: dict, out: Path) -> List[str]:
+        """The property's own pictures for the post cards, one per post: its photos and the best stills of its video,
+        alternating (photos are sharper, stills show the site). Never stock photos; [] keeps the plain cards."""
+        from app.modules.reels.listing_reel import listing_photos
+        own = [str(p) for p in listing_photos(listing, self.uploads_dir) if Path(p).is_file()]
+        video = self._video(listing)
+        stills: List[str] = []
+        if video:
+            from app.modules.reels.video_director import best_frames
+            stills = await best_frames(video, out / "frames")
+        pool: List[str] = []
+        for i in range(max(len(own), len(stills))):
+            pool += ([own[i]] if i < len(own) else []) + ([stills[i]] if i < len(stills) else [])
+        return pool
+
+    def _video(self, listing: dict) -> Optional[Path]:
+        """The listing's first uploaded video (media kind 'video', a file under <uploads>/videos), or None."""
+        vids = sorted(((m.get("order") or 0, i, m) for i, m in enumerate(listing.get("media") or []) if m.get("kind") == "video"),
+                      key=lambda t: (t[0], t[1]))
+        root = (self.uploads_dir / "videos").resolve()
+        for _, _, m in vids:
+            m_ = re.search(r"/uploads/videos/([A-Za-z0-9._-]+)$", str(m.get("url") or ""))
+            p = (root / m_.group(1)).resolve() if m_ else None
+            if p and p.parent == root and p.is_file():
+                return p
+        return None
+
+    async def _video_reel(self, job: dict, listing: dict, video: Path, out: Path, project: str, link_line: str) -> dict:
+        """The reel from the listing's own video, in the agent's brand. Rendered here (a minute or two); a failure is kept as
+        a skipped reel with its reason, the campaign goes on."""
+        from app.modules.reels import video_reel
+        from app.modules.reels.listing_reel import caption as reel_caption
+        prof = await self.profiles.find_one({"agent_id": job["agent_id"]}) or {}
+        who = identity.identity(prof, self.site, self.uploads_dir, job.get("language") or "en")
+        brand_ = who.card_brand
+        title = ", ".join(x for x in (project or listing.get("project_name") or listing.get("title") or "", listing.get("locality") or "") if x)
+        from app.modules.reels import video_director
+        dest = out / "reels" / "video.mp4"
+        language = job.get("language") or "en"
+        facts = {"project": project or listing.get("project_name") or "", "locality": listing.get("locality") or "",
+                 "city": listing.get("city") or "", "property type": listing.get("property_type") or "",
+                 "agent": brand_.name if brand_ else ""}
+        try:
+            edit = await video_director.plan(video, facts=facts, language=language,
+                                             llm=self.llm_factory() if self.llm_factory else None)
+            res = await asyncio.to_thread(video_reel.render, video, dest, title=title[:60], segments=edit.segments, hook=edit.hook,
+                                          agent_name=brand_.name if brand_ else "", agent_logo=(brand_.logo or None) if brand_ else None)
+        except Exception as e:
+            log.warning("marketing run %s: video reel failed", job["_id"], exc_info=True)
+            return {"kind": "video", "status": "skipped", "note": str(getattr(e, "args", [""])[0] or "not made")[:200]}
+        caption = (edit.caption + "\n\n" + "\n".join(who.contact)) if edit.caption else reel_caption(listing, "")
+        return {"kind": "video", "status": "done", "seconds": res["seconds"], "removed_strip": bool(res["removed_strip"]),
+                "edit": {"by": edit.source, "segments": edit.segments, "hook": edit.hook, "notes": edit.notes},
+                "video": "/uploads/" + dest.resolve().relative_to(self.uploads_dir.resolve()).as_posix(),
+                "caption": caption + "\n\n" + link_line}
 
     async def _with_walkthrough(self, doc: Optional[dict]) -> Optional[dict]:
         """The run with its walkthrough reel's current state (the listing reel worker renders it separately)."""
@@ -373,8 +432,9 @@ class MarketingRuns:
             out = self.uploads_dir / "campaigns" / _safe(job["listing_id"]) / jid[:8]
             dropped: Dict[str, Any] = {}
             llm = self.llm_factory() if self.llm_factory else None
+            photos = await self._photo_pool(listing, out)
             packs = await campaign.make(sheet.facts, out, llm=llm, photo=self._photo(listing), link=page, dropped=dropped,
-                                        **self._who(job, await self._identity(job)))
+                                        photos=photos, **self._who(job, await self._identity(job)))
             posts: List[dict] = []
             for aid, p in packs:
                 imgs = ["/uploads/" + Path(i).resolve().relative_to(self.uploads_dir.resolve()).as_posix() for i in p.images]

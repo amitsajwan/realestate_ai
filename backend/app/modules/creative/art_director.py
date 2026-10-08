@@ -54,7 +54,10 @@ def choose_photo(seed: int, preferred: str = "", layout: str = "photo_led") -> s
 def choose(copy: Copy, angle: Angle, recent_layouts: Sequence[str] = (), seed: int = 0, preferred_photo: str = "") -> Design:
     layout = choose_layout(angle.fmt, angle.audience, recent_layouts, seed)
     palette = choose_palette(layout, recent_layouts, seed)
-    photo = choose_photo(seed, preferred_photo, layout) if layout in ("photo_led", "product_showcase") else ""
+    if layout in ("photo_led", "product_showcase"):
+        photo = choose_photo(seed, preferred_photo, layout)
+    else:  # a text card shows the property's own photo behind it (layouts.card_photo); never a stock photo
+        photo = preferred_photo if preferred_photo and Path(preferred_photo).is_file() else ""
     hook_for_emphasis = copy.hook
     return Design(layout=layout, palette=palette, photo=photo, emphasis=emphasis_words(hook_for_emphasis), size=SIZES[angle.channel],
                   notes=f"{layout} / {palette} for a {angle.fmt} ({angle.audience}); avoided {list(recent_layouts[-2:])}")
