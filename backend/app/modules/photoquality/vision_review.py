@@ -124,13 +124,14 @@ def clean_ai(data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 class OpenAIVision:
     """OpenAI-compatible chat completions with image parts (Groq, OpenRouter, Gemini's OpenAI endpoint)."""
 
-    def __init__(self, api_key: str, model: str, base_url: str, timeout: float = TIMEOUT, client: Optional[httpx.AsyncClient] = None):
-        self.api_key, self.model, self.timeout, self._client = api_key, model, timeout, client
+    def __init__(self, api_key: str, model: str, base_url: str, timeout: float = TIMEOUT, client: Optional[httpx.AsyncClient] = None,
+                 max_images: int = MAX_IMAGES):
+        self.api_key, self.model, self.timeout, self._client, self.max_images = api_key, model, timeout, client, max_images
         self.url = f"{base_url.rstrip('/')}/chat/completions"
 
     async def review(self, images: List[bytes], prompt: str) -> Optional[Dict[str, Any]]:
         content: List[Dict[str, Any]] = [{"type": "text", "text": prompt}]
-        for b in images[:MAX_IMAGES]:
+        for b in images[:self.max_images]:
             content.append({"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(b).decode()}})
         body = {"model": self.model, "temperature": 0, "max_completion_tokens": 600,
                 "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": content}]}
@@ -157,10 +158,11 @@ class OpenAIVision:
             return None
 
 
-# More free providers that read images, tried after the ones above when their key is set: (key env, base url, model env, model).
+# More free providers that read images, tried after the ones above when their key is set:
+# (key env, base url, model env, model, images per request).
 EXTRA_VISION_PROVIDERS = (
-    ("GITHUB_MODELS_TOKEN", "https://models.github.ai/inference", "AI_GITHUB_VISION_MODEL", "openai/gpt-4.1-mini"),
-    ("NVIDIA_API_KEY", "https://integrate.api.nvidia.com/v1", "AI_NVIDIA_VISION_MODEL", "meta/llama-3.2-11b-vision-instruct"),
+    ("GITHUB_MODELS_TOKEN", "https://models.github.ai/inference", "AI_GITHUB_VISION_MODEL", "openai/gpt-4.1-mini", MAX_IMAGES),
+    ("NVIDIA_API_KEY", "https://integrate.api.nvidia.com/v1", "AI_NVIDIA_VISION_MODEL", "meta/llama-3.2-11b-vision-instruct", 1),
 )
 
 
@@ -181,9 +183,9 @@ def default_clients() -> List[VisionClient]:
     fb_base = os.environ.get("AI_VISION_FALLBACK_BASE_URL") or os.environ.get("AI_LLM_FALLBACK_BASE_URL")
     if fb_model and fb_key and fb_base:
         out.append(OpenAIVision(fb_key, fb_model, fb_base))
-    for key_var, base, model_var, model in EXTRA_VISION_PROVIDERS:
+    for key_var, base, model_var, model, per_request in EXTRA_VISION_PROVIDERS:
         if os.environ.get(key_var):
-            out.append(OpenAIVision(os.environ[key_var], os.environ.get(model_var) or model, base))
+            out.append(OpenAIVision(os.environ[key_var], os.environ.get(model_var) or model, base, max_images=per_request))
     return out
 
 
