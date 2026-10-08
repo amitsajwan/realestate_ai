@@ -76,6 +76,7 @@ PLACES: Dict[str, Dict[str, str]] = {
     "Ranjangaon": {"mr": "रांजणगाव", "hi": "रांजणगांव"},
     "Shikrapur": {"mr": "शिक्रापूर", "hi": "शिक्रापुर"},
     "Shirur": {"mr": "शिरूर", "hi": "शिरूर"},
+    "Malthan": {"mr": "मलठण", "hi": "मलठण"},
 }
 # Words of the trade with one right spelling.
 TERMS: Dict[str, Dict[str, str]] = {

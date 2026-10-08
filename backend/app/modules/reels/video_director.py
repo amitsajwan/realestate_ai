@@ -87,29 +87,38 @@ def contact_sheet(src: Path, duration: float, work: Path, crop: str = "") -> Tup
     each frame as the reel will: without the contact strip we remove."""
     from .video_reel import H, W, _fit
     times = [round(duration * (i + 0.5) / SHEET_TILES, 1) for i in range(SHEET_TILES)]
-    tw, th = 270, 480
-    sheet = Image.new("RGB", (tw * 4, th * 3), (0, 0, 0))
+    tw, th, lh = 270, 480, 34   # the time label sits in a strip ABOVE each tile, never on the picture (it was read as text)
+    sheet = Image.new("RGB", (tw * 4, (th + lh) * 3), (40, 40, 40))
     d = ImageDraw.Draw(sheet)
     for i, t in enumerate(times):
         p = work / f"t{i}.jpg"
         ffmpeg.run(["-ss", f"{t:.2f}", "-i", str(src), "-frames:v", "1", "-vf", f"{_fit(W, H)}{crop},scale={tw}:{th}", str(p), "-y"])
-        x, y = (i % 4) * tw, (i // 4) * th
-        sheet.paste(Image.open(p).convert("RGB"), (x, y))
-        d.rectangle([x, y, x + 92, y + 34], fill=(0, 0, 0))
-        d.text((x + 8, y + 6), f"{t:.0f}s", fill=(255, 220, 0), font_size=24)
+        x, y = (i % 4) * tw, (i // 4) * (th + lh)
+        d.text((x + 8, y + 5), f"t={t:.0f}s", fill=(255, 255, 255), font_size=22)
+        sheet.paste(Image.open(p).convert("RGB"), (x, y + lh))
     buf = io.BytesIO()
     sheet.save(buf, "JPEG", quality=80)
     return buf.getvalue(), times
 
 
 LOOK_PROMPT = (
-    "This is a contact sheet of frames from a real-estate site video, 12 tiles left to right, top to bottom; each tile is "
-    "labelled with its time in seconds. For each tile say briefly what it shows (presenter talking, plot boundary stones, road, "
-    "entrance gate, signboard, layout map, greenery, text card...) and rate how good it looks as a reel shot, 0-10 (sharp, well "
-    "lit, interesting). Note if a tile shows a phone number on screen, and if it has big caption or title text laid over the "
-    "picture (subtitles, words, logos larger than a corner badge). Reply with JSON only: "
-    '{"shots": [{"t": <seconds>, "what": "...", "score": <0-10>, "phone_on_screen": <true|false>, "text_on_screen": <true|false>}]}'
+    "This is a contact sheet of frames from a real-estate site video: 12 tiles, left to right, top to bottom; the grey strip "
+    "above each tile gives its time (t=...s) and is not part of the picture. For each tile: say briefly what it shows "
+    "(presenter talking, plot boundary stones, road, entrance gate, signboard, layout map, greenery...), rate how good it looks "
+    "as a reel shot 0-10 (sharp, well lit, interesting), copy any caption or subtitle text laid over the picture exactly as "
+    "you read it (\"\" if none; a small logo in a corner and words printed on a signboard in the scene do not count), and "
+    "copy any phone number you can actually read in the picture digit by digit (\"\" if none; never guess). Reply with JSON "
+    'only: {"shots": [{"t": <seconds>, "what": "...", "score": <0-10>, "caption": "...", "digits": "..."}]}'
 )
+PHONE_DIGITS = 8   # digits read in a frame from which it counts as showing a phone number
+
+
+def _flags(shot: Dict[str, Any]) -> Dict[str, Any]:
+    """phone_on_screen / text_on_screen decided by code from what the model READ (a yes/no question was answered 'yes' for
+    every frame of a video that showed no number at all)."""
+    digits = re.sub(r"\D", "", str(shot.get("digits") or ""))
+    caption = str(shot.get("caption") or "").strip()
+    return {**shot, "phone_on_screen": len(digits) >= PHONE_DIGITS, "text_on_screen": len(caption) >= 3}
 
 
 SPAN = 0.9   # the part of a video that is surveyed: the last 10% is usually a closing card with a phone number
@@ -152,7 +161,7 @@ async def look(sheet_jpeg: bytes) -> List[Dict[str, Any]]:
                 r = await c.post(client.url, json=body, headers={"Authorization": f"Bearer {client.api_key}"})
             r.raise_for_status()
             data = parse_reply(r.json()["choices"][0]["message"]["content"] or "") or {}
-            shots = [s for s in data.get("shots") or [] if isinstance(s, dict) and "t" in s]
+            shots = [_flags(s) for s in data.get("shots") or [] if isinstance(s, dict) and "t" in s]
             if shots:
                 return shots
         except Exception as e:
@@ -162,6 +171,7 @@ async def look(sheet_jpeg: bytes) -> List[Dict[str, Any]]:
 
 FRAME_MIN_SCORE = 6
 FRAMES_KEPT = 8
+MIN_STILLS = 3
 
 
 async def best_frames(src, out_dir, keep: int = FRAMES_KEPT) -> List[str]:
@@ -178,10 +188,12 @@ async def best_frames(src, out_dir, keep: int = FRAMES_KEPT) -> List[str]:
         shots, crop, times = await survey(src, p.duration)
         times = times or [round(usable * (i + 0.5) / SHEET_TILES, 1) for i in range(SHEET_TILES)]
         if shots:
-            # clean shots first (our card text goes on top: the video's own captions would collide with it), then the rest
-            ranked = sorted((s for s in shots if not s.get("phone_on_screen") and _score(s) >= FRAME_MIN_SCORE),
-                            key=lambda s: (bool(s.get("text_on_screen")), -_score(s)))
-            picks = [float(s["t"]) for s in ranked]
+            # clean shots first (our card text goes on top: the video's own captions would collide with it), then the rest;
+            # when fewer than MIN_STILLS score well, any phone-free shot is used rather than plain cards
+            safe = [s for s in shots if not s.get("phone_on_screen")]
+            good = [s for s in safe if _score(s) >= FRAME_MIN_SCORE]
+            ranked = sorted(good if len(good) >= MIN_STILLS else safe, key=lambda s: (bool(s.get("text_on_screen")), -_score(s)))
+            picks = [_t(s) for s in ranked]
         else:
             picks = times[1:-1]
         chosen: List[float] = []
@@ -191,6 +203,8 @@ async def best_frames(src, out_dir, keep: int = FRAMES_KEPT) -> List[str]:
             if len(chosen) >= keep:
                 break
         out_dir.mkdir(parents=True, exist_ok=True)
+        for old in out_dir.glob("frame*.jpg"):   # stills of an earlier run must never be mistaken for this one's
+            old.unlink(missing_ok=True)
         out = []
         for i, t in enumerate(chosen):
             f = out_dir / f"frame{i:02d}.jpg"
@@ -251,6 +265,9 @@ def _edit_prompt(duration: float, speech: List[Dict], shots: List[Dict], facts: 
         lines += [f"{float(s['t']):.0f}s: {s.get('what', '')}, {s.get('score', '?')}" + (" [PHONE ON SCREEN]" if s.get("phone_on_screen") else "")
                   for s in shots]
     lines.append(EDIT_RULES.format(tmin=TARGET_MIN, tmax=TARGET_MAX, hook_words=HOOK_MAX_WORDS, lang=LANG_NAME.get(language, "English")))
+    if language in ("mr", "hi"):   # speech-to-text misspells places (शिकरपूर); the hook and caption must not
+        from app.modules.creative import i18n
+        lines.append("Spell place names and terms exactly as: " + i18n.glossary(language) + ".")
     return "\n".join(lines)
 
 
