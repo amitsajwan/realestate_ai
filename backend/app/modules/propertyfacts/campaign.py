@@ -383,7 +383,9 @@ SHARPEN_SYSTEM = (
     "live or work), but not in the same way every time, and never like the headlines already posted. Hard rules: keep every number exactly as written (same digits, same "
     "units, same rupee amounts) and add no other number; add no fact that is not in the headline or the facts; no hype "
     "(best, perfect, dream, luxury, premium, guaranteed, safe investment, returns), no 'only/just', no emojis, at most 10 "
-    'words. Reply with JSON only: {"headline": "..."}'
+    "words. Think like the sales lead who knows the buyer's first question (where, how far, what size, ready or not) and "
+    "like the designer whose headline must read in one glance in large type: put the key number or place first. "
+    'Reply with JSON only: {"headline": "..."}'
 )
 _NUM = re.compile(r"\d[\d,.]*")
 

@@ -15,7 +15,7 @@ from .models import Voice
 
 BRAND, LISTING = "brand", "listing"
 MODES = (BRAND, LISTING)
-VERSIONS = {"strategist": 1, "copywriter": 2, "translator": 1, "critic": 2, "card_translator": 3}
+VERSIONS = {"strategist": 2, "copywriter": 3, "translator": 1, "critic": 3, "card_translator": 3}
 LANGUAGE_NAMES = {"mr": "Marathi (Devanagari script)", "hi": "Hindi (Devanagari script)"}
 
 
@@ -39,6 +39,16 @@ _NO_SALES = ("State facts, never sell: no value judgements (affordable, cheap, v
              "the word 'sample'. ")
 
 
+# The three hats every planning/writing/judging prompt wears: the sales desk decides WHAT to say, the designer decides how
+# little of it fits a phone screen, the strategist decides the one idea. (The layout and colours are code: art_director.)
+_HATS = ("Wear three hats at once. SALES LEAD: you have walked hundreds of Pune buyers through site visits; you know the "
+         "questions they ask first (where exactly, how far from work and school, what size, ready or under construction, is "
+         "it MahaRERA registered) and you answer the most important one up front. DESIGNER: your words go on a phone-sized "
+         "card in large type over a photo; a viewer gives it one second, so fewer words, one idea, the key number or place "
+         "first, no stacked clauses, no ALL CAPS. STRATEGIST: one audience, one message, up to three supporting facts; never "
+         "try to say everything.\n")
+
+
 def _areas(v: Voice) -> str:
     return v.areas or "Pune"
 
@@ -54,7 +64,11 @@ def strategist(v: Voice, mode: str = BRAND) -> str:
         facts = ("Use ONLY the supplied facts: no prices, no predictions, no invented numbers, no phone numbers, no personal "
                  "names, no builder names. ")
     return (head
-            + "Think like a strategist: who is this for, what do they fear or want, what is the single idea, what is the hook.\n"
+            + _HATS
+            + "Think it through: who is this for (family, first-time buyer, working professional, investor, agent), what do they "
+            "want or worry about, which supplied fact matters most to them. Consider three directions (benefit-first: the "
+            "strongest practical advantage; everyday-life: what living or working there is like, from the facts only; "
+            "information-first: a useful check or comparison) and pick the one with the sharpest, most specific hook.\n"
             "Rules: the hook is at most 9 words, specific, and creates curiosity or tension without lying (no clickbait, no "
             "'shocking', no superlatives such as best/perfect/dream). Use the suggested hook pattern. " + facts
             + "`proof` must be facts copied from the supplied list. `format` must be one of the allowed formats. "
@@ -73,7 +87,10 @@ def copywriter(v: Voice, mode: str = BRAND) -> str:
                 "Upper Kharadi and Wagholi, Pune). Write the post copy for the given angle.\n")
         facts = ("Use ONLY the supplied facts: no prices, no predictions, no invented numbers or claims, no phone numbers, no "
                  "personal or builder names, no superlatives (best, perfect, dream, guaranteed). ")
-    return (head + f"Rules: plain, warm, direct English; brand voice '{v.team}'. " + facts
+    return (head + _HATS + f"Rules: plain, warm, direct English; brand voice '{v.team}'. " + facts
+            + "Lead with what the reader gets, said as a fact (a distance, a size, a status), not an adjective: instead of 'great "
+            "location' write the verified place and distance. Specific beats generic: never 'dream home' or 'amazing property'. "
+            "Card text (support, slides) must read in one glance: short words, the number or place first, 3 to 9 words is ideal. "
             + "Avoid filler such as 'in today's world', 'unlock', 'game changer'. Each slide is at most "
             "14 words and carries ONE idea. The caption's first line is the only line visible before 'more': make it concrete and "
             "curious, at most 120 characters. The caption never contains a URL or a phone number. End with a question to the reader.\n"
@@ -116,5 +133,7 @@ def critic(v: Voice, mode: str = BRAND) -> str:
     else:
         what, who = "a social post for an Indian real-estate brand", "a Pune buyer or property agent"
     return (f"You are a harsh art director and copy chief reviewing {what}. Judge ONLY what you are given. Would {who} stop "
-            "scrolling? " + rules + "Reply with ONE JSON object: "
+            "scrolling? " + _HATS + "Judge as the sales lead (does it answer the buyer's first question with a supplied fact; is "
+            "the next step clear?) and as the designer (can each card be read in one second on a phone; one idea per card; no "
+            "generic words such as dream home or amazing?). " + rules + "Reply with ONE JSON object: "
             '{"stops_scroll": bool, "problems": [str] (at most 3, concrete), "better_hook": str (at most 9 words, or "")}')
