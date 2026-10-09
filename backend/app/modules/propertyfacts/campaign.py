@@ -36,6 +36,9 @@ LINK_LINE_PLAIN = {"en": "Full details of {where}: link in bio.",   # no MahaRER
 # The caption's closing question for each angle, in each post language: one a buyer can answer about THIS subject
 # (a price card does not ask how many site visits they made). Code-written, so a translation never changes it.
 ASKS: Dict[str, Dict[str, str]] = {
+    "overview": {"en": "Would you like to see it on a site visit? Tell us below.",
+                 "mr": "साइट व्हिजिटला येऊन पाहायला आवडेल का? खाली सांगा.",
+                 "hi": "क्या आप साइट विज़िट पर इसे देखना चाहेंगे? नीचे बताइए."},
     "price_reveal": {"en": "What would you ask about this price? Tell us below.",
                      "mr": "या किमतीबद्दल तुम्ही काय विचाराल? खाली सांगा.",
                      "hi": "इस कीमत के बारे में आप क्या पूछेंगे? नीचे बताइए."},
@@ -351,25 +354,59 @@ def plot_myth(c: Ctx) -> Optional[Brief]:
                    facts=["A plot needs an NA order and an approved layout before you build."], prefer="myth-vs-fact")
 
 
+def overview(c: Ctx) -> Optional[Brief]:
+    """The whole property on one carousel: price on the cover, then size, location, possession and the visit slide.
+    A slide whose facts are missing is left out; under 3 slides there is no overview."""
+    price = price_label(c.v["price_inr"]) if c.v.get("price_inr") else ""
+    steps = []
+    lo, hi, units = c.v.get("size_min_sqft"), c.v.get("size_max_sqft"), c.v.get("units_total")
+    unit = "plots" if c.plot else "homes"
+    if c.layout and lo and hi and hi > lo:
+        steps.append(f"{lo:,} to {hi:,} sq ft" + (f", {units} {unit} in all." if units else "."))
+    elif c.sqft:
+        steps.append(f"{c.sqft:,} sq ft {c.kind}" + (f", one of {units} {unit}." if units else "."))
+    elif units:
+        steps.append(f"{units} {unit} in {c.project or c.locality}.")
+    near = _near(c)[:2]
+    if c.locality or near:
+        at = f"In {c.locality}" if c.locality else "Nearby"
+        steps.append(at + ("" if not near else ": " + ", ".join(f"{p['name']} {_km(p['km'])}" for _, p in near)) + ".")
+    now, rera = c.v.get("possession_now"), c.v.get("rera_no")
+    if now or rera:
+        steps.append((f"Completion {day(now)} on MahaRERA" if now else "Registered on MahaRERA") + (f" ({rera})." if rera else "."))
+    if len(steps) < 2:   # with the visit slide below, fewer than 3 slides: not an overview
+        return None
+    steps.append("Book a site visit: full details in the caption.")
+    lead = (f"{c.kind.capitalize()}s from {price}" if c.layout else f"{price} for a {c.kind}") if price else f"A {c.kind}"
+    hook = f"{lead} at {c.project or c.locality}" if (c.project or c.locality) else lead
+    facts = [f"{c.kind.capitalize()}s at {c.where} start at {price}." if c.layout else f"This {c.kind} at {c.where} is listed at {price}."] if price else []
+    return c.brief(angle="overview", hook=hook, topic=f"{c.where or 'This property'} at a glance", short="property overview",
+                   steps=steps, facts=facts + steps, tip="Visit the site and match every detail with MahaRERA.", prefer="carousel")
+
+
 @dataclass(frozen=True)
 class AngleDef:
     id: str
     build: Callable[[Ctx], Optional[Brief]]
 
 
+FOLLOW_UPS = 4  # angles posted after the overview, the first ones in ANGLES order that the facts support
 ANGLES: Tuple[AngleDef, ...] = tuple(AngleDef(f.__name__, f) for f in (
-    price_reveal, possession, near_work, nearby, size_in_guntha, land_area, rera_check, emi, plot_checklist, rate_per_sqft,
+    overview, price_reveal, possession, near_work, nearby, size_in_guntha, land_area, rera_check, emi, plot_checklist, rate_per_sqft,
     layout_size, plot_or_flat, plot_myth))
 
 
 def plan(facts: Dict[str, Fact], photo: str = "none", link: str = "", angles: Sequence[AngleDef] = ANGLES,
          voice: Optional[Voice] = None, card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (),
-         language: str = "en", previous: Sequence[str] = ()) -> List[Tuple[str, Brief]]:
+         language: str = "en", previous: Sequence[str] = (), follow_ups: Optional[int] = FOLLOW_UPS) -> List[Tuple[str, Brief]]:
     """`voice`, `card_brand`, `contact`, `language`: whose posts these are (default ours) and in which language;
-    `previous`: opening lines of this property's posts already live (the writers are told not to repeat them)."""
+    `previous`: opening lines of this property's posts already live (the writers are told not to repeat them);
+    `follow_ups`: how many angles after the overview (None: every one, so an older run's post can still be edited)."""
     c = Ctx(facts, photo, link, voice, card_brand, contact, language, previous)
     out = []
     for a in angles:
+        if follow_ups is not None and len([1 for aid, _ in out if aid != "overview"]) >= follow_ups and a.id != "overview":
+            continue
         b = a.build(c)
         if b is not None:
             out.append((a.id, b))

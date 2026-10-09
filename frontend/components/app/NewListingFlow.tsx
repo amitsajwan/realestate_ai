@@ -13,7 +13,7 @@ import type { About, AIDraft, Listing, ListingInput, UploadedFile } from '@/lib/
 import { qualityFields } from '@/lib/app/quality'
 import { FIELD_LABELS, lowConfidenceFields, missingFields, priceSanity } from '@/lib/app/validate'
 import { AboutStep } from './AboutStep'
-import { MarketingScreen } from './MarketingScreen'
+import { MarketingRunCard } from './MarketingRunCard'
 import { PhotoPicker } from './PhotoPicker'
 import { ReviewForm } from './ReviewForm'
 import { ShareBar } from './ShareBar'
@@ -166,7 +166,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
             <LinkBtn variant="secondary" href={`/studio/listings/${posted.id}`}>Add photos</LinkBtn>
           </div>
         )}
-        <MarketingScreen listingId={posted.id} autoCreate listing={posted} onListingUpdated={setPosted} />
+        <MarketingRunCard listingId={posted.id} />
         <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4">
           <p className="break-all text-sm text-blue-700">{link}</p>
           <ShareBar url={link} message={`New property: ${posted.title}.`} />

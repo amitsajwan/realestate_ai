@@ -194,7 +194,7 @@ class MarketingRuns:
         run, idx = await self._done_run(agent_id, listing_id, angle)
         listing = await self._listing(agent_id, listing_id)
         who = await self._identity(run)
-        briefs = dict(campaign.plan(await self._facts(run, listing), **self._who(run, who)))
+        briefs = dict(campaign.plan(await self._facts(run, listing), follow_ups=None, **self._who(run, who)))
         corpus = briefs[angle].corpus() if angle in briefs else ""
         checked = "\n".join(line for line in caption.splitlines() if line.strip() not in who.contact)  # code-made contact block
         problems = [p for p in problems_in(checked, corpus, allow_url=True) if p != "url"] if corpus else []
@@ -209,7 +209,7 @@ class MarketingRuns:
         note = (note or "").strip()[:NOTE_MAX]
         run, idx = await self._done_run(agent_id, listing_id, angle)
         listing = await self._listing(agent_id, listing_id)
-        briefs = dict(campaign.plan(await self._facts(run, listing), self._photo(listing), run.get("page_url") or "",
+        briefs = dict(campaign.plan(await self._facts(run, listing), self._photo(listing), run.get("page_url") or "", follow_ups=None,
                                     **self._who(run, await self._identity(run))))
         if angle not in briefs:
             raise RunError("The facts for this post are no longer available. Start marketing again.", 409)

@@ -32,8 +32,6 @@ from app.modules.onboarding.router import router as join_router
 from app.modules.tracking.router import public_router as track_public_router, inbox_router
 from app.modules.listings.router import router as listings_router, public_router as listings_public_router
 from app.modules.ai_listing.router import router as ai_listing_router
-from app.modules.marketing.router import router as marketing_router
-from app.modules.social.router import router as social_router
 from app.modules.engage.router import router as engage_router
 from app.modules.radar import router as radar_router
 from app.modules.newsroom.router import router as newsroom_router
@@ -86,8 +84,6 @@ api_router.include_router(track_public_router, prefix="/t", tags=["tracking"])
 api_router.include_router(inbox_router, prefix="/inbox", tags=["lead-inbox"])
 api_router.include_router(ai_listing_router, prefix="/listings", tags=["listings-ai"])
 api_router.include_router(listings_router, prefix="/listings", tags=["listings"])
-api_router.include_router(marketing_router, prefix="/listings", tags=["marketing"])
-api_router.include_router(social_router, prefix="/social", tags=["social"])
 from app.wiring import wire  # noqa: E402
 wire()  # callbacks lower modules need from the operator console (app/wiring.py)
 api_router.include_router(engage_router, prefix="/engage", tags=["engage"])

@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import React from 'react'
-import { ReelMaker } from '@/components/app/MarketingPackView'
+import { ReelMaker } from '@/components/app/ReelMaker'
 import { PostSheet } from '@/components/app/agents/PostSheet'
 import { ApiError } from '@/lib/app/api'
 import { createFixtureReelsApi, createReelsApi, reelVideoUrl, whatsappReelUrl } from '@/lib/app/reels'
