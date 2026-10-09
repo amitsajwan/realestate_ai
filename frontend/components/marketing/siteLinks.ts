@@ -25,7 +25,7 @@ export type Audience = 'buyer' | 'agent'
 export function siteLinks() {
   const { instagram, facebook } = socialLinks()
   const forAgents: SiteLink = { href: FOR_AGENTS_PATH, label: 'For agents' }
-  const demo: SiteLink = { href: demoAgentPath(), label: 'See a demo page' }
+  const demo: SiteLink = { href: demoAgentPath(), label: 'See a sample agent page' }
   const news: SiteLink = { href: '/news', label: 'News' }
   const posts: SiteLink = { href: '/posts', label: 'Posts' }
   const areas: SiteLink = { href: '/localities', label: 'Area guides' }

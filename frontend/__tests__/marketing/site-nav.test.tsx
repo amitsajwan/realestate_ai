@@ -12,7 +12,7 @@ jest.mock('@/components/news/NewsSection', () => ({ __esModule: true, default: (
 const cfg = buildMarketingConfig({})
 const EXPECTED: Array<[RegExp, string]> = [
   [/^for agents$/i, '/for-agents'],
-  [/^see a demo page$/i, '/agent/demo'],
+  [/^see a sample agent page$/i, '/agent/demo'],
   [/^news$/i, '/news'],
   [/^posts$/i, '/posts'],
   [/^area guides$/i, '/localities'],
@@ -60,7 +60,7 @@ describe('site header', () => {
     process.env.NEXT_PUBLIC_DEMO_AGENT_SLUG = 'sample-homes'
     try {
       render(<SiteHeader businessName="Avasetu" />)
-      expect(hrefOf(screen.getByRole('banner'), /^see a demo page$/i)).toBe('/agent/sample-homes')
+      expect(hrefOf(screen.getByRole('banner'), /^see a sample agent page$/i)).toBe('/agent/sample-homes')
     } finally {
       if (before === undefined) delete process.env.NEXT_PUBLIC_DEMO_AGENT_SLUG
       else process.env.NEXT_PUBLIC_DEMO_AGENT_SLUG = before
@@ -85,9 +85,9 @@ describe('site footer', () => {
 })
 
 describe('landing hero', () => {
-  it('leads with "Claim your free trial" and offers "See an example agent page" second', () => {
+  it('leads with "Claim your free trial" and offers "See a sample agent page" second', () => {
     render(<LandingPage />)
     expect(screen.getAllByRole('link', { name: /^claim your free trial$/i })[0]).toHaveAttribute('href', '/trial') // WhatsApp TRIAL, code back at once
-    expect(screen.getByRole('link', { name: /^see an example agent page$/i })).toHaveAttribute('href', '/agent/house-deal')
+    expect(within(document.getElementById('hero-ctas')!).getByRole('link', { name: /^see a sample agent page$/i })).toHaveAttribute('href', '/agent/house-deal')
   })
 })

@@ -40,13 +40,13 @@ export default function LandingPage() {
 
       {/* Hero: the promise, one gold button, the lead card */}
       <section aria-labelledby="hero-title" className="bg-gradient-to-b from-[#0f2340] to-[#183a5d] text-white">
-        <div className={wrap + ' grid items-center gap-10 pt-10 pb-14 sm:py-20 md:grid-cols-[1.15fr_1fr] lg:gap-16'}>
+        <div className={wrap + ' grid items-center gap-10 pt-8 pb-12 sm:py-16 md:grid-cols-[1.2fr_1fr] lg:gap-14'}>
           <div>
             <p className="flex flex-wrap items-center gap-2 text-[13px] font-bold uppercase tracking-[0.08em] text-[#f0b440]">
               <span>{H.eyebrow}</span>
               <span className="rounded-full bg-[#f0b440] px-2.5 py-0.5 text-[#0f2340]">{H.pilot}</span>
             </p>
-            <h1 id="hero-title" className="mt-4 text-[2.25rem] font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-[3.75rem]">
+            <h1 id="hero-title" className="mt-4 text-[2.1rem] font-extrabold leading-[1.1] tracking-[-0.015em] [text-wrap:balance] sm:text-[2.75rem] lg:text-[3.25rem]">
               {H.titleLines.map((t) => <span key={t} className="block">{t}</span>)}
             </h1>
             <p className="mt-5 max-w-[52ch] text-lg leading-8 text-slate-100 sm:text-xl">{H.lead}</p>
@@ -60,8 +60,9 @@ export default function LandingPage() {
                 <Link href={LIVE.links.page} className={outlineOnNavy + ' w-full sm:w-auto'}>{H.secondary}</Link>
               )}
             </div>
-            <p className="mt-5 text-sm leading-relaxed text-slate-300">
-              {H.facts} · {H.signInLead}{' '}
+            <p className="mt-5 text-sm leading-relaxed text-slate-300">{H.facts}</p>
+            <p className="mt-1.5 text-sm text-slate-300">
+              {H.signInLead}{' '}
               <Link href={PATHS.signIn} aria-label={`${H.signInLead} ${H.signIn}`} className="font-semibold text-white underline underline-offset-4">{H.signIn}</Link>
             </p>
           </div>

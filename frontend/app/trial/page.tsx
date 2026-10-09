@@ -53,7 +53,7 @@ export default async function TrialPage({ searchParams }: { searchParams: Promis
               </a>
               <Link href="/agent/house-deal"
                 className="inline-flex min-h-[52px] w-full items-center justify-center rounded-xl border-2 border-white/70 px-5 text-lg font-bold text-white no-underline hover:bg-white/10 sm:w-auto">
-                See an example agent page
+                See a sample agent page
               </Link>
             </div>
             <p className="mt-3 text-sm text-slate-300">Already have your code? <Link href="/join" className="font-semibold text-white underline">Sign in</Link></p>

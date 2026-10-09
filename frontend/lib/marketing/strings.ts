@@ -78,7 +78,7 @@ export const LANDING = {
       'Your website, posts and reels, made for you. Every enquiry becomes a lead card.',
     cta: 'Claim your free trial',
     whatsapp: 'Ask us on WhatsApp',
-    secondary: 'See an example agent page',
+    secondary: 'See a sample agent page',
     facts: 'First 3 properties free · No card · No app · English, हिंदी, मराठी',
     signInLead: 'Already have your code?',
     signIn: 'Sign in',
@@ -94,6 +94,7 @@ export const LANDING = {
   mock: {
     source: 'Instagram comment',
     comment: 'INTERESTED',
+    when: '2 min ago',
     name: 'Sample buyer',
     hot: 'Hot',
     summary: 'Wants a 2 BHK in Baner, moving in 1-3 months, will need a home loan.',
