@@ -7,15 +7,14 @@ from typing import Optional
 
 from pydantic import ValidationError
 
-from app.core import areas
-
+from . import places
 from .models import Intent, RawSignal
 
 log = logging.getLogger(__name__)
 
-AREA_KEYS = ", ".join(a.key for a in areas.AREAS)
+AREA_KEYS = ", ".join(places.keys())
 
-SYSTEM = f"""You read public comments under Pune real-estate videos and posts and decide if the writer may want to buy or rent a home.
+SYSTEM = f"""You read public comments under Pune real-estate videos and posts and decide if the writer may want to buy or rent a home or a plot.
 Comments can be English, Hindi, Marathi or Hinglish. Return ONLY a JSON object:
 {{"role": "buyer|renter|investor|broker|seller|noise",
  "intent": 0.0-1.0 (how likely they want a home soon; 0.9 = asks price/availability/visit for themselves),
@@ -38,10 +37,10 @@ def _user(sig: RawSignal) -> str:
 
 
 def _area(intent: Intent, sig: RawSignal) -> Optional[str]:
-    if intent.area and areas.get(intent.area):
-        return areas.get(intent.area).key
-    named = areas.named_in(f"{sig.text} {sig.context}")
-    return named[0].key if named else None
+    if intent.area and places.get(intent.area):
+        return places.get(intent.area).key
+    named = places.named_in(f"{sig.text} {sig.context}")
+    return named.key if named else None
 
 
 async def classify(sig: RawSignal, llm) -> Optional[Intent]:

@@ -6,9 +6,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from app.core import areas
 from app.platform.text import bhk_label, money
 
+from . import places
 from .models import Intent
 
 ROLE = {"buyer": 1.0, "investor": 0.8, "renter": 0.5, "seller": 0.1, "broker": 0.0, "noise": 0.0}
@@ -57,11 +57,11 @@ def match_quality(intent: Intent, bhk: Optional[float], price: Optional[int]) ->
 
 
 async def find_matches(db, intent: Intent, limit: int = 3) -> List[Match]:
-    area = areas.get(intent.area or "")
+    area = places.get(intent.area or "")
     if not area:
         return []
     from app.modules.listings.service import ListingService
-    items, _ = await ListingService(db).public_by_locality(area.name, limit=30)
+    items, _ = await ListingService(db).public_by_locality(area.listing_locality, limit=30)
     out = []
     for it in items:
         q = match_quality(intent, it.bhk, it.price_inr)
@@ -82,7 +82,7 @@ def score(intent: Intent, posted_at: Optional[datetime], matches: List[Match], n
     # freshness caps the score: a perfect question from 3 months ago is a cold lead (2026-10-09 trial ranked those at 0.95)
     p = (1 / (1 + math.exp(-z))) * (FRESH_FLOOR + (1 - FRESH_FLOOR) * f["fresh"])
     why = [f"{intent.role}, {intent.stage}"]
-    a = areas.get(intent.area or "")
+    a = places.get(intent.area or "")
     want = " ".join(x for x in [bhk_label(intent.bhk) if intent.bhk else "", a.name if a else "",
                                 f"≤{money(intent.budget_max_inr)}" if intent.budget_max_inr else ""] if x)
     if want:

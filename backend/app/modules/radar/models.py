@@ -30,7 +30,7 @@ class Intent(BaseModel):
     role: Literal["buyer", "renter", "investor", "broker", "seller", "noise"] = "noise"
     intent: float = Field(0.0, ge=0, le=1)
     stage: Literal["exploring", "comparing", "ready", "post_visit", "unknown"] = "unknown"
-    area: Optional[str] = None        # an area key from app/core/areas.py, or None
+    area: Optional[str] = None        # a place key (radar/places.py), or None
     project: Optional[str] = None
     bhk: Optional[float] = None
     budget_min_inr: Optional[int] = None

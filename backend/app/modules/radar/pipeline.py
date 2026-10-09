@@ -3,9 +3,8 @@ signals in its input status, so a crash or a model outage simply resumes next cy
 import logging
 from typing import Dict, Optional
 
-from app.core import areas
-
 from . import draft as drafting
+from . import places
 from . import store
 from .classify import classify
 from .config import RadarConfig
@@ -35,7 +34,7 @@ async def _link(db, cfg: RadarConfig, source: str, intent: Intent, matches) -> s
                                       channel=LINK_CHANNEL.get(source, "website"))
         except Exception:
             log.exception("radar: interest link failed")
-    a = areas.get(intent.area or "")
+    a = places.get(intent.area or "")
     return f"{site_url()}{a.page if a else '/localities'}?utm_source={source}&utm_medium=radar"
 
 

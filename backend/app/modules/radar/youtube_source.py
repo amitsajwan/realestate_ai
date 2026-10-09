@@ -4,28 +4,25 @@ import logging
 from datetime import timedelta
 from typing import Dict, Tuple
 
-from app.core import areas
 from app.core.brand import NAME
 from app.platform.youtube import YouTube, YouTubeError, comment_url, to_dt
 
-from . import store
+from . import places, store
 from .config import RadarConfig
 
 log = logging.getLogger(__name__)
 
 SOURCE = "youtube"
-# English and Marathi: the busiest comment threads (2026-10-09 trial) were Marathi videos, where buyers ask in Marathi
-QUERY_TEMPLATES = ("{area} Pune flats", "{area} Pune 2 BHK project review", "{area} पुणे फ्लॅट")
 REQUERY_HOURS = 24
 VIDEO_RECHECK_HOURS = 6
 OWN_NAMES: Tuple[str, ...] = (NAME, f"@{NAME.lower()}", f"{NAME} Pune")
 
 
 async def seed(db) -> None:
-    """One set of search queries per area we cover; more can be added through the API."""
-    for a in areas.AREAS:
-        for t in QUERY_TEMPLATES:
-            await store.upsert_watch(db, SOURCE, "query", t.format(area=a.name), area=a.key, origin="seed")
+    """Each place's search queries (radar/places.py); more can be added through the API."""
+    for p in places.all_places():
+        for q in p.queries:
+            await store.upsert_watch(db, SOURCE, "query", q, area=p.key, origin="seed")
 
 
 def _due(w: dict, hours: float) -> bool:

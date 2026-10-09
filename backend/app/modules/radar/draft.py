@@ -3,8 +3,7 @@ we cannot check. A grounded writer from conversations/knowledge can be wired in 
 import re
 from typing import Awaitable, Callable, List, Optional
 
-from app.core import areas
-
+from . import places
 from .models import Intent
 from .score import Match
 
@@ -27,7 +26,7 @@ def valid(reply: str, link: str) -> bool:
 
 def template(intent: Intent, matches: List[Match], link: str) -> str:
     hinglish = intent.language in ("hi", "hinglish")
-    area = areas.get(intent.area or "")
+    area = places.get(intent.area or "")
     where = area.name if area else "Pune"
     if matches:
         homes = "; ".join(m.line() for m in matches[:2])

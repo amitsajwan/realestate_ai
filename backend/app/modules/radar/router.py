@@ -6,13 +6,12 @@ from typing import Callable, Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.core import areas
 from app.core.auth_backend import current_active_user
 from app.core.database import get_database
 from app.models.user import User
 from app.platform.llm import default_llm
 
-from . import pipeline, store
+from . import pipeline, places, store
 from .config import load
 
 router = APIRouter()
@@ -81,7 +80,7 @@ class ManualBody(BaseModel):
 async def manual(body: ManualBody, _: User = Depends(operator)) -> dict:
     """A post pasted from a Facebook group or anywhere else: stored and run through the pipeline straight away."""
     db = get_database()
-    area = areas.get(body.area or "")
+    area = places.get(body.area or "")
     ext = hashlib.sha1(f"{body.url}\n{body.text}".encode()).hexdigest()[:20]
     await store.add_signal(db, {"source": "manual", "external_id": ext, "url": body.url, "text": body.text,
                                 "posted_at": store.now(), "context": body.context, "author": "", "author_id": "",
@@ -107,7 +106,7 @@ class WatchBody(BaseModel):
 
 @router.post("/watches")
 async def add_watch(body: WatchBody, _: User = Depends(operator)) -> dict:
-    area = areas.get(body.area or "")
+    area = places.get(body.area or "")
     await store.upsert_watch(get_database(), "youtube", body.kind, body.value.strip(), area=area.key if area else None,
                              origin="manual")
     return {"ok": True}
