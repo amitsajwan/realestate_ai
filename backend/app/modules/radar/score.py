@@ -72,6 +72,8 @@ async def find_matches(db, intent: Intent, limit: int = 3) -> List[Match]:
 
 def score(intent: Intent, posted_at: Optional[datetime], matches: List[Match], now: Optional[datetime] = None) -> Scored:
     now = now or datetime.now(timezone.utc)
+    if posted_at is not None and posted_at.tzinfo is None:
+        posted_at = posted_at.replace(tzinfo=timezone.utc)  # Motor returns naive UTC datetimes
     age_h = max(0.0, (now - posted_at).total_seconds() / 3600) if posted_at else 24 * 7
     f = {"intent": intent.intent, "role": ROLE.get(intent.role, 0), "stage": STAGE.get(intent.stage, 0.5),
          "fresh": 0.5 ** (age_h / HALF_LIFE_H), "match": max((m.quality for m in matches), default=0.0),
