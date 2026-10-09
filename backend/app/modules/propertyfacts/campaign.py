@@ -7,7 +7,7 @@ import logging
 import re
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
 
 from app.modules.creative import i18n, pipeline
 from app.modules.creative.hooks import PATTERNS
@@ -398,18 +398,24 @@ ANGLES: Tuple[AngleDef, ...] = tuple(AngleDef(f.__name__, f) for f in (
 
 def plan(facts: Dict[str, Fact], photo: str = "none", link: str = "", angles: Sequence[AngleDef] = ANGLES,
          voice: Optional[Voice] = None, card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (),
-         language: str = "en", previous: Sequence[str] = (), follow_ups: Optional[int] = FOLLOW_UPS) -> List[Tuple[str, Brief]]:
-    """`voice`, `card_brand`, `contact`, `language`: whose posts these are (default ours) and in which language;
+         language: str = "en", previous: Sequence[str] = (), follow_ups: Optional[int] = FOLLOW_UPS,
+         skipped: Optional[Dict[str, str]] = None) -> List[Tuple[str, Brief]]:
+    """`skipped` (when given) gets each angle left out and why;
+    `voice`, `card_brand`, `contact`, `language`: whose posts these are (default ours) and in which language;
     `previous`: opening lines of this property's posts already live (the writers are told not to repeat them);
     `follow_ups`: how many angles after the overview (None: every one, so an older run's post can still be edited)."""
     c = Ctx(facts, photo, link, voice, card_brand, contact, language, previous)
     out = []
     for a in angles:
         if follow_ups is not None and len([1 for aid, _ in out if aid != "overview"]) >= follow_ups and a.id != "overview":
+            if skipped is not None:
+                skipped[a.id] = "enough posts already"
             continue
         b = a.build(c)
         if b is not None:
             out.append((a.id, b))
+        elif skipped is not None:
+            skipped[a.id] = "the facts do not support it"
     return out
 
 
@@ -456,26 +462,42 @@ RETRIES = 3  # other seeds (other layouts) to try before an angle is dropped: so
 async def make(facts: Dict[str, Fact], out_dir: Path, llm: Any = None, photo: str = "none", link: str = "",
                channel: str = "instagram", dropped: Optional[Dict[str, Any]] = None,
                voice: Optional[Voice] = None, card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (),
-               language: str = "en", photos: Sequence[str] = (), previous: Sequence[str] = ()) -> List[Tuple[str, CreativePack]]:
+               language: str = "en", photos: Sequence[str] = (), previous: Sequence[str] = (),
+               on_plan: Optional[Callable[[List[dict], Dict[str, str]], Awaitable[None]]] = None,
+               on_post: Optional[Callable[[str, dict], Awaitable[None]]] = None) -> List[Tuple[str, CreativePack]]:
     """Render every planned angle; consecutive posts avoid repeating a layout. `photos` (the property's own: listing photos and
     the best frames of its video, best first) are shared out so each post shows a different one behind its text. An angle that fails a guard is retried with
-    other seeds, then dropped (its problems go into `dropped` when given). `voice`: who speaks (default the brand desk)."""
+    other seeds, then dropped (its problems go into `dropped` when given). `voice`: who speaks (default the brand desk).
+    `on_plan(chosen, skipped)` hears the plan before anything is written; `on_post(angle, {"headline", "was", "state"})` hears
+    each post as it is written ("content") and then designed ("designed" or "dropped")."""
     packs: List[Tuple[str, CreativePack]] = []
     recent: List[str] = []
-    for i, (aid, brief) in enumerate(plan(facts, photo, link, voice=voice, card_brand=card_brand, contact=contact, language=language,
-                                          previous=previous)):
+    skipped: Dict[str, str] = {}
+    planned = plan(facts, photo, link, voice=voice, card_brand=card_brand, contact=contact, language=language,
+                   previous=previous, skipped=skipped)
+    if on_plan is not None:
+        await on_plan([{"angle": aid, "headline": next(iter(b.hooks.values()), "")} for aid, b in planned], skipped)
+    for i, (aid, brief) in enumerate(planned):
         if photos:
             brief = replace(brief, photo=photos[i % len(photos)])
+        was = next(iter(brief.hooks.values()), "")
         if llm is not None and brief.hooks:
             brief = await sharpen(brief, llm)
+        now_ = next(iter(brief.hooks.values()), "")
+        if on_post is not None:
+            await on_post(aid, {"headline": now_, "was": was if was != now_ else "", "state": "content"})
         for attempt in range(RETRIES):
             pack = await pipeline.make(brief, "buyer", channel, llm, seed=i + 17 * attempt, recent_layouts=recent,
                                        out_dir=Path(out_dir) / aid, reviewer=None)
             if pack.report.get("ok"):
                 packs.append((aid, pack))
                 recent.append(str(pack.design.get("layout")))
+                if on_post is not None:
+                    await on_post(aid, {"state": "designed"})
                 break
         else:
+            if on_post is not None:
+                await on_post(aid, {"state": "dropped"})
             log.info("campaign angle %s dropped: %s", aid, pack.report.get("problems"))
             if dropped is not None:
                 dropped[aid] = pack.report.get("problems")

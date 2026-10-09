@@ -11,14 +11,39 @@ const RUNNING: MarketingRun['status'][] = ['queued', 'facts', 'posts']
 
 type StepState = 'waiting' | 'working' | 'done' | 'failed'
 
-function stepStates(run: MarketingRun | null): [StepState, StepState] {
-  if (!run) return ['waiting', 'waiting']
+const ORDER = ['facts', 'plan', 'content', 'design', 'reels'] as const
+
+/** Discovery, Facts, Plan, Content, Design: each step's state from where the run is. Discovery and facts share the job's
+ *  'facts' step; questions keep discovery open. Older runs (no plan saved) show plan, content and design together. */
+function stepStates(run: MarketingRun | null): StepState[] {
+  if (!run) return ['waiting', 'waiting', 'waiting', 'waiting', 'waiting']
+  if (run.status === 'done') return ['done', 'done', 'done', 'done', 'done']
   const factsDone = !!run.facts_done_at
-  if (run.status === 'failed') return factsDone ? ['done', 'failed'] : ['failed', 'waiting']
-  if (run.status === 'done') return ['done', 'done']
-  if (run.status === 'posts') return ['done', 'working']
-  if (run.status === 'asking') return ['working', 'waiting']
-  return ['working', 'waiting']
+  const at = run.status === 'posts' ? Math.max(1, ORDER.indexOf((run.step || 'plan') as (typeof ORDER)[number])) : 0
+  const s: StepState[] = [0, 1, 2, 3, 4].map((i) => {
+    if (i < 2) return factsDone ? 'done' : 'working'
+    return i - 1 < at ? 'done' : i - 1 === at ? 'working' : 'waiting'
+  })
+  if (run.status === 'asking') s[0] = 'working'
+  if (run.status === 'posts' && at === 1) s[2] = 'working'
+  if (run.status === 'failed') {
+    const i = s.findIndex((x) => x === 'working')
+    if (i >= 0) s[i] = 'failed'
+    else if (!factsDone) s[0] = 'failed'
+  }
+  return s
+}
+
+const angleName = (a: string) => (a.charAt(0).toUpperCase() + a.slice(1)).replace(/_/g, ' ')
+
+/** "See more" under a step: closed by default so the five steps stay a short list. */
+function More({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <details className="mt-1 text-sm">
+      <summary className="cursor-pointer font-semibold text-blue-700">{label}</summary>
+      <div className="mt-2">{children}</div>
+    </details>
+  )
 }
 
 function Step({ n, title, state, children }: { n: number; title: string; state: StepState; children?: React.ReactNode }) {
@@ -299,7 +324,15 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
   }
 
   const selected = run?.posts.find((p) => p.angle === open) || null
-  const [s1, s2] = stepStates(run)
+  const [s1, s2, s3, s4, s5] = stepStates(run)
+  // older runs saved no plan: the posts stand in for it
+  const plan: NonNullable<MarketingRun['plan']> = run?.plan?.length
+    ? run.plan
+    : (run?.posts ?? []).map((p) => ({ angle: p.angle, headline: p.caption.split('\n')[0], state: 'designed' as const }))
+  const skipped = Object.entries(run?.skipped ?? {})
+  const written = plan.filter((p) => p.state !== 'planned')
+  const designed = plan.filter((p) => p.state === 'designed').length
+  const dropped = Array.from(new Set([...plan.filter((p) => p.state === 'dropped').map((p) => p.angle), ...Object.keys(run?.dropped ?? {})]))
   const running = !!run && RUNNING.includes(run.status)
   const f = run?.facts
 
@@ -316,18 +349,73 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
       {error && <ErrorBox message={error} />}
       {run && (
         <ol className="list-none space-y-4 p-0">
-          <Step n={1} title={t('stepFacts')} state={s1}>
-            {f && (
-              <p className="mt-1 text-sm text-gray-700">
-                {f.usable} {t('factsFound')} ·{' '}
-                <a href={`/studio/listings/${listingId}?tab=facts`} className="font-semibold text-blue-700 underline">See checked facts</a>
-              </p>
-            )}
+          <Step n={1} title="Discovery" state={s1}>
+            <p className="mt-1 text-sm text-gray-700">
+              {f?.maharera ? `MahaRERA ${f.maharera} matched${f.how ? ` (${f.how})` : ''}` : f ? 'No MahaRERA project matched' : 'Reading the listing, its files and MahaRERA'}
+            </p>
             {run.status === 'asking' && (run.questions?.length ?? 0) > 0 && (
               <RunQuestions listingId={listingId} questions={run.questions!} onAnswer={answer} />
             )}
+            {(run.files?.brochure || run.reels?.some((r) => r.heard?.length)) && (
+              <More label="What we read"><ProjectFilesRead run={run} /></More>
+            )}
           </Step>
-          <Step n={2} title={t('stepPosts')} state={s2}>
+          <Step n={2} title="Facts" state={s2}>
+            {f && (
+              <>
+                <p className="mt-1 text-sm text-gray-700">
+                  {f.usable} {t('factsFound')}{f.held ? ` · ${f.held} held back (not sure enough)` : ''}{f.nearby ? ` · ${f.nearby} places nearby` : ''} ·{' '}
+                  <a href={`/studio/listings/${listingId}?tab=facts`} className="font-semibold text-blue-700 underline">See checked facts</a>
+                </p>
+                {f.notes.length > 0 && (
+                  <More label={`${f.notes.length} not found`}>
+                    <ul className="list-disc pl-5 text-gray-700">{f.notes.map((n) => <li key={n}>{n}</li>)}</ul>
+                  </More>
+                )}
+              </>
+            )}
+          </Step>
+          <Step n={3} title="Plan" state={s3}>
+            {plan.length > 0 && (
+              <>
+                <p className="mt-1 text-sm text-gray-700">{plan.length} posts: {plan.map((p) => angleName(p.angle)).join(', ')}</p>
+                {skipped.length > 0 && (
+                  <More label={`${skipped.length} ideas left out`}>
+                    <ul className="list-disc pl-5 text-gray-700">{skipped.map(([k, why]) => <li key={k}>{angleName(k)}: {why}</li>)}</ul>
+                  </More>
+                )}
+              </>
+            )}
+          </Step>
+          <Step n={4} title="Content" state={s4}>
+            {written.length > 0 && (
+              <>
+                <p className="mt-1 text-sm text-gray-700">{written.length} of {plan.length} headlines written</p>
+                <More label="See headlines">
+                  <ul className="list-none space-y-2 p-0">
+                    {written.map((p) => (
+                      <li key={p.angle}>
+                        <span className="text-xs text-gray-500">{angleName(p.angle)}</span>
+                        <p className="text-gray-900">{p.headline}</p>
+                        {p.was && <p className="text-xs text-gray-500 line-through">{p.was}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                </More>
+              </>
+            )}
+          </Step>
+          <Step n={5} title="Design" state={s5}>
+            {run.status !== 'done' && designed + dropped.length > 0 && (
+              <p className="mt-1 text-sm text-gray-700">{designed} of {plan.length} cards made</p>
+            )}
+            {dropped.length > 0 && (
+              <More label={`${dropped.length} left out (did not pass the checks)`}>
+                <ul className="list-disc pl-5 text-gray-700">
+                  {dropped.map((a) => <li key={a}>{angleName(a)}{run.dropped?.[a] ? `: ${run.dropped[a]}` : ''}</li>)}
+                </ul>
+              </More>
+            )}
             {run.status === 'done' && (
               <div className="mt-2 space-y-2">
                 <p className="text-sm text-gray-700">{run.posts.length} {t(run.posts.length === 1 ? 'postReady' : 'postsReady')}</p>
@@ -378,18 +466,17 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
                     ))}
                   </div>
                 )}
-                <ProjectFilesRead run={run} />
                 {!sent && <Btn onClick={toCalendar}>{t('sendToCalendar')}</Btn>}
               </div>
             )}
           </Step>
           {run.status === 'done' && sent > 0 && (
             <>
-              <Step n={3} title="In the calendar" state="done">
+              <Step n={6} title="In the calendar" state="done">
                 <p className="mt-1 text-sm text-gray-700">{sent} {t('sentToCalendar')} {firstDay(run.calendar!)}.</p>
                 {results.length > 0 && <CalendarState items={results} />}
               </Step>
-              <Step n={4} title="Leads from these posts" state={results.some((r) => r.state === 'posted') ? 'done' : 'waiting'}>
+              <Step n={7} title="Leads from these posts" state={results.some((r) => r.state === 'posted') ? 'done' : 'waiting'}>
                 {results.length > 0 && <PostLeads items={results} />}
               </Step>
             </>
