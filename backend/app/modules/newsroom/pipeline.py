@@ -25,21 +25,22 @@ MAX_AHEAD = timedelta(days=30)
 def default_stages() -> Dict[str, Callable]:
     """The real stage functions, imported lazily so this module works while other streams' stages are still missing."""
     from .stages.check import check
+    from .stages.article import write as write_article
     from .stages.draft import draft
     from .stages.extract import extract
     from .stages.filter import assess
     from .stages.filter import same_story
     from . import adapters  # cards and hub registration live behind the adapters (the only place that touches creative and interest)
-    stages = {"filter": assess, "extract": extract, "draft": draft, "check": check, "same_story": same_story,
+    stages = {"filter": assess, "extract": extract, "draft": draft, "check": check, "same_story": same_story, "article": write_article,
               "cards": adapters.card_stage, "after_publish": adapters.after_publish}
     if load().read_articles:
         from .stages.read import RobotsCache, polite_get, read
-        robots, polite = RobotsCache(), {}
+        robots, polite, resolve = RobotsCache(), {}, adapters.make_google_resolver()
 
         async def read_stage(item, get):
             if polite.get("src") is not get:  # one rate limiter per fetcher, shared across items
                 polite.update(src=get, get=polite_get(get))
-            return await read(item, polite["get"], robots)
+            return await read(item, polite["get"], robots, resolve)
         stages["read"] = read_stage
     return stages
 
@@ -130,8 +131,8 @@ async def _extract(store, stages, llm, doc):
     if stages.get("read") and stages.get("get"):  # optional: enrich short items with the article body first
         try:
             richer = await _call(stages["read"], raw, stages["get"])
-            if richer.text != raw.text:
-                await store.update_raw(doc["_id"], richer.text)
+            if richer.text != raw.text or richer.url != raw.url:
+                await store.update_raw(doc["_id"], richer.text, richer.url)
                 raw = richer
         except Exception as e:
             log.warning("newsroom: read failed for %s: %s", doc.get("_id"), sanitize(e))
@@ -152,7 +153,7 @@ async def _draft(store, stages, llm, doc):
         await store.move(doc["_id"], "drafted", d.format, draft=codec.to_doc(d))
 
 
-async def _check(store, stages, doc):
+async def _check(store, stages, doc, llm=None):
     res = await _call(stages["check"], codec.draft(doc), codec.facts(doc), codec.raw_item(doc))
     if res.ok:
         await store.move(doc["_id"], "checked", check=codec.to_doc(res))
@@ -160,6 +161,13 @@ async def _check(store, stages, doc):
     else:
         await store.move(doc["_id"], "dropped", "check failed: " + "; ".join(res.problems)[:200], check=codec.to_doc(res))
         return
+    if stages.get("article") and llm is not None:  # optional: the full story for our /news page; none means the page shows the short one
+        try:
+            art = await _call(stages["article"], codec.raw_item(doc), codec.facts(doc), codec.relevance(doc), llm, stages["check"])
+            if art:
+                await store.update(doc["_id"], article=art)
+        except Exception as e:
+            log.warning("newsroom: article for %s failed: %s", doc.get("_id"), sanitize(e))
     if stages.get("cards"):  # optional: the card the owner previews and the channels publish; a failure only means no preview yet
         try:
             await store.update(doc["_id"], card=await _call(stages["cards"], {**doc, "status": "pending_review"}))
@@ -233,7 +241,7 @@ async def run_once(store: Store, sources: list, stages: Optional[Dict[str, Calla
     if llm is not None:
         await _each(store, "relevant", "extract", counts, lambda d: _extract(store, stages, llm, d))
         await _each(store, "extracted", "draft", counts, lambda d: _draft(store, stages, llm, d))
-    await _each(store, "drafted", "check", counts, lambda d: _check(store, stages, d))
+    await _each(store, "drafted", "check", counts, lambda d: _check(store, stages, d, llm))
     if publisher is not None:
         await _publish(store, publisher, now, cfg, counts, stages)
     return counts

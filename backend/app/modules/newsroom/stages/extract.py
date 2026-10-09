@@ -5,13 +5,13 @@ from typing import List, Optional
 
 from ..types import Fact, Facts, Llm, RawItem
 
-MAX_FACTS = 6
+MAX_FACTS = 10  # enough for a full article on our site, not just a post
 MIN_QUOTE_CHARS = 12
 MAX_SOURCE_CHARS = 6000
 
 SYSTEM = (
     "You extract facts from a news item about Pune real estate and infrastructure. Reply with JSON only: "
-    '{"facts": [{"text": "...", "quote": "..."}]}. Rules: at most 6 facts. Each fact is one plain statement of '
+    '{"facts": [{"text": "...", "quote": "..."}]}. Rules: at most 10 facts, covering the main points, numbers, places, who decided and what happens next. Each fact is one plain statement of '
     "something the article itself reports as having happened or been announced. The quote is the exact sentence or "
     "clause copied character for character from the article that supports the fact. Write numbers, dates, money "
     "amounts, project names and place names exactly as written in the article; never round, convert or translate them. "

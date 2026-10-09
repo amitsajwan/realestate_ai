@@ -146,7 +146,7 @@ def _unknown_names(text: str, known: Set[str], allowed: Set[str]) -> List[str]:
         parts = [x for x in re.split(r"[-–]", w) if x]
         if len(parts) > 1 and all(_norm(x) in known or x.lower() in ALLOW or _norm(x) in allowed for x in parts):
             continue  # a hyphenated name whose parts all appear in the source, e.g. Soratwadi-Varve
-        if _sentence_start(t, m.start()) and (w.lower() in COMMON or n in COMMON or GERUND.match(w)) and not w.isupper():
+        if _sentence_start(t, m.start()) and (w.lower() in COMMON or n in COMMON or GERUND.match(w)) and (w == "A" or not w.isupper()):
             continue
         if w not in bad:
             bad.append(w)

@@ -129,6 +129,9 @@ def view(doc: dict, full: bool = True, item_ids: Optional[Dict[str, str]] = None
     }
     if full:
         out.update({"our_view": _clean(parts.our_view), "what_to_check": _clean(parts.what_to_check), "disclaimer": policy.DISCLAIMER})
+        art = (doc.get("article") or {}).get("sections") or []  # the full story (stages/article.py); [] when there is none
+        out["article"] = [{"heading": _clean(x.get("heading", "")), "paragraphs": [_clean(p) for p in x.get("paragraphs", []) if _clean(p)]}
+                          for x in art if isinstance(x, dict)]
         if is_digest and digest:
             ids = item_ids or {}
             out["items"] = [{"id": ids.get(i["id"], i["id"]), "linked": i["id"] in ids, "headline": _clean(i.get("headline", "")),

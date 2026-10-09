@@ -32,6 +32,8 @@ export interface NewsItem {
   /** A digest's entries; `linked` is false for one with no page of its own (a MahaRERA project in a roundup). */
   items: Array<{ id: string; headline: string; source_name: string; line: string; linked: boolean }>
   tip: string
+  /** The full story in sections (detail only); empty when the source gave too little for more than the short version. */
+  article: Array<{ heading: string; paragraphs: string[] }>
 }
 
 export type NewsListResult = { ok: true; items: NewsItem[] } | { ok: false; items: [] }
@@ -59,6 +61,11 @@ export function cleanNewsItem(raw: unknown): NewsItem | null {
     return o && typeof o.id === 'string' && o.id
       ? [{ id: o.id, headline: str(o.headline), source_name: str(o.source_name), line: str(o.line), linked: o.linked !== false }] : []
   })
+  const article = (Array.isArray(r.article) ? r.article : []).flatMap((x): NewsItem['article'] => {
+    const o = x as Record<string, unknown>
+    const paragraphs = (o && Array.isArray(o.paragraphs) ? o.paragraphs : []).map(str).filter((p) => p.trim())
+    return o && str(o.heading).trim() && paragraphs.length ? [{ heading: str(o.heading).trim(), paragraphs }] : []
+  })
   return {
     id: r.id, kind: r.kind === 'digest' ? 'digest' : 'story', headline: r.headline.trim(), summary: str(r.summary),
     pillar: str(r.pillar), pillar_label: str(r.pillar_label) || 'News', areas,
@@ -66,7 +73,7 @@ export function cleanNewsItem(raw: unknown): NewsItem | null {
     as_of: str(r.as_of) || null, image_url: https(r.image_url) ? r.image_url : null, permalinks: links,
     published_at: str(r.published_at) || null, our_view: str(r.our_view), what_to_check: str(r.what_to_check),
     buyer_line: str(r.buyer_line).trim() || null,
-    disclaimer: str(r.disclaimer), items, tip: str(r.tip),
+    disclaimer: str(r.disclaimer), items, tip: str(r.tip), article,
   }
 }
 
