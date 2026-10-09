@@ -30,7 +30,7 @@ def operator(user: User = Depends(current_active_user)) -> User:
     return user
 
 
-SAFE = ("source", "url", "text", "context", "author", "posted_at", "status", "area", "score", "why", "matches", "draft",
+SAFE = ("source", "url", "text", "context", "author", "posted_at", "status", "area", "score", "why", "matches", "draft", "project",
         "link", "intent", "label_reason", "created_at")
 
 

@@ -21,6 +21,7 @@ Comments can be English, Hindi, Marathi or Hinglish. Return ONLY a JSON object:
  "stage": "exploring|comparing|ready|post_visit|unknown",
  "area": one of [{AREA_KEYS}] or null (only if named in the comment or the context),
  "project": project name if named, else null,
+ "property_type": "flat|plot|villa|row_house|shop|office|land" or null (BHK means flat unless the video is about villas),
  "bhk": number or null, "budget_min_inr": integer rupees or null, "budget_max_inr": integer rupees or null,
  "timeline": short text or null,
  "language": "en|hi|mr|hinglish|other",

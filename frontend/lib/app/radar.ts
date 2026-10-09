@@ -11,6 +11,23 @@ export interface RadarMatch {
   price_inr: number | null
 }
 
+/** What the AI read from the comment (backend radar/models.py Intent). */
+export interface RadarIntent {
+  role: 'buyer' | 'renter' | 'investor' | 'broker' | 'seller' | 'noise'
+  intent: number
+  stage: 'exploring' | 'comparing' | 'ready' | 'post_visit' | 'unknown'
+  area: string | null
+  project: string | null
+  property_type?: string | null
+  bhk: number | null
+  budget_min_inr: number | null
+  budget_max_inr: number | null
+  timeline: string | null
+  language: string
+  question: string | null
+  answered_already: boolean
+}
+
 export interface RadarSignal {
   id: string
   source: string
@@ -26,6 +43,8 @@ export interface RadarSignal {
   matches: RadarMatch[] | null
   draft: string | null
   link: string | null
+  intent: RadarIntent | null
+  project: { name: string; regno: string; path: string; line: string } | null
 }
 
 export type RadarLabel = 'sent' | 'skipped' | 'converted'

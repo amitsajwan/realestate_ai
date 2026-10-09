@@ -32,6 +32,7 @@ class Intent(BaseModel):
     stage: Literal["exploring", "comparing", "ready", "post_visit", "unknown"] = "unknown"
     area: Optional[str] = None        # a place key (radar/places.py), or None
     project: Optional[str] = None
+    property_type: Optional[Literal["flat", "plot", "villa", "row_house", "shop", "office", "land"]] = None
     bhk: Optional[float] = None
     budget_min_inr: Optional[int] = None
     budget_max_inr: Optional[int] = None
@@ -39,6 +40,12 @@ class Intent(BaseModel):
     language: Literal["en", "hi", "mr", "hinglish", "other"] = "en"
     question: Optional[str] = None    # what they asked, in one short English line
     answered_already: bool = False
+
+    @field_validator("property_type", mode="before")
+    @classmethod
+    def _ptype(cls, v):
+        v = (v or "").strip().lower().replace(" ", "_") if isinstance(v, str) else None
+        return v if v in ("flat", "plot", "villa", "row_house", "shop", "office", "land") else None
 
     @field_validator("bhk", mode="before")
     @classmethod

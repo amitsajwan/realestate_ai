@@ -3,7 +3,7 @@ import React, { useState } from 'react'
 import { errorMessage } from '@/lib/app/client'
 import { timeAgo } from '@/lib/app/format'
 import { radarApi } from '@/lib/app/radar'
-import type { RadarSignal, SkipReason } from '@/lib/app/radar'
+import type { RadarIntent, RadarSignal, SkipReason } from '@/lib/app/radar'
 import { useAsync } from '@/lib/app/useAsync'
 import { Btn, ErrorBox, Spinner } from '../ui'
 
@@ -14,6 +14,62 @@ const SKIPS: { key: SkipReason; label: string }[] = [
   { key: 'already_answered', label: 'Already answered' },
   { key: 'old', label: 'Too old' },
 ]
+
+const ROLE: Record<string, string> = { buyer: 'Buyer', renter: 'Wants to rent', investor: 'Investor' }
+const STAGE: Record<string, string> = { ready: 'ready to buy', post_visit: 'has visited', comparing: 'comparing options', exploring: 'just looking' }
+const TYPE: Record<string, string> = { flat: 'Flat', plot: 'Plot', villa: 'Villa', row_house: 'Row house', shop: 'Shop', office: 'Office', land: 'Land' }
+const AREA: Record<string, string> = {
+  kharadi: 'Kharadi', upper_kharadi: 'Upper Kharadi', wagholi: 'Wagholi', lohegaon: 'Lohegaon', keshav_nagar: 'Keshav Nagar',
+  hinjawadi: 'Hinjawadi', wakad: 'Wakad', baner: 'Baner', ranjangaon: 'Ranjangaon',
+}
+const LANG: Record<string, string> = { en: 'English', hi: 'Hindi', mr: 'Marathi', hinglish: 'Hinglish' }
+
+function inr(n: number): string {
+  if (n >= 1e7) return `₹${+(n / 1e7).toFixed(2)} Cr`
+  if (n >= 1e5) return `₹${+(n / 1e5).toFixed(1)} L`
+  return `₹${n.toLocaleString('en-IN')}`
+}
+
+function budget(i: RadarIntent): string | null {
+  const lo = i.budget_min_inr, hi = i.budget_max_inr
+  if (lo && hi && lo !== hi) return `${inr(lo)} – ${inr(hi)}`
+  if (hi) return `up to ${inr(hi)}`
+  if (lo) return `from ${inr(lo)}`
+  return null
+}
+
+/** What the person wants, read by the AI from their comment: the first thing to look at on a card. */
+function LookingFor({ s }: { s: RadarSignal }) {
+  const i = s.intent
+  if (!i) return null
+  const type = [i.bhk ? `${i.bhk} BHK` : '', i.property_type ? TYPE[i.property_type] ?? i.property_type : (i.bhk ? 'Flat' : '')]
+    .filter(Boolean).join(' ')
+  const rows: [string, string | null][] = [
+    ['Area', i.area ? AREA[i.area] ?? i.area : null],
+    ['Project', s.project?.name ?? i.project],
+    ['Type', type || null],
+    ['Budget', budget(i)],
+    ['When', i.timeline],
+  ]
+  return (
+    <div data-testid="radar-looking-for" className="rounded-xl bg-[#102340]/5 p-3">
+      <p className="text-sm font-bold text-[#102340]">
+        {ROLE[i.role] ?? i.role}{STAGE[i.stage] ? `, ${STAGE[i.stage]}` : ''}
+        {LANG[i.language] ? <span className="font-normal text-gray-600"> · writes in {LANG[i.language]}</span> : null}
+      </p>
+      {i.question && <p className="mt-1 text-sm text-gray-900">Wants to know: <b>{i.question}</b></p>}
+      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+        {rows.map(([k, v]) => (
+          <div key={k} className="flex gap-1">
+            <dt className="text-gray-500">{k}:</dt>
+            <dd className={v ? 'font-semibold text-gray-900' : 'text-gray-400'}>{v ?? 'not said'}</dd>
+          </div>
+        ))}
+      </dl>
+      {i.answered_already && <p className="mt-2 text-xs font-semibold text-amber-700">Someone already replied to them</p>}
+    </div>
+  )
+}
 
 const SOURCE: Record<string, string> = { youtube: 'YouTube', manual: 'Pasted', instagram: 'Instagram', reddit: 'Reddit' }
 
@@ -47,25 +103,27 @@ function SignalCard({ s, onDone }: { s: RadarSignal; onDone: (id: string) => voi
   return (
     <li data-testid="radar-signal" className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs text-gray-500">
-            {SOURCE[s.source] ?? s.source}
-            {s.author ? ` · ${s.author}` : ''}
-            {s.posted_at ? ` · ${timeAgo(s.posted_at)}` : ''}
-          </p>
-          {s.context && <p className="truncate text-xs text-gray-500">on “{s.context}”</p>}
-        </div>
+        <p className="min-w-0 text-xs text-gray-500">
+          {SOURCE[s.source] ?? s.source}
+          {s.author ? ` · ${s.author}` : ''}
+          {s.posted_at ? ` · ${timeAgo(s.posted_at)}` : ''}
+        </p>
         {pct != null && <span className="shrink-0 rounded-full bg-[#102340] px-2 py-0.5 text-xs font-bold text-[#F0B13B]">{pct}</span>}
       </div>
-      <p className="whitespace-pre-wrap text-gray-900">{s.text}</p>
-      {s.why && s.why.length > 0 && <p className="text-xs text-gray-600">{s.why.join(' · ')}</p>}
+      <LookingFor s={s} />
+      <div>
+        <p className="text-xs font-semibold text-gray-700">They wrote</p>
+        <p className="whitespace-pre-wrap text-gray-900">“{s.text}”</p>
+        {s.context && <p className="mt-1 truncate text-xs text-gray-500">under the video “{s.context}”</p>}
+      </div>
+      {s.project?.line && <p className="text-xs text-gray-600">MahaRERA: {s.project.line}</p>}
       <label className="block">
         <span className="text-xs font-semibold text-gray-700">Reply (edit before sending)</span>
         <textarea
           value={reply}
           onChange={(e) => setReply(e.target.value)}
           rows={4}
-          className="mt-1 w-full rounded-xl border border-gray-300 bg-white p-2 text-sm text-gray-900"
+          className="mt-1 w-full rounded-xl border border-gray-300 bg-white p-2 text-sm text-gray-900 [color-scheme:light]"
         />
       </label>
       {error && <ErrorBox message={error} />}
@@ -113,9 +171,9 @@ function PasteBox({ onAdded }: { onAdded: (s: RadarSignal) => void }) {
       <summary className="cursor-pointer font-semibold text-[#102340]">Paste a post (Facebook group, WhatsApp…)</summary>
       <div className="mt-3 space-y-2">
         <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Link to the post"
-          className="w-full rounded-xl border border-gray-300 bg-white p-2 text-sm text-gray-900" />
+          className="w-full rounded-xl border border-gray-300 bg-white p-2 text-sm text-gray-900 [color-scheme:light]" />
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="What they wrote"
-          className="w-full rounded-xl border border-gray-300 bg-white p-2 text-sm text-gray-900" />
+          className="w-full rounded-xl border border-gray-300 bg-white p-2 text-sm text-gray-900 [color-scheme:light]" />
         {error && <ErrorBox message={error} />}
         <Btn block={false} disabled={busy || !url.trim() || text.trim().length < 3} onClick={submit}>
           {busy ? 'Reading…' : 'Find match & draft reply'}
