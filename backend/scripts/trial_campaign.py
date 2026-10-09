@@ -45,7 +45,8 @@ async def plan(start: date, at: time, say=print) -> int:
 
     store = Store(AsyncIOMotorClient(settings.mongodb_url)[settings.database_name])
     uploads = uploads_dir()
-    have = {(ch, slug) for ch, slug, _ in await store.existing()}
+    since = datetime.combine(start, time())   # older rows of the same post (e.g. Oct 1's cropped square Instagram cards) do not block it
+    have = {(ch, slug) for ch, slug, due in await store.existing() if due.replace(tzinfo=None) >= since}
     n = 0
     for i, (kind, ref) in enumerate(DAYS):
         due = datetime.combine(start + timedelta(days=i), at, IST)
