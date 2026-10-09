@@ -337,3 +337,17 @@ async def test_find_a_home_starts_the_buyer_questions():
     await say(d, "hi")
     t = await say(d, "Find a home")
     assert "buy or to rent" in t.reply
+
+
+async def test_platform_and_projects_questions_from_the_live_chat_are_answered():
+    d = engine.new_data()
+    t = await say(d, "what all project you have")
+    assert "/projects" in t.reply and "buy or to rent" not in t.reply and t.quick == ["Find a home", "I'm an agent"]
+    t = await say(d, "how can i use your platform")
+    assert "/trial" in t.reply and "guess" not in t.reply
+
+
+async def test_a_longer_llm_answer_is_kept_but_new_numbers_are_not():
+    long = "You can start by leaving your name and mobile number and our team will call you back. " * 4
+    assert (await site.answer("zzz qqq?", FakeLLM({"answerable": True, "answer": long.strip()}))).answer == long.strip()
+    assert await site.answer("zzz qqq?", FakeLLM({"answerable": True, "answer": "It costs 999 a month."})) is None

@@ -590,6 +590,9 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
     ask = ""
     if want_phone or nf == "phone":
         ask, quick = _phone_ask(d)
+    elif nf == "tx" and parts and not (d.get("page") or {}).get("kind") and not any(filled(d, f) for f in ("locality", "bhk", "budget")):
+        d["asked"] = None
+        quick = [qr("find_home", lang), qr("im_agent", lang)]
     elif nf:
         ask, quick = _prompt(d, nf)
     else:

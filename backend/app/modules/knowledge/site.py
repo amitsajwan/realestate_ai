@@ -55,10 +55,16 @@ ENTRIES: List[Entry] = [
           "Whether a price can move depends on the seller. Our team can find out for the homes you like. Tell us your area, BHK and budget to start."),
     Entry("who", ("who are you", "what is avasetu", "what is this", "what is this site", "what is this website", "what you do", "what do you do",
                   "what does avasetu do", "about you", "about avasetu", "how does it work", "how it works", "what is pune property",
+                  "your platform", "this platform", "how can i use", "how to use", "use this website", "use your website",
                   "aap kya karte", "kya karte ho", "kya karte hai", "avasetu kya hai", "ye kya hai", "तुम्ही काय करता", "आप क्या करते"),
           f"{brand.NAME} (आवास + सेतु: home + bridge) helps real estate agents in Pune market their properties: your own website, posts and reels "
           "for Facebook and Instagram, and every buyer enquiry as a lead card. Buyers can ask us about homes and areas in Pune, and we pass "
           "their requirement to the agent.", "any", "Agents: claim your free trial at /trial. Looking for a home? Tell me the area, BHK and budget."),
+    Entry("projects", ("what projects", "which projects", "all projects", "all project", "project you have", "projects you have",
+                       "projects do you have", "what properties", "properties you have", "homes you have", "flats you have", "new projects",
+                       "list of projects", "kaun se project", "konse project"),
+          "Our projects page lists the MahaRERA projects in the Pune areas we cover, with the completion date filed and the homes booked. "
+          "Tell me the area, BHK and budget and I will show the homes that match.", "buyer", "See them at /projects."),
     Entry("agent", ("i am an agent", "i'm an agent", "im an agent", "i am a broker", "i am broker", "real estate agent", "list my property",
                     "join the pilot", "free trial", "become an agent", "sell my", "agent hoon", "broker hoon", "main agent hoon", "मैं एजेंट हूँ", "मी एजंट आहे",
                     "mi agent aahe"),
@@ -114,6 +120,8 @@ def text(e: Entry) -> str:
     return f"{e.answer} {e.cta}".strip()
 
 
+MAX_ANSWER = 600
+
 LLM_SYSTEM = (
     f"You answer a question for {brand.NAME} (a service for real estate agents in Pune, and a helper for home buyers), using ONLY the KNOWLEDGE "
     'below. Reply with one JSON object: {"answerable": true or false, "answer": "..."}. The answer is at most 3 short sentences, in the '
@@ -130,11 +138,14 @@ async def answer(question: str, llm) -> Optional[Entry]:
         return hit
     if llm is None or not hasattr(llm, "json"):
         return None
-    from app.modules.engage.brain import valid_reply  # engage imports knowledge, so not at module level
+    from app.modules.engage.brain import HYPE, NUM, PHONE, URL  # engage imports knowledge, so not at module level
     context = "\n".join(f"- {e.answer}" for e in ENTRIES)
     raw = await llm.json(LLM_SYSTEM, f"KNOWLEDGE:\n{context}\n\nQUESTION:\n{question[:400]}")
     if isinstance(raw, dict) and raw.get("answerable") is True:
         draft = (raw.get("answer") or "").strip()
-        if valid_reply(draft, context, ""):
+        allowed = set(NUM.findall(context))
+        # the chat has room for a longer answer than a comment reply (engage's MAX_REPLY), the other checks are the same
+        if draft and len(draft) <= MAX_ANSWER and not (PHONE.search(draft) or HYPE.search(draft) or URL.search(draft)) \
+                and all(n in allowed for n in NUM.findall(draft)):
             return Entry("llm", (), draft, "any")
     return None
