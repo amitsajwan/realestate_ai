@@ -22,7 +22,7 @@ from .store import Store
 logger = logging.getLogger(__name__)
 
 KINDS = ("listing", "post", "page")
-CHANNELS = ("facebook", "instagram", "website", "whatsapp")
+CHANNELS = ("facebook", "instagram", "website", "whatsapp", "youtube")
 MAX_INTEREST_PER_CODE_PER_HOUR = 3   # per visitor IP and code
 MAX_CLICKS_PER_HOUR = 60             # per visitor IP, all codes
 CONSENT_WORDING = "I agree to be contacted about this by the agent."

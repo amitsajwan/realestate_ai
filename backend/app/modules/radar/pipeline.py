@@ -17,6 +17,7 @@ log = logging.getLogger(__name__)
 
 BATCH = 200
 DROP_AFTER_DAYS = 30
+LINK_CHANNEL = {"youtube": "youtube", "manual": "facebook"}  # pasted posts are mostly Facebook groups
 
 
 def _raw(d: dict) -> RawSignal:
@@ -31,7 +32,7 @@ async def _link(db, cfg: RadarConfig, source: str, intent: Intent, matches) -> s
     if matches and cfg.owner_agent_id:
         try:
             return await interest_url(db, kind="listing", ref=matches[0].listing_id, agent_id=cfg.owner_agent_id,
-                                      channel=f"radar_{source}")
+                                      channel=LINK_CHANNEL.get(source, "website"))
         except Exception:
             log.exception("radar: interest link failed")
     a = areas.get(intent.area or "")
