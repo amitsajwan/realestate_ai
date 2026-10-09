@@ -106,8 +106,7 @@ async def test_the_live_test_conversation_never_asks_buy_or_rent_again_and_never
     tr = await chat(d, ["hi", "I need a 2 BHK in Kharadi, budget 80 lakh", "In 1-3 months", "Rahul", "9822012345",
                         "is there a gym?", "what about loans?", "thanks"], finder=find)
     texts = bot(tr)
-    assert count(ASKS["tx"], texts) == 1          # only in the very first greeting
-    assert count(ASKS["tx"], texts[1:]) == 0
+    assert count(ASKS["tx"], texts) == 0          # the greeting asks home or agent; the budget says buy
     assert d["tx"] == "buy" and tr[4][1].lead and tr[4][1].lead["name"] == "Rahul"
     after = texts[5:]
     assert not any(q in t for t in after for q in ASKS.values()) and count(PHONE_ASK, after) == 0
@@ -355,11 +354,11 @@ async def test_a_hinglish_buyer_gets_hinglish_fixed_phrases_and_no_english_templ
 async def test_hindi_and_marathi_buyers_get_their_language():
     d = engine.new_data(localise=True)
     tr = await chat(d, ["नमस्ते", "मुझे 2 BHK चाहिए"])
-    assert phrases.say("ask_tx", "hi") in tr[0][1].reply and phrases.say("greet", "hi") in tr[0][1].reply
-    assert phrases.say("ask_locality", "hi") in tr[1][1].reply and "Which" not in tr[1][1].reply
+    assert phrases.say("greet", "hi") == tr[0][1].reply and tr[0][1].quick == [phrases.quick("find_home", "hi"), phrases.quick("im_agent", "hi")]
+    assert phrases.say("ask_tx", "hi") in tr[1][1].reply and "Are you" not in tr[1][1].reply
     d2 = engine.new_data(localise=True)
     t = (await chat(d2, ["hi", "mala Wagholi madhye ghar pahije aahe"]))[-1][1]
-    assert d2["lang"] == "mr_latn" and t.reply.startswith("Theek aahe: Wagholi.") and phrases.say("ask_bhk", "mr_latn") in t.reply
+    assert d2["lang"] == "mr_latn" and t.reply.startswith("Theek aahe: Wagholi.") and phrases.say("ask_tx", "mr_latn") in t.reply
 
 
 async def test_short_english_answers_keep_the_buyers_language_and_whatsapp_state_stays_english():

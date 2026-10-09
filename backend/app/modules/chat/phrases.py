@@ -15,11 +15,11 @@ LANGS = ("en", "hinglish", "hi", "mr", "mr_latn")
 P: Dict[str, Dict[str, str]] = {
     # ---- greetings (kept short) -----------------------------------------------------------------------------------
     "greet": {
-        "en": f"Hi! I am the {brand.NAME} assistant. I can answer basic questions about buying or renting in Pune and pass your requirement to our team.",
-        "hinglish": f"Namaste! Main {brand.NAME} ka assistant hoon. Pune mein ghar kharidne ya rent par lene ke basic sawaalon ke jawab de sakta hoon aur aapki requirement hamari team tak pahuncha sakta hoon.",
-        "hi": f"नमस्ते! मैं {brand.NAME_DEVANAGARI} का सहायक हूँ। मैं पुणे में घर खरीदने या किराए पर लेने के बारे में आम सवालों के जवाब दे सकता हूँ और आपकी ज़रूरत हमारी टीम तक पहुँचा सकता हूँ।",
-        "mr": f"नमस्कार! मी {brand.NAME_DEVANAGARI} चा सहाय्यक आहे. पुण्यात घर घेणे किंवा भाड्याने घेणे याबद्दलच्या साध्या प्रश्नांची उत्तरे देऊ शकतो आणि तुमची गरज आमच्या टीमपर्यंत पोहोचवू शकतो.",
-        "mr_latn": f"Namaskar! Mi {brand.NAME} cha sahayyak aahe. Punyat ghar ghene kiwa bhadyane ghene yabaddal sadhya prashnanchi uttare deu shakto ani tumchi garaj aamchya team paryant pohochvu shakto.",
+        "en": f"Hi! I am the {brand.NAME} assistant. We help real estate agents in Pune market their properties, and help buyers find a home. Are you looking for a home, or are you an agent?",
+        "hinglish": f"Namaste! Main {brand.NAME} ka assistant hoon. Hum Pune ke real estate agents ki properties ki marketing karte hain, aur ghar dhoondhne walon ki madad karte hain. Aap ghar dhoondh rahe hain, ya aap agent hain?",
+        "hi": f"नमस्ते! मैं {brand.NAME_DEVANAGARI} का सहायक हूँ। हम पुणे के रियल एस्टेट एजेंटों की प्रॉपर्टी की मार्केटिंग करते हैं, और घर ढूँढने वालों की मदद करते हैं। आप घर ढूँढ रहे हैं, या आप एजेंट हैं?",
+        "mr": f"नमस्कार! मी {brand.NAME_DEVANAGARI} चा सहाय्यक आहे. आम्ही पुण्यातील रिअल इस्टेट एजंटांच्या प्रॉपर्टीचे मार्केटिंग करतो, आणि घर शोधणाऱ्यांना मदत करतो. तुम्ही घर शोधत आहात, की तुम्ही एजंट आहात?",
+        "mr_latn": f"Namaskar! Mi {brand.NAME} cha sahayyak aahe. Aamhi Punyatil real estate agentanchya property che marketing karto, ani ghar shodhnaryanna madat karto. Tumhi ghar shodhat aahat, ki tumhi agent aahat?",
     },
     "greet_listing": {
         "en": "Asking about the {home}? I can tell you about it or find similar homes.",
@@ -186,6 +186,8 @@ QUICK = {
     "not_now": {"en": "Not now", "hinglish": "Abhi nahi", "hi": "अभी नहीं", "mr": "आता नको", "mr_latn": "Aata nako"},
     "about_it": {"en": "Tell me about it", "hinglish": "Iske baare mein batao", "hi": "इसके बारे में बताइए", "mr": "याबद्दल सांगा", "mr_latn": "Yabaddal sanga"},
     "similar": {"en": "Similar homes", "hinglish": "Aise aur ghar", "hi": "ऐसे और घर", "mr": "असेच घर", "mr_latn": "Asech ghar"},
+    "find_home": {"en": "Find a home", "hinglish": "Ghar dhoondhna hai", "hi": "घर ढूँढना है", "mr": "घर शोधायचे आहे", "mr_latn": "Ghar shodhayche aahe"},
+    "im_agent": {"en": "I'm an agent", "hinglish": "Main agent hoon", "hi": "मैं एजेंट हूँ", "mr": "मी एजंट आहे", "mr_latn": "Mi agent aahe"},
     "show_homes": {"en": "Show homes", "hinglish": "Ghar dikhao", "hi": "घर दिखाइए", "mr": "घरे दाखवा", "mr_latn": "Ghare dakhva"},
 }
 WHATSAPP = "Continue on WhatsApp"

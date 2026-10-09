@@ -2,7 +2,8 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from app.modules.chat import engine, kb
+from app.modules.chat import engine
+from app.modules.knowledge import site
 from app.modules.chat.service import ChatError, ChatService
 from app.modules.tracking.service import TrackingError
 
@@ -26,25 +27,25 @@ async def say(d, text, llm=None):
 
 # ---- knowledge base ------------------------------------------------------------------------------------------
 def test_kb_answers_the_common_questions():
-    assert kb.best("How do I check RERA?").id == "rera"
-    assert kb.best("what is carpet area").id == "carpet"
-    assert kb.best("is the metro running in wagholi").id in ("metro", "wagholi")
-    assert kb.best("tell me about upper kharadi").id == "upper_kharadi"
-    assert kb.best("blah blah nothing relevant") is None
+    assert site.best("How do I check RERA?").id == "rera"
+    assert site.best("what is carpet area").id == "carpet"
+    assert site.best("is the metro running in wagholi").id in ("metro", "wagholi")
+    assert site.best("tell me about upper kharadi").id == "upper_kharadi"
+    assert site.best("blah blah nothing relevant") is None
 
 
 def test_kb_never_states_prices_or_predictions():
     import re
-    text = " ".join(e.answer for e in kb.ENTRIES)
+    text = " ".join(e.answer for e in site.ENTRIES)
     assert not re.search(r"₹|\bRs\.?\s?\d|appreciat|will (rise|increase)|invest now|guarantee|best |dream", text, re.I)
-    assert "not the same as running" in kb.best("metro").answer
+    assert "not the same as running" in site.best("metro").answer
 
 
 # ---- a whole conversation, the way a buyer would do it -----------------------------------------------------
 async def test_full_journey_captures_requirement_then_phone_with_consent_and_makes_one_lead():
     d = engine.new_data()
     t = await say(d, "hi")
-    assert "buy or to rent" in t.reply and t.quick == ["Buy", "Rent", "Just exploring"] and not t.lead
+    assert "are you an agent" in t.reply and t.quick == ["Find a home", "I'm an agent"] and not t.lead
     t = await say(d, "Buy")
     assert d["tx"] == "buy" and "Which area" in t.reply
     t = await say(d, "Kharadi")
@@ -311,3 +312,28 @@ async def test_answering_questions_does_not_change_the_consent_first_rule():
     assert not r["lead_created"] and "Reply YES to confirm" in r["reply"]
     r = await s.message(SID, "rahul", "yes", context={"listing_id": "L1"})
     assert r["lead_created"]
+
+
+# ---- what Avasetu is, for agents and buyers (the same answers on the site and under posts) --------------------
+async def test_what_do_you_do_is_answered_for_both_sides_without_a_buyer_question():
+    for q in ("what you do", "what is this site?", "kya karte ho aap?"):
+        d = engine.new_data()
+        await say(d, "hi")
+        t = await say(d, q)
+        assert "real estate agents in Pune" in t.reply and "/trial" in t.reply and "buy or to rent" not in t.reply
+
+
+async def test_an_agent_hears_the_trial_and_never_a_price_after_it():
+    d = engine.new_data()
+    await say(d, "hi")
+    t = await say(d, "I'm an agent")
+    assert "first 3 properties" in t.reply and "/trial" in t.reply and not t.quick
+    t = await say(d, "how much for agents after the trial?")
+    assert "small monthly fee" in t.reply and "Rs" not in t.reply and "₹" not in t.reply
+
+
+async def test_find_a_home_starts_the_buyer_questions():
+    d = engine.new_data()
+    await say(d, "hi")
+    t = await say(d, "Find a home")
+    assert "buy or to rent" in t.reply

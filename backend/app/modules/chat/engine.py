@@ -22,12 +22,12 @@ from dataclasses import dataclass, field
 from typing import Awaitable, Callable, List, Optional
 
 from app.core import brand
-from app.modules.engage.brain import ABUSE, valid_reply
+from app.modules.engage.brain import ABUSE
+from app.modules.knowledge import site
 from app.modules.knowledge.reply import answer as grounded_answer, detect_language, has_topic, topics_in
 from app.platform.text import normalize_indian_mobile
 from app.modules.tracking import requirement as rq
 
-from . import kb
 from . import phrases
 from .phrases import WHATSAPP, ack_word, quick as qr, say
 
@@ -265,32 +265,14 @@ def _snooze_phone(d: dict) -> None:
     d["phone_snooze_until"] = d.get("turn_no", 0) + SNOOZE_TURNS + 1
 
 
+def _about_us(text: str) -> bool:
+    """A statement our agent answers cover ('I'm an agent', 'free trial'): answered like a question."""
+    e = site.best(text, min_score=1)
+    return e is not None and e.audience == "agent"
+
+
 def is_question(text: str) -> bool:
     return bool(QUESTION.search(text)) and not YES.match(text) and not NO.match(text)
-
-
-LLM_SYSTEM = (
-    f"You answer a home buyer's question for the {brand.TEAM}, using ONLY the KNOWLEDGE below. Reply with one JSON object: "
-    '{"answerable": true or false, "answer": "..."}. The answer is at most 3 short sentences, in the buyer\'s language, friendly and plain. '
-    "If KNOWLEDGE does not contain the answer, set answerable=false and answer=''. Never invent prices, distances, dates, amenities, approvals or "
-    "availability. Never include phone numbers or links. Never use words like best, perfect, guaranteed, dream."
-)
-
-
-async def answer(text: str, llm) -> Optional[str]:
-    hit = kb.best(text, min_score=1)
-    if hit:
-        return hit.answer
-    hits = kb.search(text, 3)
-    context = "\n".join(f"- {e.answer}" for _, e in hits) if hits else ""
-    if not context or llm is None or not hasattr(llm, "json"):
-        return None
-    raw = await llm.json(LLM_SYSTEM, f"KNOWLEDGE:\n{context}\n\nQUESTION:\n{text[:400]}")
-    if isinstance(raw, dict) and raw.get("answerable") is True:
-        draft = (raw.get("answer") or "").strip()
-        if valid_reply(draft, context, ""):
-            return draft
-    return None
 
 
 def summary(d: dict) -> str:
@@ -445,9 +427,8 @@ def _greeting(d: dict, whatsapp: bool) -> tuple:
         nf = next_field(d) or "tx"
         p, q = _prompt(d, nf)
         return f"{say('greet_area', lang, area=page['locality'])} {p}", q
-    nf = next_field(d) or "tx"
-    p, q = _prompt(d, nf)
-    return f"{say('greet', lang)} {p}", q
+    d["asked"] = None
+    return say("greet", lang), [qr("find_home", lang), qr("im_agent", lang)]
 
 
 def _about(g) -> Optional[str]:
@@ -510,6 +491,7 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
     cards: List[dict] = []
     lead = None
     needs_human = False
+    about_us = False   # the answer was about Avasetu or agents: its own next step stands, no buyer question after it
     force_homes = bool(HOMES.search(text))
 
     if WHATSAPP_RX.match(text):
@@ -541,15 +523,17 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
             d["needs_human"] = needs_human = True
             d.setdefault("missing", []).append((r.missing or "")[:100])
             d["gaps"] = (d.get("gaps") or [])[-19:] + [{"q": text[:200], "topics": list(r.gaps)}]   # read by knowledge.gaps
-    elif is_question(text) and not (d["asked"] and not kb.search(text, 1) and len(text.split()) <= 3):
+    elif (is_question(text) and not (d["asked"] and not site.search(text, 1) and len(text.split()) <= 3)) or _about_us(text):
         d["questions"].append(text[:200])
         # A question about this home in words no keyword knows ('good for a family?', or most Hindi and Marathi): the home's own facts
         # are tried first (reasoned by the LLM, checked), unless our general answers already have a direct hit
-        r = await grounded_answer(text, grounding, "chat", llm) if grounding is not None and llm is not None and not kb.best(text, min_score=1) else None
-        ans = r.text if r is not None and r.confident else await answer(text, llm)
+        r = await grounded_answer(text, grounding, "chat", llm) if grounding is not None and llm is not None and not site.best(text, min_score=1) else None
+        e = None if r is not None and r.confident else await site.answer(text, llm)
+        ans = r.text if e is None and r is not None and r.confident else (site.text(e) if e else None)
         if ans:
             parts.append(ans)
             d["value_given"] = True
+            about_us = e is not None and e.audience != "buyer"
         else:
             d["needs_human"] = needs_human = True
             parts.append(say("dont_guess", lang))
@@ -594,6 +578,10 @@ async def turn(d: dict, text: str, llm, grounding=None, finder: Optional[Finder]
             parts.append(say("anything_else", lang))
         quick = [WHATSAPP] if whatsapp and (shown or needs_human) else []
         return Turn(" ".join(p for p in parts if p), quick, None, needs_human, cards, notify)
+
+    if about_us and not new:
+        d["asked"] = None
+        return Turn(" ".join(p for p in parts if p), [], None, needs_human, cards, notify)
 
     want_phone = (needs_human or d.pop("want_phone_now", False)) and _can_ask_phone(d)
     nf = None if want_phone else next_field(d)

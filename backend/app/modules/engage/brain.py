@@ -7,6 +7,7 @@ import zlib
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+from app.modules.knowledge import site
 from app.modules.knowledge.reply import answer as grounded_answer, has_topic
 from app.platform.text import HYPE, PHONE
 
@@ -228,6 +229,11 @@ async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm
                         reason="agent asks about the free trial")
     if ig:
         link = BIO["en"]  # never put a URL in an Instagram reply
+    about_us = site.best(text, min_score=1) if intent is None and looks_like_question(text) else None
+    if about_us is not None and about_us.audience != "buyer":
+        # 'what is Avasetu?', 'how much for agents?': the same vetted answer as the website chat
+        more = "Details: the link in our bio." if ig else f"Details: {link}"
+        return Decision("question", lang, f"{about_us.answer} {more}", reason=f"about us: {about_us.id}")
     if grounding is not None and intent is None and asks_about_the_post(text):
         # the LLM (when there is one) still gets to say it is spam, abuse or plain praise; a question about the post is answered from facts
         raw = await llm.json(SYSTEM, f"POST FACTS:\n{(facts or '')[:900]}\n\nCOMMENT:\n{text[:500]}") if llm is not None and hasattr(llm, "json") else None
