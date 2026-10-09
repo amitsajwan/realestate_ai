@@ -65,7 +65,7 @@ function SignalCard({ s, onDone }: { s: RadarSignal; onDone: (id: string) => voi
           value={reply}
           onChange={(e) => setReply(e.target.value)}
           rows={4}
-          className="mt-1 w-full rounded-xl border border-gray-300 p-2 text-sm"
+          className="mt-1 w-full rounded-xl border border-gray-300 bg-white p-2 text-sm text-gray-900"
         />
       </label>
       {error && <ErrorBox message={error} />}
@@ -113,9 +113,9 @@ function PasteBox({ onAdded }: { onAdded: (s: RadarSignal) => void }) {
       <summary className="cursor-pointer font-semibold text-[#102340]">Paste a post (Facebook group, WhatsApp…)</summary>
       <div className="mt-3 space-y-2">
         <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Link to the post"
-          className="w-full rounded-xl border border-gray-300 p-2 text-sm" />
+          className="w-full rounded-xl border border-gray-300 bg-white p-2 text-sm text-gray-900" />
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="What they wrote"
-          className="w-full rounded-xl border border-gray-300 p-2 text-sm" />
+          className="w-full rounded-xl border border-gray-300 bg-white p-2 text-sm text-gray-900" />
         {error && <ErrorBox message={error} />}
         <Btn block={false} disabled={busy || !url.trim() || text.trim().length < 3} onClick={submit}>
           {busy ? 'Reading…' : 'Find match & draft reply'}

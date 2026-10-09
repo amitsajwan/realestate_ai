@@ -41,6 +41,28 @@ async def _link(db, cfg: RadarConfig, source: str, intent: Intent, matches, proj
     return f"{site_url()}{a.page if a else '/localities'}?utm_source={source}&utm_medium=radar"
 
 
+async def redraft(db, cfg: RadarConfig) -> int:
+    """Unsent leads drafted with older wording get the current reply (no model call: the stored intent is reused)."""
+    n = 0
+    stale = await db.get_collection(store.SIGNALS).find(
+        {"status": "scored", "draft_version": {"$ne": drafting.DRAFT_VERSION}}).to_list(BATCH)
+    for d in stale:
+        try:
+            intent = Intent.model_validate(d.get("intent") or {})
+            project = await find_project(db, intent, d.get("context", ""), d.get("text", ""))
+            matches = await find_matches(db, intent)
+            link = await _link(db, cfg, d["source"], intent, matches, project)
+            reply = await drafting.draft(d.get("text", ""), intent, matches, link, project)
+        except Exception:
+            log.exception("radar: redraft failed")
+            continue
+        why = [w for w in (d.get("why") or []) if not w.startswith("project: ")] + ([f"project: {project.name}"] if project else [])
+        await store.set_signal(db, d["_id"], {"draft": reply, "link": link, "why": why, "draft_version": drafting.DRAFT_VERSION,
+                                              "project": project.__dict__ if project else None})
+        n += 1
+    return n
+
+
 async def process(db, llm, cfg: RadarConfig, own: tuple = ()) -> Dict[str, int]:
     counts = {"filtered_out": 0, "noise": 0, "scored": 0, "waiting": 0}
     for d in await store.pending(db, "new", BATCH):
@@ -74,7 +96,7 @@ async def process(db, llm, cfg: RadarConfig, own: tuple = ()) -> Dict[str, int]:
         await store.set_signal(db, d["_id"], {
             "status": "scored", "intent": intent.model_dump(), "area": intent.area, "score": s.score, "features": s.features,
             "why": s.why + ([f"project: {project.name}"] if project else []),
-            "project": project.__dict__ if project else None, "matches": [m.__dict__ for m in matches], "link": link, "draft": reply,
+            "project": project.__dict__ if project else None, "draft_version": drafting.DRAFT_VERSION, "matches": [m.__dict__ for m in matches], "link": link, "draft": reply,
             "agent_id": cfg.owner_agent_id or None, "shown": s.score >= cfg.min_score})
         counts["scored"] += 1
     return counts

@@ -12,6 +12,8 @@ PHONE = re.compile(r"(?:\+?91[\s-]?)?[6-9]\d{4}[\s-]?\d{5}")
 HYPE = re.compile(r"\b(best|guaranteed|hurry|last few|limited offer|lowest|unbelievable|dream home)\b", re.I)
 MAX_LEN = 450
 
+DRAFT_VERSION = 2  # bump when the reply wording changes: unsent leads are drafted again (pipeline.redraft)
+
 Writer = Callable[[str, Intent, List[Match], str, Optional[Project]], Awaitable[Optional[str]]]
 _writer: Optional[Writer] = None
 
@@ -43,9 +45,12 @@ def template(intent: Intent, matches: List[Match], link: str, project: Optional[
                 if hinglish else f"Hi! In {where} we have {homes} available right now. Photos, carpet area and RERA details: {link}")
     elif marathi:
         body = f"नमस्कार! {where} मधील कोणत्याही प्रोजेक्टचा MahaRERA रेकॉर्ड (ताबा तारीख, किती बुकिंग झाले) भेटीआधी इथे तपासा: {link}"
+    elif hinglish:
+        body = (f"Hi! Visit se pehle {where} ke kisi bhi project ka MahaRERA record (possession date, kitne book hue) yahan check "
+                f"kar lo: {link}")
     else:
-        body = (f"Hi! {where} ke verified homes aur prices yahan dekh sakte ho, aur apna budget bataoge to matching options bhejenge: {link}"
-                if hinglish else f"Hi! Verified homes and current prices in {where} are here, and if you share your budget we'll send matching options: {link}")
+        body = (f"Hi! Before you visit, check any {where} project's MahaRERA record (possession date, how many units are "
+                f"booked) here: {link}")
     return body
 
 

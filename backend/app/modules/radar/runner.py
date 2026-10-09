@@ -22,6 +22,7 @@ async def run_once(db, cfg, yt, llm) -> dict:
         out["videos_added"] = await youtube_source.discover(db, yt, cfg)
         out.update(await youtube_source.collect(db, yt, cfg))
     out.update(await pipeline.process(db, llm, cfg, own=youtube_source.OWN_NAMES))
+    out["redrafted"] = await pipeline.redraft(db, cfg)
     return out
 
 
