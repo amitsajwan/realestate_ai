@@ -13,6 +13,9 @@ INSTAGRAM_MAX = 2000   # strictly under
 MAX_HASHTAGS = 10
 
 _TAG = re.compile(r"#\w+")
+# likers and sharers cannot be messaged through the API; the caption asks them to comment (the engage worker answers comments) and follow
+ASK = "💬 Questions? Comment below. 📤 Share with someone house-hunting. ➕ Follow for daily Pune property updates."
+_HAS_ASK = re.compile(r"comment below|share (this )?with|follow (for|us|the page|this)", re.I)
 
 
 def footer_for(channel: str) -> str:
@@ -57,7 +60,8 @@ def with_footer(caption: str, channel: str) -> str:
     m = re.search(r"(\n[ \t]*(?:#\w+[ \t]*)+)$", body)
     if m and len(tags) <= MAX_HASHTAGS:
         block, body = m.group(1).rstrip(), body[:m.start()].rstrip()
-    room = _limit(channel) - 1 - len(foot) - len(block) - 2
+    ask = "" if not body or _HAS_ASK.search(body) else "\n\n" + ASK
+    room = _limit(channel) - 1 - len(foot) - len(block) - len(ask) - 2
     body = _cut(body, room)
-    text = (body + block).strip()
+    text = (body + ask + block).strip()
     return f"{text}\n\n{foot}" if text else foot
