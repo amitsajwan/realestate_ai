@@ -301,13 +301,13 @@ def render_reel_for(doc: dict, uploads: Path) -> str:
 
 
 def render_agent_reel(doc: dict, uploads: Path, composer: Optional[Callable] = None) -> str:
-    """An agent-recruitment reel (reels.agent_reels), by its code; the Instagram and Facebook rows share one file."""
-    from app.modules.reels import agent_reels
+    """An agent-recruitment reel by its code (A1..D2: reels.agent_reels; E1..: reels.transform_reels); the Instagram and Facebook rows share one file."""
+    from app.modules.reels import agent_reels, transform_reels
     c = doc.get("creative") or {}
     rel = f"{REEL_DIR}/{c.get('reel_key') or doc['slug']}.mp4"
     dest = uploads / rel
     if not (dest.is_file() and dest.stat().st_size > 0):
-        agent_reels.render(c["reel_code"], dest, composer)
+        (transform_reels if c["reel_code"] in transform_reels.BY_CODE else agent_reels).render(c["reel_code"], dest, composer)
     return rel
 
 

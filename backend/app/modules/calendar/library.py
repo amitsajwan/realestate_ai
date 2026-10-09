@@ -426,7 +426,7 @@ ENTRIES: List[Entry] = [
        "\U0001F91D पुणे के प्रॉपर्टी एजेंट, एक सवाल: पूछताछ करने वाले कितने खरीदार कमेंट में खो जाते हैं?\n\n"
        "✅ मोबाइल से प्रॉपर्टी डालें, आपकी अपनी वेबसाइट अपने-आप तैयार\n✅ फेसबुक, इंस्टाग्राम और व्हाट्सऐप के लिए तैयार पोस्ट\n"
        "✅ हर खरीदार का सार: बजट, BHK और समय\n\n"
-       "पायलट मुफ़्त है और सिर्फ़ इन्विटेशन से। किसी एजेंट दोस्त को यह पोस्ट शेयर करें।",
+       "फ्री ट्रायल: आपकी पहली 3 प्रॉपर्टी की मार्केटिंग मुफ़्त, कोई कार्ड नहीं। किसी एजेंट दोस्त को यह पोस्ट शेयर करें।",
        (B, "#PuneAgents", "#RealEstateAgent", "#PuneRealEstate"),
        "Hindi text adapted from the already-published brand post agents-hindi; have a Hindi reader approve before seeding. Card is the pre-rendered Chrome card (Pillow cannot shape Devanagari).",
        link="/trial", cta_ig="इन्विटेशन के लिए बायो में दिया लिंक (link in our bio) देखें।", card_from="agents-hindi"),
