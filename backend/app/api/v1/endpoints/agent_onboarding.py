@@ -50,5 +50,5 @@ async def branding_suggest_options():
 @router.post("/branding-suggest")
 async def branding_suggest(request: BrandingRequest):
     """Return AI branding suggestions for a given company name and profile data."""
-    return generate_branding(request)
+    return await generate_branding(request)
  

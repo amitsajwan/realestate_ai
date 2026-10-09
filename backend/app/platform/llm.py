@@ -325,10 +325,14 @@ EXTRA_TEXT_PROVIDERS = (
     ("GITHUB_MODELS_TOKEN", GITHUB_MODELS_URL, "AI_GITHUB_MODEL", "openai/gpt-4.1-mini,openai/gpt-4o-mini"),
     ("NVIDIA_API_KEY", NVIDIA_URL, "AI_NVIDIA_MODEL", "openai/gpt-oss-20b"),
 )
+# Cloudflare Workers AI (10,000 free neurons a day): the URL carries the account id.
+CLOUDFLARE_URL = "https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1/chat/completions"
+CLOUDFLARE_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
 
 
-def default_llm() -> Optional[LLM]:
-    """Use the configured provider, then an optional OpenAI-compatible backup, then Gemini if enabled, then GitHub Models and NVIDIA."""
+def text_providers() -> list["GroqLLM"]:
+    """Every text provider with a key set, in failover order: the configured provider (Groq by default) and its extra keys,
+    an optional OpenAI-compatible backup and OpenRouter keys, Gemini, GitHub Models, NVIDIA, Cloudflare Workers AI."""
     key = groq_api_key()
     primary = GroqLLM(key) if key else None
     providers = [primary] if primary else []
@@ -349,6 +353,16 @@ def default_llm() -> Optional[LLM]:
     for key_var, url, model_var, model in EXTRA_TEXT_PROVIDERS:
         if os.environ.get(key_var):
             providers.append(GroqLLM(os.environ[key_var], model=os.environ.get(model_var, model), url=url))
+    cf_key, cf_account = os.environ.get("CLOUDFLARE_API_TOKEN"), os.environ.get("CLOUDFLARE_ACCOUNT_ID")
+    if cf_key and cf_account:
+        providers.append(GroqLLM(cf_key, model=os.environ.get("AI_CLOUDFLARE_MODEL", CLOUDFLARE_MODEL),
+                                 url=CLOUDFLARE_URL.format(account=cf_account)))
+    return providers
+
+
+def default_llm() -> Optional[LLM]:
+    """All configured text providers behind one round-robin client (or the only one); None when no key is set."""
+    providers = text_providers()
     if not providers:
         return None
     return providers[0] if len(providers) == 1 else FallbackLLM(providers)

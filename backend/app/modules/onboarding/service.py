@@ -43,7 +43,7 @@ async def ai_branding(name: str, city: str) -> dict:
     fallback = default_branding(name, city)
     try:
         from app.utils.ai import generate_branding
-        result = await asyncio.wait_for(asyncio.to_thread(generate_branding, name), timeout=8)
+        result = await asyncio.wait_for(generate_branding(name), timeout=8)
         if isinstance(result, dict) and result.get("tagline") and result.get("about"):
             colors = result.get("colors") if isinstance(result.get("colors"), dict) else DEFAULT_COLORS
             return {"tagline": result["tagline"], "about": result["about"], "colors": colors}

@@ -22,7 +22,7 @@ class AgentOnboardingService:
             return AgentProfile(**agent)
         tagline, about = data.tagline, data.about
         if not tagline or not about:
-            branding = generate_branding(data.dict())
+            branding = await generate_branding(data.dict())
             tagline = branding.get("tagline")
             about = branding.get("about")
         agent_doc = AgentProfile(
