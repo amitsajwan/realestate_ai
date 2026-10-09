@@ -174,6 +174,9 @@ export function AdminScreen() {
         </ul>
       </Section>
 
+      <Link href="/studio/radar" data-testid="admin-radar-link" className="block rounded-2xl border border-gray-200 bg-white p-3 font-semibold text-[#102340] active:bg-gray-50">
+        Buyer radar: people asking about homes ›
+      </Link>
       <Section title="Agents" id="agents" action={<Link href="/studio/agents" className="text-sm font-semibold text-[#102340] underline">All agents</Link>}>
         {o.agents.length === 0 ? (
           <p className="rounded-2xl bg-white p-4 text-center text-gray-600">No agents yet. Tap + Add agent.</p>

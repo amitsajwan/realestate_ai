@@ -33,10 +33,11 @@ def loops() -> LoopTable:
     from app.modules.knowledge.gaps import loop as gaps_loop
     from app.modules.newsroom.runner import loop as newsroom_loop
     from app.modules.propertyfacts.jobs import loop as marketing_loop
+    from app.modules.radar import loop as radar_loop
     from app.modules.reels.listing_reel import loop as reels_loop
     return {"engage": engage_loop, "newsroom": newsroom_loop, "calendar": calendar_loop, "listing_reels": reels_loop,
             "marketing_runs": marketing_loop, "project_enrich": enrich_loop, "insights": insights_loop,
-            "answer_gaps": gaps_loop}
+            "answer_gaps": gaps_loop, "radar": radar_loop}
 
 
 def start_loops(table: LoopTable, get_db: Callable[[], Any] = get_database) -> Dict[str, asyncio.Task]:
@@ -86,6 +87,7 @@ def expected_intervals() -> Dict[str, Optional[float]]:
     from app.platform.meta_graph.config import load as social_cfg
     from app.modules.newsroom.config import load as newsroom_cfg
     from app.modules.propertyfacts.jobs import HEARTBEAT_INTERVAL_S as MARKETING_INTERVAL_S
+    from app.modules.radar.config import load as radar_cfg
     from app.modules.reels.listing_reel import HEARTBEAT_INTERVAL_S
     e, n, c = engage_cfg(), newsroom_cfg(), calendar_cfg()
     return {
@@ -97,6 +99,7 @@ def expected_intervals() -> Dict[str, Optional[float]]:
         "project_enrich": float(ENRICH_POLL_S) if enrich_cfg().enabled else None,  # PROJECT_ENRICH_ENABLED
         "insights": float(INSIGHTS_INTERVAL_S) if insights_on(social_cfg()) else None,  # real posts with a token, not dry run
         "answer_gaps": float(GAPS_INTERVAL_S),  # always on (reads stored replies, notifies agents)
+        "radar": float(radar_cfg().interval_s) if radar_cfg().enabled else None,  # RADAR_ENABLED
     }
 
 

@@ -32,6 +32,9 @@ def wire() -> None:
     # comment replies know which posts are our agent promos (content's rule, calendar.reach)
     from app.modules.reels.agent_reels import source_tag as agent_reel_source
     engage_service.configure(listing_facts=Facts.from_docs, audience=calendar_reach.audience, reel_source=agent_reel_source)
+    # the radar's review queue is the operator's (concierge owner) until signals are routed to agents
+    from app.modules import radar
+    radar.configure(is_operator=is_operator)
     # a website request to join shows as an alert in the owner's Studio (it waits in Studio > Admin)
     waitlist_routes.configure(on_new_request=_tell_owner_about_invite_request)
 

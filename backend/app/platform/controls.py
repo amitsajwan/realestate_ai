@@ -4,6 +4,7 @@ The background runners call `is_paused(db, flag)` at the start of each cycle and
   posting_paused  -> calendar runner (scheduled Facebook / Instagram posts)
   comments_paused -> engage runner (comment replies)
   news_paused     -> newsroom runner (fetching, drafting and publishing news)
+  radar_paused    -> radar runner (finding buyer questions on YouTube)
 A missing document means nothing is paused. A read error never pauses anything (the runner carries on as before).
 """
 import logging
@@ -14,7 +15,7 @@ log = logging.getLogger(__name__)
 
 COLLECTION = "admin_settings"
 DOC_ID = "controls"
-FLAGS = ("posting_paused", "comments_paused", "news_paused")
+FLAGS = ("posting_paused", "comments_paused", "news_paused", "radar_paused")
 
 
 def _iso(dt) -> Optional[str]:
