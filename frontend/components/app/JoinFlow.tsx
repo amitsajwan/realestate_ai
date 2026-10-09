@@ -149,7 +149,7 @@ export function JoinFlow() {
             {error && <ErrorBox message={error} />}
             <Btn type="submit" disabled={busy}>{busy ? t('loading') : t('sendOtp')}</Btn>
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-gray-800">
-              <p className="font-semibold">Free trial for agents in Pune: your first 3 properties free. No code yet? Send TRIAL to Avasetu on WhatsApp.</p>
+              <p className="font-semibold">Free trial for agents in Pune: your first 3 properties free. No code yet? Claim it at avasetu.in/trial.</p>
               <p className="mt-1">Your phone number is never shown publicly. No app to install.</p>
               <Link href="/trial" className="mt-2 flex min-h-[44px] items-center font-semibold text-blue-800 underline">No code yet? Claim your free trial</Link>
             </div>

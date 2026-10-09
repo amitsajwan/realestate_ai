@@ -15,7 +15,7 @@ from .otp import OTPError
 LOCK_AFTER = 5
 LOCK_FOR = timedelta(minutes=30)
 HARD_STOP_AFTER = 15
-NOT_INVITED = "This number has no free trial yet. Claim yours: send TRIAL to Avasetu on WhatsApp, and your sign-up code comes back at once."
+NOT_INVITED = "This number has no free trial yet. Claim yours at avasetu.in/trial and we will send your sign-up code on WhatsApp."
 
 
 class InviteService:

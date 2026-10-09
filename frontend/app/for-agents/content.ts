@@ -71,7 +71,7 @@ export const FOR_AGENTS = {
   },
   cta: {
     heading: 'Claim your free trial',
-    body: 'For agents in Pune. Send TRIAL to us on WhatsApp and your sign-up code comes back at once. Your first 3 properties are free.',
+    body: 'For agents in Pune. Leave your number at avasetu.in/trial and your sign-up code comes on WhatsApp, usually the same day. Your first 3 properties are free.',
     button: 'Claim your free trial',
     demo: 'See a demo agent page',
     qr: 'Scan to claim your free trial',
