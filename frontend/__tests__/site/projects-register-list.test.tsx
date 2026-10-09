@@ -13,6 +13,8 @@ jest.mock('@/lib/site/register', () => ({
     { slug: 'rohan-abhilasha-4-phase-1-wagholi', regno: 'P1', name: 'Rohan Abhilasha 4 Phase 1', area: 'wagholi', completion_now: '2029-10-30', listed_or_updated: null, indexable: true },
     { slug: 'titan-tower-kharadi', regno: 'P3', name: 'TITAN TOWER', area: 'kharadi', completion_now: null, listed_or_updated: null, indexable: true },
   ],
+  getRegisterPlaces: async () => [],
+  placePath: (s: string) => `/projects/area/${s}`,
 }))
 
 import ProjectsPage from '@/app/projects/page'

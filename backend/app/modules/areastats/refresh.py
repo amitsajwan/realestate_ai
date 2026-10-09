@@ -20,6 +20,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
+from app.core import pune_places
 from app.core.areas import BY_KEY
 from app.modules.agentprojects import maharera as project_api
 from app.modules.newsroom import register
@@ -46,7 +47,9 @@ DETAIL_FIELDS = ("project_type", "registered_on", "completion_at_registration", 
 
 
 def pincodes() -> List[str]:
-    return sorted(set(AREA_PINCODES) | set(SHARED_PINCODES))
+    """Our areas' pincodes first (they matter most), then the rest of Pune district."""
+    ours = sorted(set(AREA_PINCODES) | set(SHARED_PINCODES))
+    return ours + [p for p in pune_places.ALL_PINCODES if p not in ours]
 
 
 def _aware(d: datetime) -> datetime:
@@ -95,8 +98,9 @@ async def relabel(store: Store, docs: Optional[List[dict]] = None) -> int:
     for d in docs if docs is not None else await store.all_projects():
         where = register.locality_of(d.get("name", ""), d.get("pincode", ""))
         area, how = (where or (None, "not in our areas"))
-        if d.get("locality") != area or d.get("locality_from") != how:
-            await store.set_project(d["_id"], locality=area, locality_from=how)
+        place = register.place_fields(d.get("name", ""), d.get("pincode", ""), d["_id"], d.get("taluka", ""))
+        if d.get("locality") != area or d.get("locality_from") != how or any(d.get(k) != v for k, v in place.items()):
+            await store.set_project(d["_id"], locality=area, locality_from=how, **place)
             changed += 1
     return changed
 
@@ -110,8 +114,8 @@ def _due(d: dict, now: datetime) -> bool:
 
 
 def _wanted(d: dict) -> bool:
-    """A record whose details we keep: one in our areas, or one a source watches."""
-    return d.get("locality") in BY_KEY or watchlist.is_watched(d)
+    """A record whose details we keep: one in Pune district (our areas first: see `details`), or one a source watches."""
+    return d.get("locality") in BY_KEY or bool(d.get("pune_place")) or watchlist.is_watched(d)
 
 
 async def behind(store: Store, now: datetime, docs: Optional[List[dict]] = None) -> bool:
@@ -128,7 +132,9 @@ async def details(store: Store, fetch: project_api.Fetch, now: datetime, limit: 
     """Fill completion dates and homes from MahaRERA's project API for the records that need it most (never read first, newest first)."""
     docs = docs if docs is not None else await store.all_projects()
     due = [d for d in docs if _wanted(d) and _due(d, now)]
-    due.sort(key=lambda d: (isinstance(d.get("details_checked_at"), datetime), -page_slugs.recency(d),
+    # our areas and watched projects first, then the rest of Pune; within each, never read first, newest first
+    due.sort(key=lambda d: (not (d.get("locality") in BY_KEY or watchlist.is_watched(d)),
+                            isinstance(d.get("details_checked_at"), datetime), -page_slugs.recency(d),
                             _aware(d["details_checked_at"]) if isinstance(d.get("details_checked_at"), datetime) else now))
     out = {"read": 0, "failed": 0}
     for i, d in enumerate(due[:max(0, limit)]):

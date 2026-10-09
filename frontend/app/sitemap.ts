@@ -6,7 +6,7 @@ import { fetchNews } from '@/lib/news/data'
 import { fetchPosts, postPath } from '@/lib/posts/data'
 import { getCatalog, getSitemapEntries } from '@/lib/site/api'
 import { livePages } from '@/lib/site/filters'
-import { getRegisterProjects } from '@/lib/site/register'
+import { getRegisterProjects, getRegisterPlaces, placePath } from '@/lib/site/register'
 import { agentPath } from '@/lib/site/slug'
 
 const day = (d?: string | null): Date | undefined => {
@@ -23,7 +23,7 @@ const POSTS_MAX = 500 // the API's most per call: every published post for years
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = getMarketingConfig().siteUrl
   const at = (path: string, priority: number, date?: string | null) => ({ url: base + path, lastModified: day(date), priority })
-  const [news, agents, projects, posts, register] = await Promise.all([fetchNews(50), getSitemapEntries(), getCatalog(), fetchPosts(POSTS_MAX), getRegisterProjects(undefined, true)])
+  const [news, agents, projects, posts, register, places] = await Promise.all([fetchNews(50), getSitemapEntries(), getCatalog(), fetchPosts(POSTS_MAX), getRegisterProjects(undefined, true), getRegisterPlaces()])
   const listedRegnos = new Set(projects.map((p) => p.rera_no))   // those redirect to the shared agent page, listed above
   const shared = new Set(projects.flatMap((p) => p.agents.map((a) => a.slug + '/' + a.project_slug)))
   const fallbackLocalities = new Map<string, string | null | undefined>()
@@ -61,6 +61,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...livePages(projects).map((f) => at(f.path, 0.7)),
     // Avasetu's own page for each MahaRERA project with real facts (thin ones are noindex and left out)
     // (dated by MahaRERA's update or our crawler's checks, whichever is newer; finished projects rank lower)
+    // one page per Pune area listing its projects, once one of them has real facts
+    ...places.filter((p) => p.indexable > 0).map((p) => at(placePath(p.slug), 0.6)),
     ...register.filter((r) => r.indexable && !listedRegnos.has(r.regno))
       .map((r) => at('/projects/' + r.slug, r.active === false ? 0.4 : 0.7, r.page_updated ?? r.listed_or_updated)),
     // an agent's copy of a project on a shared page names that page as canonical, so only the others are listed

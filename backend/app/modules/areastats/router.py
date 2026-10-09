@@ -48,6 +48,13 @@ async def public_project_by_regno(regno: str, db=Depends(get_db)) -> dict:
 
 @public_router.get("/register/projects")
 async def public_project_list(response: Response, area: Optional[str] = None, all: bool = False, limit: int = 2000,
-                              db=Depends(get_db)) -> list:
+                              place: Optional[str] = None, db=Depends(get_db)) -> list:
     response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
-    return await pages.listing(db, area=area, only_indexable=not all, limit=max(1, min(limit, 5000)))
+    return await pages.listing(db, area=area, only_indexable=not all, limit=max(1, min(limit, 20000)), place=place)
+
+
+@public_router.get("/register/places")
+async def public_places(response: Response, db=Depends(get_db)) -> list:
+    """Every Pune place with projects in the register: {key, slug, name, zone, projects, indexable}, in zone order."""
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return await pages.places(db)

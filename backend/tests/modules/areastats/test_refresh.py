@@ -38,7 +38,9 @@ def asked(calls):
 
 
 def test_sweep_covers_every_area_pincode():
-    assert PINS == ["411014", "411036", "411045", "411047", "411057", "412207"]
+    # our areas' pincodes first, then the rest of Pune district (app/core/pune_places.py)
+    assert PINS[:6] == ["411014", "411036", "411045", "411047", "411057", "412207"]
+    assert len(PINS) == len(set(PINS)) == 141 and "412307" in PINS and "412220" in PINS
 
 
 async def test_sweep_reads_pages_in_turn_and_moves_to_the_next_pincode():
@@ -46,9 +48,13 @@ async def test_sweep_reads_pages_in_turn_and_moves_to_the_next_pincode():
     pages = {("411014", 1): page_of("411014", 15), ("411014", 2): page_of("411014", 15), ("411036", 1): page_of("411036", 3)}
     out = await refresh.sweep(store, site(pages, calls), NOW, pages=3)
     assert asked(calls) == [("411014", 1), ("411014", 2), ("411036", 1)]
-    assert out["pages"] == 3 and out["new"] == 10 and out["updated"] == 10  # page 2 is the same cards again
+    # page 2 is the same cards again; 411036's page (same test cards) refreshes them too: the register keeps all of Pune
+    assert out["pages"] == 3 and out["new"] == 10 and out["updated"] == 20
     # 411036 is shared with Mundhwa: none of these names says Keshav Nagar, so none is stored for it
-    assert {d["locality"] for d in await store.all_projects()} == {"kharadi"}
+    # the test pages reuse the same cards, so 411036's read is the last word on them: none says Keshav Nagar, so none is
+    # stored for that area; the register keeps them as the rest of Pune (Mundhwa)
+    docs = await store.all_projects()
+    assert not any(d["locality"] == "keshav_nagar" for d in docs) and {d["pune_place"] for d in docs} == {"mundhwa"}
     mark = await store.get_mark(refresh.MARK)
     assert (mark["pincode"], mark["page"]) == ("411045", 1)
 
@@ -58,18 +64,18 @@ async def test_shared_pincode_keeps_only_named_projects():
     await store.set_mark(refresh.MARK, pincode="411057", page=1, last=0)
     named = page_of("411057", 5).replace("VIKRAM MARQUEE", "VIKRAM MARQUEE WAKAD", 1).replace("Satvam Hills C5", "Hinjewadi Hills", 1)
     await refresh.sweep(store, site({("411057", 1): named}, calls), NOW, pages=1)
-    got = {d["name"]: d["locality"] for d in await store.all_projects()}
+    got = {d["name"]: d["locality"] for d in await store.all_projects() if d["locality"]}
     assert got == {"VIKRAM MARQUEE WAKAD": "wakad", "Hinjewadi Hills": "hinjawadi"}
 
 
 async def test_sweep_wraps_round_and_marks_it():
     store, calls = Store(FakeDb()), []
-    await store.set_mark(refresh.MARK, pincode="412207", page=2, last=2)
-    out = await refresh.sweep(store, site({("412207", 2): page_of("412207", 20)}, calls), NOW, pages=1)
+    await store.set_mark(refresh.MARK, pincode=PINS[-1], page=2, last=2)  # the last pincode of the round
+    out = await refresh.sweep(store, site({(PINS[-1], 2): page_of("412207", 20)}, calls), NOW, pages=1)
     assert out["round_done"] and (await store.get_mark(refresh.MARK))["round_done_at"] == NOW
     mark = await store.get_mark(refresh.MARK)
     assert (mark["pincode"], mark["page"]) == ("411014", 1)
-    assert {d["locality"] for d in await store.all_projects()} == {"wagholi"}
+    assert {d["locality"] for d in await store.all_projects() if d["locality"]} == {"wagholi"}
 
 
 async def test_a_flaky_page_is_asked_again_then_skipped():
@@ -90,7 +96,7 @@ async def test_relabel_moves_411047_from_wagholi_to_lohegaon():
     await store.projects.insert_one({**base, "_id": "P1", "name": "Belmont Skyone"})
     await store.projects.insert_one({**base, "_id": "P2", "name": "Solitaire Business Hub Viman Nagar Phase 1"})
     await store.projects.insert_one({**base, "_id": "P3", "name": "Kharadi Pune P1", "pincode": "412207"})
-    assert await refresh.relabel(store) == 2
+    assert await refresh.relabel(store) == 3  # each also gets its Pune place
     got = {d["_id"]: (d["locality"], d["locality_from"]) for d in await store.all_projects()}
     assert got == {"P1": ("lohegaon", "pincode"), "P2": (None, "not in our areas"), "P3": ("wagholi", "pincode")}
     assert await refresh.relabel(store) == 0

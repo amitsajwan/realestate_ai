@@ -29,6 +29,8 @@ export interface RegisterProject {
   builder?: BuilderRecord | null
   place?: string | null
   taluka?: string | null
+  /** the Pune place the register groups it under (app/core/pune_places.py): every Pune district project has one */
+  pune_place?: { key: string; name: string | null } | null
   map_from?: string | null
   checks?: EnrichCheck[]
   text_checked?: boolean
@@ -131,6 +133,9 @@ export interface RegisterListItem {
   /** false: finished more than a year ago; the page stays, the lists leave it out */
   active?: boolean
   listed_or_updated: string | null
+  /** the Pune place (key) and its name: every Pune district project has one */
+  place?: string | null
+  place_name?: string | null
   /** newest of MahaRERA's update and our crawler's checks */
   page_updated?: string | null
   indexable: boolean
@@ -165,10 +170,30 @@ export async function getRegisterProject(slug: string): Promise<RegisterProject 
 }
 
 /** Indexable project pages (for the sitemap), optionally one area's. An outage gives an empty list. */
-export async function getRegisterProjects(area?: string, all = false): Promise<RegisterListItem[]> {
-  const q = [area ? 'area=' + encodeURIComponent(area) : '', all ? 'all=true' : ''].filter(Boolean).join('&')
+export async function getRegisterProjects(area?: string, all = false, place?: string): Promise<RegisterListItem[]> {
+  const q = [area ? 'area=' + encodeURIComponent(area) : '', all ? 'all=true' : '', place ? 'place=' + encodeURIComponent(place) : '',
+    'limit=20000'].filter(Boolean).join('&')
   const r = await get<RegisterListItem[]>('/api/v1/public/register/projects' + (q ? '?' + q : ''))
   return r.ok && Array.isArray(r.data) ? r.data : []
+}
+
+/** A Pune place with projects in the register: GET /api/v1/public/register/places, in zone order. */
+export interface RegisterPlace {
+  key: string
+  slug: string
+  name: string
+  zone: string
+  projects: number
+  indexable: number
+}
+
+export async function getRegisterPlaces(): Promise<RegisterPlace[]> {
+  const r = await get<RegisterPlace[]>('/api/v1/public/register/places')
+  return r.ok && Array.isArray(r.data) ? r.data : []
+}
+
+export function placePath(slug: string): string {
+  return `/projects/area/${slug}`
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']

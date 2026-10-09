@@ -5,7 +5,7 @@ import VerifiedFacts from '@/components/site/VerifiedFacts'
 import { breadcrumbJsonLd, jsonLdString } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import type { RegisterProject } from '@/lib/site/register'
-import { longDay, projectFaq } from '@/lib/site/register'
+import { longDay, projectFaq, placePath } from '@/lib/site/register'
 import type { EnrichCheck, Faq } from '@/lib/site/register'
 import type { PropertyFactsView } from '@/lib/site/types'
 import { formatPrice } from '@/lib/site/format'
@@ -106,7 +106,7 @@ function Hero({ p }: { p: RegisterProject }) {
   else if (p.units_total) stats.push(['Units', n(p.units_total)])
   if (d?.towers) stats.push(['Towers', n(d.towers), d.max_floors ? `up to ${d.max_floors} floors` : undefined])
   if (d?.registered_on) stats.push(['Registered', longDay(d.registered_on)])
-  const where = p.area ? `${p.area.name}, Pune` : [p.place, p.taluka, 'Pune district'].filter(Boolean).join(', ')
+  const where = p.area ? `${p.area.name}, Pune` : [p.pune_place?.name ?? p.place, p.taluka, 'Pune district'].filter(Boolean).join(', ')
   return (
     <header className="overflow-hidden rounded-3xl bg-[#0f2340] px-5 py-7 text-white shadow-lg sm:px-8 sm:py-9">
       <div className="flex flex-wrap items-center gap-2">
@@ -345,6 +345,9 @@ export default function RegisterProjectPage({ p, siteUrl, facts }: { p: Register
   }
   const nearby = (facts as unknown as { nearby?: Near[] } | null)?.nearby ?? []
   const faq = projectFaq(p, nearby)
+  // the Pune place page listing this project's neighbours (every Pune district project has one)
+  const placeName = p.pune_place?.name ?? null
+  const placeHref = p.pune_place ? placePath(p.pune_place.key.replace(/_/g, '-')) : null
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8" style={AVASETU_SITE_VARS}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(ld) }} />
@@ -358,6 +361,7 @@ export default function RegisterProjectPage({ p, siteUrl, facts }: { p: Register
         <span aria-hidden className="px-1 text-slate-400">/</span>
         <Link href="/projects" className="text-[#0f2340] underline underline-offset-2">Projects</Link>
         {p.area && <> <span aria-hidden className="px-1 text-slate-400">/</span> <Link href={`/localities/${p.area.slug}`} className="text-[#0f2340] underline underline-offset-2">{p.area.name}</Link></>}
+        {!p.area && placeName && placeHref && <> <span aria-hidden className="px-1 text-slate-400">/</span> <Link href={placeHref} className="text-[#0f2340] underline underline-offset-2">{placeName}</Link></>}
       </nav>
 
       <Hero p={p} />
@@ -390,9 +394,9 @@ export default function RegisterProjectPage({ p, siteUrl, facts }: { p: Register
           <BuilderBox p={p} />
           <FaqBox faq={faq} />
 
-          {p.same_area.length > 0 && p.area && (
+          {p.same_area.length > 0 && (p.area || placeName) && (
             <section aria-labelledby="same-title">
-              <h2 id="same-title" className={H2}>Other projects in {p.area.name}</h2>
+              <h2 id="same-title" className={H2}>Other projects in {p.area?.name ?? placeName}</h2>
               <ul className="mt-3 grid list-none gap-2 p-0 sm:grid-cols-2">
                 {p.same_area.map((s) => (
                   <li key={s.slug}>
@@ -403,7 +407,10 @@ export default function RegisterProjectPage({ p, siteUrl, facts }: { p: Register
                   </li>
                 ))}
               </ul>
-              <Link href={`/localities/${p.area.slug}`} className="mt-3 inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{p.area.name} area guide</Link>
+              <div className="mt-3 flex flex-wrap gap-x-5">
+                {placeHref && <Link href={placeHref} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">All projects in {placeName ?? p.area?.name}</Link>}
+                {p.area && <Link href={`/localities/${p.area.slug}`} className="inline-flex min-h-[44px] items-center text-[#0f2340] underline underline-offset-2">{p.area.name} area guide</Link>}
+              </div>
             </section>
           )}
         </div>

@@ -12,8 +12,8 @@ import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { buyerEnquirePath } from '@/components/marketing/siteLinks'
 import { getCatalog } from '@/lib/site/api'
 import { byLocality } from '@/lib/site/projects'
-import { getRegisterProjects } from '@/lib/site/register'
-import type { RegisterListItem } from '@/lib/site/register'
+import { getRegisterPlaces, getRegisterProjects, placePath } from '@/lib/site/register'
+import type { RegisterListItem, RegisterPlace } from '@/lib/site/register'
 
 export const revalidate = 300
 
@@ -30,7 +30,15 @@ export default async function ProjectsPage() {
   const catalog = await getCatalog()
   const groups = byLocality(catalog)
   const listed = new Set(catalog.map((p) => p.rera_no))
-  const everything = await getRegisterProjects(undefined, true)
+  // the register holds all of Pune district; the lists and search on this page are our covered areas, the rest is by place below
+  const [all, places] = await Promise.all([getRegisterProjects(undefined, true), getRegisterPlaces()])
+  const everything = all.filter((r) => r.area)
+  const zones = places.reduce<[string, RegisterPlace[]][]>((acc, p) => {
+    const last = acc[acc.length - 1]
+    if (last && last[0] === p.zone) last[1].push(p)
+    else acc.push([p.zone, [p]])
+    return acc
+  }, [])
   const register = everything.filter((r) => r.indexable && r.active !== false && !listed.has(r.regno))
   const finished = everything.filter((r) => r.active === false).length
   const areaNames = Object.fromEntries(LOCALITIES.map((l) => [l.key, l.name]))
@@ -102,6 +110,30 @@ export default async function ProjectsPage() {
                 </ul>
                 <Link href={`/localities/${l.slug}`} className="mt-2 inline-flex min-h-[44px] items-center text-sm text-[#0f2340] underline underline-offset-2">{l.name} buyer guide</Link>
               </details>
+            ))}
+          </section>
+        )}
+
+        {zones.length > 0 && (
+          <section aria-labelledby="pune-title" className="mt-14" data-testid="pune-places">
+            <h2 id="pune-title" className="text-2xl font-bold text-slate-900">Projects across Pune, by area</h2>
+            <p className="mt-2 max-w-3xl text-slate-700">
+              Every MahaRERA project in Pune district, grouped by the area it is filed under ({all.length.toLocaleString('en-IN')} projects).
+              Each area page lists its projects with the completion date filed with MahaRERA.
+            </p>
+            {zones.map(([zone, ps]) => (
+              <div key={zone} className="mt-6">
+                <h3 className="text-lg font-semibold text-slate-900">{zone}</h3>
+                <ul className="mt-2 flex list-none flex-wrap gap-2 p-0">
+                  {ps.map((p) => (
+                    <li key={p.key}>
+                      <Link href={placePath(p.slug)} className="inline-flex min-h-[44px] items-center rounded-full border border-slate-300 bg-white px-3 text-[#0f2340] hover:border-[#0f2340]">
+                        {p.name} <span className="ml-1 text-sm text-slate-500">{p.projects}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
           </section>
         )}

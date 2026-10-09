@@ -124,13 +124,20 @@ def test_a_maharera_item_on_lohegaons_pincode_is_lohegaon_news():
     assert rel.keep and rel.areas == ["lohegaon"]
 
 
+async def in_area(store) -> int:
+    """Register records in our covered areas (the register also holds the rest of Pune district, with locality None)."""
+    return sum(1 for d in await store.projects.find({}).to_list(None) if d.get("locality"))
+
+
 def test_records_hold_facts_with_source_and_date():
     recs = register.records(parse_projects(PAGE_1291), NOW)
-    assert {r["regno"]: r["locality"] for r in recs} == IN_AREA
+    assert {r["regno"]: r["locality"] for r in recs if r["locality"]} == IN_AREA
+    assert all(r["pune_place"] for r in recs if not r["locality"])  # the rest of Pune district is kept, grouped by place
     r = next(x for x in recs if x["regno"] == "PM1260002602035")
     assert r == {"regno": "PM1260002602035", "name": "VIKRAM MARQUEE", "promoter": "Vikram Developers", "taluka": "Pune City",
                  "district": "Pune", "pincode": "411014", "locality": "kharadi", "locality_from": "pincode",
-                 "last_modified": "2026-09-24", "source": "MahaRERA", "source_url": r["source_url"], "checked_at": NOW}
+                 "last_modified": "2026-09-24", "source": "MahaRERA", "source_url": r["source_url"], "checked_at": NOW,
+                 "pune_place": "kharadi", "pune_place_name": "Kharadi"}
     assert r["source_url"].startswith("https://maharerait.maharashtra.gov.in/public/project/view/")
     banned = {"rating", "score", "review", "opinion", "verdict"}
     assert not banned & set(r)
@@ -148,9 +155,9 @@ async def test_run_fills_register_once_per_project():
     store = Store(FakeDb())
     counts = await run(store, site({1291: PAGE_1291, 1290: PAGE_1290, 1289: LAST}))
     docs = await store.projects.find({}).to_list(None)
-    regnos = [d["_id"] for d in docs]
+    regnos = [d["_id"] for d in docs if d.get("locality")]
     assert sorted(regnos) == sorted([*IN_AREA, "PR1260002699999"]) and len(regnos) == len(set(regnos))
-    assert counts["projects"] == 4
+    assert counts["projects"] == len(docs) and len(docs) == len({d["_id"] for d in docs})
     upper = await store.project("PR1260002699999")
     assert upper["locality"] == "upper_kharadi" and upper["locality_from"] == "project name"
     assert all(d["first_seen"] == NOW and d["news"] == [] for d in docs)
@@ -163,7 +170,7 @@ async def test_second_run_adds_nothing_and_refreshes_facts():
     newer = PAGE_1291.replace("2026-09-24", "2026-10-02", 1)  # VIKRAM MARQUEE's record was modified again
     counts = await run(store, site({1291: newer}), now=later)
     assert counts["projects"] == 0
-    assert await store.projects.count_documents({}) == 3
+    assert await in_area(store) == 3
     v = await store.project("PM1260002602035")
     assert v["last_modified"] == "2026-10-02" and v["checked_at"] == later and v["first_seen"] == NOW
 
@@ -171,7 +178,7 @@ async def test_second_run_adds_nothing_and_refreshes_facts():
 async def test_old_projects_are_registered_though_the_news_filter_drops_them():
     store = Store(FakeDb())
     await run(store, site({1291: PAGE_1291}), now=NOW + timedelta(days=60))  # every card is now far past the news age limit
-    assert await store.projects.count_documents({}) == 3
+    assert await in_area(store) == 3
     assert await store.items.count_documents({"status": "relevant"}) == 0
 
 
@@ -190,7 +197,7 @@ async def test_flaky_pages_are_asked_again(caplog):
     store = Store(FakeDb())
     with caplog.at_level(logging.WARNING):
         await run(store, get)
-    assert await store.projects.count_documents({}) == 3
+    assert await in_area(store) == 3
     assert sum("page=1290&" in u for u in calls) == 3 * 3  # 3 tries in the pass, 3 in each of 2 late rounds
     assert "[1290, 1289]" in caplog.text
 
@@ -208,7 +215,7 @@ async def test_a_page_lost_to_a_burst_of_failures_is_recovered_later():
         return EMPTY
     store = Store(FakeDb())
     await run(store, get)
-    assert await store.projects.count_documents({}) == 3
+    assert await in_area(store) == 3
 
 
 async def test_register_failure_never_stops_the_news():
@@ -289,7 +296,7 @@ async def test_the_count_page_gets_late_rounds_too():
         return PAGE_1291 if "page=1291&" in url else EMPTY
     store = Store(FakeDb())
     await run(store, get)
-    assert await store.projects.count_documents({}) == 3
+    assert await in_area(store) == 3
 
 
 async def test_two_maharera_projects_are_not_the_same_story():

@@ -8,6 +8,8 @@ import re
 from datetime import datetime
 from typing import List, Optional, Tuple
 
+from app.core import pune_places
+
 from .policy import AREA_PINCODES, NAME_ONLY_PINCODE_PREFIXES, SHARED_PINCODES, UPPER_KHARADI_PINCODES
 from .stages.filter import named_areas, other_locality_named
 from .types import MahaReraProject
@@ -46,18 +48,27 @@ def locality_of(name: str, pincode: str) -> Optional[Tuple[str, str]]:
 
 
 def records(projects: List[MahaReraProject], now: datetime) -> List[dict]:
-    """The fields to store for each in-area project: what the MahaRERA card says, with its source and when we read it."""
+    """The fields to store for each Pune district project: what the MahaRERA card says, with its source and when we read it.
+    `locality` is one of our covered areas (or None); `pune_place` groups every Pune project (app/core/pune_places.py)."""
     out = []
     for p in projects:
         where = locality(p)
-        if where is None:
+        place = place_fields(p.name, p.pincode, p.regno, p.location)
+        if where is None and place["pune_place"] is None:
             continue
         out.append({
             "regno": p.regno, "name": p.name, "promoter": p.promoter, "taluka": p.location, "district": p.district,
-            "pincode": p.pincode, "locality": where[0], "locality_from": where[1], "last_modified": p.last_modified,
-            "source": "MahaRERA", "source_url": p.url, "checked_at": now,
+            "pincode": p.pincode, "locality": where[0] if where else None,
+            "locality_from": where[1] if where else "not in our areas", "last_modified": p.last_modified,
+            "source": "MahaRERA", "source_url": p.url, "checked_at": now, **place,
         })
     return out
+
+
+def place_fields(name: str, pincode: str, regno: str = "", taluka: str = "") -> dict:
+    """{pune_place, pune_place_name} for a register record; both None outside Pune district."""
+    return {"pune_place": pune_places.place_key(name, pincode, regno),
+            "pune_place_name": pune_places.place_name(name, pincode, taluka, regno)}
 
 
 _DETAIL_ID = re.compile(r"/public/project/view/(\d+)(?:[/?#]|$)")

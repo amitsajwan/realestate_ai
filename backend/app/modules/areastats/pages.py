@@ -28,11 +28,22 @@ def _ascii(text: str) -> str:
     return unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode().lower()
 
 
+def _place_word(doc: dict) -> str:
+    """The place for a slug: "Ranjangaon", not "Khed taluka" (a taluka name is too broad for an address)."""
+    name = doc.get("pune_place_name") or ""
+    return "" if name.endswith(" taluka") else name
+
+
+def in_register(d: dict) -> bool:
+    """A record that gets a project page: in one of our areas, on a watch list, or anywhere in Pune district."""
+    return d.get("locality") in BY_KEY or bool(d.get("watched_by")) or bool(d.get("pune_place"))
+
+
 def base_slug(doc: dict) -> str:
     """Name words (at most 8) plus the area, e.g. "rohan-abhilasha-4-wagholi"; the area word is not repeated."""
     words = _WORDS.findall(_ascii(doc.get("name", "")))[:8] or ["project"]
     area = BY_KEY.get(doc.get("locality") or "")
-    tail = _WORDS.findall(_ascii(area.name if area else "pune"))
+    tail = _WORDS.findall(_ascii(area.name if area else (_place_word(doc) or "pune")))
     if " ".join(tail) not in " ".join(words):
         words += tail
     return "-".join(words)[:80].strip("-")
@@ -54,7 +65,7 @@ async def assign_all(store: Store, docs: Optional[List[dict]] = None) -> int:
     """Give every record in our areas or on the watch list its page slug (cheap: only the ones without one). Returns how many."""
     n = 0
     for d in docs if docs is not None else await store.all_projects():
-        if not d.get("page_slug") and (d.get("locality") in BY_KEY or d.get("watched_by")):
+        if not d.get("page_slug") and in_register(d):
             await assign_slug(store, d)
             n += 1
     return n
@@ -103,7 +114,9 @@ def _long(day: Optional[str]) -> Optional[str]:
 def paragraph(doc: dict) -> str:
     """Plain sentences from the record's facts only: no adjectives, no prices, nothing the register does not say."""
     area = BY_KEY.get(doc.get("locality") or "")
-    where = f"in {area.name}, Pune" if area else ("in Pune district" + (f" (pincode {doc['pincode']})" if doc.get("pincode") else ""))
+    place = doc.get("pune_place_name")
+    where = (f"in {area.name}, Pune" if area else f"in {place}, Pune district" if place
+             else ("in Pune district" + (f" (pincode {doc['pincode']})" if doc.get("pincode") else "")))
     who = f" by {doc['promoter']}" if doc.get("promoter") else ""
     out = [f"{doc.get('name') or 'This project'} is a project{who} {where}, registered with MahaRERA as {doc.get('regno') or doc['_id']}."]
     now, first = _day(doc.get("completion_now")), _day(doc.get("completion_at_registration"))
@@ -144,7 +157,7 @@ def months_later(doc: dict) -> Optional[int]:
 
 
 def _served(d: dict) -> bool:
-    return bool(d.get("page_slug")) and (d.get("locality") in BY_KEY or bool(d.get("watched_by")))
+    return bool(d.get("page_slug")) and in_register(d)
 
 
 def track_record(doc: dict, docs: List[dict]) -> Optional[dict]:
@@ -220,6 +233,7 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         "slug": doc.get("page_slug"), "name": doc.get("name", ""), "regno": doc.get("regno") or doc["_id"],
         "promoter": doc.get("promoter") or None, "pincode": doc.get("pincode") or None,
         "area": {"key": area.key, "slug": area.slug, "name": area.name} if area else None,
+        "pune_place": {"key": doc["pune_place"], "name": doc.get("pune_place_name")} if doc.get("pune_place") else None,
         "completion_now": _day(doc.get("completion_now")), "completion_at_registration": _day(doc.get("completion_at_registration")),
         "units_total": _count(doc.get("units_total")), "units_booked": booked(doc), "completion_passed": completion_passed(doc),
         "details_read_at": read.date().isoformat() if isinstance(read, datetime) and doc.get("details_ok") else None,
@@ -234,10 +248,11 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
 
 def _similar(doc: dict, docs: List[dict]) -> List[dict]:
     """Other indexable projects in the same area, the closest completion year first."""
-    if not doc.get("locality"):
+    key = "locality" if doc.get("locality") else "pune_place" if doc.get("pune_place") else None
+    if key is None:
         return []
     year = int((_day(doc.get("completion_now")) or "0")[:4] or 0)
-    others = [d for d in docs if d["_id"] != doc["_id"] and d.get("locality") == doc["locality"] and d.get("page_slug") and indexable(d)]
+    others = [d for d in docs if d["_id"] != doc["_id"] and d.get(key) == doc[key] and d.get("page_slug") and indexable(d)]
     others.sort(key=lambda d: (abs(int(_day(d.get("completion_now"))[:4]) - year) if year else 0, d.get("name", "")))
     return others[:SAME_AREA]
 
@@ -245,10 +260,11 @@ def _similar(doc: dict, docs: List[dict]) -> List[dict]:
 async def project_page(db, slug: str) -> Optional[dict]:
     store = Store(db)
     doc = await store.projects.find_one({"page_slug": slug})
-    if doc is None or not (doc.get("locality") in BY_KEY or doc.get("watched_by")):
+    if doc is None or not in_register(doc):
         return None
     docs = await store.all_projects()   # about a thousand records: the same-area list and the builder's track record
-    peers = [d for d in docs if doc.get("locality") and d.get("locality") == doc["locality"]]
+    key = "locality" if doc.get("locality") else "pune_place"
+    peers = [d for d in docs if doc.get(key) and d.get(key) == doc[key]]
     return view(doc, _similar(doc, peers), docs)
 
 
@@ -256,26 +272,54 @@ async def page_for(db, regno: str) -> Optional[dict]:
     """{slug, path, url, indexable} for a project in the register (in our areas or watched); None when it is not there."""
     store = Store(db)
     doc = await store.project((regno or "").strip().upper())
-    if doc is None or not (doc.get("locality") in BY_KEY or doc.get("watched_by")):
+    if doc is None or not in_register(doc):
         return None
     slug = await assign_slug(store, doc)
     return {"slug": slug, "path": f"/projects/{slug}", "url": f"{brand.SITE}/projects/{slug}", "indexable": indexable(doc)}
 
 
-async def listing(db, area: Optional[str] = None, only_indexable: bool = True, limit: int = 2000) -> List[dict]:
-    """Pages for the sitemap, area pages and search: {slug, regno, name, area, promoter, completion_now, checked, active, indexable}, newest listed first."""
+async def listing(db, area: Optional[str] = None, only_indexable: bool = True, limit: int = 2000,
+                  place: Optional[str] = None) -> List[dict]:
+    """Pages for the sitemap, area pages and search: {slug, regno, name, area, place, place_name, promoter, completion_now,
+    checked, active, indexable}, newest listed first. `area` is one of our covered areas; `place` any Pune place (key or slug)."""
     store = Store(db)
-    docs = [d for d in await store.all_projects() if d.get("page_slug") and (d.get("locality") in BY_KEY or d.get("watched_by"))]
+    docs = [d for d in await store.all_projects() if d.get("page_slug") and in_register(d)]
     if area:
         key = (BY_KEY.get(area) or next((a for a in BY_KEY.values() if a.slug == area), None))
         docs = [d for d in docs if key and d.get("locality") == key.key]
+    if place:
+        want = place.strip().lower().replace("-", "_")
+        docs = [d for d in docs if d.get("pune_place") == want]
     if only_indexable:
         docs = [d for d in docs if indexable(d)]
     docs.sort(key=lambda d: (_day(d.get("last_modified")) or "", d.get("name", "")), reverse=True)
     return [{"slug": d["page_slug"], "regno": d.get("regno") or d["_id"], "name": d.get("name", ""), "area": d.get("locality"),
+             "place": d.get("pune_place"), "place_name": d.get("pune_place_name"),
              "promoter": d.get("promoter") or None, "completion_now": _day(d.get("completion_now")),
              "checked": checked_count(d), "checks_total": len(CHECK_LABELS), "active": not is_old(d),
              "listed_or_updated": _day(d.get("last_modified")),
              # the page last changed: MahaRERA's own update or our crawler's checks, whichever is newer (the sitemap's lastmod)
              "page_updated": max(filter(None, (_day(d.get("last_modified")), _day(d.get("enriched_at")))), default=None),
              "indexable": indexable(d)} for d in docs[:limit]]
+
+
+async def places(db) -> List[dict]:
+    """Pune places with at least one project page, with counts, in the zone order of app/core/pune_places.py; talukas last."""
+    from app.core import pune_places
+    counts: dict = {}
+    for d in await Store(db).all_projects():
+        if d.get("page_slug") and d.get("pune_place"):
+            c = counts.setdefault(d["pune_place"], {"name": d.get("pune_place_name") or d["pune_place"], "projects": 0, "indexable": 0})
+            c["projects"] += 1
+            c["indexable"] += 1 if indexable(d) else 0
+    zones = list(dict.fromkeys(p.zone for p in pune_places.PLACES))
+    out = []
+    for p in pune_places.PLACES:
+        if p.key in counts:
+            out.append({"key": p.key, "slug": p.slug, "name": p.name, "zone": p.zone, **{k: counts[p.key][k] for k in ("projects", "indexable")}})
+    for key, c in sorted(counts.items()):
+        if key not in pune_places.BY_KEY:
+            out.append({"key": key, "slug": key.replace("_", "-"), "name": c["name"], "zone": pune_places.Z_OUT,
+                        "projects": c["projects"], "indexable": c["indexable"]})
+    order = {z: i for i, z in enumerate(zones)}
+    return sorted(out, key=lambda r: order.get(r["zone"], 99))
