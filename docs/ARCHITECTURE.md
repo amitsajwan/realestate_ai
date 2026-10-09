@@ -121,6 +121,9 @@ All posts go through Distribution (`app/modules/social/distribution.py`, `send(d
 Today's design is right and stays: fixed pipelines, rules before the model, a guard on every output, a deterministic fallback when
 the model fails, and a human approving anything published.
 
+**One agent, by exception:** the radar's discovery agent (`modules/radar/discovery.py`, docs/RADAR.md §6) is a tool-calling loop.
+Its tools only read and search; its one write adds a watch that the bandit tests on a small budget. It cannot post or reply.
+
 **Gateway (`platform/llm`):**
 - `llm.json(task, system, user, schema)`: the reply is validated against a Pydantic model, with one repair retry.
 - Model chosen per task in config: a small fast model for classifying comments and filtering news, a stronger one for drafts and

@@ -107,6 +107,20 @@ class YouTube:
         return out, data.get("nextPageToken", "")
 
 
+    async def replies(self, parent_id: str, limit: int = 50) -> List[Comment]:
+        """Replies under one top-level comment (1 unit)."""
+        data = await self._call("comments", {"part": "snippet", "parentId": parent_id, "maxResults": min(limit, 100),
+                                             "textFormat": "plainText"}, COMMENTS_COST)
+        out = []
+        for it in data.get("items", []):
+            sn = it.get("snippet") or {}
+            out.append(Comment(id=it.get("id", ""), video_id=sn.get("videoId", ""), author=sn.get("authorDisplayName", ""),
+                               author_channel=((sn.get("authorChannelId") or {}).get("value") or ""),
+                               text=sn.get("textDisplay") or sn.get("textOriginal") or "", published_at=sn.get("publishedAt", ""),
+                               reply_count=0, replies=[]))
+        return out
+
+
 def default_client() -> Optional[YouTube]:
     key = api_key()
     return YouTube(key) if key else None

@@ -3,7 +3,7 @@ The answer is checked against `Intent`; one repair retry, then the comment is no
 named in the comment or its context, and is mapped to our area list here."""
 import json
 import logging
-from typing import Optional
+from typing import Optional, Sequence, Tuple
 
 from pydantic import ValidationError
 
@@ -31,9 +31,17 @@ Rules: "60L" = 6000000, "1.2 cr" = 12000000. Brokers advertising their own deals
 builder without a home need, and complaints by existing owners are "noise" (intent below 0.2). Never invent facts."""
 
 
-def _user(sig: RawSignal) -> str:
+def _shots(shots: Sequence[Tuple[str, int, str]]) -> str:
+    if not shots:
+        return ""
+    rows = "\n".join(f'- "{t[:160]}" -> ' + (f"home need ({r})" if y else f"not a home need ({r or 'noise'})")
+                     for t, y, r in shots)
+    return f"LABELLED COMMENTS LIKE THIS ONE (how our team marked them):\n{rows}\n\n"
+
+
+def _user(sig: RawSignal, shots: Sequence[Tuple[str, int, str]] = ()) -> str:
     replies = "\n".join(f"- {r[:200]}" for r in sig.thread[:5]) or "(none)"
-    return (f"CONTEXT (video/post title): {sig.context[:200]}\nAREA OF THIS WATCH: {sig.area_hint or 'unknown'}\n"
+    return (f"{_shots(shots)}CONTEXT (video/post title): {sig.context[:200]}\nAREA OF THIS WATCH: {sig.area_hint or 'unknown'}\n"
             f"COMMENT: {sig.text[:600]}\nREPLIES:\n{replies}")
 
 
@@ -44,11 +52,12 @@ def _area(intent: Intent, sig: RawSignal) -> Optional[str]:
     return named.key if named else None
 
 
-async def classify(sig: RawSignal, llm) -> Optional[Intent]:
-    """None when the model is unavailable (the signal waits for the next cycle); an Intent otherwise."""
+async def classify(sig: RawSignal, llm, shots: Sequence[Tuple[str, int, str]] = ()) -> Optional[Intent]:
+    """None when the model is unavailable (the signal waits for the next cycle); an Intent otherwise. `shots` are the most
+    similar labelled comments (examples.few_shots)."""
     if llm is None:
         return None
-    user = _user(sig)
+    user = _user(sig, shots)
     for attempt in range(2):
         raw = await llm.json(SYSTEM, user)
         if raw is None:
@@ -59,5 +68,5 @@ async def classify(sig: RawSignal, llm) -> Optional[Intent]:
             return intent
         except ValidationError as e:
             log.info("radar: classify output invalid (attempt %s): %s", attempt + 1, str(e)[:200])
-            user = f"{_user(sig)}\n\nYour last answer was invalid: {json.dumps(raw)[:300]}\nReturn valid JSON only."
+            user = f"{_user(sig, shots)}\n\nYour last answer was invalid: {json.dumps(raw)[:300]}\nReturn valid JSON only."
     return Intent(role="noise", intent=0.0)

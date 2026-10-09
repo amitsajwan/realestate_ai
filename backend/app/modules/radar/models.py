@@ -5,8 +5,8 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-# new -> filtered_out | noise | classified -> scored -> sent | skipped -> converted
-STATUSES = ("new", "filtered_out", "noise", "classified", "scored", "sent", "skipped", "converted")
+# new -> filtered_out | duplicate | gated | noise | scored -> sent | skipped -> converted
+STATUSES = ("new", "filtered_out", "duplicate", "gated", "noise", "scored", "sent", "skipped", "converted")
 LABELS = ("sent", "skipped", "converted")
 SKIP_REASONS = ("broker", "not_buyer", "wrong_area", "already_answered", "old", "other")
 

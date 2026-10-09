@@ -6,6 +6,7 @@ import { radarApi } from '@/lib/app/radar'
 import type { RadarIntent, RadarSignal, SkipReason } from '@/lib/app/radar'
 import { useAsync } from '@/lib/app/useAsync'
 import { Btn, ErrorBox, Spinner } from '../ui'
+import { Demand, Followups, Health, Watches } from './RadarTabs'
 
 const SKIPS: { key: SkipReason; label: string }[] = [
   { key: 'broker', label: 'Broker' },
@@ -71,7 +72,23 @@ function LookingFor({ s }: { s: RadarSignal }) {
   )
 }
 
-const SOURCE: Record<string, string> = { youtube: 'YouTube', manual: 'Pasted', instagram: 'Instagram', reddit: 'Reddit' }
+const SOURCE: Record<string, string> = { youtube: 'YouTube', manual: 'Pasted', instagram: 'Instagram', reddit: 'Reddit', rss: 'Feed' }
+
+/** Small flags: why this card needs a look beyond its score. */
+function Badges({ s }: { s: RadarSignal }) {
+  const tags: [string, string][] = []
+  if (s.learn) tags.push(['Help me learn: the AI is unsure', 'bg-purple-100 text-purple-800'])
+  if (s.asked_again) tags.push([`Asked ${s.asked_again + 1} times`, 'bg-amber-100 text-amber-800'])
+  if (s.draft_origin === 'rewrite') tags.push(['Reply rewritten after review', 'bg-gray-100 text-gray-700'])
+  if (s.draft_origin === 'template') tags.push(['Template reply', 'bg-gray-100 text-gray-700'])
+  if (s.critic && s.critic.grounded === false) tags.push(['Check the facts in the reply', 'bg-red-100 text-red-800'])
+  if (!tags.length) return null
+  return (
+    <div className="flex flex-wrap gap-1">
+      {tags.map(([t, c]) => <span key={t} className={`rounded-full px-2 py-0.5 text-xs font-semibold ${c}`}>{t}</span>)}
+    </div>
+  )
+}
 
 function SignalCard({ s, onDone }: { s: RadarSignal; onDone: (id: string) => void }) {
   const [reply, setReply] = useState(s.draft ?? '')
@@ -110,6 +127,7 @@ function SignalCard({ s, onDone }: { s: RadarSignal; onDone: (id: string) => voi
         </p>
         {pct != null && <span className="shrink-0 rounded-full bg-[#102340] px-2 py-0.5 text-xs font-bold text-[#F0B13B]">{pct}</span>}
       </div>
+      <Badges s={s} />
       <LookingFor s={s} />
       <div>
         <p className="text-xs font-semibold text-gray-700">They wrote</p>
@@ -183,18 +201,19 @@ function PasteBox({ onAdded }: { onAdded: (s: RadarSignal) => void }) {
   )
 }
 
-export function RadarScreen() {
+const TABS = [
+  { key: 'queue', label: 'Queue' }, { key: 'followups', label: 'Follow-ups' }, { key: 'demand', label: 'Demand' },
+  { key: 'watches', label: 'Watches' }, { key: 'health', label: 'Health' },
+] as const
+type Tab = (typeof TABS)[number]['key']
+
+function Queue() {
   const { data, error, loading, reload } = useAsync(() => radarApi.signals(), [])
   const [done, setDone] = useState<Set<string>>(new Set())
   const [added, setAdded] = useState<RadarSignal[]>([])
   const items = [...added, ...(data ?? [])].filter((s) => !done.has(s.id))
-
   return (
-    <main className="mx-auto max-w-2xl space-y-4 px-4 py-6">
-      <header>
-        <h1 className="text-2xl font-extrabold text-[#102340]">Buyer radar</h1>
-        <p className="text-sm text-gray-600">People asking about homes in Pune, best first. Reply as a person, then mark it.</p>
-      </header>
+    <div className="space-y-4">
       <PasteBox onAdded={(s) => setAdded((a) => [s, ...a])} />
       {loading && <Spinner label="Loading…" />}
       {error && <ErrorBox message={error} onRetry={reload} />}
@@ -208,6 +227,31 @@ export function RadarScreen() {
           <SignalCard key={s.id} s={s} onDone={(id) => setDone((d) => new Set(d).add(id))} />
         ))}
       </ul>
+    </div>
+  )
+}
+
+export function RadarScreen() {
+  const [tab, setTab] = useState<Tab>('queue')
+  return (
+    <main className="mx-auto max-w-2xl space-y-4 px-4 py-6">
+      <header>
+        <h1 className="text-2xl font-extrabold text-[#102340]">Buyer radar</h1>
+        <p className="text-sm text-gray-600">People asking about homes in Pune, best first. Reply as a person, then mark it.</p>
+      </header>
+      <nav className="-mx-4 flex gap-2 overflow-x-auto px-4" aria-label="Radar sections">
+        {TABS.map((t) => (
+          <button key={t.key} type="button" onClick={() => setTab(t.key)} aria-current={tab === t.key ? 'page' : undefined}
+            className={`shrink-0 rounded-full border px-4 py-2 text-sm font-semibold ${tab === t.key ? 'border-[#102340] bg-[#102340] text-white' : 'border-gray-300 bg-white text-gray-700'}`}>
+            {t.label}
+          </button>
+        ))}
+      </nav>
+      {tab === 'queue' && <Queue />}
+      {tab === 'followups' && <Followups />}
+      {tab === 'demand' && <Demand />}
+      {tab === 'watches' && <Watches />}
+      {tab === 'health' && <Health />}
     </main>
   )
 }

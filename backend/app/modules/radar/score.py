@@ -1,6 +1,6 @@
 """Match a signal to our live listings and score how likely it is to become a lead (docs/RADAR.md §5 step 7).
-p = sigmoid(w · features). Hand-set weights until there are enough labels to refit them (v3); every score carries the reasons
-the operator sees."""
+p = sigmoid(w · features). Hand-set weights until learn.refit has fitted better ones from operator labels (the active row in
+radar_models, loaded with `use_weights`); every score carries the reasons the operator sees."""
 import math
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -17,7 +17,19 @@ HALF_LIFE_H = 72.0
 FRESH_FLOOR = 0.15  # a question with no reply after weeks may still be open
 BUDGET_SLACK = 0.15
 
-WEIGHTS = {"bias": -3.0, "intent": 3.2, "role": 1.6, "stage": 0.8, "fresh": 1.4, "match": 1.2, "area": 0.6, "answered": -1.5}
+DEFAULT_WEIGHTS = {"bias": -3.0, "intent": 3.2, "role": 1.6, "stage": 0.8, "fresh": 1.4, "match": 1.2, "area": 0.6,
+                   "answered": -1.5, "repeat": 0.5, "project": 0.4, "vote": 0.6}
+FEATURES = tuple(k for k in DEFAULT_WEIGHTS if k != "bias")
+WEIGHTS = dict(DEFAULT_WEIGHTS)
+
+
+def use_weights(w: Optional[dict]) -> None:
+    """Swap in fitted weights (learn.refit); unknown or missing keys keep the hand-set value."""
+    WEIGHTS.clear()
+    WEIGHTS.update(DEFAULT_WEIGHTS)
+    for k, v in (w or {}).items():
+        if k in DEFAULT_WEIGHTS:
+            WEIGHTS[k] = float(v)
 
 
 @dataclass
@@ -70,14 +82,16 @@ async def find_matches(db, intent: Intent, limit: int = 3) -> List[Match]:
     return sorted(out, key=lambda m: -m.quality)[:limit]
 
 
-def score(intent: Intent, posted_at: Optional[datetime], matches: List[Match], now: Optional[datetime] = None) -> Scored:
+def score(intent: Intent, posted_at: Optional[datetime], matches: List[Match], now: Optional[datetime] = None,
+          repeat: int = 0, project: bool = False, vote: Optional[float] = None) -> Scored:
     now = now or datetime.now(timezone.utc)
     if posted_at is not None and posted_at.tzinfo is None:
         posted_at = posted_at.replace(tzinfo=timezone.utc)  # Motor returns naive UTC datetimes
     age_h = max(0.0, (now - posted_at).total_seconds() / 3600) if posted_at else 24 * 7
     f = {"intent": intent.intent, "role": ROLE.get(intent.role, 0), "stage": STAGE.get(intent.stage, 0.5),
          "fresh": 0.5 ** (age_h / HALF_LIFE_H), "match": max((m.quality for m in matches), default=0.0),
-         "area": 1.0 if intent.area else 0.0, "answered": 1.0 if intent.answered_already else 0.0}
+         "area": 1.0 if intent.area else 0.0, "answered": 1.0 if intent.answered_already else 0.0,
+         "repeat": min(1.0, repeat / 2), "project": 1.0 if project else 0.0, "vote": 0.5 if vote is None else vote}
     z = WEIGHTS["bias"] + sum(WEIGHTS[k] * v for k, v in f.items())
     # freshness caps the score: a perfect question from 3 months ago is a cold lead (2026-10-09 trial ranked those at 0.95)
     p = (1 / (1 + math.exp(-z))) * (FRESH_FLOOR + (1 - FRESH_FLOOR) * f["fresh"])
@@ -91,4 +105,6 @@ def score(intent: Intent, posted_at: Optional[datetime], matches: List[Match], n
     why.append(f"{int(age_h)}h old" if age_h < 72 else f"{int(age_h // 24)}d old")
     if intent.answered_already:
         why.append("someone already answered")
+    if repeat:
+        why.append(f"asked {repeat + 1} times")
     return Scored(round(p, 4), f, why)

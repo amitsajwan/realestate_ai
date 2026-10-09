@@ -1,8 +1,9 @@
-"""radar_watches and radar_signals: the radar is their only writer (docs/RADAR.md §8)."""
+"""The radar's collections (docs/RADAR.md §8); the radar is their only writer."""
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 WATCHES, SIGNALS, USAGE = "radar_watches", "radar_signals", "radar_usage"
+EXAMPLES, MODELS, THEMES, RUNS = "radar_examples", "radar_models", "radar_themes", "radar_runs"
 
 
 def now() -> datetime:
@@ -15,6 +16,12 @@ async def ensure_indexes(db) -> None:
     await s.create_index([("status", 1), ("score", -1)])
     await s.create_index([("area", 1), ("created_at", -1)])
     await s.create_index("expire_at", expireAfterSeconds=0)
+    await s.create_index("sim_bands")
+    await s.create_index("person_key", sparse=True)
+    await s.create_index("click_code", unique=True, sparse=True)
+    await s.create_index([("agent_id", 1), ("status", 1), ("score", -1)])
+    await s.create_index([("followup.due_at", 1)], sparse=True)
+    await db.get_collection(EXAMPLES).create_index([("model", 1), ("text", 1)], unique=True)
     await db.get_collection(WATCHES).create_index([("source", 1), ("kind", 1), ("value", 1)], unique=True)
 
 
@@ -67,3 +74,19 @@ async def spend(db, what: str, n: int = 1) -> int:
 async def used(db, what: str) -> int:
     doc = await db.get_collection(USAGE).find_one({"_id": f"{now().strftime('%Y-%m-%d')}:{what}"})
     return int((doc or {}).get("n", 0))
+
+
+async def due(db, job: str, every_hours: float) -> bool:
+    """True (and marks the run) when a periodic job (discovery, refit, themes) has not run for `every_hours`."""
+    doc = await db.get_collection(RUNS).find_one({"_id": job})
+    last = (doc or {}).get("at")
+    if last is not None and last.tzinfo is None:
+        last = last.replace(tzinfo=timezone.utc)
+    if last is not None and now() - last < timedelta(hours=every_hours):
+        return False
+    await db.get_collection(RUNS).update_one({"_id": job}, {"$set": {"at": now()}}, upsert=True)
+    return True
+
+
+async def note_run(db, job: str, result: dict) -> None:
+    await db.get_collection(RUNS).update_one({"_id": job}, {"$set": {"result": result, "finished_at": now()}}, upsert=True)

@@ -1,5 +1,6 @@
-"""Background loop: YouTube discovery and collection, then the pipeline, every RADAR_INTERVAL_SECONDS. Does nothing unless
-RADAR_ENABLED. Paused by the owner's `radar_paused` switch."""
+"""Background loop, every RADAR_INTERVAL_SECONDS (docs/RADAR.md §9). Does nothing unless RADAR_ENABLED; paused by the owner's
+`radar_paused` switch. A cycle: learn from new labels -> collect from each source -> pipeline -> redraft -> follow-ups.
+Daily: the discovery agent. Weekly: scorer refit, draft rules, demand themes. One failing source never stops the others."""
 import asyncio
 import logging
 
@@ -7,22 +8,51 @@ from app.core.database import get_database
 from app.platform.controls import is_paused
 from app.platform.heartbeats import heartbeat
 from app.platform.llm import default_llm
-from app.platform.youtube import default_client
 
-from . import pipeline, store, youtube_source
-from .config import load
+from . import discovery, examples, followup, learn, pipeline, store, themes
+from . import draft as drafting
+from .config import RadarConfig, load
+from .sources import ALL as SOURCES
+from .sources.youtube import OWN_NAMES
 
 log = logging.getLogger(__name__)
 
 
-async def run_once(db, cfg, yt, llm) -> dict:
-    out = {}
-    if yt is not None:
-        await youtube_source.seed(db)
-        out["videos_added"] = await youtube_source.discover(db, yt, cfg)
-        out.update(await youtube_source.collect(db, yt, cfg))
-    out.update(await pipeline.process(db, llm, cfg, own=youtube_source.OWN_NAMES))
-    out["redrafted"] = await pipeline.redraft(db, cfg)
+async def _job(db, name: str, every_h: float, coro_fn) -> dict:
+    if not await store.due(db, name, every_h):
+        return {}
+    try:
+        res = await coro_fn()
+    except Exception:
+        log.exception("radar: %s failed", name)
+        res = {"error": True}
+    await store.note_run(db, name, res)
+    return {name: res}
+
+
+async def run_once(db, cfg: RadarConfig, llm) -> dict:
+    out: dict = {}
+    await examples.seed(db)
+    await learn.load_active(db)
+    drafting.set_rules(await learn.current_draft_rules(db))
+    out["learned"] = await learn.sync(db)
+    for name in cfg.sources:
+        src = SOURCES.get(name)
+        if src is None or not src.available():
+            continue
+        try:
+            await src.seed(db)
+            out.update(await src.collect(db, cfg))
+        except Exception:
+            log.exception("radar: source %s failed", name)
+    out.update(await pipeline.process(db, llm, cfg, own=OWN_NAMES))
+    out["redrafted"] = await pipeline.redraft(db, cfg, llm)
+    out["followup"] = await followup.step(db, llm)
+    if cfg.discovery_enabled:
+        out.update(await _job(db, "discovery", 24, lambda: discovery.run(db, llm, cfg.discovery_steps)))
+    out.update(await _job(db, "refit", 24 * 7, lambda: learn.refit(db)))
+    out.update(await _job(db, "draft_rules", 24 * 7, lambda: learn.draft_rules(db, llm)))
+    out.update(await _job(db, "themes", 24 * 7, lambda: themes.build(db, llm)))
     return out
 
 
@@ -41,10 +71,7 @@ async def loop() -> None:
                         if not indexed:
                             await store.ensure_indexes(db)
                             indexed = True
-                        yt = default_client()
-                        if yt is None:
-                            log.warning("radar: YOUTUBE_API_KEY not set; only pasted signals are processed")
-                        counts = await run_once(db, cfg, yt, default_llm())
+                        counts = await run_once(db, cfg, default_llm())
                         log.info("radar: cycle done %s", counts)
         except asyncio.CancelledError:
             raise
