@@ -30,7 +30,7 @@ class FakeLLM:
 async def test_plain_interested_comment_gets_the_template_with_the_link_and_no_llm_call():
     llm = FakeLLM()
     d = await decide("INTERESTED", "Priya Sharma", FACTS, LINK, llm)
-    assert d.intent == "interested" and LINK in d.reply and d.reply.startswith("Thanks Priya!") and llm.calls == 0
+    assert d.intent == "interested" and LINK in d.reply and "Priya" in d.reply and llm.calls == 0
 
 
 @pytest.mark.parametrize("text", ["Earn money from home click here", "dm me on whatsapp me for loan offer", "check www.spam.example"])
@@ -60,7 +60,7 @@ async def test_question_answered_from_post_facts_gets_the_drafted_reply_plus_our
 async def test_unsafe_llm_drafts_fall_back_to_the_template_and_a_person(draft):
     llm = FakeLLM({"intent": "question", "language": "en", "answerable": True, "reply": draft})
     d = await decide("Tell me more?", "Amit", FACTS, LINK, llm)
-    assert d.needs_human and "Our team will reply" in d.reply and draft not in d.reply
+    assert d.needs_human and "We will answer here" in d.reply and draft not in d.reply
 
 
 async def test_question_the_post_cannot_answer_is_flagged_for_a_person():
@@ -270,7 +270,7 @@ async def test_greetings_from_the_page_itself_are_still_ignored():
 async def test_a_question_the_llm_labels_other_still_gets_a_holding_reply_and_a_place_in_the_queue():
     llm = FakeLLM({"intent": "other", "language": "en", "answerable": False, "reply": ""})
     d = await decide("what is location", None, FACTS, LINK, llm)
-    assert d.intent == "question" and d.needs_human and "Our team will reply" in d.reply and LINK in d.reply
+    assert d.intent == "question" and d.needs_human and "We will answer here" in d.reply and LINK in d.reply
     d2 = await decide("where is it located", None, FACTS, LINK, None)  # no LLM at all
     assert d2.intent == "question" and d2.needs_human and d2.reply
 

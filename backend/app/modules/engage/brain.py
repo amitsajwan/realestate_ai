@@ -3,6 +3,7 @@ Every LLM draft is checked before it can be posted: length, no phone numbers, no
 post it answers. Anything that fails the checks becomes a safe template or goes to a human."""
 from app.core import brand
 import re
+import zlib
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -14,26 +15,29 @@ GREETING = re.compile(r"^\W*(hi+|hello+|hey+|hii+|namaste|namaskar|good (morning
 MAX_REPLY = 320
 URL = re.compile(r"https?://\S+", re.I)
 NUM = re.compile(r"\d[\d,]*(?:\.\d+)?")
-INTERESTED = re.compile(r"\b(interested|intrested|details|dm|price\??|rate\??|contact|available)\b|इंटरेस्टेड|रुचि|आवड|डिटेल|किंमत|कीमत", re.I)
+INTERESTED = re.compile(r"\b(interested|intrested|info|details|dm|price\??|rate\??|contact|available)\b|इंटरेस्टेड|रुचि|आवड|डिटेल|किंमत|कीमत", re.I)
 SPAM = re.compile(r"(whatsapp me|dm me|click here|earn money|crypto|forex|loan offer|followers|http|www\.|t\.me/|bit\.ly)", re.I)
 ABUSE = re.compile(r"\b(fraud|scam|cheat|fake|liar|stupid|idiot|bloody)\b", re.I)
 
 TEMPLATES = {
     "en": {
         "interested": "Thanks{name}! Details and price: {link} . Leave your WhatsApp number there and our team will send you the price list and floor plans.",
-        "question": "Good question{name}! Our team will reply here soon. Meanwhile, the full details are here: {link} . Leave your WhatsApp number there for the price list.",
+        "interested_dm": "Thanks{name}! Details and price: {link} . We have also sent you a message \U0001F4E9",
+        "question": "Good question{name}! We will answer here within a few hours. Meanwhile, the full details are here: {link}",
         "praise": "Thank you{name}! Follow the page for more Pune property guides and listings.",
         "greeting": "Hello{name}! Comment INTERESTED on a listing for the details, or ask your question here and our team will help.",
     },
     "hi": {
         "interested": "धन्यवाद{name}! पूरी जानकारी और कीमत यहाँ है: {link} . वहाँ अपना WhatsApp नंबर दें, हमारी टीम आपको प्राइस लिस्ट और फ्लोर प्लान भेजेगी।",
-        "question": "अच्छा सवाल{name}! हमारी टीम जल्द यहीं जवाब देगी। पूरी जानकारी यहाँ है: {link}",
+        "interested_dm": "धन्यवाद{name}! पूरी जानकारी और कीमत यहाँ है: {link} . हमने आपको मैसेज भी भेजा है \U0001F4E9",
+        "question": "अच्छा सवाल{name}! हम कुछ घंटों में यहीं जवाब देंगे। पूरी जानकारी यहाँ है: {link}",
         "praise": "धन्यवाद{name}! पुणे की प्रॉपर्टी गाइड और लिस्टिंग के लिए पेज को फॉलो करें।",
         "greeting": "नमस्ते{name}! विवरण के लिए कमेंट में INTERESTED लिखें, या अपना सवाल यहीं पूछें, हमारी टीम मदद करेगी।",
     },
     "mr": {
         "interested": "धन्यवाद{name}! संपूर्ण माहिती आणि किंमत इथे आहे: {link} . तिथे तुमचा WhatsApp नंबर द्या, आमची टीम तुम्हाला प्राइस लिस्ट आणि फ्लोअर प्लॅन पाठवेल.",
-        "question": "छान प्रश्न{name}! आमची टीम लवकरच इथेच उत्तर देईल. संपूर्ण माहिती इथे आहे: {link}",
+        "interested_dm": "धन्यवाद{name}! संपूर्ण माहिती आणि किंमत इथे आहे: {link} . आम्ही तुम्हाला मेसेजही पाठवला आहे \U0001F4E9",
+        "question": "छान प्रश्न{name}! आम्ही काही तासांत इथेच उत्तर देऊ. संपूर्ण माहिती इथे आहे: {link}",
         "praise": "धन्यवाद{name}! पुण्यातील प्रॉपर्टी गाइड आणि लिस्टिंगसाठी पेज फॉलो करा.",
         "greeting": "नमस्कार{name}! तपशीलासाठी कमेंटमध्ये INTERESTED लिहा, किंवा तुमचा प्रश्न इथेच विचारा, आमची टीम मदत करेल.",
     },
@@ -44,17 +48,20 @@ BIO = {"en": "the link in our bio", "hi": "हमारे बायो का �
 IG_TEMPLATES = {
     "en": {
         "interested": "Thanks{name}! Full details are at the link in our bio. Leave your WhatsApp number there and our team will send you the price list and floor plans.",
-        "question": "Good question{name}! Our team will reply here soon. Meanwhile, the details are at the link in our bio.",
+        "interested_dm": "Thanks{name}! We have sent you a message with the details and price \U0001F4E9",
+        "question": "Good question{name}! We will answer here within a few hours. Meanwhile, the details are at the link in our bio.",
         "praise": "Thank you{name}! Follow this account for more Pune property guides and listings.",
     },
     "hi": {
         "interested": "धन्यवाद{name}! पूरी जानकारी हमारे बायो के लिंक पर है। वहाँ अपना WhatsApp नंबर दें, हमारी टीम आपको प्राइस लिस्ट और फ्लोर प्लान भेजेगी।",
-        "question": "अच्छा सवाल{name}! हमारी टीम जल्द यहीं जवाब देगी। पूरी जानकारी हमारे बायो के लिंक पर है।",
+        "interested_dm": "धन्यवाद{name}! हमने आपको जानकारी और कीमत के साथ मैसेज भेजा है \U0001F4E9",
+        "question": "अच्छा सवाल{name}! हम कुछ घंटों में यहीं जवाब देंगे। पूरी जानकारी हमारे बायो के लिंक पर है।",
         "praise": "धन्यवाद{name}! पुणे की प्रॉपर्टी गाइड और लिस्टिंग के लिए इस अकाउंट को फॉलो करें।",
     },
     "mr": {
         "interested": "धन्यवाद{name}! संपूर्ण माहिती आमच्या बायोमधील लिंकवर आहे. तिथे तुमचा WhatsApp नंबर द्या, आमची टीम तुम्हाला प्राइस लिस्ट आणि फ्लोअर प्लॅन पाठवेल.",
-        "question": "छान प्रश्न{name}! आमची टीम लवकरच इथेच उत्तर देईल. संपूर्ण माहिती आमच्या बायोमधील लिंकवर आहे.",
+        "interested_dm": "धन्यवाद{name}! आम्ही तुम्हाला माहिती आणि किंमतीसह मेसेज पाठवला आहे \U0001F4E9",
+        "question": "छान प्रश्न{name}! आम्ही काही तासांत इथेच उत्तर देऊ. संपूर्ण माहिती आमच्या बायोमधील लिंकवर आहे.",
         "praise": "धन्यवाद{name}! पुण्यातील प्रॉपर्टी गाइड आणि लिस्टिंगसाठी हे अकाउंट फॉलो करा.",
     },
 }
@@ -110,12 +117,39 @@ def agent_reply(lang: str, name: Optional[str], link: str, channel: str = "faceb
     return t.format(name=first_name(name), link=link)
 
 
+# More English wordings (the most common case): ten identical replies under one post read as a bot to people and to Meta's spam filter.
+# The pick is fixed per commenter, so one person never sees two wordings of the same reply.
+EN_VARIANTS = {
+    "facebook": {
+        "interested": ("Hi{name}, here are the details and price: {link} . Leave your WhatsApp number there and we will send the price list and floor plans.",
+                       "Sure{name}! Everything about this home, with the price, is here: {link} . Add your WhatsApp number there for the price list."),
+        "interested_dm": ("Hi{name}, details and price are here: {link} . Check your messages too \U0001F4E9",
+                          "Sure{name}! We just messaged you. The details are also here: {link}"),
+        "praise": ("Thanks a lot{name}! \U0001F64F Follow the page for more from Pune.",
+                   "Glad you liked it{name}! Follow the page for more guides like this."),
+    },
+    "instagram": {
+        "interested": ("Hi{name}, the details and price are at the link in our bio. Leave your WhatsApp number there for the price list and floor plans.",),
+        "interested_dm": ("Hi{name}, check your messages \U0001F4E9 We sent the details and price.",
+                          "Sure{name}! We just messaged you the details."),
+        "praise": ("Thanks a lot{name}! \U0001F64F Follow for more from Pune.", "Glad you liked it{name}! Follow for more guides like this."),
+    },
+}
+
+
+def _pick(options: tuple, name: Optional[str]) -> str:
+    return options[zlib.crc32((name or "").encode("utf-8")) % len(options)]
+
+
 def render(kind: str, lang: str, name: Optional[str], link: str, channel: str = "facebook") -> str:
-    if channel == "instagram":
+    ch = "instagram" if channel == "instagram" else "facebook"
+    if ch == "instagram":
         t = IG_TEMPLATES.get(lang, IG_TEMPLATES["en"]).get(kind)
-        if t:
-            return t.format(name=first_name(name))
-    return TEMPLATES.get(lang, TEMPLATES["en"])[kind].format(name=first_name(name), link=link)
+    if ch == "facebook" or not t:
+        t = TEMPLATES.get(lang, TEMPLATES["en"])[kind]
+    if lang == "en" and kind in EN_VARIANTS[ch]:
+        t = _pick((t,) + EN_VARIANTS[ch][kind], name)
+    return t.format(name=first_name(name), link=link)
 
 
 def valid_reply(reply: str, facts: str, link: str) -> bool:
@@ -253,12 +287,12 @@ async def decide(text: str, from_name: Optional[str], facts: str, link: str, llm
 # The private message (Messenger / Instagram DM) sent once to someone who commented interest or a question. It asks for what turns a
 # commenter into a lead an agent can call; their answer is read back into the lead (EngageService.collect_dm_replies).
 DM_TEMPLATES = {
-    "en": "Hi{name}, thanks for your comment{topic}. To send you the price list and floor plans on WhatsApp, please reply here with "
-          "1) your WhatsApp number, 2) your budget, 3) when you plan to buy. Details: {link}",
-    "hi": "नमस्ते{name}, आपके कमेंट{topic} के लिए धन्यवाद। प्राइस लिस्ट और फ्लोर प्लान WhatsApp पर भेजने के लिए यहीं जवाब दें: "
-          "1) आपका WhatsApp नंबर, 2) आपका बजट, 3) आप कब तक खरीदना चाहते हैं। जानकारी: {link}",
-    "mr": "नमस्कार{name}, तुमच्या कमेंटसाठी{topic} धन्यवाद. प्राइस लिस्ट आणि फ्लोअर प्लॅन WhatsApp वर पाठवण्यासाठी इथेच उत्तर द्या: "
-          "1) तुमचा WhatsApp नंबर, 2) तुमचे बजेट, 3) तुम्ही कधी खरेदी करणार. माहिती: {link}",
+    "en": "Hi{name}, thanks for your comment{topic}. Reply here with your WhatsApp number and we will send you the price list and floor plans. "
+          "Your budget helps too, if you like. Details: {link}",
+    "hi": "नमस्ते{name}, आपके कमेंट{topic} के लिए धन्यवाद। अपना WhatsApp नंबर यहीं भेजें, हम आपको प्राइस लिस्ट और फ्लोर प्लान भेजेंगे। "
+          "चाहें तो अपना बजट भी बताएं। जानकारी: {link}",
+    "mr": "नमस्कार{name}, तुमच्या कमेंट{topic}साठी धन्यवाद. तुमचा WhatsApp नंबर इथेच पाठवा, आम्ही तुम्हाला प्राइस लिस्ट आणि फ्लोअर प्लॅन पाठवू. "
+          "हवे असल्यास तुमचे बजेट पण सांगा. माहिती: {link}",
 }
 DM_AGENTS = ("Hi{name}, thanks for asking about Avasetu. Claim your free trial: your first 3 properties marketed free, no card. Reply here with your WhatsApp number and the areas you work in, "
              "and we will set it up with you. Or join here: {link}")

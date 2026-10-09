@@ -15,7 +15,7 @@ MAX_HASHTAGS = 10
 _TAG = re.compile(r"#\w+")
 # likers and sharers cannot be messaged through the API; the caption asks them to comment (the engage worker answers comments) and follow
 # each part is left out when the caption already asks for that action (a post that says 'Comment PRICE' keeps its one comment ask)
-ASK_PARTS = ((re.compile(r"\bcomment", re.I), "💬 Questions? Comment below."),
+ASK_PARTS = ((re.compile(r"\bcomment", re.I), "💬 Comment INFO for the details."),
              (re.compile(r"\bshare\b", re.I), "📤 Share with a friend who needs this."),
              (re.compile(r"\bfollow\b", re.I), "➕ Follow for daily Pune property updates."))
 

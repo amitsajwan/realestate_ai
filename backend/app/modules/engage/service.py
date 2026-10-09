@@ -15,7 +15,7 @@ from app.modules.knowledge.grounding import Ref, facts_for
 
 from app.platform.text import normalize_indian_mobile
 
-from .brain import Decision, decide, dm_text
+from .brain import Decision, decide, dm_text, render
 from .config import EngageConfig
 from .graph import EngageGraphError
 
@@ -177,6 +177,10 @@ class EngageService:
         extra = {"channel": channel, "handle": handle} if channel != "facebook" else {}
         d: Decision = await decide(c.get("message") or "", sender.get("name"), ctx["facts"], ctx["link"], self.llm, grounding=ctx.get("grounding"),
                                    audience=ctx.get("audience") or "buyers", **extra)
+        if d.intent == "interested" and d.reply and self.cfg.private_reply and sender.get("id") and hasattr(graph, "private_reply") \
+                and (ctx.get("audience") or "buyers") != "agents":
+            # the private message asks for the WhatsApp number; the public reply only says it was sent, so nobody is asked twice
+            d.reply = render("interested_dm", d.language, sender.get("name"), ctx["link"], channel)
         doc = {**base, "audience": ctx.get("audience") or "buyers", "calendar_id": ctx.get("calendar_id"), "intent": d.intent, "language": d.language, "reply": d.reply, "needs_human": d.needs_human, "reason": d.reason, "status": "ignored",
                "answer_basis": d.basis, "missing": d.missing, "gaps": d.gaps}
         if d.needs_human and not d.reply:
@@ -238,6 +242,8 @@ class EngageService:
                     await self._private_reply(doc, post, ctx, graph)
                     await self.comments.insert_one(doc)
                     counts[doc["status"]] = counts.get(doc["status"], 0) + 1
+                    if doc.get("needs_human") and doc["status"] in ("replied", "needs_human") and doc.get("agent_id"):
+                        await self._alert(doc)
                     if doc["intent"] in LEAD_INTENTS and doc.get("audience") != "agents" \
                             and doc["status"] in ("replied", "needs_human", "dry_run", "capped"):  # an agent asking about the free trial is not a buyer lead
                         try:
@@ -246,6 +252,16 @@ class EngageService:
                             log.exception("engage: could not record a lead for comment %s", c["id"])
                     log.info("engage: %s comment %s intent=%s status=%s%s", channel, c["id"], doc["intent"], doc["status"], f" error={doc['error']}" if doc["error"] else "")
         return True
+
+    async def _alert(self, doc: dict) -> None:
+        """A comment only a person can answer: the public reply promised an answer 'within a few hours', so the agent hears about it now."""
+        from app.modules.notifications.service import notify
+        who = doc.get("from_name") or "Someone"
+        try:
+            await notify(self.db, doc["agent_id"], "comment_needs_you", f"{who} asked on {doc['channel'].title()}: {(doc.get('text') or '')[:200]}",
+                         {"comment_id": doc["_id"], "permalink": doc.get("permalink")}, now=self.now())
+        except Exception:  # an alert problem must never stop replies
+            log.exception("engage: could not alert about comment %s", doc["_id"])
 
     async def _private_reply(self, doc: dict, post: dict, ctx: Dict, graph) -> None:
         """Interested or asking commenters also get one private message (Messenger / Instagram DM) asking for their WhatsApp number,
