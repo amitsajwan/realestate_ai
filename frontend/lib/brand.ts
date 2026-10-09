@@ -17,7 +17,7 @@ export const GOLD = '#F0B13B'
 
 /** Title used where a page has no title of its own. */
 export const DEFAULT_TITLE = `${BRAND_NAME}: ${TAGLINE}`
-export const DEFAULT_DESCRIPTION = 'Homes, guides and trusted local agents in Pune. Clear price, area, possession and RERA details, in plain words.'
+export const DEFAULT_DESCRIPTION = 'आवास + सेतु: home + bridge. Pune homes with clear price, carpet area, possession and MahaRERA details in plain words, and trusted local agents.'
 
 /** Logo files under /public/brand (rendered from docs/brand/avasetu). */
 export const LOGO = {

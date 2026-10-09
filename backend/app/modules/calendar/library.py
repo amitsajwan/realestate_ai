@@ -440,6 +440,32 @@ ENTRIES: List[Entry] = [
        (B, "#PuneAgents", "#RealEstateAgent", "#PuneRealEstate"),
        "Marathi text adapted from the already-published brand post agents-marathi; have a Marathi reader approve before seeding. Card is the pre-rendered Chrome card.",
        link="/trial", cta_ig="आमंत्रणासाठी बायोमधील लिंक (link in our bio) पाहा.", card_from="agents-marathi"),
+    # ---------------------------------------------------------------- brand story (docs/brand/avasetu/copy-pack.md)
+    _e("brand-name-meaning", "explainer", "WHAT DOES AVASETU MEAN?", "Avas means home. Setu means bridge.",
+       ["Avas = home", "Setu = bridge", "Clear price, carpet area, possession and RERA", "A trusted local agent on the other side"],
+       "\U0001F3E0\U0001F309 Avas (आवास) means home. Setu (सेतु) means bridge. Together: Avasetu.\n\n"
+       "Finding a home in Pune can feel like crossing a river of brochures, calls and half-told prices. We want it to feel like crossing a bridge.\n\n"
+       "✅ Clear price, carpet area and possession date\n✅ The MahaRERA number, so you can check it yourself\n✅ A local agent who answers\n\n"
+       "\U0001F4AC Which area are you looking in? Tell us in the comments.",
+       (B, "#PuneHomes", "#Kharadi", "#Wagholi", "#PuneRealEstate"),
+       GENERAL + ". Name meaning per docs/brand/avasetu/README.md. Card text is Latin; Devanagari stays in the caption (Pillow cannot shape it).",
+       link="/go", cta_ig="Homes, news and agents: link in our bio."),
+    _e("brand-two-sides", "agent", "FOR PUNE AGENTS", "Every bridge has two sides",
+       ["One side: a family looking for a home", "Other side: the agent who knows the area", "Avasetu is the bridge between them", "Free trial: your first 3 properties"],
+       "\U0001F309 Every bridge has two sides.\n\nOn one side, a family looking for the right home. On the other, the agent who knows the area. "
+       "Avasetu is the bridge: your website, posts and reels made for you, and every enquiry with the buyer's budget and need.\n\n"
+       "Claim your free trial: your first 3 properties marketed free. \U0001F4E4 Know an agent who would like this? Share this post.",
+       (B, "#PuneAgents", "#RealEstateAgent", "#PuneRealEstate"),
+       "Claims mirror agent-consistent-posting and agent-buyer-summary (free trial per brand copy of 2026-10-07). No result claims.",
+       link="/trial"),
+    _e("brand-check-the-bridge", "checklist", "BEFORE YOU PAY A TOKEN", "Check the bridge before you cross",
+       ["Carpet area, not only super built-up", "Possession date in writing", "MahaRERA number, checked on the site", "Total price with all charges"],
+       "\U0001F309 Before you pay a booking amount, check the bridge \U0001F447\n\n"
+       "✅ Carpet area, not only super built-up area\n✅ The possession date, in writing\n✅ The MahaRERA number, opened on the MahaRERA website\n"
+       "✅ The total price with all charges\n\n\U0001F516 Save this for your next site visit.",
+       (B, "#PuneHomes", "#HomeBuying", "#MahaRERA", "#PuneRealEstate"),
+       S_MAHARERA + ". " + GENERAL + " (the four checks are practice, no figures).",
+       link="/go", cta_ig="Homes, news and agents: link in our bio."),
 ]
 
 BY_SLUG: Dict[str, Entry] = {e.slug: e for e in ENTRIES}

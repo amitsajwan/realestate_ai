@@ -29,7 +29,7 @@ export const NAV = {
 }
 
 export const FOOTER = {
-  tagline: TAGLINE + '. Free trial for real estate agents in Pune: your first 3 properties free.',
+  tagline: 'आवास (home) + सेतु (bridge). ' + TAGLINE + '. Free trial for real estate agents in Pune: your first 3 properties free.',
   contactUnset: 'Contact details are shared when you request an invite.',
   contactHeading: 'Contact',
 }
@@ -69,7 +69,7 @@ export const LANDING = {
   metaTitle: `${BRAND_NAME} | Free trial for real estate agents in Pune`,
   metaDescription:
     'Free trial for Pune real estate agents: first 3 properties marketed free. Your own website, posts and reels made for you, and every enquiry as a lead card.',
-  metaOrgDescription: 'Helps real estate agents in Pune market their properties, get buyer enquiries and follow them up. Free trial: the first 3 properties.',
+  metaOrgDescription: 'Avasetu (आवास + सेतु: home + bridge) helps real estate agents in Pune market their properties, get buyer enquiries and follow them up. Free trial: the first 3 properties.',
   hero: {
     eyebrow: 'For real estate agents in Pune',
     pilot: 'Free trial',
