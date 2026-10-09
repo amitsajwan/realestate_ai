@@ -57,7 +57,7 @@ def record_line(page: dict) -> str:
     if now:
         parts.append(f"completion filed for {now}" + (f" (it was {first} at registration)" if first and first != now else ""))
     total, booked = page.get("units_total"), page.get("units_booked")
-    if total and booked is not None and booked <= total:
+    if total and booked and booked <= total:  # 0 usually means the builder has not updated the figure, not that none sold
         parts.append(f"{booked} of {total} units booked")
     return ", ".join(parts)
 
