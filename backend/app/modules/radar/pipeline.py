@@ -11,6 +11,7 @@ from .config import RadarConfig
 from .models import Intent, RawSignal
 from .prefilter import reject_reason
 from .score import find_matches, score
+from .verify import Project, find_project
 
 log = logging.getLogger(__name__)
 
@@ -26,8 +27,10 @@ def _raw(d: dict) -> RawSignal:
                      area_hint=d.get("area_hint", ""))
 
 
-async def _link(db, cfg: RadarConfig, source: str, intent: Intent, matches) -> str:
+async def _link(db, cfg: RadarConfig, source: str, intent: Intent, matches, project: Optional[Project] = None) -> str:
     from app.modules.interest.service import interest_url, site_url
+    if project:  # verify first: the project's MahaRERA page
+        return f"{site_url()}{project.path}?utm_source={source}&utm_medium=radar"
     if matches and cfg.owner_agent_id:
         try:
             return await interest_url(db, kind="listing", ref=matches[0].listing_id, agent_id=cfg.owner_agent_id,
@@ -61,11 +64,17 @@ async def process(db, llm, cfg: RadarConfig, own: tuple = ()) -> Dict[str, int]:
             continue
         matches = await find_matches(db, intent)
         s = score(intent, sig.posted_at, matches)
-        link = await _link(db, cfg, sig.source, intent, matches)
-        reply = await drafting.draft(sig.text, intent, matches, link)
+        try:
+            project = await find_project(db, intent, sig.context, sig.text)
+        except Exception:  # the register being unreadable must not stop a reply
+            log.exception("radar: project lookup failed")
+            project = None
+        link = await _link(db, cfg, sig.source, intent, matches, project)
+        reply = await drafting.draft(sig.text, intent, matches, link, project)
         await store.set_signal(db, d["_id"], {
             "status": "scored", "intent": intent.model_dump(), "area": intent.area, "score": s.score, "features": s.features,
-            "why": s.why, "matches": [m.__dict__ for m in matches], "link": link, "draft": reply,
+            "why": s.why + ([f"project: {project.name}"] if project else []),
+            "project": project.__dict__ if project else None, "matches": [m.__dict__ for m in matches], "link": link, "draft": reply,
             "agent_id": cfg.owner_agent_id or None, "shown": s.score >= cfg.min_score})
         counts["scored"] += 1
     return counts
