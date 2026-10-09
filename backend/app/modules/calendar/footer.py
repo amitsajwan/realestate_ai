@@ -14,8 +14,14 @@ MAX_HASHTAGS = 10
 
 _TAG = re.compile(r"#\w+")
 # likers and sharers cannot be messaged through the API; the caption asks them to comment (the engage worker answers comments) and follow
-ASK = "💬 Questions? Comment below. 📤 Share with someone house-hunting. ➕ Follow for daily Pune property updates."
-_HAS_ASK = re.compile(r"comment below|share (this )?with|follow (for|us|the page|this)", re.I)
+# each part is left out when the caption already asks for that action (a post that says 'Comment PRICE' keeps its one comment ask)
+ASK_PARTS = ((re.compile(r"\bcomment", re.I), "💬 Questions? Comment below."),
+             (re.compile(r"\bshare\b", re.I), "📤 Share with a friend who needs this."),
+             (re.compile(r"\bfollow\b", re.I), "➕ Follow for daily Pune property updates."))
+
+
+def ask_for(body: str) -> str:
+    return " ".join(line for has, line in ASK_PARTS if not has.search(body or ""))
 
 
 def footer_for(channel: str) -> str:
@@ -48,7 +54,7 @@ def _cut(body: str, room: int) -> str:
 
 
 def with_footer(caption: str, channel: str) -> str:
-    """Caption + footer, once. At most 10 hashtags; Facebook stays under 900 characters and Instagram under 2000 (the body is trimmed, never the footer)."""
+    """Caption + engagement ask + footer, once. At most 10 hashtags; Facebook stays under 900 characters and Instagram under 2000 (the body is trimmed, never the footer)."""
     foot = footer_for(channel)
     body = _LEGACY_FOOTER.sub("", caption or "").strip()
     if foot in body:
@@ -60,7 +66,8 @@ def with_footer(caption: str, channel: str) -> str:
     m = re.search(r"(\n[ \t]*(?:#\w+[ \t]*)+)$", body)
     if m and len(tags) <= MAX_HASHTAGS:
         block, body = m.group(1).rstrip(), body[:m.start()].rstrip()
-    ask = "" if not body or _HAS_ASK.search(body) else "\n\n" + ASK
+    ask = ask_for(body) if body else ""
+    ask = "\n\n" + ask if ask else ""
     room = _limit(channel) - 1 - len(foot) - len(block) - len(ask) - 2
     body = _cut(body, room)
     text = (body + ask + block).strip()
