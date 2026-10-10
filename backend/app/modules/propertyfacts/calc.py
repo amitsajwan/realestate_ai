@@ -30,9 +30,13 @@ def readings(values: Dict[str, Any], now=None) -> List[Reading]:
     out: List[Reading] = []
     price: Optional[int] = values.get("price_inr")
     area: Optional[int] = values.get("plot_sqft") or values.get("carpet_sqft")
+    # a plot or layout "size" over half an acre is the whole layout's area: no per-unit sums from it
+    whole = (values.get("listing_scope") == "layout" or values.get("property_type") == "plot") and (area or 0) > 20_000
+    if whole:
+        area = None
     if price and area:
         out.append(Reading("price_per_sqft", per_sqft(price, area), "calc", "", now))
-    if values.get("plot_sqft"):
+    if values.get("plot_sqft") and not whole:
         out.append(Reading("plot_guntha", guntha(values["plot_sqft"]), "calc", "", now))
         out.append(Reading("plot_sqm", round(values["plot_sqft"] / SQFT_PER_SQM), "calc", "", now))
     if price and values.get("transaction", "sale") != "rent":

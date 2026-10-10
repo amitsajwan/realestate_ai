@@ -139,6 +139,9 @@ def previous_note(previous: Sequence[str]) -> str:
             "fact):\n" + "\n".join(f"- {p}" for p in previous[:12]))
 
 
+MAX_PLOT_SQFT = 20_000   # half an acre: a bigger "plot size" is the whole layout's area typed in the size field
+
+
 class Ctx:
     """Usable fact values, with the names every angle needs."""
 
@@ -173,7 +176,10 @@ class Ctx:
         self.kind = "plot" if self.plot else "home"
         self.layout = self.v.get("listing_scope") == "layout"   # a whole project: the price is a starting price
         self.registered = bool(self.v.get("rera_no"))
-        self.sqft = self.v.get("size_min_sqft") or self.v.get("plot_sqft") or self.v.get("carpet_sqft")
+        # one unit's size, never more than MAX_PLOT_SQFT for a plot or layout: its plot/carpet field can hold the whole layout
+        # (live 2026-10-10, Gulmohar City: its 30 acres, 1,306,800 sq ft, posted as "this plot is 1200 guntha")
+        sqft = self.v.get("size_min_sqft") or self.v.get("plot_sqft") or self.v.get("carpet_sqft")
+        self.sqft = None if not sqft or (self.plot or self.layout) and float(sqft) > MAX_PLOT_SQFT else sqft
         self.readers = reader_note(self.v, self.plot, self.layout)
 
     def place(self, key: str, p: Dict[str, Any]) -> str:

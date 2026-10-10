@@ -72,16 +72,9 @@ def _places(c: Ctx, n: int = 3) -> List[str]:
     return out
 
 
-MAX_PLOT_SQFT = 20_000   # half an acre: a bigger "plot size" is the whole layout's area typed in the size field
-
-
 def _size(c: Ctx) -> str:
-    """One unit's size, or "" when unsure: a layout's size only from size_min_sqft (its carpet/plot field is often the whole
-    layout - live 2026-10-10, Gulmohar City: 1,306,800 sq ft = its 30 acres, said as the plot size)."""
-    sqft = c.v.get("size_min_sqft") if c.layout else c.sqft
-    if not sqft or (c.plot or c.layout) and float(sqft) > MAX_PLOT_SQFT:
-        return ""
-    return f"{int(sqft):,} sq ft"
+    """One unit's size (Ctx.sqft never holds a layout's whole area), or ""."""
+    return f"{int(c.sqft):,} sq ft" if c.sqft else ""
 
 
 def _layout(c: Ctx) -> str:
