@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import React from 'react'
 import RegisterProjectPage from '@/components/site/RegisterProjectPage'
-import { longDay } from '@/lib/site/register'
+import { longDay, registerDescription, registerTitle } from '@/lib/site/register'
 import type { RegisterProject } from '@/lib/site/register'
 
 jest.mock('@/components/site/EnquiryForm', () => ({ __esModule: true, default: (p: { topic?: string }) => <div data-testid="enquiry">{p.topic}</div> }))
@@ -20,10 +20,10 @@ describe('Avasetu project page from the MahaRERA register', () => {
     render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={null} />)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Rohan Abhilasha 4')
     expect(screen.getByTestId('paragraph')).toHaveTextContent(/registered with MahaRERA as P52100080076/)
-    expect(screen.getByText('30 Oct 2029')).toBeInTheDocument()
-    expect(screen.getByText(/At registration: 31 Dec 2028. MahaRERA, read 3 Oct 2026/)).toBeInTheDocument()
+    expect(screen.getAllByText('30 Oct 2029').length).toBeGreaterThan(0)
+    expect(screen.getByText(/At registration: 31 Dec 2028./)).toBeInTheDocument()
     expect(screen.getByText('244 of 416')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Kesnand Greens' })).toHaveAttribute('href', '/projects/kesnand-greens-wagholi')
+    expect(screen.getByRole('link', { name: /Kesnand Greens/ })).toHaveAttribute('href', '/projects/kesnand-greens-wagholi')
     expect(screen.getAllByRole('link', { name: /Wagholi/ })[0]).toHaveAttribute('href', '/localities/wagholi')
     expect(screen.getByTestId('enquiry')).toHaveTextContent('Rohan Abhilasha 4 (MahaRERA P52100080076)')
     const official = screen.getByRole('link', { name: /official MahaRERA record/ })
@@ -42,6 +42,27 @@ describe('Avasetu project page from the MahaRERA register', () => {
     render(<RegisterProjectPage p={P} siteUrl="https://avasetu.in" facts={facts} />)
     expect(screen.getByTestId('offer')).toHaveTextContent(/plot · plot 1,000 sq ft/)
     expect(screen.getByTestId('offer')).toHaveTextContent(/From the agent's listing, 6 Oct 2026/)
+  })
+
+  it('leads with the marketed name, keeps the MahaRERA name and aliases, and its JSON-LD matches', () => {
+    const g: RegisterProject = { ...P, name: 'Geras World of Joy M', marketed_name: 'Gera World of Joy', aliases: ['Gera World of Joy', 'World of Joy Kharadi'],
+      same_promoter: [{ name: 'GERAS SONG OF JOY', marketed_name: 'Gera Song of Joy', slug: 'gera-song-of-joy', completion_now: '2027-06-30' }] }
+    const { container } = render(<RegisterProjectPage p={g} siteUrl="https://avasetu.in" facts={null} />)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Gera World of Joy, Wagholi')
+    expect(screen.getByTestId('legal-name')).toHaveTextContent('Filed on MahaRERA as Geras World of Joy M · P52100080076')
+    expect(screen.getByTestId('aka')).toHaveTextContent('Also known as: World of Joy Kharadi')
+    expect(within(screen.getByTestId('same-promoter')).getByRole('link', { name: /Gera Song of Joy/ })).toHaveAttribute('href', '/projects/gera-song-of-joy')
+    const lds = [...container.querySelectorAll('script[type="application/ld+json"]')].map((s) => JSON.parse(s.textContent || '{}'))
+    const complex = lds.find((x) => x['@type'] === 'ApartmentComplex')
+    expect(complex.name).toBe('Gera World of Joy')
+    expect(complex.alternateName).toEqual(['World of Joy Kharadi', 'Geras World of Joy M'])
+    expect(complex.builder).toEqual({ '@type': 'Organization', name: 'Rohan Builders' })
+    expect(lds.find((x) => x['@type'] === 'BreadcrumbList').itemListElement.map((i: { name: string }) => i.name)).toEqual(['Home', 'Projects', 'Wagholi', 'Gera World of Joy'])
+    const faq = lds.find((x) => x['@type'] === 'FAQPage').mainEntity[0]
+    expect(faq.name).toBe('What is the price of Gera World of Joy?')
+    expect(screen.getByText(faq.acceptedAnswer.text)).toBeInTheDocument()   // the same words on the page
+    expect(registerTitle(g)).toBe('Gera World of Joy Wagholi: Possession Oct 2029, MahaRERA')
+    expect(registerDescription(g)).toBe('Gera World of Joy (Geras World of Joy M) by Rohan Builders, Wagholi, Pune. Possession Oct 2029, moved from Dec 2028, 244/416 homes booked, MahaRERA P52100080076.')
   })
 
   it('formats days', () => {

@@ -60,11 +60,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...projects.map((p) => at('/projects/' + p.slug, 0.9, [p.rera?.checked_at, p.updated_at].filter(Boolean).sort().pop())),
     ...livePages(projects).map((f) => at(f.path, 0.7)),
     // Avasetu's own page for each MahaRERA project with real facts (thin ones are noindex and left out)
-    // (dated by MahaRERA's update or our crawler's checks, whichever is newer; finished projects rank lower)
+    // (dated by page_updated, when the page's facts last changed; no date when unknown; finished projects rank lower)
     // one page per Pune area listing its projects, once one of them has real facts
     ...places.filter((p) => p.indexable > 0).map((p) => at(placePath(p.slug), 0.6)),
     ...register.filter((r) => r.indexable && !listedRegnos.has(r.regno))
-      .map((r) => at('/projects/' + r.slug, r.active === false ? 0.4 : 0.7, r.page_updated ?? r.listed_or_updated)),
+      .map((r) => at('/projects/' + r.slug, r.active === false ? 0.4 : 0.7, r.page_updated)),   // our own page date only; MahaRERA's old dates never
     // an agent's copy of a project on a shared page names that page as canonical, so only the others are listed
     ...agents.projects.filter((p) => !shared.has(p.agent_slug + '/' + p.slug)).map((p) => at(agentPath(p.agent_slug, 'projects/' + p.slug), 0.6, p.updated_at)),
     ...agents.listings.map((l) => at(agentPath(l.agent_slug, 'listings/' + l.id), 0.6, l.updated_at)),

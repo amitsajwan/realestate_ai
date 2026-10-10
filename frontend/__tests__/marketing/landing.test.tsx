@@ -6,6 +6,7 @@ import RequestInvitePage from '@/app/request-invite/page'
 // PostsSection is an async server component (fetches /public/posts); it is covered in __tests__/posts.
 jest.mock('@/components/site/PostsSection', () => ({ __esModule: true, default: () => null }))
 jest.mock('@/components/news/NewsSection', () => ({ __esModule: true, default: () => null }))
+jest.mock('@/components/marketing/BuyerProjectLinks', () => ({ __esModule: true, default: () => null }))
 
 describe('landing page', () => {
   it('has one h1 and sends the join buttons to the form on the page', () => {

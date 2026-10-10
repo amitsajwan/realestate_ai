@@ -39,7 +39,7 @@ export function siteLinks() {
   return {
     forAgents, demo, news, posts, areas, projects, insights, invite, signIn, need, instagram: ig, facebook: fb,
     /** Header, wide screens, by audience (the buyer or invite button sits next to these; 'For agents' is always there). */
-    headerWide: { buyer: [projects, areas, news, forAgents], agent: [forAgents, demo, news, areas] } as Record<Audience, SiteLink[]>,
+    headerWide: { buyer: [projects, areas, news, forAgents], agent: [projects, forAgents, demo, areas] } as Record<Audience, SiteLink[]>,
     /** Header menu on phones: everything. */
     menu: [projects, areas, news, insights, posts, forAgents, demo, signIn, ig, fb],
     footerAgents: [forAgents, demo, invite, signIn],

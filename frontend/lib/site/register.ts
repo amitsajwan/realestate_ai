@@ -6,7 +6,16 @@ import { serverApiBase } from './api'
 
 export interface RegisterProject {
   slug: string
+  /** MahaRERA's legal name ("Geras World of Joy M") */
   name: string
+  /** the name buyers search for ("Gera World of Joy"); absent until the backend sends it */
+  marketed_name?: string | null
+  /** other names the project is known by */
+  aliases?: string[]
+  /** newest date this page's facts changed (our crawler or MahaRERA); null when unknown */
+  page_updated?: string | null
+  /** the promoter's other projects in our register */
+  same_promoter?: { name: string; marketed_name?: string | null; slug: string; completion_now: string | null }[]
   regno: string
   promoter: string | null
   pincode: string | null
@@ -78,8 +87,13 @@ export interface BuilderRecord {
 export interface Faq { q: string; a: string }
 
 /** Questions and answers written by code from the page's facts only; a question with no fact behind it is left out. */
-export function projectFaq(p: RegisterProject, nearby: { label?: string | null; name?: string | null; km?: number | null }[] = []): Faq[] {
+export function projectFaq(p: RegisterProject, nearby: { label?: string | null; name?: string | null; km?: number | null }[] = [],
+  price?: string | null): Faq[] {
   const out: Faq[] = []
+  const shown = displayName(p)
+  out.push({ q: `What is the price of ${shown}?`,
+    a: price ? `A local agent quotes ${price} for ${shown}. Prices change often: confirm the price and what it includes before you book.`
+      : `No agent has quoted a price for ${shown} yet. Ask through the enquiry form on this page and a local agent will send you the current price.` })
   const d = p.details
   const where = p.area ? `${p.area.name}, Pune` : [p.place, p.taluka, 'Pune district'].filter(Boolean).join(', ')
   if (p.completion_now) {
@@ -117,13 +131,17 @@ export function projectFaq(p: RegisterProject, nearby: { label?: string | null; 
   if (p.completion_passed) {
     out.push({ q: `Has the completion date of ${p.name} passed?`, a: 'Yes. Ask the builder for the occupancy certificate (OC) before you book.' })
   }
-  return out.slice(0, 10)
+  return out.slice(0, 11)
 }
 
 export interface RegisterListItem {
   slug: string
   regno: string
   name: string
+  marketed_name?: string | null
+  aliases?: string[]
+  units_total?: number | null
+  units_booked?: number | null
   area: string | null
   promoter?: string | null
   completion_now: string | null
@@ -202,4 +220,97 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 export function longDay(iso: string | null | undefined): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '')
   return m ? `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}` : ''
+}
+
+/** "2029-10-30" -> "Oct 2029"; anything else -> "". */
+export function monthYear(iso: string | null | undefined): string {
+  const m = /^(\d{4})-(\d{2})/.exec(iso || '')
+  return m ? `${MONTHS[Number(m[2]) - 1]} ${m[1]}` : ''
+}
+
+/** The name buyers know the project by: the marketed name when the backend has one, else MahaRERA's. */
+export function displayName(p: { name: string; marketed_name?: string | null }): string {
+  return (p.marketed_name || '').trim() || p.name
+}
+
+/** Other names worth showing ("Also known as"): aliases and the legal name, minus the ones already displayed. */
+export function otherNames(p: { name: string; marketed_name?: string | null; aliases?: string[] | null }, shown: string[] = []): string[] {
+  const seen = new Set([displayName(p), ...shown].map((x) => x.toLowerCase().trim()))
+  const out: string[] = []
+  for (const a of [...(p.aliases ?? []), p.name]) {
+    const k = (a || '').toLowerCase().trim()
+    if (k && !seen.has(k)) { seen.add(k); out.push(a.trim()) }
+  }
+  return out
+}
+
+/** The one-line summary under a project link: "by {builder} · possession {Mon YYYY} · {booked}/{total} booked". */
+export function projectSummary(r: { promoter?: string | null; completion_now?: string | null; units_total?: number | null; units_booked?: number | null }): string {
+  return [r.promoter ? `by ${r.promoter}` : null, r.completion_now ? `possession ${monthYear(r.completion_now)}` : null,
+    r.units_total ? (r.units_booked != null ? `${r.units_booked}/${r.units_total} booked` : `${r.units_total} homes`) : null].filter(Boolean).join(' · ')
+}
+
+/** The area name a project page shows: our locality, else the Pune place it is filed under. */
+export function areaName(p: RegisterProject): string | null {
+  return p.area?.name ?? p.pune_place?.name ?? p.place ?? null
+}
+
+/** Search result title, aiming at 60 characters: "{Marketed} {Area}: Price, Possession {Mon YYYY}, MahaRERA", dropping parts for long names. */
+export function registerTitle(p: RegisterProject): string {
+  const shown = displayName(p)
+  const area = areaName(p)
+  const at = area && !shown.toLowerCase().includes(area.toLowerCase()) ? `${shown} ${area}` : shown
+  const when = monthYear(p.completion_now)
+  const options = when
+    ? [`${at}: Price, Possession ${when}, MahaRERA`, `${at}: Possession ${when}, MahaRERA`, `${at}: Possession ${when}`, `${shown}: Possession ${when}`]
+    : [`${at}: Price, Possession, MahaRERA`, `${at}: Price, MahaRERA`]
+  return options.find((t) => t.length <= 60) ?? at
+}
+
+/** Search result description: "{Marketed} ({Legal}) by {Builder}, {Area}, Pune. Possession {Mon YYYY}, moved from X, b/t homes booked, MahaRERA {regno}." */
+export function registerDescription(p: RegisterProject): string {
+  const shown = displayName(p)
+  const legal = shown.toLowerCase() !== p.name.toLowerCase() ? ` (${p.name})` : ''
+  const area = areaName(p)
+  const head = `${shown}${legal}${p.promoter ? ` by ${p.promoter}` : ''}${area ? `, ${area}` : ''}, Pune.`
+  const from = p.completion_at_registration && p.completion_now && monthYear(p.completion_at_registration) !== monthYear(p.completion_now)
+    ? `, moved from ${monthYear(p.completion_at_registration)}` : ''
+  const parts = [p.completion_now ? `Possession ${monthYear(p.completion_now)}${from}` : null,
+    p.units_total && p.units_booked != null ? `${p.units_booked}/${p.units_total} homes booked` : null, `MahaRERA ${p.regno}`]
+  return `${head} ${parts.filter(Boolean).join(', ')}.`
+}
+
+/** One hit from GET /api/v1/public/register/search. */
+export interface RegisterSearchHit {
+  slug: string
+  name: string
+  marketed_name?: string | null
+  regno: string
+  promoter?: string | null
+  area?: string | null
+  place_name?: string | null
+  completion_now?: string | null
+  units_total?: number | null
+  units_booked?: number | null
+  checked?: number | null
+  checks_total?: number
+  active?: boolean
+}
+
+/** Search the register by name (marketed, legal or alias), builder or MahaRERA number. Works in the browser (the public API base,
+ *  as lib/config/api) and on the server; any failure gives an empty list. */
+export async function searchRegister(q: string, limit = 20, signal?: AbortSignal): Promise<RegisterSearchHit[]> {
+  const t = q.trim()
+  if (t.length < 2) return []
+  const server = typeof window === 'undefined'
+  const base = server ? serverApiBase() : (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/+$/, '')
+  try {
+    const res = await fetch(`${base}/api/v1/public/register/search?q=${encodeURIComponent(t.slice(0, 80))}&limit=${limit}`,
+      { headers: { Accept: 'application/json' }, signal, ...(server ? { next: { revalidate: 300 } } : {}) })
+    if (!res.ok) return []
+    const data = await res.json()
+    return Array.isArray(data) ? (data as RegisterSearchHit[]) : []
+  } catch {
+    return []
+  }
 }
