@@ -42,8 +42,8 @@ SCRIPTS: Tuple[FlowScript, ...] = (
     FlowScript("F1", "Ek property. *Zero* se posts tak.",
                (Step("STEP 1 · PROPERTY", "Price aur jagah *daalo*", "40-flow-listing.jpg"),
                 Step("STEP 2 · FACTS", "MahaRERA *match*, facts check", "41-flow-facts.jpg"),
-                Step("STEP 3 · POSTS", "Posts aur reels *ready*", "42-flow-posts.jpg"),
-                Step("STEP 4 · AAPKA PAGE", "Buyer ke liye *page*", "43-flow-page.jpg")),
+                Step("STEP 3 · POSTS", "Posts *ready*, design ke saath", "42-flow-posts.jpg"),
+                Step("STEP 4 · SHARE KARO", "Approve karo, *share* karo", "43-flow-post.jpg")),
                "Pehle *20* Pune agents: ek mahina *free*",
                "One real plot, from the listing to its posts, on the real Avasetu screens."),
 )
