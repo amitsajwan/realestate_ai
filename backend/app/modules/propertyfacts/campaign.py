@@ -3,6 +3,7 @@
 Each angle is a small function: usable facts in, a creative Brief out (or None when the facts it needs are missing). Every number
 a post may say is written into the Brief's facts, so the creative guards accept it and still reject anything invented.
 To add an angle: write one function and add it to ANGLES."""
+import hashlib
 import logging
 import re
 from dataclasses import dataclass, replace
@@ -396,6 +397,12 @@ ANGLES: Tuple[AngleDef, ...] = tuple(AngleDef(f.__name__, f) for f in (
     layout_size, plot_or_flat, plot_myth))
 
 
+def brief_key(brief: Brief) -> str:
+    """What a post says, as a short hash: it changes when a fact the post uses changes (not with its picture)."""
+    text = "\n".join((brief.corpus(), next(iter(brief.hooks.values()), ""), brief.language or ""))
+    return hashlib.sha1(text.encode("utf-8")).hexdigest()[:16]
+
+
 def plan(facts: Dict[str, Fact], photo: str = "none", link: str = "", angles: Sequence[AngleDef] = ANGLES,
          voice: Optional[Voice] = None, card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (),
          language: str = "en", previous: Sequence[str] = (), follow_ups: Optional[int] = FOLLOW_UPS,
@@ -464,12 +471,14 @@ async def make(facts: Dict[str, Fact], out_dir: Path, llm: Any = None, photo: st
                voice: Optional[Voice] = None, card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (),
                language: str = "en", photos: Sequence[str] = (), previous: Sequence[str] = (),
                on_plan: Optional[Callable[[List[dict], Dict[str, str]], Awaitable[None]]] = None,
-               on_post: Optional[Callable[[str, dict], Awaitable[None]]] = None) -> List[Tuple[str, CreativePack]]:
+               on_post: Optional[Callable[[str, dict], Awaitable[None]]] = None,
+               used: Optional[Dict[str, str]] = None) -> List[Tuple[str, CreativePack]]:
     """Render every planned angle; consecutive posts avoid repeating a layout. `photos` (the property's own: listing photos and
     the best frames of its video, best first) are shared out so each post shows a different one behind its text. An angle that fails a guard is retried with
     other seeds, then dropped (its problems go into `dropped` when given). `voice`: who speaks (default the brand desk).
     `on_plan(chosen, skipped)` hears the plan before anything is written; `on_post(angle, {"headline", "was", "state"})` hears
-    each post as it is written ("content") and then designed ("designed" or "dropped")."""
+    each post as it is written ("content") and then designed ("designed" or "dropped"). `used` (when given) gets each angle's
+    picture (a path, or "none")."""
     packs: List[Tuple[str, CreativePack]] = []
     recent: List[str] = []
     skipped: Dict[str, str] = {}
@@ -480,6 +489,8 @@ async def make(facts: Dict[str, Fact], out_dir: Path, llm: Any = None, photo: st
     for i, (aid, brief) in enumerate(planned):
         if photos:
             brief = replace(brief, photo=photos[i % len(photos)])
+        if used is not None:
+            used[aid] = str(brief.photo or "none")
         was = next(iter(brief.hooks.values()), "")
         if llm is not None and brief.hooks:
             brief = await sharpen(brief, llm)

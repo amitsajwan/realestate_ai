@@ -8,9 +8,12 @@
 Jobs live in `marketing_runs`; the worker loop "marketing_runs" (app/worker.py) runs one at a time under its runner lease.
 A job cut off by a restart (a deploy) is queued again once when the runner starts; cut off twice, it fails with a message."""
 import asyncio
+import hashlib
+import json
 import logging
 import re
 import uuid
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
@@ -31,6 +34,11 @@ NOTE_MAX = 300
 STALE_AFTER = timedelta(minutes=20)
 HEARTBEAT_EVERY_S = 60.0
 HEARTBEAT_INTERVAL_S = STALE_AFTER.total_seconds()
+# listing fields the posts are made from: a change to one of them remakes the posts that say it
+FACT_FIELDS = ("transaction", "property_type", "listing_scope", "price_inr", "carpet_sqft", "plot_sqft", "size_min_sqft",
+               "size_max_sqft", "sizes_sqft", "bhk", "units_total", "total_acres", "locality", "city", "project_name", "rera_no",
+               "rera_status", "possession_date")
+LOCKED = ("approved", "scheduled", "published")   # calendar rows the owner already passed: their post is never replaced
 
 
 class RunError(Exception):
@@ -53,7 +61,9 @@ def run_out(doc: Optional[dict], base_url: str = "") -> Optional[dict]:
     if not doc:
         return None
     base = base_url.rstrip("/")
-    posts = [{**p, "images": [base + i if base and i.startswith("/") else i for i in p.get("images", [])]}
+    absolute = lambda imgs: [base + i if base and i.startswith("/") else i for i in imgs or []]
+    posts = [{**p, "images": absolute(p.get("images")),
+              **({"newer": {**p["newer"], "images": absolute(p["newer"].get("images"))}} if p.get("newer") else {})}
              for p in doc.get("posts") or []]
     return {"id": doc["_id"], "listing_id": doc["listing_id"], "status": doc["status"], "step": doc.get("step"),
             "language": doc.get("language") or "en",
@@ -64,7 +74,9 @@ def run_out(doc: Optional[dict], base_url: str = "") -> Optional[dict]:
                       for r in doc.get("reels") or []],
             "facts_done_at": _iso(doc.get("facts_done_at")), "finished_at": _iso(doc.get("finished_at")),
             "files": doc.get("files") or {}, "questions": doc.get("questions") or [],
-            "plan": doc.get("plan") or [], "skipped": doc.get("skipped") or {}}
+            "plan": doc.get("plan") or [], "skipped": doc.get("skipped") or {},
+            "mode": doc.get("mode") or "full", "changes": doc.get("changes") or [], "base_run": doc.get("base_run"),
+            "redone": doc.get("redone") or [], "stale": [p["angle"] for p in doc.get("posts") or [] if p.get("stale")]}
 
 
 def _safe(s: str) -> str:
@@ -115,7 +127,9 @@ class MarketingRuns:
 
     async def create(self, agent_id: str, listing_id: str, again: bool = False, language: str = "en") -> tuple:
         """(job, created). A running job is returned as it is; a finished one too unless `again`, the listing changed or
-        another language is asked for (en, mr, hi: the posts' language)."""
+        another language is asked for (en, mr, hi: the posts' language). A change to a finished run's `inputs` (facts,
+        brochure, video, photos) makes an update run: that run's posts, remaking only what the change touches. Posts the
+        agent edited or the owner approved are never replaced, only marked `stale` with the `newer` version."""
         listing = await self._listing(agent_id, listing_id)
         if listing.get("status") not in MARKETABLE:
             raise RunError("Publish this listing first: only live or under-offer listings can be marketed.", 409)
@@ -126,16 +140,60 @@ class MarketingRuns:
                                        {"$set": {"status": "cancelled", "finished_at": self.now()}})
         elif active:
             return active, False
-        if not again:
-            done = await self._latest({**flt, "status": "done"})
-            changed = listing.get("updated_at")
-            if done and (done.get("language") or "en") == language and not (isinstance(changed, datetime) and changed > done["created_at"]):
-                return done, False
+        done = await self._latest({**flt, "status": "done"})
+        if done and (done.get("language") or "en") != language:
+            done = None
         doc = {"_id": uuid.uuid4().hex, **flt, "status": "queued", "step": "facts", "language": language, "facts": None, "page_url": None, "posts": [],
                "dropped": {}, "error": None, "created_at": self.now(), "started_at": None, "facts_done_at": None,
-               "finished_at": None}
+               "finished_at": None, "mode": "full", "base_run": done["_id"] if done else None}
+        if done and not again:
+            changes = self._changes(done["inputs"], self._inputs(listing)) if done.get("inputs") else None
+            changed = listing.get("updated_at")
+            if changes == [] or (changes is None and not (isinstance(changed, datetime) and changed > done["created_at"])):
+                return done, False
+            if changes and done.get("posts"):
+                keep = ("facts", "page_url", "listing_url", "posts", "reels", "calendar", "link_line", "files", "plan", "skipped",
+                        "dropped", "inputs", "facts_done_at")
+                doc.update({k: done[k] for k in keep if k in done}, mode="update", changes=changes)
+        if done and done.get("calendar") and not doc.get("calendar"):
+            doc["calendar"] = done["calendar"]   # the same rows (one per listing and angle): planned ones take the new posts
         await self.runs.insert_one(doc)
         return doc, True
+
+    def _inputs(self, listing: dict) -> dict:
+        """What a run's posts are made from: a hash of the fact fields, the brochure, the video and the photos."""
+        from app.modules.reels.listing_reel import listing_photos
+
+        from . import files
+        pdf, video = files.brochure_pdf(listing, self.uploads_dir), self._video(listing)
+        facts = json.dumps({k: listing.get(k) for k in FACT_FIELDS}, sort_keys=True, default=str)
+        return {"facts": hashlib.sha1(facts.encode("utf-8")).hexdigest()[:16], "brochure": pdf.name if pdf else None,
+                "video": video.name if video else None, "photos": [p.name for p in listing_photos(listing, self.uploads_dir)]}
+
+    @staticmethod
+    def _changes(before: dict, now: dict) -> List[str]:
+        """What changed between two `inputs`: some of facts, brochure, video, photos."""
+        return [k for k in ("facts", "brochure", "video", "photos") if (before or {}).get(k) != now.get(k)]
+
+    async def _locked(self, run: dict) -> set:
+        """Angles whose calendar post the owner already approved (or that went out): never replaced."""
+        from app.modules.calendar.store import Store as CalendarStore
+        cal, out = CalendarStore(self.db), set()
+        for c in run.get("calendar") or []:
+            if c.get("kind", "post") == "post" and c.get("angle") not in out:
+                row = await cal.get(c["row_id"])
+                if row and row.get("status") in LOCKED:
+                    out.add(c["angle"])
+        return out
+
+    async def _place(self, run: dict, old: dict, new: dict, locked: set) -> dict:
+        """The post that stays: `new`, its planned calendar rows synced; or, for a post the agent edited or the owner
+        approved, `old` kept and marked stale with `newer` to pick up."""
+        if old.get("edited") or old["angle"] in locked:
+            return {**old, "stale": True, "newer": {**{k: v for k, v in new.items() if k not in ("angle", "newer", "stale")},
+                                                    "made_at": self.now()}}
+        await self._sync_calendar(run, new["angle"], new["caption"], new.get("images"))
+        return new
 
     async def latest(self, agent_id: str, listing_id: str) -> Optional[dict]:
         await self._listing(agent_id, listing_id)
@@ -228,7 +286,7 @@ class MarketingRuns:
         posts = list(run["posts"])
         posts[idx] = {**posts[idx], "images": imgs, "caption": pack.caption, "layout": pack.design.get("layout"),
                       "format": pack.design.get("format"), "used_llm": pack.used_llm, "prompts": pack.prompts,
-                      "edited": False, "redos": n,
+                      "edited": False, "stale": False, "newer": None, "redos": n,
                       "note": note, "redone_at": self.now()}
         await self._set(run["_id"], posts=posts)
         synced = await self._sync_calendar(run, angle, pack.caption, imgs)
@@ -241,6 +299,8 @@ class MarketingRuns:
         for d in await self.runs.find({"status": {"$in": ["facts", "posts"]}}).to_list(100):
             if d.get("resumed"):
                 change = {"status": "failed", "error": "Marketing was interrupted. Please start it again.", "finished_at": self.now()}
+            elif d.get("mode") == "update":   # its posts are the earlier run's: kept
+                change = {"status": "queued", "step": "facts", "resumed": True, "started_at": None, "error": None}
             else:
                 change = {"status": "queued", "step": "facts", "resumed": True, "started_at": None, "posts": [], "error": None}
             await self.runs.update_one({"_id": d["_id"], "status": d["status"]}, {"$set": change})
@@ -452,6 +512,9 @@ class MarketingRuns:
             listing = await self.listings.find_one({"_id": job["listing_id"], "agent_id": job["agent_id"]})
             if not listing:
                 return await self._set(jid, status="failed", error="The listing was removed.", finished_at=self.now())
+            if job.get("mode") == "update":
+                step = "update"
+                return await self._update(job, listing)
             # step 1: the knowledge base and the page
             clients = self.clients_factory() if self.clients_factory else Clients(facts_store=self.facts_store)
             sheet = await gather({**listing, "id": listing["_id"]}, clients, self.now())
@@ -495,18 +558,19 @@ class MarketingRuns:
                         r.update({k: v for k, v in change.items() if v or k == "was"})
                 await self._set(jid, step="content" if change["state"] == "content" else "design", plan=plan_rows)
 
+            used: Dict[str, str] = {}
+            who = self._who(job, await self._identity(job))
             packs = await campaign.make(sheet.facts, out, llm=llm, photo=self._photo(listing), link=page, dropped=dropped,
-                                        photos=photos, previous=previous, on_plan=on_plan, on_post=on_post,
-                                        **self._who(job, await self._identity(job)))
-            posts: List[dict] = []
-            for aid, p in packs:
-                imgs = ["/uploads/" + Path(i).resolve().relative_to(self.uploads_dir.resolve()).as_posix() for i in p.images]
-                posts.append({"angle": aid, "layout": p.design.get("layout"), "format": p.design.get("format"), "images": imgs,
-                              "caption": p.caption, "used_llm": p.used_llm, "prompts": p.prompts})
+                                        photos=photos, previous=previous, on_plan=on_plan, on_post=on_post, used=used, **who)
+            keys = {aid: campaign.brief_key(b) for aid, b in campaign.plan(sheet.facts, follow_ups=None, **who)}
+            pages = {str(x) for x in brochure.get("pages", [])}
             ctx = campaign.Ctx(sheet.facts)
             where = ctx.where or "this property"
-            await self._set(jid, posts=posts, dropped={k: str(v)[:300] for k, v in dropped.items()},
-                            link_line=campaign.link_line_for(where, job.get("language") or "en", ctx.registered))
+            link_line = campaign.link_line_for(where, job.get("language") or "en", ctx.registered)
+            posts = await self._keep_edited({**job, "page_url": page, "link_line": link_line},
+                                            [self._post(aid, p, keys.get(aid), used.get(aid, "none"), pages) for aid, p in packs])
+            await self._set(jid, posts=posts, dropped={k: str(v)[:300] for k, v in dropped.items()}, inputs=self._inputs(listing),
+                            link_line=link_line)
             # step 3 (best effort, never fails the run): reels from the best carousels, and the walkthrough reel
             step = "reels"
             await self._set(jid, step="reels")
@@ -519,7 +583,87 @@ class MarketingRuns:
                    else "The posts are ready, but the reels could not be made.")
             if step == "reels":  # the posts are made: the run is usable without reels
                 return await self._set(jid, status="done", reels=[], error=msg, finished_at=self.now())
+            if step == "update":  # the earlier run's posts are still there: usable as they are
+                return await self._set(jid, status="done", error="The change could not be applied to the posts. Please try again.",
+                                       finished_at=self.now())
             await self._set(jid, status="failed", error=msg, finished_at=self.now())
+
+    def _post(self, aid: str, pack, key: Optional[str], photo: str, pages: set) -> dict:
+        """A post as kept on the run; `brief` (what it says) and `photo` (brochure, photo or none) let a later change remake
+        only the posts it touches."""
+        imgs = ["/uploads/" + Path(i).resolve().relative_to(self.uploads_dir.resolve()).as_posix() for i in pack.images]
+        kind = "none" if photo in ("", "none") else "brochure" if photo in pages else "photo"
+        return {"angle": aid, "layout": pack.design.get("layout"), "format": pack.design.get("format"), "images": imgs,
+                "caption": pack.caption, "used_llm": pack.used_llm, "prompts": pack.prompts, "brief": key, "photo": kind}
+
+    async def _keep_edited(self, job: dict, posts: List[dict]) -> List[dict]:
+        """A full run made over an earlier one: the earlier posts the agent edited or the owner approved stay (stale, the new
+        one as `newer`); planned calendar rows of the others take the new posts."""
+        base = await self.runs.find_one({"_id": job["base_run"]}) if job.get("base_run") else None
+        if not base:
+            return posts
+        old = {p["angle"]: p for p in base.get("posts") or []}
+        locked = await self._locked(job)
+        out = [await self._place(job, old[p["angle"]], p, locked) if p["angle"] in old else p for p in posts]
+        made = {p["angle"] for p in posts}
+        return out + [{**p, "stale": True} for a, p in old.items() if a not in made and (p.get("edited") or a in locked)]
+
+    async def _update(self, job: dict, listing: dict) -> None:
+        """An update run: the earlier run's posts, remaking only what changed since its `inputs`. A new brochure is read
+        again (its new questions asked) and remakes the posts on its pages; new photos remake the posts without a photo;
+        changed facts remake the posts whose text they change; a new video makes only the video reel."""
+        jid = job["_id"]
+        changes = self._changes(job.get("inputs") or {}, self._inputs(listing))
+        out = self.uploads_dir / "campaigns" / _safe(job["listing_id"]) / jid[:8]
+        posts, reels, redone = [dict(p) for p in job.get("posts") or []], list(job.get("reels") or []), []
+        llm = self.llm_factory() if self.llm_factory else None
+        if set(changes) & {"facts", "brochure", "photos"}:
+            clients = self.clients_factory() if self.clients_factory else Clients(facts_store=self.facts_store)
+            sheet = await gather({**listing, "id": listing["_id"]}, clients, self.now())
+            brochure: Dict[str, Any] = {}
+            if "brochure" in changes:
+                brochure = await self._brochure(job, listing, out)
+                if not job.get("understood"):
+                    questions, filled = await self._understand(listing, sheet, brochure, llm)
+                    if questions:
+                        return await self._set(jid, status="asking", step="facts", changes=changes, questions=questions)
+                    if filled:
+                        listing = await self.listings.find_one({"_id": job["listing_id"]}) or listing
+                        sheet = await gather({**listing, "id": listing["_id"]}, clients, self.now())
+            await self._set(jid, status="posts", step="posts", changes=changes, facts=_summary(sheet), questions=[])
+            who = self._who(job, await self._identity(job))
+            briefs = dict(campaign.plan(sheet.facts, "none", job.get("page_url") or "", follow_ups=None, **who))
+            own = await self._photo_pool(listing, out)
+            pages = [str(x) for x in brochure.get("pages", [])]
+            pool = own + pages
+            locked = await self._locked(job)
+            for i, p in enumerate(posts):
+                b = briefs.get(p["angle"])
+                key = campaign.brief_key(b) if b else None
+                why = ("facts" if key and (key != p["brief"] if p.get("brief") else "facts" in changes) else
+                       "brochure" if "brochure" in changes and (p.get("photo", "brochure") == "brochure"
+                                                                 or p["photo"] == "none" and pool) else
+                       "photos" if "photos" in changes and p.get("photo") == "none" and own else "")
+                if not (why and b):
+                    continue
+                photo = own[i % len(own)] if why == "photos" else pool[i % len(pool)] if pool else self._photo(listing)
+                b = replace(b, photo=photo)
+                if llm is not None and b.hooks:
+                    b = await campaign.sharpen(b, llm)
+                pack = await campaign.pipeline.make(b, "buyer", "instagram", llm, seed=i, out_dir=out / _safe(p["angle"]),
+                                                    reviewer=None)
+                if not pack.report.get("ok"):
+                    log.info("marketing update %s: %s not remade: %s", jid, p["angle"], pack.report.get("problems"))
+                    continue
+                posts[i] = await self._place(job, p, self._post(p["angle"], pack, key, photo, set(pages)), locked)
+                redone.append(p["angle"])
+        if "video" in changes:
+            video = self._video(listing)
+            reels = [r for r in reels if r.get("kind") != "video"]
+            if video:
+                reels.append(await self._video_reel(job, listing, video, out, "", job.get("link_line") or ""))
+        await self._set(jid, status="done", step="reels", changes=changes, posts=posts, reels=reels, redone=redone,
+                        inputs=self._inputs(listing), error=None, finished_at=self.now())
 
     async def _live_posts(self, job: dict, listing: dict) -> List[str]:
         """Opening lines of this property's posts that are already published, newest first: those of this listing's earlier
