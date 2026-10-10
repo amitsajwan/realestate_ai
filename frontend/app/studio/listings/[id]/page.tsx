@@ -8,6 +8,7 @@ import { cleanInput, marketingHref } from '@/components/app/NewListingFlow'
 import { PhotoPicker } from '@/components/app/PhotoPicker'
 import { ListingPhotos } from '@/components/app/quality/ListingPhotos'
 import { ReviewForm } from '@/components/app/ReviewForm'
+import { SellingPoints } from '@/components/app/SellingPoints'
 import { ShareBar } from '@/components/app/ShareBar'
 import { ConfirmSheet } from '@/components/app/list'
 import { Btn, ErrorBox, Spinner, StatusChip } from '@/components/app/ui'
@@ -103,6 +104,12 @@ export default function ListingDetailPage() {
       setForm(rest)
     }
   }, [data])
+
+  // The marketing run links to #selling-points: scroll there once the listing has loaded.
+  const loaded = !!data
+  useEffect(() => {
+    if (loaded && tab === 'details' && window.location.hash === '#selling-points') document.getElementById('selling-points')?.scrollIntoView()
+  }, [loaded, tab])
 
   if (loading && !data) return <Spinner />
   if (error || !data) return <ErrorBox message={error ?? 'Not found'} />
@@ -211,6 +218,12 @@ export default function ListingDetailPage() {
         <>
           <ReviewForm value={{ ...editable, media: listing.media }} onChange={({ media, ...rest }) => setForm(rest)} missing={missing} errors={errors} />
           <Btn disabled={busy} onClick={() => run(() => api.updateListing(listing.id, cleanInput(editable)), t('save'))}>{t('save')}</Btn>
+          {(form.selling_points?.length ?? 0) > 0 && (
+            <>
+              <SellingPoints points={form.selling_points ?? []} onChange={(selling_points) => setForm({ ...form, selling_points })} />
+              <Btn variant="secondary" disabled={busy} onClick={() => run(() => api.updateListing(listing.id, { selling_points: form.selling_points }), saved)}>{t('spSave')}</Btn>
+            </>
+          )}
         </>
       )}
 

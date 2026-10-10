@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { api, errorMessage } from '@/lib/app/client'
 import { t } from '@/lib/app/strings'
@@ -150,6 +151,11 @@ function RunQuestions({ listingId, questions, onAnswer }: {
       {questions.map((q) => (
         <fieldset key={q.key} disabled={busy !== null} className="space-y-2">
           <legend className="text-sm font-medium text-gray-900">{q.text}</legend>
+          {q.key === 'selling_points' && (
+            <Link href={`/studio/listings/${encodeURIComponent(listingId)}?tab=details#selling-points`} className="inline-flex min-h-[44px] items-center text-sm font-semibold text-blue-700 underline" data-testid="selling-points-link">
+              {t('spChooseInListing')}
+            </Link>
+          )}
           {q.key === 'files' && <RunFileUpload listingId={listingId} onAdded={() => send('files', 'added')} />}
           <div className="flex flex-wrap gap-2">
             {q.options.filter((o) => q.key !== 'files' || o.value !== 'added').map((o) => (

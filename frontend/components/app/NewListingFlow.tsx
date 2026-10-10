@@ -10,13 +10,14 @@ import { listingLink } from '@/lib/app/share'
 import { compactAbout } from '@/lib/app/about'
 import { t, type Lang } from '@/lib/app/strings'
 import { MAX_BROCHURE_MB, MAX_VIDEO_MB, uploadBrochure, uploadVideo } from '@/lib/app/video'
-import type { About, AIDraft, Listing, ListingInput, UploadedFile } from '@/lib/app/types'
+import type { About, AIDraft, Listing, ListingInput, SellingPoint, UploadedFile } from '@/lib/app/types'
 import { qualityFields } from '@/lib/app/quality'
 import { FIELD_LABELS, lowConfidenceFields, missingFields, priceSanity } from '@/lib/app/validate'
 import { AboutStep } from './AboutStep'
 import { MarketingRunCard } from './MarketingRunCard'
 import { PhotoPicker } from './PhotoPicker'
 import { ReviewForm } from './ReviewForm'
+import { SellingPoints, toSellingPoints } from './SellingPoints'
 import { ShareBar } from './ShareBar'
 import { VoiceRecorder } from './VoiceRecorder'
 import { Btn, ErrorBox, LinkBtn, Spinner, inputCls } from './ui'
@@ -117,6 +118,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
   const readBrochure = useRef<File | null>(null)
   const [form, setForm] = useState<ListingInput>({})
   const [about, setAbout] = useState<About>({})
+  const [points, setPoints] = useState<SellingPoint[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [posted, setPosted] = useState<Listing | null>(null)
@@ -159,6 +161,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
       const { about: found, ...rest } = d.draft
       setForm({ visibility: 'network', ...(projectDefault ? { listing_scope: 'layout' as const } : {}), ...rest })
       setAbout(found ?? {})
+      setPoints(toSellingPoints(d.selling_points))
       setStep('about') // quick and skippable: what the assistant uses to answer buyers
     } catch (e) {
       setError(errorMessage(e))
@@ -171,6 +174,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
   function fillManually() {
     setDraft({ draft: {}, confidence: {}, missing: [], warnings: [] })
     readBrochure.current = null
+    setPoints([])
     setForm({ visibility: 'network', description: { en: text.trim() }, ...(projectDefault ? { listing_scope: 'layout' as const } : {}) })
     setAbout({})
     setStep('review')
@@ -206,7 +210,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
       if (brochure) extra.push({ url: await uploadOnce(brochure, uploadBrochure), kind: 'document', order: images.length + extra.length })
       if (isProject && video) extra.push({ url: await uploadOnce(video, uploadVideo), kind: 'video', order: images.length + extra.length })
       const claims = brochure && readBrochure.current === brochure ? draft?.brochure?.claims ?? [] : []
-      const body = cleanInput({ ...form, about: compactAbout(about), media: [...images, ...extra], ...(claims.length ? { file_claims: { brochure: claims } } : {}) })
+      const body = cleanInput({ ...form, about: compactAbout(about), media: [...images, ...extra], ...(claims.length ? { file_claims: { brochure: claims } } : {}), ...(points.length ? { selling_points: points } : {}) })
       // Retry-safe: never create the same draft twice if publish fails.
       const saved = onBehalfOf
         ? createdId.current ? await conciergeApi.updateListing(onBehalfOf.id, createdId.current, body) : await conciergeApi.createListing(onBehalfOf.id, body)
@@ -310,6 +314,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
         <ReviewForm value={view} about={about} onEditAbout={() => setStep('about')} onChange={({ media, ...rest }) => setForm(rest)} confidence={draft.confidence} missing={missing} errors={errors}
           sources={draft.sources} reraCandidates={draft.rera_candidates}
           priceHint={draft.brochure && !draft.brochure.error && missing.length === 1 && missing[0] === 'price_inr' ? t('brochureNoPrice') : null} />
+        <SellingPoints points={points} onChange={setPoints} />
         {priceWarning && (
           <label className="flex min-h-[44px] items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
             <input type="checkbox" className="h-5 w-5" checked={priceAck === priceWarning} onChange={(e) => setPriceAck(e.target.checked ? priceWarning : null)} />

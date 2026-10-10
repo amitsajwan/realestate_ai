@@ -85,6 +85,8 @@ export interface Listing {
   amenities: string[]
   media: Media[]
   about?: About | null
+  /** Selling points read from the brochure; only confirmed ones are used in posts. */
+  selling_points?: SellingPoint[]
   created_at: string
   updated_at: string
   published_at?: string | null
@@ -108,8 +110,40 @@ export type ListingInput = Partial<
   file_claims?: { brochure: string[] }
 }
 
+export type SellingPointKey =
+  | 'starting_price'
+  | 'booking_amount'
+  | 'offer'
+  | 'water'
+  | 'power'
+  | 'roads'
+  | 'vastu'
+  | 'land_area'
+
+export type SellingPointValue = number | string | number[] | boolean | null
+
+/** A selling point the AI read from the brochure (not yet confirmed). */
+export interface DraftSellingPoint {
+  key: SellingPointKey
+  text: string
+  text_local?: string
+  value?: SellingPointValue
+  source: 'brochure'
+}
+
+/** A selling point on a listing; the agent ticks the true ones. */
+export interface SellingPoint {
+  key: SellingPointKey
+  text: string
+  text_local?: string
+  value?: SellingPointValue
+  confirmed: boolean
+}
+
 export interface AIDraft {
   draft: ListingInput
+  /** Builder's selling points from the brochure; compliance notes come in `warnings`. */
+  selling_points?: DraftSellingPoint[]
   confidence: Record<string, number>
   missing: string[]
   transcript?: string | null
