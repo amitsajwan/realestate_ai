@@ -84,9 +84,15 @@ def _size(c: Ctx) -> str:
     return f"{int(sqft):,} sq ft"
 
 
+def _layout(c: Ctx) -> str:
+    """"A 30-acre layout": the project's own area, said as the project's (never as a plot's)."""
+    acres = c.v.get("total_acres")
+    return f"A {float(acres):g}-acre layout" if c.layout and acres else ""
+
+
 def corpus(c: Ctx) -> str:
     """Every fact a line may state, as text (the guard's corpus: a number not in here is never said)."""
-    bits = [c.where, _price(c), _size(c), *_places(c, 6), str(c.v.get("rera_no") or ""), str(c.v.get("possession_date") or ""),
+    bits = [c.where, _price(c), _size(c), _layout(c), *_places(c, 6), str(c.v.get("rera_no") or ""), str(c.v.get("possession_date") or ""),
             str(c.v.get("units_total") or ""), "1 2 3"]   # list numbers and "3 reasons" are the format's own
     return " | ".join(b for b in bits if b)
 
@@ -95,9 +101,9 @@ def eligible(c: Ctx) -> List[str]:
     """The formats this property has the facts for."""
     places = _places(c)
     ok = []
-    if _price(c) and (places or _size(c)):
+    if _price(c) and (places or _size(c) or _layout(c) or c.registered):
         ok.append("price_reveal")
-    if len([x for x in (_price(c), _size(c), c.registered, *places) if x]) >= 3:
+    if len([x for x in (_price(c), _size(c), _layout(c), c.registered, *places) if x]) >= 2:
         ok.append("three_reasons")
     if places:
         ok += ["pov", "myth_fact"]
@@ -108,12 +114,12 @@ def eligible(c: Ctx) -> List[str]:
 
 # ---- the code's own scripts (always correct; the LLM only rewrites their words) ----------------------------------------------
 def template(fmt: str, c: Ctx) -> Script:
-    place = c.locality or c.project or "Pune"
+    place = (c.locality or c.project or "Pune").split(",")[0].strip()   # "Malthan village", not "..., Shirur taluka"
     what = "plot" if c.plot else "home"
     price, size, places = _price(c), _size(c), _places(c)
     rera = f"MahaRERA {c.v['rera_no']}" if c.registered else ""
     cta = f"Comment {CTA_WORD} for a site visit"
-    facts = [x for x in (size, *places, "MahaRERA registered" if c.registered else "") if x]
+    facts = [x for x in (size, _layout(c), *places, "MahaRERA registered" if c.registered else "") if x]
     if fmt == "price_reveal":
         return Script(fmt, f"Guess the price of this {what} in {place}", facts[:3], f"*{price}*" if price else rera, cta)
     if fmt == "pov":
@@ -123,9 +129,9 @@ def template(fmt: str, c: Ctx) -> Script:
         return Script(fmt, f"Is {place} too far? Check the facts", places[:3], f"*{c.where or place}*", cta)
     if fmt == "checklist":
         return Script(fmt, f"Before you book a {what} in {place}, check 3 things",
-                      ["1. The MahaRERA number", "2. The real carpet area", "3. The distance to your work"],
+                      ["1. The MahaRERA number", "2. The real plot size" if c.plot else "2. The real carpet area", "3. The distance to your work"],
                       f"*{c.v['rera_no']}* · {size}".strip(" ·") if size else f"*{c.v['rera_no']}*", cta)
-    reasons = [x for x in ((f"{price}" if price else ""), size, *(places[:2]), "MahaRERA registered" if c.registered else "") if x][:3]
+    reasons = [x for x in ((f"{price}" if price else ""), size, _layout(c), *(places[:2]), "MahaRERA registered" if c.registered else "") if x][:3]
     reasons += ["Photos and location inside", "Ask us anything in the comments"][:max(0, 2 - len(reasons))]
     return Script("three_reasons", f"3 reasons buyers look at {place}", [f"{i + 1}. {r}" for i, r in enumerate(reasons)],
                   f"*{c.where or place}*", cta)
@@ -200,12 +206,12 @@ def value(m: Dict[str, Any]) -> float:
 
 
 def pick(allowed: Sequence[str], n: int, scores: Dict[str, float], rng: Optional[random.Random] = None) -> List[str]:
-    """n formats (repeats allowed when n > len(allowed)): each slot is the best-scoring format not used yet with 80% chance, a
+    """Up to n formats, never one twice (five checklist reels of one property say the same thing five times): each slot is the best-scoring format not used yet with 80% chance, a
     random other one with 20% (and unscored formats count as untried, so they are tried first)."""
     rng = rng or random.Random()
     out: List[str] = []
-    for _ in range(n):
-        left = [f for f in allowed if f not in out] or list(allowed)
+    for _ in range(min(n, len(allowed))):
+        left = [f for f in allowed if f not in out]
         untried = [f for f in left if f not in scores]
         if untried:
             out.append(untried[0])
