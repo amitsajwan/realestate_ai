@@ -108,6 +108,8 @@ class SellingPoint(BaseModel):
         from app.modules.propertyfacts.points import BANNED, parse_inr
         if BANNED.search(self.text) or (self.text_local and BANNED.search(self.text_local)):
             raise ValueError("a selling point cannot promise returns or income")
+        if self.confirmed:  # ticked later in the listing: no longer set aside
+            self.dismissed = False
         k, v = self.key, self.value
         if k in ("starting_price", "booking_amount"):
             n = parse_inr(v) if not isinstance(v, bool) and v is not None else None
