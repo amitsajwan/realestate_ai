@@ -370,6 +370,23 @@ export function fakeDraft(text: string, imageCount: number, hasAudio: boolean): 
 
 const withoutClaims = ({ file_claims: _c, ...rest }: ListingInput) => rest
 
+/** The demo brochure's selling points: the agent ticks the true ones. */
+const GULMOHAR_POINTS: NonNullable<AIDraft['selling_points']> = [
+  { key: 'starting_price', text: 'Plots starting ₹2,99,000', text_local: 'प्लॉट ₹2,99,000 पासून', value: 299000, source: 'brochure' },
+  { key: 'booking_amount', text: 'Book with ₹1,00,000', text_local: '₹1,00,000 मध्ये बुकिंग', value: 100000, source: 'brochure' },
+  { key: 'offer', text: 'Pre-launching offer', text_local: 'प्री-लाँचिंग ऑफर', value: 'Pre-launching offer', source: 'brochure' },
+  { key: 'water', text: '24-hour water', text_local: '24 तास पाणी', value: true, source: 'brochure' },
+  { key: 'power', text: '24-hour power', text_local: '24 तास वीज', value: true, source: 'brochure' },
+  { key: 'roads', text: '25, 18 and 15 ft roads', text_local: '25, 18 आणि 15 फूट रस्ते', value: [25, 18, 15], source: 'brochure' },
+  { key: 'vastu', text: 'Vastu-compliant plots', text_local: 'वास्तुशास्त्रानुसार प्लॉट', value: true, source: 'brochure' },
+  { key: 'land_area', text: '30-acre layout', text_local: '30 एकर प्रकल्प', value: 30, source: 'brochure' },
+]
+
+const GULMOHAR_WARNINGS = [
+  'Under RERA a builder may take at most 10% of the price before the sale agreement is registered. Check the booking amount fits.',
+  'The brochure says "pre-launch". A project must be registered with MahaRERA before it is advertised or sold. Check the RERA number first.',
+]
+
 /** Demo brochure read: fills the project fields the agent did not say, never the price (brochures rarely have one). */
 export function withBrochure(d: AIDraft): AIDraft {
   const fill: ListingInput = { project_name: 'Gulmohar City', property_type: 'plot', city: 'Pune', locality: 'Shirur', listing_scope: 'layout', amenities: ['Garden', 'Security'] }
@@ -393,6 +410,8 @@ export function withBrochure(d: AIDraft): AIDraft {
     ...d, draft, confidence, missing, sources,
     rera_candidates: [{ regno: 'P52100076768', name: 'Gulmohar City', taluka: 'Shirur' }],
     brochure: { claims: ['NA-approved plots with clear title', '30 ft internal roads', 'Gated layout with 24x7 security', '10 minutes from Pune-Ahmednagar highway'], rera_no: null, pages: 12 },
+    selling_points: GULMOHAR_POINTS,
+    warnings: [...d.warnings, ...GULMOHAR_WARNINGS],
   }
 }
 

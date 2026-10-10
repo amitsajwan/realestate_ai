@@ -94,6 +94,13 @@ const en = {
   brochureStepFill: 'Filling the form',
   brochureCouldNotRead: "We couldn't read the brochure",
   brochureNoPrice: 'The brochure has no price — add yours',
+  spTitle: "Selling points from the brochure — tick what's true",
+  spHelp: 'Only ticked points go in your posts.',
+  spTickAll: 'Tick all',
+  spAmount: 'Amount (₹)',
+  spNotes: 'Please note',
+  spSave: 'Save selling points',
+  spChooseInListing: 'Choose in the listing',
   srcBrochure: 'From brochure',
   srcMaharera: 'MahaRERA',
   srcAgent: 'You said',
@@ -446,6 +453,11 @@ const mr: Partial<Record<StringKey, string>> = {
   aboutPublicAbout: 'प्रकल्पाबद्दल',
   aboutPublicHighlights: 'वैशिष्ट्ये',
   aboutPublicAmenities: 'सुविधा',
+  spTitle: 'ब्रोशरमधील वैशिष्ट्ये — जे खरे आहे ते निवडा',
+  spHelp: 'फक्त निवडलेले मुद्दे तुमच्या पोस्टमध्ये जातील.',
+  spTickAll: 'सर्व निवडा',
+  spAmount: 'रक्कम (₹)',
+  spSave: 'जतन करा',
 }
 
 const tables: Record<Lang, Partial<Record<StringKey, string>>> = { en, hi, mr }
