@@ -2,13 +2,13 @@
 
 Each register record gets a `page_slug` once ("rohan-abhilasha-4-wagholi") and keeps it. The page shows the record's facts with
 their source and read date, and a paragraph written by code from those facts only. A page is `indexable` (sitemap, no noindex)
-only when it has a filed completion date and homes booked out of the total: thinner pages exist, but stay out of search until the
-register's details step fills them in.
+when it has a filed completion date and a promoter or pincode; bookings are optional and finished projects stay in.
 
 Other modules get a project's page with `page_for(db, regno)`; a project the register does not have yet is added through the watch
 list first (areastats.watch), and then has its page at once.
 """
 import re
+import time
 import unicodedata
 from datetime import date, datetime, timedelta
 from typing import List, Optional
@@ -100,8 +100,54 @@ def booked(doc: dict) -> Optional[int]:
 
 
 def indexable(doc: dict) -> bool:
-    total, booked_ = _count(doc.get("units_total")), booked(doc)
-    return bool(_day(doc.get("completion_now")) and total and booked_ is not None and booked_ <= total)
+    """In search when the page has a filed completion date and says who or where (promoter or pincode). Bookings are optional;
+    finished projects stay in."""
+    return bool(_day(doc.get("completion_now")) and (str(doc.get("promoter") or "").strip() or str(doc.get("pincode") or "").strip()))
+
+
+def page_updated(doc: dict) -> Optional[str]:
+    """Our own last change to the page (enrichment or the details read), ISO date; never MahaRERA's dates. The sitemap's lastmod."""
+    days = [v.date().isoformat() for v in (doc.get("enriched_at"), doc.get("details_checked_at")) if isinstance(v, datetime)]
+    return max(days) if days else None
+
+
+# ---- the name buyers use -------------------------------------------------------------------------------------------------
+_PHASE = re.compile(r"^(?:[a-z]|[ivx]+)$", re.I)
+
+
+def _brand_fix(name: str, promoter: Optional[str]) -> tuple:
+    """("Gera World of Joy M", "Gera") for "Geras World of Joy M" by Gera Developments; (name, None) otherwise."""
+    words = name.split()
+    first = words[0] if words else ""
+    pwords = promoter_key(promoter).split()
+    if len(first) > 2 and first[-1] in "sS" and pwords and _ascii(first[:-1]) == pwords[0]:
+        return " ".join([first[:-1]] + words[1:]), first[:-1]
+    return name, None
+
+
+def _base(name: str) -> str:
+    """Trailing single-letter / roman phase tokens off ("Gera World of Joy M" -> "Gera World of Joy"); two words always kept."""
+    words = name.split()
+    while len(words) > 2 and _PHASE.match(words[-1]):
+        words.pop()
+    return " ".join(words)
+
+
+def names(doc: dict) -> tuple:
+    """(marketed_name, aliases): the name buyers google and its variants (base without phase, "Gera's ..." possessive, legal)."""
+    legal = " ".join((doc.get("name") or "").split())
+    fixed, brand_word = _brand_fix(legal, doc.get("promoter"))
+    marketed = " ".join((doc.get("marketed_name_override") or "").split()) or fixed
+    variants = [marketed, _base(marketed), fixed, _base(fixed)]
+    if brand_word:
+        variants += [f"{brand_word}'s" + v[len(brand_word):] for v in (fixed, _base(fixed))]
+    variants.append(legal)
+    seen, aliases = set(), []
+    for v in variants:
+        if v and v.lower() not in seen:
+            seen.add(v.lower())
+            aliases.append(v)
+    return marketed, aliases
 
 
 def _long(day: Optional[str]) -> Optional[str]:
@@ -240,10 +286,26 @@ def view(doc: dict, same_area: List[dict], docs: Optional[List[dict]] = None) ->
         "listed_or_updated": _day(doc.get("last_modified")), "maharera_url": doc.get("source_url") or None,
         # the enriched text (model-written from gathered facts, checked) when there is one, else the code-written paragraph
         "paragraph": doc.get("page_text") or paragraph(doc), "indexable": indexable(doc),
+        "marketed_name": names(doc)[0], "aliases": names(doc)[1], "page_updated": page_updated(doc),
+        "same_promoter": same_promoter(doc, docs) if docs is not None else [],
         "enriched_at": doc["enriched_at"].date().isoformat() if isinstance(doc.get("enriched_at"), datetime) else None,
         "same_area": [{"name": s.get("name", ""), "slug": s["page_slug"], "completion_now": _day(s.get("completion_now"))} for s in same_area],
         "source": "MahaRERA public records",
     }
+
+
+SAME_PROMOTER = 8
+
+
+def same_promoter(doc: dict, docs: List[dict]) -> List[dict]:
+    """Up to 8 other pages by the same promoter, active (not finished) first: {name, marketed_name, slug, completion_now}."""
+    key = promoter_key(doc.get("promoter"))
+    if not key:
+        return []
+    mine = [d for d in docs if d["_id"] != doc["_id"] and _served(d) and promoter_key(d.get("promoter")) == key]
+    mine.sort(key=lambda d: (is_old(d), d.get("name", "")))
+    return [{"name": d.get("name", ""), "marketed_name": names(d)[0], "slug": d["page_slug"],
+             "completion_now": _day(d.get("completion_now"))} for d in mine[:SAME_PROMOTER]]
 
 
 def _similar(doc: dict, docs: List[dict]) -> List[dict]:
@@ -293,14 +355,74 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
     if only_indexable:
         docs = [d for d in docs if indexable(d)]
     docs.sort(key=lambda d: (_day(d.get("last_modified")) or "", d.get("name", "")), reverse=True)
-    return [{"slug": d["page_slug"], "regno": d.get("regno") or d["_id"], "name": d.get("name", ""), "area": d.get("locality"),
+    return [{"slug": d["page_slug"], "regno": d.get("regno") or d["_id"], "name": d.get("name", ""), "marketed_name": names(d)[0],
+             "area": d.get("locality"), "units_total": _count(d.get("units_total")), "units_booked": booked(d),
              "place": d.get("pune_place"), "place_name": d.get("pune_place_name"),
              "promoter": d.get("promoter") or None, "completion_now": _day(d.get("completion_now")),
              "checked": checked_count(d), "checks_total": len(CHECK_LABELS), "active": not is_old(d),
              "listed_or_updated": _day(d.get("last_modified")),
-             # the page last changed: MahaRERA's own update or our crawler's checks, whichever is newer (the sitemap's lastmod)
-             "page_updated": max(filter(None, (_day(d.get("last_modified")), _day(d.get("enriched_at")))), default=None),
+             "page_updated": page_updated(d),   # our own last change (the sitemap's lastmod), never MahaRERA's dates
              "indexable": indexable(d)} for d in docs[:limit]]
+
+
+# ---- search by the names buyers type -------------------------------------------------------------------------------------
+SEARCH_TTL = 60
+_search_cache: dict = {}
+
+
+def _norm(text: Optional[str]) -> str:
+    return " ".join(_WORDS.findall(_ascii(text or "")))
+
+
+def clear_search_cache() -> None:
+    _search_cache.clear()
+
+
+async def _search_rows(db) -> List[dict]:
+    hit = _search_cache.get(id(db))
+    if hit and hit[0] > time.monotonic():
+        return hit[1]
+    rows = []
+    for d in await Store(db).all_projects():
+        if not _served(d):
+            continue
+        marketed, aliases = names(d)
+        regno = d.get("regno") or d["_id"]
+        rows.append({"out": {"slug": d["page_slug"], "name": d.get("name", ""), "marketed_name": marketed, "regno": regno,
+                             "promoter": d.get("promoter") or None,
+                             "area": d.get("locality") if d.get("locality") in BY_KEY else None,
+                             "place_name": d.get("pune_place_name"), "completion_now": _day(d.get("completion_now")),
+                             "units_total": _count(d.get("units_total")), "units_booked": booked(d),
+                             "checked": checked_count(d), "checks_total": len(CHECK_LABELS), "active": not is_old(d)},
+                     "regno": _norm(regno).replace(" ", ""),
+                     "names": [n for n in dict.fromkeys(_norm(x) for x in [d.get("name"), marketed, *aliases]) if n],
+                     "hay": " ".join(_norm(x) for x in [d.get("name"), marketed, *aliases, d.get("promoter"),
+                                                        d.get("pune_place_name"), regno])})
+    _search_cache[id(db)] = (time.monotonic() + SEARCH_TTL, rows)
+    return rows
+
+
+def _score(row: dict, q: str) -> int:
+    flat = q.replace(" ", "")
+    if flat == row["regno"]:
+        return 100
+    if flat in row["regno"]:
+        return 80
+    if any(n.startswith(q) for n in row["names"]):
+        return 60
+    if q in row["hay"]:
+        return 50
+    return 30 if all(w in row["hay"] for w in q.split()) else 0
+
+
+async def search(db, q: str, limit: int = 20) -> List[dict]:
+    """Projects matching what a buyer typed (registration number, name, marketed name, alias, promoter, place), best first."""
+    qn = _norm(q)
+    if len(qn.replace(" ", "")) < 2:
+        return []
+    scored = [(s, r) for r in await _search_rows(db) if (s := _score(r, qn))]
+    scored.sort(key=lambda x: (-x[0], not x[1]["out"]["active"], x[1]["out"]["marketed_name"].lower()))
+    return [r["out"] for _, r in scored[:limit]]
 
 
 async def places(db) -> List[dict]:
