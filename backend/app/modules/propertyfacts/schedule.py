@@ -4,6 +4,7 @@ Nothing publishes from here: the owner approves each row in Studio > Calendar (c
 Each row's slug is unique per listing and angle and carries the listing's agent, so the calendar's interest link
 (calendar.adapters.with_interest, keyed by slug) counts enquiries per post. Facebook captions also carry the listing page link
 with `?src=`, so visits per post show in tracking; Instagram keeps "link in bio"."""
+import re
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -24,6 +25,17 @@ def facebook_caption(caption: str, link_line: str, page_url: str, angle: str) ->
     """The Instagram caption with its "link in bio" line replaced by the listing page link (tagged per post)."""
     url = f"{page_url}{'&' if '?' in page_url else '?'}src=fb_{angle}"
     line = f"Full details and the MahaRERA record: {url}"
+    return caption.replace(link_line, line) if link_line and link_line in caption else caption.rstrip() + "\n\n" + line
+
+
+def instagram_caption(caption: str, link_line: str, page_url: str) -> str:
+    """Instagram links are not clickable in captions: the page's address is written out (typeable) next to "link in bio"."""
+    if not page_url:
+        return caption
+    short = re.sub(r"^https?://(www\.)?", "", page_url).rstrip("/")
+    if short in caption:
+        return caption
+    line = f"{link_line.rstrip('.')} · {short}" if link_line else short
     return caption.replace(link_line, line) if link_line and link_line in caption else caption.rstrip() + "\n\n" + line
 
 
@@ -70,8 +82,7 @@ def items(run: dict, link_line: str) -> List[Dict]:
     out: List[Dict] = []
 
     def add(slug, channel, kind, caption, images, video, angle, extra_creative):
-        if channel != "instagram":
-            caption = facebook_caption(caption, link_line, page, angle)
+        caption = facebook_caption(caption, link_line, page, angle) if channel != "instagram" else instagram_caption(caption, link_line, page)
         creative = {"role": "listing", "source": "campaign", "path": "campaign", "angle": angle, "ok": True,
                     "hook": (caption.splitlines() or [""])[0], **(run.get("property") or {}), **extra_creative}
         out.append({"slug": slug, "channel": channel, "kind": kind, "caption": caption, "images": images, "video": video,
