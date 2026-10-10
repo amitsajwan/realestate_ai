@@ -19,6 +19,7 @@ const LEADS_TAB: Tab = { href: '/studio/leads', label: 'leads', icon: 'M17 20h5v
 /** Owner only (the server answers 403 to anyone else, so these are simply not shown). */
 const AGENTS_TAB: Tab = { href: '/studio/agents', label: 'agents', icon: 'M16 11a4 4 0 10-8 0 4 4 0 008 0zM4 21a8 8 0 0116 0M18 8l2 2 3-3' }
 const ADMIN_TAB: Tab = { href: '/studio/admin', label: 'admin', icon: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4' }
+const RADAR_TAB: Tab = { href: '/studio/radar', label: 'radar', icon: 'M12 12m-9 0a9 9 0 1018 0 9 9 0 10-18 0M12 12m-5 0a5 5 0 1010 0 5 5 0 10-10 0M12 12l6-6' }
 const PROFILE_TAB: Tab = { href: '/studio/profile', label: 'profile', icon: 'M20 21a8 8 0 00-16 0M12 13a4 4 0 100-8 4 4 0 000 8z' }
 const MORE_TAB: Tab = { href: '#more', label: 'more', icon: 'M5 12h.01M12 12h.01M19 12h.01' }
 
@@ -29,7 +30,7 @@ const AGENT_BAR: Tab[] = [HOME_TAB, LISTINGS_TAB, INTEREST_TAB, NEWSROOM_TAB, CO
  * a bottom sheet with the rest.
  */
 const OWNER_BAR: Tab[] = [HOME_TAB, CONTENT_TAB, NEWSROOM_TAB, LEADS_TAB]
-const OWNER_MORE: Tab[] = [LISTINGS_TAB, INTEREST_TAB, AGENTS_TAB, ADMIN_TAB, PROFILE_TAB]
+const OWNER_MORE: Tab[] = [LISTINGS_TAB, INTEREST_TAB, RADAR_TAB, AGENTS_TAB, ADMIN_TAB, PROFILE_TAB]
 
 export function FixtureBanner() {
   const [on, setOn] = useState(false)
