@@ -38,8 +38,9 @@ READ_PROMPT = (
     "place names as they are known in English, for example शिक्रापूर Shikrapur, मळठण Malthan, रांजणगाव Ranjangaon, चाकण "
     "Chakan, शिरूर Shirur, लोणी काळभोर Loni Kalbhor, राजगुरूनगर Rajgurunagar, वाघोली Wagholi, सणसवाडी Sanaswadi; a name "
     "you cannot read, leave out rather than guess. Leave out slogans and adjectives (dream, best, "
-    "safe investment, high returns). Copy any MahaRERA registration number (P followed by 11 digits) exactly, or \"\". Reply "
-    'with JSON only: {"claims": ["..."], "rera_no": "..."}'
+    "safe investment, high returns). Copy any MahaRERA registration number (P followed by 11 digits) exactly, or \"\". Give the project's own name as "
+    "shown in its logo or title, in English letters (for example \"Gulmohar City\"), or \"\". Reply "
+    'with JSON only: {"claims": ["..."], "rera_no": "...", "project_name": "..."}'
 )
 VIDEO_SYSTEM = (
     "You summarise what a presenter says in a real-estate site video, as the builder's claims. Reply with JSON only."
@@ -84,6 +85,15 @@ def pdf_text(pdf: Path, max_pages: int = MAX_PAGES) -> str:
         doc.close()
 
 
+def _claim_key(s: str) -> str:
+    return " ".join(w for w in re.findall(r"[a-z0-9]+", str(s).lower()) if w not in ("the", "a", "an", "is"))
+
+
+def trusted_name(name: str) -> bool:
+    """A project name the reader gave: Latin letters, 2 to 60 characters, not a slogan."""
+    return 2 <= len(name) <= 60 and bool(re.fullmatch(r"[A-Za-z0-9 .&'-]+", name)) and bool(re.search(r"[A-Za-z]{3}", name))
+
+
 async def read_pages(pages: List[str]) -> Dict[str, Any]:
     """{"claims": [...], "rera_no": str} read by the vision model from the first READ_PAGES pages, or {} without one."""
     from app.modules.photoquality.vision_review import default_clients, parse_reply
@@ -101,7 +111,7 @@ async def read_pages(pages: List[str]) -> Dict[str, Any]:
     # even on a fresh key. Each page goes to the readers in order until one answers; a busy key passes to the next.
     clients = default_clients()
     claims: List[str] = []
-    rera_no = None
+    rera_no = project_name = None
     weak = False
     for page in images:
         for client in clients:
@@ -118,13 +128,17 @@ async def read_pages(pages: List[str]) -> Dict[str, Any]:
                          f" HTTP {resp.status_code}: {resp.text[:200]}" if resp is not None else "")
                 continue
             trusted = getattr(client, "trusted", True)
-            claims += [x for x in data.get("claims") or [] if x not in claims]
+            seen = {_claim_key(x) for x in claims}
+            claims += [x for x in data.get("claims") or [] if isinstance(x, str) and _claim_key(x) not in seen]
+            name = str(data.get("project_name") or "").strip()
+            if trusted_name(name) and not project_name:
+                project_name = name[:80]
             if trusted:  # a small model makes up registration numbers: only a trusted reader's is kept
                 rera_no = rera_no or data.get("rera_no")
             weak = weak or not trusted
             break
     if claims:
-        return {"claims": claims, "rera_no": rera_no, "weak": weak}
+        return {"claims": claims, "rera_no": rera_no, "weak": weak, "project_name": project_name}
     return {}
 
 
@@ -204,7 +218,7 @@ async def read_brochure(pdf: Path, out_dir: Path) -> Dict[str, Any]:
     except Exception:
         text = ""
     found = RERA.search(f"{read.get('rera_no') or ''} {text}")
-    return {"pages": pages, "claims": clean_claims(read.get("claims")), "rera_no": found.group(0).upper() if found else None,
+    return {"pages": pages, "claims": clean_claims(read.get("claims")), "project_name": read.get("project_name"), "rera_no": found.group(0).upper() if found else None,
             "rera_missing": not found, "read_by_ai": bool(read), "weak": bool(read.get("weak"))}
 
 

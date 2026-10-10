@@ -151,6 +151,8 @@ class AIListingService:
             conf.pop("rera_no", None)
         if b.get("rera_no") and not facts.get("rera_no"):
             facts["rera_no"], conf["rera_no"] = b["rera_no"], 0.95
+        if b.get("project_name") and not facts.get("project_name"):  # from the logo or title page
+            facts["project_name"], conf["project_name"] = b["project_name"], 0.8
         if not facts.get("transaction"):  # a builder's brochure is a new project on sale
             facts["transaction"], conf["transaction"] = "sale", 0.9
         facts["listing_scope"], conf["listing_scope"] = "layout", 0.8
