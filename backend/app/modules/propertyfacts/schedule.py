@@ -67,7 +67,7 @@ def _rel(path: str) -> str:
     return path[len("/uploads/"):] if path.startswith("/uploads/") else path.lstrip("/")
 
 
-def property_of(listing: dict, facts: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
+def property_of(listing: dict, facts: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """What calendar.reach reads first for the hashtags (locality, project, type), so the tags do not depend on the caption's wording.
     The checked fact sheet wins ("Ranjangaon", "Gulmohar City" from MahaRERA); the listing as the agent typed it is the fallback
     ("Shikarapur maltan highway near ranjangaon midc", "Gulmohor city")."""
@@ -78,6 +78,15 @@ def property_of(listing: dict, facts: Optional[Dict[str, Any]] = None) -> Dict[s
         val = f.value if f is not None and getattr(f, "level", None) in USABLE and isinstance(f.value, str) else listing.get(key)
         if val and str(val).strip():
             out[key] = str(val).strip()
+    # who the post is for (calendar.reach.segment): as the listing says, never from the copy
+    if isinstance(listing.get("price_inr"), (int, float)) and listing["price_inr"] > 0:
+        out["price_inr"] = int(listing["price_inr"])
+    if isinstance(listing.get("bhk"), (int, float)) and listing["bhk"] > 0:
+        out["bhk"] = listing["bhk"]
+    if listing.get("transaction") in ("sale", "rent"):
+        out["transaction"] = listing["transaction"]
+    if "onwards" in str(listing.get("title") or "").lower():
+        out["price_from"] = True
     return out
 
 

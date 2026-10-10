@@ -126,7 +126,12 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
     try:
         kind = doc.get("kind") or "post"
         doc = await adapters.with_interest(store.db, doc)
-        doc = reach.apply(doc)  # 3 to 5 targeted hashtags in place of the caption's own
+        line = reach.hashtags(doc)
+        doc = {**doc, "caption": reach.with_hashtags(doc.get("caption", ""), line)}  # 3 to 5 targeted hashtags in place of the caption's own
+        try:   # measuring must never hold up publishing
+            await store.set_reach(doc["_id"], line, reach.location_id(doc) is not None)
+        except Exception as e:
+            log.warning("calendar: recording the hashtags of %s failed: %s", doc.get("slug"), type(e).__name__)
         if social.dry_run:
             res = await DryRunPublisher().publish(Post(doc["channel"], doc["caption"], []))
             await store.published(doc["_id"], res.external_id, res.permalink, "dry run: nothing was sent")

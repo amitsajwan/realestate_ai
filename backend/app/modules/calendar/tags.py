@@ -15,6 +15,9 @@ scripts); `Store.backfill_tags` adds it to older rows. A value it cannot tell is
   cta          the comment keyword asked for (INTERESTED, AGENT, PRICE, ...), save_share, or none
   area         an area key from app.core.areas, or unknown
   language     en | hi | mr
+  segment      renter | plot | first_home | family_home | premium | unknown (reach.segment: the same rule picks the audience hashtag)
+  price_band, bhk, property_type, transaction   what the row says about the home ("unknown" / None when it does not)
+  hashtags, location                        set at publish by the runner (Store.set_reach): the tag line that went out, location tag on/off
   experiment, variant, engine, price_band   passed through when the writer set them (trend reels do)
   duration_s, render                        reels only, set when the video is rendered (Store.set_video)
 """
@@ -23,7 +26,7 @@ from typing import Dict, Optional
 
 from . import reach
 
-TAGS_SCHEMA = 1
+TAGS_SCHEMA = 2   # 2: segment fields (2026-10-11)
 UNKNOWN = "unknown"
 REEL_FORMATS = {"tip": "tip", "tour": "tour", "pitch": "pitch", "area": "area", "project": "project", "agent": "agent_ad", "puzzle": "puzzle", "delay": "datewatch"}
 POST_FORMATS = ("carousel", "single", "checklist", "myth-vs-fact", "poll", "stat", "before-after")
@@ -108,11 +111,16 @@ def derive(row: dict) -> Dict:
         "cta": _cta(row),
         "area": a.key if a else UNKNOWN,
         "language": str(c.get("language") or row.get("language") or "en"),
+        "segment": reach.segment(row),
+        "price_band": reach.price_band(row),
+        "bhk": reach.listing_facts(row)["bhk"],
+        "property_type": reach.property_type(row) or UNKNOWN,
+        "transaction": reach.listing_facts(row)["transaction"] or UNKNOWN,
     }
     for k in PASS_THROUGH:
-        if c.get(k):
+        if c.get(k) and not (k == "price_band" and tags.get("price_band") != UNKNOWN):   # a writer's band yields to the listing's
             tags[k] = c[k]
-    for k in ("duration_s", "render"):
-        if (row.get("tags") or {}).get(k) is not None:   # set at render time: kept when the tags are derived again
+    for k in ("duration_s", "render", "hashtags", "location", "published_as"):
+        if (row.get("tags") or {}).get(k) is not None:   # set at render or publish time: kept when the tags are derived again
             tags[k] = row["tags"][k]
     return tags

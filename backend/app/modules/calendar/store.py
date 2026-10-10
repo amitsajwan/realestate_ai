@@ -50,9 +50,22 @@ class Store:
         for d in await self.all(limit=100000):
             if (d.get("tags") or {}).get("schema") == _tags.TAGS_SCHEMA:
                 continue
-            await self.items.update_one({"_id": d["_id"]}, {"$set": {"tags": _tags.derive(d)}})
+            await self.items.update_one({"_id": d["_id"]}, {"$set": {"tags": _tags.derive(await self._with_listing(d))}})
             n += 1
         return n
+
+    async def _with_listing(self, d: dict) -> dict:
+        """A listing post written before rows carried the home's price, BHK and transaction: read them from the listing, so its
+        segment is known (only for deriving tags; the stored row is not changed)."""
+        c = d.get("creative") or {}
+        if not d.get("listing_id") or c.get("price_inr") or c.get("bhk") or c.get("transaction"):
+            return d
+        listing = await self.db.get_collection("listings").find_one({"_id": d["listing_id"]},
+                                                                     {"price_inr": 1, "bhk": 1, "transaction": 1, "property_type": 1})
+        if not listing:
+            return d
+        extra = {k: listing[k] for k in ("price_inr", "bhk", "transaction", "property_type") if listing.get(k) and not c.get(k)}
+        return {**d, "creative": {**c, **extra}}
 
     async def get(self, id: str) -> Optional[dict]:
         return await self.items.find_one({"_id": id})
@@ -172,6 +185,11 @@ class Store:
         now = self.clock()
         await self.items.update_one({"_id": id}, {"$set": {**fields, "status": status, "updated_at": now},
                                                   "$push": {"history": {"at": now, "status": status, "note": note}}})
+
+    async def set_reach(self, id: str, hashtags: List[str], location: bool) -> None:
+        """What reach.apply put on the post as it went out (the tag line, and whether a location tag was attached), kept in the
+        row's tags so results group by them. Best effort: the caller never lets this hold up publishing."""
+        await self.items.update_one({"_id": id}, {"$set": {"tags.hashtags": list(hashtags), "tags.location": bool(location)}})
 
     async def published(self, id: str, external_id: str, permalink: Optional[str], note: str = "") -> None:
         await self._move(id, "published", note or "published", external_id=external_id, permalink=permalink, error=None, published_at=self.clock())

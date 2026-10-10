@@ -4,7 +4,8 @@ Applied to every calendar row just before it is published. The caption's own has
 goes at the end, most specific first:
   1. the locality: one of our areas (app.core.areas, with its own tags) or any other locality the row names
      ("Gulmohar City, Ranjangaon." -> #Ranjangaon), so a plot in Ranjangaon is not tagged as only "Pune";
-  2. the project, when the row is about a named one (#GulmoharCity);
+  2. the project, when the row is about a named one (#GulmoharCity), then the audience's own tag (segment_tag: #2BHKWagholi,
+     #FlatsForRentPune, #NAPlotsPune, #AffordableHomesPune; on Facebook it takes the type tag's place);
   3. the property type when it is known (#PlotsInPune, #FlatsInPune, ...; not on Facebook when there is a project tag),
      then #<Locality>RealEstate (#WagholiRealEstate);
   4. the caption's own specific tags (the generator put them there on purpose: #StampDuty on a stamp-duty guide; a tag
@@ -159,6 +160,72 @@ def _squash(s: str) -> str:
     return re.sub(r"[^a-z0-9]", "", s.lower())
 
 
+# ---- who a buyer post is for: one function feeds both the hashtags and the tags, so what we target and what we measure agree ----
+SEGMENTS = ("renter", "plot", "first_home", "family_home", "premium", "unknown")
+SEGMENT_TAGS = {"renter": "#FlatsForRentPune", "plot": "#NAPlotsPune", "first_home": "#AffordableHomesPune"}
+# (upper bound in rupees, label); a starting price counts as its band
+PRICE_BANDS = ((30_00_000, "under_30L"), (50_00_000, "30-50L"), (75_00_000, "50-75L"), (1_00_00_000, "75L-1Cr"),
+               (1_50_00_000, "1-1.5Cr"), (None, "1.5Cr+"))
+
+
+def _num(v) -> Optional[float]:
+    try:
+        n = float(v)
+    except (TypeError, ValueError):
+        return None
+    return n if n > 0 else None
+
+
+def listing_facts(doc: dict) -> dict:
+    """{transaction, price_inr, bhk} the row carries (campaign rows from the listing, agent project reels from the project),
+    each None when the row does not say."""
+    c, p = _creative(doc), _project_dict(doc)
+    price = _num(doc.get("price_inr") or c.get("price_inr") or p.get("price_min") or p.get("price_inr"))
+    bhk = _num(doc.get("bhk") or c.get("bhk"))
+    opts = p.get("bhk_options")
+    if bhk is None and isinstance(opts, list) and len(opts) == 1:
+        bhk = _num(opts[0])
+    tx = str(doc.get("transaction") or c.get("transaction") or "").lower()
+    return {"transaction": tx if tx in ("sale", "rent") else None, "price_inr": price, "bhk": bhk}
+
+
+def price_band(doc: dict) -> str:
+    f = listing_facts(doc)
+    if f["transaction"] == "rent" or f["price_inr"] is None:
+        return "unknown"
+    return next(label for top, label in PRICE_BANDS if top is None or f["price_inr"] < top)
+
+
+def segment(doc: dict) -> str:
+    """The buyer a post is for: renter | plot | first_home | family_home | premium, or unknown when the row does not say enough.
+    Rules, first match: a rental; a plot; under ₹50 lakh or a 1 BHK (first home); ₹1.5 crore and up or 4+ BHK (premium);
+    a known price or a 2-3 BHK (family home). Recruitment posts and news have no segment."""
+    if audience(doc) == "agents":
+        return "unknown"
+    f, kind = listing_facts(doc), property_type(doc)
+    if f["transaction"] == "rent":
+        return "renter"
+    if kind == "plot":
+        return "plot"
+    price, bhk = f["price_inr"], f["bhk"]
+    if (price and price < 50_00_000) or (bhk and bhk < 2):
+        return "first_home"
+    if (price and price >= 1_50_00_000) or (bhk and bhk >= 4):
+        return "premium"
+    if price or bhk:
+        return "family_home"
+    return "unknown"
+
+
+def segment_tag(doc: dict, loc: str) -> str:
+    """The audience's own hashtag: '#2BHKWagholi' when a flat's BHK is known (what buyers type), else the segment's tag."""
+    seg = segment(doc)
+    bhk = listing_facts(doc)["bhk"]
+    if seg in ("renter", "plot") or not bhk or not float(bhk).is_integer() or property_type(doc) not in ("", "apartment", "flat"):
+        return SEGMENT_TAGS.get(seg, "")
+    return camel_tag(f"{int(bhk)}BHK {loc or 'Pune'}")
+
+
 def hashtags(doc: dict) -> List[str]:
     n = PER_CHANNEL.get(doc.get("channel", ""), 3)
     if audience(doc) == "agents":
@@ -191,8 +258,12 @@ def hashtags(doc: dict) -> List[str]:
     corridor = CORRIDOR.get(_squash(loc), "") if loc else ""
     if corridor and corridor.lower() in {t.lower() for t in loc_tags}:
         corridor = ""
+    seg_tag = segment_tag(doc, loc)
+    # 3 tags on Facebook: place, project, audience; and a plot's or rental's audience tag already says the type
+    if seg_tag and (doc.get("channel") == "facebook_page" or segment(doc) in ("plot", "renter")):
+        type_tag = ""
     # with a corridor tag the narrow #<Locality>RealEstate waits until after #PuneProperty
-    tags = (loc_tags[:1] + [corridor, proj_tag, type_tag] + ([] if corridor else [local_tag])
+    tags = (loc_tags[:1] + [corridor, proj_tag, seg_tag, type_tag] + ([] if corridor else [local_tag])
             + own_specific + ["#PuneProperty"] + ([local_tag] if corridor else []) + ["#MahaRERA"] * rera + loc_tags[1:] + own_local + own_topical + own_generic
             + ([] if kind == "plot" else [HOMES_TAG]) + FILLER_TAGS + [t for t in own if t.lower() in _BROAD])
     out, seen = [], set()

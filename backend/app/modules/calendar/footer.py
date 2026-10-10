@@ -1,7 +1,9 @@
 """The standard footer of every Avasetu post: the website for Facebook, 'link in our bio' for Instagram (captions cannot hold links).
 `with_footer` is pure and idempotent. The integrator applies it where captions are built; nothing here touches stored captions."""
 from app.core import brand
+import hashlib
 import re
+from typing import Optional
 
 SITE_URL = brand.SITE
 FACEBOOK_FOOTER = brand.footer("facebook")
@@ -20,8 +22,30 @@ ASK_PARTS = ((re.compile(r"\bcomment", re.I), "💬 Comment INFO for the details
              (re.compile(r"\bfollow\b", re.I), "➕ Follow for daily Pune property updates."))
 
 
-def ask_for(body: str) -> str:
-    return " ".join(line for has, line in ASK_PARTS if not has.search(body or ""))
+# Buyer posts ask ONE thing (2026-10-11, docs/plan/reach-captions.md): three asks on every post read as engagement bait, which Meta
+# demotes, and bury the post's own action. A send is the strongest reach signal we can ask for; about 1 post in 4 (stable by key)
+# asks for a comment instead, so the comment assistant keeps working and the two can be compared.
+SEND_ASK = {"en": "📤 Send this to someone looking for a home in {place}.",
+            "mr": "📤 {place} मध्ये घर शोधणाऱ्या व्यक्तीला हे पाठवा.",
+            "hi": "📤 {place} में घर ढूँढ रहे किसी व्यक्ति को यह भेजें."}
+COMMENT_ASK = {"en": "💬 Comment INFO for the details.", "mr": "💬 माहितीसाठी INFO कमेंट करा.", "hi": "💬 जानकारी के लिए INFO कमेंट करें."}
+COMMENT_EVERY = 4
+_OWN_ASK = re.compile(r"\b(comment|share|send)\b|कमेंट|पाठवा|भेजें|शेअर|शेयर", re.I)
+_ACTION_LINE = re.compile(r"^\s*(👉|💬\s*WhatsApp)", re.M)   # the interest link and the WhatsApp line are actions, not asks
+
+
+def ask_for(body: str, key: Optional[str] = None, place: str = "", language: str = "en") -> str:
+    """The engagement ask. Without `key` (recruitment posts): the old asks, each left out when the caption already makes it.
+    With `key` (buyer posts): at most one, none when the caption already asks for a comment, share or send."""
+    if key is None:
+        return " ".join(line for has, line in ASK_PARTS if not has.search(body or ""))
+    own = "\n".join(ln for ln in (body or "").splitlines() if not _ACTION_LINE.match(ln))
+    if _OWN_ASK.search(own):
+        return ""
+    lang = language if language in SEND_ASK else "en"
+    if int(hashlib.sha1(key.encode("utf-8")).hexdigest(), 16) % COMMENT_EVERY == 0:
+        return COMMENT_ASK[lang]
+    return SEND_ASK[lang].format(place=(place or "Pune").strip())
 
 
 def footer_for(channel: str) -> str:
@@ -53,7 +77,7 @@ def _cut(body: str, room: int) -> str:
     return (cut[:at] if at > 0 else cut).rstrip() + "…"
 
 
-def with_footer(caption: str, channel: str) -> str:
+def with_footer(caption: str, channel: str, key: Optional[str] = None, place: str = "", language: str = "en") -> str:
     """Caption + engagement ask + footer, once. At most 10 hashtags; Facebook stays under 900 characters and Instagram under 2000 (the body is trimmed, never the footer)."""
     foot = footer_for(channel)
     body = _LEGACY_FOOTER.sub("", caption or "").strip()
@@ -66,7 +90,7 @@ def with_footer(caption: str, channel: str) -> str:
     m = re.search(r"(\n[ \t]*(?:#\w+[ \t]*)+)$", body)
     if m and len(tags) <= MAX_HASHTAGS:
         block, body = m.group(1).rstrip(), body[:m.start()].rstrip()
-    ask = ask_for(body) if body else ""
+    ask = ask_for(body, key, place, language) if body else ""
     ask = "\n\n" + ask if ask else ""
     room = _limit(channel) - 1 - len(foot) - len(block) - len(ask) - 2
     body = _cut(body, room)

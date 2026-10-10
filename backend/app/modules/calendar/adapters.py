@@ -467,6 +467,68 @@ async def _listing_shown(db, doc: dict) -> dict:
     return {"page_url": page, "image_url": imgs[0]["url"] if imgs else "", "subtitle": sub, "locality": listing.get("locality") or ""}
 
 
+# The search line (docs/plan/reach-captions.md): what the home is, where and for how much, right under the headline, so it is in the
+# ~125 characters shown before "more" and in the words Instagram search reads. From the listing record only.
+_KIND_WORDS = {"en": {"apartment": "flat", "flat": "flat", "plot": "plot", "villa": "villa", "house": "house", "commercial": "commercial space",
+                      "office": "office", "shop": "shop"},
+               "mr": {"apartment": "फ्लॅट", "flat": "फ्लॅट", "plot": "प्लॉट", "villa": "व्हिला", "house": "घर", "commercial": "व्यावसायिक जागा",
+                      "office": "ऑफिस", "shop": "दुकान"},
+               "hi": {"apartment": "फ्लैट", "flat": "फ्लैट", "plot": "प्लॉट", "villa": "विला", "house": "मकान", "commercial": "कमर्शियल जगह",
+                      "office": "ऑफिस", "shop": "दुकान"}}
+_SEARCH_LINE = {"en": {"sale": "📍 {what} for sale in {where} · {price}", "rent": "📍 {what} for rent in {where} · {price}"},
+                "mr": {"sale": "📍 {where} येथे {what} विक्रीसाठी · {price}", "rent": "📍 {where} येथे {what} भाड्याने · {price}"},
+                "hi": {"sale": "📍 {where} में {what} बिक्री के लिए · {price}", "rent": "📍 {where} में {what} किराये पर · {price}"}}
+_FROM = {"en": "from {p} onwards", "mr": "{p} पासून पुढे", "hi": "{p} से शुरू"}
+_PUNE = {"en": "Pune", "mr": "पुणे", "hi": "पुणे"}
+
+
+def search_line(listing: dict, language: str = "en") -> str:
+    """'📍 2 BHK flat for sale in Wagholi, Pune · ₹85 lakh' in the post's language; '' when the listing lacks the place or the price."""
+    from app.modules.creative import i18n
+    from app.modules.creative.listing_brief import price_label
+    lang = language if language in _SEARCH_LINE else "en"
+    price, loc = listing.get("price_inr"), str(listing.get("locality") or "").strip()
+    if not isinstance(price, (int, float)) or price <= 0 or not loc:
+        return ""
+    tx = "rent" if listing.get("transaction") == "rent" else "sale"
+    p = price_label(int(price), tx)
+    if tx == "sale" and "onwards" in str(listing.get("title") or "").lower():   # a starting price is never shown as a flat price
+        p = _FROM[lang].format(p=p)
+    if lang != "en":
+        p = i18n.money(p, lang).replace("a month", "/ महिना" if lang == "mr" else "/ महीना")
+    kind = str(listing.get("property_type") or "").lower()
+    what = _KIND_WORDS[lang].get(kind, _KIND_WORDS[lang]["apartment"] if listing.get("bhk") else "")
+    bhk = listing.get("bhk")
+    if bhk and kind in ("", "apartment", "flat", "villa", "house"):
+        what = f"{bhk:g} BHK {what}".strip()
+    if not what:
+        return ""
+    place = i18n.PLACES.get(loc, {}).get(lang, loc) if lang != "en" else loc
+    return _SEARCH_LINE[lang][tx].format(what=what, where=f"{place}, {_PUNE[lang]}", price=p)
+
+
+def with_search_line(caption: str, line: str, place: str = "") -> str:
+    """The line right after the caption's first line; unchanged when there is no line, it is already there, or the first line already
+    names both the place and a price (a price-reveal headline says it already)."""
+    if not line or line in caption:
+        return caption
+    first, _, rest = caption.partition("\n")
+    if "₹" in first and place and place.lower() in first.lower():
+        return caption
+    return f"{first}\n{line}\n{rest}" if rest else f"{first}\n{line}"
+
+
+async def _search_line_for(db, doc: dict, language: str) -> str:
+    if not doc.get("listing_id"):
+        return ""
+    listing = await db.get_collection("listings").find_one({"_id": doc["listing_id"]}, {"price_inr": 1, "locality": 1, "transaction": 1,
+                                                                                       "title": 1, "property_type": 1, "bhk": 1,
+                                                                                       "is_sample": 1, "sample": 1})
+    if not listing or listing.get("is_sample") or listing.get("sample"):
+        return ""
+    return search_line(listing, language)
+
+
 async def with_interest(db, doc: dict) -> dict:
     """The row with its caption ready to publish: a tap-to-show-interest line (a real link on Facebook, 'link in our bio' on Instagram,
     whose bio link is the /go hub) and the standard footer. Any failure returns the row unchanged: a post never waits on this."""
@@ -496,7 +558,18 @@ async def with_interest(db, doc: dict) -> dict:
             if line and line not in caption:
                 caption = caption.rstrip() + "\n\n" + line
             caption = whatsapp_lines(caption, url.rsplit("/", 1)[-1], channel)
-        return {**doc, "caption": with_footer(caption, channel)}
+        from .reach import locality
+        language = str((doc.get("tags") or {}).get("language") or (doc.get("creative") or {}).get("language") or "en")
+        place = locality(doc)[0]
+        try:   # the search line is a help, never a reason to hold a post
+            caption = with_search_line(caption, await _search_line_for(db, doc, language), place)
+        except Exception:
+            pass
+        if language in ("mr", "hi"):
+            from app.modules.creative import i18n
+            place = i18n.PLACES.get(place, {}).get(language, place)
+        return {**doc, "caption": with_footer(caption, channel, key=str(doc.get("slug") or doc.get("_id") or ""), place=place,
+                                              language=language)}
     except Exception:
         return doc
 
