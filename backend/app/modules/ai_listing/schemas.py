@@ -49,3 +49,6 @@ class AIDraft(BaseModel):
     brochure: Optional[dict[str, Any]] = None
     # the register record matched by registration number: {regno, name, locality, taluka, pincode, promoter, completion_*}
     maharera: Optional[dict[str, Any]] = None
+    # the brochure's selling points for the agent to confirm: [{key, text, text_local?, value, source: "brochure"}]
+    # (propertyfacts/points.py); only points the agent saves on the listing with confirmed: true reach the posts
+    selling_points: list[dict[str, Any]] = Field(default_factory=list)

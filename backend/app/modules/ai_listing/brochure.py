@@ -62,6 +62,8 @@ async def read(url: str, uploads_dir: Path, timeout: float = READ_TIMEOUT) -> Di
         info = {"error": "The brochure could not be read; only its text was used."}
     out["claims"] = list(info.get("claims") or [])
     out["project_name"] = info.get("project_name")
+    out["facts"] = dict(info.get("facts") or {})        # structured selling facts as printed (propertyfacts/points.py)
+    out["language"] = info.get("language") or "en"
     out["pages"] = len(info.get("pages") or [])
     if info.get("error"):
         out["error"] = info["error"]

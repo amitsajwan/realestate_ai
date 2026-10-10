@@ -91,7 +91,8 @@ def test_brochure_fills_the_draft(uploads):
     assert "builder's brochure mentions" in f["description"]["en"]
     assert f["about"]["highlights"][0] == CLAIMS[0]
     assert d.sources["property_type"] == "brochure" and d.sources["transaction"] == "brochure"
-    assert d.brochure == {"claims": CLAIMS, "rera_no": None, "pages": 2}
+    assert d.brochure == {"claims": CLAIMS, "rera_no": None, "pages": 2, "facts": {}, "language": "en"}
+    assert d.selling_points == []
     assert "brochure" in llm.texts[0] and CLAIMS[0] in llm.texts[0]
 
 

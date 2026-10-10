@@ -12,7 +12,7 @@ import httpx
 
 from app.modules.agentprojects.maharera import make_fetch
 
-from . import calc, registration, surroundings
+from . import calc, points, registration, surroundings
 from . import place as place_mod
 from .facts import Fact, Reading, sheet
 
@@ -35,6 +35,11 @@ def listing_readings(doc: Dict[str, Any], now: datetime) -> List[Reading]:
     out = [Reading(k, doc.get(k), "listing", "", now) for k in LISTING_KEYS if doc.get(k) not in (None, "", [])]
     if doc.get("property_type") == "plot" and doc.get("carpet_sqft"):  # a plot listing's area is the plot's area
         out.append(Reading("plot_sqft", doc["carpet_sqft"], "listing", "", now))
+    # the brochure's selling points the agent confirmed: "point.<key>" facts (campaign.offer / campaign.amenities)
+    for k, v in points.confirmed(doc).items():
+        out.append(Reading(f"point.{k}", v, "agent confirmed", "", now))
+        if k == "land_area" and not doc.get("total_acres"):
+            out.append(Reading("total_acres", v, "agent confirmed", "", now))
     return out
 
 

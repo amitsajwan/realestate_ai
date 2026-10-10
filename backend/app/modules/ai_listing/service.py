@@ -16,6 +16,7 @@ from .about import about_from_text
 from .merge import merge, sanitise_llm
 from .schemas import REQUIRED_TO_PUBLISH, AIDraft, Extraction
 from .plausibility import build_warnings
+from app.modules.propertyfacts import points as selling
 
 log = logging.getLogger(__name__)
 
@@ -94,8 +95,11 @@ class AIListingService:
             facts.pop("locality", None)
             conf.pop("locality", None)
         sources = {k: "agent" for k in facts}
+        selling_points: list = []
+        selling_warnings: list = []
         if brochure is not None:
             sources = self._brochure_facts(facts, conf, brochure, agent_text or "", city_hint)
+            selling_points, selling_warnings = self._selling(facts, conf, sources, brochure)
         rera_candidates: list = []
         maharera = None
         if register is not None and (facts.get("rera_no") or (brochure is not None and facts.get("project_name"))):
@@ -137,7 +141,8 @@ class AIListingService:
             if brochure.get("claims") and "about" in draft:
                 sources["about"] = "brochure"
         return AIDraft(draft=draft, confidence={k: round(v, 2) for k, v in conf.items()}, missing=missing,
-                       transcript=transcript, warnings=(warnings or []) + build_warnings(facts, conf),
+                       transcript=transcript, warnings=(warnings or []) + build_warnings(facts, conf) + selling_warnings,
+                       selling_points=selling_points,
                        sources={k: v for k, v in sources.items() if k in draft}, rera_candidates=rera_candidates,
                        brochure=self._brochure_out(brochure), maharera=maharera)
 
@@ -174,6 +179,20 @@ class AIListingService:
         return out
 
     @staticmethod
+    def _selling(facts: dict, conf: dict, sources: dict, b: dict) -> tuple:
+        """(selling_points, warnings) from the brochure's structured facts; the draft takes its price (the starting price),
+        land area and village from them when the agent's words did not give them."""
+        sf = dict(b.get("facts") or {})
+        if not sf:
+            return [], []
+        for key, val, c in (("price_inr", sf.get("starting_price_inr"), 0.8), ("total_acres", sf.get("total_acres"), 0.7),
+                            ("locality", sf.get("village"), 0.7)):
+            if val and not facts.get(key):
+                facts[key], conf[key], sources[key] = val, c, "brochure"
+        pts = selling.selling_points(sf, b.get("language") or "en", facts.get("property_type") or "plot")
+        return pts, selling.warnings(sf, facts.get("price_inr"))
+
+    @staticmethod
     def _brochure_description(en: str, facts: dict, b: dict) -> str:
         """The facts description plus the builder's own claims, said as theirs (claims are already hype-checked)."""
         extra = []
@@ -205,7 +224,8 @@ class AIListingService:
     def _brochure_out(b: Optional[dict]) -> Optional[dict]:
         if b is None:
             return None
-        out = {"claims": list(b.get("claims") or []), "rera_no": b.get("rera_no"), "pages": int(b.get("pages") or 0)}
+        out = {"claims": list(b.get("claims") or []), "rera_no": b.get("rera_no"), "pages": int(b.get("pages") or 0),
+               "facts": dict(b.get("facts") or {}), "language": b.get("language") or "en"}
         if b.get("error"):
             out["error"] = b["error"]
         return out
