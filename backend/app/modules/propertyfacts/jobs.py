@@ -503,7 +503,10 @@ class MarketingRuns:
             if not listing:
                 raise RunError("The listing was removed.")
             out = self.uploads_dir / "campaigns" / _safe(job["listing_id"]) / job["_id"][:8]
-            facts = await self._facts(job, listing)
+            # this listing's own facts, gathered again (kept, so quick): the project's shared sheet can hold another listing's
+            # price (live 2026-10-10: a Ranjangaon plot's ₹30 lakh went into Gulmohar City's ₹2.99 lakh reels)
+            clients = self.clients_factory() if self.clients_factory else Clients(facts_store=self.facts_store)
+            facts = (await gather({**listing, "id": listing["_id"]}, clients, self.now())).facts
             ctx = campaign.Ctx(facts)
             pool = await self._photo_pool(listing, out)
             if not pool:   # no photos of its own: the brochure pages the posts used
