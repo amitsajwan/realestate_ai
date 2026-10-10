@@ -286,7 +286,7 @@ export function MarketingRunCard({ listingId, autoStart, onAutoStarted }: {
   }, [refresh])
 
   useEffect(() => {
-    if (!run || !RUNNING.includes(run.status)) return
+    if (!run || (!RUNNING.includes(run.status) && run.reels_state !== 'making')) return
     const id = setTimeout(() => void refresh(), POLL_MS)
     return () => clearTimeout(id)
   }, [run, refresh])
@@ -319,6 +319,16 @@ export function MarketingRunCard({ listingId, autoStart, onAutoStarted }: {
     void (has ? Promise.resolve() : start(!!run, autoStart)).finally(() => onAutoStarted?.())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart, loading])
+
+  const remakeReels = async () => {
+    setError(null)
+    try {
+      const r = await api.remakeReels(listingId)
+      if (alive.current) setRun(r)
+    } catch (e) {
+      if (alive.current) setError(errorMessage(e))
+    }
+  }
 
   const answer = async (key: string, value: unknown) => {
     setError(null)
@@ -475,11 +485,16 @@ export function MarketingRunCard({ listingId, autoStart, onAutoStarted }: {
                   <div className="space-y-2">
                     <p className="text-sm font-semibold text-gray-800">{t('reelsTitle')}</p>
                     <ul className="grid list-none grid-cols-3 gap-2 p-0 sm:grid-cols-4">
-                      {run.reels.filter((r) => r.video && (r.kind === 'slides' || r.status === 'done')).map((r) => (
+                      {run.reels.filter((r) => r.video && (r.kind === 'ad' || r.kind === 'slides' || r.status === 'done')).map((r) => (
                         <li key={r.kind + (r.angle || '')}>
                           <video src={r.video || undefined} controls preload="metadata" playsInline
                             aria-label={r.kind === 'walkthrough' ? t('walkthroughReel') : r.kind === 'video' ? 'Reel from your video' : r.angle}
                             className="aspect-[9/16] w-full rounded-lg bg-black object-cover" />
+                          {r.kind === 'ad' && r.script && (
+                            <p className="mt-1 text-xs text-gray-600" title={[r.script.hook, ...r.script.beats, r.script.payoff].join(' / ')}>
+                              <span className="font-medium">{(r.format || '').replace(/_/g, ' ')}</span>: {r.script.hook.replace(/\*/g, '')}
+                            </p>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -491,6 +506,18 @@ export function MarketingRunCard({ listingId, autoStart, onAutoStarted }: {
                     {run.reels.filter((r) => r.kind === 'video' && r.status === 'skipped').map((r) => (
                       <p key="video" className="text-xs text-gray-500">Reel from your video: not made{r.note ? ` (${r.note})` : ''}</p>
                     ))}
+                  </div>
+                )}
+                {run.status === 'done' && (
+                  <div className="space-y-1">
+                    <Btn disabled={run.reels_state === 'making'} onClick={remakeReels}>
+                      {run.reels_state === 'making' ? 'Making the reels…' : 'Make the reels again (ad style)'}
+                    </Btn>
+                    <p className="text-xs text-gray-500">
+                      Every post becomes a short ad reel (hook, quick cuts, price at the end, "Comment VISIT"). Uses these posts,
+                      facts and photos; waiting calendar posts are swapped for their reels.
+                    </p>
+                    {run.reels_state === 'failed' && run.reels_error && <p className="text-xs text-red-600">{run.reels_error}</p>}
                   </div>
                 )}
                 {!sent && <Btn onClick={toCalendar}>{t('sendToCalendar')}</Btn>}

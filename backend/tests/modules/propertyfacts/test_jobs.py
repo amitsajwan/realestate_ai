@@ -13,11 +13,10 @@ NOW = datetime(2026, 10, 6, 12, 0)
 RENDERED = []
 
 
-def fake_slides_reel(paths, out, hook=None, kicker=None):
-    assert len(paths) >= 3 and all(p.is_file() for p in paths)
+def fake_ad_reel(script, pictures, out, kicker=None):
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(b"mp4")
-    RENDERED.append((out.name, hook, kicker))
+    RENDERED.append((out.name, script, kicker))
     return out
 
 
@@ -80,7 +79,7 @@ async def setup(tmp_path, listing=LISTING, fail_posts=False, pages=page_for):
     await db.get_collection("agent_public_profiles").insert_one({"agent_id": "a1", "slug": "priya"})
     clients = WithRegister(Register(RECORD))
     runs = jobs.MarketingRuns(db, tmp_path, "https://avasetu.in", clients_factory=lambda: clients, now=lambda: NOW,
-                              slides_renderer=fake_slides_reel, reel_jobs=FakeReelJobs(), facts_store=clients.facts_store,
+                              ad_renderer=fake_ad_reel, reel_jobs=FakeReelJobs(), facts_store=clients.facts_store,
                               page_for=pages, boost_renderer=fake_boost_reel)
     one = runs.run_once
 
@@ -182,11 +181,14 @@ async def test_send_to_calendar_plans_rows_for_approval(tmp_path):
     rows = [r for r in await cal.all() if r["slug"].startswith("campaign-L1-")]
     posts = [r for r in rows if r["kind"] == "post"]
     reels = [r for r in rows if r["kind"] == "reel"]
-    assert len(posts) == 2 * n and all(r["status"] == "planned" for r in rows)
-    assert len(reels) == 2 and {r["channel"] for r in reels} == {"instagram"}          # slides reels: Instagram only
+    ads = [r for r in reels if r["slug"].endswith("-ad")]
+    assert len(ads) == 2 * min(jobs.AD_REELS, n) and all(r["status"] == "planned" for r in rows)   # a post goes out as its ad reel
+    assert len(posts) == 2 * (n - min(jobs.AD_REELS, n) + 1)                                      # the overview also as a post
+    assert all(r["creative"]["experiment"] == "ad_reel" and r["creative"]["variant"] for r in ads)
     assert all(r["video"].startswith("campaigns/L1/") and r["video"].endswith(".mp4") for r in reels)
     assert all(r["agent_id"] == "a1" and r["listing_id"] == "L1" for r in rows)
     ig = sorted((r for r in rows if r["channel"] == "instagram"), key=lambda r: r["due_at"])
+    assert ig[0]["slug"] == "campaign-L1-overview-ad"
     when = [r["due_at"].astimezone(schedule.IST).strftime("%m-%d %H:%M") for r in ig[:4]]
     # two a day (11:00 and 19:00 IST); the 8th's 19:00 is within 6 h of the brand post at 19:30, so the next free slot follows
     assert when == ["10-07 11:00", "10-07 19:00", "10-08 11:00", "10-09 11:00"]
@@ -214,9 +216,11 @@ async def test_reels_are_made_after_the_posts(tmp_path):
     await runs.create("a1", "L1")
     await runs.run_once()
     d = await runs.latest("a1", "L1")
-    slides = [r for r in d["reels"] if r["kind"] == "slides"]
-    assert len(slides) == 2 and all(k == "GULMOHAR CITY" for _, _, k in RENDERED)
-    assert RENDERED[0][1] == d["posts"][[p["angle"] for p in d["posts"]].index(slides[0]["angle"])]["caption"].splitlines()[0]
+    ads = [r for r in d["reels"] if r["kind"] == "ad"]
+    assert len(ads) == min(jobs.AD_REELS, len(d["posts"])) and all(k == "GULMOHAR CITY" for _, _, k in RENDERED)
+    assert [r["angle"] for r in ads] == [p["angle"] for p in d["posts"][:len(ads)]]
+    assert ads[0]["script"]["hook"] and "VISIT" in ads[0]["caption"] and ads[0]["format"] in ("price_reveal", "three_reasons", "pov",
+                                                                                            "myth_fact", "checklist")
     out = jobs.run_out(d, "https://api.avasetu.in")
     assert out["reels"][0]["video"].startswith("https://api.avasetu.in/uploads/campaigns/L1/")
 
@@ -225,7 +229,7 @@ async def test_a_reel_failure_never_loses_the_posts(tmp_path):
     def broken(*a, **k):
         raise RuntimeError("ffmpeg missing")
     db, runs, _, _ = await setup(tmp_path)
-    runs.slides_renderer = broken
+    runs.ad_renderer = broken
     await runs.create("a1", "L1")
     await runs.run_once()
     d = await runs.latest("a1", "L1")
@@ -241,14 +245,14 @@ async def test_edit_a_post_updates_planned_rows_only(tmp_path):
     await runs.to_calendar("a1", "L1")
     cal = CalendarStore(db)
     rows = {(r["channel"], r["slug"]): r for r in await cal.all()}
-    approved = rows[("facebook_page", "campaign-L1-price_reveal")]
+    approved = rows[("facebook_page", "campaign-L1-price_reveal-ad")]
     await cal.approve(approved["_id"])                              # the owner already approved the Facebook one
     text = "Our plot at Gulmohar City, Ranjangaon: ₹32.3 lakh.\n\nFull details of Gulmohar City, Ranjangaon, with its MahaRERA record: link in bio."
     run, problems = await runs.edit_post("a1", "L1", "price_reveal", text)
     assert problems == [] and run["synced"] == 1
     post = next(p for p in run["posts"] if p["angle"] == "price_reveal")
     assert post["caption"] == text and post["edited"]
-    assert (await cal.get(rows[("instagram", "campaign-L1-price_reveal")]["_id"]))["caption"] == text
+    assert text.splitlines()[0] in (await cal.get(rows[("instagram", "campaign-L1-price_reveal-ad")]["_id"]))["caption"]   # the reel takes the new text
     assert (await cal.get(approved["_id"]))["caption"] == approved["caption"]        # approved rows are never changed
     _, problems = await runs.edit_post("a1", "L1", "price_reveal", "Only ₹25 lakh! Best deal, call 9876543210")
     assert any("number not in facts" in p for p in problems) and "phone number" in problems and "hype word" in problems

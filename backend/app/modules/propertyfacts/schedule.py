@@ -75,9 +75,10 @@ def property_of(listing: dict, facts: Optional[Dict[str, Any]] = None) -> Dict[s
 
 
 def items(run: dict, link_line: str) -> List[Dict]:
-    """What goes into the calendar, in campaign order: every post on both channels; each slides reel on Instagram only
-    (Facebook already turns a carousel into a reel when it posts it, calendar.runner); the walkthrough reel, once rendered, and the reel from the agent's own video
-    on both. Each: {slug, channel, kind, caption, images, video, angle, creative}."""
+    """What goes into the calendar, in campaign order, on both channels: each post's ad reel in place of the post (89.9% of
+    our views come from the Reels tab), the overview also as a post (the Page grid), a post without an ad reel as a post; the
+    walkthrough reel, once rendered, and the reel from the agent's own video. Older runs' slides reels go on Instagram only.
+    Each: {slug, channel, kind, caption, images, video, angle, creative}."""
     lid, page = run["listing_id"], run.get("page_url") or ""
     out: List[Dict] = []
 
@@ -90,7 +91,17 @@ def items(run: dict, link_line: str) -> List[Dict]:
 
     for channel in CHANNELS:
         # the overview takes the first slot (slots are in time order); the rest keep the campaign's order
+        ads = {r["angle"]: r for r in run.get("reels") or [] if r.get("kind") == "ad" and r.get("video")}
         for p in sorted(run.get("posts") or [], key=lambda p: p["angle"] != "overview"):
+            ad = ads.get(p["angle"])
+            if ad:
+                sc = ad.get("script") or {}
+                add(slug_for(lid, f"{p['angle']}-ad"), channel, "reel", ad["caption"], [], _rel(ad["video"]), f"{p['angle']}-ad",
+                    {"layout": "ad_reel", "template": "campaign", "experiment": "ad_reel", "variant": ad.get("format"),
+                     "hook": sc.get("hook", "").replace("*", ""), "hook_type": sc.get("hook_type"), "script": sc.get("beats") or [],
+                     "llm": sc.get("by") == "llm"})
+                if p["angle"] != "overview":
+                    continue
             add(slug_for(lid, p["angle"]), channel, "post", p["caption"], [_rel(i) for i in p["images"]], None, p["angle"],
                 {"layout": p.get("layout"), "format": p.get("format"), "llm": p.get("used_llm"), "prompts": p.get("prompts") or []})
         for r in run.get("reels") or []:
@@ -112,14 +123,22 @@ def items(run: dict, link_line: str) -> List[Dict]:
 
 async def queue(store: CalendarStore, run: dict, link_line: str, start: date) -> List[Dict]:
     """Add the run's posts and reels as planned rows; returns [{angle, channel, kind, row_id, due_at}]. Rows already in the
-    calendar for this listing are not added again (pressing twice adds nothing; a reel rendered later is added then)."""
+    calendar for this listing are not added again (pressing twice adds nothing; a reel rendered later is added then). A planned
+    (not yet approved) row of this listing that the run no longer has - a post now going out as its ad reel, an old slides
+    reel - is skipped, and the new row takes the earliest free slot."""
+    wanted = items(run, link_line)
+    slugs = {it["slug"] for it in wanted}
+    for d in await store.all():
+        if (d.get("status") == "planned" and d.get("listing_id") == run["listing_id"] and str(d.get("slug", "")).startswith("campaign-")
+                and d["slug"] not in slugs):
+            await store.skip(d["_id"], "replaced by its ad reel")
     # only rows still waiting, approved or published block a post: a campaign run made again after its earlier rows were
     # skipped (or removed, or failed) must be able to send its new posts (live 2026-10-06, Gulmohar: "sent" added nothing)
     existing = [(d["channel"], d["slug"], aware(d["due_at"])) for d in await store.all()
                 if d.get("status") in ("planned", "approved", "scheduled", "published")]
     used = {(ch, slug) for ch, slug, _ in existing}
     added: List[Dict] = []
-    todo = [it for it in items(run, link_line) if (it["channel"], it["slug"]) not in used]
+    todo = [it for it in wanted if (it["channel"], it["slug"]) not in used]
     for channel in CHANNELS:
         mine = [it for it in todo if it["channel"] == channel]
         taken = [at for ch, _, at in existing if ch == channel]

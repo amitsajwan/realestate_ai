@@ -567,6 +567,7 @@ export interface AppApi {
   markBoosted(listingId: string, dailySpendInr: number, days: number): Promise<MarketingRun>
   /** Make the boost kit again (after a failure). */
   remakeBoost(listingId: string): Promise<MarketingRun>
+  remakeReels(listingId: string): Promise<MarketingRun>
   getPerformance(): Promise<PerformanceItem[]>
   /** Per-listing activity (views, sources, people, feed). 404 for a listing that is not yours. */
   getListingActivity(id: string, limit?: number): Promise<ListingActivity>
@@ -604,8 +605,12 @@ export interface MarketingRun {
   created_at?: string | null
   facts_done_at?: string | null
   finished_at?: string | null
-  /** Slides reels from the carousels, and the walkthrough reel (rendered by its own queue: status may lag). */
-  reels?: { kind: 'slides' | 'walkthrough' | 'video'; angle?: string; video?: string | null; status?: string; note?: string; caption?: string; heard?: string[] }[]
+  /** An ad reel per post (format: price_reveal, three_reasons, pov, myth_fact, checklist), older runs' slides reels, the video
+   *  reel and the walkthrough reel (rendered by its own queue: status may lag). */
+  reels?: { kind: 'ad' | 'slides' | 'walkthrough' | 'video'; angle?: string; format?: string; script?: { hook: string; beats: string[]; payoff: string; cta: string; by: string }; video?: string | null; status?: string; note?: string; caption?: string; heard?: string[] }[]
+  /** A reels remake asked from Studio: making, done or failed (reels_error says why). */
+  reels_state?: 'making' | 'done' | 'failed' | null
+  reels_error?: string
   /** What the listing's project files said (the builder's claims, not checked facts). */
   files?: { brochure?: { claims?: string[]; rera_no?: string | null; rera_missing?: boolean; error?: string | null; pages?: number } }
   /** Rows planned in the approval calendar, once sent. */

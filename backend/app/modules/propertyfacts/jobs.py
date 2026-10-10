@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
 COLLECTION = "marketing_runs"
 MARKETABLE = ("live", "under_offer")
 ACTIVE = ("queued", "facts", "asking", "posts")  # asking: waiting for the agent's answers (understand.py)
-SLIDE_REELS = 2  # slides reels per campaign, from its first carousel posts
+AD_REELS = 6  # ad reels per campaign (ad_reel.py): one per post, in campaign order
 WALKTHROUGH_NOTE = "Add 2 photos to get a walkthrough reel with voiceover"
 CAPTION_MAX = 2200  # Instagram's caption limit
 NOTE_MAX = 300
@@ -86,6 +86,7 @@ def run_out(doc: Optional[dict], base_url: str = "") -> Optional[dict]:
             "plan": doc.get("plan") or [], "skipped": doc.get("skipped") or {},
             "mode": doc.get("mode") or "full", "changes": doc.get("changes") or [], "base_run": doc.get("base_run"),
             "redone": doc.get("redone") or [], "stale": [p["angle"] for p in doc.get("posts") or [] if p.get("stale")],
+            "reels_state": doc.get("reels_state"), "reels_error": doc.get("reels_error") or "",
             "boost": boost_out(doc.get("boost"), base)}
 
 
@@ -126,10 +127,10 @@ def _summary(sheet) -> dict:
 class MarketingRuns:
     def __init__(self, db, uploads_dir, site: str = "", clients_factory: Optional[Callable[[], Any]] = None,
                  llm_factory: Optional[Callable] = None, now: Callable[[], datetime] = datetime.utcnow,
-                 slides_renderer: Optional[Callable] = None, reel_jobs: Any = None, facts_store: Any = None,
+                 ad_renderer: Optional[Callable] = None, reel_jobs: Any = None, facts_store: Any = None,
                  page_for: Optional[Callable] = None, enrich_now: Optional[Callable] = None,
                  boost_renderer: Optional[Callable] = None):
-        """`slides_renderer(paths, out, hook=, kicker=)` makes a slides reel (default reels.slides.make_slides_reel);
+        """`ad_renderer(script, pictures, out, kicker)` makes an ad reel (default ad_reel.render);
         `reel_jobs` (reels.listing_reel.ReelJobs) queues the walkthrough reel; None skips it;
         `page_for(db, regno)` finds a project's own page (default areastats.pages.page_for); `enrich_now(db, regno, by=)` asks
         for that page's text to be written soon (default areastats.enrich.enrich_now)."""
@@ -139,7 +140,7 @@ class MarketingRuns:
         self.profiles = db.get_collection("agent_public_profiles")
         self.uploads_dir, self.site = Path(uploads_dir), site.rstrip("/")
         self.clients_factory, self.llm_factory, self.now = clients_factory, llm_factory, now
-        self.slides_renderer, self.reel_jobs = slides_renderer, reel_jobs
+        self.ad_renderer, self.reel_jobs = ad_renderer, reel_jobs
         self.facts_store = facts_store or FactsStore(db)
         self.page_for, self.enrich_now = page_for, enrich_now
         self.boost_renderer = boost_renderer   # the boost reel's renderer; None: boost.default_reel_renderer
@@ -260,17 +261,26 @@ class MarketingRuns:
         return facts_of(doc)
 
     async def _sync_calendar(self, run: dict, angle: str, caption: str, images: Optional[List[str]] = None) -> int:
-        """Planned calendar rows of this post take the new caption (Facebook's with its page link) and images."""
+        """Planned calendar rows of this post take the new caption (Facebook's with its page link) and images; its ad reel's rows
+        take the caption under the reel's hook (the video stays)."""
         from app.modules.calendar.store import Store as CalendarStore
 
-        from .schedule import _rel, facebook_caption
+        from . import ad_reel
+        from .schedule import _rel, facebook_caption, instagram_caption
         cal, n = CalendarStore(self.db), 0
+        ad = next((r for r in run.get("reels") or [] if r.get("kind") == "ad" and r.get("angle") == angle and r.get("script")), None)
         for c in run.get("calendar") or []:
-            if c.get("angle") != angle or c.get("kind", "post") != "post":
-                continue
-            text = caption if c["channel"] == "instagram" else facebook_caption(caption, run.get("link_line") or "",
-                                                                                 run.get("page_url") or "", angle)
-            n += await cal.set_planned(c["row_id"], caption=text, images=[_rel(i) for i in images] if images else None)
+            if c.get("angle") == angle and c.get("kind", "post") == "post":
+                text = caption if c["channel"] == "instagram" else facebook_caption(caption, run.get("link_line") or "",
+                                                                                     run.get("page_url") or "", angle)
+                n += await cal.set_planned(c["row_id"], caption=text, images=[_rel(i) for i in images] if images else None)
+            elif ad and c.get("angle") == f"{angle}-ad":
+                text = ad_reel.caption(ad_reel.Script(**{k: ad["script"][k] for k in ("format", "hook", "beats", "payoff", "cta")}),
+                                       caption)
+                link, page = run.get("link_line") or "", run.get("page_url") or ""
+                text = (instagram_caption(text, link, page) if c["channel"] == "instagram"
+                        else facebook_caption(text, link, page, c["angle"]))
+                n += await cal.set_planned(c["row_id"], caption=text)
         return n
 
     async def edit_post(self, agent_id: str, listing_id: str, angle: str, caption: str) -> tuple:
@@ -411,24 +421,12 @@ class MarketingRuns:
         return str(p) if p and Path(p).is_file() else "none"
 
     async def _reels(self, job: dict, listing: dict, posts: List[dict], out: Path, project: str, link_line: str,
-                     pool: Sequence[str] = ()) -> List[dict]:
-        """Slides reels from up to SLIDE_REELS carousel posts, the video reel, and the walkthrough reel job. Each one that fails
-        is skipped. The walkthrough: none for a listing with a video (its video reel covers the place); from the listing's
+                     pool: Sequence[str] = (), facts: Optional[Dict[str, Any]] = None) -> List[dict]:
+        """An ad reel per post (up to AD_REELS), the video reel, and the walkthrough reel job. Each one that fails is skipped.
+        The walkthrough: none for a listing with a video (its video reel covers the place); from the listing's
         photos when it has 2; else from the run's ranked pictures (`pool`: stills, brochure pages) when 2 are usable; else a
         note asking for photos."""
-        render = self.slides_renderer
-        if render is None:
-            from app.modules.reels.slides import make_slides_reel as render
-        reels: List[dict] = []
-        for p in [p for p in posts if len(p["images"]) >= 3][:SLIDE_REELS]:
-            dest = out / "reels" / f"{_safe(p['angle'])}.mp4"
-            try:
-                await asyncio.to_thread(render, [self.uploads_dir / _rel(i) for i in p["images"]], dest,
-                                        hook=(p["caption"].splitlines() or [""])[0], kicker=(project or "").upper()[:28] or None)
-                reels.append({"kind": "slides", "angle": p["angle"], "caption": p["caption"],
-                              "video": "/uploads/" + dest.resolve().relative_to(self.uploads_dir.resolve()).as_posix()})
-            except Exception:
-                log.warning("marketing run %s: slides reel %s failed", job["_id"], p["angle"], exc_info=True)
+        reels = await self._ad_reels(job, posts, out, project, pool, facts or {})
         video = self._video(listing)
         if video:
             reels.append(await self._video_reel(job, listing, video, out, project, link_line))
@@ -450,6 +448,76 @@ class MarketingRuns:
             except Exception as e:  # fewer than 2 photos, the daily limit...: the campaign goes on without it
                 reels.append({"kind": "walkthrough", "status": "skipped", "note": str(getattr(e, "detail", "") or "not made")})
         return reels
+
+    async def _ad_reels(self, job: dict, posts: List[dict], out: Path, project: str, pool: Sequence[str],
+                        facts: Dict[str, Any]) -> List[dict]:
+        """One ad reel per post (ad_reel.py): formats picked by what brought enquiries before (80/20), the words checked against
+        the facts, each opening on a different one of the best pictures. Own photos first; brochure pages only when none."""
+        from . import ad_reel
+        render = self.ad_renderer or ad_reel.render
+        llm = self.llm_factory() if self.llm_factory else None
+        ctx = campaign.Ctx(facts)
+        todo = posts[:AD_REELS]
+        formats = ad_reel.pick(ad_reel.eligible(ctx), len(todo), await ad_reel.scores(self.db))
+        pics = [p for p in pool if Path(p).is_file()]
+        kicker = (project or "").upper()[:28] or None
+        reels: List[dict] = []
+        for i, (p, fmt) in enumerate(zip(todo, formats)):
+            dest = out / "reels" / f"ad-{_safe(p['angle'])}.mp4"
+            try:
+                script = await ad_reel.write(fmt, ctx, llm)
+                order = pics[i % len(pics):] + pics[:i % len(pics)] if pics else []
+                await asyncio.to_thread(render, script, order, dest, kicker)
+                reels.append({"kind": "ad", "angle": p["angle"], "format": fmt, "script": script.out(),
+                              "caption": ad_reel.caption(script, p["caption"]),
+                              "video": "/uploads/" + dest.resolve().relative_to(self.uploads_dir.resolve()).as_posix()})
+            except Exception:
+                log.warning("marketing run %s: ad reel %s failed", job["_id"], p["angle"], exc_info=True)
+        return reels
+
+    async def remake_reels(self, agent_id: str, listing_id: str) -> dict:
+        """Make only the ad reels again from the finished run's posts, facts and pictures (the worker does it; reels_state
+        "making" meanwhile). The posts, the walkthrough and the video reel are kept as they are."""
+        run = await self.latest(agent_id, listing_id)
+        if not run or run["status"] != "done" or not run.get("posts"):
+            raise RunError("Make the posts first.", 409)
+        if run.get("reels_state") == "making":
+            return run
+        await self._set(run["_id"], reels_state="making", reels_queued=True)
+        return {**run, "reels_state": "making"}
+
+    async def claim_reels(self) -> Optional[dict]:
+        doc = await self.runs.find_one({"reels_queued": True})
+        if not doc:
+            return None
+        res = await self.runs.update_one({"_id": doc["_id"], "reels_queued": True}, {"$set": {"reels_queued": False}})
+        if res is not None and getattr(res, "modified_count", 1) == 0:
+            return None
+        return doc
+
+    async def run_reels(self, job: dict) -> None:
+        """A reels remake: the kept facts and the property's pictures, then an ad reel per post; earlier slides/ad reels are
+        replaced, the others kept. Planned calendar rows are brought up to date when the run was sent there. Never raises."""
+        try:
+            listing = await self.listings.find_one({"_id": job["listing_id"], "agent_id": job["agent_id"]})
+            if not listing:
+                raise RunError("The listing was removed.")
+            out = self.uploads_dir / "campaigns" / _safe(job["listing_id"]) / job["_id"][:8]
+            facts = await self._facts(job, listing)
+            ctx = campaign.Ctx(facts)
+            pool = await self._photo_pool(listing, out)
+            if not pool:   # no photos of its own: the brochure pages the posts used
+                pool = [str(self.uploads_dir / _rel(i)) for p in job.get("posts") or [] if p.get("photo") == "brochure"
+                        for i in p.get("images", [])[:1]]
+            ads = await self._ad_reels(job, [p for p in job.get("posts") or [] if not p.get("stale")], out, ctx.project, pool, facts)
+            reels = [r for r in job.get("reels") or [] if r.get("kind") not in ("slides", "ad")] + ads
+            await self._set(job["_id"], reels=reels, reels_state="done", reels_error=None)
+            if job.get("calendar"):
+                await self.to_calendar(job["agent_id"], job["listing_id"])
+        except Exception as e:
+            log.warning("reels remake %s failed", job["_id"], exc_info=True)
+            await self._set(job["_id"], reels_state="failed",
+                            reels_error="The reels could not be made again: " + str(getattr(e, "detail", "") or e)[:200])
 
     async def _brochure(self, job: dict, listing: dict, out: Path) -> Dict[str, Any]:
         """The listing's brochure PDF, if any: its pages (for the cards) and the builder's claims, kept on the listing for the
@@ -647,7 +715,7 @@ class MarketingRuns:
             step = "reels"
             await self._set(jid, step="reels")
             reels = await self._reels(job, listing, posts, out, ctx.project, campaign.link_line_for(where, job.get("language") or "en", ctx.registered),
-                                      pool=photos)
+                                      pool=photos, facts=sheet.facts)
             await self._set(jid, reels=reels)
             # the master boost pair (best effort: a failure is kept as boost.error, the run is done either way)
             step = "boost"
@@ -958,6 +1026,10 @@ class MarketingRuns:
         job = await self.claim_boost()   # a boost pair asked again from Studio
         if job:
             await self.run_boost(job)
+            return True
+        job = await self.claim_reels()   # the ad reels asked again from Studio
+        if job:
+            await self.run_reels(job)
             return True
         return False
 

@@ -161,6 +161,17 @@ async def remake_boost(listing_id: str, request: Request, user: User = Depends(c
     return {"run": jobs.run_out(doc, str(request.base_url))}
 
 
+@router.post("/{listing_id}/campaign/reels/remake", status_code=202)
+async def remake_reels(listing_id: str, request: Request, user: User = Depends(current_active_user),
+                       runs: jobs.MarketingRuns = Depends(get_runs), _w: None = Depends(start_worker)) -> dict:
+    """Make only the ad reels again from the finished run's posts and pictures; the worker does it (reels_state "making")."""
+    try:
+        doc = await runs.remake_reels(str(user.id), listing_id)
+    except jobs.RunError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    return {"run": jobs.run_out(doc, str(request.base_url))}
+
+
 @router.patch("/{listing_id}/campaign/posts/{angle}")
 async def edit_post(listing_id: str, angle: str, body: EditIn, request: Request, user: User = Depends(current_active_user),
                     runs: jobs.MarketingRuns = Depends(get_runs)) -> dict:

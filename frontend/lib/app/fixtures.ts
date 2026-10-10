@@ -668,6 +668,9 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
     async remakeBoost() {
       throw fixtureError(409, 'Demo mode: nothing to boost')
     },
+    async remakeReels() {
+      throw fixtureError(409, 'Demo mode: no reels to make')
+    },
     async getPerformance() {
       const st = load()
       return performanceFor(st.listings, st.leads)
