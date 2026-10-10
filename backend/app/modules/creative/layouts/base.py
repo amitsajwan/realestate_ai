@@ -76,6 +76,71 @@ def photo_backdrop(size: Tuple[int, int], pal: "Palette") -> Optional[Image.Imag
     return img
 
 
+_PASS: contextvars.ContextVar = contextvars.ContextVar("creative_photo_pass", default=None)
+PHOTO_BAND_MIN_SIZE = 34   # px: text this size or larger shares the band; smaller labels get a small scrim of their own
+PHOTO_BAND_FEATHER = 0.16   # of the card height: the band fades in and out over this, no edge to be seen
+
+
+@contextmanager
+def photo_pass(mode: str, state: Optional[dict] = None) -> Iterator[dict]:
+    """Two passes over a photo card (layouts.render_layout): "measure" records where each Canvas puts its text, "draw"
+    darkens one soft band per Canvas over all of it (photo_band) before anything is drawn. Yields the shared state."""
+    state = state if state is not None else {"boxes": []}
+    state.update(mode=mode, n=0)
+    token = _PASS.set(state)
+    try:
+        yield state
+    finally:
+        _PASS.reset(token)
+
+
+def _bright(img: Image.Image, boxes: Sequence[Box], q: float) -> int:
+    """The grey level below which `q` of the pixels under all `boxes` lie."""
+    hist = [0] * 256
+    W, H = img.size
+    for b in boxes:
+        c = (max(0, b[0]), max(0, b[1]), min(W, b[2]), min(H, b[3]))
+        if c[2] > c[0] and c[3] > c[1]:
+            hist = [a + h for a, h in zip(hist, img.crop(c).convert("L").histogram())]
+    n, acc = sum(hist), 0
+    for v, k in enumerate(hist):
+        acc += k
+        if n and acc >= q * n:
+            return v
+    return 0
+
+
+def photo_band(img: Image.Image, texts: Sequence[Tuple[Box, RGB]], tone_dark: RGB = (6, 12, 26),
+               target: float = PHOTO_TEXT_CONTRAST) -> float:
+    """One soft vertical band over the part of the card that holds text (full width, eased in and out over
+    PHOTO_BAND_FEATHER of the height): as dark (or, for dark ink, as light) as the brightest tenth of the photo under all of
+    the text needs for `target` contrast. Changes `img` in place; returns the strength used."""
+    if not texts:
+        return 0.0
+    W, H = img.size
+    light = sum(1 for _, ink in texts if luminance(ink) > 0.35) >= len(texts) / 2
+    inks = [ink for _, ink in texts if (luminance(ink) > 0.35) == light] or [texts[0][1]]
+    boxes = [b for b, _ in texts]
+    g = _bright(img, boxes, 0.90 if light else 0.10)
+    tone = tone_dark if light else (250, 247, 240)
+    a = 0.0
+    while a < 0.9 and min(contrast(ink, tuple(int(g * (1 - a) + t * a) for t in tone)) for ink in inks) < target:
+        a += 0.03
+    if a <= 0:
+        return 0.0
+    a = min(0.9, a + 0.03)
+    y0, y1, f = min(b[1] for b in boxes), max(b[3] for b in boxes), max(1, int(H * PHOTO_BAND_FEATHER))
+    col = []
+    for y in range(H):
+        d = (y0 - y) if y < y0 else (y - y1) if y > y1 else 0
+        t = max(0.0, 1 - d / f)
+        col.append(int(255 * a * t * t * (3 - 2 * t)))      # smoothstep: no visible edge
+    mask = Image.new("L", (1, H))
+    mask.putdata(col)
+    img.paste(tone, (0, 0), mask.resize((W, H)))
+    return a
+
+
 def photo_scrim(img: Image.Image, box: Box, ink: RGB, target: float = PHOTO_TEXT_CONTRAST, pad: int = PHOTO_TEXT_PAD,
                 tone: Optional[RGB] = None) -> float:
     """Darken (light ink) or lighten (dark ink) `img` behind `box`, feathered, just enough that `ink` reaches `target`
@@ -248,7 +313,17 @@ class Canvas:
         self.W, self.H = size
         self.left, self.top, self.right, self.bottom = MARGIN, MARGIN, self.W - MARGIN, self.H - MARGIN
         backdrop = photo_backdrop(size, pal) if bg is None else None
-        self.on_photo = backdrop is not None   # text on it gets a scrim of its own (photo_scrim)
+        self.on_photo = backdrop is not None   # text on it: one soft band for all of it (photo_band), or per block (photo_scrim)
+        self._texts: Optional[List[Tuple[Box, RGB]]] = None
+        state = _PASS.get() if self.on_photo else None
+        if state is not None:
+            k, state["n"] = state["n"], state["n"] + 1
+            if state["mode"] == "measure":
+                self._texts = []
+                state["boxes"].append(self._texts)
+            elif k < len(state["boxes"]):
+                photo_band(backdrop, state["boxes"][k], tone_dark=pal.bg_bottom if not pal.light else (6, 12, 26))
+                self.on_photo = "band"
         self.img = bg if bg is not None else backdrop if backdrop is not None else gradient(size, pal.bg_top, pal.bg_bottom)
         self.d = ImageDraw.Draw(self.img)
         self.items: List[Item] = []
@@ -433,8 +508,21 @@ class Canvas:
             lx0, lx1, ly0, ly1 = min(lx0, bb[0]), max(lx1, bb[2]), min(ly0, bb[1]), max(ly1, bb[3])
             pos.append((line, lx, base, lw))
         box = (int(lx0), int(ly0), int(lx1) + 1, int(ly1) + 1)
-        if getattr(self, "on_photo", False) and bg_hint is None:
-            photo_scrim(self.img, box, fill, tone=self.pal.bg_bottom if luminance(fill) > 0.35 and not self.pal.light else None)
+        if self.on_photo and bg_hint is None:
+            if self._texts is not None:
+                if fs >= PHOTO_BAND_MIN_SIZE:
+                    self._texts.append((box, fill))
+            elif self.on_photo is True or fs < PHOTO_BAND_MIN_SIZE:
+                # outside render_layout's two passes, or a small label (footer, "Save this") the band leaves out: its own
+                # small feathered scrim
+                photo_scrim(self.img, box, fill, tone=self.pal.bg_bottom if luminance(fill) > 0.35 and not self.pal.light else None,
+                            pad=PHOTO_TEXT_PAD if fs >= PHOTO_BAND_MIN_SIZE else 18)
+            if luminance(fill) > 0.35:     # a soft shadow under light text on a photo, for safety
+                sh = Image.new("L", self.img.size, 0)
+                sd = ImageDraw.Draw(sh)
+                for line, lx, base, lw in pos:
+                    sd.text((lx, base + max(2, fs // 28)), line, font=font, fill=110, anchor="ls")
+                self.img.paste((0, 0, 0), (0, 0), sh.filter(ImageFilter.GaussianBlur(max(2, fs // 18))))
         crop = self.img.crop((max(0, box[0]), max(0, box[1]), min(self.W, box[2]), min(self.H, box[3])))
         if bg_hint is not None:
             bg_l = luminance(bg_hint)

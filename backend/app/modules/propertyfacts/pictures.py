@@ -59,13 +59,46 @@ def _measure(path: str) -> Optional[dict]:
     colour = (srg ** 2 + syb ** 2) ** 0.5 + 0.3 * (mrg ** 2 + myb ** 2) ** 0.5           # Hasler-Suesstrunk, ~0..100
     hist = g.histogram()
     paper = sum(hist[235:]) / n                                                          # brochure text pages are mostly paper
-    return {"sharp": sharp, "colour": colour, "paper": paper, "hash": _dhash(im)}
+    busy = sum(1 for v in g.filter(ImageFilter.FIND_EDGES).getdata() if v > 40) / n       # line drawings, plans, tables
+    blobs = _text_blobs(path) if paper > 0.15 else 0
+    return {"sharp": sharp, "colour": colour, "paper": paper, "busy": busy, "blobs": blobs, "hash": _dhash(im)}
+
+
+def _text_blobs(path: str) -> int:
+    """Small dark connected shapes on a light page (letters), counted on a 384 px copy: many of them is printed text,
+    without OCR. Only asked of pictures that are partly white paper (in a photo, leaves and windows look the same)."""
+    try:
+        with Image.open(path) as im:
+            im.draft("L", (512, 512))
+            g = im.convert("L")
+            g.thumbnail((384, 384))
+    except Exception:
+        return 0
+    w, h = g.size
+    dark = bytes(1 if v < 100 else 0 for v in g.getdata())
+    seen, count = bytearray(w * h), 0
+    for i in range(w * h):
+        if dark[i] and not seen[i]:
+            stack, seen[i], size = [i], 1, 0
+            while stack:
+                j = stack.pop()
+                size += 1
+                x = j % w
+                for k in (j - 1 if x > 0 else -1, j + 1 if x < w - 1 else -1, j - w, j + w):
+                    if 0 <= k < w * h and dark[k] and not seen[k]:
+                        seen[k] = 1
+                        stack.append(k)
+            if 3 <= size <= 120:
+                count += 1
+    return count
 
 
 def score(path: str, m: dict, own: bool, note: Optional[dict]) -> float:
     """Higher is a better card picture."""
     s = min(m["sharp"], 40) / 40 * 3 + min(m["colour"], 60) / 60 * 3
     s -= 10 * max(0.0, m["paper"] - 0.25)                    # a page that is mostly white paper is text, not a place
+    s -= 20 * max(0.0, m.get("busy", 0) - 0.22)              # a plan, a line drawing or a table: no card text reads on it
+    s -= min(5.0, m.get("blobs", 0) / 60)                    # a page of printed text
     p = Path(path)
     if own:
         s += 2                                               # the agent's own photo of the property
@@ -121,7 +154,7 @@ def walkthrough_pictures(pool: Sequence[str], keep: int = 5) -> List[str]:
         if not Path(p).is_file():
             continue
         m = _measure(p)
-        if m is None or m["paper"] > 0.55:
+        if m is None or m["paper"] > 0.55 or m["busy"] > 0.3 or m["blobs"] > 150:
             continue
         out.append(p)
         if len(out) >= keep:
