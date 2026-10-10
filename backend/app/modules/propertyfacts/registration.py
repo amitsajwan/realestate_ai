@@ -45,6 +45,15 @@ def _words(s: str) -> str:
     return " ".join(re.findall(r"[a-z0-9]+", (s or "").lower()))
 
 
+GENERIC = {"plots", "plot", "na", "phase", "layout", "project", "projects", "wing", "wings", "apartment", "apartments",
+           "bungalows", "villas", "row", "houses", "the", "i", "ii", "iii", "1", "2", "3", "a", "b", "c"}
+
+
+def core(s: str) -> str:
+    """The name without generic words ("Gulmohar City Plots" -> "gulmohar city"), for close matches only."""
+    return " ".join(w for w in _words(s).split() if w not in GENERIC)
+
+
 def same_name(a: MahaReraProject, name: str) -> bool:
     return _words(a.name) == _words(name)
 
@@ -116,6 +125,9 @@ def readings(card: MahaReraProject, general: Optional[dict], fetched_at: datetim
     return [x for x in out if x.value not in (None, "")]
 
 
+CANDIDATES = 3
+
+
 def card_of(d: dict) -> MahaReraProject:
     """A register record as a search card."""
     return MahaReraProject(regno=d.get("regno") or d["_id"], name=d.get("name", ""), promoter=d.get("promoter", ""),
@@ -140,12 +152,18 @@ async def from_register(register: Any, name: str, rera_no: str, place: Optional[
         d = await register.project(rera_no)
         docs = [d] if d else []
     else:
-        docs = [d for d in await register.all_projects() if _words(d.get("name", "")) == _words(name)]
+        everything = await register.all_projects()
+        docs = [d for d in everything if _words(d.get("name", "")) == _words(name)]
+        if not docs and core(name):  # close names are never taken on their own: the agent confirms one (understand.py)
+            close = sorted((d for d in everything if core(d.get("name", "")) == core(name)),
+                           key=lambda d: not d.get("details_ok"))[:CANDIDATES]
+            if close:
+                return Match(None, f"close names in our register for {name!r}", [card_of(d) for d in close]), []
     if not docs:
         return None
     m = choose([card_of(d) for d in docs], name or docs[0].get("name", ""), rera_no, place)
     if m.project is None:
-        return None
+        return (m, []) if m.candidates and not rera_no else None
     d = next(x for x in docs if (x.get("regno") or x["_id"]) == m.project.regno)
     if not fresh(d, now):
         return None
@@ -168,7 +186,7 @@ async def lookup(get_text: GetText, fetch_general: FetchGeneral, name: str, rera
         return Match(None, "the listing has no project name to search MahaRERA by"), []
     found = await search(get_text, name)
     if found is None:
-        return Match(None, "MahaRERA's search did not answer; try again later"), []
+        return Match(None, "could not check MahaRERA right now (its search did not answer); try again later"), []
     m = choose(found, name, rera_no, place)
     if m.project is None:
         return m, []

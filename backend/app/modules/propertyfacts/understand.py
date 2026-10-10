@@ -22,7 +22,7 @@ from .facts import same
 log = logging.getLogger(__name__)
 
 MAX_QUESTIONS = 5
-RERA_NO = re.compile(r"^P\d{11}$", re.I)
+RERA_NO = re.compile(r"^P(?:\d{11}|[PR]\d{13})$", re.I)
 SCOPES = ("single", "layout")
 TYPES = ("plot", "apartment", "house", "villa", "commercial", "office", "shop")
 TYPE_WORD = {"plot": "plot", "apartment": "flat", "house": "house", "villa": "villa"}
@@ -112,7 +112,7 @@ def _q(key: str, text: str, options: List[Tuple[str, Any]], free_text: str = "")
 
 
 def decide(listing: dict, seen: Dict[str, Any], registered: bool, units_total: Optional[int] = None,
-           has_files: bool = True, unreadable: bool = False) -> Tuple[Dict[str, Any], List[dict]]:
+           has_files: bool = True, unreadable: bool = False, candidates: Optional[List[dict]] = None) -> Tuple[Dict[str, Any], List[dict]]:
     """(fields to set now, questions for the agent). `registered`: the facts already hold a usable MahaRERA number;
     `units_total`: MahaRERA's count of units, when known; `has_files`: a brochure or video is attached. Pure: no I/O."""
     auto: Dict[str, Any] = {}
@@ -175,8 +175,13 @@ def decide(listing: dict, seen: Dict[str, Any], registered: bool, units_total: O
     if not registered and not listing.get("rera_no") and not listing.get("rera_status"):
         other = seen.get("other_registration")
         note = f" The brochure shows \"{other}\", which is not a MahaRERA number." if other else ""
-        ask.append(_q("rera", f"Is this project registered on MahaRERA?{note}",
-                      [("Not registered", "not_registered")], free_text="MahaRERA number (P + 11 digits)"))
+        if candidates:  # our register holds close names: one tap picks the project
+            ask.append(_q("rera", "Is it one of these MahaRERA projects?",
+                          [(f"{c['name']}, {c['regno']}" + (f" ({c['taluka']})" if c.get("taluka") else ""), c["regno"]) for c in candidates]
+                          + [("None of these", None), ("Not registered", "not_registered")], free_text="Another MahaRERA number"))
+        else:
+            ask.append(_q("rera", f"Is this project registered on MahaRERA?{note}",
+                          [("Not registered", "not_registered")], free_text="MahaRERA number (P + 11 digits)"))
     return auto, ask[:MAX_QUESTIONS]
 
 

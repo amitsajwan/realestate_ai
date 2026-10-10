@@ -41,6 +41,14 @@ FACT_FIELDS = ("transaction", "property_type", "listing_scope", "price_inr", "ca
 LOCKED = ("approved", "scheduled", "published")   # calendar rows the owner already passed: their post is never replaced
 
 
+def _choices(match) -> List[dict]:
+    """MahaRERA projects for the agent to pick from: close names in our register, or same-named ones the locality does not
+    tell apart. A search that found no such name offers none."""
+    if not match or match.project or not ("close names" in match.how or match.how.endswith("does not say which")):
+        return []
+    return [{"regno": c.regno, "name": c.name, "taluka": c.location} for c in match.candidates[:3]]
+
+
 class RunError(Exception):
     def __init__(self, detail: str, status_code: int = 400):
         super().__init__(detail)
@@ -851,7 +859,8 @@ class MarketingRuns:
             files = readable or self._video(listing) is not None
             auto, questions = understand.decide(listing, seen, bool(rera and rera.usable),
                                                 units.value if units and units.usable and isinstance(units.value, int) else None,
-                                                has_files=files, unreadable=bool(brochure) and not readable)
+                                                has_files=files, unreadable=bool(brochure) and not readable,
+                                                candidates=_choices(sheet.match))
             if auto:
                 await self.listings.update_one({"_id": listing["_id"]}, {"$set": auto})
             return questions, bool(auto)
