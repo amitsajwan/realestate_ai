@@ -45,6 +45,9 @@ async def _guard(coro):
         return None
 
 
+HALF_ACRE_SQFT = 21780  # a plot or flat this big is a layout's land, not one unit
+
+
 class AIListingService:
     def __init__(self, llm: Optional[LLMClient] = None, transcriber: Optional[Transcriber] = None):
         self.llm, self.transcriber = llm, transcriber
@@ -189,6 +192,10 @@ class AIListingService:
                             ("locality", sf.get("village"), 0.7)):
             if val and not facts.get(key):
                 facts[key], conf[key], sources[key] = val, c, "brochure"
+        if facts.get("listing_scope") == "layout" or facts.get("total_acres"):  # the layout's land is never one plot's size
+            for k in ("carpet_sqft", "builtup_sqft", "super_builtup_sqft", "plot_sqft", "size_min_sqft", "size_max_sqft"):
+                if (facts.get(k) or 0) >= HALF_ACRE_SQFT:
+                    facts.pop(k, None), conf.pop(k, None), sources.pop(k, None)
         pts = selling.selling_points(sf, b.get("language") or "en", facts.get("property_type") or "plot")
         return pts, selling.warnings(sf, facts.get("price_inr"))
 
