@@ -176,6 +176,12 @@ class Ctx:
         self.kind = "plot" if self.plot else "home"
         self.layout = self.v.get("listing_scope") == "layout"   # a whole project: the price is a starting price
         self.registered = bool(self.v.get("rera_no"))
+        if self.plot:  # a plot's size needs a source besides the agent's own entry (a layout's total area once went out as one plot's size)
+            for k in ("size_min_sqft", "size_max_sqft", "plot_sqft", "carpet_sqft"):
+                if k in self.v and all(r.source == "listing" for r in facts[k].readings):
+                    del self.v[k]
+            if "plot_sqft" not in self.v and "carpet_sqft" not in self.v:
+                self.v.pop("plot_guntha", None), self.v.pop("plot_sqm", None)
         # one unit's size, never more than MAX_PLOT_SQFT for a plot or layout: its plot/carpet field can hold the whole layout
         # (live 2026-10-10, Gulmohar City: its 30 acres, 1,306,800 sq ft, posted as "this plot is 1200 guntha")
         sqft = self.v.get("size_min_sqft") or self.v.get("plot_sqft") or self.v.get("carpet_sqft")
@@ -240,15 +246,17 @@ def _tokens(text: str) -> set:
 
 
 def price_reveal(c: Ctx) -> Optional[Brief]:
-    if not (c.v.get("price_inr") and c.sqft):
+    """A layout's price, or one with no sourced size, is a starting price: "from ... onwards", with no size beside it."""
+    if not c.v.get("price_inr"):
         return None
     price = price_label(c.v["price_inr"])
-    if c.layout:
-        line = f"{c.kind.capitalize()}s at {c.where} start at {price}, for {c.sqft:,} sq ft."
+    if c.layout or not c.sqft:
+        what = f"{c.kind.capitalize()}s at {c.where}" if c.layout else f"This {c.kind} at {c.where}"
+        line = f"{what}: from {price} onwards."
         c.used.add("price")
-        return c.brief(angle="price_reveal", hook=f"{c.kind.capitalize()}s from {price} in {c.project or c.locality}",
-                       topic=f"Starting price at {c.where}", short="starting price", stat_value=price,
-                       stat_label=f"starting price for a {c.kind}", facts=[line],
+        return c.brief(angle="price_reveal", hook=f"{c.kind.capitalize()}s from {price} onwards in {c.project or c.locality}",
+                       topic=f"Starting price at {c.where}", short="starting price", stat_value=f"from {price}",
+                       stat_label="onwards", facts=[line],
                        tip="Ask what the price includes: development charges, stamp duty and registration.", prefer="stat")
     line = f"A {c.sqft:,} sq ft {c.kind} at {c.where} is listed at {price}."
     c.used.add("price")
@@ -593,7 +601,8 @@ async def sharpen(brief: Brief, llm: Any) -> Brief:
     new = re.sub(r"\s+", " ", str(reply.get("headline") or "")).strip().strip('"')
     lost = any(en.lower() in old.lower() and en.lower() not in new.lower() for en in brief.names)  # names stay as written
     if (not new or new == old or len(new.split()) > 10 or _numbers(new) != _numbers(old) or lost
-            or problems_in(new, f"{old} {facts}")):
+            or problems_in(new, f"{old} {facts}")
+            or ("onwards" in old.lower() and not ("from" in new.lower() and "onwards" in new.lower()))):  # a starting price stays one
         return brief
     return replace(brief, hooks={p: new for p in brief.hooks})
 
