@@ -3,8 +3,7 @@
 Audience: Pune property agents and brokers, about 28-50, on Facebook first (Instagram second), Hinglish. They are short of time and
 doubt that "apps" help, so the reel shows the product working on a real listing instead of promising anything.
 
-The screens are captured from avasetu.in on one of the owner's own listings with a confirmed price, not a sample and not another
-agent's property (House Deal has not agreed to be in our ads). The offer at the end is the founding offer
+The screens are captured from avasetu.in on a real listing with a price from the builder's brochure, never a sample. The offer at the end is the founding offer
 (onboarding/trial.py: TRIAL_DAYS free for the first TRIAL_SPOTS agents). Same guards as agent_reels: no time claims, no
 "auto-post", no number without a source (the only numbers allowed are the offer's), no Devanagari on screen; the same Comment AGENT
 CTA and ?src=reel_<code>_<fb|ig> trial link, so a sign-up traces back to the reel.
@@ -38,9 +37,18 @@ class FlowScript:
     caption: str
 
 
-# F1 (Gulmohar City plot) was withdrawn on 2026-10-10: its listing said Rs 30 lakh, the price was never confirmed (an older listing
-# of the same project said Rs 3 lakh) and the owner cleared that data. A new flow reel needs a listing with a confirmed price.
-SCRIPTS: Tuple[FlowScript, ...] = ()
+# F1: House Deal's Gulmohar City listing (880baab5, Rs 2.99 lakh from the builder's brochure), with their consent for the campaign;
+# their name is blurred on the finished post. The 'size in guntha' card is cropped out of the posts screen (it said the 30-acre
+# layout was a plot's size).
+SCRIPTS: Tuple[FlowScript, ...] = (
+    FlowScript("F1", "Ek property. *Zero* se posts tak.",
+               (Step("STEP 1 · PROPERTY", "Price aur jagah *daalo*", "40-flow-listing.jpg"),
+                Step("STEP 2 · FACTS", "MahaRERA *match*, facts check", "41-flow-facts.jpg"),
+                Step("STEP 3 · POSTS", "Posts *ready*, design ke saath", "42-flow-posts.jpg"),
+                Step("STEP 4 · SHARE KARO", "Approve karo, *share* karo", "43-flow-post.jpg")),
+               "Pehle *20* Pune agents: ek mahina *free*",
+               "One real plot listing, from the details to its posts, on the real Avasetu screens."),
+)
 BY_CODE: Dict[str, FlowScript] = {s.code: s for s in SCRIPTS}
 
 
