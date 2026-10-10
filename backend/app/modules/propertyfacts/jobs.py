@@ -121,7 +121,10 @@ class MarketingRuns:
             raise RunError("Publish this listing first: only live or under-offer listings can be marketed.", 409)
         flt = {"listing_id": listing_id, "agent_id": agent_id}
         active = await self._latest({**flt, "status": {"$in": list(ACTIVE)}})
-        if active:
+        if active and again and active["status"] == "asking":  # a run left waiting on questions: start again closes it
+            await self.runs.update_one({"_id": active["_id"], "status": "asking"},
+                                       {"$set": {"status": "cancelled", "finished_at": self.now()}})
+        elif active:
             return active, False
         if not again:
             done = await self._latest({**flt, "status": "done"})
@@ -379,6 +382,10 @@ class MarketingRuns:
             pool += ([own[i]] if i < len(own) else []) + ([stills[i]] if i < len(stills) else [])
         return pool
 
+    def _has_files(self, listing: dict) -> bool:
+        from . import files
+        return files.brochure_pdf(listing, self.uploads_dir) is not None or self._video(listing) is not None
+
     def _video(self, listing: dict) -> Optional[Path]:
         """The listing's first uploaded video (media kind 'video', a file under <uploads>/videos), or None."""
         vids = sorted(((m.get("order") or 0, i, m) for i, m in enumerate(listing.get("media") or []) if m.get("kind") == "video"),
@@ -549,10 +556,11 @@ class MarketingRuns:
             seen = await understand.read(listing, claims, llm)
             rera = sheet.facts.get("rera_no")
             units = sheet.facts.get("units_total")
-            files = bool(brochure) or self._video(listing) is not None   # a PDF that failed to render still counts as attached
+            readable = bool(brochure.get("pages"))   # a PDF that failed to render does not count as attached
+            files = readable or self._video(listing) is not None
             auto, questions = understand.decide(listing, seen, bool(rera and rera.usable),
                                                 units.value if units and units.usable and isinstance(units.value, int) else None,
-                                                has_files=files)
+                                                has_files=files, unreadable=bool(brochure) and not readable)
             if auto:
                 await self.listings.update_one({"_id": listing["_id"]}, {"$set": auto})
             return questions, bool(auto)
@@ -569,6 +577,8 @@ class MarketingRuns:
             raise RunError("There is no question waiting for this listing.", 409)
         if key not in {q["key"] for q in run.get("questions") or []}:
             raise RunError("That question was already answered.", 409)
+        if key == "files" and value == "added" and not self._has_files(listing):
+            raise RunError("Nothing was uploaded yet. Add the brochure or video, or choose Go on without.", 422)
         try:
             fields = understand.fill_size(listing, understand.apply_answer(key, value))
         except ValueError as e:

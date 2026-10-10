@@ -354,7 +354,12 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
               {f?.maharera ? `MahaRERA ${f.maharera} matched${f.how ? ` (${f.how})` : ''}` : f ? 'No MahaRERA project matched' : 'Reading the listing, its files and MahaRERA'}
             </p>
             {run.status === 'asking' && (run.questions?.length ?? 0) > 0 && (
-              <RunQuestions listingId={listingId} questions={run.questions!} onAnswer={answer} />
+              <>
+                <RunQuestions listingId={listingId} questions={run.questions!} onAnswer={answer} />
+                <button type="button" onClick={() => void start(true)} className="min-h-[44px] text-sm font-semibold text-gray-600 underline">
+                  Start over
+                </button>
+              </>
             )}
             {(run.files?.brochure || run.reels?.some((r) => r.heard?.length)) && (
               <More label="What we read"><ProjectFilesRead run={run} /></More>
