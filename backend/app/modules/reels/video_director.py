@@ -9,6 +9,7 @@ Every step is optional: without speech the edit works from the frames, without a
 (the plain reel). Code keeps the last word: segments are clipped to the video and to the length limits, anything that says a
 phone number is cut, and the hook and caption must pass the same checks as every post (creative.guards)."""
 import asyncio
+import json
 import base64
 import io
 import logging
@@ -108,10 +109,13 @@ LOOK_PROMPT = (
     "(presenter talking, plot boundary stones, road, entrance gate, signboard, layout map, greenery...), rate how good it looks "
     "as a reel shot 0-10 (sharp, well lit, interesting), copy any caption or subtitle text laid over the picture exactly as "
     "you read it (\"\" if none; a small logo in a corner and words printed on a signboard in the scene do not count), and "
-    "copy any phone number you can actually read in the picture digit by digit (\"\" if none; never guess). Reply with JSON "
-    'only: {"shots": [{"t": <seconds>, "what": "...", "score": <0-10>, "caption": "...", "digits": "..."}]}'
+    "copy any phone number you can actually read in the picture digit by digit (\"\" if none; never guess), and estimate "
+    "how much of the picture people cover, 0-100 percent (a presenter talking to the camera is usually 30 or more). Reply "
+    'with JSON only: {"shots": [{"t": <seconds>, "what": "...", "score": <0-10>, "caption": "...", "digits": "...", '
+    '"people": <0-100>}]}'
 )
 PHONE_DIGITS = 8
+PERSON_SHARE = 30   # percent of the frame covered by people from which a still counts as a person shot, not a place shot
 # a still with a dated offer or festival line burned in (it goes stale, and offers are not ours to repeat)
 OFFER = re.compile(r"ऑफर|मोफत|फ्री|नवरात्र|दसर|दसऱ|विजयादशमी|दिवाळी|गुढी|offer|free|discount|navratri|dussehra|diwali", re.I)   # digits read in a frame from which it counts as showing a phone number
 
@@ -121,7 +125,12 @@ def _flags(shot: Dict[str, Any]) -> Dict[str, Any]:
     every frame of a video that showed no number at all)."""
     digits = re.sub(r"\D", "", str(shot.get("digits") or ""))
     caption = str(shot.get("caption") or "").strip()
-    return {**shot, "phone_on_screen": len(digits) >= PHONE_DIGITS, "text_on_screen": len(caption) >= 3}
+    try:
+        people = float(shot.get("people") or 0)
+    except (TypeError, ValueError):
+        people = 0.0
+    return {**shot, "phone_on_screen": len(digits) >= PHONE_DIGITS, "text_on_screen": len(caption) >= 3,
+            "person_on_screen": people >= PERSON_SHARE}
 
 
 SPAN = 0.9   # the part of a video that is surveyed: the last 10% is usually a closing card with a phone number
@@ -195,11 +204,14 @@ async def best_frames(src, out_dir, keep: int = FRAMES_KEPT) -> List[str]:
             # when fewer than MIN_STILLS score well, any phone-free shot is used rather than plain cards
             safe = [s for s in shots if not s.get("phone_on_screen") and not OFFER.search(str(s.get("caption") or ""))]
             good = [s for s in safe if _score(s) >= FRAME_MIN_SCORE]
-            ranked = sorted(good if len(good) >= MIN_STILLS else safe, key=lambda s: (bool(s.get("text_on_screen")), -_score(s)))
+            ranked = sorted(good if len(good) >= MIN_STILLS else safe,
+                            key=lambda s: (bool(s.get("person_on_screen")) or bool(s.get("text_on_screen")),
+                                           bool(s.get("person_on_screen")) and bool(s.get("text_on_screen")), -_score(s)))
             # the exact tile time the model judged (it answers rounded seconds; captions change within a second)
             picks = [min(times, key=lambda x: abs(x - _t(s))) for s in ranked]
+            seen = {p: s for p, s in zip(picks, ranked)}
         else:
-            picks = times[1:-1]
+            picks, seen = times[1:-1], {}
         chosen: List[float] = []
         for t in picks:   # no two stills from the same moment
             if all(abs(t - c) >= usable / SHEET_TILES * 0.9 for c in chosen):
@@ -209,13 +221,20 @@ async def best_frames(src, out_dir, keep: int = FRAMES_KEPT) -> List[str]:
         out_dir.mkdir(parents=True, exist_ok=True)
         for old in out_dir.glob("frame*.jpg"):   # stills of an earlier run must never be mistaken for this one's
             old.unlink(missing_ok=True)
-        out = []
+        out, notes = [], {}
         for i, t in enumerate(chosen):
             f = out_dir / f"frame{i:02d}.jpg"
             await asyncio.to_thread(ffmpeg.run, ["-ss", f"{t:.2f}", "-i", str(src), "-frames:v", "1",
                                                  "-vf", _fit(W, H) + crop, "-q:v", "3", str(f), "-y"])
             if f.is_file():
                 out.append(str(f))
+                if t in seen:   # what the model saw in it, for the card pictures' ranking (propertyfacts.pictures)
+                    notes[f.name] = {k: seen[t].get(k) for k in ("what", "score", "text_on_screen", "phone_on_screen",
+                                                                   "person_on_screen")}
+        try:
+            (out_dir / "shots.json").write_text(json.dumps(notes, ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            pass
         return out
     except Exception as e:
         log.info("video director: frames failed (%s)", type(e).__name__)

@@ -16,7 +16,7 @@ import uuid
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from . import campaign, identity, understand
 from .facts import USABLE
@@ -29,6 +29,7 @@ COLLECTION = "marketing_runs"
 MARKETABLE = ("live", "under_offer")
 ACTIVE = ("queued", "facts", "asking", "posts")  # asking: waiting for the agent's answers (understand.py)
 SLIDE_REELS = 2  # slides reels per campaign, from its first carousel posts
+WALKTHROUGH_NOTE = "Add 2 photos to get a walkthrough reel with voiceover"
 CAPTION_MAX = 2200  # Instagram's caption limit
 NOTE_MAX = 300
 STALE_AFTER = timedelta(minutes=20)
@@ -408,8 +409,12 @@ class MarketingRuns:
         p = local_upload_path(first_photo_url(listing.get("media") or []), self.uploads_dir)
         return str(p) if p and Path(p).is_file() else "none"
 
-    async def _reels(self, job: dict, listing: dict, posts: List[dict], out: Path, project: str, link_line: str) -> List[dict]:
-        """Slides reels from up to SLIDE_REELS carousel posts, and the walkthrough reel job. Each one that fails is skipped."""
+    async def _reels(self, job: dict, listing: dict, posts: List[dict], out: Path, project: str, link_line: str,
+                     pool: Sequence[str] = ()) -> List[dict]:
+        """Slides reels from up to SLIDE_REELS carousel posts, the video reel, and the walkthrough reel job. Each one that fails
+        is skipped. The walkthrough: none for a listing with a video (its video reel covers the place); from the listing's
+        photos when it has 2; else from the run's ranked pictures (`pool`: stills, brochure pages) when 2 are usable; else a
+        note asking for photos."""
         render = self.slides_renderer
         if render is None:
             from app.modules.reels.slides import make_slides_reel as render
@@ -426,10 +431,19 @@ class MarketingRuns:
         video = self._video(listing)
         if video:
             reels.append(await self._video_reel(job, listing, video, out, project, link_line))
-        if self.reel_jobs is not None:
+        if self.reel_jobs is not None and not video:
+            from app.modules.reels.listing_reel import MIN_PHOTOS, listing_photos
+            from . import pictures
+            extra: Dict[str, Any] = {}
+            if len(listing_photos(listing, self.uploads_dir)) < MIN_PHOTOS:
+                usable = pictures.walkthrough_pictures(pool)
+                if len(usable) < MIN_PHOTOS:
+                    reels.append({"kind": "walkthrough", "status": "skipped", "note": WALKTHROUGH_NOTE})
+                    return reels
+                extra = {"photos": usable}
             try:
                 from app.modules.reels.listing_reel import caption as reel_caption
-                doc, _ = await self.reel_jobs.create(job["agent_id"], job["listing_id"], "en")
+                doc, _ = await self.reel_jobs.create(job["agent_id"], job["listing_id"], "en", **extra)
                 reels.append({"kind": "walkthrough", "job_id": doc["_id"], "status": doc["status"], "video": doc.get("video_path"),
                               "caption": reel_caption(listing, "") + "\n\n" + link_line})
             except Exception as e:  # fewer than 2 photos, the daily limit...: the campaign goes on without it
@@ -467,10 +481,15 @@ class MarketingRuns:
         await self._set(job["_id"], files={"brochure": {**summary, "pages": len(info["pages"])}})
         return info
 
-    async def _photo_pool(self, listing: dict, out: Path) -> List[str]:
-        """The property's own pictures for the post cards, one per post: its photos and the best stills of its video,
-        alternating (photos are sharper, stills show the site). Never stock photos; [] keeps the plain cards."""
+    async def _photo_pool(self, listing: dict, out: Path, pages: Sequence = ()) -> List[str]:
+        """The property's own pictures for the post cards, one per post, best first: its photos, the stills of its video and
+        the pages of its brochure (`pages`) ranked together by pictures.rank (clear place shots, sharp and colourful first; a
+        presenter filling the frame, burned-in text and near-duplicates last or left out), so neighbouring cards never show
+        the same scene. Never stock photos; [] keeps the plain cards. Ranking never fails the run: its fallback is the
+        upload order (photos and stills alternating, pages last)."""
         from app.modules.reels.listing_reel import listing_photos
+
+        from . import pictures
         own = [str(p) for p in listing_photos(listing, self.uploads_dir) if Path(p).is_file()]
         video = self._video(listing)
         stills: List[str] = []
@@ -480,7 +499,12 @@ class MarketingRuns:
         pool: List[str] = []
         for i in range(max(len(own), len(stills))):
             pool += ([own[i]] if i < len(own) else []) + ([stills[i]] if i < len(stills) else [])
-        return pool
+        pool += [str(p) for p in pages if str(p) not in pool]
+        try:
+            return await asyncio.to_thread(pictures.rank, pool, set(own), pictures.shot_notes(out / "frames"))
+        except Exception:
+            log.warning("marketing: picture ranking failed, upload order kept", exc_info=True)
+            return pool
 
     def _has_files(self, listing: dict) -> bool:
         from . import files
@@ -584,7 +608,7 @@ class MarketingRuns:
             # step 2: the posts, only now that the facts are kept
             step = "posts"
             dropped: Dict[str, Any] = {}
-            photos = await self._photo_pool(listing, out) + brochure.get("pages", [])
+            photos = await self._photo_pool(listing, out, brochure.get("pages", []))
             previous = await self._live_posts(job, listing)
             plan_rows: List[dict] = []
 
@@ -614,11 +638,12 @@ class MarketingRuns:
             # step 3 (best effort, never fails the run): reels from the best carousels, and the walkthrough reel
             step = "reels"
             await self._set(jid, step="reels")
-            reels = await self._reels(job, listing, posts, out, ctx.project, campaign.link_line_for(where, job.get("language") or "en", ctx.registered))
+            reels = await self._reels(job, listing, posts, out, ctx.project, campaign.link_line_for(where, job.get("language") or "en", ctx.registered),
+                                      pool=photos)
             await self._set(jid, reels=reels)
             # the master boost pair (best effort: a failure is kept as boost.error, the run is done either way)
             step = "boost"
-            await self._make_boost(job, listing, sheet.facts, out, own=photos[:len(photos) - len(brochure.get("pages", []))])
+            await self._make_boost(job, listing, sheet.facts, out, own=[p for p in photos if p not in pages])
             await self._set(jid, status="done", reels=reels, error=None, finished_at=self.now())
         except Exception:
             log.exception("marketing run %s failed in step %s", jid, step)

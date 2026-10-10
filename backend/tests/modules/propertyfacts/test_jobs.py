@@ -64,6 +64,16 @@ async def page_for(db, regno):
     return PAGES.get(regno)
 
 
+def with_photos(tmp_path, n=2, listing=LISTING):
+    from PIL import Image
+    (tmp_path / "images").mkdir(exist_ok=True)
+    media = []
+    for i in range(n):
+        Image.new("RGB", (64, 48), (40 + 60 * i, 120, 200 - 50 * i)).save(tmp_path / "images" / f"p{i}.jpg")
+        media.append({"kind": "image", "url": f"/uploads/images/p{i}.jpg", "order": i})
+    return {**listing, "media": media}
+
+
 async def setup(tmp_path, listing=LISTING, fail_posts=False, pages=page_for):
     db = FakeDb()
     await db.get_collection("listings").insert_one(dict(listing))
@@ -159,7 +169,7 @@ async def test_send_to_calendar_plans_rows_for_approval(tmp_path):
 
     from app.modules.calendar.store import Store as CalendarStore
     from app.modules.propertyfacts import schedule
-    db, runs, _, _ = await setup(tmp_path)
+    db, runs, _, _ = await setup(tmp_path, listing=with_photos(tmp_path))   # 2 photos: the walkthrough reel is queued
     with pytest.raises(jobs.RunError):                       # nothing to send before the posts exist
         await runs.to_calendar("a1", "L1")
     await runs.create("a1", "L1")
@@ -332,3 +342,33 @@ async def test_after_the_earlier_rows_were_skipped_sending_again_adds_the_posts(
     await runs.to_calendar("a1", "L1")
     planned = [r for r in await cal.all() if r["slug"].startswith("campaign-L1-") and r["status"] == "planned"]
     assert len(planned) == n
+
+
+async def test_walkthrough_reel_rules(tmp_path):
+    """A video: no walkthrough entry (the video reel covers it). No video, fewer than 2 photos: the run's own pictures
+    (brochure pages, stills) when 2 are usable, else a note asking for photos."""
+    from PIL import Image
+    db, runs, _, _ = await setup(tmp_path)
+    reels = await runs._reels({"_id": "r", "agent_id": "a1", "listing_id": "L1"}, LISTING, [], tmp_path, "X", "")
+    assert reels == [{"kind": "walkthrough", "status": "skipped", "note": jobs.WALKTHROUGH_NOTE}]
+    (tmp_path / "brochure").mkdir()
+    pool = []
+    for i in range(2):
+        f = tmp_path / "brochure" / f"page{i:02d}.jpg"
+        Image.new("RGB", (64, 48), (30 + 80 * i, 140, 90)).save(f)
+        pool.append(str(f))
+    seen = {}
+
+    async def create(agent_id, listing_id, lang, again=False, photos=None):
+        seen["photos"] = photos
+        return {"_id": "reel1", "status": "queued", "video_path": None}, True
+    runs.reel_jobs.create = create
+    reels = await runs._reels({"_id": "r", "agent_id": "a1", "listing_id": "L1"}, LISTING, [], tmp_path, "X", "", pool=pool)
+    assert reels[0]["status"] == "queued" and seen["photos"] == pool
+    runs._video = lambda listing: tmp_path / "v.mp4"
+
+    async def video_reel(*a, **k):
+        return {"kind": "video", "status": "done"}
+    runs._video_reel = video_reel
+    reels = await runs._reels({"_id": "r", "agent_id": "a1", "listing_id": "L1"}, LISTING, [], tmp_path, "X", "", pool=pool)
+    assert [r["kind"] for r in reels] == ["video"]

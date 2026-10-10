@@ -36,8 +36,11 @@ FOOTER_H = 64
 
 
 _PHOTO: contextvars.ContextVar = contextvars.ContextVar("creative_card_photo", default=None)
-PHOTO_BLUR = 7         # px at card size
-PHOTO_DIM = 0.32        # how much of the photo shows through the palette on a text card (the rest is the card's own colours)
+PHOTO_BLUR = 7         # px at card size, only for a video still or brochure page (their burned-in words); real photos stay sharp
+PHOTO_COLOUR = 1.12     # a real photo is shown bright and in full colour, slightly richer than the camera's
+PHOTO_CONTRAST = 1.05
+PHOTO_TEXT_CONTRAST = 4.6   # text on a photo: the photo is darkened (or lightened) behind it until this contrast is met
+PHOTO_TEXT_PAD = 36         # px of scrim around a text block, feathered by half of it
 
 
 @contextmanager
@@ -58,16 +61,57 @@ def video_still(path: str) -> bool:
 
 
 def photo_backdrop(size: Tuple[int, int], pal: "Palette") -> Optional[Image.Image]:
-    """The card's photo, darkened and tinted with the palette so any text on it stays as legible as on the gradient: the
-    property shows through, the layout reads the same. None when this card has no photo."""
+    """The card's photo, bright and in full colour: the property is what the card shows. The text stays legible because the
+    Canvas darkens the photo only where text sits, just enough for the contrast target (photo_scrim). A video still or a
+    brochure page is softly blurred so the builder's burned-in words stop competing with ours. None when there is no photo."""
     path = _PHOTO.get()
     img = photo(path, size, centering=(0.5, 0.45)) if path else None
     if img is None:
         return None
-    # softly blurred: the place stays recognisable, any words burned into a video still stop competing with the card's text
-    img = ImageEnhance.Color(img.filter(ImageFilter.GaussianBlur(PHOTO_BLUR))).enhance(0.85)
-    tint = gradient(size, pal.bg_top, pal.bg_bottom)
-    return Image.blend(tint, img, PHOTO_DIM if not pal.light else PHOTO_DIM * 0.7)
+    if video_still(path):
+        img = img.filter(ImageFilter.GaussianBlur(PHOTO_BLUR))
+    img = ImageEnhance.Contrast(ImageEnhance.Color(img).enhance(PHOTO_COLOUR)).enhance(PHOTO_CONTRAST)
+    if pal.light:   # a light card keeps a light wash, so dark ink and the palette's chrome read as on the cream gradient
+        img = Image.blend(img, gradient(size, pal.bg_top, pal.bg_bottom), 0.18)
+    return img
+
+
+def photo_scrim(img: Image.Image, box: Box, ink: RGB, target: float = PHOTO_TEXT_CONTRAST, pad: int = PHOTO_TEXT_PAD,
+                tone: Optional[RGB] = None) -> float:
+    """Darken (light ink) or lighten (dark ink) `img` behind `box`, feathered, just enough that `ink` reaches `target`
+    contrast against the brighter (or darker) tenth of the pixels there. Returns the strength used (0 when the photo is
+    already dark enough there). Changes `img` in place."""
+    W, H = img.size
+    x0, y0, x1, y1 = max(0, box[0] - pad), max(0, box[1] - pad), min(W, box[2] + pad), min(H, box[3] + pad)
+    if x1 <= x0 or y1 <= y0:
+        return 0.0
+    light_ink = luminance(ink) > 0.35
+    tone = tone or ((6, 12, 26) if light_ink else (250, 247, 240))
+    region = img.crop((max(0, box[0]), max(0, box[1]), min(W, box[2]), min(H, box[3]))).convert("L")
+    hist = region.histogram()
+    n, acc, g = sum(hist), 0, 0
+    q = 0.90 if light_ink else 0.10    # the worst part of the background for this ink, not its average
+    for v, c in enumerate(hist):
+        acc += c
+        if acc >= q * n:
+            g = v
+            break
+    a = 0.0
+    while a < 0.92:
+        mixed = tuple(int(g * (1 - a) + t * a) for t in tone)
+        if contrast(ink, mixed) >= target:
+            break
+        a += 0.04
+    if a <= 0:
+        return 0.0
+    a = min(0.92, a + 0.04)   # a little margin: the feather and the glyph edges
+    mask = Image.new("L", img.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle([x0, y0, x1, y1], radius=pad, fill=int(255 * a))
+    mask = mask.filter(ImageFilter.GaussianBlur(pad // 2))
+    # the feather must not thin the scrim under the text itself
+    ImageDraw.Draw(mask).rectangle([max(0, box[0] - 4), max(0, box[1] - 4), min(W, box[2] + 4), min(H, box[3] + 4)], fill=int(255 * a))
+    img.paste(tone, (0, 0), mask)
+    return a
 
 
 @contextmanager
@@ -204,6 +248,7 @@ class Canvas:
         self.W, self.H = size
         self.left, self.top, self.right, self.bottom = MARGIN, MARGIN, self.W - MARGIN, self.H - MARGIN
         backdrop = photo_backdrop(size, pal) if bg is None else None
+        self.on_photo = backdrop is not None   # text on it gets a scrim of its own (photo_scrim)
         self.img = bg if bg is not None else backdrop if backdrop is not None else gradient(size, pal.bg_top, pal.bg_bottom)
         self.d = ImageDraw.Draw(self.img)
         self.items: List[Item] = []
@@ -388,6 +433,8 @@ class Canvas:
             lx0, lx1, ly0, ly1 = min(lx0, bb[0]), max(lx1, bb[2]), min(ly0, bb[1]), max(ly1, bb[3])
             pos.append((line, lx, base, lw))
         box = (int(lx0), int(ly0), int(lx1) + 1, int(ly1) + 1)
+        if getattr(self, "on_photo", False) and bg_hint is None:
+            photo_scrim(self.img, box, fill, tone=self.pal.bg_bottom if luminance(fill) > 0.35 and not self.pal.light else None)
         crop = self.img.crop((max(0, box[0]), max(0, box[1]), min(self.W, box[2]), min(self.H, box[3])))
         if bg_hint is not None:
             bg_l = luminance(bg_hint)

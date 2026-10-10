@@ -334,8 +334,11 @@ class ReelJobs:
         docs = await self.jobs.find(flt).sort("created_at", -1).limit(1).to_list(1)
         return docs[0] if docs else None
 
-    async def create(self, agent_id: str, listing_id: str, lang: str, again: bool = False) -> Tuple[dict, bool]:
-        """(job doc, created). Re-requests return the active job, or the finished one if the listing has not changed."""
+    async def create(self, agent_id: str, listing_id: str, lang: str, again: bool = False,
+                     photos: Optional[Sequence] = None) -> Tuple[dict, bool]:
+        """(job doc, created). Re-requests return the active job, or the finished one if the listing has not changed.
+        `photos`: an explicit picture list (a marketing run's video stills or brochure pages, best first) for a listing with
+        fewer than 2 photos of its own; used only then, and only files under the uploads folder."""
         if lang not in LANGS:
             raise ReelJobError("Language must be en, hi or mr", 422)
         listing = await self._listing(agent_id, listing_id)
@@ -351,7 +354,8 @@ class ReelJobs:
             changed = listing.get("updated_at")
             if done and not (isinstance(changed, datetime) and changed > done["created_at"]):
                 return done, False
-        if len(listing_photos(listing, self.uploads_dir)) < MIN_PHOTOS:
+        picked = [] if len(listing_photos(listing, self.uploads_dir)) >= MIN_PHOTOS else self._given(photos)
+        if len(listing_photos(listing, self.uploads_dir)) < MIN_PHOTOS and len(picked) < MIN_PHOTOS:
             raise ReelJobError("Add at least 2 photos", 422)
         now = self.now()
         used = await self.jobs.count_documents({"agent_id": agent_id, "status": {"$in": list(COUNTED)},
@@ -361,8 +365,22 @@ class ReelJobs:
         jid = uuid.uuid4().hex
         doc = {"_id": jid, "listing_id": listing_id, "agent_id": agent_id, "lang": lang, "status": "queued", "video_path": None,
                "script": None, "error": None, "note": None, "audio": None, "created_at": now, "started_at": None, "finished_at": None}
+        if picked:
+            doc["photos"] = picked
         await self.jobs.insert_one(doc)
         return doc, True
+
+    def _given(self, photos: Optional[Sequence]) -> List[str]:
+        """The explicit pictures that are files under the uploads folder (anything else is ignored)."""
+        root, out = self.uploads_dir.resolve(), []
+        for p in photos or []:
+            try:
+                f = Path(p).resolve()
+            except (OSError, TypeError):
+                continue
+            if f.is_file() and root in f.parents and str(f) not in out:
+                out.append(str(f))
+        return out[:MAX_SCENE_PHOTOS]
 
     async def latest(self, agent_id: str, listing_id: str) -> Dict[str, dict]:
         await self._listing(agent_id, listing_id)
@@ -411,6 +429,8 @@ class ReelJobs:
             if is_sample(listing):
                 return await self._finish(jid, status="failed", error="Sample listings cannot have a reel.")
             photos = listing_photos(listing, self.uploads_dir)
+            if len(photos) < MIN_PHOTOS:
+                photos = [Path(p) for p in self._given(job.get("photos"))] or photos
             if len(photos) < MIN_PHOTOS:
                 return await self._finish(jid, status="failed", error="Add at least 2 photos")
             profile = await self.profiles.find_one({"agent_id": job["agent_id"]})
