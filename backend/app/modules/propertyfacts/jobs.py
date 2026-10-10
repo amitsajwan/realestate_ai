@@ -76,7 +76,25 @@ def run_out(doc: Optional[dict], base_url: str = "") -> Optional[dict]:
             "files": doc.get("files") or {}, "questions": doc.get("questions") or [],
             "plan": doc.get("plan") or [], "skipped": doc.get("skipped") or {},
             "mode": doc.get("mode") or "full", "changes": doc.get("changes") or [], "base_run": doc.get("base_run"),
-            "redone": doc.get("redone") or [], "stale": [p["angle"] for p in doc.get("posts") or [] if p.get("stale")]}
+            "redone": doc.get("redone") or [], "stale": [p["angle"] for p in doc.get("posts") or [] if p.get("stale")],
+            "boost": boost_out(doc.get("boost"), base)}
+
+
+def boost_out(b: Optional[dict], base: str = "") -> Optional[dict]:
+    """The run's boost pair as the API returns it (None before one was made): URLs absolute, times ISO."""
+    if not b:
+        return None
+    ab = lambda u: base + u if base and isinstance(u, str) and u.startswith("/") else u
+    reel, car = b.get("reel") or {}, b.get("carousel") or {}
+    return {"state": b.get("state"), "error": b.get("error") or None, "ready_at": _iso(b.get("ready_at")),
+            "reel": {"video_url": ab(reel.get("video_url")), "poster_url": ab(reel.get("poster_url")),
+                     "duration_s": reel.get("duration_s")} if reel else None,
+            "carousel": {"images": [ab(i) for i in car.get("images") or []], "zip_url": ab(car.get("zip_url"))} if car else None,
+            "copy": b.get("copy"), "wa_prefill": b.get("wa_prefill"), "wa_link": b.get("wa_link"),
+            "tracked_link": b.get("tracked_link"), "codes": b.get("codes"), "guide": b.get("guide"),
+            "meta_open_url": b.get("meta_open_url") or "https://business.facebook.com/latest/home",
+            "reel_permalink": b.get("reel_permalink"), "boosted_at": _iso(b.get("boosted_at")),
+            "daily_spend_inr": b.get("daily_spend_inr"), "days": b.get("days")}
 
 
 def _safe(s: str) -> str:
@@ -100,7 +118,8 @@ class MarketingRuns:
     def __init__(self, db, uploads_dir, site: str = "", clients_factory: Optional[Callable[[], Any]] = None,
                  llm_factory: Optional[Callable] = None, now: Callable[[], datetime] = datetime.utcnow,
                  slides_renderer: Optional[Callable] = None, reel_jobs: Any = None, facts_store: Any = None,
-                 page_for: Optional[Callable] = None, enrich_now: Optional[Callable] = None):
+                 page_for: Optional[Callable] = None, enrich_now: Optional[Callable] = None,
+                 boost_renderer: Optional[Callable] = None):
         """`slides_renderer(paths, out, hook=, kicker=)` makes a slides reel (default reels.slides.make_slides_reel);
         `reel_jobs` (reels.listing_reel.ReelJobs) queues the walkthrough reel; None skips it;
         `page_for(db, regno)` finds a project's own page (default areastats.pages.page_for); `enrich_now(db, regno, by=)` asks
@@ -114,6 +133,7 @@ class MarketingRuns:
         self.slides_renderer, self.reel_jobs = slides_renderer, reel_jobs
         self.facts_store = facts_store or FactsStore(db)
         self.page_for, self.enrich_now = page_for, enrich_now
+        self.boost_renderer = boost_renderer   # the boost reel's renderer; None: boost.default_reel_renderer
 
     async def _listing(self, agent_id: str, listing_id: str) -> dict:
         doc = await self.listings.find_one({"_id": listing_id, "agent_id": agent_id})
@@ -153,7 +173,7 @@ class MarketingRuns:
                 return done, False
             if changes and done.get("posts"):
                 keep = ("facts", "page_url", "listing_url", "posts", "reels", "calendar", "link_line", "files", "plan", "skipped",
-                        "dropped", "inputs", "facts_done_at")
+                        "dropped", "inputs", "facts_done_at", "boost")
                 doc.update({k: done[k] for k in keep if k in done}, mode="update", changes=changes)
         if done and done.get("calendar") and not doc.get("calendar"):
             doc["calendar"] = done["calendar"]   # the same rows (one per listing and angle): planned ones take the new posts
@@ -197,7 +217,7 @@ class MarketingRuns:
 
     async def latest(self, agent_id: str, listing_id: str) -> Optional[dict]:
         await self._listing(agent_id, listing_id)
-        return await self._with_walkthrough(await self._latest({"listing_id": listing_id, "agent_id": agent_id}))
+        return await self._with_boost(await self._with_walkthrough(await self._latest({"listing_id": listing_id, "agent_id": agent_id})))
 
     async def to_calendar(self, agent_id: str, listing_id: str, start=None) -> dict:
         """Send the latest finished run's posts to the approval calendar as planned rows (schedule.queue). Idempotent."""
@@ -304,6 +324,9 @@ class MarketingRuns:
             else:
                 change = {"status": "queued", "step": "facts", "resumed": True, "started_at": None, "posts": [], "error": None}
             await self.runs.update_one({"_id": d["_id"], "status": d["status"]}, {"$set": change})
+        for d in await self.runs.find({"status": "done", "boost.state": "making", "boost_queued": False}).to_list(100):
+            await self.runs.update_one({"_id": d["_id"]}, {"$set": {"boost": {**d["boost"], "state": "failed",
+                                                                            "error": "Interrupted. Please make it again."}}})
 
     async def claim(self) -> Optional[dict]:
         docs = await self.runs.find({"status": "queued"}).sort("created_at", 1).limit(1).to_list(1)
@@ -575,12 +598,18 @@ class MarketingRuns:
             step = "reels"
             await self._set(jid, step="reels")
             reels = await self._reels(job, listing, posts, out, ctx.project, campaign.link_line_for(where, job.get("language") or "en", ctx.registered))
+            await self._set(jid, reels=reels)
+            # the master boost pair (best effort: a failure is kept as boost.error, the run is done either way)
+            step = "boost"
+            await self._make_boost(job, listing, sheet.facts, out, own=photos[:len(photos) - len(brochure.get("pages", []))])
             await self._set(jid, status="done", reels=reels, error=None, finished_at=self.now())
         except Exception:
             log.exception("marketing run %s failed in step %s", jid, step)
             msg = ("Could not gather the property facts. Please try again." if step == "facts"
                    else "The facts are saved, but the posts could not be made. Please try again." if step == "posts"
                    else "The posts are ready, but the reels could not be made.")
+            if step == "boost":
+                return await self._set(jid, status="done", error=None, finished_at=self.now())
             if step == "reels":  # the posts are made: the run is usable without reels
                 return await self._set(jid, status="done", reels=[], error=msg, finished_at=self.now())
             if step == "update":  # the earlier run's posts are still there: usable as they are
@@ -617,6 +646,7 @@ class MarketingRuns:
         out = self.uploads_dir / "campaigns" / _safe(job["listing_id"]) / jid[:8]
         posts, reels, redone = [dict(p) for p in job.get("posts") or []], list(job.get("reels") or []), []
         llm = self.llm_factory() if self.llm_factory else None
+        sheet = None
         if set(changes) & {"facts", "brochure", "photos"}:
             clients = self.clients_factory() if self.clients_factory else Clients(facts_store=self.facts_store)
             sheet = await gather({**listing, "id": listing["_id"]}, clients, self.now())
@@ -662,8 +692,125 @@ class MarketingRuns:
             reels = [r for r in reels if r.get("kind") != "video"]
             if video:
                 reels.append(await self._video_reel(job, listing, video, out, "", job.get("link_line") or ""))
+        await self._set(jid, posts=posts, reels=reels, redone=redone)
+        await self._update_boost(job, listing, sheet, out, changes)
         await self._set(jid, status="done", step="reels", changes=changes, posts=posts, reels=reels, redone=redone,
                         inputs=self._inputs(listing), error=None, finished_at=self.now())
+
+    # ---- the master boost pair (boost.py) -------------------------------------------------------------------------------
+    async def _make_boost(self, job: dict, listing: dict, facts: Dict[str, Any], out: Path, own: List[str]) -> None:
+        """Make the boost pair and keep it on the run as `boost`; never raises (a failure is boost.error, state failed)."""
+        from . import boost
+        jid = job["_id"]
+        before = (await self.runs.find_one({"_id": jid}) or job).get("boost") or {}
+        await self._set(jid, boost={**before, "state": "making", "error": None}, boost_queued=False)
+        try:
+            prof = await self.profiles.find_one({"agent_id": job["agent_id"]}) or {}
+            who = await self._identity(job)
+            dest = out / "boost" / self.now().strftime("%Y%m%d%H%M%S")
+            made = await boost.make(self.db, facts=facts, listing=listing, agent_id=job["agent_id"], out=dest,
+                                    uploads_dir=self.uploads_dir, language=job.get("language") or "en", photos=own, profile=prof,
+                                    brand_name=who.card_brand.name if who.card_brand else "", card_brand=who.card_brand,
+                                    reel_renderer=self.boost_renderer, now=self.now)
+            if before.get("state") in ("boosted", "finished") or before.get("boosted_at"):   # a remade pair keeps the spend
+                made.update({k: before.get(k) for k in ("boosted_at", "daily_spend_inr", "days", "reel_permalink")})
+                made["state"] = "boosted"
+            await self._set(jid, boost=made)
+        except Exception as e:
+            log.warning("marketing run %s: boost pair failed", jid, exc_info=True)
+            await self._set(jid, boost={**before, "state": "failed",
+                                        "error": "The boost reel and carousel could not be made: " + str(e)[:200]})
+
+    async def _update_boost(self, job: dict, listing: dict, sheet, out: Path, changes: List[str]) -> None:
+        """An update run remakes the boost pair only when what it says or shows changed (boost.key); never raises."""
+        from . import boost
+        try:
+            if not (set(changes) & {"facts", "photos", "video"}):
+                return
+            if sheet is None:
+                clients = self.clients_factory() if self.clients_factory else Clients(facts_store=self.facts_store)
+                sheet = await gather({**listing, "id": listing["_id"]}, clients, self.now())
+            own = await self._photo_pool(listing, out)
+            old = job.get("boost") or {}
+            if old.get("key") and old["key"] == boost.key(sheet.facts, own, job.get("language") or "en"):
+                return
+            await self._make_boost(job, listing, sheet.facts, out, own)
+        except Exception:
+            log.warning("marketing update %s: boost pair not remade", job["_id"], exc_info=True)
+
+    async def _with_boost(self, doc: Optional[dict]) -> Optional[dict]:
+        """The boost pair with what time made of it: ready_at (48 h after the first post went out), the reel's permalink when
+        it was posted through the calendar, and "finished" once the boost's days are over."""
+        b = (doc or {}).get("boost")
+        if not b or b.get("state") in ("making", "failed"):
+            return doc
+        from app.modules.calendar.store import Store as CalendarStore
+        from .boost import READY_AFTER_H
+        cal, first, permalink = CalendarStore(self.db), None, b.get("reel_permalink")
+        naive = lambda t: t.astimezone(timezone.utc).replace(tzinfo=None) if t.tzinfo else t
+        for c in doc.get("calendar") or []:
+            row = await cal.get(c.get("row_id") or "")
+            if not row or row.get("status") != "published":
+                continue
+            at = row.get("published_at")
+            if isinstance(at, datetime):
+                first = naive(at) if first is None or naive(at) < first else first
+            if c.get("angle") == "boost_reel" and row.get("permalink"):
+                permalink = row["permalink"]
+        b = {**b, "ready_at": first + timedelta(hours=READY_AFTER_H) if first else None, "reel_permalink": permalink}
+        at = b.get("boosted_at")
+        if b.get("state") == "boosted" and isinstance(at, datetime) and b.get("days"):
+            if self.now() >= naive(at) + timedelta(days=int(b["days"])):
+                b["state"] = "finished"
+        return {**doc, "boost": b}
+
+    async def boost(self, agent_id: str, listing_id: str, daily_spend_inr: int, days: int) -> dict:
+        """The agent boosted the pair on Meta (by hand, through meta_open_url): kept for the results' spend."""
+        if not (1 <= int(daily_spend_inr) <= 100000 and 1 <= int(days) <= 90):
+            raise RunError("Give a daily spend between 1 and 100000 rupees and 1 to 90 days.", 422)
+        run = await self.latest(agent_id, listing_id)
+        if not run or (run.get("boost") or {}).get("state") not in ("ready", "boosted", "finished"):
+            raise RunError("The boost reel and carousel are not ready yet.", 409)
+        kept = (await self.runs.find_one({"_id": run["_id"]}) or {}).get("boost") or {}
+        b = {**kept, "state": "boosted", "boosted_at": self.now(), "daily_spend_inr": int(daily_spend_inr), "days": int(days)}
+        await self._set(run["_id"], boost=b)
+        return await self._with_boost({**run, "boost": b})
+
+    async def remake_boost(self, agent_id: str, listing_id: str) -> dict:
+        """Make only the boost pair again, in the background (the worker picks it up; state "making" meanwhile)."""
+        run = await self.latest(agent_id, listing_id)
+        if not run or run["status"] != "done":
+            raise RunError("Make the posts first.", 409)
+        if (run.get("boost") or {}).get("state") == "making":
+            return run
+        kept = (await self.runs.find_one({"_id": run["_id"]}) or {}).get("boost") or {}
+        b = {**kept, "state": "making", "error": None}
+        await self._set(run["_id"], boost=b, boost_queued=True)
+        return {**run, "boost": b}
+
+    async def claim_boost(self) -> Optional[dict]:
+        doc = await self.runs.find_one({"boost_queued": True})
+        if not doc:
+            return None
+        res = await self.runs.update_one({"_id": doc["_id"], "boost_queued": True}, {"$set": {"boost_queued": False}})
+        if res is not None and getattr(res, "modified_count", 1) == 0:
+            return None
+        return doc
+
+    async def run_boost(self, job: dict) -> None:
+        """A remake asked from Studio: the facts again (kept, so quick), the property's pictures, then the pair. Never raises."""
+        try:
+            listing = await self.listings.find_one({"_id": job["listing_id"], "agent_id": job["agent_id"]})
+            if not listing:
+                raise RunError("The listing was removed.")
+            clients = self.clients_factory() if self.clients_factory else Clients(facts_store=self.facts_store)
+            sheet = await gather({**listing, "id": listing["_id"]}, clients, self.now())
+            out = self.uploads_dir / "campaigns" / _safe(job["listing_id"]) / job["_id"][:8]
+            await self._make_boost(job, listing, sheet.facts, out, await self._photo_pool(listing, out))
+        except Exception as e:
+            log.warning("boost remake %s failed", job["_id"], exc_info=True)
+            await self._set(job["_id"], boost={**(job.get("boost") or {}), "state": "failed",
+                                               "error": "The boost pair could not be made again: " + str(getattr(e, "detail", "") or e)[:200]})
 
     async def _live_posts(self, job: dict, listing: dict) -> List[str]:
         """Opening lines of this property's posts that are already published, newest first: those of this listing's earlier
@@ -740,10 +887,14 @@ class MarketingRuns:
 
     async def run_once(self) -> bool:
         job = await self.claim()
-        if not job:
-            return False
-        await self.run(job)
-        return True
+        if job:
+            await self.run(job)
+            return True
+        job = await self.claim_boost()   # a boost pair asked again from Studio
+        if job:
+            await self.run_boost(job)
+            return True
+        return False
 
 
 # ---- the background worker --------------------------------------------------------------------------------------------

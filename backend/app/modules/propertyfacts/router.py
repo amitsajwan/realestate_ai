@@ -7,7 +7,9 @@ same for a project's own page.
 (step 1 facts and page, then step 2 posts; see jobs.py), `GET /{listing_id}/campaign` its latest run,
 `POST /{listing_id}/campaign/calendar` sends its posts to the approval calendar (schedule.py),
 `GET /{listing_id}/campaign/results` each post's calendar state with its clicks and interests (results.py),
-`PATCH /{listing_id}/campaign/posts/{angle}` saves an edited caption, `POST .../posts/{angle}/redo` remakes it with a note."""
+`PATCH /{listing_id}/campaign/posts/{angle}` saves an edited caption, `POST .../posts/{angle}/redo` remakes it with a note,
+`POST /{listing_id}/campaign/boost` records that the agent boosted the master boost pair (boost.py) with its daily spend and days,
+`POST /{listing_id}/campaign/boost/remake` makes only the boost pair again (in the background)."""
 from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -68,6 +70,12 @@ class AnswerIn(BaseModel):
     value: Any = None   # the chosen option's value, a typed MahaRERA number, or null for "not sure"
 
 
+class BoostIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    daily_spend_inr: int
+    days: int
+
+
 class StartIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     again: bool = False
@@ -124,7 +132,33 @@ async def campaign_results(listing_id: str, user: User = Depends(current_active_
         doc = await runs.latest(str(user.id), listing_id)
     except jobs.RunError as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
-    return {"items": await results(db, doc) if doc else []}
+    from .boost import results as boost_results
+    items = await results(db, doc) if doc else []
+    extra = await boost_results(db, doc, items, runs.now()) if doc else {
+        "boost_results": {"clicks": 0, "interests": 0, "spend_inr": 0, "cost_per_enquiry": None}, "organic": {"clicks": 0, "interests": 0}}
+    return {"items": items, **extra}
+
+
+@router.post("/{listing_id}/campaign/boost")
+async def mark_boosted(listing_id: str, body: BoostIn, request: Request, user: User = Depends(current_active_user),
+                       runs: jobs.MarketingRuns = Depends(get_runs)) -> dict:
+    """The agent boosted the pair on Meta: its daily spend and days are kept (state boosted) for the results."""
+    try:
+        doc = await runs.boost(str(user.id), listing_id, body.daily_spend_inr, body.days)
+    except jobs.RunError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    return {"run": jobs.run_out(doc, str(request.base_url))}
+
+
+@router.post("/{listing_id}/campaign/boost/remake", status_code=202)
+async def remake_boost(listing_id: str, request: Request, user: User = Depends(current_active_user),
+                       runs: jobs.MarketingRuns = Depends(get_runs), _w: None = Depends(start_worker)) -> dict:
+    """Make only the boost reel and carousel again; the worker does it (boost.state "making" until then)."""
+    try:
+        doc = await runs.remake_boost(str(user.id), listing_id)
+    except jobs.RunError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    return {"run": jobs.run_out(doc, str(request.base_url))}
 
 
 @router.patch("/{listing_id}/campaign/posts/{angle}")

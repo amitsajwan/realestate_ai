@@ -21,6 +21,18 @@ def fake_slides_reel(paths, out, hook=None, kicker=None):
     return out
 
 
+BOOSTS = []
+
+
+def fake_boost_reel(scenes, out):
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(b"mp4")
+    poster = out.with_name(out.stem + "-cover.jpg")
+    poster.write_bytes(b"jpg")
+    BOOSTS.append(scenes)
+    return {"video": out, "poster": poster, "seconds": round(sum(s.seconds for s in scenes), 1)}
+
+
 class FakeReelJobs:
     """The listing reel queue: the walkthrough is queued, then rendered by its own worker."""
 
@@ -59,7 +71,7 @@ async def setup(tmp_path, listing=LISTING, fail_posts=False, pages=page_for):
     clients = WithRegister(Register(RECORD))
     runs = jobs.MarketingRuns(db, tmp_path, "https://avasetu.in", clients_factory=lambda: clients, now=lambda: NOW,
                               slides_renderer=fake_slides_reel, reel_jobs=FakeReelJobs(), facts_store=clients.facts_store,
-                              page_for=pages)
+                              page_for=pages, boost_renderer=fake_boost_reel)
     one = runs.run_once
 
     async def run_once():  # these listings carry no files: go on without, as the agent would
