@@ -20,7 +20,7 @@ HYPE = re.compile(r"\b(best|guaranteed|hurry|last few|limited offer|lowest|unbel
 MAX_LEN = 450
 
 log = logging.getLogger(__name__)
-DRAFT_VERSION = 3  # bump when the reply wording changes: unsent leads are drafted again (pipeline.redraft)
+DRAFT_VERSION = 4  # bump when the reply wording changes: unsent leads are drafted again (pipeline.redraft)
 
 Writer = Callable[[str, Intent, List[Match], str, Optional[Project]], Awaitable[Optional[str]]]
 _writer: Optional[Writer] = None
@@ -70,7 +70,8 @@ WRITER = """You write one short public reply to a person who asked about a home 
 You are a local property guide, not a salesperson. Rules:
 - Reply in {lang}. 1-3 sentences, under 380 characters, plain words, no emojis except at most one.
 - First answer what they asked, using ONLY the FACTS. If FACTS do not answer it, say what to check and where.
-- Never invent prices, dates, availability, offers or amenities. No hype words (best, guaranteed, hurry, limited, dream home).
+- Never invent prices, dates, availability, offers, plot or flat sizes, or amenities. Say a price exactly as FACTS words it
+  ("from ₹2.99 Lakh onwards" stays a starting price, never a flat price). No hype words (best, guaranteed, hurry, limited, dream home).
 - No phone numbers. End with this exact link once: {link}
 Return only the reply text."""
 

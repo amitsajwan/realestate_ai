@@ -2,6 +2,7 @@
 p = sigmoid(w · features). Hand-set weights until learn.refit has fitted better ones from operator labels (the active row in
 radar_models, loaded with `use_weights`); every score carries the reasons the operator sees."""
 import math
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -41,10 +42,26 @@ class Match:
     bhk: Optional[float]
     price_inr: Optional[int]
     quality: float
+    price_from: bool = False        # the price is a starting price ("from ₹2.99 lakh onwards"), never a flat one
 
     def line(self) -> str:
-        parts = [bhk_label(self.bhk) if self.bhk else "", self.title, money(self.price_inr) if self.price_inr else ""]
+        price = ""
+        if self.price_inr:
+            price = f"from {money(self.price_inr)} onwards" if self.price_from else money(self.price_inr)
+        parts = [bhk_label(self.bhk) if self.bhk else "", strip_price(self.title), price]
         return ", ".join(p for p in parts if p)
+
+
+# a price the agent wrote into the title ("... - from 2.99 L onwards", "... - 2.99 L"): the price is said once, from price_inr
+TITLE_PRICE = re.compile(r"\s*[-–,|]\s*(?:from\s+)?(?:₹|rs\.?\s*)?\d[\d.,]*\s*(?:l|lakh|lakhs|lac|cr|crore)\b\.?(?:\s+onwards)?\s*$", re.I)
+
+
+def strip_price(title: str) -> str:
+    return TITLE_PRICE.sub("", title or "").strip()
+
+
+def is_from_price(title: str) -> bool:
+    return bool(re.search(r"\bonwards\b|\bstarting\b", title or "", re.I))
 
 
 @dataclass
@@ -78,7 +95,7 @@ async def find_matches(db, intent: Intent, limit: int = 3) -> List[Match]:
     for it in items:
         q = match_quality(intent, it.bhk, it.price_inr)
         if q >= 0.3:
-            out.append(Match(it.id, it.agent.slug, it.title, it.locality or "", it.bhk, it.price_inr, q))
+            out.append(Match(it.id, it.agent.slug, it.title, it.locality or "", it.bhk, it.price_inr, q, is_from_price(it.title)))
     return sorted(out, key=lambda m: -m.quality)[:limit]
 
 
