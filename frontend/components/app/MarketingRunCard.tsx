@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { api, errorMessage } from '@/lib/app/client'
 import { t } from '@/lib/app/strings'
 import type { CampaignResult, DraftLanguage, MarketingRun, RunQuestion } from '@/lib/app/types'
+import { BoostStep } from './BoostStep'
 import { CampaignPostEditor } from './CampaignPostEditor'
 import { RunFileUpload } from './RunFileUpload'
 import { Btn, ErrorBox } from './ui'
@@ -499,6 +500,13 @@ export function MarketingRunCard({ listingId, autoStart, onAutoStarted }: {
               <Step n={7} title="Leads from these posts" state={results.some((r) => r.state === 'posted') ? 'done' : 'waiting'}>
                 {results.length > 0 && <PostLeads items={results} />}
               </Step>
+              {run.boost && (
+                <Step n={8} title={t('boostTitle')}
+                  state={run.boost.state === 'failed' ? 'failed' : run.boost.state === 'making' ? 'working'
+                    : run.boost.state === 'boosted' || run.boost.state === 'finished' ? 'done' : 'waiting'}>
+                  <BoostStep listingId={listingId} run={run} onRun={setRun} />
+                </Step>
+              )}
             </>
           )}
         </ol>

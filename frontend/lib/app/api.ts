@@ -8,6 +8,7 @@ import type {
   AboutSuggestion,
   AppApi,
   BusinessToday,
+  CampaignReport,
   CampaignResult,
   ChatConversation,
   FacebookInterest,
@@ -227,6 +228,16 @@ export function createApiClient(opts: ClientOptions): AppApi {
         { method: 'POST', json: { note } })).run,
     getCampaignResults: async (listingId) =>
       (await request<{ items: CampaignResult[] }>(`/listings/${listingId}/campaign/results`)).items ?? [],
+    getCampaignReport: async (listingId) => {
+      const r = await request<CampaignReport>(`/listings/${listingId}/campaign/results`)
+      return { ...r, items: r.items ?? [] }
+    },
+    markBoosted: async (listingId, dailySpendInr, days) =>
+      (await request<{ run: MarketingRun }>(`/listings/${listingId}/campaign/boost`, {
+        method: 'POST', json: { daily_spend_inr: dailySpendInr, days },
+      })).run,
+    remakeBoost: async (listingId) =>
+      (await request<{ run: MarketingRun }>(`/listings/${listingId}/campaign/boost/remake`, { method: 'POST' })).run,
     getPerformance: async () => (await request<{ items: PerformanceItem[] }>('/inbox/performance')).items ?? [],
 
     getListingActivity: (id, limit) => request<ListingActivity>(`/inbox/listings/${id}/activity${qs({ limit })}`),

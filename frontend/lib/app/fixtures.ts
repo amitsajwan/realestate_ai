@@ -610,6 +610,16 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
       find(listingId)
       return []
     },
+    async getCampaignReport(listingId) {
+      find(listingId)
+      return { items: [] }
+    },
+    async markBoosted() {
+      throw fixtureError(409, 'Demo mode: nothing to boost')
+    },
+    async remakeBoost() {
+      throw fixtureError(409, 'Demo mode: nothing to boost')
+    },
     async getPerformance() {
       const st = load()
       return performanceFor(st.listings, st.leads)
