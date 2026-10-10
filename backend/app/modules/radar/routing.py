@@ -15,8 +15,7 @@ async def _area_agents(db, area_key: Optional[str]) -> List[str]:
     p = places.get(area_key or "")
     if not p:
         return []
-    from app.modules.listings.service import ListingService
-    items, _ = await ListingService(db).public_by_locality(p.listing_locality, limit=100)
+    items = await places.public_listings(db, p, 100)
     out: List[str] = []
     for slug in dict.fromkeys(it.agent.slug for it in items):
         agent = await _agent_of_slug(db, slug)

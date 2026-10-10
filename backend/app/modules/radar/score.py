@@ -89,8 +89,7 @@ async def find_matches(db, intent: Intent, limit: int = 3) -> List[Match]:
     area = places.get(intent.area or "")
     if not area:
         return []
-    from app.modules.listings.service import ListingService
-    items, _ = await ListingService(db).public_by_locality(area.listing_locality, limit=30)
+    items = await places.public_listings(db, area, 30)
     out = []
     for it in items:
         q = match_quality(intent, it.bhk, it.price_inr)

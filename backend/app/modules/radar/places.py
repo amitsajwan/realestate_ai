@@ -12,14 +12,15 @@ class Place:
     key: str
     name: str
     page: str                       # where a reply sends people
-    listing_locality: str           # listings.locality of what we sell there
+    listing_localities: Tuple[str, ...]  # listings.locality values of what we sell there
     aliases: Tuple[str, ...]
     queries: Tuple[str, ...]        # YouTube searches
 
 
 EXTRA: Tuple[Place, ...] = (
-    # Gulmohar City (MahaRERA P52100076768): plots near Ranjangaon MIDC, Shirur taluka; listing locality is "Shirur"
-    Place("ranjangaon", "Ranjangaon", "/projects/gulmohar-city-pune", "Shirur",
+    # Gulmohar City (MahaRERA P52100076768): plots near Ranjangaon MIDC, Shirur taluka. The live listing moved to
+    # "Malthan village, Shirur taluka" on 2026-10-10; "Shirur" stays for older listings
+    Place("ranjangaon", "Ranjangaon", "/projects/gulmohar-city-pune", ("Malthan village, Shirur taluka", "Shirur"),
           ("ranjangaon", "ranjangaon midc", "रांजणगाव", "shirur", "शिरूर", "karegaon", "gulmohar city"),
           ("Ranjangaon plots", "Ranjangaon MIDC plot for sale", "Shirur Pune plots", "Gulmohar City Ranjangaon",
            "रांजणगाव प्लॉट")),
@@ -29,7 +30,7 @@ SITE_QUERY_TEMPLATES = ("{area} Pune flats", "{area} Pune 2 BHK project review",
 
 
 def all_places() -> Tuple[Place, ...]:
-    own = tuple(Place(a.key, a.name, a.page, a.name, a.aliases, tuple(t.format(area=a.name) for t in SITE_QUERY_TEMPLATES))
+    own = tuple(Place(a.key, a.name, a.page, (a.name,), a.aliases, tuple(t.format(area=a.name) for t in SITE_QUERY_TEMPLATES))
                 for a in site.AREAS)
     return own + EXTRA
 
@@ -53,3 +54,13 @@ def named_in(text: str) -> Optional[Place]:
         return get(found[0].key)
     t = (text or "").lower()
     return next((p for p in EXTRA if any(al in t for al in p.aliases)), None)
+
+
+async def public_listings(db, place: Place, limit: int = 30) -> list:
+    """Live public listings in any of the place's localities."""
+    from app.modules.listings.service import ListingService
+    svc, out = ListingService(db), []
+    for loc in place.listing_localities:
+        items, _ = await svc.public_by_locality(loc, limit=limit)
+        out += items
+    return out[:limit]
