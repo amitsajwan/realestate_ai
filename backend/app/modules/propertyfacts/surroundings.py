@@ -13,6 +13,7 @@ claiming there is nothing nearby."""
 import gzip
 import json
 import math
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -166,3 +167,45 @@ async def around(get_json: GetJson, lat: float, lon: float, now=None) -> Tuple[L
 
 def label(key: str) -> str:
     return CATEGORIES.get(key.split(".", 1)[-1], (key, (), ""))[0]
+
+
+# A map's name is not a card's name: "Maharashtra Industrial Development Corporation" is what buyers call "Ranjangaon MIDC".
+_GENERIC_INDUSTRY = re.compile(r"(?i)^(maharashtra industrial development corporation|m\.?i\.?d\.?c\.?|(additional |new )?"
+                               r"industrial (area|estate|zone|shade|shed)s?)$")
+_BUS_NOISE = re.compile(r"(?i)\b(pmpml|pmpl|pampml|msrtc|kmt|private)\b")
+
+
+def short_name(cat: str, name: str, town: str = "") -> str:
+    """The name a buyer uses for a mapped place: an industrial estate is "<town> MIDC", a railway station "<name> station",
+    a bus stand "<name> bus stand" / "<name> ST stand"; odd characters, alternative names (";") and brackets dropped.
+    `town`: where the place is (the listing's locality: every place is within RADIUS_M of it), used when the map's name says
+    nothing about where it is."""
+    cat = cat.split(".", 1)[-1]
+    n = (name or "").split(";")[0]
+    n = re.sub(r"\([^)]*\)", " ", n)
+    n = re.sub(r"[^\w .,&'/-]", " ", n)          # the replacement character, emoji, stray symbols
+    n = re.sub(r"\s+", " ", n).strip(" ,-")
+    if not n:
+        return (name or "").strip()
+    if cat == "industry":
+        if _GENERIC_INDUSTRY.match(n):
+            return f"{town} MIDC" if town else "MIDC"
+        m = re.match(r"(?i)^m\.?i\.?d\.?c\.?\s+(.+)$", n)          # "MIDC Bhosari" -> "Bhosari MIDC"
+        if m:
+            return f"{m.group(1)} MIDC"
+        m = re.match(r"(?i)^(.+?)\s+industrial area$", n)  # "Shikrapur-Sanaswadi Industrial Area" -> "... MIDC"
+        if m and m.group(1).lower() not in ("additional", "new"):
+            return f"{m.group(1)} MIDC"
+        return n
+    if cat == "railway":
+        n = re.sub(r"(?i)\s*(railway station|railway stn|rly station|station)$", "", n).strip()
+        return n if re.search(r"(?i)junction$", n) else f"{n} station"
+    if cat == "bus":
+        st = re.search(r"(?i)\bs\.?\s?t\.?\b", n)
+        n = _BUS_NOISE.sub(" ", n)
+        n = re.sub(r"(?i)\b(s\.?\s?t\.?|bus|stand|station|terminus|terminal|depot|stop|parking)\b", " ", n)
+        n = re.sub(r"\s+", " ", n).strip(" ,-")
+        if not n:
+            return f"{town} bus stand" if town else (name or "").strip()
+        return f"{n} ST stand" if st else f"{n} bus stand"
+    return n

@@ -10,6 +10,7 @@ from typing import Dict, Optional
 UI: Dict[str, Dict[str, str]] = {
     "swipe": {"en": "Swipe", "mr": "पुढे पाहा", "hi": "आगे देखें"},
     "save_this": {"en": "Save this", "mr": "सेव्ह करा", "hi": "सेव करें"},
+    "whatsapp_us": {"en": "WhatsApp us", "mr": "WhatsApp करा", "hi": "WhatsApp करें"},   # a listing post's last card
     "myth": {"en": "MYTH", "mr": "गैरसमज", "hi": "मिथक"},
     "fact": {"en": "FACT", "mr": "सत्य", "hi": "सच"},
     "vs": {"en": "VS", "mr": "VS", "hi": "VS"},
@@ -22,9 +23,12 @@ UI: Dict[str, Dict[str, str]] = {
     "ask": {"en": "Ask for details", "mr": "माहितीसाठी संपर्क करा", "hi": "जानकारी के लिए संपर्क करें"},
 }
 
+WHATSAPP_US = "WhatsApp us"   # the call to action on the last card of a listing post (Brief.cta); words only, never a number
+
 # Fixed English strings the copywriter may put on a card (CARD_CTA, KICKER): their translations.
 KNOWN: Dict[str, Dict[str, str]] = {
     "Save this": UI["save_this"],
+    "WhatsApp us": UI["whatsapp_us"],
     "Save this list": {"en": "Save this list", "mr": "ही यादी सेव्ह करा", "hi": "यह लिस्ट सेव करें"},
     "Share with a buyer": {"en": "Share with a buyer", "mr": "खरेदीदाराला पाठवा", "hi": "खरीदार को भेजें"},
     "Vote in the comments": {"en": "Vote in the comments", "mr": "कमेंटमध्ये मत द्या", "hi": "कमेंट में वोट करें"},
@@ -37,6 +41,11 @@ KNOWN: Dict[str, Dict[str, str]] = {
     "BUYER NOTE": {"en": "BUYER NOTE", "mr": "खरेदीदारांसाठी", "hi": "खरीदारों के लिए"},
     "QUICK TIP": {"en": "QUICK TIP", "mr": "छोटी टीप", "hi": "छोटी सलाह"},
 }
+
+
+def is_whatsapp(text: str) -> bool:
+    """`text` is the WhatsApp call to action, in any post language (a translated copy carries its own words)."""
+    return bool(text) and text.strip() in UI["whatsapp_us"].values()
 
 
 def ui(key: str, lang: str = "en", **fmt) -> str:

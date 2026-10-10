@@ -82,6 +82,8 @@ class Facts:
         v = c.v
         self.price = v.get("price_inr")
         self.work = (v.get("nearby.industry") or [None])[0]
+        if self.work:   # the name a buyer uses ("Ranjangaon MIDC"), as the campaign's cards say it
+            self.work = {**self.work, "name": c.place("industry", self.work)}
         self.near = campaign._near(c)
         self.emi = v.get("emi") if not c.layout else None
         self.rera = str(v.get("rera_no") or "") if c.registered else ""
@@ -126,7 +128,7 @@ class Facts:
             return f"EMI about ₹{self.emi['emi']:,} a month", self.emi_note()
         if self.near:
             k, p = self.near[0]
-            return _fit([f"{p['name']}: {campaign._km(p['km'])}", f"{surroundings.label(k)}: {campaign._km(p['km'])}"]), \
+            return _fit([f"{self.c.place(k, p)}: {campaign._km(p['km'])}", f"{surroundings.label(k)}: {campaign._km(p['km'])}"]), \
                 "straight-line distance"
         return "", ""
 
@@ -142,7 +144,7 @@ def carousel_briefs(f: Facts, hook: str, photo: str) -> List[Tuple[str, Brief]]:
     out: List[Tuple[str, Brief]] = []
     base = campaign.price_reveal(c) or campaign.overview(c)
     if base is not None:
-        work = [f"{p['name']} is about {campaign._km(p['km'])} away (straight line)." for p in v.get("nearby.industry") or []]
+        work = [f"{c.place('industry', p)} is about {campaign._km(p['km'])} away (straight line)." for p in v.get("nearby.industry") or []]
         out.append(("hook", en(replace(base, hooks={p: hook for p in PATTERNS}, photo=photo, facts=list(base.facts) + work))))
     # single cards only (stat and tip layouts): a list layout draws a carousel of its own, whose cover alone says nothing
     if f.price:

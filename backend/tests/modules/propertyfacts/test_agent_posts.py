@@ -8,7 +8,7 @@ from app.modules.creative import translate
 from app.modules.creative.layouts import render_layout
 from app.modules.creative.layouts.base import DEVANAGARI_FONTS, card, load_font
 from app.modules.creative.models import Brief, CardBrand, Copy, Design
-from app.modules.propertyfacts import identity, jobs
+from app.modules.propertyfacts import campaign, identity, jobs
 
 from .test_jobs import LISTING, setup
 
@@ -108,7 +108,7 @@ async def test_an_agents_marathi_campaign(tmp_path, monkeypatch):
     assert created and doc["language"] == "mr"
     await runs.run_once()
     d = await runs.latest("a1", "L1")
-    assert d["status"] == "done" and len(d["posts"]) >= 10 and jobs.run_out(d)["language"] == "mr"
+    assert d["status"] == "done" and len(d["posts"]) == 1 + campaign.FOLLOW_UPS and jobs.run_out(d)["language"] == "mr"
     for p in d["posts"]:
         assert "+91 90000 12345" in p["caption"] and "99219" not in p["caption"] and "house-deal.com" in p["caption"] and "avasetu.in/agent/house-deal" in p["caption"]
         assert p["caption"].startswith("मराठी: ") and ("खाली सांगा" in p["caption"] or "कमेंटमध्ये" in p["caption"])

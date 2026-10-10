@@ -614,11 +614,13 @@ class Canvas:
         self.logo(x0 + pad, y0 + pad, d)
         tx = x0 + pad + d + 20
         cue_w = 0
-        if cue:
-            font = load_font(24, "semibold")
-            cue_w = min(300, int(self.d.textlength(cue, font=font)) + 8)
-            self.text(cue, x1 - pad - cue_w, y0 + pad + 6, cue_w, 24, "semibold", pal.card_muted, 1, align="right", role="brand",
-                      balance=False, bg_hint=panel)
+        if cue:   # the WhatsApp call to action is the card's ask: bigger, in the accent colour; "Save this" stays quiet
+            ask = i18n.is_whatsapp(cue)
+            size, weight = (30, "bold") if ask else (24, "semibold")
+            font = load_font(size, weight)
+            cue_w = min(320, int(self.d.textlength(cue, font=font)) + 8)
+            self.text(cue, x1 - pad - cue_w, y0 + pad + 2, cue_w, size, weight, pal.accent if ask else pal.card_muted, 1,
+                      align="right", role="brand", balance=False, bg_hint=panel)
         self.text(b.name, tx, y0 + pad + 4, x1 - pad - tx - (cue_w + 24 if cue_w else 0), 32, "semibold", pal.card_ink, 1,
                   role="brand", balance=False, bg_hint=panel, min_size=24)
         label = ui("call")
@@ -670,7 +672,7 @@ class Canvas:
         if save:
             sy = y + ph + 44
             if sy + 44 <= bottom:
-                self.icon("bookmark", (self.left + 20, sy + 18), 40, pal.accent, 5)
+                self.icon("bubble" if "WhatsApp" in save else "bookmark", (self.left + 20, sy + 18), 40, pal.accent, 5)
                 self.text(save, self.left + 60, sy, w - 60, 38, "semibold", pal.muted, 1, role="support", balance=False)
 
     def chip(self, label: str, x: int, y: int, fill: Optional[RGB] = None, ink: Optional[RGB] = None, size: int = 26,

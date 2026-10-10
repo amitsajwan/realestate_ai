@@ -67,6 +67,8 @@ class Brief:
     card_brand: Optional[CardBrand] = None  # an agent's footer on the cards; None = the brand's own
     contact: List[str] = field(default_factory=list)  # lines code adds to every caption ("📞 +91 ...", "🌐 house-deal.com")
     language: str = "en"                  # "mr"/"hi": the cards and caption are translated after the English copy passes
+    names: Dict[str, str] = field(default_factory=dict)  # a name -> the one way this campaign writes it in brief.language
+                                          # ("Gulmohar City" -> "गुलमोहर सिटी"); the translation and the headline writer keep it
     asks: Dict[str, str] = field(default_factory=dict)  # the caption's closing question by language ("en", "mr", "hi"),
                                           # written for this post's subject; replaces the format's generic question
     listing_transaction: str = ""

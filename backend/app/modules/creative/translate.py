@@ -37,11 +37,26 @@ def _same_numbers(new: str, old: str) -> bool:
     return Counter(numbers(new)) == Counter(numbers(old))
 
 
-def _ok(new: Any, old: str, corpus: str, lang: str = "") -> Optional[str]:
-    """The translated text (spelling fixed, minimisers dropped), or None when it must not replace `old`."""
+def with_names(new: str, old: str, names: Optional[Dict[str, str]]) -> Optional[str]:
+    """`new` with every name written the campaign's one way (an English spelling left in is replaced), or None when a name
+    the English says is missing from it (the model wrote it some other way)."""
+    for en, form in (names or {}).items():
+        if not en or not form:
+            continue
+        new = re.sub(re.escape(en), form, new, flags=re.I) if form.lower() != en.lower() else new
+        if en.lower() in old.lower() and form.lower() not in new.lower():
+            return None
+    return new
+
+
+def _ok(new: Any, old: str, corpus: str, lang: str = "", names: Optional[Dict[str, str]] = None) -> Optional[str]:
+    """The translated text (spelling fixed, minimisers dropped, names the campaign's way), or None when it must not
+    replace `old`."""
     if not isinstance(new, str) or not new.strip():
         return None
-    new = repair(i18n.fix_spelling(new.strip(), lang))
+    new = with_names(repair(i18n.fix_spelling(new.strip(), lang)), old, names)
+    if new is None:
+        return None
     if len(new) > MAX_GROWTH * max(len(old), 12) or not _same_numbers(new, old) or problems_in(new, corpus):
         return None
     if lang and (len(_LATIN_WORD.findall(old)) >= 3 or len(_LATIN_WORD.findall(new)) >= 3) and not _DEVANAGARI.search(new):
@@ -49,10 +64,10 @@ def _ok(new: Any, old: str, corpus: str, lang: str = "") -> Optional[str]:
     return new
 
 
-def _ok_list(new: Any, old: list, corpus: str, lang: str = "") -> Optional[list]:
+def _ok_list(new: Any, old: list, corpus: str, lang: str = "", names: Optional[Dict[str, str]] = None) -> Optional[list]:
     if not isinstance(new, list) or len(new) != len(old):
         return None
-    out = [_ok(n, o, corpus, lang) if isinstance(o, str) else o for n, o in zip(new, old)]
+    out = [_ok(n, o, corpus, lang, names) if isinstance(o, str) else o for n, o in zip(new, old)]
     return None if any(x is None for x in out) else out
 
 
@@ -85,21 +100,21 @@ def _apply(copy: Copy, brief: Brief, data: Any, src: dict, lang: str) -> Tuple[O
     if not isinstance(data, dict):
         return None, "no JSON object came back"
     corpus = brief.corpus()
-    hook = _ok(data.get("hook"), copy.hook, corpus, lang)
+    hook = _ok(data.get("hook"), copy.hook, corpus, lang, brief.names)
     if not hook:
         return None, "the headline"
-    body = _ok(data.get("body"), copy.body, corpus, lang) if copy.body else ""
+    body = _ok(data.get("body"), copy.body, corpus, lang, brief.names) if copy.body else ""
     if body is None:
         return None, "the caption body"
-    support = (_ok(data.get("support"), copy.support, corpus, lang) or "") if copy.support else ""  # a sub-line may go
-    slides = _ok_list(data.get("slides"), copy.slides, corpus, lang) if copy.slides else []
+    support = (_ok(data.get("support"), copy.support, corpus, lang, brief.names) or "") if copy.support else ""  # a sub-line may go
+    slides = _ok_list(data.get("slides"), copy.slides, corpus, lang, brief.names) if copy.slides else []
     if slides is None:
         return None, "the slides"
     raw_payload = data.get("payload") if isinstance(data.get("payload"), dict) else {}
     payload = dict(copy.payload)
     for k, old in src["payload"].items():
         new = raw_payload.get(k)
-        got = _ok(new, old, corpus, lang) if isinstance(old, str) else _ok_list(new, list(old), corpus, lang)
+        got = _ok(new, old, corpus, lang, brief.names) if isinstance(old, str) else _ok_list(new, list(old), corpus, lang, brief.names)
         if got is None:
             return None, f"the card's {k}"
         payload[k] = got
@@ -108,12 +123,12 @@ def _apply(copy: Copy, brief: Brief, data: Any, src: dict, lang: str) -> Tuple[O
         payload["kicker"] = fixed["kicker"]
     card_cta = fixed["card_cta"]
     if card_cta is None:
-        card_cta = _ok(data.get("card_cta"), copy.card_cta, corpus, lang)
+        card_cta = _ok(data.get("card_cta"), copy.card_cta, corpus, lang, brief.names)
         if card_cta is None:
             return None, "the card's call to action"
     question = fixed["question"]
     if question is None and copy.cta_question:
-        question = _ok(data.get("question"), copy.cta_question, corpus, lang)
+        question = _ok(data.get("question"), copy.cta_question, corpus, lang, brief.names)
         if question is None:
             return None, "the question"
     first = first_line_for(hook, copy.caption_first_line.rstrip().endswith("?"))
@@ -129,6 +144,9 @@ async def translate(copy: Copy, brief: Brief, llm: Any) -> Copy:
     src = source(copy, brief, lang)
     user = json.dumps(src, ensure_ascii=False)
     system = prompts.card_translator(brief.voice, brief.mode, lang)
+    spell = [f"{en} = {form}" for en, form in brief.names.items() if en and form]
+    if spell:   # one spelling per campaign: every card and the caption write the project's name the same way
+        system += " Write these names exactly like this in every text, never another spelling: " + "; ".join(spell) + "."
     why = ""
     for n in range(TRIES):
         again = f"\nYour last reply could not be used ({why}): translate faithfully and keep every number exactly." if why else ""
