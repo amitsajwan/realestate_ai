@@ -64,3 +64,30 @@ Instagram place-id lookup (Meta's place search needs extra permissions; ids are 
 | R6 | Search line after the headline | `calendar/adapters.py` |
 | R7 | Report by tag | `backend/scripts/content_report.py` |
 | R8 | WhatsApp one-command switch-on + status | `deploy/gcp/whatsapp_connect.ps1`, `backend/scripts/whatsapp_status.py`, `docs/WHATSAPP_SETUP.md` |
+
+## By hand, alongside the code (owner)
+
+**Collab posts with Pune city pages** (the 494K-view ₹17.5 L post came from a city page, not an agent). Ask 3 pages a week; pay
+only after seeing their Pune share of followers (ask for an Insights screenshot). Post as an Instagram Collab (both accounts as
+authors), our sourced card or reel, their caption style allowed but our facts unchanged.
+
+> EN: Hi! We run Avasetu, Pune property listings checked against MahaRERA. Would you do a collab post with us (you as co-author)
+> on a home in {area}? We make the reel and the facts; you check it before it goes up. What do you charge per collab post, and
+> what share of your followers is in Pune?
+>
+> MR: नमस्कार! आम्ही Avasetu चालवतो: MahaRERA वरून तपासलेल्या पुण्यातील प्रॉपर्टी. {area} मधील एका घरावर आमच्यासोबत collab पोस्ट
+> कराल का? रील आणि माहिती आम्ही बनवू, पोस्ट होण्याआधी तुम्ही पाहू शकता. एका collab पोस्टचा तुमचा दर किती, आणि तुमचे किती फॉलोअर्स पुण्यात आहेत?
+
+**Brokers who post listings publicly** (captions with "call or WhatsApp", "brokerage", "co-broking"): they are the agent list.
+Make one campaign for their listing first, then send:
+
+> Namaste {name} ji, aapki {area} wali {bhk} post dekhi. Maine us property ke liye free mein ek page, posts aur reel bana diya hai,
+> MahaRERA details ke saath: {link}. Pasand aaye to aapke naam se live kar dete hain, buyers ke enquiries seedhe aapko aayenge.
+> First month free.
+
+**Trial reels** (Instagram app > new reel > Advanced settings > Trial): shown to non-followers only, so two hooks on the same
+facts can be compared before one goes to followers. Tag the calendar row's `variant` the same way so `content_report.py --by
+variant` lines them up.
+
+**Weekly review (Monday, 15 minutes):** `content_report.py --by segment`, `--by hook_type`, `--by hashtag --min 2`. Keep what
+gets saves, sends and enquiries per 1,000 views, not total views; change one thing at a time.
