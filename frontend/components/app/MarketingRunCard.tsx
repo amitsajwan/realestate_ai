@@ -4,6 +4,7 @@ import { api, errorMessage } from '@/lib/app/client'
 import { t } from '@/lib/app/strings'
 import type { CampaignResult, DraftLanguage, MarketingRun, RunQuestion } from '@/lib/app/types'
 import { CampaignPostEditor } from './CampaignPostEditor'
+import { RunFileUpload } from './RunFileUpload'
 import { Btn, ErrorBox } from './ui'
 
 const POLL_MS = 3000
@@ -124,7 +125,7 @@ function ProjectFilesRead({ run }: { run: MarketingRun }) {
 }
 
 /** What the run could not work out by itself: one quick choice per question; the last answer lets it make the posts.
- *  Photos, videos and the brochure are added on the listing's Files tab, then the agent comes back here. */
+ *  The brochure and video are uploaded right here; once one is attached the 'files' question answers itself. */
 function RunQuestions({ listingId, questions, onAnswer }: {
   listingId: string
   questions: RunQuestion[]
@@ -148,13 +149,9 @@ function RunQuestions({ listingId, questions, onAnswer }: {
       {questions.map((q) => (
         <fieldset key={q.key} disabled={busy !== null} className="space-y-2">
           <legend className="text-sm font-medium text-gray-900">{q.text}</legend>
-          {q.key === 'files' && (
-            <p className="text-sm text-gray-700">
-              <a href={`/studio/listings/${listingId}?tab=files`} className="font-semibold text-blue-700 underline">Add them in the listing</a>, then come back.
-            </p>
-          )}
+          {q.key === 'files' && <RunFileUpload listingId={listingId} onAdded={() => send('files', 'added')} />}
           <div className="flex flex-wrap gap-2">
-            {q.options.map((o) => (
+            {q.options.filter((o) => q.key !== 'files' || o.value !== 'added').map((o) => (
               <button key={o.label} type="button" onClick={() => void send(q.key, o.value)}
                 className="min-h-[44px] rounded-full border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-800">
                 {o.label}
@@ -240,7 +237,13 @@ function PostLeads({ items }: { items: CampaignResult[] }) {
   )
 }
 
-export function MarketingRunCard({ listingId }: { listingId: string }) {
+/** `autoStart`: a language to start in once on load (from `?start=1&lang=`), unless a run in that language is already
+ *  going or done; `onAutoStarted` fires once it has been handled so the page can drop the param. */
+export function MarketingRunCard({ listingId, autoStart, onAutoStarted }: {
+  listingId: string
+  autoStart?: DraftLanguage | null
+  onAutoStarted?: () => void
+}) {
   const [run, setRun] = useState<MarketingRun | null>(null)
   const [results, setResults] = useState<CampaignResult[]>([])
   const [loading, setLoading] = useState(true)
@@ -288,15 +291,27 @@ export function MarketingRunCard({ listingId }: { listingId: string }) {
     api.getCampaignResults(listingId).then((r) => { if (alive.current) setResults(r) }, () => undefined)
   }, [listingId, sent])
 
-  const start = async (again = false) => {
+  const start = async (again = false, language: DraftLanguage = lang) => {
     setError(null)
     try {
-      const r = await api.startMarketingRun(listingId, again, lang)
+      const r = await api.startMarketingRun(listingId, again, language)
       if (alive.current) setRun(r)
     } catch (e) {
       if (alive.current) setError(errorMessage(e))
     }
   }
+
+  // start once from the URL; the ref survives strict-mode's double effect, so only one run is asked for
+  const autoDone = useRef(false)
+  useEffect(() => {
+    if (!autoStart || loading || autoDone.current) return
+    autoDone.current = true
+    picked.current = true
+    setLang(autoStart)
+    const has = run && run.language === autoStart && run.status !== 'failed'
+    void (has ? Promise.resolve() : start(!!run, autoStart)).finally(() => onAutoStarted?.())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, loading])
 
   const answer = async (key: string, value: unknown) => {
     setError(null)
