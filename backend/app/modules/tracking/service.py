@@ -260,10 +260,6 @@ class TrackingService:
         from .today import build_today
         return await build_today(self, agent_id)
 
-    async def matching_leads(self, agent_id: str, listing_id: str) -> dict:
-        from .reverse import matching_leads
-        return await matching_leads(self, agent_id, listing_id)
-
     async def performance(self, agent_id: str) -> dict:
         from .performance import build_performance
         return await build_performance(self, agent_id)

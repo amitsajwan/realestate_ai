@@ -8,6 +8,7 @@ import type {
   AboutSuggestion,
   AppApi,
   BusinessToday,
+  CampaignResult,
   ChatConversation,
   FacebookInterest,
   FacebookStatus,
@@ -20,16 +21,12 @@ import type {
   ListingInput,
   ListingStatus,
   LoginResult,
-  MarketingPack,
   MarketingRun,
-  MatchingLeads,
   OtpRequested,
   PerformanceItem,
-  Publication,
   SiteCreateInput,
   SiteResult,
   SiteUpdateInput,
-  SocialStatus,
   Stage,
   UploadedFile,
   WeeklyReport,
@@ -209,9 +206,6 @@ export function createApiClient(opts: ClientOptions): AppApi {
     createFollowupDraft: (id, language) =>
       request<FollowupDraft>(`/inbox/leads/${id}/followup-draft`, { method: 'POST', json: language ? { language } : {} }),
 
-    createMarketingPack: (listingId, language) =>
-      request<MarketingPack>(`/listings/${listingId}/marketing`, { method: 'POST', json: language ? { language } : {} }),
-    getMarketingPack: (listingId) => request<MarketingPack>(`/listings/${listingId}/marketing`),
     startMarketingRun: async (listingId, again, language) =>
       (await request<{ run: MarketingRun }>(`/listings/${listingId}/campaign`, {
         method: 'POST', json: { again: !!again, language: language ?? 'en' },
@@ -231,22 +225,11 @@ export function createApiClient(opts: ClientOptions): AppApi {
     redoRunPost: async (listingId, angle, note) =>
       (await request<{ run: MarketingRun }>(`/listings/${listingId}/campaign/posts/${encodeURIComponent(angle)}/redo`,
         { method: 'POST', json: { note } })).run,
-    getMatchingLeads: (listingId) => request<MatchingLeads>(`/inbox/matching-leads${qs({ listing_id: listingId })}`),
+    getCampaignResults: async (listingId) =>
+      (await request<{ items: CampaignResult[] }>(`/listings/${listingId}/campaign/results`)).items ?? [],
     getPerformance: async () => (await request<{ items: PerformanceItem[] }>('/inbox/performance')).items ?? [],
 
     getListingActivity: (id, limit) => request<ListingActivity>(`/inbox/listings/${id}/activity${qs({ limit })}`),
     confirmAvailable: (id) => request<Listing>(`/listings/${id}/confirm-available`, { method: 'POST' }),
-
-    getSocialStatus: () => request<SocialStatus>('/social/status'),
-    publishToSocial: async (listingId, req) =>
-      (
-        await request<{ publications: Publication[] }>(`/social/listings/${listingId}/publish`, {
-          method: 'POST',
-          json: { channels: req.channels, approve: req.approve, consent: req.consent, force: req.force ?? false },
-        })
-      ).publications ?? [],
-    listPublications: async (listingId) =>
-      (await request<{ items: Publication[] }>(`/social/listings/${listingId}/publications`)).items ?? [],
-    retryPublication: (id) => request<Publication>(`/social/publications/${id}/retry`, { method: 'POST' }),
   }
 }

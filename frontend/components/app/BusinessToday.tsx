@@ -90,7 +90,6 @@ export function FollowUpRow({ item }: { item: TodayFollowUp }) {
 const ACTION_LABEL: Record<RecommendedActionType, Parameters<typeof t>[0]> = {
   call: 'actCall',
   follow_up: 'actFollowUp',
-  send_property: 'actSendProperty',
   create_marketing: 'actCreateMarketing',
   confirm_listing: 'actConfirmListing',
 }

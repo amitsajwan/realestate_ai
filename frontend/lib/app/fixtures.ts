@@ -8,9 +8,8 @@ import { formatInr, parseInr } from './format'
 import { budgetRange, buildWhatsappUrl } from './leads'
 import { activityFor } from './fixtures-activity'
 import { computeFreshness } from './freshness'
-import { actionsFor, buildFixturePack, matchingFor, performanceFor } from './fixtures-marketing'
+import { actionsFor, performanceFor } from './fixtures-marketing'
 import { nextOutcome, resultsFor } from './fixtures-outcomes'
-import { buildPublications, FIXTURE_SOCIAL_STATUS } from './fixtures-social'
 import { outcomePatchError } from './outcomes'
 import type {
   AIDraft,
@@ -29,10 +28,7 @@ import type {
   ListingActivity,
   ListingInput,
   ListingStatus,
-  MarketingPack,
-  MatchingLeads,
   NextAction,
-  Publication,
   Requirement,
   SiteCreateInput,
   Stage,
@@ -48,8 +44,6 @@ interface State {
   leads: LeadDetail[]
   site: { slug: string; name: string } | null
   seq: number
-  packs: Record<string, MarketingPack>
-  publications?: Publication[]
 }
 
 export const FIXTURE_STATE_KEY = 'app_fixture_state_v6'
@@ -198,7 +192,6 @@ function seed(): State {
   return {
     site: null,
     seq: 100,
-    packs: {},
     listings: [
       listing('l1', { title: '2 BHK in Baner', locality: 'Baner', bhk: 2, price_inr: 8_500_000, carpet_sqft: 850,
         possession: 'ready', created_at: ago(20), published_at: ago(20), freshness_confirmed_at: ago(24 * 4),
@@ -401,10 +394,6 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
   const view = (l: Listing): Listing => ({ ...l, ...computeFreshness(l) })
   const stamp = <T extends Listing>(l: T): T => ({ ...l, updated_at: new Date().toISOString() })
   const shareUrlFor = (id: string) => `https://example.test/agent/${load().site?.slug ?? 'demo'}/listings/${id}?src=whatsapp`
-  const matchesFor = (l: Listing) => {
-    const st = load()
-    return matchingFor(l, st.leads.map((x) => enrich(x, st.listings)), scoreMatch, shareUrlFor(l.id), buildWhatsappUrl)
-  }
 
   return {
     async requestOtp() { return { sent: true, dev_code: FIXTURE_OTP } },
@@ -563,7 +552,7 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
         counts,
         headline,
         results: resultsFor(st.leads),
-        actions: actionsFor(st.listings, leads, st.packs ?? {}, (l) => matchesFor(l).length),
+        actions: actionsFor(st.listings, leads),
         hot_buyers: open
           .filter((l) => l.temperature === 'hot')
           .sort((a, b) => b.score - a.score)
@@ -591,23 +580,6 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
       return draftFor(e, e.matches ?? [], language, listingTitle)
     },
 
-    async createMarketingPack(listingId, language = 'en') {
-      const st = load()
-      const l = find(listingId)
-      if (l.status !== 'live' && l.status !== 'under_offer') throw fixtureError(409, 'Only live listings can be marketed')
-      st.packs = st.packs ?? {}
-      const version = (st.packs[listingId]?.version ?? 0) + 1
-      const pack = buildFixturePack(l, language, version, shareUrlFor(listingId), st.site?.name)
-      st.packs[listingId] = pack
-      save()
-      return JSON.parse(JSON.stringify(pack)) as MarketingPack
-    },
-    async getMarketingPack(listingId) {
-      find(listingId)
-      const pack = load().packs?.[listingId]
-      if (!pack) throw fixtureError(404, 'No marketing pack yet')
-      return JSON.parse(JSON.stringify(pack)) as MarketingPack
-    },
     async startMarketingRun(listingId, _again, language) {
       const l = find(listingId)
       if (l.status !== 'live' && l.status !== 'under_offer') throw fixtureError(409, 'Only live listings can be marketed')
@@ -634,12 +606,9 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
       find(listingId)
       return null
     },
-    async getMatchingLeads(listingId): Promise<MatchingLeads> {
-      const l = find(listingId)
-      return {
-        listing: { id: l.id, title: l.title, price_inr: l.price_inr, locality: l.locality, share_url: shareUrlFor(l.id) },
-        buyers: matchesFor(l),
-      }
+    async getCampaignResults(listingId) {
+      find(listingId)
+      return []
     },
     async getPerformance() {
       const st = load()
@@ -650,46 +619,6 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
       const l = find(id)
       const perf = performanceFor(st.listings, st.leads).find((p) => p.listing_id === id)
       return activityFor(l, st.leads, perf, new Date(), limit)
-    },
-
-    async getSocialStatus() {
-      return JSON.parse(JSON.stringify(FIXTURE_SOCIAL_STATUS))
-    },
-    async publishToSocial(listingId, req) {
-      const st = load()
-      const l = find(listingId)
-      if (!req.approve || !req.consent) throw fixtureError(422, 'Approval and consent are required')
-      if (l.status !== 'live' && l.status !== 'under_offer') throw fixtureError(409, 'Only live listings can be posted')
-      const pack = st.packs?.[listingId]
-      if (!pack) throw fixtureError(409, 'Create the marketing pack first')
-      st.publications = st.publications ?? []
-      const done = st.publications.filter(
-        (p) => p.listing_id === listingId && p.pack_version === pack.version && (p.status === 'published' || p.status === 'dry_run'),
-      )
-      if (!req.force && req.channels.some((c) => done.some((p) => p.channel === c))) {
-        throw fixtureError(409, 'Already posted for this version. Send force to post again')
-      }
-      const created = buildPublications(pack, 'fixture-agent', req, () => nextId('pub'), new Date().toISOString())
-      st.publications = [...[...created].reverse(), ...st.publications] // newest first
-      save()
-      return JSON.parse(JSON.stringify(created))
-    },
-    async listPublications(listingId) {
-      find(listingId)
-      const items = (load().publications ?? []).filter((p) => p.listing_id === listingId)
-      return JSON.parse(JSON.stringify(items))
-    },
-    async retryPublication(id) {
-      const st = load()
-      const p = (st.publications ?? []).find((x) => x.id === id)
-      if (!p) throw fixtureError(404, 'Publication not found')
-      if (p.status !== 'failed') throw fixtureError(409, 'Only failed posts can be retried')
-      p.status = 'dry_run'
-      p.error = null
-      p.attempts += 1
-      p.updated_at = new Date().toISOString()
-      save()
-      return JSON.parse(JSON.stringify(p))
     },
   }
 }

@@ -63,7 +63,8 @@ def run_out(doc: Optional[dict], base_url: str = "") -> Optional[dict]:
             "reels": [{**r, "video": (base + r["video"] if base and (r.get("video") or "").startswith("/") else r.get("video"))}
                       for r in doc.get("reels") or []],
             "facts_done_at": _iso(doc.get("facts_done_at")), "finished_at": _iso(doc.get("finished_at")),
-            "files": doc.get("files") or {}, "questions": doc.get("questions") or []}
+            "files": doc.get("files") or {}, "questions": doc.get("questions") or [],
+            "plan": doc.get("plan") or [], "skipped": doc.get("skipped") or {}}
 
 
 def _safe(s: str) -> str:
@@ -194,7 +195,7 @@ class MarketingRuns:
         run, idx = await self._done_run(agent_id, listing_id, angle)
         listing = await self._listing(agent_id, listing_id)
         who = await self._identity(run)
-        briefs = dict(campaign.plan(await self._facts(run, listing), **self._who(run, who)))
+        briefs = dict(campaign.plan(await self._facts(run, listing), follow_ups=None, **self._who(run, who)))
         corpus = briefs[angle].corpus() if angle in briefs else ""
         checked = "\n".join(line for line in caption.splitlines() if line.strip() not in who.contact)  # code-made contact block
         problems = [p for p in problems_in(checked, corpus, allow_url=True) if p != "url"] if corpus else []
@@ -209,7 +210,7 @@ class MarketingRuns:
         note = (note or "").strip()[:NOTE_MAX]
         run, idx = await self._done_run(agent_id, listing_id, angle)
         listing = await self._listing(agent_id, listing_id)
-        briefs = dict(campaign.plan(await self._facts(run, listing), self._photo(listing), run.get("page_url") or "",
+        briefs = dict(campaign.plan(await self._facts(run, listing), self._photo(listing), run.get("page_url") or "", follow_ups=None,
                                     **self._who(run, await self._identity(run))))
         if angle not in briefs:
             raise RunError("The facts for this post are no longer available. Start marketing again.", 409)
@@ -475,8 +476,21 @@ class MarketingRuns:
             dropped: Dict[str, Any] = {}
             photos = await self._photo_pool(listing, out) + brochure.get("pages", [])
             previous = await self._live_posts(job, listing)
+            plan_rows: List[dict] = []
+
+            async def on_plan(chosen: List[dict], skipped: Dict[str, str]) -> None:
+                plan_rows[:] = [{**c, "state": "planned"} for c in chosen]
+                await self._set(jid, step="plan", plan=plan_rows, skipped=skipped)
+
+            async def on_post(aid: str, change: dict) -> None:   # content: headline written; design: card made or dropped
+                for r in plan_rows:
+                    if r["angle"] == aid:
+                        r.update({k: v for k, v in change.items() if v or k == "was"})
+                await self._set(jid, step="content" if change["state"] == "content" else "design", plan=plan_rows)
+
             packs = await campaign.make(sheet.facts, out, llm=llm, photo=self._photo(listing), link=page, dropped=dropped,
-                                        photos=photos, previous=previous, **self._who(job, await self._identity(job)))
+                                        photos=photos, previous=previous, on_plan=on_plan, on_post=on_post,
+                                        **self._who(job, await self._identity(job)))
             posts: List[dict] = []
             for aid, p in packs:
                 imgs = ["/uploads/" + Path(i).resolve().relative_to(self.uploads_dir.resolve()).as_posix() for i in p.images]
@@ -488,6 +502,7 @@ class MarketingRuns:
                             link_line=campaign.link_line_for(where, job.get("language") or "en", ctx.registered))
             # step 3 (best effort, never fails the run): reels from the best carousels, and the walkthrough reel
             step = "reels"
+            await self._set(jid, step="reels")
             reels = await self._reels(job, listing, posts, out, ctx.project, campaign.link_line_for(where, job.get("language") or "en", ctx.registered))
             await self._set(jid, status="done", reels=reels, error=None, finished_at=self.now())
         except Exception:
