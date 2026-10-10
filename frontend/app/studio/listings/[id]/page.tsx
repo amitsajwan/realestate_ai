@@ -4,7 +4,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { FreshnessSection } from '@/components/app/FreshnessPrompt'
 import { ListingFacts } from '@/components/app/ListingFacts'
-import { cleanInput } from '@/components/app/NewListingFlow'
+import { cleanInput, marketingHref } from '@/components/app/NewListingFlow'
 import { PhotoPicker } from '@/components/app/PhotoPicker'
 import { ListingPhotos } from '@/components/app/quality/ListingPhotos'
 import { ReviewForm } from '@/components/app/ReviewForm'
@@ -90,6 +90,7 @@ export default function ListingDetailPage() {
   }, [id])
   const marketingActive = !!campaign.data && ACTIVE_RUN.includes(campaign.data.status)
   const postCount = campaign.data?.posts?.length ?? 0
+  const saved = campaign.data ? t('savedMarketingPicksUp') : SAVED_AGAIN
   useEffect(() => {
     if (!marketingActive) return
     const timer = setTimeout(() => void campaign.reload(), 3000)
@@ -114,9 +115,11 @@ export default function ListingDetailPage() {
     try {
       setData(await fn())
       setMsg(okMsg)
+      return true
     } catch (e) {
       if (e instanceof ApiError && e.status === 422) setErrors(e.fields)
       setErr(e instanceof ApiError && e.missing.length ? `${t('required')}: ${e.missing.map((m) => FIELD_LABELS[m] ?? m).join(', ')}` : errorMessage(e))
+      return false
     } finally {
       setBusy(false)
       setConfirming(false)
@@ -128,7 +131,7 @@ export default function ListingDetailPage() {
   async function addPhotos() {
     const uploaded = await api.uploadImages(await Promise.all(newPhotos.map((f) => compressImage(f))))
     const media = [...listing.media, ...uploaded.map((u, i) => ({ url: u.url, kind: 'image' as const, order: listing.media.length + i, ...qualityFields(u) }))]
-    await run(() => api.updateListing(listing.id, { media }), SAVED_AGAIN)
+    await run(() => api.updateListing(listing.id, { media }), saved)
     setNewPhotos([])
   }
   const videos = listing.media.filter((m) => m.kind === 'video')
@@ -136,17 +139,17 @@ export default function ListingDetailPage() {
     await run(async () => {
       const up = await uploadVideo(file)
       return api.updateListing(listing.id, { media: [...listing.media, { url: up.url, kind: 'video' as const, order: listing.media.length }] })
-    }, SAVED_AGAIN)
+    }, saved)
   }
   function removeFile(url: string) {
-    return run(() => api.updateListing(listing.id, { media: listing.media.filter((m) => m.url !== url) }), SAVED_AGAIN)
+    return run(() => api.updateListing(listing.id, { media: listing.media.filter((m) => m.url !== url) }), saved)
   }
   const brochures = listing.media.filter((m) => m.kind === 'document')
   async function addBrochure(file: File) {
     await run(async () => {
       const up = await uploadBrochure(file)
       return api.updateListing(listing.id, { media: [...listing.media, { url: up.url, kind: 'document' as const, order: listing.media.length }] })
-    }, SAVED_AGAIN)
+    }, saved)
   }
   const link = listingLink(getSiteUrl(), listing.id)
   const shareable = listing.status === 'live' || listing.status === 'under_offer'
@@ -170,7 +173,7 @@ export default function ListingDetailPage() {
 
       <p className="text-sm text-gray-700" data-testid="readiness">
         {!shareable ? 'Publish it first (Status tab), then start marketing.'
-          : needs.length ? `Ready for marketing. Missing: ${needs.join(', ')}.` : 'Ready for marketing.'}
+          : needs.length ? <>Ready for marketing. <Link href={tabHref('files')} replace scroll={false} className="font-semibold text-blue-700 underline">Missing: {needs.join(', ')}</Link>.</> : 'Ready for marketing.'}
       </p>
 
       {shareable && (
@@ -214,7 +217,7 @@ export default function ListingDetailPage() {
       {tab === 'files' && (
         <>
           <ListingPhotos media={listing.media} busy={busy}
-            onToggle={(i, v) => run(() => api.updateListing(listing.id, { media: listing.media.map((m, j) => (j === i ? { ...m, use_enhanced: v } : m)) }), SAVED_AGAIN)} />
+            onToggle={(i, v) => run(() => api.updateListing(listing.id, { media: listing.media.map((m, j) => (j === i ? { ...m, use_enhanced: v } : m)) }), saved)} />
 
           <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4" aria-label="Photos">
             <p className="font-semibold">Photos {listing.media.length === 0 && <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">None yet</span>}</p>
@@ -275,7 +278,10 @@ export default function ListingDetailPage() {
                 confirming ? (
                   <div key="c" className="space-y-2 rounded-xl border border-blue-200 bg-blue-50 p-3">
                     <p className="text-center text-sm font-semibold">Post this listing to your website?</p>
-                    <Btn disabled={busy || missing.length > 0} onClick={() => run(() => api.publishListing(listing.id), t('posted'))}>{t('confirmPost')}</Btn>
+                    <Btn disabled={busy || missing.length > 0} onClick={async () => {
+                      if (await run(() => api.publishListing(listing.id), t('posted'))) window.location.assign(marketingHref(listing.id, 'en'))
+                    }}>{t('postAndMarket')}</Btn>
+                    <Btn variant="secondary" disabled={busy || missing.length > 0} onClick={() => run(() => api.publishListing(listing.id), t('posted'))}>{t('publishOnly')}</Btn>
                     <Btn variant="ghost" onClick={() => setConfirming(false)}>{t('back')}</Btn>
                   </div>
                 ) : (

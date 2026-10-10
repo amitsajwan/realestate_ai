@@ -161,8 +161,30 @@ export function ReviewForm({ value, onChange, confidence = {}, missing = [], err
         </Field>
       </div>
 
-      <Field label="RERA number (optional)" htmlFor="rera" {...flag('rera_no')}>
-        <input id="rera" className={inputCls} value={value.rera_no ?? ''} onChange={(e) => set({ rera_no: e.target.value })} />
+      <Field label="One unit or whole project?" {...flag('listing_scope')}>
+        <div className="flex gap-2">
+          {([['single', 'One unit'], ['layout', 'Whole project']] as const).map(([sc, label]) => (
+            <button
+              key={sc}
+              type="button"
+              aria-pressed={value.listing_scope === sc}
+              onClick={() => set({ listing_scope: sc })}
+              className={`min-h-[44px] flex-1 rounded-xl border font-semibold ${value.listing_scope === sc ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      <Field label="MahaRERA number (optional)" htmlFor="rera" {...flag('rera_no')}>
+        <input id="rera" className={inputCls} placeholder="P52100012345" disabled={value.rera_status === 'not_registered'} value={value.rera_no ?? ''}
+          onChange={(e) => set({ rera_no: e.target.value.toUpperCase().replace(/\s/g, '') })} />
+        <label className="mt-1 flex min-h-[44px] items-center gap-2 text-sm">
+          <input type="checkbox" className="h-5 w-5" checked={value.rera_status === 'not_registered'}
+            onChange={(e) => set(e.target.checked ? { rera_status: 'not_registered', rera_no: null } : { rera_status: null })} />
+          Not registered on MahaRERA
+        </label>
       </Field>
 
       <ChipPicker label="Amenities" options={AMENITIES} value={value.amenities ?? []} onChange={(a) => set({ amenities: a })} />
