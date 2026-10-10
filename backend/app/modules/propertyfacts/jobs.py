@@ -358,7 +358,8 @@ class MarketingRuns:
     @staticmethod
     def _who(run: dict, who: identity.Identity) -> Dict[str, Any]:
         """campaign.plan/make keyword arguments for this run's language and owner."""
-        return {"voice": who.voice, "card_brand": who.card_brand, "contact": who.contact, "language": run.get("language") or "en"}
+        return {"voice": who.voice, "card_brand": who.card_brand, "contact": who.contact, "language": run.get("language") or "en",
+                "names": run.get("names") or None, "claims": tuple(run.get("claims") or ())}
 
     async def _page_url(self, agent_id: str, listing_id: str) -> str:
         prof = await self.profiles.find_one({"agent_id": agent_id})
@@ -623,6 +624,12 @@ class MarketingRuns:
                 await self._set(jid, step="content" if change["state"] == "content" else "design", plan=plan_rows)
 
             used: Dict[str, str] = {}
+            pf = sheet.facts.get("project_name")
+            names = job.get("names") or await campaign.project_name_for(
+                str(pf.value or "") if pf is not None and pf.usable else "", job.get("language") or "en", llm)
+            claims = list(((listing.get("file_claims") or {}).get("brochure")) or [])
+            await self._set(jid, names=names, claims=claims)
+            job = {**job, "names": names, "claims": claims}
             who = self._who(job, await self._identity(job))
             packs = await campaign.make(sheet.facts, out, llm=llm, photo=self._photo(listing), link=page, dropped=dropped,
                                         photos=photos, previous=previous, on_plan=on_plan, on_post=on_post, used=used, **who)

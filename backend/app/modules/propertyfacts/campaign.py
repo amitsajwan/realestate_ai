@@ -569,7 +569,7 @@ async def make(facts: Dict[str, Fact], out_dir: Path, llm: Any = None, photo: st
                on_plan: Optional[Callable[[List[dict], Dict[str, str]], Awaitable[None]]] = None,
                on_post: Optional[Callable[[str, dict], Awaitable[None]]] = None,
                used: Optional[Dict[str, str]] = None, claims: Sequence[str] = (),
-               today: Optional[date] = None) -> List[Tuple[str, CreativePack]]:
+               today: Optional[date] = None, names: Optional[Dict[str, str]] = None) -> List[Tuple[str, CreativePack]]:
     """Render every planned angle; consecutive posts avoid repeating a layout. `photos` (the property's own: listing photos and
     the best frames of its video, best first) are shared out so each post shows a different one behind its text. An angle that fails a guard is retried with
     other seeds, then dropped (its problems go into `dropped` when given). `voice`: who speaks (default the brand desk).
@@ -580,7 +580,8 @@ async def make(facts: Dict[str, Fact], out_dir: Path, llm: Any = None, photo: st
     recent: List[str] = []
     skipped: Dict[str, str] = {}
     pf = facts.get("project_name")
-    names = await project_name_for(str(pf.value or "") if pf is not None and pf.usable else "", language, llm)
+    if names is None:  # `names`: the spelling the run already chose (kept on the run, so redraws match)
+        names = await project_name_for(str(pf.value or "") if pf is not None and pf.usable else "", language, llm)
     planned = plan(facts, photo, link, voice=voice, card_brand=card_brand, contact=contact, language=language,
                    previous=previous, skipped=skipped, names=names, claims=claims, today=today)
     if on_plan is not None:
