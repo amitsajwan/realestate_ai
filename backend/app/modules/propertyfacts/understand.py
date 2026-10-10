@@ -21,7 +21,7 @@ from .facts import same
 
 log = logging.getLogger(__name__)
 
-MAX_QUESTIONS = 5
+MAX_QUESTIONS = 6
 RERA_NO = re.compile(r"^P(?:\d{11}|[PR]\d{13})$", re.I)
 SCOPES = ("single", "layout")
 TYPES = ("plot", "apartment", "house", "villa", "commercial", "office", "shop")
@@ -112,9 +112,11 @@ def _q(key: str, text: str, options: List[Tuple[str, Any]], free_text: str = "")
 
 
 def decide(listing: dict, seen: Dict[str, Any], registered: bool, units_total: Optional[int] = None,
-           has_files: bool = True, unreadable: bool = False, candidates: Optional[List[dict]] = None) -> Tuple[Dict[str, Any], List[dict]]:
+           has_files: bool = True, unreadable: bool = False, candidates: Optional[List[dict]] = None,
+           points: Optional[List[dict]] = None) -> Tuple[Dict[str, Any], List[dict]]:
     """(fields to set now, questions for the agent). `registered`: the facts already hold a usable MahaRERA number;
-    `units_total`: MahaRERA's count of units, when known; `has_files`: a brochure or video is attached. Pure: no I/O."""
+    `units_total`: MahaRERA's count of units, when known; `has_files`: a brochure or video is attached; `points`: the
+    brochure's selling points not yet confirmed or dismissed (points.pending). Pure: no I/O."""
     auto: Dict[str, Any] = {}
     ask: List[dict] = []
     if not has_files:  # asked first: agents often start before uploading, and the files change everything below
@@ -182,7 +184,26 @@ def decide(listing: dict, seen: Dict[str, Any], registered: bool, units_total: O
         else:
             ask.append(_q("rera", f"Is this project registered on MahaRERA?{note}",
                           [("Not registered", "not_registered")], free_text="MahaRERA number (P + 11 digits)"))
+
+    # the brochure's selling points (price, booking, water, roads...): used in posts only once the agent says so
+    if points:
+        listed = "; ".join(str(p.get("text") or "") for p in points if p.get("text"))
+        ask.append(_q("selling_points", f"Use these selling points from the brochure in your posts? {listed}.",
+                      [("Use all", "all"), ("Choose in the listing", "later")]))
     return auto, ask[:MAX_QUESTIONS]
+
+
+def answer_points(listing: dict, value: Any) -> Dict[str, Any]:
+    """The listing's selling_points after the agent's answer: "all" confirms every pending point, "later" sets them aside
+    (dismissed: not used, not asked again; the agent can confirm them in the listing)."""
+    if value not in ("all", "later"):
+        raise ValueError("Pick one of the choices.")
+    out = []
+    for p in listing.get("selling_points") or []:
+        if isinstance(p, dict) and not p.get("confirmed") and not p.get("dismissed"):
+            p = {**p, "confirmed": True} if value == "all" else {**p, "dismissed": True}
+        out.append(p)
+    return {"selling_points": out}
 
 
 def apply_answer(key: str, value: Any) -> Dict[str, Any]:

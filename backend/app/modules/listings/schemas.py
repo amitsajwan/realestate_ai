@@ -1,8 +1,8 @@
 """Pydantic models for the frozen listing contract. Money is integer rupees."""
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, field_validator, model_validator
 
 from .about import About, PublicAbout
 
@@ -87,6 +87,49 @@ class PublicMedia(BaseModel):
     order: int = 0
 
 
+SELLING_POINT_KEYS = ("starting_price", "booking_amount", "offer", "water", "power", "roads", "vastu", "land_area")
+MAX_SELLING_POINTS = 12
+
+
+class SellingPoint(BaseModel):
+    """One selling point read from the builder's brochure (propertyfacts/points.py), shown to the agent to confirm. Only
+    `confirmed: true` points are used in marketing; `dismissed` points are never asked about again."""
+    model_config = ConfigDict(extra="ignore")
+    key: Literal[SELLING_POINT_KEYS]
+    text: str = Field(..., min_length=1, max_length=120)
+    text_local: Optional[str] = Field(None, max_length=120)
+    value: Optional[Union[StrictBool, StrictInt, float, str, List[StrictInt]]] = None
+    confirmed: bool = False
+    dismissed: bool = False
+    source: Optional[Literal["brochure", "agent"]] = None
+
+    @model_validator(mode="after")
+    def _value(self):
+        from app.modules.propertyfacts.points import BANNED, parse_inr
+        if BANNED.search(self.text) or (self.text_local and BANNED.search(self.text_local)):
+            raise ValueError("a selling point cannot promise returns or income")
+        k, v = self.key, self.value
+        if k in ("starting_price", "booking_amount"):
+            n = parse_inr(v) if not isinstance(v, bool) and v is not None else None
+            if not n:
+                raise ValueError(f"{k} needs an amount in rupees")
+            self.value = n
+        elif k == "land_area":
+            if isinstance(v, bool) or not isinstance(v, (int, float)) or not 0 < v <= 5000:
+                raise ValueError("land_area needs acres as a number")
+            self.value = float(v)
+        elif k == "roads":
+            if not isinstance(v, list) or not v or any(not 5 <= x <= 200 for x in v):
+                raise ValueError("roads needs road widths in feet")
+            self.value = v[:6]
+        elif k == "vastu":
+            if v is not True:
+                raise ValueError("vastu is true or left out")
+        elif not isinstance(v, str) or not v.strip() or len(v) > 60 or BANNED.search(v):
+            raise ValueError(f"{k} needs a short text value")
+        return self
+
+
 class _Fields(BaseModel):
     """Agent-editable fields, shared by create/update/read. Everything optional so drafts can be sparse."""
     model_config = ConfigDict(extra="forbid")
@@ -116,6 +159,14 @@ class _Fields(BaseModel):
     rera_status: Optional[Literal["not_registered"]] = None
     media: List[Media] = Field(default_factory=list, max_length=MAX_PHOTOS)
     about: Optional[About] = None  # project and area knowledge (docs/contracts/engagement.md); optional, never migrated
+    selling_points: Optional[List[SellingPoint]] = Field(None, max_length=MAX_SELLING_POINTS)
+
+    @field_validator("selling_points")
+    @classmethod
+    def _one_per_key(cls, v):
+        if v is not None and len({p.key for p in v}) != len(v):
+            raise ValueError("one selling point per key")
+        return v
 
     @field_validator("amenities")
     @classmethod
@@ -151,6 +202,14 @@ class FileClaims(BaseModel):
     brochure: List[str] = Field(default_factory=list, max_length=25)
     rera_on_brochure: Optional[str] = Field(None, max_length=12)
     brochure_url: Optional[str] = Field(None, max_length=2000)
+    brochure_facts: Optional[dict] = None   # structured facts as printed (propertyfacts/points.clean_facts)
+    language: Optional[Literal["en", "mr", "hi"]] = None
+
+    @field_validator("brochure_facts", mode="before")
+    @classmethod
+    def _facts(cls, v):
+        from app.modules.propertyfacts.points import clean_facts
+        return clean_facts(v) if isinstance(v, dict) else None
 
     @field_validator("brochure", mode="before")
     @classmethod

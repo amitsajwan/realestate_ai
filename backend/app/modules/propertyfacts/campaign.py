@@ -77,6 +77,12 @@ ASKS: Dict[str, Dict[str, str]] = {
     "plot_or_flat": {"en": "Plot or flat: which would you pick? Tell us in the comments.",
                      "mr": "प्लॉट की फ्लॅट: तुम्ही काय निवडाल? कमेंटमध्ये सांगा.",
                      "hi": "प्लॉट या फ्लैट: आप क्या चुनेंगे? कमेंट में बताइए."},
+    "offer": {"en": "Would you like the booking terms on WhatsApp? Tell us below.",
+              "mr": "बुकिंगच्या अटी WhatsApp वर हव्या आहेत का? खाली सांगा.",
+              "hi": "क्या बुकिंग की शर्तें WhatsApp पर चाहिए? नीचे बताइए."},
+    "amenities": {"en": "Which of these matters most to you? Tell us below.",
+                  "mr": "यापैकी तुमच्यासाठी सर्वात महत्त्वाचे काय? खाली सांगा.",
+                  "hi": "इनमें से आपके लिए सबसे ज़रूरी क्या है? नीचे बताइए."},
     "plot_myth": {"en": "Did you know a plot needs an NA order? Tell us below.",
                   "mr": "प्लॉटसाठी NA ऑर्डर लागते हे तुम्हाला माहीत होते का? खाली सांगा.",
                   "hi": "क्या आप जानते थे कि प्लॉट के लिए NA ऑर्डर चाहिए? नीचे बताइए."},
@@ -243,6 +249,52 @@ def price_reveal(c: Ctx) -> Optional[Brief]:
     return c.brief(angle="price_reveal", hook=f"{price} for a {c.kind} in {c.project or c.locality}", topic=f"Price of a {c.kind} at {c.where}", short=f"{c.kind} price", stat_value=price,
                    stat_label=f"for this {c.kind}", facts=[line],
                    tip="Ask what the price includes: development charges, stamp duty and registration.", prefer="stat")
+
+
+# The RERA-safe line under any booking amount (a builder takes at most 10% before a registered agreement, RERA s.13)
+BALANCE_LINE = {"en": "Balance as per the registered agreement.", "mr": "शिल्लक रक्कम नोंदणीकृत करारानुसार.",
+                "hi": "बाकी राशि पंजीकृत अनुबंध के अनुसार."}
+
+
+def offer(c: Ctx) -> Optional[Brief]:
+    """The starting price and the booking amount, from the agent-confirmed selling points only. The offer's printed name is
+    never used ("pre-launch" cannot be advertised before MahaRERA registration)."""
+    booking = c.v.get("point.booking_amount")
+    if not booking:
+        return None
+    start = c.v.get("point.starting_price") or (c.v.get("price_inr") if c.layout else None)
+    book = price_label(int(booking))
+    kinds = f"{c.kind.capitalize()}s"
+    facts = [f"Booking amount at {c.where or 'this project'}: {book}.", BALANCE_LINE["en"]]
+    if start:
+        price = price_label(int(start))
+        facts.insert(0, f"{kinds} at {c.where or 'this project'} start at {price}.")
+        hook, stat, label = f"{kinds} from {price} · Book with {book}", book, f"to book; {kinds.lower()} from {price}"
+    else:
+        hook, stat, label = f"Book with {book} at {c.project or c.locality}", book, "to book"
+    c.used.add("booking")
+    return c.brief(angle="offer", hook=hook, topic=f"Booking at {c.where}", short="booking amount", stat_value=stat,
+                   stat_label=label, facts=facts, tip=BALANCE_LINE["en"], prefer="stat")
+
+
+def amenities(c: Ctx) -> Optional[Brief]:
+    """Water, power, roads and vastu as one checklist card, from the agent-confirmed selling points only (at least two)."""
+    steps = []
+    for key, word in (("water", "Water"), ("power", "Power")):
+        v = c.v.get(f"point.{key}")
+        if v:
+            steps.append(f"{word}: {v}")
+    roads = c.v.get("point.roads")
+    if roads:
+        xs = [str(x) for x in roads]
+        steps.append("Roads " + (xs[0] if len(xs) == 1 else ", ".join(xs[:-1]) + " and " + xs[-1]) + " ft wide")
+    if c.v.get("point.vastu") is True:
+        steps.append(f"{c.kind.capitalize()}s as per vastu")
+    if len(steps) < 2:
+        return None
+    return c.brief(angle="amenities", hook=f"What {c.project or c.locality or 'the project'} gives every {c.kind}",
+                   topic=f"Basics at {c.where}", short="water, power, roads", steps=steps, facts=steps,
+                   tip="See the water source and the power line on your site visit.", prefer="checklist")
 
 
 def size_in_guntha(c: Ctx) -> Optional[Brief]:
@@ -463,7 +515,7 @@ FOLLOW_UPS = 4  # angles posted after the overview, the first ones in ANGLES ord
 # What a buyer asks first: the price, then the EMI, the size, how far, the land, and the checks last. A possession card comes
 # only for a near, unmoved date (possession_card_ok), after the land.
 ANGLES: Tuple[AngleDef, ...] = tuple(AngleDef(f.__name__, f) for f in (
-    overview, price_reveal, emi, size_in_guntha, near_work, land_area, possession, nearby, rate_per_sqft, layout_size, rera_check,
+    overview, price_reveal, offer, emi, size_in_guntha, amenities, near_work, land_area, possession, nearby, rate_per_sqft, layout_size, rera_check,
     plot_checklist, plot_or_flat, plot_myth))
 
 
@@ -486,12 +538,15 @@ def plan(facts: Dict[str, Fact], photo: str = "none", link: str = "", angles: Se
     `claims`: the builder's brochure claims (their wording of a place is preferred); `today`: for the possession rule."""
     c = Ctx(facts, photo, link, voice, card_brand, contact, language, previous, names, claims, today)
     out = []
+    from .points import PRELAUNCH
     for a in angles:
         if follow_ups is not None and len([1 for aid, _ in out if aid != "overview"]) >= follow_ups and a.id != "overview":
             if skipped is not None:
                 skipped[a.id] = "enough posts already"
             continue
         b = a.build(c)
+        if b is not None and PRELAUNCH.search(" ".join((b.corpus(), *b.hooks.values()))):   # never advertised
+            b = None
         if b is not None:
             out.append((a.id, b))
         elif skipped is not None:

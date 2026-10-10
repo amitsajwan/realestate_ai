@@ -89,6 +89,8 @@ class Facts:
         self.rera = str(v.get("rera_no") or "") if c.registered else ""
         self.place = c.project or c.locality
         self.kinds = (c.kind + "s") if c.layout else c.kind
+        self.booking = v.get("point.booking_amount")   # an agent-confirmed booking amount (points.py)
+        self.start = v.get("point.starting_price") or (self.price if c.layout else None)
 
     def hook(self) -> str:
         c, lead = self.c, ""
@@ -97,7 +99,13 @@ class Facts:
             lead = f"{c.kind.capitalize()}s from {p}" if c.layout else f"{p} {c.kind}"
         else:
             lead = f"{c.kind.capitalize()}s" if c.layout else f"A {c.kind}"
-        opts = [f"{lead}, {campaign._km(self.work['km'])} from {self.work['name']}"] if self.work else []
+        opts = []
+        if self.booking:   # the confirmed offer line first: "Plots from ₹2.99L, book with ₹1L"
+            book = short_price(self.booking)
+            if self.start:
+                opts.append(f"{c.kind.capitalize()}s from {short_price(self.start)}, book with {book}")
+            opts.append(f"Book with {book}" + (f" at {self.place}" if self.place else ""))
+        opts += [f"{lead}, {campaign._km(self.work['km'])} from {self.work['name']}"] if self.work else []
         if c.locality:
             opts.append(f"{lead} in {c.locality}")
         if self.place:
@@ -145,13 +153,19 @@ def carousel_briefs(f: Facts, hook: str, photo: str) -> List[Tuple[str, Brief]]:
     base = campaign.price_reveal(c) or campaign.overview(c)
     if base is not None:
         work = [f"{c.place('industry', p)} is about {campaign._km(p['km'])} away (straight line)." for p in v.get("nearby.industry") or []]
-        out.append(("hook", en(replace(base, hooks={p: hook for p in PATTERNS}, photo=photo, facts=list(base.facts) + work))))
+        offer = ([f"Booking amount: {price_label(int(f.booking))}."] + ([f"Starting price: {price_label(int(f.start))}."] if f.start else [])
+                 if f.booking else [])
+        out.append(("hook", en(replace(base, hooks={p: hook for p in PATTERNS}, photo=photo, facts=list(base.facts) + work + offer))))
     # single cards only (stat and tip layouts): a list layout draws a carousel of its own, whose cover alone says nothing
     if f.price:
         price = price_label(f.price)
         rate = v.get("price_per_sqft")
         label = ("starting price" if c.layout else "listed price") + (f", ₹{rate:,} per sq ft" if rate else "")
         facts = [f"Listed price: {price}."] + ([f"Rate: ₹{rate:,} per sq ft."] if rate else [])
+        if f.booking:   # the confirmed offer the hook may say, with the RERA-safe line
+            facts += [f"Booking amount: {price_label(int(f.booking))}.", campaign.BALANCE_LINE["en"]]
+            if f.start and f.start != f.price:
+                facts.append(f"Starting price: {price_label(int(f.start))}.")
         tip = "Ask what the price includes: stamp duty, registration and charges."
         if f.emi:
             tip = f"EMI about ₹{f.emi['emi']:,} a month: {f.emi_note()}. Ask your bank for its rate."

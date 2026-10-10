@@ -18,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
-from . import campaign, identity, understand
+from . import campaign, identity, points, understand
 from .facts import USABLE
 from .gather import Clients, gather
 from .store import FactsStore, facts_of
@@ -477,8 +477,9 @@ class MarketingRuns:
         else:
             info = await files.read_brochure(pdf, out / "brochure")
             await files.save_claims(self.listings, listing["_id"], brochure=info["claims"], rera_on_brochure=info["rera_no"],
-                                    now=self.now(), brochure_url=files.brochure_url(listing, pdf))
-        summary = {k: info.get(k) for k in ("claims", "rera_no", "rera_missing", "error", "weak")}
+                                    now=self.now(), brochure_url=files.brochure_url(listing, pdf),
+                                    facts=info.get("facts") or {}, language=info.get("language"))
+        summary = {k: info.get(k) for k in ("claims", "rera_no", "rera_missing", "error", "weak", "facts", "language")}
         await self._set(job["_id"], files={"brochure": {**summary, "pages": len(info["pages"])}})
         return info
 
@@ -894,6 +895,7 @@ class MarketingRuns:
             claims = [] if brochure.get("weak") else list(brochure.get("claims") or [])
             claims += list(((listing.get("file_claims") or {}).get("video")) or [])
             seen = await understand.read(listing, claims, llm)
+            listing = await self._selling_points(listing, brochure)
             rera = sheet.facts.get("rera_no")
             units = sheet.facts.get("units_total")
             readable = bool(brochure.get("pages"))   # a PDF that failed to render does not count as attached
@@ -901,13 +903,25 @@ class MarketingRuns:
             auto, questions = understand.decide(listing, seen, bool(rera and rera.usable),
                                                 units.value if units and units.usable and isinstance(units.value, int) else None,
                                                 has_files=files, unreadable=bool(brochure) and not readable,
-                                                candidates=_choices(sheet.match))
+                                                candidates=_choices(sheet.match), points=points.pending(listing))
             if auto:
                 await self.listings.update_one({"_id": listing["_id"]}, {"$set": auto})
             return questions, bool(auto)
         except Exception:
             log.warning("marketing: understanding listing %s failed", listing.get("_id"), exc_info=True)
             return [], False
+
+    async def _selling_points(self, listing: dict, brochure: Dict[str, Any]) -> dict:
+        """A listing without selling points whose brochure this run read (no AI draft made them): the same points the draft
+        would offer, kept on the listing unconfirmed (the agent is asked before any is posted)."""
+        if listing.get("selling_points") or brochure.get("weak") or not brochure.get("facts"):
+            return listing
+        sp = points.selling_points(brochure["facts"], brochure.get("language") or "en", listing.get("property_type") or "plot")
+        if sp:
+            sp = [{**p, "confirmed": False} for p in sp]
+            await self.listings.update_one({"_id": listing["_id"]}, {"$set": {"selling_points": sp}})
+            listing = {**listing, "selling_points": sp}
+        return listing
 
     async def answer(self, agent_id: str, listing_id: str, key: str, value: Any) -> dict:
         """The agent's answer to one question: the listing gets the field, the question goes. The last answer queues the run
@@ -921,7 +935,8 @@ class MarketingRuns:
         if key == "files" and value == "added" and not self._has_files(listing):
             raise RunError("Nothing was uploaded yet. Add the brochure or video, or choose Go on without.", 422)
         try:
-            fields = understand.fill_size(listing, understand.apply_answer(key, value))
+            fields = (understand.answer_points(listing, value) if key == "selling_points"
+                      else understand.fill_size(listing, understand.apply_answer(key, value)))
         except ValueError as e:
             raise RunError(str(e), 422)
         if fields:

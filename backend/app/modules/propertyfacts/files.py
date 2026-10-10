@@ -19,6 +19,8 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
+from . import points
+
 log = logging.getLogger(__name__)
 
 MAX_PAGES = 10          # pages rendered into pictures
@@ -39,8 +41,16 @@ READ_PROMPT = (
     "Chakan, शिरूर Shirur, लोणी काळभोर Loni Kalbhor, राजगुरूनगर Rajgurunagar, वाघोली Wagholi, सणसवाडी Sanaswadi; a name "
     "you cannot read, leave out rather than guess. Leave out slogans and adjectives (dream, best, "
     "safe investment, high returns). Copy any MahaRERA registration number (P followed by 11 digits) exactly, or \"\". Give the project's own name as "
-    "shown in its logo or title, in English letters (for example \"Gulmohar City\"), or \"\". Reply "
-    'with JSON only: {"claims": ["..."], "rera_no": "...", "project_name": "..."}'
+    "shown in its logo or title, in English letters (for example \"Gulmohar City\"), or \"\". Also fill \"facts\" with what the "
+    "page prints, null (or []) when it does not: starting_price_inr (the lowest price, in rupees as a number: \"₹2,99,000/-\" "
+    "-> 299000), booking_amount_inr (the amount to pay to book, a number: \"₹1 लाख\" -> 100000), offer_label (an offer's "
+    "name as printed, e.g. \"Pre-launching offer\"), water and power (as printed, short, in English, e.g. \"24 hours\"), "
+    "road_widths_ft (every road width in feet, as numbers), vastu (true when plots are as per vastu), total_acres (the whole "
+    "project's land, a number), village and taluka (in English letters). language: the brochure's main language, "
+    "\"mr\", \"hi\" or \"en\". Reply with JSON only: "
+    '{"claims": ["..."], "rera_no": "...", "project_name": "...", "language": "mr", "facts": {"starting_price_inr": null, '
+    '"booking_amount_inr": null, "offer_label": null, "water": null, "power": null, "road_widths_ft": [], "vastu": null, '
+    '"total_acres": null, "village": null, "taluka": null}}'
 )
 VIDEO_SYSTEM = (
     "You summarise what a presenter says in a real-estate site video, as the builder's claims. Reply with JSON only."
@@ -111,7 +121,10 @@ async def read_pages(pages: List[str]) -> Dict[str, Any]:
     # even on a fresh key. Each page goes to the readers in order until one answers; a busy key passes to the next.
     clients = default_clients()
     claims: List[str] = []
-    rera_no = project_name = None
+    rera_no = project_name = language = None
+    facts: Dict[str, Any] = {}
+    trusted_keys: set = set()
+    lang_trusted = False
     weak = False
     for page in images:
         for client in clients:
@@ -136,9 +149,13 @@ async def read_pages(pages: List[str]) -> Dict[str, Any]:
             if trusted:  # a small model makes up registration numbers: only a trusted reader's is kept
                 rera_no = rera_no or data.get("rera_no")
             weak = weak or not trusted
+            points.merge(facts, points.clean_facts(data.get("facts")), trusted, trusted_keys)
+            if data.get("language") in ("mr", "hi", "en") and (not language or (trusted and not lang_trusted)):
+                language, lang_trusted = data["language"], trusted
             break
-    if claims:
-        return {"claims": claims, "rera_no": rera_no, "weak": weak, "project_name": project_name}
+    if claims or facts:
+        return {"claims": claims, "rera_no": rera_no, "weak": weak, "project_name": project_name, "facts": facts,
+                "language": language or "en"}
     return {}
 
 
@@ -161,7 +178,7 @@ def clean_claims(raw) -> List[str]:
     out: List[str] = []
     for c in raw or []:
         c = re.sub(r"\s+", " ", str(c or "")).strip().strip('"')
-        if not c or len(c) > CLAIM_MAX_CHARS or PHONE.search(c) or INVEST.search(c):
+        if not c or len(c) > CLAIM_MAX_CHARS or PHONE.search(c) or INVEST.search(c) or points.PRELAUNCH.search(c):
             continue
         # sales claims ("safe investment", "assured", "high returns") and hype are dropped; the builder's own numbers stay
         # (they are claims by definition, so the number check against our facts does not apply)
@@ -202,7 +219,8 @@ def claims_for(listing: dict, pdf: Path) -> Optional[Dict[str, Any]]:
     if not fc.get("brochure") or not url.lower().endswith("/" + pdf.name.lower()):
         return None
     rera = fc.get("rera_on_brochure")
-    return {"claims": list(fc["brochure"]), "rera_no": rera, "rera_missing": not rera, "read_by_ai": True, "weak": False}
+    return {"claims": list(fc["brochure"]), "rera_no": rera, "rera_missing": not rera, "read_by_ai": True, "weak": False,
+            "facts": dict(fc.get("brochure_facts") or {}), "language": fc.get("language") or "en"}
 
 
 async def read_brochure(pdf: Path, out_dir: Path) -> Dict[str, Any]:
@@ -219,18 +237,23 @@ async def read_brochure(pdf: Path, out_dir: Path) -> Dict[str, Any]:
         text = ""
     found = RERA.search(f"{read.get('rera_no') or ''} {text}")
     return {"pages": pages, "claims": clean_claims(read.get("claims")), "project_name": read.get("project_name"), "rera_no": found.group(0).upper() if found else None,
-            "rera_missing": not found, "read_by_ai": bool(read), "weak": bool(read.get("weak"))}
+            "rera_missing": not found, "read_by_ai": bool(read), "weak": bool(read.get("weak")),
+            "facts": dict(read.get("facts") or {}), "language": read.get("language") or "en"}
 
 
 async def save_claims(listings, listing_id: str, *, brochure: Optional[List[str]] = None, video: Optional[List[str]] = None,
                       rera_on_brochure: Optional[str] = None, now: Optional[datetime] = None,
-                      brochure_url: Optional[str] = None) -> None:
+                      brochure_url: Optional[str] = None, facts: Optional[Dict[str, Any]] = None,
+                      language: Optional[str] = None) -> None:
     """Keep what was read on the listing (`file_claims`), for the assistant and for Studio. Only the parts given change."""
     changes: Dict[str, Any] = {"file_claims.updated_at": now or datetime.utcnow()}
     if brochure is not None:
         changes["file_claims.brochure"] = brochure
         changes["file_claims.rera_on_brochure"] = rera_on_brochure
         changes["file_claims.brochure_url"] = brochure_url
+        if facts is not None:  # the structured selling facts as printed (points.clean_facts)
+            changes["file_claims.brochure_facts"] = facts
+            changes["file_claims.language"] = language or "en"
     if video is not None:
         changes["file_claims.video"] = video
     await listings.update_one({"_id": listing_id}, {"$set": changes})

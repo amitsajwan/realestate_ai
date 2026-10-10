@@ -14,7 +14,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional
 
-OFFICIAL = frozenset({"maharera", "listing"})  # "listing": the agent's own offer (their asking price is the price)
+# "listing": the agent's own offer (their asking price is the price); "agent confirmed": a brochure selling point the agent
+# confirmed on the listing (points.py)
+OFFICIAL = frozenset({"maharera", "listing", "agent confirmed"})
 MEASURED = frozenset({"osm", "calc"})
 USABLE = ("official", "measured", "corroborated")
 NUMBER_TOLERANCE = 0.05  # two numbers within 5% of each other are the same reading (portals round differently)

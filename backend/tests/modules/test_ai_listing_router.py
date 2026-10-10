@@ -48,7 +48,7 @@ def test_text_draft_matches_contract():
     assert res.status_code == 200
     body = res.json()
     assert set(body) == {"draft", "confidence", "missing", "transcript", "warnings", "sources", "rera_candidates", "brochure",
-                         "maharera"}
+                         "maharera", "selling_points"}
     assert body["draft"]["price_inr"] == 8_500_000 and body["draft"]["city"] == "Pune"
     assert body["missing"] == [] and body["transcript"] is None
     assert body["confidence"]["price_inr"] == 0.95
