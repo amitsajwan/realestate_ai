@@ -508,6 +508,12 @@ export interface AppApi {
   redoRunPost(listingId: string, angle: string, note: string): Promise<MarketingRun>
   /** Each calendar row of the latest run: when, where, waiting/approved/posted, with its clicks and interests. */
   getCampaignResults(listingId: string): Promise<CampaignResult[]>
+  /** The same results with paid-boost and free-post totals. */
+  getCampaignReport(listingId: string): Promise<CampaignReport>
+  /** Record that the agent boosted on Facebook, with the spend they set. */
+  markBoosted(listingId: string, dailySpendInr: number, days: number): Promise<MarketingRun>
+  /** Make the boost kit again (after a failure). */
+  remakeBoost(listingId: string): Promise<MarketingRun>
   getPerformance(): Promise<PerformanceItem[]>
   /** Per-listing activity (views, sources, people, feed). 404 for a listing that is not yours. */
   getListingActivity(id: string, limit?: number): Promise<ListingActivity>
@@ -551,6 +557,40 @@ export interface MarketingRun {
   files?: { brochure?: { claims?: string[]; rera_no?: string | null; rera_missing?: boolean; error?: string | null; pages?: number } }
   /** Rows planned in the approval calendar, once sent. */
   calendar?: { angle: string; channel: string; row_id: string; due_at: string }[]
+  /** Paid boost kit (reel, photos, texts, Facebook guide); absent until the backend offers one. */
+  boost?: RunBoost | null
+}
+
+export interface BoostCopy { primary_text: string; headline: string }
+
+export interface RunBoost {
+  state: 'making' | 'ready' | 'boosted' | 'finished' | 'failed'
+  error?: string
+  /** Free posts get two days first; boosting earlier is allowed. */
+  ready_at?: string | null
+  reel?: { video_url: string; poster_url: string; duration_s: number }
+  carousel?: { images: string[]; zip_url: string }
+  copy?: { reel: BoostCopy; post: BoostCopy; cta: string }
+  wa_prefill: string
+  wa_link: string
+  tracked_link: string
+  codes: { reel: string; post: string }
+  guide: {
+    objective_label: string; area: string; radius_km: number; age_min: number; age_max: number
+    daily_budget_inr: number; days: number; carousel_daily_inr: number; carousel_delay_days: number
+  }
+  meta_open_url: string
+  reel_permalink?: string | null
+  boosted_at?: string | null
+  daily_spend_inr?: number | null
+  days?: number | null
+}
+
+/** GET /listings/{id}/campaign/results in full: the rows plus paid and free totals. */
+export interface CampaignReport {
+  items: CampaignResult[]
+  boost_results?: { clicks: number; interests: number; spend_inr: number; cost_per_enquiry: number | null } | null
+  organic?: { clicks: number; interests: number } | null
 }
 
 /** GET /listings/{id}/campaign/results: one calendar row of the latest run with the leads its interest link brought. */

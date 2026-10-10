@@ -334,6 +334,45 @@ const en = {
   aboutPublicHighlights: 'Highlights',
   aboutPublicAmenities: 'Amenities',
   aboutNoContact: 'Please do not type phone numbers or links here.',
+  boostTitle: 'Boost with paid ads',
+  boostSub: 'Pay Facebook a small amount to show this home to many more buyers.',
+  boostReady: 'Ready to boost',
+  boostBoosted: 'Boosted · day {n} of {d}',
+  boostFinished: 'Finished',
+  boostWait: 'Give your free posts 2 days first. Then boost the one people liked.',
+  boostNowAnyway: 'Boost now anyway',
+  boostGetReady: 'Get ready to boost',
+  boostMaking: 'Making your boost reel…',
+  boostMakeAgain: 'Make it again',
+  boostKit: 'Your boost kit',
+  boostDlReel: 'Download reel',
+  boostDlPhotos: 'Download photos',
+  boostMainText: 'Main text',
+  boostHeadline: 'Headline',
+  boostGreeting: 'WhatsApp greeting',
+  boostLink: 'Link',
+  boostLinkHelp: 'Use this link so we can count who came from your ad.',
+  boostCopy: 'Copy',
+  boostCopied: 'Copied ✓',
+  boostNext: 'Next: boost on Facebook',
+  boostS1: 'Post the reel on your Facebook Page',
+  boostOpenFb: 'Open Facebook',
+  boostS2: 'Goal: pick Get more WhatsApp messages',
+  boostS3: 'Who sees it: People you choose → Pune, age {a}–{b}, within {r} km of {area}',
+  boostS4: 'Budget: ₹{daily}/day for {days} days (₹{total}). You can stop any time.',
+  boostS5: 'Paste the main text and the WhatsApp greeting you copied',
+  boostS6: 'After {n} days, boost the photos to people who watched your reel (Advanced audience → Video viewers), ₹{daily}/day',
+  boostHousing: 'If Facebook asks, choose the Housing ad category.',
+  boostDone: "I've boosted it",
+  boostHowMuch: 'How much did you set?',
+  boostPerDay: 'a day, for',
+  boostDays: 'days',
+  boostSave: 'Save',
+  boostFree: 'Free posts: {c} clicks · {i} asked on WhatsApp',
+  boostPaid: 'Boosted: {c} clicks · {i} asked · ₹{s} spent',
+  boostPer: ' · ₹{p} per enquiry',
+  boostNoMsgs: 'No messages yet. Try ₹100 more a day or a nearer area.',
+  boostUpdates: 'Results update every few hours.',
 } as const
 
 export type StringKey = keyof typeof en
@@ -399,6 +438,11 @@ let current: Lang = 'en'
 
 export function setLang(l: Lang) {
   current = l
+}
+
+/** t() with {name} placeholders filled. */
+export function tf(key: StringKey, vars: Record<string, string | number>): string {
+  return t(key).replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m))
 }
 
 export function t(key: StringKey): string {
