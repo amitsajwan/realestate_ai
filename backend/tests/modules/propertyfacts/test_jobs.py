@@ -60,6 +60,16 @@ async def setup(tmp_path, listing=LISTING, fail_posts=False, pages=page_for):
     runs = jobs.MarketingRuns(db, tmp_path, "https://avasetu.in", clients_factory=lambda: clients, now=lambda: NOW,
                               slides_renderer=fake_slides_reel, reel_jobs=FakeReelJobs(), facts_store=clients.facts_store,
                               page_for=pages)
+    one = runs.run_once
+
+    async def run_once():  # these listings carry no files: go on without, as the agent would
+        ran = await one()
+        d = await runs._latest({"listing_id": listing["_id"]})
+        if d and d["status"] == "asking" and [q["key"] for q in d["questions"]] == ["files"]:
+            await runs.answer(d["agent_id"], d["listing_id"], "files", "skip")
+            await one()
+        return ran
+    runs.run_once = run_once
     if fail_posts:
         async def boom(*a, **k):
             raise RuntimeError("render failed")
