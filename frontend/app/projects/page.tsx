@@ -32,7 +32,7 @@ const byUnits = (a: RegisterListItem, b: RegisterListItem) => (b.units_total ?? 
 
 type Props = { searchParams?: Promise<{ q?: string | string[] }> }
 
-export default async function ProjectsPage({ searchParams }: Props = {}) {
+export default async function ProjectsPage({ searchParams }: Props) {
   const cfg = getMarketingConfig()
   // ?q= is the search box without JavaScript: answered here from the backend search
   const raw = (await searchParams)?.q

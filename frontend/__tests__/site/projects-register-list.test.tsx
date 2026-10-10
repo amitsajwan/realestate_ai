@@ -28,7 +28,7 @@ import ProjectsPage from '@/app/projects/page'
 
 describe('/projects lists every MahaRERA project page, by area', () => {
   it('groups by area with a summary line, links the area hub, and leaves out projects an agent already lists', async () => {
-    render(await ProjectsPage())
+    render(await ProjectsPage({}))
     expect(screen.getByRole('heading', { name: 'Every MahaRERA project in our areas' })).toBeInTheDocument()
     const wagholi = within(screen.getByTestId('register-wagholi'))
     expect(wagholi.getByRole('link', { name: 'Springshire' })).toHaveAttribute('href', '/projects/springshire-wagholi')

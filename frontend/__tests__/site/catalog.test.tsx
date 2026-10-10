@@ -101,7 +101,7 @@ describe('filter pages only exist with enough real projects', () => {
 describe('shared project pages', () => {
   it('groups the index by locality and links each card to /projects', async () => {
     expect(byLocality(ALL).map(([l, items]) => [l, items.length])).toEqual([['Upper Kharadi', 1], ['Wagholi', 4]])
-    render(await ProjectsPage())
+    render(await ProjectsPage({}))
     expect(screen.getByRole('heading', { name: 'Projects in Wagholi' })).toBeInTheDocument()
     expect(screen.getAllByTestId('project-card')[0]).toHaveAttribute('href', '/projects/goyal-my-home')
     expect(screen.getByRole('link', { name: 'Wagholi buyer guide' })).toHaveAttribute('href', '/localities/wagholi')
