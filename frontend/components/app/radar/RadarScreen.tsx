@@ -122,7 +122,7 @@ function SignalCard({ s, onDone }: { s: RadarSignal; onDone: (id: string) => voi
       <div className="flex items-start justify-between gap-3">
         <p className="min-w-0 text-xs text-gray-500">
           {SOURCE[s.source] ?? s.source}
-          {s.author ? ` · ${s.author}` : ''}
+          {s.author ? ` · commenter ${s.author}` : ''}
           {s.posted_at ? ` · ${timeAgo(s.posted_at)}` : ''}
         </p>
         {pct != null && <span className="shrink-0 rounded-full bg-[#102340] px-2 py-0.5 text-xs font-bold text-[#F0B13B]">{pct}</span>}
@@ -132,7 +132,13 @@ function SignalCard({ s, onDone }: { s: RadarSignal; onDone: (id: string) => voi
       <div>
         <p className="text-xs font-semibold text-gray-700">They wrote</p>
         <p className="whitespace-pre-wrap text-gray-900">“{s.text}”</p>
-        {s.context && <p className="mt-1 truncate text-xs text-gray-500">under the video “{s.context}”</p>}
+        {s.context && <p className="mt-1 text-xs text-gray-500">A comment under the {SOURCE[s.source] ?? s.source} video “{s.context}”</p>}
+        {s.url && (
+          <a href={s.url} target="_blank" rel="noopener noreferrer" data-testid="radar-open-source"
+            className="mt-1 inline-flex min-h-[44px] items-center text-sm font-semibold text-[#102340] underline">
+            {s.source === 'youtube' ? 'Open their comment on YouTube ›' : 'Open the original post ›'}
+          </a>
+        )}
       </div>
       {s.project?.line && <p className="text-xs text-gray-600">MahaRERA: {s.project.line}</p>}
       <label className="block">
