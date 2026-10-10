@@ -500,14 +500,14 @@ export function MarketingRunCard({ listingId, autoStart, onAutoStarted }: {
               <Step n={7} title="Leads from these posts" state={results.some((r) => r.state === 'posted') ? 'done' : 'waiting'}>
                 {results.length > 0 && <PostLeads items={results} />}
               </Step>
-              {run.boost && (
-                <Step n={8} title={t('boostTitle')}
-                  state={run.boost.state === 'failed' ? 'failed' : run.boost.state === 'making' ? 'working'
-                    : run.boost.state === 'boosted' || run.boost.state === 'finished' ? 'done' : 'waiting'}>
-                  <BoostStep listingId={listingId} run={run} onRun={setRun} />
-                </Step>
-              )}
             </>
+          )}
+          {run.status === 'done' && run.boost && (
+            <Step n={sent > 0 ? 8 : 6} title={t('boostTitle')}
+              state={run.boost.state === 'failed' ? 'failed' : run.boost.state === 'making' ? 'working'
+                : run.boost.state === 'boosted' || run.boost.state === 'finished' ? 'done' : 'waiting'}>
+              <BoostStep listingId={listingId} run={run} onRun={setRun} />
+            </Step>
           )}
         </ol>
       )}
