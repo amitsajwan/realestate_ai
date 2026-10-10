@@ -7,9 +7,9 @@ import { BRAND_NAME } from '@/lib/brand'
 export const FOR_AGENTS = {
   metaTitle: `For agents: what ${BRAND_NAME} does for you | Free trial in Pune`,
   metaDescription:
-    `${BRAND_NAME} for real estate agents in Pune: add a home from your phone, get posts, reels and your own page, and see every enquiry as a lead card. First 3 properties free.`,
+    `${BRAND_NAME} for real estate agents in Pune: add a home from your phone, get posts, reels and your own page, and see every enquiry as a lead card. 1 month free for the first 20 agents.`,
   eyebrow: 'For real estate agents in Pune',
-  pilot: 'Free trial: first 3 properties',
+  pilot: 'Free trial: 1 month free',
   title: 'Every enquiry in one place, and the right buyer to call first.',
   lead:
     `${BRAND_NAME} turns the homes you list into posts, reels and your own branded page, and turns every buyer who shows interest into a lead card you can act on.`,
@@ -45,7 +45,7 @@ export const FOR_AGENTS = {
   },
   cost: {
     heading: 'What it costs',
-    title: 'Your first 3 properties free',
+    title: '1 month free, first 20 agents',
     body: 'No card for the trial. After it, Avasetu stays low-cost: a small monthly fee, not a big subscription. We tell you the price before anything changes.',
   },
   coming: {
@@ -71,7 +71,7 @@ export const FOR_AGENTS = {
   },
   cta: {
     heading: 'Claim your free trial',
-    body: 'For agents in Pune. Leave your number at avasetu.in/trial and your sign-up code comes on WhatsApp, usually the same day. Your first 3 properties are free.',
+    body: 'For agents in Pune. Leave your number at avasetu.in/trial and your sign-up code comes on WhatsApp, usually the same day. The first month is free (first 20 Pune agents).',
     button: 'Claim your free trial',
     demo: 'See a demo agent page',
     qr: 'Scan to claim your free trial',

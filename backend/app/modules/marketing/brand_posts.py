@@ -66,13 +66,13 @@ POSTS: List[Dict] = [
     {
         "slug": "agents", "kicker": "FOR PUNE AGENTS", "title": "Property agent in Pune? Claim your free trial",
         "points": ["Your own website in minutes", "Ready-made posts for Facebook, Instagram and WhatsApp", "Buyers tracked in one simple inbox",
-                   "Free trial: your first 3 properties"],
+                   "Free trial: 1 month free"],
         "caption": (
             "\U0001F91D Property agent in Pune? Claim your free trial\n\n"
             "✅ Your own website in minutes\n"
             "✅ Ready-made posts for Facebook, Instagram and WhatsApp\n"
             "✅ Buyers tracked in one simple inbox\n\n"
-            "Claim your free trial: your first 3 properties marketed free, no card:\n"
+            "Claim your free trial: 1 month free, every property, no card:\n"
             f"\U0001F517 {SITE}/trial\n\n" + TAGS),
     },
     {
@@ -128,7 +128,7 @@ POSTS: List[Dict] = [
             "\u2705 Ready-made posts for Facebook, Instagram and WhatsApp\n"
             "\u2705 Comments like INTERESTED are answered for you\n"
             "\u2705 Every buyer summarised: budget, BHK, timing and how warm they are\n\n"
-            "Claim your free trial (your first 3 properties free):\n"
+            "Claim your free trial (1 month free):\n"
             f"\U0001F517 {SITE}/trial\n\n" + TAGS + " #RealEstateAgent #PuneAgents"),
     },
     {

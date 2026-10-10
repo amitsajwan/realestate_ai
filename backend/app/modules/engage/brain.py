@@ -106,7 +106,7 @@ def first_name(name: Optional[str]) -> str:
 # Comments on our agent-recruitment posts and reels ("Comment AGENT"): the reply is about the free trial, never price lists or floor plans.
 AGENT_ASK = re.compile(r"\b(agents?|join|pilot|trial|interested|intrested|details|demo|how|kaise|cost|charges?|free|yes|haan|ha)\b|एजेंट|इंटरेस्टेड|जानकारी|ट्रायल", re.I)
 AGENT_TEMPLATES = {
-    "en": {"facebook": "Thanks{name}! Claim your free Avasetu trial: your first 3 properties marketed free, no card. Claim it here: {link} . We have also sent you a message.",
+    "en": {"facebook": "Thanks{name}! Claim your free Avasetu trial: 1 month free, every property, no card. Open to the first 20 Pune agents. Claim it here: {link} . We have also sent you a message.",
            "instagram": "Thanks{name}! We have sent you a message with the link to claim your free trial. It is also at the link in our bio."},
     "hi": {"facebook": "धन्यवाद{name}! Avasetu का फ्री ट्रायल लें: पहली 3 प्रॉपर्टी की मार्केटिंग फ्री, कोई कार्ड नहीं। यहाँ क्लेम करें: {link} . हमने आपको मैसेज भी भेजा है।",
            "instagram": "धन्यवाद{name}! हमने आपको फ्री ट्रायल का लिंक मैसेज में भेजा है। यह हमारे बायो के लिंक में भी है।"},
@@ -300,7 +300,7 @@ DM_TEMPLATES = {
     "mr": "नमस्कार{name}, तुमच्या कमेंट{topic}साठी धन्यवाद. तुमचा WhatsApp नंबर इथेच पाठवा, आम्ही तुम्हाला प्राइस लिस्ट आणि फ्लोअर प्लॅन पाठवू. "
           "हवे असल्यास तुमचे बजेट पण सांगा. माहिती: {link}",
 }
-DM_AGENTS = ("Hi{name}, thanks for asking about Avasetu. Claim your free trial: your first 3 properties marketed free, no card. Reply here with your WhatsApp number and the areas you work in, "
+DM_AGENTS = ("Hi{name}, thanks for asking about Avasetu. Claim your free trial: 1 month free, every property, no card. Open to the first 20 Pune agents. Reply here with your WhatsApp number and the areas you work in, "
              "and we will set it up with you. Or join here: {link}")
 
 

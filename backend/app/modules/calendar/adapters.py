@@ -237,7 +237,7 @@ class ReelSpec:
 
 PITCH_CAPTION_BODY = ("\U0001F91D Property agent in Pune?\n\nBuyers message all day, and the same questions come back every time.\n\n"
                       "✅ Post a property from your phone\n✅ Ready-made posts for Facebook, Instagram and WhatsApp\n✅ Your own website is ready\n\n"
-                      "Claim your free trial: your first 3 properties marketed free. \U0001F4E4 Know an agent who would like this? Share this reel.")
+                      "Claim your free trial: 1 month free, every property. \U0001F4E4 Know an agent who would like this? Share this reel.")
 
 
 def reel_caption(spec: ReelSpec, channel: str, entry: Optional[Entry] = None) -> str:
@@ -260,7 +260,7 @@ def reel_scenes(spec: ReelSpec, entry: Optional[Entry] = None):
         return t.tip_reel([entry.title.strip('"')] + pts + ["Save this for when you need it."], images=photos or None, seed=spec.key)
     return t.agent_pitch(problem="Buyers message you all day. *Same* questions. Every time.",
                          solution="Post a property from your phone. Your own website is *ready*.",
-                         proof=("Ready-made posts for social", "Free trial: 3 properties"), cta="Claim your free trial.")
+                         proof=("Ready-made posts for social", "Free trial: 1 month free"), cta="Claim your free trial.")
 
 
 def render_reel(spec: ReelSpec, uploads: Path, entry: Optional[Entry] = None, composer: Optional[Callable] = None) -> str:

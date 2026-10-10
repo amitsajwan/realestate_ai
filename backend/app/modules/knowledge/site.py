@@ -69,10 +69,10 @@ ENTRIES: List[Entry] = [
                     "join the pilot", "free trial", "become an agent", "sell my", "agent hoon", "broker hoon", "main agent hoon", "मैं एजेंट हूँ", "मी एजंट आहे",
                     "mi agent aahe"),
           "If you are a real estate agent in Pune: we make your website, posts and reels, and every buyer enquiry becomes a lead card with "
-          "budget, area, timing and how warm the buyer is. Your first 3 properties are marketed free, no card.", "agent", "Start at /trial."),
+          "budget, area, timing and how warm the buyer is. The first month is free, no card, for the first 20 Pune agents.", "agent", "Start at /trial."),
     Entry("agent_cost", ("price for agents", "cost for agents", "how much for agents", "pricing", "plans", "monthly fee", "subscription",
                          "charges for agents", "really free", "after trial", "after the trial", "kitna lagega", "kitne paise"),
-          "Your first 3 properties are free, no card. After that there is a small monthly fee, and you see the price first, then decide.",
+          "The first month is free, no card, for the first 20 Pune agents. After that there is a small monthly fee, and you see the price first, then decide.",
           "agent", "Start at /trial."),
     Entry("agent_start", ("how do i start", "how to start", "how to join", "sign up", "signup", "sign-up code", "trial code"),
           "Tap Claim your free trial and leave your number. Your sign-up code comes on WhatsApp, usually the same day; sign in and add your "

@@ -29,7 +29,7 @@ export const NAV = {
 }
 
 export const FOOTER = {
-  tagline: 'आवास (home) + सेतु (bridge). ' + TAGLINE + '. Free trial for real estate agents in Pune: your first 3 properties free.',
+  tagline: 'आवास (home) + सेतु (bridge). ' + TAGLINE + '. Free trial for real estate agents in Pune: 1 month free for the first 20 agents.',
   contactUnset: 'Contact details are shared when you request an invite.',
   contactHeading: 'Contact',
 }
@@ -68,8 +68,8 @@ export const SAMPLE_NOTE = 'Screens show sample data.'
 export const LANDING = {
   metaTitle: `${BRAND_NAME} | Free trial for real estate agents in Pune`,
   metaDescription:
-    'Free trial for Pune real estate agents: first 3 properties marketed free. Your own website, posts and reels made for you, and every enquiry as a lead card.',
-  metaOrgDescription: 'Avasetu (आवास + सेतु: home + bridge) helps real estate agents in Pune market their properties, get buyer enquiries and follow them up. Free trial: the first 3 properties.',
+    'Free trial for Pune real estate agents: 1 month free, every property, first 20 agents. Your own website, posts and reels made for you, and every enquiry as a lead card.',
+  metaOrgDescription: 'Avasetu (आवास + सेतु: home + bridge) helps real estate agents in Pune market their properties, get buyer enquiries and follow them up. Free trial: 1 month free for the first 20 agents.',
   hero: {
     eyebrow: 'For real estate agents in Pune',
     pilot: 'Free trial',
@@ -79,7 +79,7 @@ export const LANDING = {
     cta: 'Claim your free trial',
     whatsapp: 'Ask us on WhatsApp',
     secondary: 'See a sample agent page',
-    facts: 'First 3 properties free · No card · No app · English, हिंदी, मराठी',
+    facts: '1 month free · First 20 agents · No card · No app · English, हिंदी, मराठी',
     signInLead: 'Already have your code?',
     signIn: 'Sign in',
   },
@@ -135,7 +135,7 @@ export const LANDING = {
   },
   cost: {
     id: 'cost',
-    title: 'Your first 3 properties free.',
+    title: '1 month free. First 20 Pune agents.',
     body: 'No card. After that, a small monthly fee. You see the price first, then decide.',
   },
   faq: {
@@ -148,7 +148,7 @@ export const LANDING = {
       },
       {
         q: 'Is it really free?',
-        a: 'Your first 3 properties are free, no card. After that, a small monthly fee. You see the price first.',
+        a: 'The first month is free, no card, for the first 20 Pune agents. After that, a small monthly fee. You see the price first.',
       },
       {
         q: 'Do you post on my own Facebook and Instagram?',
@@ -188,9 +188,9 @@ export const LANDING = {
 // ---------------------------------------------------------------------------------------------------------
 export const INVITE = {
   metaTitle: 'Ask us to call you | Free trial for real estate agents in Pune',
-  metaDescription: 'Leave your number and we call you back about your free trial: your first 3 properties marketed free.',
+  metaDescription: 'Leave your number and we call you back about your free trial: 1 month free, every property.',
   title: 'Ask us to call you',
-  lead: 'Free trial for real estate agents in Pune: your first 3 properties marketed free, no card. Leave your number and we will send your sign-up code on WhatsApp, usually the same day.',
+  lead: 'Free trial for real estate agents in Pune: 1 month free, every property, no card. Open to the first 20 Pune agents. Leave your number and we will send your sign-up code on WhatsApp, usually the same day.',
   labels: {
     name: 'Your name',
     phone: 'Mobile number',
@@ -365,7 +365,7 @@ export function termsDoc(cfg: MarketingConfig): LegalDoc {
       {
         id: 'about', heading: 'About the service',
         paragraphs: [
-          n + ' is a service for real estate agents in Pune. It lets an agent post properties, get a website and share-ready marketing, and see buyer enquiries. The free trial covers an agent\'s first 3 properties and needs no card. We tell you the price of anything after the trial before it applies, and the service may change.',
+          n + ' is a service for real estate agents in Pune. It lets an agent post properties, get a website and share-ready marketing, and see buyer enquiries. The free trial is one month, open to the first 20 agents, and needs no card. We tell you the price of anything after the trial before it applies, and the service may change.',
         ],
       },
       {

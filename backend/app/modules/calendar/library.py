@@ -405,18 +405,18 @@ ENTRIES: List[Entry] = [
 
     # ---------------------------------------------------------------- agent pitch
     _e("agent-consistent-posting", "agent", "FOR PUNE AGENTS", "Posting regularly is hard when you are busy showing flats",
-       ["Post a property from your phone", "Ready-made posts for Facebook, Instagram and WhatsApp", "Your own website is ready", "Free trial: your first 3 properties"],
+       ["Post a property from your phone", "Ready-made posts for Facebook, Instagram and WhatsApp", "Your own website is ready", "Free trial: 1 month free"],
        "\U0001F91D Property agent in Pune? Posting regularly is hard when you are busy showing flats \U0001F447\n\n"
        "✅ Post a property from your phone\n✅ Get ready-made posts for Facebook, Instagram and WhatsApp\n✅ Your own website is ready\n\n"
-       "Claim your free trial: your first 3 properties marketed free. \U0001F4E4 Know an agent who would like this? Share this post.",
+       "Claim your free trial: 1 month free, every property. \U0001F4E4 Know an agent who would like this? Share this post.",
        (B, "#RealEstateAgent", "#PuneAgents", "#PuneRealEstate"),
-       "Claims mirror the published brand posts (agents, agents-problem). No pricing or result claims. Free trial (first 3 properties free, no card) per brand copy of 2026-10-07.",
+       "Claims mirror the published brand posts (agents, agents-problem). No pricing or result claims. Free trial (1 month free, no card) per brand copy of 2026-10-07.",
        link="/trial"),
     _e("agent-buyer-summary", "agent", "FOR PUNE AGENTS", "Which enquiry is serious? A summary for each buyer",
-       ["Comments like INTERESTED are answered for you", "Each buyer summarised: budget, BHK, timing", "How warm they are, at a glance", "Free trial: your first 3 properties"],
+       ["Comments like INTERESTED are answered for you", "Each buyer summarised: budget, BHK, timing", "How warm they are, at a glance", "Free trial: 1 month free"],
        "\U0001F4CA When enquiries arrive as comments and messages, it is hard to tell which buyer is serious \U0001F447\n\n"
        "✅ Comments like INTERESTED are answered for you\n✅ Each buyer summarised: budget, BHK and timing\n✅ How warm they are, at a glance\n\n"
-       "Claim your free trial: your first 3 properties free. \U0001F4AC Agents: what is your biggest enquiry headache?",
+       "Claim your free trial: 1 month free. \U0001F4AC Agents: what is your biggest enquiry headache?",
        (B, "#RealEstateAgent", "#PuneAgents", "#PuneRealEstate"),
        "Claims mirror published brand post agents-problem. No result claims.",
        link="/trial"),
@@ -451,10 +451,10 @@ ENTRIES: List[Entry] = [
        GENERAL + ". Name meaning per docs/brand/avasetu/README.md. Card text is Latin; Devanagari stays in the caption (Pillow cannot shape it).",
        link="/go", cta_ig="Homes, news and agents: link in our bio."),
     _e("brand-two-sides", "agent", "FOR PUNE AGENTS", "Every bridge has two sides",
-       ["One side: a family looking for a home", "Other side: the agent who knows the area", "Avasetu is the bridge between them", "Free trial: your first 3 properties"],
+       ["One side: a family looking for a home", "Other side: the agent who knows the area", "Avasetu is the bridge between them", "Free trial: 1 month free"],
        "\U0001F309 Every bridge has two sides.\n\nOn one side, a family looking for the right home. On the other, the agent who knows the area. "
        "Avasetu is the bridge: your website, posts and reels made for you, and every enquiry with the buyer's budget and need.\n\n"
-       "Claim your free trial: your first 3 properties marketed free. \U0001F4E4 Know an agent who would like this? Share this post.",
+       "Claim your free trial: 1 month free, every property. \U0001F4E4 Know an agent who would like this? Share this post.",
        (B, "#PuneAgents", "#RealEstateAgent", "#PuneRealEstate"),
        "Claims mirror agent-consistent-posting and agent-buyer-summary (free trial per brand copy of 2026-10-07). No result claims.",
        link="/trial"),
