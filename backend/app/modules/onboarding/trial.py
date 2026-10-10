@@ -1,8 +1,8 @@
 """Claim your free trial: an agent sends TRIAL to our WhatsApp number and gets his sign-up code at once, with no person in between.
 
 The WhatsApp message is the proof that he owns the number (WhatsApp verified it), so the code is bound to that number exactly as a
-hand-issued invite is (invites.InviteService): the join flow is unchanged (phone, then code). The offer: his first TRIAL_PROPERTIES
-properties marketed free, no card; it is recorded on his invite (`plan`, `trial_properties`), not enforced yet.
+hand-issued invite is (invites.InviteService): the join flow is unchanged (phone, then code). The offer: TRIAL_DAYS days free, every
+property, no card, for the first TRIAL_SPOTS agents; it is recorded on his invite (`plan`, `trial_days`), not enforced yet.
 
 Limits: at most TRIAL_DAILY_CAP new trials a day (IST); over it, the claim is kept as an invite request for the owner and the
 agent is told plainly. A number that claimed in the last REISSUE_AFTER is not sent a new code (the last one still works).
@@ -15,7 +15,8 @@ from typing import Callable, Optional
 
 from .invites import InviteService
 
-TRIAL_PROPERTIES = 3
+TRIAL_DAYS = 30
+TRIAL_SPOTS = 20   # the founding offer: the first 20 Pune agents (owner, 2026-10-10)
 DEFAULT_DAILY_CAP = 20
 REISSUE_AFTER = timedelta(hours=1)
 IST = timedelta(hours=5, minutes=30)
@@ -65,7 +66,7 @@ class TrialService:
             await self._queue(phone, source, now)
             return Claim("full")
         code = await self.invites.issue(phone, LABEL)
-        await self.col.update_one({"_id": phone}, {"$set": {"plan": "trial", "trial_properties": TRIAL_PROPERTIES, "claimed_via": source,
+        await self.col.update_one({"_id": phone}, {"$set": {"plan": "trial", "trial_days": TRIAL_DAYS, "claimed_via": source,
                                                             "claimed_at": now}})
         return Claim("issued", code)
 

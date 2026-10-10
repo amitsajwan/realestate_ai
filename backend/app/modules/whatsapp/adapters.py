@@ -217,11 +217,11 @@ async def notify(db, agent_id: str, kind: str, text: str, ref: dict, now: dateti
 # ---- claim your free trial (agents) --------------------------------------------------------------------------------
 TRIAL_TEXT = {
     "issued": {
-        "en": "Your {brand} free trial is ready. Your first {n} properties are marketed free, no card.\n\nYour sign-up code: {code}\n"
+        "en": "Your {brand} free trial is ready. 1 month free, every property, no card.\n\nYour sign-up code: {code}\n"
               "Sign in here: {join} (enter this WhatsApp number and the code).",
-        "hi": "आपका {brand} फ्री ट्रायल तैयार है। पहली {n} प्रॉपर्टी की मार्केटिंग फ्री, कोई कार्ड नहीं।\n\nआपका साइन-अप कोड: {code}\n"
+        "hi": "आपका {brand} फ्री ट्रायल तैयार है। 1 महीना फ्री, हर प्रॉपर्टी, कोई कार्ड नहीं।\n\nआपका साइन-अप कोड: {code}\n"
               "यहाँ साइन इन करें: {join} (यही WhatsApp नंबर और कोड डालें)।",
-        "mr": "तुमचा {brand} फ्री ट्रायल तयार आहे. पहिल्या {n} प्रॉपर्टीचे मार्केटिंग फ्री, कार्ड नको.\n\nतुमचा साइन-अप कोड: {code}\n"
+        "mr": "तुमचा {brand} फ्री ट्रायल तयार आहे. 1 महिना फ्री, प्रत्येक प्रॉपर्टी, कार्ड नको.\n\nतुमचा साइन-अप कोड: {code}\n"
               "इथे साइन इन करा: {join} (हाच WhatsApp नंबर आणि कोड टाका).",
     },
     "too_soon": {
@@ -247,13 +247,13 @@ async def claim_trial(db, phone: str, lang: str, now: Optional[datetime] = None)
     from app.core import brand
     from app.core.config import settings
     from app.modules.onboarding.invites import InviteService
-    from app.modules.onboarding.trial import TRIAL_PROPERTIES, TrialService
+    from app.modules.onboarding.trial import TrialService
     clock = (lambda: now) if now is not None else datetime.utcnow
     claim = await TrialService(db, InviteService(db, settings.jwt_secret_key, now=clock), now=clock).claim(phone, "whatsapp")
     lang = lang if lang in ("en", "hi", "mr") else "en"
     join = f"{settings.public_site_url.rstrip('/')}/join?phone={phone[3:]}"
     return TRIAL_TEXT[claim.status if claim.status in TRIAL_TEXT else "issued"][lang].format(
-        brand=brand.NAME, n=TRIAL_PROPERTIES, code=claim.code or "", join=join)
+        brand=brand.NAME, code=claim.code or "", join=join)
 
 
 def trial_claims_on() -> bool:

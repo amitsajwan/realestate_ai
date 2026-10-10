@@ -97,7 +97,7 @@ BANNED = re.compile(r"\b(seconds?|secs?|minutes?|instant\w*|publish\w*|auto[- ]?
                     r"automatic\w*|sell faster|more leads|double)\b", re.I)
 NUMBER = re.compile(r"\d+")
 ALLOWED_NUMBERS = {"D2": {"50"},   # "50+ properties" describes the viewer, not a result we promise
-                   "D1": {"3"}}     # the free-trial offer (onboarding/trial.py TRIAL_PROPERTIES), not a result
+                   "D1": set()}
 MAX_HOOK_WORDS = 7
 
 
