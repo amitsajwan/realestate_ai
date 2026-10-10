@@ -8,6 +8,7 @@ import { socialLinks } from '@/lib/marketing/social'
 
 jest.mock('@/components/site/PostsSection', () => ({ __esModule: true, default: () => null }))
 jest.mock('@/components/news/NewsSection', () => ({ __esModule: true, default: () => null }))
+jest.mock('@/components/marketing/BuyerProjectLinks', () => ({ __esModule: true, default: () => null }))
 
 const cfg = buildMarketingConfig({})
 const EXPECTED: Array<[RegExp, string]> = [

@@ -7,7 +7,7 @@ import CheckBadge from '@/components/site/CheckBadge'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { breadcrumbJsonLd, jsonLdString, pageMetadata } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
-import { getRegisterPlaces, getRegisterProjects, longDay, placePath } from '@/lib/site/register'
+import { displayName, getRegisterPlaces, getRegisterProjects, placePath, projectSummary } from '@/lib/site/register'
 import type { RegisterListItem, RegisterPlace } from '@/lib/site/register'
 
 export const revalidate = 300
@@ -28,8 +28,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!got) return { title: 'Projects in Pune' }
   const { place } = got
   const meta = pageMetadata(getMarketingConfig(), {
-    title: `New projects in ${place.name}, Pune: MahaRERA completion dates`,
-    description: `All ${place.projects} MahaRERA projects in ${place.name}, Pune: the completion date filed with MahaRERA, whether it moved, and homes booked, for each project.`,
+    title: `New Projects in ${place.name}, Pune: Price, Possession, MahaRERA (${place.projects})`,
+    description: `All ${place.projects} MahaRERA projects in ${place.name}, Pune: builder, possession date filed with MahaRERA, whether it moved, and homes booked, for each project.`,
     path: placePath(place.slug),
   })
   // an area with no project that has real facts yet stays out of search until it has one
@@ -39,11 +39,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 function Row({ r }: { r: RegisterListItem }) {
   return (
     <li className="break-inside-avoid py-1.5">
-      <Link href={`/projects/${r.slug}`} className="font-medium text-[#0f2340] underline underline-offset-2">{r.name}</Link>
+      <Link href={`/projects/${r.slug}`} className="font-medium text-[#0f2340] underline underline-offset-2">{displayName(r)}</Link>
       {' '}<CheckBadge checked={r.checked} total={r.checks_total} compact />
-      <span className="block text-sm text-slate-600">
-        {[r.promoter, r.completion_now ? `completion filed ${longDay(r.completion_now)}` : null].filter(Boolean).join(' · ')}
-      </span>
+      <span className="block text-sm text-slate-600">{projectSummary(r)}</span>
     </li>
   )
 }
@@ -54,8 +52,8 @@ export default async function PlaceProjectsPage({ params }: Props) {
   if (!got) notFound()
   const { place, projects } = got
   const cfg = getMarketingConfig()
-  const building = projects.filter((r) => r.active !== false).sort((a, b) => a.name.localeCompare(b.name))
-  const finished = projects.filter((r) => r.active === false).sort((a, b) => a.name.localeCompare(b.name))
+  const building = projects.filter((r) => r.active !== false).sort((a, b) => displayName(a).localeCompare(displayName(b)))
+  const finished = projects.filter((r) => r.active === false).sort((a, b) => displayName(a).localeCompare(displayName(b)))
   return (
     <MarketingShell>
       <div className="mx-auto max-w-5xl px-4 py-10 sm:py-14" style={AVASETU_SITE_VARS}>

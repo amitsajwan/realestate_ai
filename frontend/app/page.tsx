@@ -12,6 +12,7 @@ import { getMarketingConfig } from '@/lib/marketing/config'
 import { jsonLdString, organizationJsonLd, pageMetadata } from '@/lib/marketing/seo'
 import { BUYERS, LANDING as L, LIVE, PATHS } from '@/lib/marketing/strings'
 import { TIER_LABELS, localitiesByTier } from '@/lib/marketing/localities'
+import BuyerProjectLinks from '@/components/marketing/BuyerProjectLinks'
 import { BRAND_NAME, TAGLINE } from '@/lib/brand'
 
 export const metadata: Metadata = pageMetadata(getMarketingConfig(), {
@@ -30,6 +31,8 @@ const wrap = 'mx-auto max-w-6xl px-4 sm:px-6 lg:px-8'
 const section = 'scroll-mt-16 py-14 sm:py-20'
 const eyebrow = 'text-[13px] font-bold uppercase tracking-[0.08em] text-[#8a5d00]'
 const h2 = 'text-[1.75rem] font-extrabold leading-tight tracking-tight text-[#0f2340] sm:text-4xl'
+
+export const revalidate = 3600
 
 export default function LandingPage() {
   const cfg = getMarketingConfig()
@@ -212,6 +215,7 @@ export default function LandingPage() {
               </ul>
             </div>
           ))}
+          <BuyerProjectLinks eyebrow={eyebrow} />
           <p className="mt-5 flex flex-wrap gap-x-6 gap-y-1">
             <Link href="/projects" className="flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-4">{BUYERS.projects}</Link>
             <Link href="/news" className="flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-4">{BUYERS.news}</Link>

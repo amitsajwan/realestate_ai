@@ -15,13 +15,19 @@ import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getCatalog, getCatalogProject, getPropertyFacts } from '@/lib/site/api'
 import RegisterProjectPage from '@/components/site/RegisterProjectPage'
 import { pageMetadata } from '@/lib/marketing/seo'
-import { getRegisterProject } from '@/lib/site/register'
+import { getRegisterProject, registerDescription, registerTitle } from '@/lib/site/register'
 import { bhkRange, mainAgent, priceRange, projectWhatsAppMessage } from '@/lib/site/projects'
 import { catalogProjectMetadata, projectJsonLd } from '@/lib/site/seo'
 import { agentPath } from '@/lib/site/slug'
 import type { CatalogProject } from '@/lib/site/types'
 
-export const revalidate = 300
+// ISR: each project page is rendered on its first visit and kept for an hour (nothing here reads cookies or headers)
+export const revalidate = 3600
+export const dynamicParams = true
+/** No pages at build time; an empty list (with dynamicParams) makes every slug a cached, revalidated page instead of a dynamic render. */
+export async function generateStaticParams(): Promise<{ slug: string }[]> {
+  return []
+}
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -46,30 +52,14 @@ async function loadRegister(params: Props['params']) {
   return SLUG.test(slug) ? getRegisterProject(slug) : null
 }
 
-/** The longest title that fits a search result (65 characters): name, area, "possession date" and the MahaRERA number, dropping
- *  the extras in that order for long names. */
-function projectTitle(name: string, area: string | undefined, regno: string): string {
-  const at = area ? `${name}, ${area}` : name
-  const options = [`${at}: possession date, MahaRERA ${regno}`, `${at}: MahaRERA ${regno}`, `${name}: MahaRERA ${regno}`, at]
-  return options.find((t) => t.length <= 65) ?? name
-}
-
-/** The paragraph cut at a word boundary to fit a search snippet (about 155 characters). */
-function snippet(text: string, max = 155): string {
-  const t = text.replace(/\s+/g, ' ').trim()
-  if (t.length <= max) return t
-  const cut = t.slice(0, max - 1)
-  return cut.slice(0, cut.lastIndexOf(' ')).replace(/[,;:.\s]+$/, '') + '…'
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = await load(params)
   if (p && p.agents.length) return catalogProjectMetadata(p, priceRange(p) + ', ' + bhkRange(p.bhk_options))
   const r = await loadRegister(params)
   if (!r) return { title: 'Project not found', robots: { index: false } }
   const meta = pageMetadata(getMarketingConfig(), {
-    title: projectTitle(r.name, r.area?.name, r.regno),
-    description: snippet(r.paragraph),
+    title: registerTitle(r),
+    description: registerDescription(r),
     path: `/projects/${r.slug}`,
   })
   return r.indexable ? meta : { ...meta, robots: { index: false, follow: true } }   // thin pages stay out of search until filled in

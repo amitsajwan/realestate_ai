@@ -12,7 +12,7 @@ import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { buyerEnquirePath } from '@/components/marketing/siteLinks'
 import { getCatalog } from '@/lib/site/api'
 import { byLocality } from '@/lib/site/projects'
-import { getRegisterPlaces, getRegisterProjects, placePath } from '@/lib/site/register'
+import { displayName, getRegisterPlaces, getRegisterProjects, placePath, projectSummary, searchRegister } from '@/lib/site/register'
 import type { RegisterListItem, RegisterPlace } from '@/lib/site/register'
 
 export const revalidate = 300
@@ -25,9 +25,19 @@ export async function generateMetadata(): Promise<Metadata> {
   })
 }
 
-export default async function ProjectsPage() {
+const PER_AREA = 12
+
+/** Biggest projects first (the ones most buyers look for), then by name. */
+const byUnits = (a: RegisterListItem, b: RegisterListItem) => (b.units_total ?? 0) - (a.units_total ?? 0) || displayName(a).localeCompare(displayName(b))
+
+type Props = { searchParams?: Promise<{ q?: string | string[] }> }
+
+export default async function ProjectsPage({ searchParams }: Props = {}) {
   const cfg = getMarketingConfig()
-  const catalog = await getCatalog()
+  // ?q= is the search box without JavaScript: answered here from the backend search
+  const raw = (await searchParams)?.q
+  const q = (Array.isArray(raw) ? raw[0] : raw ?? '').trim().slice(0, 80)
+  const [catalog, hits] = await Promise.all([getCatalog(), q.length >= 2 ? searchRegister(q) : Promise.resolve([])])
   const groups = byLocality(catalog)
   const listed = new Set(catalog.map((p) => p.rera_no))
   // the register holds all of Pune district; the lists and search on this page are our covered areas, the rest is by place below
@@ -41,9 +51,9 @@ export default async function ProjectsPage() {
   }, [])
   const register = everything.filter((r) => r.indexable && r.active !== false && !listed.has(r.regno))
   const finished = everything.filter((r) => r.active === false).length
-  const areaNames = Object.fromEntries(LOCALITIES.map((l) => [l.key, l.name]))
-  const searchItems = everything.map(({ slug, name, regno, promoter, area, completion_now, checked, checks_total, active }) => ({ slug, name, regno, promoter, area, completion_now, checked, checks_total, active }))
-  const byArea = LOCALITIES.map((l) => ({ l, items: register.filter((r) => r.area === l.key).sort((a, b) => a.name.localeCompare(b.name)) }))
+  // each locality's Pune place hub (/projects/area/{place}) for the "All N projects" link
+  const hubFor = (l: { key: string; name: string }) => places.find((p) => p.key === l.key || p.name.toLowerCase() === l.name.toLowerCase())
+  const byArea = LOCALITIES.map((l) => ({ l, hub: hubFor(l), items: register.filter((r) => r.area === l.key).sort(byUnits) }))
     .filter((g) => g.items.length > 0)
   return (
     <MarketingShell>
@@ -58,7 +68,7 @@ export default async function ProjectsPage() {
           earlier than the MahaRERA date, we say so.
         </p>
 
-        <ProjectSearch items={searchItems} areaNames={areaNames} />
+        <ProjectSearch initialQ={q} initialHits={hits} />
 
         {groups.length === 0 ? (
           <p className="mt-8 rounded-xl bg-slate-50 p-4 text-slate-700">
@@ -94,22 +104,25 @@ export default async function ProjectsPage() {
               <span className="whitespace-nowrap"> <CheckBadge checked={4} total={4} compact /></span> means our crawler has also checked it
               against other sources (buildings, location, nearby places).
             </p>
-            {byArea.map(({ l, items }, i) => (
-              <details key={l.key} open={i === 0} className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-                <summary className="flex min-h-[44px] cursor-pointer items-center justify-between gap-3 text-lg font-semibold text-slate-900">
-                  <span>{l.name} <span className="font-normal text-slate-600">· {items.length} projects</span></span>
-                </summary>
+            {byArea.map(({ l, hub, items }) => (
+              <section key={l.key} aria-labelledby={`reg-${l.key}`} className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+                <h3 id={`reg-${l.key}`} className="text-lg font-semibold text-slate-900">
+                  {l.name} <span className="font-normal text-slate-600">· {items.length} projects</span>
+                </h3>
                 <ul className="mt-3 list-none columns-1 p-0 sm:columns-2" data-testid={`register-${l.key}`}>
-                  {items.map((r: RegisterListItem) => (
-                    <li key={r.slug} className="break-inside-avoid py-1">
-                      <Link href={`/projects/${r.slug}`} className="font-medium text-[#0f2340] underline underline-offset-2">{r.name}</Link>
+                  {items.slice(0, PER_AREA).map((r: RegisterListItem) => (
+                    <li key={r.slug} className="break-inside-avoid py-1.5">
+                      <Link href={`/projects/${r.slug}`} className="font-medium text-[#0f2340] underline underline-offset-2">{displayName(r)}</Link>
                       {' '}<CheckBadge checked={r.checked} total={r.checks_total} compact />
-                      {r.completion_now && <span className="ml-1 text-sm text-slate-600">· completion filed {r.completion_now.slice(0, 4)}</span>}
+                      <span className="block text-sm text-slate-600">{projectSummary(r)}</span>
                     </li>
                   ))}
                 </ul>
-                <Link href={`/localities/${l.slug}`} className="mt-2 inline-flex min-h-[44px] items-center text-sm text-[#0f2340] underline underline-offset-2">{l.name} buyer guide</Link>
-              </details>
+                <div className="mt-2 flex flex-wrap gap-x-5">
+                  {hub && <Link href={placePath(hub.slug)} className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-2">All {items.length} projects in {l.name} →</Link>}
+                  <Link href={`/localities/${l.slug}`} className="inline-flex min-h-[44px] items-center text-sm text-[#0f2340] underline underline-offset-2">{l.name} buyer guide</Link>
+                </div>
+              </section>
             ))}
           </section>
         )}

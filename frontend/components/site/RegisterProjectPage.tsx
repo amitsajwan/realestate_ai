@@ -5,7 +5,7 @@ import VerifiedFacts from '@/components/site/VerifiedFacts'
 import { breadcrumbJsonLd, jsonLdString } from '@/lib/marketing/seo'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import type { RegisterProject } from '@/lib/site/register'
-import { longDay, projectFaq, placePath } from '@/lib/site/register'
+import { areaName, displayName, longDay, monthYear, otherNames, projectFaq, placePath } from '@/lib/site/register'
 import type { EnrichCheck, Faq } from '@/lib/site/register'
 import type { PropertyFactsView } from '@/lib/site/types'
 import { formatPrice } from '@/lib/site/format'
@@ -107,6 +107,9 @@ function Hero({ p }: { p: RegisterProject }) {
   if (d?.towers) stats.push(['Towers', n(d.towers), d.max_floors ? `up to ${d.max_floors} floors` : undefined])
   if (d?.registered_on) stats.push(['Registered', longDay(d.registered_on)])
   const where = p.area ? `${p.area.name}, Pune` : [p.pune_place?.name ?? p.place, p.taluka, 'Pune district'].filter(Boolean).join(', ')
+  const shown = displayName(p)
+  const area = areaName(p)
+  const aka = otherNames(p, [p.name])   // the legal name has its own line
   return (
     <header className="overflow-hidden rounded-3xl bg-[#0f2340] px-5 py-7 text-white shadow-lg sm:px-8 sm:py-9">
       <div className="flex flex-wrap items-center gap-2">
@@ -116,7 +119,9 @@ function Hero({ p }: { p: RegisterProject }) {
         <span className="rounded-full bg-white/10 px-3 py-1 font-mono text-xs text-slate-200">{p.regno}</span>
         {p.completion_passed && <span className="rounded-full bg-amber-400/20 px-3 py-1 text-xs font-semibold text-amber-200">Completion date passed</span>}
       </div>
-      <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{p.name}</h1>
+      <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{shown}{area ? `, ${area}` : ''}</h1>
+      <p className="mt-2 text-sm text-slate-300" data-testid="legal-name">Filed on MahaRERA as {p.name} · {p.regno}</p>
+      {aka.length > 0 && <p className="mt-1 text-sm text-slate-300" data-testid="aka">Also known as: {aka.join(', ')}</p>}
       <p className="mt-2 text-base text-slate-200">{[p.promoter && `by ${p.promoter}`, where, p.pincode].filter(Boolean).join(' · ')}</p>
       {stats.length > 0 && (
         <dl className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -331,23 +336,30 @@ function FaqBox({ faq }: { faq: Faq[] }) {
 export default function RegisterProjectPage({ p, siteUrl, facts }: { p: RegisterProject; siteUrl: string; facts: PropertyFactsView | null }) {
   const url = `${siteUrl}/projects/${p.slug}`
   const moved = p.completion_now && p.completion_at_registration && p.completion_now !== p.completion_at_registration
-  const crumbs = [{ name: 'Home', path: '/' }, ...(p.area ? [{ name: `${p.area.name}, Pune`, path: `/localities/${p.area.slug}` }] : []),
-    { name: p.name, path: `/projects/${p.slug}` }]
+  const shown = displayName(p)
+  // the Pune place page listing this project's neighbours (every Pune district project has one)
+  const placeName = p.pune_place?.name ?? null
+  const placeHref = p.pune_place ? placePath(p.pune_place.key.replace(/_/g, '-')) : null
+  // the same levels as the visible breadcrumb below
+  const crumbs = [{ name: 'Home', path: '/' }, { name: 'Projects', path: '/projects' },
+    ...(p.area ? [{ name: p.area.name, path: `/localities/${p.area.slug}` }] : placeName && placeHref ? [{ name: placeName, path: placeHref }] : []),
+    { name: shown, path: `/projects/${p.slug}` }]
+  const alternateName = otherNames(p)
   const ld = {
-    '@context': 'https://schema.org', '@type': 'ApartmentComplex', name: p.name, url,
+    '@context': 'https://schema.org', '@type': 'ApartmentComplex', name: shown, url,
+    ...(alternateName.length ? { alternateName } : {}),
     address: { '@type': 'PostalAddress', addressLocality: p.area ? p.area.name : 'Pune', addressRegion: 'Maharashtra', postalCode: p.pincode || undefined, addressCountry: 'IN' },
     ...(p.units_total ? { numberOfAccommodationUnits: p.units_total } : {}),
     identifier: { '@type': 'PropertyValue', propertyID: 'MahaRERA registration', value: p.regno },
     ...(p.map ? { geo: { '@type': 'GeoCoordinates', latitude: p.map.lat, longitude: p.map.lon } } : {}),
-    ...(p.promoter ? { additionalProperty: [{ '@type': 'PropertyValue', name: 'Promoter', value: p.promoter }] } : {}),
+    ...(p.promoter ? { builder: { '@type': 'Organization', name: p.promoter } } : {}),
     ...(p.maharera_url ? { sameAs: p.maharera_url } : {}),
     description: p.paragraph,
   }
   const nearby = (facts as unknown as { nearby?: Near[] } | null)?.nearby ?? []
-  const faq = projectFaq(p, nearby)
-  // the Pune place page listing this project's neighbours (every Pune district project has one)
-  const placeName = p.pune_place?.name ?? null
-  const placeHref = p.pune_place ? placePath(p.pune_place.key.replace(/_/g, '-')) : null
+  const offer = (facts as unknown as { offer?: Offer } | null)?.offer
+  const faq = projectFaq(p, nearby, offer?.price_inr ? formatPrice(offer.price_inr) : null)
+  const byPromoter = (p.same_promoter ?? []).filter((x) => x.slug && x.slug !== p.slug)
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8" style={AVASETU_SITE_VARS}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(ld) }} />
@@ -393,6 +405,22 @@ export default function RegisterProjectPage({ p, siteUrl, facts }: { p: Register
           <MapBox p={p} nearby={nearby} />
           <BuilderBox p={p} />
           <FaqBox faq={faq} />
+
+          {byPromoter.length > 0 && p.promoter && (
+            <section aria-labelledby="promoter-title" data-testid="same-promoter">
+              <h2 id="promoter-title" className={H2}>More by {p.promoter}</h2>
+              <ul className="mt-3 grid list-none gap-2 p-0 sm:grid-cols-2">
+                {byPromoter.map((s) => (
+                  <li key={s.slug}>
+                    <Link href={`/projects/${s.slug}`} className="block min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 no-underline hover:border-[#0f2340]">
+                      <span className="block font-semibold text-[#0f2340]">{displayName(s)}</span>
+                      {s.completion_now && <span className="text-sm text-slate-600">possession {monthYear(s.completion_now)}</span>}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {p.same_area.length > 0 && (p.area || placeName) && (
             <section aria-labelledby="same-title">
