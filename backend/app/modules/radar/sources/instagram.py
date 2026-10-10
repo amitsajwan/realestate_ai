@@ -3,6 +3,7 @@ hashtag search with our own business account (META_IG_BUSINESS_ID + META_PAGE_AC
 7 days, so hashtag ids are cached on the watch and new hashtags are added at most HASHTAGS_PER_WEEK a week.
 Only the caption is readable (not the comments of other accounts' posts). Read-only: nothing is liked, followed or sent."""
 import logging
+import os
 from datetime import timedelta
 from typing import Dict, List, Optional
 
@@ -27,8 +28,10 @@ SEED_TAGS = (("punerealestate", None), ("puneflats", None), ("flatsinpune", None
 
 
 def available() -> bool:
+    """Hashtag search needs Meta's 'Instagram Public Content Access' feature (app review); without it every call is #10.
+    Off until RADAR_IG_HASHTAGS=true is set after the review is approved."""
     c = social_config()
-    return bool(c.ig_id and c.page_token)
+    return bool(c.ig_id and c.page_token) and (os.environ.get("RADAR_IG_HASHTAGS") or "").strip().lower() in ("1", "true", "yes")
 
 
 async def seed(db) -> None:

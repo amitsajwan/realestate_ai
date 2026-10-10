@@ -30,7 +30,8 @@ def _creds():
 
 
 def available() -> bool:
-    return True  # public endpoints need no key
+    """Reddit refuses keyless requests from our server IP (403, seen 2026-10-10): only with an app's credentials."""
+    return all(_creds())
 
 
 async def _auth(c: httpx.AsyncClient) -> Optional[str]:
