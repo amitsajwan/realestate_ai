@@ -56,12 +56,13 @@ class Store:
         """Set fields on an item without changing its status or history (card paths, publish bookkeeping)."""
         await self.items.update_one({"_id": id}, {"$set": {**fields, "updated_at": self.clock()}})
 
-    async def update_raw(self, id: str, text: str) -> None:
-        """Replace the stored raw text (the article reader enriches it); status and history are untouched."""
+    async def update_raw(self, id: str, text: str, url: Optional[str] = None) -> None:
+        """Replace the stored raw text, and the url when the reader found the publisher's own behind a Google News link; status and
+        history are untouched."""
         doc = await self.items.find_one({"_id": id})
         if doc is None:
             return
-        await self.items.update_one({"_id": id}, {"$set": {"raw": {**doc["raw"], "text": text}, "updated_at": self.clock()}})
+        await self.items.update_one({"_id": id}, {"$set": {"raw": {**doc["raw"], "text": text, **({"url": url} if url else {})}, "updated_at": self.clock()}})
 
     async def queue(self, limit: int = 50) -> List[dict]:
         return await self.items.find({"status": "pending_review"}).sort("updated_at", -1).limit(limit).to_list(limit)

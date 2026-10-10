@@ -9,7 +9,7 @@ const K = { key: 'kharadi', slug: 'kharadi', name: 'Kharadi' }
 const W = { key: 'wagholi', slug: 'wagholi', name: 'Wagholi' }
 const UK = { key: 'upper_kharadi', slug: 'upper-kharadi', name: 'Upper Kharadi' }
 
-const base = { kind: 'story' as const, permalinks: [], items: [], tip: '', disclaimer: DISCLAIMER, our_view: '', buyer_line: null }
+const base = { kind: 'story' as const, permalinks: [], items: [], tip: '', article: [], disclaimer: DISCLAIMER, our_view: '', buyer_line: null }
 // the fixed lines the backend chooses for these pillars (backend/app/modules/newsroom/policy.py BUYER_LINES)
 const LINE = {
   transport: 'Worth checking: how far your shortlisted project is from this road or line.',

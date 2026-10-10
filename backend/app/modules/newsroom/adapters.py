@@ -40,6 +40,42 @@ def make_fetcher(transport: Optional[httpx.AsyncBaseTransport] = None):
     return get
 
 
+GOOGLE_DECODE_URL = "https://news.google.com/_/DotsSplashUi/data/batchexecute"
+_BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+
+
+def make_google_resolver(transport: Optional[httpx.AsyncBaseTransport] = None):
+    """url -> the publisher's own article url behind a news.google.com link, or None. Google News feeds give only an encoded link; its
+    article page carries a signature and timestamp that Google's own decoder accepts (the same call the site makes on a click)."""
+    import json
+    import re
+    from urllib.parse import urlencode, urlsplit
+
+    async def resolve(url: str) -> Optional[str]:
+        gid = urlsplit(url).path.rstrip("/").split("/")[-1]
+        if not gid:
+            return None
+        try:
+            async with httpx.AsyncClient(timeout=FETCH_TIMEOUT_S, transport=transport, follow_redirects=True,
+                                         headers={"User-Agent": _BROWSER_UA}) as c:
+                page = (await c.get(f"https://news.google.com/articles/{gid}")).text
+                sg, ts = re.search(r'data-n-a-sg="([^"]+)"', page), re.search(r'data-n-a-ts="([^"]+)"', page)
+                if not (sg and ts):
+                    return None
+                inner = ["garturlreq", [["X", "X", ["X", "X"], None, None, 1, 1, "US:en", None, 1, None, None, None, None, None, 0, 1],
+                                        "X", "X", 1, [1, 1, 1], 1, 1, None, 0, 0, None, 0], gid, int(ts.group(1)), sg.group(1)]
+                req = [[["Fbv4je", json.dumps(inner, separators=(",", ":")), None, "generic"]]]
+                r = await c.post(GOOGLE_DECODE_URL, content=urlencode({"f.req": json.dumps(req, separators=(",", ":"))}),
+                                 headers={"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"})
+            m = re.search(r'\\"garturlres\\",\\"(https?://[^"\\]+)\\"', r.text)
+            real = m.group(1) if m else None
+            return real if real and (urlsplit(real).hostname or "") != "news.google.com" else None
+        except Exception as e:
+            log.info("newsroom: could not resolve a Google News link: %s", sanitize(e))
+            return None
+    return resolve
+
+
 def uploads_dir() -> Path:
     return Path(os.environ.get("UPLOAD_DIRECTORY") or "uploads")
 

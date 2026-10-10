@@ -22,6 +22,7 @@ ROBOTS_TTL_S = 3600
 SKIP_TAGS = {"script", "style", "nav", "aside", "footer", "form", "header", "noscript", "svg", "iframe", "template", "button", "select"}
 VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
 SKIP_ATTR = re.compile(r"comment|cookie|consent|gdpr|newsletter|subscribe|sidebar|related|social|share|advert|promo|paywall", re.I)
+PAGE_TAGS = {"html", "body", "main", "article"}
 SKIP_ROLES = ("navigation", "complementary", "contentinfo", "banner", "dialog")
 BOILERPLATE = re.compile(
     r"cookie|subscribe|subscription|newsletter|sign up|sign in|log in|all rights reserved|privacy policy|terms of use|"
@@ -125,7 +126,9 @@ class _Page(HTMLParser):
                 self.para[2].append(" ")
             return
         self._n += 1
-        skipped = tag in SKIP_TAGS or bool(SKIP_ATTR.search(f"{a.get('id')} {a.get('class')}")) or a.get("role") in SKIP_ROLES
+        # page-level containers are never skipped for a class name: WordPress puts layout words ("right-sidebar") on <body>
+        by_attr = tag not in PAGE_TAGS and bool(SKIP_ATTR.search(f"{a.get('id')} {a.get('class')}"))
+        skipped = tag in SKIP_TAGS or by_attr or a.get("role") in SKIP_ROLES
         self.stack.append([tag, skipped, self._n])
         if skipped:
             self.skip += 1
@@ -199,10 +202,22 @@ def _norm(s: str) -> str:
 
 
 # ---- the stage ----
-async def read(item: RawItem, get: Fetcher, robots: Optional[RobotsCache] = None) -> RawItem:
-    """Return `item` with the article body appended to `text` when that helps; otherwise the same item. Never raises on fetch problems."""
-    if len(item.text or "") >= SHORT_TEXT or not item.url or _is_google_redirect(item.url):
+async def read(item: RawItem, get: Fetcher, robots: Optional[RobotsCache] = None,
+               resolve: Optional[Callable[[str], Awaitable[Optional[str]]]] = None) -> RawItem:
+    """Return `item` with the article body appended to `text` when that helps; otherwise the same item. Never raises on fetch problems.
+    A news.google.com link is first swapped for the publisher's own url when `resolve` finds it (the returned item carries that url)."""
+    if len(item.text or "") >= SHORT_TEXT or not item.url:
         return item
+    if _is_google_redirect(item.url):
+        real = None
+        if resolve is not None:
+            try:
+                real = await resolve(item.url)
+            except Exception:
+                real = None
+        if not real:
+            return item
+        item = dataclasses.replace(item, url=real)
     robots = robots or RobotsCache()
     try:
         if not await robots.allowed(item.url, get):

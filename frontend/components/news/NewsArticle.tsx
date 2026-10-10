@@ -8,11 +8,12 @@ import { TEAM } from '@/lib/brand'
 
 const CHANNEL = { facebook: 'Facebook', instagram: 'Instagram' } as const
 
-/** The detail view of one news item: headline, our summary and its 'Worth checking' line, our labelled view, what to check, the source (as a named link, never a bare URL),
+/** The detail view of one news item: headline, our summary, the full story in sections when there is one and its 'Worth checking' line, our labelled view, what to check, the source (as a named link, never a bare URL),
  *  the standing disclaimer and the interest strip. */
 export default function NewsArticle({ item }: { item: NewsItem }) {
   const date = formatNewsDate(item.as_of)
   const digest = item.kind === 'digest'
+  const full = item.article.length > 0 // the full story replaces the short 'our view' and 'what to check' boxes, which it covers
   return (
     <article data-testid="news-article" className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
       <p className="text-sm"><Link href="/news" className="text-[#0f2340] underline underline-offset-2">{NEWS_TEXT.all}</Link></p>
@@ -53,11 +54,18 @@ export default function NewsArticle({ item }: { item: NewsItem }) {
         </section>
       ) : (
         <>
-          <p className="mt-8 text-lg leading-relaxed text-slate-900" data-testid="news-summary">{item.summary}</p>
+          <p className="mt-8 text-lg font-medium leading-relaxed text-slate-900" data-testid="news-summary">{item.summary}</p>
           <p className="mt-2 text-xs text-slate-600">{NEWS_TEXT.summaryNote}</p>
+
+          {full && item.article.map((s, i) => (
+            <section key={i} className="mt-8" aria-labelledby={`art-h-${i}`} data-testid="news-section">
+              <h2 id={`art-h-${i}`} className="text-xl font-bold text-[#0f2340]">{s.heading}</h2>
+              {s.paragraphs.map((p, j) => <p key={j} className="mt-3 text-[17px] leading-relaxed text-slate-800">{p}</p>)}
+            </section>
+          ))}
           <BuyerLine line={item.buyer_line} />
 
-          {item.our_view && (
+          {!full && item.our_view && (
             <section className="mt-6 rounded-xl bg-slate-50 p-4" data-testid="news-our-view" aria-labelledby="view-h">
               <h2 id="view-h" className="text-sm font-bold uppercase tracking-wide text-slate-700">{NEWS_TEXT.ourView}</h2>
               <p className="mt-1 text-slate-800">{item.our_view}</p>
@@ -65,7 +73,7 @@ export default function NewsArticle({ item }: { item: NewsItem }) {
             </section>
           )}
 
-          {item.what_to_check && (
+          {!full && item.what_to_check && (
             <section className="mt-6 rounded-xl border-l-4 border-[#f0b440] bg-[#fbf6ea] p-4" data-testid="what-to-check" aria-labelledby="check-h">
               <h2 id="check-h" className="text-sm font-bold uppercase tracking-wide text-[#0f2340]">{NEWS_TEXT.weCheck}</h2>
               <p className="mt-1 text-slate-900">{item.what_to_check}</p>
