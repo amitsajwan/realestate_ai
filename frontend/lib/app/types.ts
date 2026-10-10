@@ -103,7 +103,10 @@ export type ListingInput = Partial<
     Listing,
     'id' | 'agent_id' | 'status' | 'created_at' | 'updated_at' | 'published_at' | 'freshness' | 'days_since_confirmed'
   >
->
+> & {
+  /** Create only: what the AI draft already read from the files, so marketing does not read them again. */
+  file_claims?: { brochure: string[] }
+}
 
 export interface AIDraft {
   draft: ListingInput
@@ -111,11 +114,27 @@ export interface AIDraft {
   missing: string[]
   transcript?: string | null
   warnings: string[]
+  /** Where each field came from. */
+  sources?: Record<string, DraftSource>
+  /** MahaRERA projects that match the name, when the draft has no rera_no. */
+  rera_candidates?: ReraCandidate[]
+  /** What was read from the builder's brochure (the builder's words, not verified). */
+  brochure?: { claims: string[]; rera_no?: string | null; pages?: number; error?: string }
+}
+
+export type DraftSource = 'brochure' | 'maharera' | 'agent'
+
+export interface ReraCandidate {
+  regno: string
+  name: string
+  taluka?: string | null
 }
 
 export interface AIDraftRequest {
   text?: string
   audio?: Blob
+  /** From uploadBrochure: the draft reads the PDF too. */
+  brochure_url?: string
   images?: File[]
   image_count: number
 }
