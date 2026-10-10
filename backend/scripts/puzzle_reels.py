@@ -4,7 +4,7 @@
         every puzzle today's MahaRERA area stats support: question, options, answer
   PYTHONPATH=. python scripts/puzzle_reels.py preview [--out uploads/puzzlereels]
         draw and check the slides and render the MP4 of each, for review
-  PYTHONPATH=. python scripts/puzzle_reels.py plan --start 2026-10-12 [--time 12:30] [--channels instagram facebook_page]
+  PYTHONPATH=. python scripts/puzzle_reels.py plan --start 2026-10-12 [--time 21:00] [--channels instagram facebook_page]
         add the puzzles to the calendar as PLANNED rows, one a day. Nothing posts until the owner approves each row in Studio.
 On the server:  docker compose exec -T -e PYTHONPATH=. backend python scripts/puzzle_reels.py list
 """
@@ -86,7 +86,7 @@ def main() -> int:
     p.add_argument("--out", default="uploads/puzzlereels")
     p = sub.add_parser("plan")
     p.add_argument("--start", required=True, help="first day, YYYY-MM-DD")
-    p.add_argument("--time", default="12:30", help="IST, HH:MM")
+    p.add_argument("--time", default="21:00", help="IST, HH:MM (buyers 25-40 scroll after work)")
     p.add_argument("--channels", nargs="+", default=["instagram", "facebook_page"], choices=["facebook_page", "instagram"])
     a = ap.parse_args()
     reels = asyncio.run(_puzzles())
