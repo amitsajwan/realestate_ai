@@ -119,6 +119,38 @@ his branding has `show_whatsapp` turned on.
 
 ---
 
+## H. The day the number arrives (checklist, about 30 minutes)
+
+**Choose the kind of number first, because it decides the path:**
+- **A number only for Avasetu's assistant (recommended).** Add it in WhatsApp Manager (section G) and do **not** install the
+  WhatsApp Business app on it first. The assistant answers, and you read every chat in Studio > Interest > WhatsApp chats.
+- **A number you also want to use in the WhatsApp Business app on your phone.** That is coexistence (section F), and it needs
+  Meta's Embedded Signup as a Tech Provider: more setup, and some app features are turned off. Use it only if you must answer
+  from the phone app.
+
+Once the number shows in WhatsApp Manager with a Phone number ID:
+1. Connect it in test mode (sections D and E): `.\deploy\gcp\whatsapp_connect.ps1 -PhoneNumberId <id> -WabaId <waba id>`, then paste the
+   Callback URL and Verify token in Meta and subscribe to `messages`.
+2. From your own phone send **Hi**, then **2 BHK Wagholi 80 lakh**, then **TRIAL**. Check Studio > Interest > WhatsApp chats
+   ("Test mode, not sent") and Leads.
+3. Go live and show the number everywhere in one run:
+   ```powershell
+   .\deploy\gcp\whatsapp_connect.ps1 -PhoneNumberId <id> -PublicNumber 91XXXXXXXXXX -Live
+   ```
+   `-PublicNumber` writes `WHATSAPP_PUBLIC_NUMBER` (every buyer post from then on carries "💬 WhatsApp …" with the post's code: a
+   tap-to-chat link on Facebook, "send: interested in CODE" on Instagram, so each chat is counted for its post and routed to the
+   agent), and `NEXT_PUBLIC_WHATSAPP_NUMBER` / `NEXT_PUBLIC_CONTACT_WHATSAPP` (the website's chat button, the /trial "claim on
+   WhatsApp" button), then rebuilds the website. Posts already planned pick the line up when they publish; nothing to redo.
+4. The script ends by printing `scripts/whatsapp_status.py`: every line should say ON except "Agents' own numbers". Run it any
+   time on the VM: `sudo docker compose exec -T -e PYTHONPATH=. backend python scripts/whatsapp_status.py`.
+5. Undo: run the script without `-Live` (test mode again). To take the number off posts, delete the `WHATSAPP_PUBLIC_NUMBER`
+   line from `deploy/gcp/.env` on the VM and `sudo docker compose up -d backend worker`.
+
+Then: the /trial button switches to WhatsApp by itself after the rebuild, but three texts still say "leave your number … code
+comes on WhatsApp, usually the same day" (`frontend/lib/marketing/strings.ts` FAQ and lead, `frontend/app/for-agents/content.ts`):
+change them to "send TRIAL on WhatsApp and the code comes back at once", and
+consider a small Click-to-WhatsApp ad: a chat that starts from such an ad gets 72 hours of free replies.
+
 ## Cost table (Meta per-message pricing, in force since 1 July 2025)
 
 | Message | When | Cost | We use it? |

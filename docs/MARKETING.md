@@ -30,7 +30,10 @@ Every part below carries one status:
 | Public feed of our posts (`/posts`) | LIVE | |
 | Project page enrichment from MahaRERA | LIVE | |
 | Daily reels (area insight + project, 2 a day) | BUILT, OFF | `CALENDAR_DAILY_REELS` unset. |
-| Location tags (Instagram, Facebook Page posts) | BUILT, OFF | Needs `IG_LOCATION_*` place ids. Not on Facebook Page reels. |
+| Location tags (Instagram, Facebook Page posts) | BUILT, OFF | Needs `IG_LOCATION_*` place ids (how to find one: §7). Not on Facebook Page reels. |
+| Audience segment, audience hashtag, search line, one ask per post | BUILT, not deployed | Branch `work/reach-captions` (11 Oct). Plan: `docs/plan/reach-captions.md`. |
+| WhatsApp line on buyer posts | BUILT, OFF | Needs `WHATSAPP_PUBLIC_NUMBER`: `whatsapp_connect.ps1 -PublicNumber` (WHATSAPP_SETUP §H). |
+| Results by audience, hook, hashtag | BUILT | `scripts/content_report.py` over the insights snapshots. |
 | Reading reach, plays and watch time back from Meta | TARGET | Nothing reads results yet. |
 | Shared store of verified facts | TARGET | Facts live in three places today. |
 | Builder record, portal prices, road distances | TARGET | Campaign facts come from MahaRERA, OpenStreetMap and calculators only. |
@@ -149,7 +152,12 @@ The calendar runner (`calendar/runner.py`, every 120 seconds in production):
 - holds back a row whose opening line already went out on that channel recently, and skips a row more than 48 hours late,
   so an outage never causes a burst;
 - adds the interest line and the footer, and replaces the caption's hashtags with one line of the best few: 5 on Instagram,
-  3 on Facebook, most specific first (locality, project, property type), from `calendar/reach.py`;
+  3 on Facebook, most specific first (locality, project, the audience's own tag such as `#2BHKWagholi` or `#NAPlotsPune`,
+  property type), from `calendar/reach.py`; the tag line and whether a location tag went out are saved in the row's tags;
+- on a listing post, puts a search line under the headline (`📍 2 BHK flat for sale in Wagholi, Pune · ₹85 lakh`, in the post's
+  language, from the listing record) unless the headline already names the place and a price;
+- asks one thing in the footer: a send ("Send this to someone looking for a home in Wagholi"), or on about 1 post in 4 a
+  comment (`Comment INFO`); nothing when the caption already asks for a comment, share or send. Recruitment posts keep their asks;
 - posts by kind: an image or Instagram carousel, or a Reel. Facebook's copy of a carousel goes out as a slides Reel, because
   Facebook shows a multi-photo post as a grid. Sample-home showcase posts are retired: a leftover showcase row is never posted;
 - retries a failure after 10 minutes, at most 3 tries, with a sanitised reason shown in Problems;
@@ -203,6 +211,20 @@ as "may already be live": check the page, then delete that ledger document to al
 | `META_PAGE_ID`, `META_PAGE_ACCESS_TOKEN`, `META_IG_BUSINESS_ID`, `PUBLIC_MEDIA_BASE_URL` | set | unset |
 | `GOOGLE_TTS_API_KEY` | set | unset |
 | `IG_LOCATION_*` | unset | unset |
+| `WHATSAPP_PUBLIC_NUMBER` | unset | unset |
+
+**Finding a location id.** `IG_LOCATION_WAGHOLI` (and `_KHARADI`, `_RANJANGAON`, `_PUNE`...) is the numeric id of a Facebook
+place (the Instagram API takes the place's Facebook Page id). Meta's place search needs extra permissions, so look it up by hand:
+search "Wagholi, Pune" on Facebook and open the place (not a business). Its address is either facebook.com/<number> (that number
+is the id) or a name; for a name, the id is under About > Page transparency. Not verified on our account yet: try one id on a
+test post first. Add the lines to `deploy/gcp/.env` on the VM and restart `backend worker`. Check one post: Instagram shows the place name
+above it.
+
+**Who sees a post.** Organic posts have no targeting. Meta reads what a post is about (caption words, card and on-screen text,
+voice, hashtags, location tag, the image), tries it on a small group of followers and non-followers interested in similar
+things, and widens it when watch time, sends, saves and comments beat similar posts. So the caption, card and voice name the
+place, BHK and price plainly; the first two seconds earn the watch; the footer asks for a send. A paid boost is the only real
+targeting (radius, age).
 
 ## 8. Open decisions
 

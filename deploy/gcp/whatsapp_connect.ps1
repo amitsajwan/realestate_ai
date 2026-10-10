@@ -23,7 +23,8 @@ param(
   [string]$PhoneNumberId = "",
   [string]$WabaId        = "",
   [string]$OwnerAgentId  = "",
-  [string]$PublicNumber  = "",   # optional: the number buyers see on the website button (NEXT_PUBLIC_WHATSAPP_NUMBER, needs a frontend rebuild)
+  [string]$PublicNumber  = "",   # optional: the number buyers see: on posts (WHATSAPP_PUBLIC_NUMBER) and the website button, the free-trial
+                                 # button and the contact link (NEXT_PUBLIC_*, so the frontend is rebuilt). Leave it out on Meta's test number.
   [string]$AppId     = "1072258319113727",
   [string]$Project   = "trader-502012",
   [string]$Zone      = "asia-south1-a",
@@ -92,7 +93,13 @@ $dry = if ($Live) { "false" } else { "true" }
 $lines = @("WHATSAPP_ENABLED=true", "WHATSAPP_PHONE_NUMBER_ID=$PhoneNumberId", "WHATSAPP_ACCESS_TOKEN=$token", "WHATSAPP_APP_SECRET=$secret",
            "WHATSAPP_VERIFY_TOKEN=$verify", "WHATSAPP_GRAPH_VERSION=$Version", "WHATSAPP_DRY_RUN=$dry")
 if ($OwnerAgentId) { $lines += "WHATSAPP_OWNER_AGENT_ID=$OwnerAgentId" }
-if ($PublicNumber) { $lines += "NEXT_PUBLIC_WHATSAPP_NUMBER=$(($PublicNumber -replace '\D', ''))" }
+if ($PublicNumber) {
+  $digits = $PublicNumber -replace '\D', ''
+  if ($digits -match '^[6-9]\d{9}$') { $digits = "91$digits" }
+  if ($digits -notmatch '^\d{11,15}$') { throw "-PublicNumber should be the full number with country code, e.g. 919876543210" }
+  # posts (calendar captions: tap-to-chat on Facebook, 'send: interested in CODE' on Instagram), the website button, /trial, contact link
+  $lines += "WHATSAPP_PUBLIC_NUMBER=$digits", "NEXT_PUBLIC_WHATSAPP_NUMBER=$digits", "NEXT_PUBLIC_CONTACT_WHATSAPP=$digits"
+}
 $remoteSh = @'
 set -e
 cd ~/__DIR__/deploy/gcp
@@ -102,13 +109,21 @@ chmod 600 .env.bak-whatsapp
 for k in $(cut -d= -f1 ~/wa.env); do sed -i "/^$k=/d" .env; done
 sed -i -e '$a\' .env
 cat ~/wa.env >> .env
+cut -d= -f1 ~/wa.env | sed 's/$/=/' > ~/wa.env.keys
 chmod 600 .env
 rm -f ~/wa.env
 sudo docker compose up -d backend worker  # the worker reads the same .env (background loops)
+if grep -q '^NEXT_PUBLIC_WHATSAPP_NUMBER=' ~/wa.env.keys 2>/dev/null; then
+  echo "==> Rebuilding the website so its WhatsApp buttons show the number (a few minutes)"
+  sudo docker compose up -d --build frontend
+fi
+rm -f ~/wa.env.keys
 sleep 15
 sudo docker compose ps backend worker --format '{{.Name}} {{.Status}}'
 grep -c '^WHATSAPP_ACCESS_TOKEN=' .env | sed 's/^/token lines in .env: /'
 grep '^WHATSAPP_DRY_RUN=' .env
+grep '^WHATSAPP_PUBLIC_NUMBER=' .env >/dev/null && echo 'posts: carry the WhatsApp line (WHATSAPP_PUBLIC_NUMBER set)' || echo 'posts: no WhatsApp line yet (run again with -PublicNumber when the real number is connected)'
+sudo docker compose exec -T -e PYTHONPATH=. backend python scripts/whatsapp_status.py || true
 grep -q '^WHATSAPP_OWNER_AGENT_ID=' .env || echo 'NOTE: WHATSAPP_OWNER_AGENT_ID is not set; chats will use INTEREST_OWNER_AGENT_ID / ENGAGE_OWNER_AGENT_ID'
 '@ -replace "__DIR__", $RemoteDir
 $tmpEnv = Join-Path $env:TEMP "wa.env"; $tmpSh = Join-Path $env:TEMP "wa_apply.sh"
