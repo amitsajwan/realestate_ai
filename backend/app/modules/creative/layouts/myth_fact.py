@@ -2,6 +2,7 @@
 from typing import List
 
 from ..models import Copy, Design
+from ..i18n import is_whatsapp
 from .base import Canvas, Rendered, footer_h, load_font, mix, ui
 from .palette import FACT_GREEN, MYTH_RED, get
 
@@ -21,7 +22,7 @@ def render(copy: Copy, design: Design) -> List[Rendered]:
     p = copy.payload
     myth, truth = str(p.get("myth", "")), str(p.get("truth", ""))
     c.chip(str(p.get("kicker", "MYTH VS FACT")), c.left, c.top, icon="bolt")
-    c.brand_bar(dark_bg=not pal.light)
+    c.brand_bar(right=copy.card_cta if is_whatsapp(copy.card_cta) else None, dark_bg=not pal.light)  # a listing post's close
     top = c.top + 100
     bottom = c.bottom - footer_h() - 30
     gap = 56

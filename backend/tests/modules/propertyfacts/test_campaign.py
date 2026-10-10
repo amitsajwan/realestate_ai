@@ -1,6 +1,8 @@
 """PF-4 surroundings, PF-7 calculators and CA-1 campaign angles."""
 from app.modules.creative.guards import problems_in
 from app.modules.propertyfacts import calc, campaign, surroundings
+from datetime import date
+
 from app.modules.propertyfacts.facts import Reading, sheet
 
 LAT, LON = 18.7536, 74.2446
@@ -52,15 +54,65 @@ def gulmohar():
     return sheet(rs)
 
 
-def test_plan_uses_every_angle_the_facts_support():
-    ids = [aid for aid, _ in campaign.plan(gulmohar())]
-    assert ids == [a.id for a in campaign.ANGLES]
-    b = dict(campaign.plan(gulmohar()))
+TODAY = date(2026, 10, 10)
+
+
+def test_plan_puts_the_buyers_questions_first_and_never_a_moved_date():
+    ids = [aid for aid, _ in campaign.plan(gulmohar(), today=TODAY)]
+    assert ids == ["overview", "price_reveal", "emi", "size_in_guntha", "near_work"]    # price, EMI, size, distance
+    every = dict(campaign.plan(gulmohar(), follow_ups=None, today=TODAY))
+    assert "possession" not in every and "plot_or_flat" not in every    # a moved date; the price already headlined
+    assert not any("2029" in s for s in every["overview"].steps)
+    b = dict(campaign.plan(gulmohar(), today=TODAY))
     assert b["price_reveal"].kicker == "GULMOHAR CITY" and "#Ranjangaon" in b["price_reveal"].hashtags
-    assert b["possession"].truth == "MahaRERA now shows 30 Apr 2029 for Gulmohar City."
-    for aid, brief in campaign.plan(gulmohar()):   # every hand-written hook is itself guard-clean
+    for aid, brief in campaign.plan(gulmohar(), follow_ups=None, today=TODAY):   # every hand-written hook is itself guard-clean
         hook = next(iter(brief.hooks.values()), "")
         assert problems_in(hook, brief.corpus()) == [], (aid, hook)
+
+
+def flat(possession_now="2027-06-30", moved=0):
+    rs = [Reading(k, v, "listing") for k, v in dict(project_name="Skyline Heights", locality="Kharadi", property_type="flat",
+                                                     transaction="sale", price_inr=9500000, carpet_sqft=1050).items()]
+    rs += [Reading("possession_now", possession_now, "maharera"), Reading("possession_moved_months", moved, "calc"),
+           Reading("nearby.railway", [{"name": "Hadapsar Railway Station", "km": 6.1}], "osm"),
+           Reading("nearby.bus", [{"name": "Kharadi PMPML Bus Stand", "km": 1.2}], "osm"),
+           Reading("nearby.hospital", [{"name": "Columbia Asia Hospital", "km": 1.9}], "osm"),
+           Reading("nearby.industry", [{"name": "Maharashtra Industrial Development Corporation", "km": 2.4}], "osm")]
+    rs += calc.readings({"price_inr": 9500000, "carpet_sqft": 1050, "transaction": "sale"})
+    return sheet(rs)
+
+
+def test_a_near_unmoved_date_is_a_plain_stat_and_a_far_or_moved_one_no_card():
+    near = dict(campaign.plan(flat(), follow_ups=None, today=TODAY))["possession"]
+    assert near.prefer == "stat" and near.stat_value == "30 Jun 2027" and not near.myth
+    assert "possession" not in dict(campaign.plan(flat("2029-06-30"), follow_ups=None, today=TODAY))
+    assert "possession" not in dict(campaign.plan(flat(moved=3), follow_ups=None, today=TODAY))
+
+
+def test_places_are_named_as_buyers_say_them_and_never_twice():
+    b = dict(campaign.plan(gulmohar(), follow_ups=None, today=TODAY))
+    assert b["near_work"].stat_label == "to IndoSpace Industrial Park Ranjangaon"
+    f = dict(campaign.plan(flat(), follow_ups=None, today=TODAY))
+    assert f["near_work"].stat_label == "to Kharadi MIDC"
+    assert not any("MIDC" in s for s in f["nearby"].steps)               # headlined by near_work: not repeated
+    assert "Railway station: Hadapsar station, about 6.1 km" in f["nearby"].steps
+    assert "Bus stand: Kharadi bus stand, about 1.2 km" in f["nearby"].steps
+    claimed = dict(campaign.plan(flat(), follow_ups=None, today=TODAY, claims=["Kharadi MIDC 10 min drive"]))
+    assert claimed["near_work"].stat_label == "to Kharadi MIDC"
+    assert surroundings.short_name("industry", "MIDC Bhosari") == "Bhosari MIDC"
+    assert surroundings.short_name("bus", "Shirur S.T Stand") == "Shirur ST stand"
+
+
+def test_one_project_name_and_a_whatsapp_close():
+    mr = campaign.plan(gulmohar(), language="mr", names={"Gulmohar City": "गुलमोहर सिटी"}, today=TODAY)
+    for aid, brief in mr:
+        assert brief.kicker == "गुलमोहर सिटी" and brief.names == {"Gulmohar City": "गुलमोहर सिटी"}
+        assert "गुलमोहर सिटी, रांजणगाव" in brief.link_line
+        assert brief.cta == "WhatsApp us"
+    from app.modules.creative.translate import with_names
+    names = {"Gulmohar City": "गुलमोहर सिटी"}
+    assert with_names("Gulmohar City मध्ये प्लॉट", "Plots in Gulmohar City", names) == "गुलमोहर सिटी मध्ये प्लॉट"
+    assert with_names("गुलमोहोर सिटीत प्लॉट", "Plots in Gulmohar City", names) is None    # another spelling is refused
 
 
 def test_thin_facts_give_fewer_angles_and_never_invent():
@@ -71,14 +123,14 @@ def test_thin_facts_give_fewer_angles_and_never_invent():
 async def test_make_renders_a_guard_clean_campaign(tmp_path):
     dropped = {}
     packs = await campaign.make(gulmohar(), tmp_path, dropped=dropped)
-    assert len(packs) >= 10, dropped
+    assert len(packs) == 1 + campaign.FOLLOW_UPS, dropped
     for aid, p in packs:
         assert p.report["ok"] and p.images and "#Ranjangaon" in p.caption
         assert "How many did you do" not in p.caption
 
 
 def test_every_angle_asks_its_own_question_in_every_language():
-    b = dict(campaign.plan(gulmohar()))
+    b = dict(campaign.plan(gulmohar(), follow_ups=None))
     for aid, brief in b.items():
         assert set(brief.asks) == {"en", "mr", "hi"}, aid
         for text in brief.asks.values():

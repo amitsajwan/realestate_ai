@@ -6,6 +6,7 @@ from PIL import Image, ImageDraw
 
 
 from ..models import Copy, Design
+from ..i18n import is_whatsapp
 from .base import Canvas, Rendered, brand_name, card_brand, known, load_font, mix, strip_on, ui
 from .palette import get
 
@@ -108,10 +109,10 @@ def _closing(copy: Copy, design: Design, n: int) -> Rendered:
     c = Canvas(design.size, pal, "checklist", n - 1, pattern="rings", glow_at=(0.5, 0.45))
     w = c.right - c.left
     if strip_on():  # an agent's carousel ends with who to call, not a generic save-this slide
-        c.contact_card(str(copy.payload.get("kicker") or ""), known("Save this"))
+        c.contact_card(str(copy.payload.get("kicker") or ""), known(copy.card_cta if is_whatsapp(copy.card_cta) else "Save this"))
         _cue(c, n, n - 1, True)
         return c.finish()
-    c.icon("bookmark", (c.left + 80, c.top + (190 if tall else 130)), 170 if tall else 120, pal.accent, 6)
+    c.icon("bubble" if is_whatsapp(copy.card_cta) else "bookmark", (c.left + 80, c.top + (190 if tall else 130)), 170 if tall else 120, pal.accent, 6)
     y = c.top + (330 if tall else 250)
     y = c.text(known("Save this" if copy.card_cta in ("Swipe", "") else copy.card_cta), c.left, y, w, 150 if tall else 110, "bold", pal.ink, 2, pitch=1.06, role="hook")
     y = c.text(copy.cta_question, c.left, y + 40, w, 56 if tall else 44, "medium", pal.muted, 4, pitch=1.3, balance=False, role="support")

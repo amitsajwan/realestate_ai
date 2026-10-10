@@ -3,6 +3,7 @@ import math
 from typing import List
 
 from ..models import Copy, Design
+from ..i18n import is_whatsapp
 from .base import Canvas, Rendered, mix, footer_h
 from .palette import FACT_GREEN, MYTH_RED, get
 
@@ -79,5 +80,5 @@ def render(copy: Copy, design: Design) -> List[Rendered]:
     cw = (w - gap) // 2
     _column(c, (c.left, top, c.left + cw, bottom), [str(x) for x in p.get("messy", [])], False, tall)
     _column(c, (c.left + cw + gap, top, c.right, bottom), [str(x) for x in p.get("clean", [])], True, tall)
-    c.brand_bar(dark_bg=not pal.light)
+    c.brand_bar(right=copy.card_cta if is_whatsapp(copy.card_cta) else None, dark_bg=not pal.light)  # a listing post's close
     return [c.finish()]

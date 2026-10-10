@@ -6,6 +6,7 @@ from PIL import Image, ImageDraw
 from app.modules.marketing.images import load_font
 
 from ..models import Copy, Design
+from ..i18n import is_whatsapp
 from .base import Canvas, Rendered, footer_h
 from .palette import get
 
@@ -20,7 +21,7 @@ def render(copy: Copy, design: Design) -> List[Rendered]:
     ImageDraw.Draw(mask).text((c.left - 14, c.top + (150 if tall else 90)), "“", font=load_font(620 if tall else 480, "bold"), fill=70 if pal.light else 60, anchor="ls")
     c.img.paste(pal.accent_fill, (0, 0), mask)
     c.chip(str(copy.payload.get("kicker", "QUICK TIP")), c.left, c.top, icon="bolt")
-    c.brand_bar(dark_bg=not pal.light)
+    c.brand_bar(right=copy.card_cta if is_whatsapp(copy.card_cta) else None, dark_bg=not pal.light)  # a listing post's close
     top, bottom = c.top + (270 if tall else 200), c.bottom - footer_h() - 40
     sup = copy.support or str(copy.payload.get("tip") or "")
     size = 100 if tall else 84

@@ -7,6 +7,7 @@ import hashlib
 import logging
 import re
 from dataclasses import dataclass, replace
+from datetime import date
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -137,11 +138,20 @@ class Ctx:
 
     def __init__(self, facts: Dict[str, Fact], photo: str = "none", link: str = "", voice: Optional[Voice] = None,
                  card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (), language: str = "en",
-                 previous: Sequence[str] = ()):
+                 previous: Sequence[str] = (), names: Optional[Dict[str, str]] = None, claims: Sequence[str] = (),
+                 today: Optional[date] = None):
         self.v: Dict[str, Any] = {k: f.value for k, f in facts.items() if f.usable}
+        self.today = today or date.today()
+        # the builder's claims (listing.file_claims.brochure): only their wording of a place's name is used, never a number
+        self.claims = [str(x) for x in list(claims) + list(self.v.get("claims.brochure") or []) if x]
+        self.used: set = set()   # facts an earlier angle already headlined ("price", "place:Ranjangaon MIDC")
         self.previous = list(previous)   # opening lines of this property's posts that are already live
         self.photo, self.link = photo, link
         self.project = self.v.get("project_name") or ""
+        # the project's name as every post of this campaign writes it (Devanagari in a Marathi/Hindi campaign when chosen)
+        self.name = (names or {}).get(self.project) or self.project
+        # an English campaign keeps its name as written; a Marathi/Hindi one only when make() chose its spelling (names)
+        self.names = {self.project: self.name} if self.project and (names or language == "en") else {}
         self.locality = self.v.get("locality") or ""
         areas = ", ".join(p for p in (self.locality, self.v.get("city") or "Pune") if p) if self.locality else ""
         v = voice or Voice()
@@ -152,12 +162,26 @@ class Ctx:
             card_brand = replace(card_brand, price=card_brand.price or price, rera=card_brand.rera or str(self.v.get("rera_no") or ""))
         self.card_brand = card_brand
         self.where = ", ".join(p for p in (self.project, self.locality) if p)
+        self.where_named = ", ".join(p for p in (self.name, self.locality) if p)
         self.plot = self.v.get("property_type") == "plot"
         self.kind = "plot" if self.plot else "home"
         self.layout = self.v.get("listing_scope") == "layout"   # a whole project: the price is a starting price
         self.registered = bool(self.v.get("rera_no"))
         self.sqft = self.v.get("size_min_sqft") or self.v.get("plot_sqft") or self.v.get("carpet_sqft")
         self.readers = reader_note(self.v, self.plot, self.layout)
+
+    def place(self, key: str, p: Dict[str, Any]) -> str:
+        """A nearby place as a buyer names it (surroundings.short_name), in the builder's brochure wording when a claim names
+        the same place ("Ranjangaon MIDC 10 min" -> "Ranjangaon MIDC")."""
+        short = surroundings.short_name(key, p.get("name") or "", self.locality or self.v.get("taluka") or "")
+        mine, core = _tokens(short) | _tokens(p.get("name") or ""), _tokens(short)
+        for claim in self.claims:
+            for m in _CLAIMED_PLACE.finditer(claim):
+                said = m.group(1).strip(" -,:")
+                theirs = _tokens(said)
+                if theirs and theirs <= mine and len(theirs & core) >= min(2, len(core)):
+                    return said
+        return short
 
     def tags(self) -> List[str]:
         words = [w.capitalize() for w in self.locality.split()]
@@ -170,10 +194,16 @@ class Ctx:
             kw["hooks"] = {p: hook for p in PATTERNS}
         if angle in ASKS:
             kw.setdefault("asks", dict(ASKS[angle]))
-        kw.setdefault("kicker", self.project.upper()[:28])
+        kw.setdefault("kicker", self.name.upper()[:28])
         where = self.where or "this property"
-        kw.setdefault("intro", f"{where}." if self.where else "")
-        kw.setdefault("link_line", link_line_for(where, self.language, self.registered))
+        named = self.where_named
+        if named and self.language in ("mr", "hi"):   # the place as the language spells it, the name as the campaign writes it
+            named = ", ".join(i18n.PLACES.get(p.strip(), {}).get(self.language, p.strip()) for p in named.split(","))
+        kw.setdefault("intro", f"{named}." if self.where else "")
+        kw.setdefault("link_line", link_line_for(self.where_named or where, self.language, self.registered))
+        kw.setdefault("names", dict(self.names))
+        if kw.get("prefer") != "poll":   # the last card asks for a WhatsApp message (a poll's card asks for a vote)
+            kw.setdefault("cta", i18n.WHATSAPP_US)
         what = f"a project of many {self.kind}s, {where}, whose price is a starting price" if self.layout else f"one property: {where}"
         kw.setdefault("writer_note", "\n".join(n for n in (
             f"This post markets {what}. Its listed price, project name, MahaRERA details and nearby places are facts you "
@@ -189,17 +219,27 @@ class Ctx:
         return Brief(**kw)
 
 
+_CLAIMED_PLACE = re.compile(r"([A-Z][A-Za-z.&' -]{1,40}?)\s*[-:,(]?\s*\d+\s*(?:min|mins|minutes)\b")
+_GENERIC_WORDS = {"the", "of", "and", "to", "from", "near", "only", "just", "away", "drive"}
+
+
+def _tokens(text: str) -> set:
+    return {t for t in re.findall(r"[a-z]{3,}", (text or "").lower()) if t not in _GENERIC_WORDS}
+
+
 def price_reveal(c: Ctx) -> Optional[Brief]:
     if not (c.v.get("price_inr") and c.sqft):
         return None
     price = price_label(c.v["price_inr"])
     if c.layout:
         line = f"{c.kind.capitalize()}s at {c.where} start at {price}, for {c.sqft:,} sq ft."
+        c.used.add("price")
         return c.brief(angle="price_reveal", hook=f"{c.kind.capitalize()}s from {price} in {c.project or c.locality}",
                        topic=f"Starting price at {c.where}", short="starting price", stat_value=price,
                        stat_label=f"starting price for a {c.kind}", facts=[line],
                        tip="Ask what the price includes: development charges, stamp duty and registration.", prefer="stat")
     line = f"A {c.sqft:,} sq ft {c.kind} at {c.where} is listed at {price}."
+    c.used.add("price")
     return c.brief(angle="price_reveal", hook=f"{price} for a {c.kind} in {c.project or c.locality}", topic=f"Price of a {c.kind} at {c.where}", short=f"{c.kind} price", stat_value=price,
                    stat_label=f"for this {c.kind}", facts=[line],
                    tip="Ask what the price includes: development charges, stamp duty and registration.", prefer="stat")
@@ -246,17 +286,28 @@ def emi(c: Ctx) -> Optional[Brief]:
                    tip="Ask your bank for its actual rate before you plan.", prefer="stat")
 
 
+POSSESSION_CARD_MONTHS = 18   # a completion date further off than this is not something an ad leads with
+
+
+def possession_card_ok(c: Ctx) -> bool:
+    """A completion date may go on a card only when MahaRERA has not moved it (a moved date reads as "delayed" to a buyer;
+    it stays in the facts, the fact sheet and the project page) and it is near: within POSSESSION_CARD_MONTHS."""
+    now = c.v.get("possession_now")
+    if not now or (c.v.get("possession_moved_months") or 0) > 0:
+        return False
+    try:
+        y, m = int(str(now)[:4]), int(str(now)[5:7])
+    except (TypeError, ValueError):
+        return False
+    months = (y - c.today.year) * 12 + (m - c.today.month)
+    return 0 <= months <= POSSESSION_CARD_MONTHS
+
+
 def possession(c: Ctx) -> Optional[Brief]:
-    now, then = c.v.get("possession_now"), c.v.get("possession_at_registration")
-    if not now:
+    now = c.v.get("possession_now")
+    if not possession_card_ok(c):
         return None
-    moved = c.v.get("possession_moved_months") or 0
     facts = [f"MahaRERA completion date for {c.project}: {day(now)}."]
-    if then and moved > 0:
-        facts.append(f"At registration it was {day(then)}; it has moved by {moved} months.")
-        return c.brief(angle="possession", topic=f"Completion date of {c.project}", short="completion date",
-                       myth="The brochure date is the final date", truth=f"MahaRERA now shows {day(now)} for {c.project}.",
-                       facts=facts, tip="Check the MahaRERA date, not the brochure.", prefer="myth-vs-fact")
     return c.brief(angle="possession", topic=f"Completion date of {c.project}", short="completion date", stat_value=day(now),
                    stat_label="MahaRERA completion date", facts=facts,
                    tip="Check the MahaRERA date, not the brochure.", prefer="stat")
@@ -283,11 +334,25 @@ def _near(c: Ctx) -> List[Tuple[str, Dict[str, Any]]]:
     return sorted(out, key=lambda kp: kp[1]["km"])
 
 
+# what a buyer asks about first; one place of each kind before a second of any kind
+NEARBY_ORDER = ("bus", "railway", "airport", "hospital", "school", "college", "market", "industry", "temple", "bank")
+
+
 def nearby(c: Ctx) -> Optional[Brief]:
-    near = _near(c)
-    if len(near) < 3:
+    """Up to 6 places, one per kind first (bus stand, station, hospital, school...), none that an earlier post headlined."""
+    near = [(k, p, c.place(k, p)) for k, p in _near(c)]
+    near = [x for x in near if f"place:{x[2]}" not in c.used]
+    rank = {k: i for i, k in enumerate(NEARBY_ORDER)}
+    first: Dict[str, Tuple[str, Dict[str, Any], str]] = {}
+    for x in near:
+        first.setdefault(x[0], x)
+    picks = sorted(first.values(), key=lambda x: rank.get(x[0].split(".", 1)[-1], len(rank)))[:6]
+    picks += [x for x in near if x not in picks][:6 - len(picks)]
+    if len(picks) < 3:
         return None
-    steps = [f"{surroundings.label(k)}: {p['name']}, about {_km(p['km'])}" for k, p in near[:6]]
+    picks.sort(key=lambda x: x[1]["km"])
+    c.used.update(f"place:{n}" for _, _, n in picks)
+    steps = [f"{surroundings.label(k)}: {n}, about {_km(p['km'])}" for k, p, n in picks]
     return c.brief(angle="nearby", hook=f"What is near {c.project or c.locality}?", topic=f"What is near {c.where}", short="what is nearby", steps=steps, facts=steps,
                    tip="Distances are straight-line; drive the route once at peak hour.", prefer="carousel")
 
@@ -296,10 +361,12 @@ def near_work(c: Ctx) -> Optional[Brief]:
     work = (c.v.get("nearby.industry") or [])
     if not work:
         return None
-    w = work[0]
-    lines = [f"{p['name']} is about {_km(p['km'])} away (straight line)." for p in work]
+    named = [(p, c.place("industry", p)) for p in work]
+    w, name = named[0]
+    c.used.add(f"place:{name}")
+    lines = [f"{n} is about {_km(p['km'])} away (straight line)." for p, n in named]
     return c.brief(angle="near_work", hook=f"{_km(w['km'])} from {c.project or c.locality} to work", topic=f"Work nearby: {c.where}", short="work nearby", stat_value=_km(w["km"]),
-                   stat_label=f"to {w['name']}", facts=lines,
+                   stat_label=f"to {name}", facts=lines,
                    tip="Drive to work once at shift-change time before you decide.", prefer="stat")
 
 
@@ -327,7 +394,7 @@ def land_area(c: Ctx) -> Optional[Brief]:
 
 
 def plot_or_flat(c: Ctx) -> Optional[Brief]:
-    if not c.v.get("price_inr"):
+    if not c.v.get("price_inr") or "price" in c.used:   # the price post already headlined this price
         return None
     price = price_label(c.v["price_inr"])
     if c.layout:
@@ -371,8 +438,9 @@ def overview(c: Ctx) -> Optional[Brief]:
     near = _near(c)[:2]
     if c.locality or near:
         at = f"In {c.locality}" if c.locality else "Nearby"
-        steps.append(at + ("" if not near else ": " + ", ".join(f"{p['name']} {_km(p['km'])}" for _, p in near)) + ".")
+        steps.append(at + ("" if not near else ": " + ", ".join(f"{c.place(k, p)} {_km(p['km'])}" for k, p in near)) + ".")
     now, rera = c.v.get("possession_now"), c.v.get("rera_no")
+    now = now if possession_card_ok(c) else None   # a moved or far-off date is not put on a card
     if now or rera:
         steps.append((f"Completion {day(now)} on MahaRERA" if now else "Registered on MahaRERA") + (f" ({rera})." if rera else "."))
     if len(steps) < 2:   # with the visit slide below, fewer than 3 slides: not an overview
@@ -392,9 +460,11 @@ class AngleDef:
 
 
 FOLLOW_UPS = 4  # angles posted after the overview, the first ones in ANGLES order that the facts support
+# What a buyer asks first: the price, then the EMI, the size, how far, the land, and the checks last. A possession card comes
+# only for a near, unmoved date (possession_card_ok), after the land.
 ANGLES: Tuple[AngleDef, ...] = tuple(AngleDef(f.__name__, f) for f in (
-    overview, price_reveal, possession, near_work, nearby, size_in_guntha, land_area, rera_check, emi, plot_checklist, rate_per_sqft,
-    layout_size, plot_or_flat, plot_myth))
+    overview, price_reveal, emi, size_in_guntha, near_work, land_area, possession, nearby, rate_per_sqft, layout_size, rera_check,
+    plot_checklist, plot_or_flat, plot_myth))
 
 
 def brief_key(brief: Brief) -> str:
@@ -406,12 +476,15 @@ def brief_key(brief: Brief) -> str:
 def plan(facts: Dict[str, Fact], photo: str = "none", link: str = "", angles: Sequence[AngleDef] = ANGLES,
          voice: Optional[Voice] = None, card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (),
          language: str = "en", previous: Sequence[str] = (), follow_ups: Optional[int] = FOLLOW_UPS,
-         skipped: Optional[Dict[str, str]] = None) -> List[Tuple[str, Brief]]:
+         skipped: Optional[Dict[str, str]] = None, names: Optional[Dict[str, str]] = None, claims: Sequence[str] = (),
+         today: Optional[date] = None) -> List[Tuple[str, Brief]]:
     """`skipped` (when given) gets each angle left out and why;
     `voice`, `card_brand`, `contact`, `language`: whose posts these are (default ours) and in which language;
     `previous`: opening lines of this property's posts already live (the writers are told not to repeat them);
-    `follow_ups`: how many angles after the overview (None: every one, so an older run's post can still be edited)."""
-    c = Ctx(facts, photo, link, voice, card_brand, contact, language, previous)
+    `follow_ups`: how many angles after the overview (None: every one, so an older run's post can still be edited);
+    `names`: the project's name as this campaign writes it ({"Gulmohar City": "गुलमोहर सिटी"}: project_name_for);
+    `claims`: the builder's brochure claims (their wording of a place is preferred); `today`: for the possession rule."""
+    c = Ctx(facts, photo, link, voice, card_brand, contact, language, previous, names, claims, today)
     out = []
     for a in angles:
         if follow_ups is not None and len([1 for aid, _ in out if aid != "overview"]) >= follow_ups and a.id != "overview":
@@ -457,10 +530,33 @@ async def sharpen(brief: Brief, llm: Any) -> Brief:
     except Exception:
         return brief
     new = re.sub(r"\s+", " ", str(reply.get("headline") or "")).strip().strip('"')
-    if (not new or new == old or len(new.split()) > 10 or _numbers(new) != _numbers(old)
+    lost = any(en.lower() in old.lower() and en.lower() not in new.lower() for en in brief.names)  # names stay as written
+    if (not new or new == old or len(new.split()) > 10 or _numbers(new) != _numbers(old) or lost
             or problems_in(new, f"{old} {facts}")):
         return brief
     return replace(brief, hooks={p: new for p in brief.hooks})
+
+
+NAME_SYSTEM = ("You write an Indian real-estate project's name in {lang}, as buyers there read it aloud (a transliteration, "
+               "not a translation). Reply with JSON only: {{\"name\": \"...\"}}")
+_DEVANAGARI_NAME = re.compile(r"^[\u0900-\u097F ]{2,40}$")
+
+
+async def project_name_for(project: str, language: str, llm: Any) -> Dict[str, str]:
+    """{project: the one spelling every post of this campaign uses}: in a Marathi/Hindi campaign the name in Devanagari, asked
+    once (so card 1 and card 5 never differ); otherwise, or without a usable answer, the English spelling everywhere."""
+    if not project:
+        return {}
+    if language in ("mr", "hi") and llm is not None:
+        try:
+            reply = await llm.json(NAME_SYSTEM.format(lang="Marathi (Devanagari script)" if language == "mr"
+                                                      else "Hindi (Devanagari script)"), project)
+        except Exception:
+            reply = None
+        name = re.sub(r"\s+", " ", str(reply.get("name") or "")).strip() if isinstance(reply, dict) else ""
+        if _DEVANAGARI_NAME.match(name):
+            return {project: name}
+    return {project: project}
 
 
 RETRIES = 3  # other seeds (other layouts) to try before an angle is dropped: some layouts cannot fit some texts
@@ -472,7 +568,8 @@ async def make(facts: Dict[str, Fact], out_dir: Path, llm: Any = None, photo: st
                language: str = "en", photos: Sequence[str] = (), previous: Sequence[str] = (),
                on_plan: Optional[Callable[[List[dict], Dict[str, str]], Awaitable[None]]] = None,
                on_post: Optional[Callable[[str, dict], Awaitable[None]]] = None,
-               used: Optional[Dict[str, str]] = None) -> List[Tuple[str, CreativePack]]:
+               used: Optional[Dict[str, str]] = None, claims: Sequence[str] = (),
+               today: Optional[date] = None) -> List[Tuple[str, CreativePack]]:
     """Render every planned angle; consecutive posts avoid repeating a layout. `photos` (the property's own: listing photos and
     the best frames of its video, best first) are shared out so each post shows a different one behind its text. An angle that fails a guard is retried with
     other seeds, then dropped (its problems go into `dropped` when given). `voice`: who speaks (default the brand desk).
@@ -482,8 +579,10 @@ async def make(facts: Dict[str, Fact], out_dir: Path, llm: Any = None, photo: st
     packs: List[Tuple[str, CreativePack]] = []
     recent: List[str] = []
     skipped: Dict[str, str] = {}
+    pf = facts.get("project_name")
+    names = await project_name_for(str(pf.value or "") if pf is not None and pf.usable else "", language, llm)
     planned = plan(facts, photo, link, voice=voice, card_brand=card_brand, contact=contact, language=language,
-                   previous=previous, skipped=skipped)
+                   previous=previous, skipped=skipped, names=names, claims=claims, today=today)
     if on_plan is not None:
         await on_plan([{"angle": aid, "headline": next(iter(b.hooks.values()), "")} for aid, b in planned], skipped)
     for i, (aid, brief) in enumerate(planned):
