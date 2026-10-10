@@ -67,6 +67,12 @@ export default async function InterestPage({ params, searchParams }: Props) {
           </div>
         </article>
 
+        {s.page_url && (
+          <a href={s.page_url} className="mt-4 flex min-h-[52px] items-center justify-center rounded-2xl border-2 border-[#0f2340] bg-white px-4 text-base font-bold text-[#0f2340] no-underline">
+            See all photos and details
+          </a>
+        )}
+
         <div className="mt-5">
           <InterestActions code={s.code} agentName={s.agent_name} sample={s.sample} consentWording={s.consent_wording}
             initialStep={step} initialError={q.e || ''} />

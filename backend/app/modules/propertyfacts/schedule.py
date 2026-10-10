@@ -21,11 +21,18 @@ def slug_for(listing_id: str, angle: str) -> str:
     return f"campaign-{listing_id}-{angle}"[:80]
 
 
+BIO_LINE = re.compile(r"(link in (our )?bio|बायोमधील लिंक|बायो में लिंक)\.?\s*$", re.I)
+
+
 def facebook_caption(caption: str, link_line: str, page_url: str, angle: str) -> str:
-    """The Instagram caption with its "link in bio" line replaced by the listing page link (tagged per post)."""
+    """The Instagram caption with its "link in bio" line replaced by the listing page link (tagged per post). A "link in bio"
+    line in another language than link_line (a caption rewritten later) is dropped: Facebook has no bio link."""
     url = f"{page_url}{'&' if '?' in page_url else '?'}src=fb_{angle}"
-    line = f"Full details and the MahaRERA record: {url}"
-    return caption.replace(link_line, line) if link_line and link_line in caption else caption.rstrip() + "\n\n" + line
+    line = f"Photos and full details: {url}"
+    if link_line and link_line in caption:
+        return caption.replace(link_line, line)
+    caption = "\n".join(l for l in caption.split("\n") if not BIO_LINE.search(l))
+    return re.sub(r"\n{3,}", "\n\n", caption).rstrip() + "\n\n" + line
 
 
 def instagram_caption(caption: str, link_line: str, page_url: str) -> str:
@@ -79,7 +86,7 @@ def items(run: dict, link_line: str) -> List[Dict]:
     our views come from the Reels tab), the overview also as a post (the Page grid), a post without an ad reel as a post; the
     walkthrough reel, once rendered, and the reel from the agent's own video. Older runs' slides reels go on Instagram only.
     Each: {slug, channel, kind, caption, images, video, angle, creative}."""
-    lid, page = run["listing_id"], run.get("page_url") or ""
+    lid, page = run["listing_id"], run.get("listing_url") or run.get("page_url") or ""
     out: List[Dict] = []
 
     def add(slug, channel, kind, caption, images, video, angle, extra_creative):

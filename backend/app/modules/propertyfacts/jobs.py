@@ -115,6 +115,11 @@ def _rel(url_path: str) -> str:
     return url_path[len("/uploads/"):] if url_path.startswith("/uploads/") else url_path.lstrip("/")
 
 
+def _post_page(run: dict) -> str:
+    """Where a post's link goes: this listing's own page (its photos, as in the post), else the project page."""
+    return run.get("listing_url") or run.get("page_url") or ""
+
+
 def _summary(sheet) -> dict:
     """What step 1 found, for Studio: counts, the MahaRERA match and anything that could not be found."""
     usable = [k for k, f in sheet.facts.items() if f.level in USABLE]
@@ -272,12 +277,12 @@ class MarketingRuns:
         for c in run.get("calendar") or []:
             if c.get("angle") == angle and c.get("kind", "post") == "post":
                 text = caption if c["channel"] == "instagram" else facebook_caption(caption, run.get("link_line") or "",
-                                                                                     run.get("page_url") or "", angle)
+                                                                                     _post_page(run), angle)
                 n += await cal.set_planned(c["row_id"], caption=text, images=[_rel(i) for i in images] if images else None)
             elif ad and c.get("angle") == f"{angle}-ad":
                 text = ad_reel.caption(ad_reel.Script(**{k: ad["script"][k] for k in ("format", "hook", "beats", "payoff", "cta")}),
                                        caption)
-                link, page = run.get("link_line") or "", run.get("page_url") or ""
+                link, page = run.get("link_line") or "", _post_page(run)
                 text = (instagram_caption(text, link, page) if c["channel"] == "instagram"
                         else facebook_caption(text, link, page, c["angle"]))
                 n += await cal.set_planned(c["row_id"], caption=text)

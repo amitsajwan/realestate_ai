@@ -9,6 +9,8 @@ export interface InterestSubject {
   subtitle: string
   locality: string
   image_url: string
+  /** the listing's own page, for a post about one listing */
+  page_url?: string
   agent_name: string
   sample: boolean
   consent_wording: string

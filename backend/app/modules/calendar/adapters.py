@@ -446,6 +446,27 @@ def whatsapp_lines(caption: str, code: str, channel: str) -> str:
     return "\n".join(out)
 
 
+async def _listing_shown(db, doc: dict) -> dict:
+    """For a post about one listing: what its interest page shows (the listing's first photo, its price, its own page),
+    so a buyer who taps through sees the home from the post. {} for any other post."""
+    if not doc.get("listing_id"):
+        return {}
+    from app.modules.interest.service import site_url
+    from app.modules.creative.listing_brief import price_label
+    listing = await db.get_collection("listings").find_one({"_id": doc["listing_id"]})
+    if not listing:
+        return {}
+    prof = await db.get_collection("agent_public_profiles").find_one({"agent_id": listing.get("agent_id")}) or {}
+    page = f"{site_url()}/agent/{prof['slug']}/listings/{listing['_id']}" if prof.get("slug") else f"{site_url()}/listings/{listing['_id']}"
+    imgs = sorted([m for m in listing.get("media") or [] if isinstance(m, dict) and m.get("kind", "image") == "image" and m.get("url")],
+                  key=lambda m: m.get("order") or 0)
+    price = listing.get("price_inr")
+    sub = ""
+    if isinstance(price, int) and price > 0:   # a starting price ("... onwards" in the title) is never shown as a flat price
+        sub = f"from {price_label(price)} onwards" if "onwards" in (listing.get("title") or "").lower() else price_label(price)
+    return {"page_url": page, "image_url": imgs[0]["url"] if imgs else "", "subtitle": sub, "locality": listing.get("locality") or ""}
+
+
 async def with_interest(db, doc: dict) -> dict:
     """The row with its caption ready to publish: a tap-to-show-interest line (a real link on Facebook, 'link in our bio' on Instagram,
     whose bio link is the /go hub) and the standard footer. Any failure returns the row unchanged: a post never waits on this."""
@@ -460,8 +481,12 @@ async def with_interest(db, doc: dict) -> dict:
         caption = doc["caption"]
         if agent:
             kind = "post"
+            shown = await _listing_shown(db, doc)
             url = await interest_url(db, kind=kind, ref=doc["slug"], agent_id=agent, channel=channel,
-                                     title=(caption.splitlines() or [""])[0][:140])
+                                     title=(caption.splitlines() or [""])[0][:140], **shown)
+            if shown.get("page_url"):  # the agent's site line points at this listing, not the agent's home page
+                caption = re.sub(r"(\U0001F3E0[^\n]*?)\b(?:https?://)?[\w.-]+/agent/[\w-]+/?(?=\s|$)",
+                                 lambda m: m.group(1) + shown["page_url"].split("://", 1)[-1], caption)
             if "link in our bio" not in caption and channel == "instagram":
                 line = "👉 Interested? Tap the link in our bio and press 'I am interested'."
             elif channel == "facebook":

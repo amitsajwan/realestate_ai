@@ -59,7 +59,7 @@ class InterestService:
 
     # ---- links ----
     async def create_link(self, kind: str, ref: str, agent_id: str, channel: str, *, title: str = "", locality: str = "",
-                          image_url: str = "", subtitle: str = "") -> dict:
+                          image_url: str = "", subtitle: str = "", page_url: str = "") -> dict:
         if kind not in KINDS or channel not in CHANNELS:
             raise InterestError("Unknown kind or channel", 422)
         ref = (ref or "").strip()
@@ -80,6 +80,7 @@ class InterestService:
             "locality": (locality or subject.get("locality") or (listing or {}).get("locality") or "")[:80],
             "subtitle": (subtitle or subject.get("subtitle") or "")[:200],
             "image_url": image_url or subject.get("image_url") or "",
+            "page_url": page_url,   # the listing's own page (its photos), for a post about one listing
         }
         return await self.store.insert_link(doc)
 
@@ -103,6 +104,7 @@ class InterestService:
         return {
             "code": link["code"], "kind": link["kind"], "channel": link["channel"], "title": link.get("title") or "",
             "subtitle": link.get("subtitle") or "", "locality": link.get("locality") or "", "image_url": link.get("image_url") or "",
+            "page_url": link.get("page_url") or "",
             "agent_name": profile.get("agent_name") or profile.get("display_name") or brand.NAME,
             "sample": bool(link.get("sample")), "consent_wording": CONSENT_WORDING,
         }
@@ -234,12 +236,12 @@ class InterestService:
 
 
 async def interest_url(db, *, kind: str, ref: str, agent_id: str, channel: str, title: str = "", locality: str = "",
-                       image_url: str = "", subtitle: str = "", samples: Optional[Callable] = None) -> str:
+                       image_url: str = "", subtitle: str = "", page_url: str = "", samples: Optional[Callable] = None) -> str:
     """THE function other streams call: returns `<SITE>/i/<code>` for a post or listing, creating the link if needed
     (idempotent per (kind, ref, channel))."""
     svc = InterestService(db, samples=samples)
     link = await svc.create_link(kind, ref, agent_id, channel, title=title, locality=locality, image_url=image_url,
-                                 subtitle=subtitle)
+                                 subtitle=subtitle, page_url=page_url)
     return f"{site_url()}/i/{link['code']}"
 
 
