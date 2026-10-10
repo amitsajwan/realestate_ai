@@ -79,6 +79,9 @@ export interface Listing {
   furnishing?: Furnishing | null
   possession?: string | null // 'ready' | 'under_construction' | date string
   rera_no?: string | null
+  /** single: one flat or plot. layout: a whole project. Set here, marketing does not ask again. */
+  listing_scope?: 'single' | 'layout' | null
+  rera_status?: 'not_registered' | null
   amenities: string[]
   media: Media[]
   about?: About | null

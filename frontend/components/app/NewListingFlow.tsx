@@ -8,7 +8,8 @@ import { conciergeApi, firstName } from '@/lib/app/concierge'
 import { getSiteUrl } from '@/lib/app/session'
 import { listingLink } from '@/lib/app/share'
 import { compactAbout } from '@/lib/app/about'
-import { t } from '@/lib/app/strings'
+import { t, type Lang } from '@/lib/app/strings'
+import { MAX_BROCHURE_MB, MAX_VIDEO_MB, uploadBrochure, uploadVideo } from '@/lib/app/video'
 import type { About, AIDraft, Listing, ListingInput, UploadedFile } from '@/lib/app/types'
 import { qualityFields } from '@/lib/app/quality'
 import { FIELD_LABELS, lowConfidenceFields, missingFields, priceSanity } from '@/lib/app/validate'
@@ -20,6 +21,29 @@ import { ShareBar } from './ShareBar'
 import { VoiceRecorder } from './VoiceRecorder'
 import { Btn, ErrorBox, LinkBtn, Spinner, inputCls } from './ui'
 import { BRAND_NAME } from '@/lib/brand'
+
+/** The marketing page starts the run itself when opened with ?start=1. */
+export const marketingHref = (id: string, lang: Lang) => `/studio/listings/${id}/marketing?start=1&lang=${lang}`
+
+/** Optional builder files for a new project: picked once here, uploaded with the photos. */
+function ProjectFiles({ brochure, video, onBrochure, onVideo }: { brochure: File | null; video: File | null; onBrochure: (f: File | null) => void; onVideo: (f: File | null) => void }) {
+  const pick = (label: string, file: File | null, accept: string, onPick: (f: File | null) => void, testid: string) => (
+    <div className="flex items-center gap-2">
+      <label data-testid={testid} className="flex min-h-[44px] min-w-0 flex-1 cursor-pointer items-center justify-center truncate rounded-xl border border-dashed border-gray-300 p-3 text-sm font-semibold text-blue-700">
+        {file ? `${label}: ${file.name}` : `+ ${label} (optional)`}
+        <input type="file" accept={accept} className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onPick(f) }} />
+      </label>
+      {file && <button type="button" onClick={() => onPick(null)} className="min-h-[44px] min-w-[44px] text-sm font-semibold text-gray-600" aria-label={`Remove ${label}`}>✕</button>}
+    </div>
+  )
+  return (
+    <section className="space-y-2" aria-label="Project files">
+      {pick(t('brochurePdf'), brochure, 'application/pdf,.pdf', onBrochure, 'pick-brochure')}
+      {pick(t('builderVideo'), video, 'video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm', onVideo, 'pick-video')}
+      <p className="text-xs text-gray-500">PDF up to {MAX_BROCHURE_MB} MB, video up to {MAX_VIDEO_MB} MB.</p>
+    </section>
+  )
+}
 
 type Step = 'capture' | 'drafting' | 'about' | 'review' | 'posting' | 'done'
 
@@ -51,6 +75,10 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
   const [text, setText] = useState('')
   const [audio, setAudio] = useState<Blob | null>(null)
   const [photos, setPhotos] = useState<File[]>([])
+  const [newProject, setNewProject] = useState(false)
+  const [brochure, setBrochure] = useState<File | null>(null)
+  const [video, setVideo] = useState<File | null>(null)
+  const [lang, setLang] = useState<Lang>('en')
   const [draft, setDraft] = useState<AIDraft | null>(null)
   const [form, setForm] = useState<ListingInput>({})
   const [about, setAbout] = useState<About>({})
@@ -59,6 +87,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
   const [posted, setPosted] = useState<Listing | null>(null)
   const createdId = useRef<string | null>(null)
   const uploaded = useRef<{ key: string; files: UploadedFile[] } | null>(null)
+  const uploadedDocs = useRef<Map<File, string>>(new Map())
 
   const previews = useMemo(() => photos.map((f) => URL.createObjectURL(f)), [photos])
   useEffect(() => () => previews.forEach((u) => URL.revokeObjectURL(u)), [previews])
@@ -83,7 +112,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
       const d = await api.aiDraft({ text, audio: audio ?? undefined, image_count: photos.length })
       setDraft(d)
       const { about: found, ...rest } = d.draft
-      setForm({ visibility: 'network', ...rest })
+      setForm({ visibility: 'network', ...(newProject ? { listing_scope: 'layout' as const } : {}), ...rest })
       setAbout(found ?? {})
       setStep('about') // quick and skippable: what the assistant uses to answer buyers
     } catch (e) {
@@ -94,12 +123,22 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
 
   function fillManually() {
     setDraft({ draft: {}, confidence: {}, missing: [], warnings: [] })
-    setForm({ visibility: 'network', description: { en: text.trim() } })
+    setForm({ visibility: 'network', description: { en: text.trim() }, ...(newProject ? { listing_scope: 'layout' as const } : {}) })
     setAbout({})
     setStep('review')
   }
 
-  async function confirmAndPost() {
+  const isProject = form.listing_scope ? form.listing_scope === 'layout' : newProject
+
+  async function uploadOnce(file: File, up: (f: File) => Promise<{ url: string }>) {
+    const done = uploadedDocs.current.get(file)
+    if (done) return done
+    const { url } = await up(file)
+    uploadedDocs.current.set(file, url)
+    return url
+  }
+
+  async function confirmAndPost(market: boolean) {
     if (missing.length) return setError(`${t('required')}: ${missing.map((m) => FIELD_LABELS[m] ?? m).join(', ')}`)
     if (priceBlocked) return setError('Please check the price, then tick "Yes, this price is correct".')
     setError(null)
@@ -113,17 +152,19 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
         const files = photos.length ? await api.uploadImages(await Promise.all(photos.map((p) => compressImage(p)))) : []
         uploaded.current = { key, files }
       }
-      const body = cleanInput({
-        ...form,
-        about: compactAbout(about),
-        media: uploaded.current.files.map((f, order) => ({ url: f.url, kind: 'image' as const, order, ...qualityFields(f) })),
-      })
+      const images = uploaded.current.files.map((f, order) => ({ url: f.url, kind: 'image' as const, order, ...qualityFields(f) }))
+      const extra: Array<{ url: string; kind: 'document' | 'video'; order: number }> = []
+      if (isProject && brochure) extra.push({ url: await uploadOnce(brochure, uploadBrochure), kind: 'document', order: images.length + extra.length })
+      if (isProject && video) extra.push({ url: await uploadOnce(video, uploadVideo), kind: 'video', order: images.length + extra.length })
+      const body = cleanInput({ ...form, about: compactAbout(about), media: [...images, ...extra] })
       // Retry-safe: never create the same draft twice if publish fails.
       const saved = onBehalfOf
         ? createdId.current ? await conciergeApi.updateListing(onBehalfOf.id, createdId.current, body) : await conciergeApi.createListing(onBehalfOf.id, body)
         : createdId.current ? await api.updateListing(createdId.current, body) : await api.createListing(body)
       createdId.current = saved.id
-      setPosted(onBehalfOf ? await conciergeApi.publishListing(onBehalfOf.id, saved.id) : await api.publishListing(saved.id))
+      const live = onBehalfOf ? await conciergeApi.publishListing(onBehalfOf.id, saved.id) : await api.publishListing(saved.id)
+      setPosted(live)
+      if (market && !onBehalfOf) return window.location.assign(marketingHref(live.id, lang))
       setStep('done')
     } catch (e) {
       if (e instanceof ApiError && e.status === 422) setErrors(e.fields)
@@ -166,6 +207,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
             <LinkBtn variant="secondary" href={`/studio/listings/${posted.id}`}>Add photos</LinkBtn>
           </div>
         )}
+        <LinkBtn href={marketingHref(posted.id, lang)}>{t('startMarketing')}</LinkBtn>
         <MarketingRunCard listingId={posted.id} />
         <section className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4">
           <p className="break-all text-sm text-blue-700">{link}</p>
@@ -206,6 +248,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
         )}
         {low.length > 0 && <p className="text-sm text-amber-700">{t('pleaseCheck')}: {low.map((k) => FIELD_LABELS[k] ?? k.replace('_', ' ')).join(', ')}</p>}
         <PhotoPicker files={photos} onChange={setPhotos} />
+        {isProject && <ProjectFiles brochure={brochure} video={video} onBrochure={setBrochure} onVideo={setVideo} />}
         <ReviewForm value={view} about={about} onEditAbout={() => setStep('about')} onChange={({ media, ...rest }) => setForm(rest)} confidence={draft.confidence} missing={missing} errors={errors} />
         {priceWarning && (
           <label className="flex min-h-[44px] items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
@@ -215,9 +258,25 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
         )}
         {error && <ErrorBox message={error} />}
         <div className="sticky bottom-0 -mx-4 border-t border-gray-200 bg-white p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
-          <Btn variant="whatsapp" onClick={confirmAndPost} disabled={missing.length > 0 || priceBlocked} className="!bg-blue-600 disabled:!bg-blue-300">
-            {t('confirmPost')}
-          </Btn>
+          {onBehalfOf ? (
+            <Btn variant="whatsapp" onClick={() => confirmAndPost(false)} disabled={missing.length > 0 || priceBlocked} className="!bg-blue-600 disabled:!bg-blue-300">
+              {t('confirmPost')}
+            </Btn>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm" role="group" aria-label={t('postsIn')}>
+                <span className="text-gray-600">{t('postsIn')}</span>
+                {([['en', 'English'], ['mr', 'मराठी'], ['hi', 'हिन्दी']] as const).map(([l, label]) => (
+                  <button key={l} type="button" aria-pressed={lang === l} onClick={() => setLang(l)}
+                    className={`min-h-[44px] flex-1 rounded-lg font-semibold ${lang === l ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}>{label}</button>
+                ))}
+              </div>
+              <Btn variant="whatsapp" onClick={() => confirmAndPost(true)} disabled={missing.length > 0 || priceBlocked} className="!bg-blue-600 disabled:!bg-blue-300">
+                {t('postAndMarket')}
+              </Btn>
+              <Btn variant="secondary" onClick={() => confirmAndPost(false)} disabled={missing.length > 0 || priceBlocked}>{t('postOnly')}</Btn>
+            </div>
+          )}
           {missing.length > 0 && <p className="mt-2 text-center text-xs text-red-600">{t('required')}: {missing.map((m) => FIELD_LABELS[m] ?? m).join(', ')}</p>}
         </div>
       </div>
@@ -241,6 +300,11 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
       />
       <VoiceRecorder onChange={setAudio} />
       <PhotoPicker files={photos} onChange={setPhotos} />
+      <label className="flex min-h-[44px] items-center gap-3 text-sm font-semibold">
+        <input type="checkbox" className="h-5 w-5" checked={newProject} onChange={(e) => setNewProject(e.target.checked)} />
+        {t('newProject')}
+      </label>
+      {newProject && <ProjectFiles brochure={brochure} video={video} onBrochure={setBrochure} onVideo={setVideo} />}
       {error && (
         <div className="space-y-2">
           <ErrorBox message={error} />
