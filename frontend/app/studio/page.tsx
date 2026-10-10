@@ -11,6 +11,10 @@ export default function StudioHome() {
       <LeadAlertsBadge />
       <BusinessToday />
       <WeeklyCard />
+      <Link href="/studio/radar" className="flex min-h-[56px] items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 font-semibold text-gray-900">
+        <span>Buyer radar: people asking about homes</span>
+        <span aria-hidden>&rsaquo;</span>
+      </Link>
       <Link href="/studio/profile" className="flex min-h-[56px] items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 font-semibold text-gray-900">
         <span>My brand: logo, banner and colours</span>
         <span aria-hidden>&rsaquo;</span>
