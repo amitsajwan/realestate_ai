@@ -85,7 +85,7 @@ SCRIPTS: Tuple[Script, ...] = (
            "WhatsApp pe *ek tap* mein bhejo.", "New property? See which of your buyers match it."),
     Script("D1", "result", "New agents", "Naye agent ho? *Shuruaat* yahan se.",
            "Website banwana *mehenga* lagta hai?", "12-site-home.jpg", "Aapki property *website*, aapke naam se",
-           "1 mahina *free*.", "Just started as an agent? Get your own property website."),
+           "Ek mahina *free*.", "Just started as an agent? Get your own property website."),
     Script("D2", "result", "Agents with many properties", "50+ properties? *Kisko* pehle call?",
            "Itne buyers. Itne messages. *Confusion.*", "30-home-actions.jpg", "Har subah: *aaj* kisko call karna hai",
            "Leads *sorted*, aapke liye.", "Managing 50+ properties? See who to call first, every morning."),
@@ -204,7 +204,7 @@ def scenes(s: Script) -> Tuple[List[Scene], Dict]:
         Scene(image=still, screen=True, layout="top", lines=[TextLine(s.screen_line, size=74, max_lines=2)],
               kicker="After: with Avasetu" if before_after else "With Avasetu", seconds=SCREEN_SECONDS, seed=f"agent-{s.code}-screen"),
         Scene(image=blurred, lines=[TextLine(s.result, size=112, max_lines=3)], seconds=RESULT_SECONDS, seed=f"agent-{s.code}-result"),
-        Scene(lines=[TextLine(f"*{CTA_WORD}* comment karein", size=112), TextLine("Free trial: 1 mahina free", size=58)],
+        Scene(lines=[TextLine(f"*{CTA_WORD}* comment karein", size=112), TextLine("Free trial: ek mahina free", size=58)],
               seconds=CTA_SECONDS, seed=f"agent-{s.code}-cta"),
     ]
     return out, {"transition": "fade", "xfade": XFADE, "hook_tag": False}
