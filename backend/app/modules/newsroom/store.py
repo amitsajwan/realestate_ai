@@ -158,6 +158,10 @@ class Store:
         """Set fields on one register record (details from MahaRERA's project API, a corrected locality)."""
         await self.projects.update_one({"_id": regno}, {"$set": fields})
 
+    async def add_date_move(self, regno: str, move: dict) -> None:
+        """Append one change of the filed completion date ({from, to, seen_at}) to the record's `completion_history`."""
+        await self.projects.update_one({"_id": regno}, {"$push": {"completion_history": move}})
+
     async def link_news(self, regno: str, link: dict) -> bool:
         """Add a news item to a project's `news` once; False when it was already linked or the project is unknown."""
         doc = await self.projects.find_one({"_id": regno})

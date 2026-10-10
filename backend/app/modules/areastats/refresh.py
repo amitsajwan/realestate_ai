@@ -7,7 +7,8 @@ their completion dates. Each step:
    2026-10-04: a full round in about 10 days at 3 pages a cycle, 8 cycles a day);
 2. relabel: records whose area changed with the rules get the new one (411047 projects were Wagholi, are Lohegaon);
 3. details: reads MahaRERA's project API for up to `details` records: completion dates and homes booked, again every
-   DETAILS_MAX_AGE_DAYS because builders file updates.
+   DETAILS_MAX_AGE_DAYS because builders file updates. A changed completion date is appended to the record's
+   `completion_history` ({from, to, seen_at}), which the date-watch reels (calendar/delay_reels.py) read.
 Requests are spaced by PAUSE seconds: MahaRERA is a public service and must not feel us.
 
 It catches up on its own: while the first sweep round is not done, or more records wait for details than one step reads, a step
@@ -154,6 +155,10 @@ async def details(store: Store, fetch: project_api.Fetch, now: datetime, limit: 
             await store.set_project(d["_id"], details_checked_at=now, details_ok=False)
             continue
         out["read"] += 1
+        before, after = str(d.get("completion_now") or "")[:10], str(fields.get("completion_now") or "")[:10]
+        if before and after and before != after:   # the builder filed a new date: kept as history for the date-watch reels
+            await store.add_date_move(d["_id"], {"from": before, "to": after, "seen_at": now})
+            out["moved"] = out.get("moved", 0) + 1
         await store.set_project(d["_id"], **fields, details_checked_at=now, details_ok=True)
     return out
 

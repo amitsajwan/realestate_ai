@@ -292,7 +292,7 @@ def render_reel_for(doc: dict, uploads: Path) -> str:
     """Runner hook: render the reel behind a calendar row."""
     from .library import BY_SLUG
     c = doc.get("creative") or {}
-    if c.get("template") in ("area", "project", "puzzle"):
+    if c.get("template") in ("area", "project", "puzzle", "delay"):
         return _render_daily(doc, Path(uploads))
     if c.get("template") == "agent":
         return render_agent_reel(doc, Path(uploads))
@@ -321,7 +321,7 @@ def _render_daily(doc: dict, uploads: Path, composer: Optional[Callable] = None)
     dest = uploads / rel
     if dest.is_file() and dest.stat().st_size > 0:
         return rel
-    if c["template"] in ("area", "puzzle"):  # both play their checked slides
+    if c["template"] in ("area", "puzzle", "delay"):  # all play their checked slides
         from . import area_reels
         (composer or area_reels.render_video)([uploads / p for p in c.get("slides") or doc.get("images") or []], dest)
     else:

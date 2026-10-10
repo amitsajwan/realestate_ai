@@ -171,6 +171,7 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
 async def loop() -> None:
     log.info("calendar: loop started")
     rendering: Optional[asyncio.Task] = None
+    planned_on = None  # the IST day the date-watch reels were last planned (once a day is enough)
     tagged = False   # rows written before tags existed get them once per start, by the system itself (idempotent)
     while True:
         cfg = load()
@@ -192,6 +193,17 @@ async def loop() -> None:
                             log.warning("calendar: tagging older rows failed: %s", type(e).__name__)
                     if rendering is None or rendering.done():  # reels render in the background so a pass is never held up
                         rendering = asyncio.create_task(prerender_reels(store, now))
+                    from .schedule import IST
+                    today = now.astimezone(IST).date()
+                    if cfg.delay_reels and planned_on != today:
+                        planned_on = today
+                        try:   # planning never holds up publishing; the rows wait for the owner's approval
+                            from . import delay_reels
+                            n = await delay_reels.autoplan(store.db, store, today, uploads_dir(), say=log.info)
+                            if n:
+                                log.info("calendar: %s date-watch rows planned", n)
+                        except Exception:
+                            log.exception("calendar: date-watch planning failed")
                     counts = await run_once(store, graph_publisher(social), social, cfg, now)
                     if any(counts.values()):
                         log.info("calendar: cycle done %s (dry_run=%s)", counts, social.dry_run)
