@@ -439,7 +439,8 @@ class MarketingRuns:
     async def _brochure(self, job: dict, listing: dict, out: Path) -> Dict[str, Any]:
         """The listing's brochure PDF, if any: its pages (for the cards) and the builder's claims, kept on the listing for the
         assistant (files.save_claims) and summarised on the run for Studio. {} without a brochure; never raises.
-        A run resumed after the agent's answers reuses the claims it read before (only the pages are drawn again)."""
+        A run resumed after the agent's answers reuses the claims it read before (only the pages are drawn again), and so does
+        a listing whose `file_claims` were read from this same file (by the AI draft at creation, or an earlier run)."""
         from . import files
         pdf = files.brochure_pdf(listing, self.uploads_dir)
         if not pdf:
@@ -451,9 +452,17 @@ class MarketingRuns:
             except Exception:
                 pages = []
             return {**before, "pages": pages}
-        info = await files.read_brochure(pdf, out / "brochure")
-        await files.save_claims(self.listings, listing["_id"], brochure=info["claims"], rera_on_brochure=info["rera_no"],
-                                now=self.now())
+        kept = files.claims_for(listing, pdf)  # the AI draft (or an earlier run) already read this brochure: draw pages only
+        if kept:
+            try:
+                pages = await asyncio.to_thread(files.pdf_pages, pdf, out / "brochure")
+            except Exception:
+                pages = []
+            info = {**kept, "pages": pages}
+        else:
+            info = await files.read_brochure(pdf, out / "brochure")
+            await files.save_claims(self.listings, listing["_id"], brochure=info["claims"], rera_on_brochure=info["rera_no"],
+                                    now=self.now(), brochure_url=files.brochure_url(listing, pdf))
         summary = {k: info.get(k) for k in ("claims", "rera_no", "rera_missing", "error", "weak")}
         await self._set(job["_id"], files={"brochure": {**summary, "pages": len(info["pages"])}})
         return info

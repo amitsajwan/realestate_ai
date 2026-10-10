@@ -1,5 +1,6 @@
 """POST /ai/draft (mounted under /listings): typed and/or spoken text -> AIDraft. Persists nothing."""
 import os
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -38,6 +39,21 @@ def get_transcriber() -> Optional[Transcriber]:
     return default_transcriber()
 
 
+def get_register():
+    """Our MahaRERA register (newsroom Store) for brochure drafts; None when the database is not up."""
+    try:
+        from app.core.database import get_database
+        from app.modules.newsroom.store import Store
+        return Store(get_database())
+    except Exception:
+        return None
+
+
+def get_uploads_dir() -> Path:
+    from app.core.config import settings
+    return Path(settings.upload_directory)
+
+
 async def _read_audio(f: UploadFile, language: Optional[str]) -> AudioInput:
     ctype = (f.content_type or "").split(";")[0].strip().lower()
     ext = os.path.splitext(f.filename or "")[1].lower()
@@ -61,9 +77,12 @@ async def ai_draft(
     image_count: int = Form(0),
     city_hint: Optional[str] = Form(None),
     language: Optional[str] = Form(None),
+    brochure_url: Optional[str] = Form(None, max_length=2000),
     user: User = Depends(current_active_user),
     llm: Optional[LLMClient] = Depends(get_llm),
     transcriber: Optional[Transcriber] = Depends(get_transcriber),
+    register=Depends(get_register),
+    uploads_dir: Path = Depends(get_uploads_dir),
 ):
     if text and len(text) > MAX_TEXT_CHARS:
         raise HTTPException(status_code=413, detail=f"Text too long (max {MAX_TEXT_CHARS} characters).")
@@ -74,7 +93,8 @@ async def ai_draft(
     svc = AIListingService(llm=llm, transcriber=transcriber)
     try:
         return await svc.create_draft(text=text, audio=audio_in, image_count=max(0, min(image_count, MAX_IMAGES)),
-                                      city_hint=city_hint)
+                                      city_hint=city_hint, brochure_url=brochure_url, uploads_dir=uploads_dir,
+                                      register=register if (brochure_url or "").strip() else None)
     except TranscriberUnavailable as e:
         raise HTTPException(status_code=503, detail=str(e) + " You can still send the details as text.")
     except TranscriptionError:

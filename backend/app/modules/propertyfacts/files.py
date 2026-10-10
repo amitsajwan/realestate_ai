@@ -173,6 +173,24 @@ def brochure_pdf(listing: dict, uploads_dir: Path) -> Optional[Path]:
     return None
 
 
+def brochure_url(listing: dict, pdf: Path) -> Optional[str]:
+    """The media URL of the brochure `pdf` on the listing (for matching claims already read to the file)."""
+    for m in listing.get("media") or []:
+        if m.get("kind") == "document" and str(m.get("url") or "").split("?")[0].lower().endswith("/" + pdf.name.lower()):
+            return m.get("url")
+    return None
+
+
+def claims_for(listing: dict, pdf: Path) -> Optional[Dict[str, Any]]:
+    """The claims already kept on the listing for this very brochure file (read by the AI draft or an earlier run)."""
+    fc = listing.get("file_claims") if isinstance(listing.get("file_claims"), dict) else {}
+    url = str(fc.get("brochure_url") or "").split("?")[0]
+    if not fc.get("brochure") or not url.lower().endswith("/" + pdf.name.lower()):
+        return None
+    rera = fc.get("rera_on_brochure")
+    return {"claims": list(fc["brochure"]), "rera_no": rera, "rera_missing": not rera, "read_by_ai": True, "weak": False}
+
+
 async def read_brochure(pdf: Path, out_dir: Path) -> Dict[str, Any]:
     """{"pages": [jpg...], "claims": [...], "rera_no": str|None, "rera_missing": bool}. Never raises."""
     try:
@@ -191,12 +209,14 @@ async def read_brochure(pdf: Path, out_dir: Path) -> Dict[str, Any]:
 
 
 async def save_claims(listings, listing_id: str, *, brochure: Optional[List[str]] = None, video: Optional[List[str]] = None,
-                      rera_on_brochure: Optional[str] = None, now: Optional[datetime] = None) -> None:
+                      rera_on_brochure: Optional[str] = None, now: Optional[datetime] = None,
+                      brochure_url: Optional[str] = None) -> None:
     """Keep what was read on the listing (`file_claims`), for the assistant and for Studio. Only the parts given change."""
     changes: Dict[str, Any] = {"file_claims.updated_at": now or datetime.utcnow()}
     if brochure is not None:
         changes["file_claims.brochure"] = brochure
         changes["file_claims.rera_on_brochure"] = rera_on_brochure
+        changes["file_claims.brochure_url"] = brochure_url
     if video is not None:
         changes["file_claims.video"] = video
     await listings.update_one({"_id": listing_id}, {"$set": changes})

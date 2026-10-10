@@ -106,7 +106,7 @@ _STOP = {"in", "at", "near", "the", "for", "flat", "sale", "rent", "bhk", "ready
          "luxury", "luxurious", "available", "sell", "selling", "on", "of", "to", "my", "our", "hi", "hello", "urgent"}
 _PROJ_SUFFIX = (r"Heights?|Towers?|Residency|Residences?|Apartments?|Enclave|Park|Society|CHS|Complex|Gardens?|Villas?|"
                 r"Homes|Greens|Paradise|Arcade|Plaza|Meadows|Estate|Elite|Icon|Skyline|Casa|Nest|Vista|Bliss|Orchid|Sky|"
-                r"Square|Court|Woods|Enclaves|Paradiso|Utopia|Grandeur")
+                r"Square|Court|Woods|Enclaves|Paradiso|Utopia|Grandeur|City|Township|Nagari")
 _PROJECT = re.compile(r"((?:[A-Z][A-Za-z0-9'&]+\s+){1,3}(?:" + _PROJ_SUFFIX + r"))(?![A-Za-z])")
 _PROJECT_CUE = re.compile(r"(?:project|society|building|complex)\s*(?:name)?\s*(?:is|:|-)?\s*([A-Z][A-Za-z0-9']+(?:\s+[A-Z][A-Za-z0-9']+){0,3})")
 _IN_AT = re.compile(r"(?:(?<![A-Za-z])(?:in|at|In|At)|@)\s+([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+){0,2})")
@@ -131,6 +131,9 @@ def parse_project(raw: str) -> Optional[str]:
         cands.append(_clean_words(m.group(1)))
     for c in cands:
         low = c.lower()
+        base = re.sub(r"\s+(?:city|township|nagari)$", "", low)
+        if base != low and (base in _GEO_WORDS or base in _STOP):  # "Pune City" is a place, not a project
+            continue
         if c and " " in c or (c and low not in _GEO_WORDS and low not in _STOP):
             if low not in _GEO_WORDS and len(c) > 2:
                 return c

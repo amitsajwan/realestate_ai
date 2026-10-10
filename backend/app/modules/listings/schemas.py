@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator, model_validator
 
 from .about import About, PublicAbout
 
@@ -144,8 +144,51 @@ class _Fields(BaseModel):
         return check_city(v)
 
 
+class FileClaims(BaseModel):
+    """The builder's brochure claims the AI draft already read (ai_listing/brochure.py), kept on the listing as `file_claims`
+    so 'Start marketing' does not read the brochure again (propertyfacts/jobs.py _brochure). Claims, not facts."""
+    model_config = ConfigDict(extra="forbid")
+    brochure: List[str] = Field(default_factory=list, max_length=25)
+    rera_on_brochure: Optional[str] = Field(None, max_length=12)
+    brochure_url: Optional[str] = Field(None, max_length=2000)
+
+    @field_validator("brochure", mode="before")
+    @classmethod
+    def _claims(cls, v):
+        if not isinstance(v, list):
+            raise ValueError("brochure must be a list of claims")
+        from app.modules.propertyfacts.files import clean_claims
+        return clean_claims(v)
+
+    @field_validator("rera_on_brochure", mode="before")
+    @classmethod
+    def _rera(cls, v):
+        """Only a MahaRERA number (P + 11 digits); anything else is dropped, not refused."""
+        import re
+        v = v.strip().upper() if isinstance(v, str) else ""
+        return v if re.fullmatch(r"P\d{11}", v) else None
+
+
 class ListingCreate(_Fields):
-    pass
+    file_claims: Optional[FileClaims] = None
+
+    @model_validator(mode="after")
+    def _claims_file(self):
+        """Claims belong to the listing's brochure: without a URL they are tied to its first document."""
+        fc = self.file_claims
+        if fc is not None and not fc.brochure_url:
+            doc = next((m for m in sorted(self.media, key=lambda m: m.order) if m.kind == "document"), None)
+            if doc is None:
+                self.file_claims = None
+            else:
+                fc.brochure_url = doc.url
+        return self
+
+    def model_dump(self, **kw):
+        d = super().model_dump(**kw)
+        if d.get("file_claims") is None:
+            d.pop("file_claims", None)
+        return d
 
 
 REQUIRED_NOT_NULL = ("visibility", "title", "description", "amenities", "media")
