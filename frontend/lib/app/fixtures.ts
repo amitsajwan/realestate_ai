@@ -368,6 +368,34 @@ export function fakeDraft(text: string, imageCount: number, hasAudio: boolean): 
   return { draft, confidence, missing, transcript: hasAudio ? raw : null, warnings }
 }
 
+const withoutClaims = ({ file_claims: _c, ...rest }: ListingInput) => rest
+
+/** Demo brochure read: fills the project fields the agent did not say, never the price (brochures rarely have one). */
+export function withBrochure(d: AIDraft): AIDraft {
+  const fill: ListingInput = { project_name: 'Gulmohar City', property_type: 'plot', city: 'Pune', locality: 'Shirur', listing_scope: 'layout', amenities: ['Garden', 'Security'] }
+  const draft: ListingInput = { ...d.draft }
+  const sources: Record<string, 'brochure' | 'maharera' | 'agent'> = {}
+  for (const k of Object.keys(d.draft)) sources[k] = 'agent'
+  const confidence = { ...d.confidence }
+  for (const [k, v] of Object.entries(fill)) {
+    const cur = (draft as Record<string, unknown>)[k]
+    // fakeDraft guesses 'apartment' when nothing is said; the brochure knows better.
+    if (cur === undefined || cur === null || (Array.isArray(cur) && !cur.length) || (k === 'property_type' && (d.confidence.property_type ?? 0) < 0.6)) {
+      ;(draft as Record<string, unknown>)[k] = v
+      sources[k] = 'brochure'
+      confidence[k] = 0.85
+    }
+  }
+  if (!draft.title) { draft.title = 'Plots in Gulmohar City, Shirur'; sources.title = 'brochure'; confidence.title = 0.7 }
+  if (!draft.description?.en) { draft.description = { en: 'NA-approved plots in a gated layout at Shirur, Pune.' }; sources['description.en'] = 'brochure' }
+  const missing = d.missing.filter((f) => f === 'price_inr' ? !draft.price_inr : f === 'description.en' ? !draft.description?.en : !(draft as Record<string, unknown>)[f])
+  return {
+    ...d, draft, confidence, missing, sources,
+    rera_candidates: [{ regno: 'P52100076768', name: 'Gulmohar City', taluka: 'Shirur' }],
+    brochure: { claims: ['NA-approved plots with clear title', '30 ft internal roads', 'Gated layout with 24x7 security', '10 minutes from Pune-Ahmednagar highway'], rera_no: null, pages: 12 },
+  }
+}
+
 export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
   const store: FixtureStorage | null =
     storage !== undefined ? storage : typeof window !== 'undefined' ? safeLocal() : null
@@ -430,7 +458,7 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
       const l: Listing = {
         id: nextId('l'), agent_id: 'fixture-agent', status: 'draft', visibility: 'network', transaction: 'sale',
         property_type: 'apartment', title: '', description: { en: '' }, price_inr: 0, city: '', locality: '',
-        amenities: [], media: [], created_at: now, updated_at: now, ...input,
+        amenities: [], media: [], created_at: now, updated_at: now, ...withoutClaims(input),
       } as Listing
       load().listings.unshift(l)
       save()
@@ -439,7 +467,7 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
     async updateListing(id, patch) {
       const l = find(id)
       // Computed fields are never stored (the real API ignores them too).
-      const { freshness: _f, days_since_confirmed: _d, ...clean } = patch as ListingInput & { freshness?: unknown; days_since_confirmed?: unknown }
+      const { freshness: _f, days_since_confirmed: _d, file_claims: _c, ...clean } = patch as ListingInput & { freshness?: unknown; days_since_confirmed?: unknown }
       Object.assign(l, clean)
       Object.assign(l, stamp(l))
       save()
@@ -478,8 +506,9 @@ export function createFixtureApi(storage?: FixtureStorage | null): AppApi {
     },
     async aiDraft(req: AIDraftRequest) {
       await new Promise((r) => setTimeout(r, 600))
-      if (!req.text?.trim() && !req.audio && req.image_count < 1) throw fixtureError(400, 'Send text, audio or photos')
-      return fakeDraft(req.text ?? '', req.image_count, !!req.audio)
+      if (!req.text?.trim() && !req.audio && req.image_count < 1 && !req.brochure_url) throw fixtureError(400, 'Send text, audio, photos or a brochure')
+      const d = fakeDraft(req.text ?? '', req.image_count, !!req.audio)
+      return req.brochure_url ? withBrochure(d) : d
     },
     async suggestAbout(req: AboutSuggestRequest) {
       await new Promise((r) => setTimeout(r, 300))

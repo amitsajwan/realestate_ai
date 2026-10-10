@@ -25,23 +25,55 @@ import { BRAND_NAME } from '@/lib/brand'
 /** The marketing page starts the run itself when opened with ?start=1. */
 export const marketingHref = (id: string, lang: Lang) => `/studio/listings/${id}/marketing?start=1&lang=${lang}`
 
-/** Optional builder files for a new project: picked once here, uploaded with the photos. */
-function ProjectFiles({ brochure, video, onBrochure, onVideo }: { brochure: File | null; video: File | null; onBrochure: (f: File | null) => void; onVideo: (f: File | null) => void }) {
-  const pick = (label: string, file: File | null, accept: string, onPick: (f: File | null) => void, testid: string) => (
+function FilePick({ label, empty, file, accept, onPick, testid }: { label: string; empty: string; file: File | null; accept: string; onPick: (f: File | null) => void; testid: string }) {
+  return (
     <div className="flex items-center gap-2">
       <label data-testid={testid} className="flex min-h-[44px] min-w-0 flex-1 cursor-pointer items-center justify-center truncate rounded-xl border border-dashed border-gray-300 p-3 text-sm font-semibold text-blue-700">
-        {file ? `${label}: ${file.name}` : `+ ${label} (optional)`}
+        {file ? `${label}: ${file.name}` : empty}
         <input type="file" accept={accept} className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onPick(f) }} />
       </label>
       {file && <button type="button" onClick={() => onPick(null)} className="min-h-[44px] min-w-[44px] text-sm font-semibold text-gray-600" aria-label={`Remove ${label}`}>✕</button>}
     </div>
   )
+}
+
+/** The builder's brochure: a first-class input next to voice, text and photos. The draft reads it. */
+function BrochurePick({ file, onPick }: { file: File | null; onPick: (f: File | null) => void }) {
   return (
-    <section className="space-y-2" aria-label="Project files">
-      {pick(t('brochurePdf'), brochure, 'application/pdf,.pdf', onBrochure, 'pick-brochure')}
-      {pick(t('builderVideo'), video, 'video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm', onVideo, 'pick-video')}
-      <p className="text-xs text-gray-500">PDF up to {MAX_BROCHURE_MB} MB, video up to {MAX_VIDEO_MB} MB.</p>
+    <section className="space-y-1" aria-label={t('brochurePdf')}>
+      <FilePick label={t('brochurePdf')} empty={`+ ${t('brochureHave')}`} file={file} accept="application/pdf,.pdf" onPick={onPick} testid="pick-brochure" />
+      <p className="text-xs text-gray-500">PDF up to {MAX_BROCHURE_MB} MB.</p>
     </section>
+  )
+}
+
+/** Optional builder video for a new project: picked once here, uploaded with the photos. */
+function ProjectVideo({ video, onVideo }: { video: File | null; onVideo: (f: File | null) => void }) {
+  return (
+    <section className="space-y-1" aria-label="Project video">
+      <FilePick label={t('builderVideo')} empty={`+ ${t('builderVideo')} (optional)`} file={video} accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onPick={onVideo} testid="pick-video" />
+      <p className="text-xs text-gray-500">Video up to {MAX_VIDEO_MB} MB.</p>
+    </section>
+  )
+}
+
+type DraftPhase = 'upload' | 'read' | 'fill'
+const PHASES: Array<[DraftPhase, Parameters<typeof t>[0]]> = [['upload', 'brochureStepUpload'], ['read', 'brochureStepRead'], ['fill', 'brochureStepFill']]
+
+function BrochureProgress({ phase }: { phase: DraftPhase }) {
+  const at = PHASES.findIndex(([p]) => p === phase)
+  return (
+    <div className="space-y-4 py-10" role="status" aria-live="polite" data-testid="brochure-progress">
+      <Spinner label={t('brochureReading')} />
+      <ol className="mx-auto max-w-xs space-y-2">
+        {PHASES.map(([p, label], i) => (
+          <li key={p} className={`flex min-h-[44px] items-center gap-3 rounded-xl px-3 text-sm font-semibold ${i === at ? 'bg-blue-50 text-blue-800' : i < at ? 'text-emerald-700' : 'text-gray-400'}`}>
+            <span aria-hidden>{i < at ? '✓' : i === at ? '…' : '○'}</span>
+            {t(label)}
+          </li>
+        ))}
+      </ol>
+    </div>
   )
 }
 
@@ -80,6 +112,9 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
   const [video, setVideo] = useState<File | null>(null)
   const [lang, setLang] = useState<Lang>('en')
   const [draft, setDraft] = useState<AIDraft | null>(null)
+  const [phase, setPhase] = useState<DraftPhase | null>(null)
+  // The brochure the draft read: its claims go with the listing only while that same file is attached.
+  const readBrochure = useRef<File | null>(null)
   const [form, setForm] = useState<ListingInput>({})
   const [about, setAbout] = useState<About>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -102,33 +137,46 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
   const [priceAck, setPriceAck] = useState<string | null>(null)
   const priceBlocked = !!priceWarning && priceAck !== priceWarning
   const low = draft ? lowConfidenceFields(draft.confidence) : []
-  const hasInput = text.trim().length > 0 || !!audio || photos.length > 0
+  const hasInput = text.trim().length > 0 || !!audio || photos.length > 0 || !!brochure
+  // A brochure means a builder project: no tick needed.
+  const projectDefault = newProject || !!brochure
 
   async function runDraft() {
     if (!hasInput) return setError(t('needSomething'))
     setError(null)
     setStep('drafting')
     try {
-      const d = await api.aiDraft({ text, audio: audio ?? undefined, image_count: photos.length })
+      let brochure_url: string | undefined
+      if (brochure) {
+        setPhase('upload')
+        brochure_url = await uploadOnce(brochure, uploadBrochure)
+        setPhase('read')
+      }
+      const d = await api.aiDraft({ text, audio: audio ?? undefined, image_count: photos.length, brochure_url })
+      if (brochure) setPhase('fill')
+      readBrochure.current = brochure && d.brochure && !d.brochure.error ? brochure : null
       setDraft(d)
       const { about: found, ...rest } = d.draft
-      setForm({ visibility: 'network', ...(newProject ? { listing_scope: 'layout' as const } : {}), ...rest })
+      setForm({ visibility: 'network', ...(projectDefault ? { listing_scope: 'layout' as const } : {}), ...rest })
       setAbout(found ?? {})
       setStep('about') // quick and skippable: what the assistant uses to answer buyers
     } catch (e) {
       setError(errorMessage(e))
       setStep('capture')
+    } finally {
+      setPhase(null)
     }
   }
 
   function fillManually() {
     setDraft({ draft: {}, confidence: {}, missing: [], warnings: [] })
-    setForm({ visibility: 'network', description: { en: text.trim() }, ...(newProject ? { listing_scope: 'layout' as const } : {}) })
+    readBrochure.current = null
+    setForm({ visibility: 'network', description: { en: text.trim() }, ...(projectDefault ? { listing_scope: 'layout' as const } : {}) })
     setAbout({})
     setStep('review')
   }
 
-  const isProject = form.listing_scope ? form.listing_scope === 'layout' : newProject
+  const isProject = form.listing_scope ? form.listing_scope === 'layout' : projectDefault
 
   async function uploadOnce(file: File, up: (f: File) => Promise<{ url: string }>) {
     const done = uploadedDocs.current.get(file)
@@ -154,9 +202,11 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
       }
       const images = uploaded.current.files.map((f, order) => ({ url: f.url, kind: 'image' as const, order, ...qualityFields(f) }))
       const extra: Array<{ url: string; kind: 'document' | 'video'; order: number }> = []
-      if (isProject && brochure) extra.push({ url: await uploadOnce(brochure, uploadBrochure), kind: 'document', order: images.length + extra.length })
+      // The brochure was usually uploaded at Draft already: uploadOnce reuses that URL.
+      if (brochure) extra.push({ url: await uploadOnce(brochure, uploadBrochure), kind: 'document', order: images.length + extra.length })
       if (isProject && video) extra.push({ url: await uploadOnce(video, uploadVideo), kind: 'video', order: images.length + extra.length })
-      const body = cleanInput({ ...form, about: compactAbout(about), media: [...images, ...extra] })
+      const claims = brochure && readBrochure.current === brochure ? draft?.brochure?.claims ?? [] : []
+      const body = cleanInput({ ...form, about: compactAbout(about), media: [...images, ...extra], ...(claims.length ? { file_claims: { brochure: claims } } : {}) })
       // Retry-safe: never create the same draft twice if publish fails.
       const saved = onBehalfOf
         ? createdId.current ? await conciergeApi.updateListing(onBehalfOf.id, createdId.current, body) : await conciergeApi.createListing(onBehalfOf.id, body)
@@ -175,7 +225,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
 
   // The capture screen stays mounted (hidden) while other steps show, so a recorded clip survives "Back".
   let overlay: React.ReactNode = null
-  if (step === 'drafting') overlay = <Spinner label={t('reading')} />
+  if (step === 'drafting') overlay = phase ? <BrochureProgress phase={phase} /> : <Spinner label={t('reading')} />
   else if (step === 'posting') overlay = <Spinner label={t('posting')} />
   else if (step === 'done' && posted && onBehalfOf && agentHome) {
     overlay = (
@@ -223,6 +273,7 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
         value={about}
         onChange={setAbout}
         context={{ locality: form.locality ?? undefined, project_name: form.project_name ?? undefined, bhk: form.bhk ?? undefined, description: text || form.description?.en || '' }}
+        brochureClaims={draft.brochure?.error ? [] : draft.brochure?.claims}
         onDone={() => setStep('review')}
         onSkip={() => setStep('review')}
       />
@@ -240,6 +291,12 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
             <p className="text-blue-900">{draft.transcript}</p>
           </div>
         )}
+        {draft.brochure?.error && (
+          <div role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900" data-testid="brochure-error">
+            <p className="font-semibold">{t('brochureCouldNotRead')}</p>
+            <p>{draft.brochure.error}</p>
+          </div>
+        )}
         {draft.warnings.length > 0 && (
           <div role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
             <p className="font-semibold">{t('warnings')}</p>
@@ -248,8 +305,11 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
         )}
         {low.length > 0 && <p className="text-sm text-amber-700">{t('pleaseCheck')}: {low.map((k) => FIELD_LABELS[k] ?? k.replace('_', ' ')).join(', ')}</p>}
         <PhotoPicker files={photos} onChange={setPhotos} />
-        {isProject && <ProjectFiles brochure={brochure} video={video} onBrochure={setBrochure} onVideo={setVideo} />}
-        <ReviewForm value={view} about={about} onEditAbout={() => setStep('about')} onChange={({ media, ...rest }) => setForm(rest)} confidence={draft.confidence} missing={missing} errors={errors} />
+        <BrochurePick file={brochure} onPick={setBrochure} />
+        {isProject && <ProjectVideo video={video} onVideo={setVideo} />}
+        <ReviewForm value={view} about={about} onEditAbout={() => setStep('about')} onChange={({ media, ...rest }) => setForm(rest)} confidence={draft.confidence} missing={missing} errors={errors}
+          sources={draft.sources} reraCandidates={draft.rera_candidates}
+          priceHint={draft.brochure && !draft.brochure.error && missing.length === 1 && missing[0] === 'price_inr' ? t('brochureNoPrice') : null} />
         {priceWarning && (
           <label className="flex min-h-[44px] items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
             <input type="checkbox" className="h-5 w-5" checked={priceAck === priceWarning} onChange={(e) => setPriceAck(e.target.checked ? priceWarning : null)} />
@@ -300,11 +360,12 @@ export function NewListingFlow({ onBehalfOf }: { onBehalfOf?: OnBehalfOf } = {})
       />
       <VoiceRecorder onChange={setAudio} />
       <PhotoPicker files={photos} onChange={setPhotos} />
+      <BrochurePick file={brochure} onPick={setBrochure} />
       <label className="flex min-h-[44px] items-center gap-3 text-sm font-semibold">
         <input type="checkbox" className="h-5 w-5" checked={newProject} onChange={(e) => setNewProject(e.target.checked)} />
         {t('newProject')}
       </label>
-      {newProject && <ProjectFiles brochure={brochure} video={video} onBrochure={setBrochure} onVideo={setVideo} />}
+      {newProject && <ProjectVideo video={video} onVideo={setVideo} />}
       {error && (
         <div className="space-y-2">
           <ErrorBox message={error} />

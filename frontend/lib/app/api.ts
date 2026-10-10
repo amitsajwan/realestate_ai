@@ -172,6 +172,7 @@ export function createApiClient(opts: ClientOptions): AppApi {
       if (req.text && req.text.trim()) form.append('text', req.text.trim())
       if (req.audio) form.append('audio', req.audio, 'voice.webm')
       form.append('image_count', String(req.image_count))
+      if (req.brochure_url) form.append('brochure_url', req.brochure_url)
       return request<AIDraft>('/listings/ai/draft', { method: 'POST', form })
     },
 
