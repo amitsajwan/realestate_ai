@@ -84,6 +84,9 @@ class Scene:
     brand_mark: bool = False                            # small logo + name above the text (set on the last scene by Renderer)
     screen: bool = False                                # `image` is a designed frame (a product screen in a phone): shown as it is,
                                                         # with no dark scrim, no parallax and only a gentle zoom
+    reveal: Optional[Sequence[float]] = None            # a stacked list: seconds after the scene starts at which each line appears
+                                                        # (one per line). The stack is laid out at its final size, so a line that
+                                                        # joins never moves the ones already there; a line at 0 is there on frame one
 
 
 def end_scene(seconds: float = 2.6) -> Scene:
@@ -277,6 +280,7 @@ class Item:
     x: int
     y: int
     box: Tuple[int, int, int, int]  # the visible text/shape box in frame coordinates (used for safe-zone checks)
+    block: int = 0             # which of the scene's lines it belongs to (Scene.reveal); the kicker goes with the first, the mark with the last
 
 
 def _shadowed(w: int, h: int, draw_fn, strength: float = 0.55) -> Image.Image:
@@ -369,6 +373,8 @@ def layout_scene(scene: Scene) -> List[Item]:
         return _end_items()
     align = scene.align or ("left" if scene.layout == "lower" else "center")
     lines = [l if isinstance(l, TextLine) else TextLine(l) for l in scene.lines]
+    if scene.reveal is not None and len(scene.reveal) != len(lines):
+        raise ReelError("a stacked list needs one reveal time per line")
     lines = [l for l in lines if l.text]
     bottom = TEXT_BOTTOM
     avail = bottom - CONTENT_TOP
@@ -402,18 +408,18 @@ def layout_scene(scene: Scene) -> List[Item]:
     elif scene.layout == "top":
         y = CONTENT_TOP
     else:
-        y = CONTENT_TOP + (avail - total) // 2 + 20
+        y = min(CONTENT_TOP + (avail - total) // 2 + 20, bottom - total)   # the nudge down never pushes a full screen past the zone
     y = max(y, CONTENT_TOP)
     items: List[Item] = []
     if scene.brand_mark:
-        items.append(_mark_item(y, align))
+        items.append(replace(_mark_item(y, align), block=max(0, len(blocks) - 1)))
         y += mark_h
     if scene.kicker:
         items.append(_chip_item(scene.kicker, y, align))
         y += chip_h
-    for b in blocks:
+    for i, b in enumerate(blocks):
         for ln, fnt, color in b:
-            items.append(_text_item(ln, fnt, color, align, y))
+            items.append(replace(_text_item(ln, fnt, color, align, y), block=i))
             y += int(fnt.size * 1.17)
         y += 30
     return items
@@ -496,6 +502,8 @@ class _Prepared:
         self.mask = self._scrim_mask()
         self.solid = Image.new("RGB", (W, H), NAVY_BLACK)
         self.items = layout_scene(scene)
+        self.reveal = [t for l, t in zip(scene.lines, scene.reveal) if (l.text if isinstance(l, TextLine) else l)] if scene.reveal else None
+        self.is_first = is_first
         self.badge = _chip_item(scene.badge, CONTENT_TOP - 4, "left", filled=False) if scene.badge else None
         # The opening scene has no entrance animation: frame one already shows the whole hook, so it is readable before anyone
         # swipes away (and the cover image, a still of that frame, shows it too). Later scenes pop their text in from the cut:
@@ -539,6 +547,11 @@ class _Prepared:
 
     def item_alpha(self, k: int, lt: float) -> float:
         """Opacity (and so the rise offset) of the k-th text item at scene time lt: 1.0 means in its final place."""
+        if self.reveal:  # a stacked list: each line pops in at its own time and stays; the opening scene's first line is there on frame one
+            at = self.reveal[self.items[k].block]
+            if at <= 0 and self.is_first:
+                return 1.0
+            return ease_out_cubic((lt - max(at, self.delay)) / self.fade)
         return ease_out_cubic((lt - self.delay - self.stagger * k) / self.fade) if self.animate else 1.0
 
     def frame(self, lt: float, p: float, text_a: float = 1.0) -> Image.Image:
