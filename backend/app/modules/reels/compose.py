@@ -87,6 +87,8 @@ class Scene:
     reveal: Optional[Sequence[float]] = None            # a stacked list: seconds after the scene starts at which each line appears
                                                         # (one per line). The stack is laid out at its final size, so a line that
                                                         # joins never moves the ones already there; a line at 0 is there on frame one
+    images: Sequence = ()                               # more photos behind the same text (a walkthrough under a stacked list): images[k]
+    image_at: Sequence[float] = ()                      # takes over from the one before at image_at[k] seconds, with a short blend
 
 
 def end_scene(seconds: float = 2.6) -> Scene:
@@ -468,18 +470,21 @@ def _load(image) -> Optional[Image.Image]:
         raise ReelError("could not read a scene image")
 
 
-class _Prepared:
-    """A scene with its base image scaled once, its scrim and text items laid out, ready to draw at any time."""
+IMAGE_BLEND = 0.35   # a photo change behind a stacked list: a quick blend, the text stays still
 
-    def __init__(self, scene: Scene, index: int, is_first: bool):
-        self.scene, self.index = scene, index
-        src = _load(scene.image)
+
+class _Backdrop:
+    """One picture with its own slow motion (zoom, pan, 2.5D parallax), drawn at any point of its time on screen."""
+
+    def __init__(self, image, scene: Scene, index: int):
+        src = _load(image)
         self.has_photo = src is not None
         if src is None:
             tall = 0.2 if scene.kind == "end" else 0.24
             src = brand_background((W, H), scene.seed, skyline=True, floor=0.985, tall=tall)
         s = max(W / src.width, H / src.height)
         self.base = src.resize((max(W, round(src.width * s)), max(H, round(src.height * s))), Image.LANCZOS)
+        self.index = index
         flip = index % 2
         self.z0, self.z1 = (1.0, 1.10) if not flip else (1.10, 1.0)
         if self.has_photo and self.base.width > W * 1.25:   # landscape photo in a portrait frame: pan across it
@@ -499,6 +504,36 @@ class _Prepared:
                 self.depth = None
         if self.depth is not None:  # with parallax the zoom stays gentle so the depth motion reads clearly
             self.z0, self.z1 = (1.02, 1.07) if not flip else (1.07, 1.02)
+
+    def view(self, p: float, zoom: float = 1.0) -> Image.Image:
+        z = (self.z0 + (self.z1 - self.z0) * p) * zoom
+        bw, bh = self.base.size
+        ww, wh = min(W / z, bw), min(H / z, bh)
+        cx = (self.fx0 + (self.fx1 - self.fx0) * p) * bw
+        cy = (self.fy0 + (self.fy1 - self.fy0) * p) * bh
+        x0 = min(max(cx - ww / 2, 0), bw - ww)
+        y0 = min(max(cy - wh / 2, 0), bh - wh)
+        view = self.base.resize((W, H), Image.BILINEAR, box=(x0, y0, x0 + ww, y0 + wh))
+        if self.depth is None:
+            return view
+        import cv2
+        dcrop = self.depth[int(y0):int(y0 + wh), int(x0):int(x0 + ww)]
+        d = cv2.resize(dcrop, (W, H), interpolation=cv2.INTER_LINEAR)
+        swing = (p - 0.5) * 2 * (1 if self.index % 2 == 0 else -1)
+        from .depth import parallax
+        return parallax(view, d, shift_x=34 * swing, shift_y=-10 * swing)
+
+
+class _Prepared:
+    """A scene with its base image scaled once, its scrim and text items laid out, ready to draw at any time."""
+
+    def __init__(self, scene: Scene, index: int, is_first: bool):
+        self.scene, self.index = scene, index
+        if len(scene.images) != len(scene.image_at):
+            raise ReelError("each extra image needs the time it comes in")
+        self.backdrops = [_Backdrop(scene.image, scene, index)] + [_Backdrop(im, scene, index + k + 1) for k, im in enumerate(scene.images)]
+        self.backdrop_at = [0.0] + [float(t) for t in scene.image_at]
+        self.has_photo = self.backdrops[0].has_photo
         self.mask = self._scrim_mask()
         self.solid = Image.new("RGB", (W, H), NAVY_BLACK)
         self.items = layout_scene(scene)
@@ -525,22 +560,25 @@ class _Prepared:
         return grad.point(lut)
 
     def background(self, p: float, lt: float = 1.0) -> Image.Image:
-        z = (self.z0 + (self.z1 - self.z0) * p) * (1 + self.punch * (1 - ease_out_cubic(lt / PUNCH_SECONDS)))
-        bw, bh = self.base.size
-        ww, wh = min(W / z, bw), min(H / z, bh)
-        cx = (self.fx0 + (self.fx1 - self.fx0) * p) * bw
-        cy = (self.fy0 + (self.fy1 - self.fy0) * p) * bh
-        x0 = min(max(cx - ww / 2, 0), bw - ww)
-        y0 = min(max(cy - wh / 2, 0), bh - wh)
-        view = self.base.resize((W, H), Image.BILINEAR, box=(x0, y0, x0 + ww, y0 + wh))
-        if self.depth is None:
-            return view
-        import cv2
-        dcrop = self.depth[int(y0):int(y0 + wh), int(x0):int(x0 + ww)]
-        d = cv2.resize(dcrop, (W, H), interpolation=cv2.INTER_LINEAR)
-        swing = (p - 0.5) * 2 * (1 if self.index % 2 == 0 else -1)
-        from .depth import parallax
-        return parallax(view, d, shift_x=34 * swing, shift_y=-10 * swing)
+        """The scene's picture at progress p. With several pictures each one moves over its own stretch of the scene, lands with
+        the same gentle punch-in as a cut, and blends in over IMAGE_BLEND seconds."""
+        punch = lambda t, amount: 1 + amount * (1 - ease_out_cubic(t / PUNCH_SECONDS))
+        if len(self.backdrops) == 1:
+            return self.backdrops[0].view(p, punch(lt, self.punch))
+        dur = lt / p if p > 0 else (self.scene.seconds or 1.0)   # the scene's length as planned (plan() may have scaled it)
+        ends = self.backdrop_at[1:] + [max(dur, self.backdrop_at[-1] + 1e-3)]
+        k = max(i for i, t in enumerate(self.backdrop_at) if t <= lt)
+
+        def draw(i):
+            t0, t1 = self.backdrop_at[i], ends[i] + (IMAGE_BLEND if i < k else 0.0)
+            amount = self.punch if i == 0 else PUNCH_SCALE
+            return self.backdrops[i].view(clamp01((lt - t0) / max(1e-3, t1 - t0)), punch(lt - t0, amount))
+
+        cur = draw(k)
+        w = (lt - self.backdrop_at[k]) / IMAGE_BLEND
+        if k == 0 or w >= 1:
+            return cur
+        return Image.blend(draw(k - 1), cur, ease_in_out_cubic(w))
 
     def badge_alpha(self, lt: float) -> float:
         return ease_out_cubic(lt / TEXT_IN) if self.animate else 1.0

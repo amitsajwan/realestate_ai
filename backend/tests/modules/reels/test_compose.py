@@ -315,6 +315,7 @@ def test_screens_of_one_split_line_share_one_continuous_background():
     r = compose.Renderer(scenes, **opts)
     a, b = r.prep[1], r.prep[2]   # 'Ask for the *RERA number*.' / 'Then look it up on the MahaRERA site.'
     assert a.scene.seed == b.scene.seed and b.punch == 0.0 < a.punch
+    a, b = a.backdrops[0], b.backdrops[0]
     assert a.base.tobytes() == b.base.tobytes() and (a.z1, a.fx1, a.fy1) == (b.z0, b.fx0, b.fy0)   # starts where the last ended
 
 
@@ -365,3 +366,17 @@ def test_the_stack_shows_the_hook_on_frame_one_and_each_line_joins_at_its_time_w
 def test_a_stack_needs_one_reveal_time_per_line():
     with pytest.raises(compose.ReelError):
         compose.layout_scene(Scene(lines=["a", "b"], reveal=[0.0]))
+
+
+def test_photos_change_behind_a_stack_while_the_text_stays_put():
+    red, blue = Image.new("RGB", (1080, 1920), (220, 30, 30)), Image.new("RGB", (1080, 1920), (30, 30, 220))
+    scene = Scene(image=red, images=[blue], image_at=[2.0], lines=["Hook", "Fact"], reveal=[0.0, 2.0], seconds=4.0, seed="w")
+    r = compose.Renderer([scene], xfade=0.0, hook_tag=False)
+    px = lambda t: r.frame_at(t).getpixel((W // 2, H - 60))
+    before, mid, after = px(1.9), px(2.0 + compose.IMAGE_BLEND / 2), px(3.0)
+    assert before[0] > before[2] and after[2] > after[0]            # red, then blue
+    assert before[0] > mid[0] > after[0]                            # blended, not a hard jump
+    p = r.prep[0]
+    assert [it.box for it in p.items] == [it.box for it in compose.layout_scene(compose.finish_scenes([scene])[0])]   # one layout: nothing moves
+    with pytest.raises(compose.ReelError):
+        compose.Renderer([Scene(image=red, images=[blue], lines=["x"], seconds=3.0)])

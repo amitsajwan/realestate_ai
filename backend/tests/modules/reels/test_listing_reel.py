@@ -472,3 +472,48 @@ def test_every_reel_cta_asks_for_the_interested_comment_in_roman_letters():
     assert "comment the word INTERESTED" in director.SYSTEM and "tap 'interested'" not in director.SYSTEM
     tour, _ = templates.listing_tour(["a.jpg", "b.jpg"], templates.DEMO_FACTS["kharadi"])
     assert tour[-1].lines[0].text == "Comment *INTERESTED* for details"
+
+
+# ---- the stacked style: the beats as one list over the walkthrough ------------------------------------------------------------
+def test_render_stack_puts_every_beat_in_one_list_over_the_walkthrough_and_speaks_each_line_as_it_lands(tmp_path, stubs):
+    photos = ["a.jpg", "b.jpg", "c.jpg", "d.jpg", "e.jpg"]
+    out = lr.render(_script(), photos, "mr", tmp_path / "r.mp4", kicker="KHARADI", closing="Listed by Rahul Homes · RERA A51800012345",
+                    voiced=True, style="stack")
+    assert out == {"audio": "voice+music", "note": ""}
+    (scene,) = stubs["scenes"]
+    script = _script()
+    texts = [l.text for l in scene.lines]
+    assert texts[:5] == [b["screen"] for b in script["beats"]] + [script["cta_screen"]]
+    assert texts[5:] == ["Listed by Rahul Homes", "RERA A51800012345"]
+    assert [scene.image, *scene.images] == photos                                     # the walkthrough: every photo once, in order
+    starts = [i * 3.05 for i in range(5)]                                              # each beat lasts as long as its voice line
+    assert scene.reveal == pytest.approx(starts + [starts[-1]] * 2)                    # a line lands as its voice starts; 'Listed by' with the CTA
+    assert list(scene.image_at) == pytest.approx(starts[1:])                           # the photo changes with the line
+    assert scene.seconds == pytest.approx(5 * 3.05) and scene.kicker == "KHARADI"
+    assert [l for _, l in stubs["synth"]] == ["mr"] * 5 and stubs["music"].suffix == ".m4a"
+    delays = re.findall(r"adelay=(\d+)", " ".join(stubs["ffmpeg"][0]))
+    assert [int(d) for d in delays] == [int((t + (0.35 if i == 0 else 0.25)) * 1000) for i, t in enumerate(starts)]
+    compose._no_phone_numbers([scene])
+    with pytest.raises(ValueError):
+        lr.render(_script(), photos, "en", tmp_path / "x.mp4", voiced=False, style="carousel")
+
+
+async def test_a_stack_reel_is_its_own_job_and_the_tour_flows_are_untouched(tmp_path):
+    r = Renderer()
+    jobs, db = await setup(tmp_path, renderer=r)
+    tour, _ = await jobs.create(AGENT, "L1", "en")
+    stack, created = await jobs.create(AGENT, "L1", "en", style="stack")
+    assert created and stack["_id"] != tour["_id"] and stack["style"] == "stack"
+    assert (await jobs.create(AGENT, "L1", "en", style="stack"))[0]["_id"] == stack["_id"]   # a re-request returns it
+    with pytest.raises(lr.ReelJobError):
+        await jobs.create(AGENT, "L1", "en", style="carousel")
+    while await jobs.run_once():
+        pass
+    assert [c.get("style") for c in r.calls] == [None, "stack"]                        # a tour render is called exactly as before
+    assert "-stack-" in r.calls[1]["out"].name and "-stack-" not in r.calls[0]["out"].name
+    assert (await jobs.latest_done(AGENT, "L1", "en"))["_id"] == tour["_id"]           # posting and the calendar keep the tour
+    assert (await jobs.latest_done(AGENT, "L1", "en", "stack"))["_id"] == stack["_id"]
+    assert lr.job_out(stack)["style"] == "stack" and lr.job_out({**tour, "style": None})["style"] == "tour"
+    old = {k: v for k, v in tour.items() if k != "style"}                              # a job from before styles: a tour
+    db.get_collection("reel_jobs").docs[:] = [old]
+    assert (await jobs.latest(AGENT, "L1"))["en"]["_id"] == tour["_id"] and not await jobs.latest(AGENT, "L1", "stack")
