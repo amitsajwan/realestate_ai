@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from app.core import brand
+from app.modules.marketing.maharera import ProjectRegistration
 
 AUDIENCES = ("buyer", "agent")
 CHANNELS = ("instagram", "facebook")
@@ -65,6 +66,7 @@ class Brief:
     voice: Voice = field(default_factory=Voice)
     mode: str = "brand"                   # "brand" (explainers: no prices) or "listing" (markets one property); see prompts.py
     card_brand: Optional[CardBrand] = None  # an agent's footer on the cards; None = the brand's own
+    maharera: Optional[ProjectRegistration] = None  # the project's trusted MahaRERA registration: a QR badge on the cards
     contact: List[str] = field(default_factory=list)  # lines code adds to every caption ("📞 +91 ...", "🌐 house-deal.com")
     language: str = "en"                  # "mr"/"hi": the cards and caption are translated after the English copy passes
     asks: Dict[str, str] = field(default_factory=dict)  # the caption's closing question by language ("en", "mr", "hi"),
@@ -169,6 +171,7 @@ class Design:
     size: Tuple[int, int] = (1080, 1350)
     notes: str = ""
     brand: Optional[CardBrand] = None  # Brief.card_brand, for the footer
+    maharera: Optional[ProjectRegistration] = None  # Brief.maharera, for the badge at the top right
 
 
 @dataclass

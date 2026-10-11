@@ -11,6 +11,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageOps, 
 
 from app.core import brand
 from app.modules.marketing.images import LOGO_PATH, MARGIN, load_font as _latin_font, wrap
+from app.modules.marketing.maharera import ProjectRegistration, badge as maharera_badge
 
 from .. import i18n
 from ..models import CardBrand
@@ -28,18 +29,20 @@ FONT_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
 DEVANAGARI_FONTS = {"regular": "Mukta-Regular.ttf", "medium": "Mukta-Medium.ttf", "semibold": "Mukta-SemiBold.ttf",
                     "bold": "Mukta-Bold.ttf"}  # Mukta (SIL OFL): Devanagari, Latin and ₹; Pillow shapes it with libraqm
 
-# What the card being rendered needs: its language (Devanagari fonts and the card's fixed words for a Marathi/Hindi post)
-# and whose footer (an agent's or ours).
-_CARD: contextvars.ContextVar = contextvars.ContextVar("creative_card", default=("en", None))
+# What the card being rendered needs: its language (Devanagari fonts and the card's fixed words for a Marathi/Hindi post),
+# whose footer (an agent's or ours) and the project's MahaRERA registration (the badge), if any.
+_CARD: contextvars.ContextVar = contextvars.ContextVar("creative_card", default=("en", None, None))
+MAHARERA_QR, MAHARERA_TEXT = 140, 24   # the badge on a 1080-wide card: a compact one, beside the kicker chip where it fits
 STRIP_H = 188   # height of an agent's contact strip at the bottom of a card (FOOTER_H: our one-line footer)
 FOOTER_H = 64
 
 
 @contextmanager
-def card(devanagari: bool = False, card_brand: Optional[CardBrand] = None, language: Optional[str] = None) -> Iterator[None]:
-    """Render inside this to draw Devanagari text, the card's fixed words in `language`, and/or an agent's footer
-    (layouts.render_layout does it)."""
-    token = _CARD.set((language or ("mr" if devanagari else "en"), card_brand))
+def card(devanagari: bool = False, card_brand: Optional[CardBrand] = None, language: Optional[str] = None,
+         maharera: Optional[ProjectRegistration] = None) -> Iterator[None]:
+    """Render inside this to draw Devanagari text, the card's fixed words in `language`, an agent's footer and/or the MahaRERA
+    badge (layouts.render_layout does it)."""
+    token = _CARD.set((language or ("mr" if devanagari else "en"), card_brand, maharera))
     try:
         yield
     finally:
@@ -81,6 +84,10 @@ def cap() -> float:
 
 def card_brand() -> Optional[CardBrand]:
     return _CARD.get()[1]
+
+
+def maharera() -> Optional[ProjectRegistration]:
+    return _CARD.get()[2]
 
 
 def brand_name() -> str:
@@ -469,8 +476,8 @@ class Canvas:
         b = card_brand()
         pal = self.pal
         w = self.right - self.left
-        if kicker:
-            self.chip(kicker, self.left, self.top, icon="home")
+        chip = self.chip(kicker, self.left, self.top, icon="home") if kicker else None
+        rera_y = self.maharera_badge(beside=chip)
         panel = pal.card if not pal.light else (255, 255, 255)
         rows = [(ui("call"), b.phone, 84)]
         if b.price:
@@ -483,7 +490,7 @@ class Canvas:
         ph = 48 + sum(row_h) + gap * (len(rows) - 1) + 44
         d = 132
         total = d + 60 + ph + (40 + 44 if save else 0)
-        top, bottom = self.top + 100, self.bottom - 90          # under the chip, above the progress dots
+        top, bottom = max(self.top + 100, (rera_y or 0) + 30), self.bottom - 90   # under the chip (and badge), above the dots
         y = top + max(0, (bottom - top - total) // 2)
         self.logo(self.left, y, d)
         self.text(b.name, self.left + d + 32, y + (d - int(60 * cap())) // 2 - 4, w - d - 32, 60, "bold", pal.ink, 2, pitch=1.08,
@@ -501,6 +508,27 @@ class Canvas:
             if sy + 44 <= bottom:
                 self.icon("bookmark", (self.left + 20, sy + 18), 40, pal.accent, 5)
                 self.text(save, self.left + 60, sy, w - 60, 38, "semibold", pal.muted, 1, role="support", balance=False)
+
+    def maharera_badge(self, beside: Optional[Box] = None, y: Optional[int] = None) -> Optional[int]:
+        """The MahaRERA badge (QR code, "MahaRERA: P5...", the website) at the top right, where MahaRERA's order puts it, when
+        the card's project registration is known; None otherwise. Beside `beside` (the kicker chip) when it fits there, else
+        under it; at `y` when given. Returns the badge's bottom, so the layout starts its content below it."""
+        reg = maharera()
+        if reg is None:
+            return None
+        b = maharera_badge(reg, MAHARERA_QR, MAHARERA_TEXT)
+        w, h = b.size
+        x = self.right - w
+        if y is None:
+            y = self.top if beside is None or beside[2] + 20 <= x else beside[3] + 20
+        self.img.paste(b.img, (x, y), b.img)
+        self.shapes.append((x, y, x + w, y + h))
+        lum = luminance(b.panel)
+        for text, (x0, y0, x1, y1) in zip(b.texts, b.text_boxes):
+            hi, lo = max(lum, luminance(b.ink)), min(lum, luminance(b.ink))
+            self.items.append(Item(text, (x + x0, y + y0, x + x1, y + y1), b.text_px, b.ink, lum, 1, False, "brand",
+                                   (hi + 0.05) / (lo + 0.05)))
+        return y + h
 
     def chip(self, label: str, x: int, y: int, fill: Optional[RGB] = None, ink: Optional[RGB] = None, size: int = 26,
              outline: Optional[RGB] = None, icon: Optional[str] = None, align_right: bool = False) -> Box:

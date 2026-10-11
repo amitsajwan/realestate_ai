@@ -29,6 +29,7 @@ Every part below carries one status:
 | Interest links, `/go` hub, `?src=` tracking | LIVE | |
 | Public feed of our posts (`/posts`) | LIVE | |
 | Project page enrichment from MahaRERA | LIVE | |
+| MahaRERA QR badge on project ads (AR-3) | BUILT | Pack cards, campaign cards, reel closing scene; only for a trusted project number (§4). |
 | Daily reels (area insight + project, 2 a day) | BUILT, OFF | `CALENDAR_DAILY_REELS` unset. |
 | Instagram location tags | BUILT, OFF | Needs `IG_LOCATION_*` place ids. |
 | Reading reach, plays and watch time back from Meta | BUILT | `insights/collector.py` (PR #60) reads them into `content_metrics`, grouped by the calendar tags. Production state not checked here. |
@@ -178,6 +179,57 @@ Pack cards (`marketing.images.card_photos`): each card gets its own photo where 
 the other cards the next ranked photos in turn; the amenities card prefers a photo tagged amenity, then exterior. Photos
 repeat only when there are fewer photos than cards. The pack is made in a request, so it reads cached tags only (from an
 earlier reel); without them the ranked order decides.
+
+### MahaRERA on our ads (BUILT, AR-3)
+**What MahaRERA requires** (researched 11 Oct 2026; MahaRERA's own site does not answer from our build sandbox, so the order's
+wording comes from MahaRERA's order list and the law-firm and press summaries below, not from the PDF itself):
+- **Order 46C/2025, 8 April 2025**, "Norms for QR Code and font size of MahaRERA registration number in advertisements", is the
+  one in force. Every advertisement of a registered project, by a promoter or a registered agent, in any medium (print,
+  hoardings, social media posts, WhatsApp, digital banners, video thumbnails) shows three things: the **MahaRERA project
+  registration number**, the **website maharera.maharashtra.gov.in**, and the **project's own MahaRERA QR code**.
+- **Size and place.** The number and the website are set in a font no smaller than the largest font used for the ad's contact
+  details and address. The summaries place all three in the **top right** of the creative, in a visible colour, and the QR
+  code keeps its aspect ratio so it stays scannable. No minimum QR size in pixels is given.
+- **Earlier orders it builds on.** Order 46/2023 (May 2023) put a QR code on every project's registration certificate from
+  1 Aug 2023 and required it on ads; Order 46A/2023 set the penalties; Order 46B/2023 (Aug 2023) extended the rule to agents
+  (the QR code shown prominently, next to the project registration number).
+- **Still applies in 2026.** No later order replaces 46C/2025; 2026 compliance checklists still cite it, and MahaRERA keeps
+  fining: 628 projects for Rs 88.90 lakh in 2024, six Pune projects Rs 15,000 each. Penalties are reported as Rs 10,000 to
+  Rs 50,000 per ad (section 63 of the RERA Act).
+- **What the official QR opens.** Scanning a project's MahaRERA QR opens that project's public page on MahaRERA (name,
+  promoter, dates, approvals). The exact URL inside the official code could not be confirmed from here.
+
+**What we print.** `marketing/maharera.py` draws one badge with `segno` (QR) and Pillow: a white panel, the QR code with its
+quiet zone, "MahaRERA: P5..." and "maharera.maharashtra.gov.in". The QR encodes the most specific official URL we can verify:
+the project's public page `https://maharerait.maharashtra.gov.in/public/project/view/<MahaRERA id>` (the page MahaRERA's
+own search links each project to; our code reads it, verified 3 Oct 2026) when the fact sheet or our register knows the id,
+otherwise `https://maharera.maharashtra.gov.in/`, where the number under the code is searched. No other URL can be encoded.
+- Where: top right of the pack's cover, cta and WhatsApp status cards; every campaign card (all seven buyer layouts, beside or
+  under the kicker chip; a carousel carries it on its cover and closing slide, not the inner slides); the walkthrough reel's
+  closing scene (tour) or with the closing lines (stack). QR codes are 148 to 185 px on the pack cards, 135 to 148 px on campaign cards, 222 to 225 px on a reel frame, with
+  whole pixels per module. Tests decode each one back with OpenCV.
+- When (`propertyfacts/advert.py`): only for a project number we trust: MahaRERA's own record of it on the fact sheet, else
+  the listing's `rera_no` (the agent's data), else the brochure kit's `verified` or `registered_by_agent` number. `exempt`,
+  `unknown`, an `unverified` brochure number, a number MahaRERA contradicts, a sample listing and the agent's own registration
+  (A5..., which stays in "Listed by ... · RERA ...") never get a badge or a registration line. The pack and the reel ask through
+  `marketing.maharera.configure` (wired in `app/wiring.py`); campaigns pass the brochure kit to `campaign.plan/make`.
+- Open: the contact strip on an agent's campaign cards shows the phone at 40 px while the badge text is 24 px, below the
+  order's font rule; the pack cards (no phone) use 30 px, as large as "Listed by". Owner to decide: a smaller phone or a
+  larger badge. Letting the agent upload the official QR from the registration certificate would make the code identical to
+  MahaRERA's; not built.
+- Samples: `docs/content/showcase/maharera-qr/`.
+
+Sources: [MahaRERA orders list](https://maharera.maharashtra.gov.in/order);
+[Complinity on Order 46C/2025](https://complinity.com/legal-update/maharashtra-real-estate-regulatory-authority-maharera-issues-order-regarding-the-mandatory-display-of-qr-code-font-size-specifications-for-maharera-registration-number-and-website-address-in-advertisements-18613/);
+[Desai and Diwanji](https://desaidiwanji.com/insights/articles/transparency-first-maharera-enforces-stricter-rules-for-real-estate-advertising);
+[Real Estate Law Journal](https://realestatelawjournal.in/maharera-qr-code-registration-ad-guidelines-2025/);
+[Palladian, 2026 checklist](https://palladian.in/maharera-advertising-rules-2026-the-compliance-checklist-to-run-before-your-next-launch/);
+[TaxGuru on the 2023 order](https://taxguru.in/corporate-law/matter-non-display-quick-response-qr-code-promotions-advertisement-real-estate-projects-registered-maharera.html);
+[WIRC-ICAI, Sep 2023 (46A, 46B)](https://old.wirc-icai.org/newsletters/2023/september/maharera.html);
+[Housing.com, QR from 1 Aug 2023](https://housing.com/news/qr-code-display-in-all-maharera-registered-projects-mandatory-from-aug-1-2023/);
+[Storyboard18, 628 projects fined](https://www.storyboard18.com/amp/how-it-works/maharera-penalises-628-projects-over-absence-of-qr-codes-in-ads-registration-number-36609.htm);
+[Pune Pulse, Ravetkar fines](https://www.mypunepulse.com/pune-maharera-fines-six-ravetkar-projects-%E2%82%B990000-for-violating-advertisement-disclosure-norms/);
+[99acres on the project QR](https://www.99acres.com/articles/maharera-launches-qr-code-to-access-project-details-nid.html).
 
 ### Reel formats (templates, `reels/templates.py`)
 - **Tip, pitch, listing tour** ("guess the price"): scenes that replace each other.

@@ -21,7 +21,7 @@ from app.modules.creative.listing_brief import price_label
 from app.modules.creative.models import Brief, CardBrand, CreativePack, Voice
 from app.platform.text import bhk_label
 
-from . import surroundings
+from . import advert, surroundings
 from .facts import Fact
 
 log = logging.getLogger(__name__)
@@ -114,8 +114,11 @@ class Ctx:
 
     def __init__(self, facts: Dict[str, Fact], photo: str = "none", link: str = "", voice: Optional[Voice] = None,
                  card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (), language: str = "en",
-                 images: Sequence[Dict[str, Any]] = ()):
+                 images: Sequence[Dict[str, Any]] = (), kit: Optional[dict] = None):
         self.v: Dict[str, Any] = {k: f.value for k, f in facts.items() if f.usable}
+        # the project registration the cards may print (the QR badge and the strip's MahaRERA line): advert.trusted, which
+        # reads the brochure kit's answer too (`exempt` or an unverified number: none)
+        self.registration = advert.trusted({}, facts, kit)
         self.claims: Dict[str, Any] = {k: f.value for k, f in facts.items() if f.level == "builder_claim"}  # say whose claim
         # MahaRERA's own record was read (not only a number typed into the listing or printed in a brochure)
         self.maharera = any("maharera" in f.sources for f in facts.values() if f.usable)
@@ -128,7 +131,8 @@ class Ctx:
         self.contact, self.language = list(contact), language  # an agent's contact lines and the post language
         if card_brand is not None:  # an agent's cards also carry this listing's price and MahaRERA number
             price = price_label(self.v["price_inr"]) if self.v.get("price_inr") else ""
-            card_brand = replace(card_brand, price=card_brand.price or price, rera=card_brand.rera or str(self.v.get("rera_no") or ""))
+            card_brand = replace(card_brand, price=card_brand.price or price,
+                                 rera=card_brand.rera or (self.registration.regno if self.registration else ""))
         self.card_brand = card_brand
         self.where = ", ".join(p for p in (self.project, self.locality) if p)
         self.plot = self.v.get("property_type") == "plot"
@@ -162,6 +166,7 @@ class Ctx:
         kw.setdefault("voice", self.voice)
         kw.setdefault("mode", "listing")
         kw.setdefault("card_brand", self.card_brand)
+        kw.setdefault("maharera", self.registration)
         kw.setdefault("contact", list(self.contact))
         kw.setdefault("language", self.language)
         return Brief(**kw)
@@ -439,10 +444,11 @@ ANGLES: Tuple[AngleDef, ...] = tuple(AngleDef(f.__name__, f) for f in (
 
 def plan(facts: Dict[str, Fact], photo: str = "none", link: str = "", angles: Sequence[AngleDef] = ANGLES,
          voice: Optional[Voice] = None, card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (),
-         language: str = "en", images: Sequence[Dict[str, Any]] = ()) -> List[Tuple[str, Brief]]:
+         language: str = "en", images: Sequence[Dict[str, Any]] = (), kit: Optional[dict] = None) -> List[Tuple[str, Brief]]:
     """`voice`, `card_brand`, `contact`, `language`: whose posts these are (default ours) and in which language. `images`: the
-    brochure images the agent confirmed (brochure.usable_images)."""
-    c = Ctx(facts, photo, link, voice, card_brand, contact, language, images)
+    brochure images the agent confirmed (brochure.usable_images); `kit`: the listing's brochure kit (its registration answer
+    decides the MahaRERA badge with the facts, see advert.trusted)."""
+    c = Ctx(facts, photo, link, voice, card_brand, contact, language, images, kit)
     out = []
     for a in angles:
         b = a.build(c)
@@ -457,13 +463,13 @@ RETRIES = 3  # other seeds (other layouts) to try before an angle is dropped: so
 async def make(facts: Dict[str, Fact], out_dir: Path, llm: Any = None, photo: str = "none", link: str = "",
                channel: str = "instagram", dropped: Optional[Dict[str, Any]] = None,
                voice: Optional[Voice] = None, card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (),
-               language: str = "en", images: Sequence[Dict[str, Any]] = ()) -> List[Tuple[str, CreativePack]]:
+               language: str = "en", images: Sequence[Dict[str, Any]] = (), kit: Optional[dict] = None) -> List[Tuple[str, CreativePack]]:
     """Render every planned angle; consecutive posts avoid repeating a layout. An angle that fails a guard is retried with
     other seeds, then dropped (its problems go into `dropped` when given). `voice`: who speaks (default the brand desk)."""
     packs: List[Tuple[str, CreativePack]] = []
     recent: List[str] = []
     for i, (aid, brief) in enumerate(plan(facts, photo, link, voice=voice, card_brand=card_brand, contact=contact, language=language,
-                                          images=images)):
+                                          images=images, kit=kit)):
         for attempt in range(RETRIES):
             pack = await pipeline.make(brief, "buyer", channel, llm, seed=i + 17 * attempt, recent_layouts=recent,
                                        out_dir=Path(out_dir) / aid, reviewer=None)

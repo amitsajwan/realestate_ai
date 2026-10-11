@@ -31,6 +31,7 @@ async def _attempt(brief: Brief, audience: str, channel: str, llm: Any, seed: in
     copy = await translate.translate(copy, brief, translator)
     design = art_director.choose(copy, angle, recent, seed, brief.photo)
     design.brand = brief.card_brand
+    design.maharera = brief.maharera
     rendered = await asyncio.to_thread(render_layout, copy, design)
     report = critic.review(copy, design, rendered, brief.corpus(), channel, recent)
     if translator is not None and brief.language in prompts.LANGUAGE_NAMES and copy.language != brief.language:

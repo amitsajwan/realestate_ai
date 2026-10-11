@@ -47,20 +47,23 @@ def _cover(copy: Copy, design: Design, n: int) -> Rendered:
     c.text(brand_name(), c.left + 82, c.top + (2 if strip_on() else 14), 420, 30, "semibold", pal.ink, 1, balance=False, role="brand")
     _agent_line(c, c.left + 82, c.top + 42, 420)
     c.chip(str(copy.payload.get("kicker", "SAVE THIS")), c.right, c.top + 4, icon="bookmark", align_right=True, size=24)
-    top, cue_top = c.top + 130, c.bottom - 40 - 34 - 40
-    skel_h = 250 if tall else 150
+    rera_y = c.maharera_badge(y=c.top + 84)   # top right, under the brand row; the list skeleton gives way to it
+    top, cue_top = (rera_y + 30 if rera_y else c.top + 130), c.bottom - 40 - 34 - 40
+    skel_h = 0 if rera_y else (250 if tall else 150)
     hook_size = 122 if tall else 104
-    hook_h = c.measure(copy.hook, w, hook_size, "bold", 3, pitch=1.06, min_size=64)
     sub = copy.support or ui("n_things", n=len(copy.slides))
     sub_h = c.measure(sub, w, 40, "medium", 2, pitch=1.3)
+    room = cue_top - 40 - top - 44 - sub_h - 34 if rera_y else None
+    hook_h = c.measure(copy.hook, w, hook_size, "bold", 3, pitch=1.06, min_size=64, h=room)
     total = hook_h + 34 + sub_h
     y = top + max(0, (cue_top - skel_h - 40 - top - total) // 2)
     c.rrect((c.left, y, c.left + 110, y + 10), 5, pal.accent_fill)
-    y = c.text(copy.hook, c.left, y + 34, w, hook_size, "bold", pal.ink, 3, pitch=1.06, min_size=64, emph=design.emphasis, role="hook") + 34
+    y = c.text(copy.hook, c.left, y + 34, w, hook_size, "bold", pal.ink, 3, pitch=1.06, min_size=64, h=room, emph=design.emphasis,
+               role="hook") + 34
     c.text(sub, c.left, y, w, 40, "medium", pal.muted, 2, pitch=1.3, balance=False, role="support")
     # Checklist skeleton: three rows, each a check disc and a bar, so the cover already reads as "a list inside".
-    rows = 3
-    rh = skel_h // rows
+    rows = 3 if skel_h else 0
+    rh = skel_h // 3
     for i in range(rows):
         ry = cue_top - skel_h + i * rh + rh // 2
         c.circle((c.left + 30, ry), 26, pal.accent_fill if i == 0 else pal.card)
@@ -111,8 +114,9 @@ def _closing(copy: Copy, design: Design, n: int) -> Rendered:
         c.contact_card(str(copy.payload.get("kicker") or ""), known("Save this"))
         _cue(c, n, n - 1, True)
         return c.finish()
+    rera_y = c.maharera_badge()   # top right, beside the bookmark
     c.icon("bookmark", (c.left + 80, c.top + (190 if tall else 130)), 170 if tall else 120, pal.accent, 6)
-    y = c.top + (330 if tall else 250)
+    y = max(c.top + (330 if tall else 250), (rera_y or 0) + 40)
     y = c.text(known("Save this" if copy.card_cta in ("Swipe", "") else copy.card_cta), c.left, y, w, 150 if tall else 110, "bold", pal.ink, 2, pitch=1.06, role="hook")
     y = c.text(copy.cta_question, c.left, y + 40, w, 56 if tall else 44, "medium", pal.muted, 4, pitch=1.3, balance=False, role="support")
     c.brand_bar(y=c.bottom - 130, dark_bg=not pal.light)

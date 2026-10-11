@@ -14,8 +14,9 @@ def render(copy: Copy, design: Design) -> List[Rendered]:
     question = str(p.get("question") or copy.hook)
     opts = [str(o) for o in (p.get("options") or ["", ""])][:2]
     w = c.right - c.left
-    c.chip(str(p.get("kicker", "THIS OR THAT")), c.left, c.top, icon="bolt")
-    qy = c.top + 100
+    chip = c.chip(str(p.get("kicker", "THIS OR THAT")), c.left, c.top, icon="bolt")
+    rera_y = c.maharera_badge(beside=chip)
+    qy = max(c.top + 100, (rera_y or 0) + 30)
     q_size = 104 if tall else 78
     qh = c.measure(question, w, q_size, "bold", 3, pitch=1.08, min_size=52)
     c.text(question, c.left, qy, w, q_size, "bold", pal.ink, 3, pitch=1.08, min_size=52, emph=design.emphasis, role="hook")

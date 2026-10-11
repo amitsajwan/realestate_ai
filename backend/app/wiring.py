@@ -42,6 +42,9 @@ def wire() -> None:
     from app.modules.areastats import enrich as project_enrich
     project_enrich.configure(gather=_gather_project)
     register_watch.add_source("property_facts", _property_facts_watch)  # every project we gathered facts for to market it
+    # the MahaRERA badge on the pack cards and the walkthrough reel prints only a project number propertyfacts trusts (AR-3)
+    from app.modules.marketing import maharera as maharera_badge
+    maharera_badge.configure(resolve=_project_registration)
 
 
 async def _tell_owner_about_invite_request(name: str, city: str) -> None:
@@ -77,6 +80,13 @@ async def _agent_project_watch():
     docs = await get_database().get_collection("agent_projects").find(
         {"rera_no": {"$exists": True}}, {"rera_no": 1, "maharera_id": 1, "name": 1}).to_list(2000)
     return [WatchItem(d["rera_no"], d.get("maharera_id"), d.get("name", "")) for d in docs if d.get("rera_no")]
+
+
+async def _project_registration(db, listing):
+    """propertyfacts.advert.for_listing, imported lazily (propertyfacts sits above marketing and reels)."""
+    from app.modules.propertyfacts.advert import for_listing
+
+    return await for_listing(db, listing)
 
 
 async def _gather_project(db, regno, name, locality, city="Pune", now=None):
