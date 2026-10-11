@@ -380,3 +380,11 @@ def test_photos_change_behind_a_stack_while_the_text_stays_put():
     assert [it.box for it in p.items] == [it.box for it in compose.layout_scene(compose.finish_scenes([scene])[0])]   # one layout: nothing moves
     with pytest.raises(compose.ReelError):
         compose.Renderer([Scene(image=red, images=[blue], lines=["x"], seconds=3.0)])
+
+
+def test_a_full_screen_of_text_never_runs_into_the_badge():
+    for layout in ("lower", "center", "top"):
+        sc = Scene(lines=[TextLine("word " * 40, size=120)] + ["a line"] * 5, kicker="Kicker", badge="Sample listing", layout=layout,
+                   brand_mark=True)
+        badge = compose._chip_item(sc.badge, compose.CONTENT_TOP - 4, "left", filled=False).box
+        assert min(it.box[1] for it in compose.layout_scene(sc)) > badge[3], layout

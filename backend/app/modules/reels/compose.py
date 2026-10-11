@@ -53,6 +53,7 @@ TEXT_HANDOVER = (0.4, 0.6)   # during a blend the new text starts at 40% of it a
 MAX_SCREEN_WORDS = 8   # on-screen text longer than this is split over quick screens (most people watch muted and read)
 TAG_Y = TEXT_TOP               # the brand tag row (logo + name), under the progress bar
 CONTENT_TOP = TAG_Y + 94       # 362: below the brand tag row
+BADGE_ROW = 64 + 24            # the outlined badge (drawn at CONTENT_TOP - 4) and a gap under it
 
 
 class ReelError(Exception):
@@ -379,7 +380,8 @@ def layout_scene(scene: Scene) -> List[Item]:
         raise ReelError("a stacked list needs one reveal time per line")
     lines = [l for l in lines if l.text]
     bottom = TEXT_BOTTOM
-    avail = bottom - CONTENT_TOP
+    top = CONTENT_TOP + (BADGE_ROW if scene.badge else 0)   # a full screen of text never runs into the badge
+    avail = bottom - top
     max_w = TEXT_W if align == "left" else TEXT_W_CENTER
     shrink = 1.0
     for _ in range(10):
@@ -408,10 +410,10 @@ def layout_scene(scene: Scene) -> List[Item]:
     if scene.layout == "lower":
         y = bottom - total
     elif scene.layout == "top":
-        y = CONTENT_TOP
+        y = top
     else:
-        y = min(CONTENT_TOP + (avail - total) // 2 + 20, bottom - total)   # the nudge down never pushes a full screen past the zone
-    y = max(y, CONTENT_TOP)
+        y = min(top + (avail - total) // 2 + 20, bottom - total)   # the nudge down never pushes a full screen past the zone
+    y = max(y, top)
     items: List[Item] = []
     if scene.brand_mark:
         items.append(replace(_mark_item(y, align), block=max(0, len(blocks) - 1)))
