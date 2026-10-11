@@ -339,7 +339,7 @@ class MarketingRuns:
                 lang, style = job.get("language") or "en", walkthrough_style(job["listing_id"])   # spoken in the posts' language
                 doc, _ = await self.reel_jobs.create(job["agent_id"], job["listing_id"], lang, style=style)
                 reels.append({"kind": "walkthrough", "job_id": doc["_id"], "status": doc["status"], "video": doc.get("video_path"),
-                              "style": style, "language": lang, "caption": reel_caption(listing, "") + "\n\n" + link_line})
+                              "style": style, "language": lang, "caption": reel_caption(listing, "", lang) + "\n\n" + link_line})
             except Exception as e:  # fewer than 2 photos, the daily limit...: the campaign goes on without it
                 reels.append({"kind": "walkthrough", "status": "skipped", "note": str(getattr(e, "detail", "") or "not made")})
         return reels

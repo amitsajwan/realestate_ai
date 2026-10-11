@@ -310,7 +310,7 @@ class ConciergeService:
             if ch in done:
                 results.append({**done[ch], "status": "already_posted"})
                 continue
-            text = listing_reel.caption(listing, await attribution_text(self.db, agent_id, listing, ch))
+            text = listing_reel.caption(listing, await attribution_text(self.db, agent_id, listing, ch), lang)
             try:
                 try:
                     url = reel_publish.public_url(cfg, name)
