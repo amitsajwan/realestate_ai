@@ -220,7 +220,7 @@ async def brochure_image(listing_id: str, image_id: str, user: User = Depends(cu
         path = await kits.image_file(str(user.id), listing_id, image_id)
     except brochure.BrochureError as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
-    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=3600"})
+    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "private, no-cache"})
 
 
 @router.get("/{listing_id}/brochure/pages/{n}.jpg")
@@ -231,4 +231,4 @@ async def brochure_page(listing_id: str, n: int, user: User = Depends(current_ac
         path = await kits.page_image(str(user.id), listing_id, n)
     except brochure.BrochureError as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
-    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=3600"})
+    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "private, no-cache"})

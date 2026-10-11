@@ -64,6 +64,8 @@ class MarketingService:
         facts = Facts.from_docs(listing, profile, self._share_url((profile or {}).get("slug"), listing_id))
         facts.as_of = self.now().strftime("%d %b %Y")  # groups punish stale posts, so every group text says 'available as of'
         facts.registration = await project_registration(listing, self.db)  # the MahaRERA badge: only a project number we trust
+        if facts.registration is None:  # exempt, or a number MahaRERA contradicts: no number anywhere in the pack either
+            facts.rera = None
         content = await polish_content(build_content(facts, language), facts, self.polish)
         try:
             images = await asyncio.to_thread(render_all, facts, listing.get("media") or [], self.uploads_dir, listing_id)

@@ -85,7 +85,14 @@ class FakeCollection:
     @staticmethod
     def _apply(d, update):
         for k, v in update.get("$set", {}).items():
-            d[k] = v
+            *path, last = k.split(".")
+            node = d
+            for part in path:   # "facts.3": into the dict or list, as Mongo's dotted paths do
+                node = node[int(part)] if isinstance(node, list) else node.setdefault(part, {})
+            if isinstance(node, list):
+                node[int(last)] = v
+            else:
+                node[last] = v
         for k, v in update.get("$inc", {}).items():
             d[k] = d.get(k, 0) + v
         for k, v in update.get("$addToSet", {}).items():

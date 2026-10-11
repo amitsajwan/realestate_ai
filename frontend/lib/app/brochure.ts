@@ -91,12 +91,12 @@ export function brochureFileError(file: Pick<File, 'name' | 'type' | 'size'>): s
   return null
 }
 
-/** MahaRERA project numbers: P5 followed by digits (e.g. P52100076768). Spaces are ignored and letters upper-cased. */
+/** MahaRERA project numbers: P5 followed by 10 digits (e.g. P52100076768), as the server checks them. Spaces are ignored and letters upper-cased. */
 export function normaliseReraNo(raw: string): string {
   return raw.replace(/\s+/g, '').toUpperCase()
 }
 export function isReraNo(raw: string): boolean {
-  return /^P5\d{6,}$/.test(normaliseReraNo(raw))
+  return /^P5\d{10}$/.test(normaliseReraNo(raw))
 }
 
 export const pendingFacts = (kit: BrochureKit | null) => (kit ? kit.facts.filter((f) => f.state === 'pending') : [])
@@ -207,6 +207,7 @@ export function createBrochureApi(opts: {
           const data = parseText(x.responseText)
           if (x.status >= 200 && x.status < 300) {
             onProgress?.(1)
+            thumbs.clear() // a new brochure reuses page and image numbers: never show the old one's pictures
             resolve(data as BrochureKit)
           } else reject(parseErrorBody(data, x.status))
         }

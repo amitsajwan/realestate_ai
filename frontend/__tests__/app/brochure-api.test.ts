@@ -200,6 +200,8 @@ test('MahaRERA number format and kit helpers', () => {
   expect(isReraNo('p5210 0076768')).toBe(true)
   expect(isReraNo('P42100076768')).toBe(false)
   expect(isReraNo('P5')).toBe(false)
+  expect(isReraNo('P5210007676')).toBe(false) // 9 digits: the server wants 10
+  expect(isReraNo('P521000767680')).toBe(false)
   expect(isReraNo('PR1234567')).toBe(false)
   expect(pendingFacts(kit)).toHaveLength(4)
   expect(needsRegistrationAnswer(kit)).toBe(true)

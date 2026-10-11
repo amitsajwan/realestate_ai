@@ -134,3 +134,24 @@ def test_the_pack_uses_the_resolver_answer(tmp_path):
         finally:
             mr.configure(resolve=None)
     asyncio.run(run())
+
+
+
+async def test_a_pack_for_a_project_we_do_not_trust_prints_no_number_at_all(tmp_path, monkeypatch):
+    """The resolver said no (an exempt answer, or a number MahaRERA contradicts): no badge, and no "RERA: P5..." in the
+    captions or the WhatsApp text either."""
+    from app.modules.marketing import service
+    from .listings_fakes import ListingsDb
+    from .marketing_helpers import PROFILE, listing
+
+    async def none(listing, db):
+        return None
+    monkeypatch.setattr(service, "project_registration", none)
+    db = ListingsDb()
+    (tmp_path / "images").mkdir()
+    db.get_collection("agent_public_profiles").docs.append(dict(PROFILE))
+    db.get_collection("listings").docs.append({**listing(), "rera_no": "P52100012345"})
+    pack = await service.MarketingService(db, tmp_path, "https://site.test").generate("A1", "L1", "en", "")
+    text = " ".join([pack.instagram.caption, pack.facebook.caption if hasattr(pack.facebook, "caption") else str(pack.facebook),
+                     pack.whatsapp.message])
+    assert "P52100012345" not in text

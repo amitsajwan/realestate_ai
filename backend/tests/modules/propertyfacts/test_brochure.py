@@ -426,3 +426,42 @@ async def test_api_owner_only(tmp_path):
     for route in pf_router.router.routes:
         if "/brochure" in route.path:
             assert any(d.call is current_active_user for d in route.dependant.dependencies), route.path
+
+
+# ---- review fixes -------------------------------------------------------------------------------------------------------------
+async def test_two_taps_in_flight_do_not_undo_each_other(tmp_path):
+    db, kits, _ = await make(tmp_path)
+    kit = await kits.upload("a1", "L1", "g.pdf", text_pdf(GULMOHAR))
+    a, b = kit["facts"][0]["id"], kit["facts"][1]["id"]
+    await asyncio.gather(kits.set_fact("a1", "L1", a, "confirmed"), kits.set_fact("a1", "L1", b, "confirmed"))
+    states = {f["id"]: f["state"] for f in (await kits.current("L1"))["facts"]}
+    assert states[a] == states[b] == "confirmed"
+
+
+async def test_a_failed_upload_keeps_the_kit_before_it(tmp_path):
+    db, kits, _ = await make(tmp_path)
+    good = await kits.upload("a1", "L1", "g.pdf", text_pdf(GULMOHAR))
+    await kits.answer_registration("a1", "L1", "exempt")
+    failed = await kits.upload("a1", "L1", "x.pdf", b"%PDF-1.4 broken")
+    assert failed["status"] == "failed"
+    kit = await kits.current("L1")
+    assert kit["_id"] == good["_id"] and kit["registration"]["status"] == "exempt"
+
+
+async def test_dropping_the_brochure_number_drops_the_registration_found_from_it(tmp_path):
+    from app.modules.propertyfacts import advert
+    db, kits, _ = await make(tmp_path)
+    kit = await kits.upload("a1", "L1", "g.pdf", text_pdf(VERIFIED))
+    assert kit["registration"]["status"] == "verified"
+    assert advert.trusted({}, {}, kit) is not None
+    rera = next(f for f in kit["facts"] if f["key"] == "rera_no")
+    out = await kits.set_fact("a1", "L1", rera["id"], "dropped")
+    assert out["registration"]["status"] == "unknown" and advert.trusted({}, {}, out) is None
+    # even an old kit still marked verified is not trusted once its number was dropped
+    stale = {**out, "registration": kit["registration"]}
+    assert advert.trusted({}, {}, stale) is None
+
+
+def test_a_listing_bhk_that_is_not_a_number_does_not_break_the_sheet():
+    kit = kit_with([("carpet_area", "650 sq ft", "confirmed", "2 BHK")])
+    assert brochure.readings(kit, NOW, listing={"bhk": "2BHK"})

@@ -28,6 +28,15 @@ def _page(facts: Dict[str, Fact], regno: str) -> str:
     return view_url(url.value)
 
 
+def _dropped(kit: Optional[dict], num: Any) -> bool:
+    """The agent dropped this number as the brochure's RERA fact (a typo that happens to exist on MahaRERA): not trusted. An
+    answer the agent gave themselves (`registered_by_agent`) is their word, so it stands."""
+    if ((kit or {}).get("registration") or {}).get("status") == "registered_by_agent":
+        return False
+    return any(f.get("key") == "rera_no" and f.get("state") == "dropped" and project_regno(f.get("value")) == project_regno(num)
+               for f in (kit or {}).get("facts") or [])
+
+
 def trusted(listing: Optional[dict], facts: Optional[Dict[str, Fact]] = None,
             kit: Optional[dict] = None) -> Optional[ProjectRegistration]:
     """The registration to print for this property (see the module notes): its QR leads to the project's MahaRERA page when
@@ -48,7 +57,7 @@ def trusted(listing: Optional[dict], facts: Optional[Dict[str, Fact]] = None,
                                                       else "")
     if own:
         return registration(own, _page(facts, own))
-    if reg.get("status") in TRUSTED_KIT and project_regno(reg.get("rera_no")):
+    if reg.get("status") in TRUSTED_KIT and project_regno(reg.get("rera_no")) and not _dropped(kit, reg["rera_no"]):
         num = project_regno(reg["rera_no"])
         return registration(num, _page(facts, num))
     return None

@@ -272,7 +272,10 @@ def readings(kit: Optional[dict], now: datetime, official: Optional[Dict[str, An
     out: List[Reading] = []
     lists: Dict[str, List[str]] = {}
     carpets: List[str] = []
-    listing_bhk = f"{float(listing['bhk']):g} BHK" if listing.get("bhk") else ""
+    try:   # a listing's bhk is a number; a stray "2BHK" or "Studio" only loses the carpet comparison, never the run
+        listing_bhk = f"{float(listing['bhk']):g} BHK" if listing.get("bhk") else ""
+    except (TypeError, ValueError):
+        listing_bhk = ""
 
     def r(key: str, value: Any, page: int):
         out.append(Reading(key, value, SOURCE, f"{url}#page={page}", now))
@@ -338,8 +341,9 @@ class Brochures:
         return doc
 
     async def current(self, listing_id: str) -> Optional[dict]:
-        """The listing's kit: the brochure uploaded last (for the fact sheet; no owner check)."""
-        docs = await self.col.find({"listing_id": str(listing_id)}).sort("uploaded_at", -1).limit(1).to_list(1)
+        """The listing's kit: the brochure read last (for the fact sheet; no owner check). A brochure that could not be read is
+        kept for the record but never replaces the kit before it (its confirmed facts and registration answer stay in use)."""
+        docs = await self.col.find({"listing_id": str(listing_id), "status": "done"}).sort("uploaded_at", -1).limit(1).to_list(1)
         return docs[0] if docs else None
 
     async def get(self, agent_id: str, listing_id: str) -> dict:
@@ -430,13 +434,19 @@ class Brochures:
                 changed_rera = f["key"] == "rera_no"
         f["decided_at"] = self.now()
         facts[idx] = f
-        update: Dict[str, Any] = {"facts": facts}
+        # one array slot, not the whole array: two taps in flight (Confirm f1, Confirm f2) must not undo each other
+        update: Dict[str, Any] = {f"facts.{idx}": f}
         reg = kit.get("registration") or {}
-        if changed_rera and reg.get("status") not in ("exempt", "registered_by_agent"):
+        agents_word = reg.get("status") in ("exempt", "registered_by_agent")
+        if changed_rera and not agents_word:
             clients = self.clients_factory() if self.clients_factory else None
             update["registration"] = await check_registration(clients, f["value"], self._name(facts), self.now())
+        elif (f["key"] == "rera_no" and state == "dropped" and not agents_word and reg.get("rera_no")
+              and bp.rera_no(str(reg.get("rera_no"))) == bp.rera_no(str(f["value"]))):
+            # the agent says the brochure's number is wrong: it no longer stands as the project's registration
+            update["registration"] = {"status": "unknown", "rera_no": None, "note": ASK}
         await self.col.update_one({"_id": kit["_id"]}, {"$set": update})
-        return {**kit, **update}
+        return await self.col.find_one({"_id": kit["_id"]}) or kit
 
     @staticmethod
     def _name(facts: Sequence[dict]) -> str:
@@ -483,8 +493,9 @@ class Brochures:
         if im is None:
             raise BrochureError("No such image in this brochure.", 404)
         im.update(state=state, decided_at=self.now())
-        await self.col.update_one({"_id": kit["_id"]}, {"$set": {"images": images}})
-        return {**kit, "images": images}
+        idx = images.index(im)
+        await self.col.update_one({"_id": kit["_id"]}, {"$set": {f"images.{idx}": im}})   # one slot: taps in flight don't collide
+        return await self.col.find_one({"_id": kit["_id"]}) or {**kit, "images": images}
 
     async def image_file(self, agent_id: str, listing_id: str, image_id: str) -> Path:
         kit = await self.get(agent_id, listing_id)
