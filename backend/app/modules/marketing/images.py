@@ -1,7 +1,7 @@
 """Server-side share cards (Pillow + bundled Poppins). 1080x1080 carousel cards + one 1080x1920 status card.
 
-Background photo: ONLY the listing's first image when it is one of our own uploads (`/uploads/images/<file>` that exists
-under the backend uploads dir). Remote URLs, `..`, absolute paths and anything else are never opened or fetched.
+Background photo: ONLY the listing's own best photo (cover_photo_path), and only when it is one of our own uploads
+(`/uploads/images/<file>` that exists under the backend uploads dir). Remote URLs, `..`, absolute paths and anything else are never opened or fetched.
 Image text is English/numerals (Devanagari on images is out of scope), always inside safe margins over a dark overlay.
 """
 import hashlib
@@ -16,6 +16,8 @@ from urllib.parse import urlparse
 from PIL import Image, ImageDraw, ImageFile, ImageFont, ImageOps
 
 from app.core import brand
+from app.modules.photoquality import rank_photos
+from app.platform.media import display_url
 
 from .facts import T, Facts
 
@@ -60,9 +62,28 @@ def local_upload_path(url: Optional[str], uploads_dir: Path) -> Optional[Path]:
 
 def first_photo_url(media: List[dict]) -> Optional[str]:
     """The first photo's url; the enhanced copy when the agent kept 'Use enhanced' on (platform.media.display_url)."""
-    from app.platform.media import display_url
     imgs = [(m.get("order") or 0, i, m) for i, m in enumerate(media or []) if (m.get("kind") or "image") == "image"]
     return display_url(min(imgs, key=lambda t: (t[0], t[1]))[2]) if imgs else None
+
+
+def photo_paths(media: List[dict], uploads_dir: Path) -> List[Path]:
+    """The listing's own photo files in the agent's order, each the copy shown (the enhanced one when the agent kept
+    'Use enhanced' on and it exists, otherwise the original). Remote URLs are never fetched."""
+    imgs = [(m.get("order") or 0, i, m) for i, m in enumerate(media or [])
+            if isinstance(m, dict) and (m.get("kind") or "image") == "image"]
+    out: List[Path] = []
+    for _, _, m in sorted(imgs, key=lambda t: (t[0], t[1])):
+        p = local_upload_path(display_url(m), uploads_dir) or local_upload_path(m.get("url"), uploads_dir)
+        if p is not None and p not in out:
+            out.append(p)
+    return out
+
+
+def cover_photo_path(media: List[dict], uploads_dir: Path) -> Optional[Path]:
+    """The photo for the cover card and campaign posts: the hero of the ranked photos (photoquality.rank_photos), so a
+    blurry or duplicate first upload never fronts the listing. None without a photo of our own."""
+    ranked = rank_photos(photo_paths(media, uploads_dir), min_keep=1)
+    return ranked[0] if ranked else None
 
 
 def _load_source(path: Optional[Path]) -> Optional[Image.Image]:
@@ -576,7 +597,7 @@ def render_all(f: Facts, media: List[dict], uploads_dir: Path, listing_id: str) 
         raise ValueError("unsafe listing id")
     uploads_dir = Path(uploads_dir)
     out_dir = uploads_dir / "marketing" / listing_id
-    src = _load_source(local_upload_path(first_photo_url(media), uploads_dir))
+    src = _load_source(cover_photo_path(media, uploads_dir))
     kinds = ["cover", "facts"] + (["amenities"] if f.amenities else []) + ["cta", "status"]
     result: Dict[str, dict] = {}
     for kind in kinds:

@@ -122,6 +122,15 @@ listing's own photos, a checked script and a voice-over. 5 per agent per day. Th
   photo with each line), and each line is spoken as it lands. The call to action and "Listed by" land last.
 A stack reel is its own job and file (`listing-<id>-<lang>-stack-<short>.mp4`). Posting outside the calendar uses the tour.
 
+### Which photos (LIVE, pixel checks only)
+`photoquality.rank_photos` chooses the photos for the walkthrough reel (`listing_reel.scene_photos`, up to 5), and its hero
+is the photo on the pack's cover card and on the campaign posts (`marketing.images.cover_photo_path`), so the slides reels
+built from those posts get it too. Near-identical photos (a perceptual hash and a colour check) keep only the best copy.
+Blurry, dark, small and "mostly floor or sky" photos are left out, and come back last only when fewer than the minimum
+would remain (2 for a reel, 1 for a cover). The agent's order decides otherwise. The hero is a well-exposed landscape photo
+with the best score (scores within 10 points count as equal). The enhanced copy is used when the agent kept it on. No AI is
+involved; room and kind tags (AR-5) come later.
+
 ### Reel formats (templates, `reels/templates.py`)
 - **Tip, pitch, listing tour** ("guess the price"): scenes that replace each other.
 - **Stacked list** (`stacked_list`, `listing_stack`): the hook is on screen from frame one; each fact joins under it every

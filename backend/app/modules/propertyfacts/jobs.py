@@ -215,7 +215,8 @@ class MarketingRuns:
         note = (note or "").strip()[:NOTE_MAX]
         run, idx = await self._done_run(agent_id, listing_id, angle)
         listing = await self._listing(agent_id, listing_id)
-        briefs = dict(campaign.plan(await self._facts(run, listing), self._photo(listing), run.get("page_url") or "",
+        photo = await asyncio.to_thread(self._photo, listing)
+        briefs = dict(campaign.plan(await self._facts(run, listing), photo, run.get("page_url") or "",
                                     **self._who(run, await self._identity(run))))
         if angle not in briefs:
             raise RunError("The facts for this post are no longer available. Start marketing again.", 409)
@@ -311,9 +312,10 @@ class MarketingRuns:
         return regno, (page or {}).get("url")
 
     def _photo(self, listing: dict) -> str:
-        """The listing's first photo as a local file for the cards, or "none" (never a stock photo of something else)."""
-        from app.modules.marketing.images import first_photo_url, local_upload_path
-        p = local_upload_path(first_photo_url(listing.get("media") or []), self.uploads_dir)
+        """The listing's best photo (marketing.images.cover_photo_path) as a local file for the cards, or "none" (never a
+        stock photo of something else)."""
+        from app.modules.marketing.images import cover_photo_path
+        p = cover_photo_path(listing.get("media") or [], self.uploads_dir)
         return str(p) if p and Path(p).is_file() else "none"
 
     async def _reels(self, job: dict, listing: dict, posts: List[dict], out: Path, project: str, link_line: str) -> List[dict]:
@@ -381,7 +383,8 @@ class MarketingRuns:
             out = self.uploads_dir / "campaigns" / _safe(job["listing_id"]) / jid[:8]
             dropped: Dict[str, Any] = {}
             llm = self.llm_factory() if self.llm_factory else None
-            packs = await campaign.make(sheet.facts, out, llm=llm, photo=self._photo(listing), link=page, dropped=dropped,
+            photo = await asyncio.to_thread(self._photo, listing)
+            packs = await campaign.make(sheet.facts, out, llm=llm, photo=photo, link=page, dropped=dropped,
                                         **self._who(job, await self._identity(job)))
             posts: List[dict] = []
             for aid, p in packs:
