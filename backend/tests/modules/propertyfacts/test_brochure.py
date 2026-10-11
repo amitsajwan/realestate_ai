@@ -69,7 +69,8 @@ def by_key(kit):
 def test_the_text_layer_gives_every_fact_with_its_page_and_own_words(tmp_path):
     read = brochure.read_pdf(text_pdf(GULMOHAR + [None]), tmp_path / "thumbs")
     assert read.pages == 6 and read.image_only == [6] and not read.error
-    assert sorted(p.name for p in (tmp_path / "thumbs").iterdir()) == [f"p{i}.jpg" for i in range(1, 7)]
+    assert sorted(p.name for p in (tmp_path / "thumbs").iterdir()) == ["i4.jpg"] + [f"p{i}.jpg" for i in range(1, 7)]
+    assert read.images == [(4, "floor_plan", ["2 BHK", "3 BHK"])]   # the floor plans page is also kept large
     assert [bp.page_type(read.texts[n], n) for n in range(1, 6)] == ["cover", "amenities", "specifications", "floor_plan", "legal"]
     facts = bp.extract(sorted(read.texts.items()))
     got = {}
@@ -121,7 +122,8 @@ async def test_upload_makes_a_kit_once_per_file(tmp_path, monkeypatch):
     monkeypatch.setattr(brochure, "read_pdf", lambda *a, **k: reads.append(1) or real(*a, **k))
     data = text_pdf(GULMOHAR + [None])
     kit = brochure.kit_out(await kits.upload("a1", "L1", "gulmohar.pdf", data))
-    assert set(kit) == {"id", "listing_id", "filename", "pages", "image_only_pages", "status", "read_at", "facts", "registration"}
+    assert set(kit) == {"id", "listing_id", "filename", "pages", "image_only_pages", "status", "read_at", "facts", "registration",
+                        "images"}
     assert kit["status"] == "done" and kit["pages"] == 6 and kit["image_only_pages"] == [6] and kit["read_at"] == "2026-10-11T09:00:00Z"
     f = kit["facts"][0]
     assert set(f) == {"id", "key", "label", "value", "page", "quote", "level", "state", "edited"}

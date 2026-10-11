@@ -105,6 +105,34 @@ export function useBrochure(listingId: string, client: BrochureApi = brochureApi
     [listingId],
   )
 
+  /** Use or don't use one plan, map or render; optimistic like a fact (saving key `img:<id>`). */
+  const setImage = useCallback(
+    async (imageId: string, state: FactState): Promise<boolean> => {
+      const before = kitRef.current?.images?.find((i) => i.id === imageId)
+      if (!before) return false
+      const key = `img:${imageId}`
+      const put = (s: FactState) =>
+        setKit((k) => (k ? { ...k, images: (k.images ?? []).map((i) => (i.id === imageId ? { ...i, state: s } : i)) } : k))
+      setError(null)
+      setSaving((s) => ({ ...s, [key]: true }))
+      put(state)
+      try {
+        const k = await clientRef.current.setImage(listingId, imageId, state)
+        if (alive.current) setKit(k)
+        return true
+      } catch (e) {
+        if (alive.current) {
+          put(before.state)
+          setError(friendlyBrochureError(e))
+        }
+        return false
+      } finally {
+        if (alive.current) setSaving((s) => ({ ...s, [key]: false }))
+      }
+    },
+    [listingId],
+  )
+
   /** Confirms every fact still pending, one request each, stopping at the first refusal. */
   const confirmAll = useCallback(async (): Promise<boolean> => {
     for (const f of pendingFacts(kitRef.current)) {
@@ -131,5 +159,5 @@ export function useBrochure(listingId: string, client: BrochureApi = brochureApi
     [listingId],
   )
 
-  return { kit, loading, error, phase, progress, saving, reload, upload, setFact, confirmAll, setRegistration, clearError: () => setError(null) }
+  return { kit, loading, error, phase, progress, saving, reload, upload, setFact, setImage, confirmAll, setRegistration, clearError: () => setError(null) }
 }

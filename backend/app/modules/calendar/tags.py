@@ -26,7 +26,7 @@ from . import reach
 TAGS_SCHEMA = 1
 UNKNOWN = "unknown"
 REEL_FORMATS = {"tip": "tip", "tour": "tour", "pitch": "pitch", "area": "area", "project": "project", "agent": "agent_ad"}
-POST_FORMATS = ("carousel", "single", "checklist", "myth-vs-fact", "poll", "stat", "before-after")
+POST_FORMATS = ("carousel", "single", "checklist", "myth-vs-fact", "poll", "stat", "before-after", "plan")
 PASS_THROUGH = ("experiment", "variant", "engine", "price_band")
 CTA_WORD = re.compile(r"\bcomment\s+\*?([A-Z]{3,})\*?", re.I)
 SAVE_SHARE = re.compile(r"\b(save|share|send)\b", re.I)

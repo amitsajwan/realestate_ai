@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from . import campaign, identity
-from .brochure import Brochures
+from .brochure import Brochures, usable_images
 from .facts import USABLE
 from .gather import Clients, gather
 from .store import FactsStore, facts_of
@@ -201,7 +201,8 @@ class MarketingRuns:
         run, idx = await self._done_run(agent_id, listing_id, angle)
         listing = await self._listing(agent_id, listing_id)
         who = await self._identity(run)
-        briefs = dict(campaign.plan(await self._facts(run, listing), **self._who(run, who)))
+        briefs = dict(campaign.plan(await self._facts(run, listing), images=await self._brochure_images(agent_id, listing_id),
+                                    **self._who(run, who)))
         corpus = briefs[angle].corpus() if angle in briefs else ""
         checked = "\n".join(line for line in caption.splitlines() if line.strip() not in who.contact)  # code-made contact block
         problems = [p for p in problems_in(checked, corpus, allow_url=True) if p != "url"] if corpus else []
@@ -218,6 +219,7 @@ class MarketingRuns:
         listing = await self._listing(agent_id, listing_id)
         photo = await asyncio.to_thread(self._photo, listing)
         briefs = dict(campaign.plan(await self._facts(run, listing), photo, run.get("page_url") or "",
+                                    images=await self._brochure_images(agent_id, listing_id),
                                     **self._who(run, await self._identity(run))))
         if angle not in briefs:
             raise RunError("The facts for this post are no longer available. Start marketing again.", 409)
@@ -312,6 +314,18 @@ class MarketingRuns:
         page = await page_for(self.db, regno)
         return regno, (page or {}).get("url")
 
+    async def _brochure_images(self, agent_id: str, listing_id: str) -> List[dict]:
+        """The floor plans and renders the agent said to use from this listing's brochure (brochure.usable_images). They go
+        into posts only (campaign.floor_plan, first_look), never into the walkthrough reel, which uses the agent's photos."""
+        try:
+            kit = await Brochures(self.db, self.uploads_dir).current(listing_id)
+        except Exception:
+            log.warning("marketing: could not read the brochure kit of %s", listing_id, exc_info=True)
+            return []
+        if not kit or kit.get("agent_id") != agent_id:
+            return []
+        return usable_images(kit, self.uploads_dir)
+
     def _photo(self, listing: dict) -> str:
         """The listing's best photo (marketing.images.cover_photo_path) as a local file for the cards, or "none" (never a
         stock photo of something else)."""
@@ -385,7 +399,8 @@ class MarketingRuns:
             dropped: Dict[str, Any] = {}
             llm = self.llm_factory() if self.llm_factory else None
             photo = await asyncio.to_thread(self._photo, listing)
-            packs = await campaign.make(sheet.facts, out, llm=llm, photo=photo, link=page, dropped=dropped,
+            images = await self._brochure_images(job["agent_id"], job["listing_id"])
+            packs = await campaign.make(sheet.facts, out, llm=llm, photo=photo, link=page, dropped=dropped, images=images,
                                         **self._who(job, await self._identity(job)))
             posts: List[dict] = []
             for aid, p in packs:

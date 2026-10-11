@@ -33,6 +33,7 @@ QUESTION = {
     "checklist": "Which one would you check first? Tell us below.",
     "carousel": "Which one surprised you most? Tell us below.",
     "single": "What would you add? Tell us below.",
+    "plan": "What would you change in this layout? Tell us below.",
 }
 QUESTION_AGENT = {
     "poll": "Your pick? Tell us in the comments.",
@@ -51,16 +52,16 @@ AGENT_DEFAULT_Q = "How do you follow up on comments today? Tell us below."
 INTRO = {
     "stat": "One number worth remembering.", "myth-vs-fact": "A belief that costs people time and money.",
     "poll": "Two honest options. Pick one.", "before-after": "The same job, done two ways.",
-    "checklist": "Save this list.", "carousel": "Swipe through. One idea per slide.", "single": "",
+    "checklist": "Save this list.", "carousel": "Swipe through. One idea per slide.", "single": "", "plan": "",
 }
 CARD_CTA = {"stat": "Save this", "myth-vs-fact": "Share with a buyer", "poll": "Vote in the comments", "before-after": "Save this",
-            "checklist": "Save this list", "carousel": "Swipe", "single": "Save this"}
+            "checklist": "Save this list", "carousel": "Swipe", "single": "Save this", "plan": "Save this"}
 
 VARIANT_LANG = {"hinglish": "Hinglish (Hindi written in Roman letters, mixed with English)", "marathi": "Marathi (Devanagari script)"}
 
 
 KICKER = {"stat": "WORTH REMEMBERING", "myth-vs-fact": "MYTH VS FACT", "poll": "THIS OR THAT", "before-after": "SIDE BY SIDE",
-          "checklist": "SAVE THIS", "carousel": "SWIPE THROUGH", "single": "BUYER NOTE"}
+          "checklist": "SAVE THIS", "carousel": "SWIPE THROUGH", "single": "BUYER NOTE", "plan": "FLOOR PLAN"}
 
 
 def _payload(brief: Brief, angle: Angle) -> Dict[str, object]:
@@ -77,6 +78,8 @@ def _payload(brief: Brief, angle: Angle) -> Dict[str, object]:
         base.update(messy=list(brief.messy[:4]), clean=list(brief.clean[:4]), compare=list(brief.compare))
     elif f in ("carousel", "checklist"):
         base.update(steps=list(brief.steps[:5]))
+    elif f == "plan":  # the image and its label are drawn as given: never rewritten or translated
+        base.update(image=brief.plan_image, image_label=brief.plan_label, fit=brief.plan_fit)
     else:
         base.update(tip=brief.tip)
     return base
