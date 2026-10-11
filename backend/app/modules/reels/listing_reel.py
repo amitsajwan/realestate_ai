@@ -29,7 +29,8 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 from app.core import brand
 from app.modules.marketing.facts import T, Facts
-from app.modules.marketing.images import latin, local_upload_path
+from app.modules.marketing.images import latin, photo_paths
+from app.modules.photoquality import rank_photos
 
 from . import ffmpeg, voice
 from .compose import Scene, TextLine, make_reel, plan, stretch
@@ -76,14 +77,15 @@ class ReelJobError(Exception):
 
 # ---- inputs: photos, facts, attribution ------------------------------------------------------------------------
 def listing_photos(listing: dict, uploads_dir: Path) -> List[Path]:
-    """The listing's own photos (files under <uploads>/images, in the agent's order). Remote URLs are never fetched."""
-    media = [(m.get("order") or 0, i, m) for i, m in enumerate(listing.get("media") or []) if (m.get("kind") or "image") == "image"]
-    out: List[Path] = []
-    for _, _, m in sorted(media, key=lambda t: (t[0], t[1])):
-        p = local_upload_path(m.get("url"), uploads_dir)
-        if p is not None and p not in out:
-            out.append(p)
-    return out
+    """The listing's own photos (files under <uploads>/images, in the agent's order, the enhanced copy when the agent kept
+    it on). Remote URLs are never fetched."""
+    return photo_paths(listing.get("media") or [], uploads_dir)
+
+
+def scene_photos(listing: dict, uploads_dir: Path) -> List[Path]:
+    """The photos the reel shows, best first (photoquality.rank_photos): no duplicates, no blurry or dark ones unless the
+    reel would otherwise have fewer than MIN_PHOTOS, the hero photo on the first scene. At most MAX_SCENE_PHOTOS."""
+    return rank_photos(listing_photos(listing, uploads_dir), min_keep=MIN_PHOTOS)[:MAX_SCENE_PHOTOS]
 
 
 def listed_by_line(profile: Optional[dict]) -> str:
@@ -457,7 +459,7 @@ class ReelJobs:
                 return await self._finish(jid, status="failed", error="The listing was removed.")
             if is_sample(listing):
                 return await self._finish(jid, status="failed", error="Sample listings cannot have a reel.")
-            photos = listing_photos(listing, self.uploads_dir)
+            photos = await asyncio.to_thread(scene_photos, listing, self.uploads_dir)
             if len(photos) < MIN_PHOTOS:
                 return await self._finish(jid, status="failed", error="Add at least 2 photos")
             profile = await self.profiles.find_one({"agent_id": job["agent_id"]})
