@@ -3,10 +3,11 @@
 POST /listings/{id}/reel {lang} queues a job; the worker renders ONE job at a time (CPU bound, so make_reel runs in a thread):
   * the listing's own photos (our uploads only, at least 2),
   * a script from the listing's facts and its `about` only (an LLM writes it, director._valid checks it: no invented numbers,
-    no phone numbers, Roman on-screen text; otherwise a rules script built from the same facts),
+    no phone numbers, on-screen text in the reel's script; otherwise a rules script built from the same facts),
   * 'Listed by <business> · RERA <no>' on the closing scene (never a phone number), with the small Avasetu mark (no end card),
-  * a voiceover in English, Hindi or Marathi (Google TTS) with Hinglish/Roman on-screen text (the renderer cannot shape
-    Devanagari), over our own generated music bed. Without the TTS key the reel is made with music only, and the job says so.
+  * a voiceover in English, Hindi or Marathi (Google TTS) over our own generated music bed; a Hindi or Marathi reel's on-screen
+    text is in Devanagari too (drawn in Mukta, see compose), or Hinglish/Roman where the server cannot shape Devanagari
+    (no libraqm: `screen_devanagari`). Without the TTS key the reel is made with music only, and the job says so.
 A sample listing (title starting 'Sample', e.g. the demo agent's) gets no reel: reels are for real homes.
 
 Limits: 5 reels per agent per rolling 24 hours (failed ones do not count), one active job per listing + language (a re-request
@@ -32,8 +33,8 @@ from app.modules.marketing.facts import T, Facts
 from app.modules.marketing.images import latin, local_upload_path
 
 from . import ffmpeg, voice
-from .compose import Scene, TextLine, make_reel, plan, stretch
-from .director import CTA_SCREEN, CTA_VOICE, XFADE, _valid, fit_beats
+from .compose import Scene, TextLine, devanagari_clean, devanagari_ok, make_reel, plan, stretch
+from .director import CTA_SCREEN, CTA_SCREEN_DEVANAGARI, CTA_VOICE, XFADE, _valid, fit_beats
 
 log = logging.getLogger(__name__)
 
@@ -52,11 +53,15 @@ SILENT_SECONDS = 3.0                      # scene length when there is no voice 
 NO_VOICE_NOTE = "Made without a voiceover: the voice service is not set up on the server (GOOGLE_TTS_API_KEY). Music only."
 VOICE_FAILED_NOTE = "Made without a voiceover: the voice service did not answer. Music only."
 
+SCREEN_ROMAN = "screen: at most 6 words, Roman letters only (English, or Hinglish for Hindi and Marathi), wrap ONE key word in *stars*. "
+# A Hindi or Marathi reel the server can draw in Devanagari (screen_devanagari) asks for this screen rule instead.
+SCREEN_DEVANAGARI = ("screen: at most 6 words in the voice language, in Devanagari script (keep BHK and place names as they are in "
+                     "the facts), numbers as Western digits exactly as in the facts, wrap ONE key word in *stars*. ")
 SYSTEM = (
     "You direct a 12 to 16 second vertical reel for ONE property listing, for home buyers in Pune. Write JSON only: "
     '{"beats": [{"screen": "...", "voice": "..."}], "cta_screen": "...", "cta_voice": "..."}. '
     "Rules: 4 beats. beat 1 is the hook: what the home is and where, said so a buyer stops scrolling. "
-    "screen: at most 6 words, Roman letters only (English, or Hinglish for Hindi and Marathi), wrap ONE key word in *stars*. "
+    + SCREEN_ROMAN +
     "voice: one natural spoken sentence of at most 16 words in the requested voice language (Hindi = Devanagari script, "
     "Marathi = Devanagari, English = English). Write numbers as digits exactly as they appear in the facts. "
     "Use ONLY the facts given: never invent numbers, distances, prices, schools, builders, views or promises. "
@@ -65,6 +70,17 @@ SYSTEM = (
     "cta: ask viewers to comment the word INTERESTED for details, with INTERESTED in Roman capitals on screen "
     "(our own closing line replaces it, so every reel ends with the same comment keyword)."
 )
+
+
+def system_prompt(devanagari: bool) -> str:
+    """SYSTEM, with the screen-text rule for a reel whose screen text is Devanagari (Hindi or Marathi) when `devanagari`."""
+    return SYSTEM.replace(SCREEN_ROMAN, SCREEN_DEVANAGARI) if devanagari else SYSTEM
+
+
+def screen_devanagari(lang: str) -> bool:
+    """A Hindi or Marathi reel shows its screen text in Devanagari, when this server can shape it (libraqm and the Mukta font);
+    otherwise Hinglish/Roman as before. English reels are unchanged."""
+    return lang in ("hi", "mr") and devanagari_ok()
 
 
 class ReelJobError(Exception):
@@ -146,6 +162,13 @@ _WORDS = {
            "cta_s": CTA_SCREEN["mr"], "cta_v": CTA_VOICE["mr"], "with": "सोबत", "in": "{l} madhye {w}"},
 }
 _KIND = {"hi": {"carpet": "कार्पेट", "super built-up": "सुपर बिल्ट-अप"}, "mr": {"carpet": "कार्पेट", "super built-up": "सुपर बिल्ट-अप"}}
+# Screen words for a Devanagari screen (screen_devanagari): short labels, digits stay Western so they match the facts.
+_SCREEN = {
+    "hi": {"in": "{l} में {w}", "sqft": "वर्ग फुट", "look": "अंदर एक *नज़र*", "month": "/महीना", "Lakh": "लाख", "Cr": "करोड़",
+           "poss": {"ready": "रेडी टू मूव", "under_construction": "निर्माणाधीन"}},
+    "mr": {"in": "{l} मध्ये {w}", "sqft": "चौरस फूट", "look": "आत एक *नजर*", "month": "/महिना", "Lakh": "लाख", "Cr": "कोटी",
+           "poss": {"ready": "रेडी टू मूव", "under_construction": "बांधकाम सुरू"}},
+}
 
 
 def _spoken_price(f: Facts, lang: str) -> str:
@@ -170,15 +193,44 @@ def _short(text: str, words: int = 6) -> str:
     return " ".join(latin(text).split()[:words])
 
 
-def rules_script(f: Facts, lang: str) -> Dict:
-    """A plain script from the facts alone: hook, price, size and floor, features (3 to 4 beats) and the comment call."""
+def _short_deva(text: str, words: int = 6) -> str:
+    return " ".join(devanagari_clean(text).split()[:words])
+
+
+def _screen_price(f: Facts, lang: str) -> str:
+    """'₹85 Lakh' -> '₹85 लाख'; '₹45,000/month' -> '₹45,000/महिना' (the digits are the facts' own)."""
+    w = _SCREEN[lang]
+    return f.price_text.replace("/month", w["month"]).replace("Lakh", w["Lakh"]).replace("Cr", w["Cr"])
+
+
+def _devanagari_screens(f: Facts, lang: str) -> Dict:
+    """The rules script's screen lines in Hindi or Marathi (Devanagari), beat by beat as rules_script picks them."""
+    w = _SCREEN[lang]
+    what = f.bhk_text or f.type_text(lang)
+    place = _short(f.locality or f.city or "", 3)
+    size = ", ".join(x for x in [f"*{f.area:,}* {w['sqft']}" if f.area else "", f.floor_text(lang) or ""] if x)
+    feats = [x for x in (w["poss"].get(f.possession or "") or f.possession_text(lang), T[lang]["furn"].get(f.furnishing or "")) if x]
+    amen = [latin(a) for a in f.amenities if latin(a)][:3]
+    bits = [_short_deva(x, 3) for x in (feats[:1] + amen)[:3]]
+    if bits:
+        bits[-1] = f"*{bits[-1]}*"
+    return {"hook": w["in"].format(w=f"*{what}*", l=place) if place else f"*{what}*",
+            "price": f"*{_screen_price(f, lang)}*" if f.price_text else "", "size": size, "feats": ", ".join(bits),
+            "highlight": _short_deva(f.highlights[0], 6) if f.highlights else "", "look": w["look"]}
+
+
+def rules_script(f: Facts, lang: str, devanagari: Optional[bool] = None) -> Dict:
+    """A plain script from the facts alone: hook, price, size and floor, features (3 to 4 beats) and the comment call.
+    `devanagari` (default: screen_devanagari(lang)): a Hindi or Marathi reel's screen lines in Devanagari."""
     w = _WORDS[lang]
+    deva = screen_devanagari(lang) if devanagari is None else devanagari and lang in _SCREEN
+    ds = _devanagari_screens(f, lang) if deva else {}
     what = latin(f.bhk_text or f.type_text("en").title())
     place = _short(f.locality or f.city or "", 3)
     hook_s = w["in"].format(w=f"*{what}*", l=place) if place else f"*{what}*"
-    beats = [{"screen": hook_s, "voice": f.title_line(lang) + _end(lang)}]
+    beats = [{"screen": ds.get("hook") or hook_s, "voice": f.title_line(lang) + _end(lang)}]
     if f.price_text:
-        beats.append({"screen": f"*{f.price_text}*", "voice": w["price"].format(p=_spoken_price(f, lang))})
+        beats.append({"screen": ds.get("price") or f"*{f.price_text}*", "voice": w["price"].format(p=_spoken_price(f, lang))})
     if f.area or f.floor is not None:
         # commas, not ' · ': the renderer wraps on spaces, so a lone dot could start the next line
         screen = ", ".join(x for x in [f"*{f.area:,}* sq ft" if f.area else "", f.floor_text("en") or ""] if x)
@@ -186,7 +238,7 @@ def rules_script(f: Facts, lang: str) -> Dict:
         spoken = [w["area"].format(a=f"{f.area:,}", k=_KIND.get(lang, {}).get(kind, kind))] if f.area else []
         if f.floor_text(lang):
             spoken.append(("on " + f.floor_text(lang).lower()) if lang == "en" and spoken else f.floor_text(lang))
-        beats.append({"screen": screen, "voice": ", ".join(spoken) + _end(lang)})
+        beats.append({"screen": ds.get("size") or screen, "voice": ", ".join(spoken) + _end(lang)})
     feats_en = [x for x in (f.possession_text("en"), T["en"]["furn"].get(f.furnishing or "")) if x]
     amen = [latin(a) for a in f.amenities if latin(a)][:3]
     if feats_en or amen:
@@ -196,13 +248,13 @@ def rules_script(f: Facts, lang: str) -> Dict:
         if amen:
             spoken.append(f"with {_join_and(amen)}" if lang == "en" else f"{w['with']} " + ", ".join(amen))
         text = ", ".join(x[:1].lower() + x[1:] if lang == "en" else x for x in spoken)
-        beats.append({"screen": ", ".join(screen_bits), "voice": text[:1].upper() + text[1:] + _end(lang)})
-    if f.highlights and len(beats) < 4 and latin(f.highlights[0]):
+        beats.append({"screen": ds.get("feats") or ", ".join(screen_bits), "voice": text[:1].upper() + text[1:] + _end(lang)})
+    if f.highlights and len(beats) < 4 and (ds.get("highlight") or latin(f.highlights[0])):
         h = latin(f.highlights[0])
-        beats.append({"screen": _short(h, 6), "voice": h if lang == "en" else f.highlights[0]})
+        beats.append({"screen": ds.get("highlight") or _short(h, 6), "voice": h if lang == "en" else f.highlights[0]})
     while len(beats) < 3:
-        beats.append({"screen": w["look"], "voice": w["look_v"]})
-    return {"beats": beats[:5], "cta_screen": w["cta_s"], "cta_voice": w["cta_v"]}
+        beats.append({"screen": ds.get("look") or w["look"], "voice": w["look_v"]})
+    return {"beats": beats[:5], "cta_screen": _cta_screen(lang, deva), "cta_voice": w["cta_v"]}
 
 
 _PUSHY = re.compile(r"\b(only|just|best|hurry|grab|limited|don'?t miss|guarantee\w*|steal|unbeatable)\b|केवल|जल्दी|मौका|घाई", re.I)
@@ -215,22 +267,30 @@ def pushy(script: Dict) -> bool:
 
 
 
-def with_cta(script: Dict, lang: str) -> Dict:
-    """Every listing reel closes with the same call to action: comment INTERESTED (the comment assistant answers it)."""
+def _cta_screen(lang: str, devanagari: bool) -> str:
+    return CTA_SCREEN_DEVANAGARI[lang] if devanagari and lang in CTA_SCREEN_DEVANAGARI else _WORDS[lang]["cta_s"]
+
+
+def with_cta(script: Dict, lang: str, devanagari: Optional[bool] = None) -> Dict:
+    """Every listing reel closes with the same call to action: comment INTERESTED (the comment assistant answers it). On a
+    Devanagari screen the line is Hindi or Marathi with INTERESTED still in Roman capitals."""
     w = _WORDS[lang]
-    return {**script, "cta_screen": w["cta_s"], "cta_voice": w["cta_v"]}
+    deva = screen_devanagari(lang) if devanagari is None else devanagari
+    return {**script, "cta_screen": _cta_screen(lang, deva), "cta_voice": w["cta_v"]}
 
 
 async def write_script(subject: str, facts: Sequence[str], lang: str, llm, fallback: Dict) -> Dict:
-    """The LLM's script when it keeps to the facts (director._valid), else the rules script."""
+    """The LLM's script when it keeps to the facts (director._valid), else the rules script. A Hindi or Marathi reel asks for
+    Devanagari screen text when the server can draw it (screen_devanagari)."""
     facts_text = "\n".join(f"- {x}" for x in facts)
+    deva = screen_devanagari(lang)
     if llm is not None:
         for _ in range(2):
             try:
-                out = await llm.json(SYSTEM, f"Voice language: {LANG_NAMES[lang]}\nSubject: {subject}\nFacts:\n{facts_text}")
+                out = await llm.json(system_prompt(deva), f"Voice language: {LANG_NAMES[lang]}\nSubject: {subject}\nFacts:\n{facts_text}")
             except Exception:
                 out = None
-            if _valid(out, subject + "\n" + facts_text) and not pushy(out):
+            if _valid(out, subject + "\n" + facts_text, devanagari_screen=deva) and not pushy(out):
                 return {"beats": out["beats"], "cta_screen": out["cta_screen"], "cta_voice": out["cta_voice"], "made_by": "llm"}
     return {**fallback, "made_by": "rules"}
 

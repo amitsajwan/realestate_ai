@@ -1,6 +1,6 @@
 """AI reel director: an LLM writes the beats (short on-screen text + a spoken line each) from supplied facts only; a voice is synthesised per
-beat, each scene lasts as long as its line, and the narration is mixed under the video. Hindi/Marathi voice + Hinglish on-screen text (the
-renderer cannot shape Devanagari)."""
+beat, each scene lasts as long as its line, and the narration is mixed under the video. Hindi/Marathi voice + Hinglish on-screen text here;
+the listing walkthrough (listing_reel) can put Devanagari on screen (`_valid(..., devanagari_screen=True)`)."""
 import json
 import re
 import tempfile
@@ -13,12 +13,18 @@ from .compose import Scene, TextLine, make_reel, photo_plan, plan, stretch
 END_SECONDS = 2.6   # length of the optional end card (reels have none by default)
 XFADE = 0.4
 NUM = re.compile(r"\d[\d,.]*")
+# Devanagari digits are read as the same numbers: '७८०' is 780, so a Marathi screen line may write a fact's number either way,
+# and an invented one is caught either way.
+DEVANAGARI_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789")
+DEVANAGARI = re.compile(r"[\u0900-\u097F]")
 MIN_SCENES = 3   # hook, one beat, the call to action
 # The reel's call to action is a comment our comment assistant answers (engage.brain matches 'interested' / 'details' /
 # इंटरेस्टेड): the keyword stays INTERESTED in Roman capitals on screen in every language; the voice may say it in Devanagari.
 CTA_WORD = "INTERESTED"
 CTA_SCREEN = {"en": "Comment *INTERESTED* for details", "hi": "Details ke liye *INTERESTED* comment karein",
               "mr": "Details sathi *INTERESTED* comment kara"}
+# The same call to action for a reel whose screen text is Devanagari: the keyword stays INTERESTED in Roman capitals.
+CTA_SCREEN_DEVANAGARI = {"hi": "पूरी जानकारी के लिए *INTERESTED* कमेंट करें", "mr": "पूर्ण माहितीसाठी *INTERESTED* कमेंट करा"}
 CTA_VOICE = {"en": "Like it? Comment interested for the details.", "hi": "पसंद आया? पूरी जानकारी के लिए कमेंट में इंटरेस्टेड लिखिए।",
              "mr": "आवडलं? पूर्ण माहितीसाठी कमेंटमध्ये इंटरेस्टेड लिहा."}
 
@@ -36,28 +42,38 @@ SYSTEM = (
 )
 
 
+def western_digits(s: str) -> str:
+    return (s or "").translate(DEVANAGARI_DIGITS)
+
+
 def _numbers(s: str) -> set:
-    return {n.replace(",", "").rstrip(".") for n in NUM.findall(s or "")}
+    return {n.replace(",", "").rstrip(".") for n in NUM.findall(western_digits(s))}
 
 
-def _valid(script: dict, facts: str) -> bool:
+def _valid(script: dict, facts: str, devanagari_screen: bool = False) -> bool:
+    """`devanagari_screen` (a Hindi or Marathi reel the renderer can draw in Devanagari): the screen text may be Devanagari, and
+    most beats' screen text must be (a Hinglish script is not what that reel asked for). Numbers are checked the same way in
+    either script."""
     if not isinstance(script, dict) or not isinstance(script.get("beats"), list) or not (3 <= len(script["beats"]) <= 5):
         return False
     allowed = _numbers(facts)
     for b in script["beats"] + [{"screen": script.get("cta_screen", ""), "voice": script.get("cta_voice", "")}]:
         if not isinstance(b, dict) or not str(b.get("screen", "")).strip() or not str(b.get("voice", "")).strip():
             return False
-        if len(str(b["screen"]).split()) > 8 or re.search(r"[ऀ-ॿ]", str(b["screen"])):
+        if len(str(b["screen"]).split()) > 8 or (not devanagari_screen and DEVANAGARI.search(str(b["screen"]))):
             return False
         if (_numbers(b["screen"]) | _numbers(b["voice"])) - allowed:
             return False
-        if re.search(r"\b[6-9]\d{9}\b", b["screen"] + b["voice"]):
+        if re.search(r"\b[6-9]\d{9}\b", western_digits(b["screen"] + b["voice"])):
             return False
+    if devanagari_screen and 2 * sum(bool(DEVANAGARI.search(str(b["screen"]))) for b in script["beats"]) < len(script["beats"]):
+        return False
     return True
 
 
 numbers_in = _numbers
-valid_script = _valid  # 3-5 beats plus a call to action: short Roman-letter screen text, no number that is not in `facts`, no phone numbers
+valid_script = _valid  # 3-5 beats plus a call to action: short Roman-letter screen text (Devanagari allowed with devanagari_screen=True),
+#                        no number that is not in `facts` (Devanagari digits read as Western ones), no phone numbers
 
 
 async def write_script(subject: str, facts: Sequence[str], lang: str, llm, fallback: Dict) -> Dict:
