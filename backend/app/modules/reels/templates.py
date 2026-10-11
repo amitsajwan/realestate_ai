@@ -6,8 +6,10 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from PIL import ImageFilter
 
-from .compose import MIN_SECONDS, Scene, TextLine, _load, distinct_photos, read_seconds, split_screens, stretch
-from .director import CTA_SCREEN, CTA_WORD  # noqa: F401  (CTA_WORD re-exported: the comment keyword)
+from app.modules.marketing.facts import T
+
+from .compose import MIN_SECONDS, Scene, TextLine, _load, devanagari_ok, distinct_photos, read_seconds, split_screens, stretch
+from .director import CTA_SCREEN, CTA_SCREEN_DEVANAGARI, CTA_WORD  # noqa: F401  (CTA_WORD re-exported: the comment keyword)
 from .music import BEAT
 HOOK_SECONDS = 2.2  # the opening scene: most viewers decide in the first 1-2 s, so the hook is short and on screen from frame one
 # Tip and pitch reels open like the slide reels (reels/slides.py): the first slide reel lost 62% of plays in one second when frame
@@ -126,17 +128,20 @@ STACK_OPTIONS = {"transition": "fade", "xfade": 0.0, "hook_tag": False}
 
 
 def stacked_list(lines: Sequence[str], cta: Optional[str] = None, image=None, kicker: Optional[str] = None,
-                 badge: Optional[str] = None, seed: str = "stack") -> Tuple[List[Scene], Dict]:
+                 badge: Optional[str] = None, seed: str = "stack", lang: str = "en") -> Tuple[List[Scene], Dict]:
     """'Stacked list': lines[0] is the hook, on screen from frame one; each of lines[1:6] joins under it every two beats and stays;
     the call to action lands last. One scene, laid out at its final size, so nothing moves when a line joins. `image` (a listing
-    photo) is blurred into a backdrop: frame one is the hook on a calm background, not a busy picture. *asterisks* colour gold."""
+    photo) is blurred into a backdrop: frame one is the hook on a calm background, not a busy picture. *asterisks* colour gold.
+    Lines may be Hindi or Marathi in Devanagari (compose draws them in Mukta); `lang` 'hi' or 'mr' gives the default call to
+    action in that language when the server can draw it (stack_devanagari)."""
     lines = [l.strip() for l in lines if l and l.strip()]
     if len(lines) < 2:
         raise ValueError("a stacked list needs a hook and at least one line")
     hook, facts = lines[0], lines[1:1 + STACK_MAX_FACTS]
     text = ([TextLine(hook, size=100, max_lines=3)]
             + [TextLine(f, size=72, weight="semibold", color=(255, 255, 255), max_lines=2) for f in facts]
-            + [TextLine(cta or CTA_SCREEN["en"], size=52, weight="semibold", max_lines=2)])
+            + [TextLine(cta or (CTA_SCREEN_DEVANAGARI[lang] if stack_devanagari(lang) else CTA_SCREEN["en"]), size=52,
+                        weight="semibold", max_lines=2)])
     reveal = [i * STACK_STEP for i in range(len(text))]
     backdrop = _load(image)
     if backdrop is not None:
@@ -146,26 +151,49 @@ def stacked_list(lines: Sequence[str], cta: Optional[str] = None, image=None, ki
     return [scene], dict(STACK_OPTIONS)
 
 
-def listing_stack(facts: Dict, image=None, badge: Optional[str] = None) -> Tuple[List[Scene], Dict]:
+# The listing stack's own words on a Devanagari screen (Hindi or Marathi). Digits stay Western: they are the facts' own.
+STACK_WORDS = {
+    "en": {"sqft": "sq ft", "by": "By {b}", "in": "In {p}", "kicker": "Watch till the end",
+           "poss": {"ready": "Ready to move", "under_construction": "Under construction"}},
+    "hi": {"sqft": "वर्ग फुट", "by": "बिल्डर: {b}", "in": "{p} में", "kicker": "आखिर तक देखिए", "Lakh": "लाख", "Cr": "करोड़",
+           "poss": {"ready": "रेडी टू मूव", "under_construction": "निर्माणाधीन"}},
+    "mr": {"sqft": "चौरस फूट", "by": "बिल्डर: {b}", "in": "{p} येथे", "kicker": "शेवटपर्यंत पाहा", "Lakh": "लाख", "Cr": "कोटी",
+           "poss": {"ready": "रेडी टू मूव", "under_construction": "बांधकाम सुरू"}},
+}
+
+
+def stack_devanagari(lang: str) -> bool:
+    """A Hindi or Marathi stack is written in Devanagari when the server can draw it; otherwise in English, as before."""
+    return lang in ("hi", "mr") and devanagari_ok()
+
+
+def listing_stack(facts: Dict, image=None, badge: Optional[str] = None, lang: str = "en") -> Tuple[List[Scene], Dict]:
     """A listing as a stacked list, the place held back to the end: price (or the home) first, then area, what it is, possession,
     furnishing, builder, and the locality last ('wait till the end'). Same facts keys as listing_tour, plus `builder`; a fact is
-    shown only when given."""
+    shown only when given. `lang` 'hi' or 'mr': the stack's own words in Hindi or Marathi (Devanagari) when the server can draw
+    them (stack_devanagari); the agent's free text (furnishing, builder, place names) is shown as given."""
+    lang = lang if stack_devanagari(lang) else "en"
+    w = STACK_WORDS[lang]
     bhk = facts.get("bhk")
     ptype = facts.get("property_type") or "apartment"
+    if lang != "en":
+        ptype = T[lang]["types"].get(ptype, ptype)
     head = f"{int(bhk) if float(bhk).is_integer() else bhk} BHK {ptype}" if bhk else ptype.capitalize()
     locality, city = facts.get("locality") or "", facts.get("city") or "Pune"
-    poss = {"ready": "Ready to move", "under_construction": "Under construction"}.get(facts.get("possession") or "", facts.get("possession"))
+    poss = w["poss"].get(facts.get("possession") or "", facts.get("possession"))
     price = facts.get("price_text")
+    if price and lang != "en":
+        price = str(price).replace("Lakh", w["Lakh"]).replace("Cr", w["Cr"])
     lines = [f"*{price}*" if price else head]
     if facts.get("area_sqft"):
-        lines.append(f"{int(facts['area_sqft']):,} sq ft")
+        lines.append(f"{int(facts['area_sqft']):,} {w['sqft']}")
     if price:
         lines.append(head)
-    lines += [str(v) for v in (poss, facts.get("furnishing"), facts.get("builder") and f"By {facts['builder']}") if v]
-    lines.append(f"In *{locality}*, {city}" if locality else f"In {city}")
+    lines += [str(v) for v in (poss, facts.get("furnishing"), facts.get("builder") and w["by"].format(b=facts["builder"])) if v]
+    lines.append(w["in"].format(p=f"*{locality}*, {city}") if locality else w["in"].format(p=city))
     if len(lines) < 2:
-        lines.append(f"In {city}")
-    return stacked_list(lines, image=image, badge=badge, kicker="Watch till the end" if locality else None, seed="listing-stack")
+        lines.append(w["in"].format(p=city))
+    return stacked_list(lines, image=image, badge=badge, kicker=w["kicker"] if locality else None, seed="listing-stack", lang=lang)
 
 
 def _at_least_min(scenes: List[Scene], xfade: float) -> List[Scene]:

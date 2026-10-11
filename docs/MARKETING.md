@@ -139,8 +139,11 @@ involved; room and kind tags (AR-5) come later.
   two beats of the brand theme (84 bpm, 1.43 s) and stays; the call to action lands last. `listing_stack` opens with the
   price and holds the locality back to the end. `stacked_list` takes any lines, such as a buyer requirement ("Wanted: 2 to 5
   acres..."). A listing photo is blurred into a backdrop so frame one is calm.
-- Reel text is drawn in Poppins (Latin letters only): on-screen text is English or Hinglish; voice-overs speak Hindi and
-  Marathi.
+- Reel text: Latin text is drawn in Poppins, Devanagari in Mukta (the creative cards' font), shaped by libraqm. A Hindi or
+  Marathi walkthrough (tour and stack) and `listing_stack(lang=...)` show their screen lines in Devanagari; the comment
+  keyword stays INTERESTED in Roman capitals, and digits stay Western (Devanagari digits in an LLM line are read as the same
+  numbers by the no-invented-number check). Without libraqm the screen text falls back to English or Hinglish, as before.
+  Tip, pitch, trend and recruitment reels keep Roman text. Sample frames: `docs/content/showcase/devanagari/`.
 
 ### Owner content (LIVE, by script)
 - **Brand calendar.** `calendar_admin.py plan --start <date> --weeks 4 [--llm]` lays out about 5 Instagram and 5 Facebook
@@ -262,7 +265,7 @@ Found while building the stacked reels. Most impact first.
 |---|---|---|
 | Walkthrough caption is built in English (`listing_reel.caption`) | Marathi and Hindi campaigns get an English caption under a native voice-over | Small |
 | Voice-over sounds machine-made | Each line is synthesised on its own (intonation resets every line); the script reads like a form ("मजला 7, एकूण 22"); the voice sits flat over the music. Fix: one take for the whole script, cut into lines; conversational Hindi and Marathi script rules (facts only); music ducking under the voice. A cloned or custom voice must be a consenting person's, and realistic AI audio gets Meta's AI label. | Medium |
-| No Devanagari font for reel text | On-screen text cannot be Marathi or Hindi | Medium |
+| No Devanagari font for reel text | DONE (11 Oct): Hindi and Marathi walkthroughs and listing stacks show Devanagari (Mukta, §4) | Medium |
 | No buyer-requirement post type | "Wanted" posts draw replies from sellers and brokers; only the reel template exists | Small to medium |
 | `main` is a stale 2025 branch | Work happens on `cursor/analyze-and-fix-styling-issues-cacb`; new PRs point at `main` by default and show unrelated history. Make the working branch the default on GitHub. | Small |
 | `scripts/reels_admin.py` imports a `publish` module that no longer exists | The preview command fails | Tiny |

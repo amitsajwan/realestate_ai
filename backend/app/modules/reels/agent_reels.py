@@ -9,7 +9,7 @@ The ten scripts below are the first experiment (docs/plan/agent-reels.md): 3 pai
 They are written and reviewed by people, not by the LLM, and `check_script` keeps them to what the product really does:
 no time claims ("in seconds": a listing reel takes minutes to render), no "publish/auto-post" (we prepare the posts, the agent
 shares them; posting from an agent's own Page needs Meta review), no invented numbers, no 24/7. On-screen text is Hinglish in
-Roman letters (the renderer cannot shape Devanagari); `*word*` is drawn in gold.
+Roman letters (written so; the renderer can draw Devanagari, see compose); `*word*` is drawn in gold.
 
 Every reel has a code (A1..D2). It goes into the caption link (?src=reel_<code>_fb) and the calendar row, so a sign-up can be
 traced back to the reel that brought it (scripts/agent_reels.py report).

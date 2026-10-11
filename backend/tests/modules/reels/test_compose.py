@@ -73,8 +73,11 @@ def _all_scenes():
     plain, _ = templates.listing_tour(PHOTOS6, templates.DEMO_FACTS["kharadi"])
     stack, _ = templates.listing_stack({**facts, "builder": "A Long Builder Name Developers", "area_sqft": 1420})
     full, _ = templates.stacked_list(["Wanted: *2 to 5 acres*"] + ["a fairly long requirement line here"] * 6, kicker="Wanted")
+    marathi, _ = templates.listing_stack({**facts, "builder": "A Long Builder Name Developers", "area_sqft": 1420}, lang="mr")
+    hindi, _ = templates.stacked_list(["चाहिए: *2 से 5 एकड़* ज़मीन"] + ["पुणे के पास सड़क से लगी हुई खेती की ज़मीन"] * 6,
+                                      kicker="ज़रूरत", lang="hi")
     # as rendered: the last scene of each reel carries the brand mark; the optional end card is checked too
-    return [s for group in (tip, pitch, tour, plain, stack, full) for s in compose.finish_scenes(group)] + [compose.end_scene()]
+    return [s for group in (tip, pitch, tour, plain, stack, full, marathi, hindi) for s in compose.finish_scenes(group)] + [compose.end_scene()]
 
 
 def _in_zone(box) -> bool:
@@ -388,3 +391,99 @@ def test_a_full_screen_of_text_never_runs_into_the_badge():
                    brand_mark=True)
         badge = compose._chip_item(sc.badge, compose.CONTENT_TOP - 4, "left", filled=False).box
         assert min(it.box[1] for it in compose.layout_scene(sc)) > badge[3], layout
+
+
+# ---- Devanagari screen text (Hindi and Marathi reels): Mukta, shaped by libraqm ------------------------------------------------
+MARATHI = "पूर्ण माहितीसाठी *INTERESTED* कमेंट करा, ग्रुप्स कृष्ण ट्रेन स्टेशनजवळ"
+needs_raqm = pytest.mark.skipif(not compose.devanagari_ok(), reason="Pillow without libraqm")
+
+
+def _letters(it):
+    """The drawn letters of a text item (not its soft shadow)."""
+    return it.img.getchannel("A").point(lambda v: 255 if v > 200 else 0).getbbox()
+
+
+@needs_raqm
+def test_devanagari_is_drawn_with_real_glyphs_not_boxes():
+    import unicodedata
+    font = compose.text_font(96, "bold", devanagari=True)
+    assert compose.is_devanagari_font(font) and not compose.is_devanagari_font(compose.text_font(96, "bold"))
+    tofu = bytes(font.getmask(""))                     # a code point the font has no glyph for: the .notdef box
+    for ch in {c for c in MARATHI if unicodedata.category(c) == "Lo" and "ऀ" <= c <= "ॿ"}:
+        mask = font.getmask(ch)
+        assert mask.getbbox() and bytes(mask) != tofu, ch
+    word = "माहितीसाठी"
+    drawn = font.getmask(word)
+    assert drawn.getbbox() and bytes(drawn) != bytes(font.getmask("" * len(word)))
+    assert font.getlength("ध्ये") < sum(font.getlength(c) for c in "ध्ये")   # shaped: the conjunct joins, letters are not side by side
+    # in a laid-out scene the Devanagari line carries ink, and differs from the same words drawn in Poppins (boxes)
+    deva = compose.layout_scene(Scene(lines=[TextLine("माहितीसाठी कमेंट करा", size=96)], layout="lower"))[0]
+    poppins = compose._text_item([("माहितीसाठी", False, False), ("कमेंट", False, False), ("करा", False, False)],
+                                 compose.load_font(96, "bold"), compose.WHITE, "left", deva.box[1])
+    assert _letters(deva) and deva.img.tobytes() != poppins.img.tobytes()
+
+
+@needs_raqm
+def test_devanagari_lines_wrap_inside_the_frame_and_nothing_is_clipped():
+    for layout, align in (("lower", "left"), ("center", "center"), ("top", "left")):
+        sc = Scene(lines=[TextLine(MARATHI * 2, size=124), TextLine("मजला 7, एकूण 22, रेडी टू मूव", size=68)], kicker="खराडी, पुणे",
+                   layout=layout, align=align, brand_mark=True)
+        items = compose.layout_scene(sc)
+        assert len([it for it in items if it.block == 0]) > 2           # the long line wrapped over several lines
+        for it in items:
+            assert _in_zone(it.box), (layout, it.box)
+            a, (w, h) = _letters(it), it.img.size
+            assert a and a[0] > 0 and a[1] > 0 and a[2] < w and a[3] < h, (layout, a, it.img.size)   # no letter cut at the edge
+        lines = [it for it in items if it.block == 0]
+        for upper, lower in zip(lines, lines[1:]):                      # one line's lowest sign stays above the next line's highest
+            assert upper.y + _letters(upper)[3] < lower.y + _letters(lower)[1], layout
+    font = compose.text_font(100, "bold", devanagari=True)
+    top, bottom = font.getbbox("ग्रुप्स कृष्ण पूर्ण ट्रे ईं")[1::2]
+    assert 0 <= top and bottom <= sum(font.getmetrics()) and bottom < compose.line_step(font) + top
+
+
+@needs_raqm
+def test_a_devanagari_kicker_is_one_shaped_label_inside_its_pill():
+    chip = compose._chip_item("शेवटपर्यंत पाहा", compose.CONTENT_TOP, "left")
+    roman = compose._chip_item("Watch till the end", compose.CONTENT_TOP, "left")
+    assert chip.box[3] - chip.box[1] == roman.box[3] - roman.box[1] == 64 and _in_zone(chip.box)
+    pill = chip.img.crop((compose.PAD, compose.PAD, chip.img.width - compose.PAD, chip.img.height - compose.PAD))
+    ink = Image.new("L", pill.size)
+    ink.putdata([255 if a > 200 and sum(rgb) < 270 else 0 for *rgb, a in pill.getdata()])   # dark letters on the gold pill
+    dark = ink.getbbox()
+    assert dark and dark[1] > 2 and dark[3] < 62 and dark[2] - dark[0] > 150
+
+
+def test_english_text_keeps_poppins_and_its_spacing():
+    sc = Scene(lines=[TextLine("2 BHK in *Kharadi*", size=104), "Floor 7 of 22"], layout="lower")
+    items = compose.layout_scene(sc)
+    assert items[1].box[1] - items[0].box[1] == int(104 * 1.17) + 30
+    assert compose.line_step(compose.load_font(104, "bold")) == int(104 * 1.17)
+    assert compose._tokens("Kharadi मध्ये *2 BHK*") == [("Kharadi", False, False), ("2", True, False), ("BHK", True, False)]
+    assert compose._tokens("Kharadi मध्ये *2 BHK*", devanagari=True)[1] == ("मध्ये", False, False)
+
+
+def test_without_libraqm_devanagari_falls_back_to_roman_and_never_breaks(monkeypatch):
+    monkeypatch.setattr(compose, "devanagari_ok", lambda: False)
+    monkeypatch.setattr(templates, "devanagari_ok", lambda: False)
+    calls = []
+    monkeypatch.setattr(compose, "devanagari_font", lambda *a: calls.append(a))
+    items = compose.layout_scene(Scene(lines=["Kharadi मध्ये *2 BHK*"], kicker="खराडी"))
+    assert items and not calls                                                      # Poppins, Devanagari dropped (as before)
+    (stack,), _ = templates.listing_stack(STACK_FACTS, lang="mr")
+    assert [l.text for l in stack.lines] == [l.text for l in templates.listing_stack(STACK_FACTS)[0][0].lines]   # English, as before
+
+
+@needs_raqm
+def test_listing_stack_in_marathi_and_hindi():
+    (mr,), opts = templates.listing_stack(STACK_FACTS, lang="mr")
+    texts = [l.text for l in mr.lines]
+    assert texts[0] == "*Rs 30 लाख*" and texts[1] == "1,050 चौरस फूट" and texts[2] == "2 BHK अपार्टमेंट"
+    assert texts[-2] == "*Kharadi*, Pune येथे" and texts[-1] == templates.CTA_SCREEN_DEVANAGARI["mr"] and mr.kicker == "शेवटपर्यंत पाहा"
+    (hi,), _ = templates.listing_stack(STACK_FACTS, lang="hi")
+    assert hi.lines[-1].text == templates.CTA_SCREEN_DEVANAGARI["hi"] and hi.lines[-2].text == "*Kharadi*, Pune में"
+    assert mr.reveal == templates.listing_stack(STACK_FACTS)[0][0].reveal          # the same beat timing as the English stack
+    (en,), _ = templates.listing_stack(STACK_FACTS, lang="en")
+    assert [l.text for l in en.lines] == [l.text for l in templates.listing_stack(STACK_FACTS)[0][0].lines]
+    r = compose.Renderer([mr], **{k: v for k, v in opts.items() if k != "hook_tag"}, hook_tag=False)
+    assert r.frame_at(r.tl.total - 0.1).size == (W, H)
