@@ -121,6 +121,8 @@ listing's own photos, a checked script and a voice-over. 5 per agent per day. Th
 - **stack**: one screen. Each beat's line joins under the ones before and stays, the photos walk through behind it (a new
   photo with each line), and each line is spoken as it lands. The call to action and "Listed by" land last.
 A stack reel is its own job and file (`listing-<id>-<lang>-stack-<short>.mp4`). Posting outside the calendar uses the tour.
+In Studio the agent picks Tour or Stack under "Make my reel" and sees the latest reel of each style (`GET .../reel?style=`).
+The owner's concierge reel path does not take a style yet (tour only).
 
 ### Reel formats (templates, `reels/templates.py`)
 - **Tip, pitch, listing tour** ("guess the price"): scenes that replace each other.
@@ -252,7 +254,6 @@ Found while building the stacked reels. Most impact first.
 | Walkthrough caption is built in English (`listing_reel.caption`) | Marathi and Hindi campaigns get an English caption under a native voice-over | Small |
 | Voice-over sounds machine-made | Each line is synthesised on its own (intonation resets every line); the script reads like a form ("मजला 7, एकूण 22"); the voice sits flat over the music. Fix: one take for the whole script, cut into lines; conversational Hindi and Marathi script rules (facts only); music ducking under the voice. A cloned or custom voice must be a consenting person's, and realistic AI audio gets Meta's AI label. | Medium |
 | No Devanagari font for reel text | On-screen text cannot be Marathi or Hindi | Medium |
-| No control to pick the reel style in the app | The backend takes `style`, the frontend does not send it | Small |
 | No buyer-requirement post type | "Wanted" posts draw replies from sellers and brokers; only the reel template exists | Small to medium |
 | `main` is a stale 2025 branch | Work happens on `cursor/analyze-and-fix-styling-issues-cacb`; new PRs point at `main` by default and show unrelated history. Make the working branch the default on GitHub. | Small |
 | `scripts/reels_admin.py` imports a `publish` module that no longer exists | The preview command fails | Tiny |

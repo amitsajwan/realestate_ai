@@ -33,6 +33,10 @@ jest.mock('@/lib/app/client', () => ({
   errorMessage: (e: Error) => e.message,
   isFixtureMode: () => false,
 }))
+jest.mock('@/lib/app/brochure', () => ({
+  ...jest.requireActual('@/lib/app/brochure'),
+  brochureApi: { get: () => Promise.resolve(null), upload: jest.fn(), setFact: jest.fn(), setRegistration: jest.fn(), pageImage: jest.fn() },
+}))
 jest.mock('@/lib/app/session', () => ({ useSession: () => ({ siteUrl: null, logout: jest.fn() }) }))
 
 const mem = () => ({ getItem: () => null, setItem: () => undefined })

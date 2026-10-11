@@ -12,6 +12,7 @@ import {
 import {
   POLL_MS,
   REEL_LANGS,
+  REEL_STYLES,
   friendlyReelError,
   isActive,
   reelFilename,
@@ -19,7 +20,7 @@ import {
   reelsApi,
   whatsappReelUrl,
 } from '@/lib/app/reels'
-import type { ReelJob, ReelJobs, ReelLang, ReelSource } from '@/lib/app/reels'
+import type { ReelJob, ReelJobs, ReelLang, ReelSource, ReelStyle } from '@/lib/app/reels'
 import { copyText } from '@/lib/app/share'
 import { t } from '@/lib/app/strings'
 import type { MarketingPack } from '@/lib/app/types'
@@ -142,7 +143,8 @@ function InstagramCard({ pack }: { pack: MarketingPack }) {
 /**
  * 'Make my reel': a real video from the listing's photos and facts, voiced in English, Hindi or Marathi. The server renders it
  * (a few minutes); this polls every 5 s, then shows the video with Download and Share on WhatsApp.
- * `source` is the agent's own listing, or the owner acting for an agent (concierge).
+ * `source` is the agent's own listing, or the owner acting for an agent (concierge). When the source takes a style, the agent
+ * picks Tour or Stack, and the latest reel of each style is kept and shown.
  */
 export function ReelMaker({ source, caption, label = 'Make my reel', onDone }: {
   source: ReelSource
@@ -151,21 +153,27 @@ export function ReelMaker({ source, caption, label = 'Make my reel', onDone }: {
   onDone?: (job: ReelJob) => void
 }) {
   const [lang, setLang] = useState<ReelLang>('en')
-  const [jobs, setJobs] = useState<ReelJobs>({})
+  const [style, setStyle] = useState<ReelStyle>('tour')
+  const [jobsByStyle, setJobsByStyle] = useState<Record<ReelStyle, ReelJobs>>({ tour: {}, stack: {} })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const sourceRef = React.useRef(source)
   sourceRef.current = source
-  const job = jobs[lang]
+  const styled = !!source.styles
+  const job = jobsByStyle[style][lang]
   const active = isActive(job)
   const onDoneRef = React.useRef(onDone)
   onDoneRef.current = onDone
 
   const refresh = React.useCallback(async () => {
+    const src = sourceRef.current
     try {
-      const latest = await sourceRef.current.latest()
-      setJobs(latest)
-      Object.values(latest).forEach((j) => j && j.status === 'done' && onDoneRef.current?.(j))
+      const [tour, stack] = await Promise.all([
+        src.styles ? src.latest('tour') : src.latest(),
+        src.styles ? src.latest('stack') : Promise.resolve({} as ReelJobs),
+      ])
+      setJobsByStyle({ tour, stack })
+      ;[...Object.values(tour), ...Object.values(stack)].forEach((j) => j && j.status === 'done' && onDoneRef.current?.(j))
     } catch {
       /* keep what we have; the next poll tries again */
     }
@@ -175,7 +183,7 @@ export function ReelMaker({ source, caption, label = 'Make my reel', onDone }: {
     void refresh()
   }, [refresh])
 
-  const anyActive = Object.values(jobs).some((j) => isActive(j))
+  const anyActive = [...Object.values(jobsByStyle.tour), ...Object.values(jobsByStyle.stack)].some((j) => isActive(j))
   React.useEffect(() => {
     if (!anyActive) return
     const id = setInterval(() => void refresh(), POLL_MS)
@@ -185,14 +193,22 @@ export function ReelMaker({ source, caption, label = 'Make my reel', onDone }: {
   async function make(again = false) {
     setBusy(true)
     setError(null)
+    const want = style
     try {
-      const j = await source.make(lang, again)
-      setJobs((prev) => ({ ...prev, [lang]: j }))
+      const j = styled ? await source.make(lang, again, want) : await source.make(lang, again)
+      setJobsByStyle((prev) => ({ ...prev, [want]: { ...prev[want], [lang]: j } }))
     } catch (e) {
       setError(friendlyReelError(e))
     } finally {
       setBusy(false)
     }
+  }
+
+  const styleState = (s: ReelStyle): string => {
+    const j = jobsByStyle[s][lang]
+    if (!j) return ''
+    if (isActive(j)) return 'Making...'
+    return j.status === 'done' ? 'Ready' : j.status === 'failed' ? 'Failed' : ''
   }
 
   const url = job?.status === 'done' && job.video_path ? reelVideoUrl(job) : null
@@ -207,6 +223,25 @@ export function ReelMaker({ source, caption, label = 'Make my reel', onDone }: {
           </button>
         ))}
       </div>
+
+      {styled && (
+        <div role="radiogroup" aria-label="Reel style" className="grid grid-cols-2 gap-2" data-testid="reel-style">
+          {REEL_STYLES.map((s) => {
+            const state = styleState(s.code)
+            return (
+              <button key={s.code} type="button" role="radio" aria-checked={style === s.code} onClick={() => setStyle(s.code)}
+                aria-describedby={`reel-style-${s.code}-help`}
+                className={`min-h-[56px] rounded-xl border px-3 py-2 text-left ${style === s.code ? 'border-blue-600 bg-blue-50 text-blue-900' : 'border-gray-300 text-gray-700'}`}>
+                <span className="flex items-center justify-between gap-2 text-sm font-semibold">
+                  {s.label}
+                  {state && <span className="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-gray-600">{state}</span>}
+                </span>
+                <span id={`reel-style-${s.code}-help`} className="block text-xs font-normal text-gray-600">{s.help}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {active && (
         <div role="status" className="flex items-center gap-3 rounded-xl bg-blue-50 p-3 text-sm text-blue-900" data-testid="reel-progress">
