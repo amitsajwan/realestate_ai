@@ -4,6 +4,7 @@ import { ApiError } from '@/lib/app/api'
 import { api, errorMessage } from '@/lib/app/client'
 import { t } from '@/lib/app/strings'
 import type { DraftLanguage, MarketingPack } from '@/lib/app/types'
+import { BrochureCard } from './BrochureCard'
 import { MarketingPackView } from './MarketingPackView'
 import { MarketingRunCard } from './MarketingRunCard'
 import { MatchingBuyersCard } from './MatchingBuyersCard'
@@ -96,6 +97,7 @@ export function MarketingScreen({ listingId, autoCreate = false }: { listingId: 
 
   return (
     <div className="space-y-4">
+      <BrochureCard listingId={listingId} />
       <MarketingRunCard listingId={listingId} />
       <div className="flex items-center gap-2" role="group" aria-label={t('packLanguage')}>
         <span className="text-sm text-gray-600">{t('packLanguage')}</span>

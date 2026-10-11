@@ -27,7 +27,7 @@ _RERA_NO = re.compile(r"\bP5\d{10}\b")
 _WORD = r"[A-Z0-9][\w'&-]*"
 # "Gulmohar City, Ranjangaon." (campaign intro) or "Goyal My Home, Upper Kharadi: ₹97 L" (agent project caption)
 _PROJECT_LINE = re.compile(rf"^\s*({_WORD}(?:\s+{_WORD}){{0,5}}),\s+([A-Z][A-Za-z-]*(?:\s+[A-Z][A-Za-z-]*){{0,3}})(?:,\s*Pune)?\s*[.:](?:\s|$)")
-_LINK_LINE = re.compile(r"Full details of ([^\n]+?), with its MahaRERA record", re.I)  # campaign.link_line_for
+_LINK_LINE = re.compile(r"Full details of ([^\n]+?)(?:, with its MahaRERA record)?: link in bio", re.I)  # campaign.link_line_for
 
 AGENT_TAGS = ["#PuneRealEstate", "#RealEstateAgentPune", "#PuneBrokers", "#ChannelPartner", "#PuneProperty"]
 BUYER_TAGS = ["#PuneProperty", "#MahaRERA"]           # after the specific ones

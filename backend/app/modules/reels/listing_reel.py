@@ -3,10 +3,12 @@
 POST /listings/{id}/reel {lang} queues a job; the worker renders ONE job at a time (CPU bound, so make_reel runs in a thread):
   * the listing's own photos (our uploads only, at least 2),
   * a script from the listing's facts and its `about` only (an LLM writes it, director._valid checks it: no invented numbers,
-    no phone numbers, Roman on-screen text; otherwise a rules script built from the same facts),
+    no phone numbers, on-screen text in the reel's script; otherwise a rules script built from the same facts),
   * 'Listed by <business> · RERA <no>' on the closing scene (never a phone number), with the small Avasetu mark (no end card),
-  * a voiceover in English, Hindi or Marathi (Google TTS) with Hinglish/Roman on-screen text (the renderer cannot shape
-    Devanagari), over our own generated music bed. Without the TTS key the reel is made with music only, and the job says so.
+  * a voiceover in English, Hindi or Marathi (Google TTS, the script in one take when it cuts cleanly, see reels.narration)
+    over our own generated music bed, which steps back while the voice speaks; a Hindi or Marathi reel's on-screen text is in
+    Devanagari too (drawn in Mukta, see compose), or Hinglish/Roman where the server cannot shape Devanagari (no libraqm:
+    `screen_devanagari`). Without the TTS key the reel is made with music only, and the job says so.
 A sample listing (title starting 'Sample', e.g. the demo agent's) gets no reel: reels are for real homes.
 
 Limits: 5 reels per agent per rolling 24 hours (failed ones do not count), one active job per listing + language (a re-request
@@ -29,11 +31,13 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 from app.core import brand
 from app.modules.marketing.facts import T, Facts
-from app.modules.marketing.images import latin, local_upload_path
+from app.modules.marketing.images import latin, photo_paths
+from app.modules.marketing.maharera import ProjectRegistration, badge as maharera_badge, for_listing as project_registration
+from app.modules.photoquality import rank_photos, room_order, shown, tag_photos
 
-from . import ffmpeg, voice
-from .compose import Scene, TextLine, make_reel, plan, stretch
-from .director import CTA_SCREEN, CTA_VOICE, XFADE, _valid, fit_beats
+from . import ffmpeg, narration, voice
+from .compose import Scene, TextLine, devanagari_clean, devanagari_ok, make_reel, plan, stretch
+from .director import CTA_SCREEN, CTA_SCREEN_DEVANAGARI, CTA_VOICE, XFADE, _valid, fit_beats
 
 log = logging.getLogger(__name__)
 
@@ -52,19 +56,37 @@ SILENT_SECONDS = 3.0                      # scene length when there is no voice 
 NO_VOICE_NOTE = "Made without a voiceover: the voice service is not set up on the server (GOOGLE_TTS_API_KEY). Music only."
 VOICE_FAILED_NOTE = "Made without a voiceover: the voice service did not answer. Music only."
 
+SCREEN_ROMAN = "screen: at most 6 words, Roman letters only (English, or Hinglish for Hindi and Marathi), wrap ONE key word in *stars*. "
+# A Hindi or Marathi reel the server can draw in Devanagari (screen_devanagari) asks for this screen rule instead.
+SCREEN_DEVANAGARI = ("screen: at most 6 words in the voice language, in Devanagari script (keep BHK and place names as they are in "
+                     "the facts), numbers as Western digits exactly as in the facts, wrap ONE key word in *stars*. ")
 SYSTEM = (
     "You direct a 12 to 16 second vertical reel for ONE property listing, for home buyers in Pune. Write JSON only: "
     '{"beats": [{"screen": "...", "voice": "..."}], "cta_screen": "...", "cta_voice": "..."}. '
     "Rules: 4 beats. beat 1 is the hook: what the home is and where, said so a buyer stops scrolling. "
-    "screen: at most 6 words, Roman letters only (English, or Hinglish for Hindi and Marathi), wrap ONE key word in *stars*. "
+    + SCREEN_ROMAN +
     "voice: one natural spoken sentence of at most 16 words in the requested voice language (Hindi = Devanagari script, "
-    "Marathi = Devanagari, English = English). Write numbers as digits exactly as they appear in the facts. "
+    "Marathi = Devanagari, English = English), said the way a person talks to a friend, not read off a form: "
+    "'the carpet area is 780 square feet, on the 7th floor of a 22-storey building', never labels such as 'floor 7, total 22'. "
+    "The four lines are one take read in a row, so they should flow from one to the next. "
+    "Write numbers as digits exactly as they appear in the facts. "
     "Use ONLY the facts given: never invent numbers, distances, prices, schools, builders, views or promises. "
     "Never mention phone numbers, names of people or the agent. "
     "Plain, calm words: no sales words such as only, just, best, hurry, grab or limited. "
     "cta: ask viewers to comment the word INTERESTED for details, with INTERESTED in Roman capitals on screen "
     "(our own closing line replaces it, so every reel ends with the same comment keyword)."
 )
+
+
+def system_prompt(devanagari: bool) -> str:
+    """SYSTEM, with the screen-text rule for a reel whose screen text is Devanagari (Hindi or Marathi) when `devanagari`."""
+    return SYSTEM.replace(SCREEN_ROMAN, SCREEN_DEVANAGARI) if devanagari else SYSTEM
+
+
+def screen_devanagari(lang: str) -> bool:
+    """A Hindi or Marathi reel shows its screen text in Devanagari, when this server can shape it (libraqm and the Mukta font);
+    otherwise Hinglish/Roman as before. English reels are unchanged."""
+    return lang in ("hi", "mr") and devanagari_ok()
 
 
 class ReelJobError(Exception):
@@ -76,14 +98,26 @@ class ReelJobError(Exception):
 
 # ---- inputs: photos, facts, attribution ------------------------------------------------------------------------
 def listing_photos(listing: dict, uploads_dir: Path) -> List[Path]:
-    """The listing's own photos (files under <uploads>/images, in the agent's order). Remote URLs are never fetched."""
-    media = [(m.get("order") or 0, i, m) for i, m in enumerate(listing.get("media") or []) if (m.get("kind") or "image") == "image"]
-    out: List[Path] = []
-    for _, _, m in sorted(media, key=lambda t: (t[0], t[1])):
-        p = local_upload_path(m.get("url"), uploads_dir)
-        if p is not None and p not in out:
-            out.append(p)
-    return out
+    """The listing's own photos (files under <uploads>/images, in the agent's order, the enhanced copy when the agent kept
+    it on). Remote URLs are never fetched."""
+    return photo_paths(listing.get("media") or [], uploads_dir)
+
+
+def ranked_photos(listing: dict, uploads_dir: Path) -> List[Path]:
+    """The listing's photos best first (photoquality.rank_photos): no duplicates, no blurry or dark ones unless the reel would
+    otherwise have fewer than MIN_PHOTOS, the hero first."""
+    return rank_photos(listing_photos(listing, uploads_dir), min_keep=MIN_PHOTOS)
+
+
+def scene_photos(listing: dict, uploads_dir: Path, tags: Optional[Dict[Path, dict]] = None) -> List[Path]:
+    """The photos the reel shows (ranked_photos, at most MAX_SCENE_PHOTOS), the hero photo on the first scene. With photo tags
+    (photoquality.tag_photos) floor plans and papers stay out while MIN_PHOTOS others remain, and the scenes after the hero
+    walk through the home room by room (photoquality.room_order); without tags the ranked order stands."""
+    photos = ranked_photos(listing, uploads_dir)
+    if tags:
+        seen = [p for p in photos if shown(tags.get(p))]
+        photos = seen if len(seen) >= MIN_PHOTOS else photos
+    return room_order(photos[:MAX_SCENE_PHOTOS], tags or {})
 
 
 def listed_by_line(profile: Optional[dict]) -> str:
@@ -146,6 +180,40 @@ _WORDS = {
            "cta_s": CTA_SCREEN["mr"], "cta_v": CTA_VOICE["mr"], "with": "सोबत", "in": "{l} madhye {w}"},
 }
 _KIND = {"hi": {"carpet": "कार्पेट", "super built-up": "सुपर बिल्ट-अप"}, "mr": {"carpet": "कार्पेट", "super built-up": "सुपर बिल्ट-अप"}}
+# Screen words for a Devanagari screen (screen_devanagari): short natural phrases ("780 चौरस फूट, 22 मजली इमारतीत 7वा मजला"),
+# never labels ("मजला 7, एकूण 22"). Digits stay Western and exactly as in the facts, so director._valid can check them.
+_SCREEN = {
+    "hi": {"in": "{l} में {w}", "sqft": "वर्ग फुट", "look": "अंदर एक *नज़र*", "month": "/महीना", "Lakh": "लाख", "Cr": "करोड़",
+           "sale": "कीमत {p}", "rent": "किराया {p}", "and": "और",
+           "floor_of": "{t} में से {at}", "at": "{n} मंज़िल", "ground": "ग्राउंड फ्लोर",
+           "ord": {1: "पहली", 2: "दूसरी", 3: "तीसरी", 4: "चौथी", 6: "छठी"}, "ord_n": "{n}वीं",
+           "poss": {"ready": "रेडी टू मूव", "under_construction": "निर्माणाधीन"}},
+    "mr": {"in": "{l} मध्ये {w}", "sqft": "चौरस फूट", "look": "आत एक *नजर*", "month": "/महिना", "Lakh": "लाख", "Cr": "कोटी",
+           "sale": "किंमत {p}", "rent": "भाडं {p}", "and": "आणि",
+           "floor_of": "{t} मजली इमारतीत {at}", "at": "{n} मजला", "ground": "तळमजला",
+           "ord": {1: "पहिला", 2: "दुसरा", 3: "तिसरा", 4: "चौथा"}, "ord_n": "{n}वा",
+           "poss": {"ready": "रेडी टू मूव", "under_construction": "बांधकाम सुरू"}},
+}
+SCREEN_WORDS = 6  # a Devanagari screen line aims at this many words (director._valid allows 8)
+# Spoken Hindi and Marathi: whole sentences a person would say ("the carpet area is 780 square feet, on the 7th floor of a
+# 22-storey building"), never labels ("मजला 7, एकूण 22"). The same facts and numbers as the screen text.
+_SAY = {
+    "hi": {"hook": "{l} में एक {w}, {tx}।", "hook_nl": "एक {w}, {tx}।", "sale": "कीमत है {p}।", "rent": "किराया है {p}।",
+           "area": "{k} एरिया है {a} स्क्वेयर फीट", "it": "यह", "and": "और",
+           "floor_of": "यह {t} मंज़िला बिल्डिंग में {at} है", "floor": "यह {at} है", "ground": "ग्राउंड फ्लोर पर",
+           "at": "{n} मंज़िल पर", "ord": {1: "पहली", 2: "दूसरी", 3: "तीसरी", 4: "चौथी", 6: "छठी"}, "ord_n": "{n}वीं",
+           "poss": {"ready": "यह रेडी टू मूव है", "under_construction": "यह अभी निर्माणाधीन है"},
+           "furn": {"unfurnished": "बिना फर्नीचर है", "semi": "सेमी-फर्निश्ड है", "furnished": "फर्निश्ड है"},
+           "amen": "साथ में {a} की सुविधा भी है", "amen_only": "यहाँ {a} की सुविधा है"},
+    "mr": {"hook": "{l} मध्ये एक {w}, {tx}.", "hook_nl": "एक {w}, {tx}.", "sale": "किंमत आहे {p}.", "rent": "भाडं आहे {p}.",
+           "area": "{k} एरिया आहे {a} स्क्वेअर फूट", "it": "हे", "and": "आणि",
+           "floor_of": "हे {t} मजली इमारतीत {at} आहे", "floor": "हे {at} आहे", "ground": "ग्राउंड फ्लोअरवर",
+           "at": "{n} मजल्यावर", "ord": {1: "पहिल्या", 2: "दुसऱ्या", 3: "तिसऱ्या", 4: "चौथ्या"}, "ord_n": "{n}व्या",
+           "poss": {"ready": "हे रेडी टू मूव आहे", "under_construction": "याचं बांधकाम सुरू आहे"},
+           "furn": {"unfurnished": "अनफर्निश्ड आहे", "semi": "सेमी-फर्निश्ड आहे", "furnished": "फर्निश्ड आहे"},
+           "amen": "सोबत {a} अशा सुविधा आहेत", "amen_only": "इथे {a} अशा सुविधा आहेत",
+           "amen_one": "सोबत {a} ची सुविधा आहे", "amen_one_only": "इथे {a} ची सुविधा आहे"},   # one amenity
+}
 
 
 def _spoken_price(f: Facts, lang: str) -> str:
@@ -170,39 +238,147 @@ def _short(text: str, words: int = 6) -> str:
     return " ".join(latin(text).split()[:words])
 
 
-def rules_script(f: Facts, lang: str) -> Dict:
-    """A plain script from the facts alone: hook, price, size and floor, features (3 to 4 beats) and the comment call."""
+def _short_deva(text: str, words: int = 6) -> str:
+    return " ".join(devanagari_clean(text).split()[:words])
+
+
+def _screen_price(f: Facts, lang: str) -> str:
+    """'₹85 Lakh' -> '₹85 लाख'; '₹45,000/month' -> '₹45,000/महिना' (the digits are the facts' own)."""
+    w = _SCREEN[lang]
+    return f.price_text.replace("/month", w["month"]).replace("Lakh", w["Lakh"]).replace("Cr", w["Cr"])
+
+
+def _screen_floor(f: Facts, lang: str) -> Optional[str]:
+    """'22 मजली इमारतीत 7वा मजला' / '22 में से 7वीं मंज़िल'; '7वा मजला' without the building's height, 'तळमजला' for the
+    ground floor."""
+    if f.floor is None:
+        return None
+    if f.floor < 0:
+        return f.floor_text(lang)
+    w = _SCREEN[lang]
+    if f.floor == 0:
+        return w["ground"]
+    at = w["at"].format(n=w["ord"].get(f.floor) or w["ord_n"].format(n=f.floor))
+    return w["floor_of"].format(t=f.total_floors, at=at) if f.total_floors else at
+
+
+def _devanagari_screens(f: Facts, lang: str) -> Dict:
+    """The rules script's screen lines in Hindi or Marathi (Devanagari), beat by beat as rules_script picks them: short
+    phrases a person would write ('किंमत ₹85 लाख', '780 चौरस फूट, 22 मजली इमारतीत 7वा मजला', 'रेडी टू मूव, Gym आणि Lift')."""
+    w = _SCREEN[lang]
+    what = f.bhk_text or f.type_text(lang)
+    place = _short(f.locality or f.city or "", 3)
+    size = ", ".join(x for x in [f"*{f.area:,}* {w['sqft']}" if f.area else "", _screen_floor(f, lang) or ""] if x)
+    feats = [x for x in (w["poss"].get(f.possession or "") or f.possession_text(lang), T[lang]["furn"].get(f.furnishing or "")) if x]
+    first = [_short_deva(feats[0], 3)] if feats else []
+    amen: List[str] = []
+    for a in [_short_deva(latin(a), 3) for a in f.amenities if latin(a)]:
+        if len(amen) < 3 and len(" ".join(first + amen + [a]).split()) + bool(amen) <= SCREEN_WORDS:
+            amen.append(a)   # the amenities that fit: fewer of them rather than a crowded line
+    if amen:
+        amen[-1] = f"*{amen[-1]}*"
+        listed = amen[0] if len(amen) == 1 else ", ".join(amen[:-1]) + f" {w['and']} " + amen[-1]
+        feats_line = ", ".join(first + [listed])
+    else:
+        feats_line = f"*{first[0]}*" if first else ""
+    price = w["rent" if f.rent else "sale"].format(p=f"*{_screen_price(f, lang)}*") if f.price_text else ""
+    return {"hook": w["in"].format(w=f"*{what}*", l=place) if place else f"*{what}*",
+            "price": price, "size": size, "feats": feats_line,
+            "highlight": _short_deva(f.highlights[0], SCREEN_WORDS) if f.highlights else "", "look": w["look"]}
+
+
+def _say_and(items: List[str], lang: str) -> str:
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + f" {_SAY[lang]['and']} " + items[-1]
+
+
+def _say_hook(f: Facts, lang: str) -> str:
+    """'Kharadi, Pune में एक 2 BHK अपार्टमेंट, बिक्री के लिए।'"""
+    if lang not in _SAY:
+        return f.title_line(lang) + _end(lang)
+    w = (f"{f.bhk_text} " if f.bhk_text else "") + f.type_text(lang)
+    loc, tx = f.loc or f.city or "", T[lang]["tx"][f.transaction]
+    return (_SAY[lang]["hook"].format(l=loc, w=w, tx=tx) if loc else _SAY[lang]["hook_nl"].format(w=w, tx=tx))
+
+
+def _say_floor(f: Facts, lang: str) -> Optional[str]:
+    """'यह 22 मंज़िला बिल्डिंग में 7वीं मंज़िल पर है' / 'हे 22 मजली इमारतीत 7व्या मजल्यावर आहे'."""
+    if f.floor is None or f.floor < 0:
+        return f.floor_text(lang)
+    say = _SAY[lang]
+    at = say["ground"] if f.floor == 0 else say["at"].format(n=say["ord"].get(f.floor) or say["ord_n"].format(n=f.floor))
+    return say["floor_of"].format(t=f.total_floors, at=at) if f.total_floors else say["floor"].format(at=at)
+
+
+def _say_size(f: Facts, lang: str) -> str:
+    say = _SAY[lang]
+    kind = f.area_kind or "carpet"
+    parts = [say["area"].format(a=f"{f.area:,}", k=_KIND[lang].get(kind, kind))] if f.area else []
+    floor = _say_floor(f, lang)
+    if floor:
+        parts.append(floor)
+    return f", {say['and']} ".join(parts) + _end(lang)
+
+
+def _say_features(f: Facts, lang: str, amen: List[str]) -> str:
+    """'यह रेडी टू मूव है, सेमी-फर्निश्ड है, साथ में Gym, Parking और Lift की सुविधा भी है।'"""
+    say = _SAY[lang]
+    parts = [say["poss"].get(f.possession or "") or f.possession_text(lang) or ""]
+    furn = say["furn"].get(f.furnishing or "")
+    if furn:
+        parts.append(furn if parts[0] else f"{say['it']} {furn}")
+    parts = [x for x in parts if x]
+    if not amen:
+        return _say_and(parts, lang) + _end(lang)
+    key = "amen_one" if len(amen) == 1 and "amen_one" in say else "amen"
+    parts.append(say[key if parts else key + "_only"].format(a=_say_and(amen, lang)))
+    return ", ".join(parts) + _end(lang)
+
+
+def rules_script(f: Facts, lang: str, devanagari: Optional[bool] = None) -> Dict:
+    """A plain script from the facts alone: hook, price, size and floor, features (3 to 4 beats) and the comment call.
+    Hindi and Marathi lines are spoken sentences (_SAY), not labels. `devanagari` (default: screen_devanagari(lang)): a Hindi
+    or Marathi reel's screen lines in Devanagari."""
     w = _WORDS[lang]
+    deva = screen_devanagari(lang) if devanagari is None else devanagari and lang in _SCREEN
+    ds = _devanagari_screens(f, lang) if deva else {}
     what = latin(f.bhk_text or f.type_text("en").title())
     place = _short(f.locality or f.city or "", 3)
     hook_s = w["in"].format(w=f"*{what}*", l=place) if place else f"*{what}*"
-    beats = [{"screen": hook_s, "voice": f.title_line(lang) + _end(lang)}]
+    beats = [{"screen": ds.get("hook") or hook_s, "voice": _say_hook(f, lang)}]
     if f.price_text:
-        beats.append({"screen": f"*{f.price_text}*", "voice": w["price"].format(p=_spoken_price(f, lang))})
+        said = _SAY[lang]["rent" if f.rent else "sale"] if lang in _SAY else w["price"]
+        beats.append({"screen": ds.get("price") or f"*{f.price_text}*", "voice": said.format(p=_spoken_price(f, lang))})
     if f.area or f.floor is not None:
         # commas, not ' · ': the renderer wraps on spaces, so a lone dot could start the next line
-        screen = ", ".join(x for x in [f"*{f.area:,}* sq ft" if f.area else "", f.floor_text("en") or ""] if x)
-        kind = f.area_kind or "carpet"
-        spoken = [w["area"].format(a=f"{f.area:,}", k=_KIND.get(lang, {}).get(kind, kind))] if f.area else []
-        if f.floor_text(lang):
-            spoken.append(("on " + f.floor_text(lang).lower()) if lang == "en" and spoken else f.floor_text(lang))
-        beats.append({"screen": screen, "voice": ", ".join(spoken) + _end(lang)})
+        screen = ds.get("size") or ", ".join(x for x in [f"*{f.area:,}* sq ft" if f.area else "", f.floor_text("en") or ""] if x)
+        if lang in _SAY:
+            beats.append({"screen": screen, "voice": _say_size(f, lang)})
+        else:
+            kind = f.area_kind or "carpet"
+            spoken = [w["area"].format(a=f"{f.area:,}", k=kind)] if f.area else []
+            if f.floor_text(lang):
+                spoken.append(("on " + f.floor_text(lang).lower()) if spoken else f.floor_text(lang))
+            beats.append({"screen": screen, "voice": ", ".join(spoken) + _end(lang)})
     feats_en = [x for x in (f.possession_text("en"), T["en"]["furn"].get(f.furnishing or "")) if x]
     amen = [latin(a) for a in f.amenities if latin(a)][:3]
     if feats_en or amen:
         screen_bits = [_short(x, 3) for x in (feats_en[:1] + amen)[:3]]
         screen_bits[-1] = f"*{screen_bits[-1]}*"
-        spoken = [x for x in (f.possession_text(lang), T[lang]["furn"].get(f.furnishing or "")) if x]
-        if amen:
-            spoken.append(f"with {_join_and(amen)}" if lang == "en" else f"{w['with']} " + ", ".join(amen))
-        text = ", ".join(x[:1].lower() + x[1:] if lang == "en" else x for x in spoken)
-        beats.append({"screen": ", ".join(screen_bits), "voice": text[:1].upper() + text[1:] + _end(lang)})
-    if f.highlights and len(beats) < 4 and latin(f.highlights[0]):
+        screen = ds.get("feats") or ", ".join(screen_bits)
+        if lang in _SAY:
+            beats.append({"screen": screen, "voice": _say_features(f, lang, amen)})
+        else:
+            spoken = [x for x in (f.possession_text(lang), T[lang]["furn"].get(f.furnishing or "")) if x]
+            if amen:
+                spoken.append(f"with {_join_and(amen)}")
+            text = ", ".join(x[:1].lower() + x[1:] for x in spoken)
+            beats.append({"screen": screen, "voice": text[:1].upper() + text[1:] + _end(lang)})
+    if f.highlights and len(beats) < 4 and (ds.get("highlight") or latin(f.highlights[0])):
         h = latin(f.highlights[0])
-        beats.append({"screen": _short(h, 6), "voice": h if lang == "en" else f.highlights[0]})
+        beats.append({"screen": ds.get("highlight") or _short(h, 6), "voice": h if lang == "en" else f.highlights[0]})
     while len(beats) < 3:
-        beats.append({"screen": w["look"], "voice": w["look_v"]})
-    return {"beats": beats[:5], "cta_screen": w["cta_s"], "cta_voice": w["cta_v"]}
+        beats.append({"screen": ds.get("look") or w["look"], "voice": w["look_v"]})
+    return {"beats": beats[:5], "cta_screen": _cta_screen(lang, deva), "cta_voice": w["cta_v"]}
 
 
 _PUSHY = re.compile(r"\b(only|just|best|hurry|grab|limited|don'?t miss|guarantee\w*|steal|unbeatable)\b|केवल|जल्दी|मौका|घाई", re.I)
@@ -215,22 +391,30 @@ def pushy(script: Dict) -> bool:
 
 
 
-def with_cta(script: Dict, lang: str) -> Dict:
-    """Every listing reel closes with the same call to action: comment INTERESTED (the comment assistant answers it)."""
+def _cta_screen(lang: str, devanagari: bool) -> str:
+    return CTA_SCREEN_DEVANAGARI[lang] if devanagari and lang in CTA_SCREEN_DEVANAGARI else _WORDS[lang]["cta_s"]
+
+
+def with_cta(script: Dict, lang: str, devanagari: Optional[bool] = None) -> Dict:
+    """Every listing reel closes with the same call to action: comment INTERESTED (the comment assistant answers it). On a
+    Devanagari screen the line is Hindi or Marathi with INTERESTED still in Roman capitals."""
     w = _WORDS[lang]
-    return {**script, "cta_screen": w["cta_s"], "cta_voice": w["cta_v"]}
+    deva = screen_devanagari(lang) if devanagari is None else devanagari
+    return {**script, "cta_screen": _cta_screen(lang, deva), "cta_voice": w["cta_v"]}
 
 
 async def write_script(subject: str, facts: Sequence[str], lang: str, llm, fallback: Dict) -> Dict:
-    """The LLM's script when it keeps to the facts (director._valid), else the rules script."""
+    """The LLM's script when it keeps to the facts (director._valid), else the rules script. A Hindi or Marathi reel asks for
+    Devanagari screen text when the server can draw it (screen_devanagari)."""
     facts_text = "\n".join(f"- {x}" for x in facts)
+    deva = screen_devanagari(lang)
     if llm is not None:
         for _ in range(2):
             try:
-                out = await llm.json(SYSTEM, f"Voice language: {LANG_NAMES[lang]}\nSubject: {subject}\nFacts:\n{facts_text}")
+                out = await llm.json(system_prompt(deva), f"Voice language: {LANG_NAMES[lang]}\nSubject: {subject}\nFacts:\n{facts_text}")
             except Exception:
                 out = None
-            if _valid(out, subject + "\n" + facts_text) and not pushy(out):
+            if _valid(out, subject + "\n" + facts_text, devanagari_screen=deva) and not pushy(out):
                 return {"beats": out["beats"], "cta_screen": out["cta_screen"], "cta_voice": out["cta_voice"], "made_by": "llm"}
     return {**fallback, "made_by": "rules"}
 
@@ -241,8 +425,15 @@ def _closing_lines(closing: str) -> List[TextLine]:
     return [TextLine(part, size=44, weight="medium", max_lines=2) for part in [p.strip() for p in closing.split(" · ") if p.strip()]]
 
 
+MAHARERA_QR, MAHARERA_TEXT = 216, 32   # the closing scene's MahaRERA badge on a 1080 x 1920 frame: a phone reads it at a glance
+
+
+def _maharera_overlay(reg: Optional[ProjectRegistration]):
+    return maharera_badge(reg, MAHARERA_QR, MAHARERA_TEXT).img if reg is not None else None
+
+
 def _stack_scene(beats: List[Dict], picks: Sequence, durs: Sequence[float], badge: Optional[str], kicker: Optional[str],
-                 closing: str) -> Scene:
+                 closing: str, maharera: Optional[ProjectRegistration] = None) -> Scene:
     """The beats as one stacked list over a walkthrough: beat i's line joins at the start of its voice line and stays, and photo i
     comes in behind it at the same moment. The call to action and 'Listed by' land last."""
     starts = [sum(durs[:i]) for i in range(len(durs))]
@@ -253,32 +444,21 @@ def _stack_scene(beats: List[Dict], picks: Sequence, durs: Sequence[float], badg
     extra = _closing_lines(closing)
     return Scene(image=picks[0], images=list(picks[1:]), image_at=starts[1:], lines=lines + extra,
                  reveal=starts + [starts[-1]] * len(extra), layout="lower", align="left", badge=badge, kicker=kicker,
-                 seconds=sum(durs), seed="listing-stack")
+                 seconds=sum(durs), seed="listing-stack", overlay=_maharera_overlay(maharera),
+                 overlay_at=starts[-1] if len(starts) > 1 else 0.0)   # the badge lands with the closing lines
 
 
 def _narration(work: Path, clips: Sequence[Path], starts: Sequence[float], total: float, bed: Path) -> Path:
-    """The voice lines, each placed at its start, mixed over the music bed."""
-    inputs, filters = [], []
-    for i, c in enumerate(clips):
-        inputs += ["-i", str(c)]
-        ms = int((starts[i] + (0.35 if i == 0 else 0.25)) * 1000)
-        filters.append(f"[{i}:a]adelay={ms}|{ms},aresample=48000[a{i}]")
-    mix = "".join(f"[a{i}]" for i in range(len(clips)))
-    filters.append(f"{mix}amix=inputs={len(clips)}:normalize=0,apad=whole_dur={total:.2f},volume=1.35[voice]")
-    inputs += ["-i", str(bed)]
-    filters.append(f"[{len(clips)}:a]aresample=48000,volume=0.22[bed]")
-    filters.append("[voice][bed]amix=inputs=2:normalize=0:duration=first[out]")
-    audio = work / "narration.m4a"
-    ffmpeg.run([*inputs, "-filter_complex", ";".join(filters), "-map", "[out]", "-t", f"{total:.2f}",
-                "-c:a", "aac", "-b:a", "160k", str(audio), "-y"])
-    return audio
+    """The voice lines, each placed at its start, over the music bed, which steps back while the voice speaks."""
+    return narration.mix(work, clips, starts, total, bed)
 
 
 def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Optional[str] = None, kicker: Optional[str] = None,
-           closing: str = "", voiced: bool = True, style: str = "tour") -> Dict:
+           closing: str = "", voiced: bool = True, style: str = "tour", maharera: Optional[ProjectRegistration] = None) -> Dict:
     """Render the reel. Returns {"audio": "voice+music"|"music", "note": str}. Falls back to music only if the voice fails.
     One photo per beat: with fewer photos than beats the last beats are left out rather than a photo shown twice.
-    style 'stack': the same beats, voice and photos as one stacked list (see _stack_scene)."""
+    style 'stack': the same beats, voice and photos as one stacked list (see _stack_scene). `maharera`: the project's trusted
+    registration, drawn as the QR badge on the closing scene (MahaRERA's advertisement order)."""
     if style not in STYLES:
         raise ValueError(f"style must be one of {STYLES}")
     beats, picks = fit_beats(script, photos)
@@ -289,11 +469,9 @@ def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opt
         durs: List[float] = []
         if voiced:
             try:
-                for i, b in enumerate(beats):
-                    mp3 = work / f"b{i}.mp3"
-                    mp3.write_bytes(voice.synth(b["voice"], lang))
-                    clips.append(mp3)
-                    durs.append(max(2.2, ffmpeg.probe(mp3).duration + 0.55))
+                clips, how = narration.voice_lines([b["voice"] for b in beats], lang, work)
+                durs = [max(2.2, ffmpeg.probe(c).duration + 0.55) for c in clips]
+                log.info("listing reel voice-over: %s", "one take" if how == "take" else "line by line")
             except voice.VoiceError:
                 voiced, clips, note = False, [], VOICE_FAILED_NOTE
         if not voiced:
@@ -302,7 +480,7 @@ def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opt
         stack = style == "stack"
         durs = stretch(durs, 0.0 if stack else XFADE)
         if stack:
-            scene = _stack_scene(beats, picks, durs, badge, kicker, closing)
+            scene = _stack_scene(beats, picks, durs, badge, kicker, closing, maharera)
             starts, total = [sum(durs[:i]) for i in range(len(durs))], sum(durs)
             from .music import write as write_music
             bed = write_music(work / "bed.wav", seconds=total + 1.0)
@@ -316,7 +494,8 @@ def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opt
             if last and closing:
                 lines += _closing_lines(closing)
             scenes.append(Scene(image=picks[i], lines=lines, layout="lower", badge=badge,
-                                kicker=kicker if first else None, seconds=durs[i], seed=f"listing-{i}"))
+                                kicker=kicker if first else None, seconds=durs[i], seed=f"listing-{i}",
+                                overlay=_maharera_overlay(maharera) if last else None))
         tl = plan(durs, XFADE)   # no end card: the closing scene carries the brand mark and the reel loops
         from .music import write as write_music
         bed = write_music(work / "bed.wav", seconds=tl.total + 1.0)
@@ -360,13 +539,16 @@ def _safe_id(s: str) -> str:
 
 class ReelJobs:
     def __init__(self, db, uploads_dir, llm_factory: Optional[Callable] = None, renderer: Callable = render,
-                 now: Callable[[], datetime] = datetime.utcnow, voice_available: Callable[[], bool] = voice.available):
+                 now: Callable[[], datetime] = datetime.utcnow, voice_available: Callable[[], bool] = voice.available,
+                 tagger: Optional[Callable] = None):
+        self.db = db
         self.jobs = db.get_collection(COLLECTION)
         self.listings = db.get_collection("listings")
         self.profiles = db.get_collection("agent_public_profiles")
         self.uploads_dir = Path(uploads_dir)
         self.llm_factory = llm_factory
         self.renderer, self.now, self.voice_available = renderer, now, voice_available
+        self.tagger = tagger  # async (photos) -> {path: tag} (photoquality.tag_photos in the worker); None: the ranked order
 
     async def _listing(self, agent_id: str, listing_id: str) -> dict:
         doc = await self.listings.find_one({"_id": listing_id, "agent_id": agent_id})
@@ -457,7 +639,13 @@ class ReelJobs:
                 return await self._finish(jid, status="failed", error="The listing was removed.")
             if is_sample(listing):
                 return await self._finish(jid, status="failed", error="Sample listings cannot have a reel.")
-            photos = listing_photos(listing, self.uploads_dir)
+            tags: Dict[Path, dict] = {}
+            if self.tagger is not None:  # what each photo shows, for a room-by-room order; never required
+                try:
+                    tags = await self.tagger(await asyncio.to_thread(ranked_photos, listing, self.uploads_dir)) or {}
+                except Exception:
+                    log.info("listing reel %s: photo tags unavailable", jid, exc_info=True)
+            photos = await asyncio.to_thread(scene_photos, listing, self.uploads_dir, tags)
             if len(photos) < MIN_PHOTOS:
                 return await self._finish(jid, status="failed", error="Add at least 2 photos")
             profile = await self.profiles.find_one({"agent_id": job["agent_id"]})
@@ -471,6 +659,9 @@ class ReelJobs:
             out = self.uploads_dir / "reels" / name
             kicker = _short(f.loc.upper(), 5) or None
             kw = {"style": style} if style != "tour" else {}
+            reg = await project_registration(listing, self.db)   # the MahaRERA badge: only a project number we trust
+            if reg is not None:
+                kw["maharera"] = reg
             result = await asyncio.to_thread(
                 self.renderer, script, photos[:MAX_SCENE_PHOTOS], job["lang"], out, kicker=kicker, closing=listed_by_line(profile),
                 voiced=self.voice_available(), **kw)
@@ -497,7 +688,7 @@ def default_jobs() -> ReelJobs:
     from app.core.config import settings
     from app.core.database import get_database
     from app.platform.llm import default_llm
-    return ReelJobs(get_database(), Path(settings.upload_directory), llm_factory=default_llm)
+    return ReelJobs(get_database(), Path(settings.upload_directory), llm_factory=default_llm, tagger=tag_photos)
 
 
 HEARTBEAT_EVERY_S = 60.0  # the loop polls every few seconds; its heartbeat is written at most once a minute
@@ -547,11 +738,17 @@ def ensure_worker() -> Optional[asyncio.Task]:
     return _task
 
 
-def caption(listing: dict, attribution: str) -> str:
-    """Caption for posting the reel on the Avasetu pages: what and where, price, the 'Listed by' attribution, the brand."""
+_CAPTION_KIND = {"en": {"carpet": "carpet", "super built-up": "super built-up"}, "hi": _KIND["hi"], "mr": _KIND["mr"]}
+
+
+def caption(listing: dict, attribution: str, lang: str = "en") -> str:
+    """Caption for posting the reel on the Avasetu pages, in the reel's language: what and where, price and area, the
+    'Listed by' attribution, the brand. The same facts in every language; never a phone number."""
+    lang = lang if lang in LANGS else "en"
     f = Facts.from_docs(listing, None, "")
-    bits = " · ".join(x for x in (f.price_text, f.area_text and f"{f.area_text} {f.area_kind}") if x)
-    lines = [f.title_line("en") + (f"\n{bits}" if bits else "")]
+    kind = _CAPTION_KIND[lang].get(f.area_kind or "", f.area_kind or "")
+    bits = " · ".join(x for x in (f.price_text, f.area_text and f"{f.area_text} {kind}".strip()) if x)
+    lines = [f.title_line(lang) + (f"\n{bits}" if bits else "")]
     if attribution:
         lines.append(attribution)
     lines.append(f"{brand.NAME} · {brand.TAGLINE} {brand.HASHTAG}")

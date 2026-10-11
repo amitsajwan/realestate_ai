@@ -6,6 +6,8 @@ Output: H.264 (yuv420p, High profile), 1080x1920, 30 fps, AAC stereo audio (the 
 Text stays inside the Instagram safe zone: every text line and the CTA between 14% and 72% of the height (TEXT_TOP / TEXT_BOTTOM;
 Instagram's caption, account row and the bottom bar cover roughly the last 20-28%) and left of the right 12% (TEXT_RIGHT: the like,
 comment and share buttons). Only the thin progress bar sits above TEXT_TOP.
+Text in Devanagari (a Hindi or Marathi reel) is drawn in Mukta, shaped by libraqm; Latin text stays in Poppins. Without libraqm
+(`devanagari_ok()` False) Devanagari would not join, so callers keep the screen text Roman and the renderer drops Devanagari.
 """
 from app.core import brand
 import os
@@ -13,9 +15,10 @@ import re
 import tempfile
 from dataclasses import dataclass, replace
 from pathlib import Path
+from functools import lru_cache
 from typing import Iterable, Iterator, List, Optional, Sequence, Tuple, Union
 
-from PIL import Image, ImageDraw, ImageFilter, ImageOps
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps, features
 
 from app.modules.marketing.images import GOLD, STORY, _logo, brand_background, latin, load_font
 
@@ -45,7 +48,7 @@ PHONE_RE = re.compile(r"(?<![A-Za-z0-9])(?:\+?\d[\s\-]?){9,}")
 PAD = 28
 # Which version of the look a reel was drawn with, kept in the calendar row's tags so results before and after a change of the
 # look can be told apart. Bump it with every change viewers would notice (timing, transitions, text size).
-RENDER_VERSION = "2026-10-07-smooth"   # quick text entrance, gentle punch-in, 0.35 s blends, short screens
+RENDER_VERSION = "2026-10-11-devanagari"   # Hindi and Marathi screen text in Devanagari (Mukta); English reels look the same
 TEXT_IN = 0.22         # a later scene's text is fully in this many seconds after its cut (no delay: never an empty screen)
 PUNCH_SCALE = 0.035    # each new picture starts 3.5% zoomed in ...
 PUNCH_SECONDS = 0.7    # ... and eases out over this long: a gentle push, not a jolt
@@ -54,6 +57,7 @@ MAX_SCREEN_WORDS = 8   # on-screen text longer than this is split over quick scr
 TAG_Y = TEXT_TOP               # the brand tag row (logo + name), under the progress bar
 CONTENT_TOP = TAG_Y + 94       # 362: below the brand tag row
 BADGE_ROW = 64 + 24            # the outlined badge (drawn at CONTENT_TOP - 4) and a gap under it
+OVERLAY_GAP = 36               # between a scene's overlay (the MahaRERA badge) and its text
 
 
 class ReelError(Exception):
@@ -90,6 +94,9 @@ class Scene:
                                                         # joins never moves the ones already there; a line at 0 is there on frame one
     images: Sequence = ()                               # more photos behind the same text (a walkthrough under a stacked list): images[k]
     image_at: Sequence[float] = ()                      # takes over from the one before at image_at[k] seconds, with a short blend
+    overlay: Optional[Image.Image] = None               # RGBA drawn as it is at the top right under the brand row (the MahaRERA
+                                                        # badge); the scene's text keeps below it
+    overlay_at: float = 0.0                             # seconds after the scene starts at which the overlay comes in
 
 
 def end_scene(seconds: float = 2.6) -> Scene:
@@ -222,12 +229,74 @@ def active_scenes(tl: Timeline, t: float) -> List[Tuple[int, float]]:
     return [(out[0] if out else len(tl.starts) - 1, 1.0)]
 
 
+# ---- fonts: Poppins for Latin text, Mukta for Devanagari ---------------------------------------------------------------
+# The creative cards' Mukta files (SIL OFL; Devanagari, Latin and the rupee sign): one copy in the repo.
+DEVANAGARI_FONT_DIR = Path(__file__).resolve().parent.parent / "creative" / "assets" / "fonts"
+DEVANAGARI_FONTS = {"regular": "Mukta-Regular.ttf", "medium": "Mukta-Medium.ttf", "semibold": "Mukta-SemiBold.ttf",
+                    "bold": "Mukta-Bold.ttf"}
+DEVANAGARI_RE = re.compile(r"[\u0900-\u097F]")
+# Line step as a share of the font size. Poppins: 1.17. In Mukta, Devanagari ink runs from about 0.21 to 1.41 of the size below
+# the line's top (vowel signs above the headline, conjuncts and the u / ri signs below it), so its lines step 1.30: about 0.1 of
+# the size between one line's lowest sign and the next line's highest.
+STEP = 1.17
+STEP_DEVANAGARI = 1.30
+
+
+def has_devanagari(text: Optional[str]) -> bool:
+    return bool(DEVANAGARI_RE.search(text or ""))
+
+
+@lru_cache(maxsize=1)
+def devanagari_ok() -> bool:
+    """True when Devanagari can be drawn properly here: Pillow has libraqm (it joins the letters and places the vowel signs)
+    and the Mukta files are there. Without it the screen text stays Roman (as before) and no reel breaks."""
+    try:
+        if not features.check("raqm"):
+            return False
+        ImageFont.truetype(str(DEVANAGARI_FONT_DIR / DEVANAGARI_FONTS["bold"]), 20, layout_engine=ImageFont.Layout.RAQM)
+        return True
+    except Exception:
+        return False
+
+
+@lru_cache(maxsize=96)
+def devanagari_font(size: int, weight: str = "regular"):
+    """Mukta at `size`, laid out by libraqm. Only used when devanagari_ok()."""
+    return ImageFont.truetype(str(DEVANAGARI_FONT_DIR / DEVANAGARI_FONTS.get(weight, DEVANAGARI_FONTS["regular"])), size,
+                              layout_engine=ImageFont.Layout.RAQM)
+
+
+def _devanagari_text(text: Optional[str]) -> bool:
+    """Draw this text in Mukta: it has Devanagari and the shaper is here."""
+    return has_devanagari(text) and devanagari_ok()
+
+
+def text_font(size: int, weight: str = "regular", devanagari: bool = False):
+    return devanagari_font(size, weight) if devanagari else load_font(size, weight)
+
+
+def is_devanagari_font(font) -> bool:
+    return Path(getattr(font, "path", "") or "").name in DEVANAGARI_FONTS.values()
+
+
+def line_step(font) -> int:
+    """Distance from one line's top to the next one's, for this font."""
+    return int(font.size * (STEP_DEVANAGARI if is_devanagari_font(font) else STEP))
+
+
+def devanagari_clean(s: Optional[str]) -> str:
+    """Screen text drawn in Mukta: Devanagari, the Latin letters, digits and signs the cards use, and the joiners Devanagari
+    needs (ZWNJ, ZWJ). Anything else (emoji, other scripts) is dropped rather than drawn as a box."""
+    return "".join(c for c in (s or "") if ord(c) < 0x250 or "\u0900" <= c <= "\u097F" or c in "–—’₹\u200c\u200d").strip()
+
+
 # ---- text layers ----------------------------------------------------------------------------------------------------
-def _tokens(text: str) -> List[Tuple[str, bool, bool]]:
-    """(word, gold, glued): `glued` = no space before it (punctuation right after a gold word stays attached)."""
+def _tokens(text: str, devanagari: bool = False) -> List[Tuple[str, bool, bool]]:
+    """(word, gold, glued): `glued` = no space before it (punctuation right after a gold word stays attached).
+    `devanagari`: the text is drawn in Mukta, so its Devanagari is kept (otherwise only Latin is: marketing.images.latin)."""
     out: List[Tuple[str, bool, bool]] = []
     prev_end_space = True
-    for i, part in enumerate(latin(text).split("*")):
+    for i, part in enumerate((devanagari_clean(text) if devanagari else latin(text)).split("*")):
         words = part.split()
         lead = part[:1].isspace() if part else True
         for k, w in enumerate(words):
@@ -323,18 +392,29 @@ def _pill(tw: int, h: int, fill, outline=None) -> Image.Image:
 
 
 def _chip_item(text: str, y: int, align: str, filled: bool = True) -> Item:
-    font = load_font(34, "semibold")
-    label = latin(text).upper()
-    tw = int(sum(_DRAW.textlength(c, font=font) + 2 for c in label)) + 60
     h = 64
+    ink = (*INK, 255) if filled else (255, 255, 255, 255)
+    deva = _devanagari_text(text)
+    if deva:   # a Devanagari label is one shaped run (letter spacing would break the joins), centred on its ink
+        font = devanagari_font(34, "semibold")
+        label = devanagari_clean(text)
+        tw = int(_DRAW.textlength(label, font=font)) + 60
+    else:
+        font = load_font(34, "semibold")
+        label = latin(text).upper()
+        tw = int(sum(_DRAW.textlength(c, font=font) + 2 for c in label)) + 60
     x0 = SIDE if align == "left" else (W - tw) // 2
     img = Image.new("RGBA", (tw + 2 * PAD, h + 2 * PAD), (0, 0, 0, 0))
     pill = _pill(tw, h, (*GOLD, 255)) if filled else _pill(tw, h, (8, 10, 16, 150), (255, 255, 255, 235))
     img.alpha_composite(pill, (PAD, PAD))
     d = ImageDraw.Draw(img)
     x = PAD + 30
+    if deva:
+        top, bottom = font.getbbox(label)[1::2]
+        d.text((x, PAD + (h - top - bottom) // 2), label, font=font, fill=ink)
+        return Item(img, x0 - PAD, y - PAD, (x0, y, x0 + tw, y + h))
     for ch in label:
-        d.text((x, PAD + 9), ch, font=font, fill=(*INK, 255) if filled else (255, 255, 255, 255))
+        d.text((x, PAD + 9), ch, font=font, fill=ink)
         x += d.textlength(ch, font=font) + 2
     return Item(img, x0 - PAD, y - PAD, (x0, y, x0 + tw, y + h))
 
@@ -381,6 +461,8 @@ def layout_scene(scene: Scene) -> List[Item]:
     lines = [l for l in lines if l.text]
     bottom = TEXT_BOTTOM
     top = CONTENT_TOP + (BADGE_ROW if scene.badge else 0)   # a full screen of text never runs into the badge
+    if scene.overlay is not None:                            # nor into the overlay at the top right
+        top = max(top, CONTENT_TOP + scene.overlay.size[1] + OVERLAY_GAP)
     avail = bottom - top
     max_w = TEXT_W if align == "left" else TEXT_W_CENTER
     shrink = 1.0
@@ -390,20 +472,21 @@ def layout_scene(scene: Scene) -> List[Item]:
             size, weight, color, mx = _default_spec(i, scene.layout)
             size = int((tl.size or size) * shrink)
             weight, color, mx = tl.weight or weight, tl.color or color, tl.max_lines or mx
-            fnt = load_font(size, weight)
-            toks = _tokens(tl.text)
+            deva = _devanagari_text(tl.text)   # measured, wrapped and drawn with the same font and layout engine
+            fnt = text_font(size, weight, deva)
+            toks = _tokens(tl.text, deva)
             wr = _wrap_balanced(toks, fnt, max_w)
             while len(wr) > mx and size > 34:
                 size -= 4
-                fnt = load_font(size, weight)
+                fnt = text_font(size, weight, deva)
                 wr = _wrap_balanced(toks, fnt, max_w)
             blocks.append([(ln, fnt, color) for ln in wr])
         chip_h = 64 + 36 if scene.kicker else 0
         mark_h = MARK_D + 40 if scene.brand_mark else 0
-        total = mark_h + chip_h + sum(len(b) * int(b[0][1].size * 1.17) + 30 for b in blocks) - (30 if blocks else 0)
+        total = mark_h + chip_h + sum(len(b) * line_step(b[0][1]) + 30 for b in blocks) - (30 if blocks else 0)
         if blocks:  # the last line's glyph box (ascent + descent) can reach below its line step
             last = blocks[-1][-1][1]
-            total += max(0, sum(last.getmetrics()) - int(last.size * 1.17))
+            total += max(0, sum(last.getmetrics()) - line_step(last))
         if total <= avail:
             break
         shrink *= 0.9
@@ -424,7 +507,7 @@ def layout_scene(scene: Scene) -> List[Item]:
     for i, b in enumerate(blocks):
         for ln, fnt, color in b:
             items.append(replace(_text_item(ln, fnt, color, align, y), block=i))
-            y += int(fnt.size * 1.17)
+            y += line_step(fnt)
         y += 30
     return items
 
@@ -542,6 +625,7 @@ class _Prepared:
         self.reveal = [t for l, t in zip(scene.lines, scene.reveal) if (l.text if isinstance(l, TextLine) else l)] if scene.reveal else None
         self.is_first = is_first
         self.badge = _chip_item(scene.badge, CONTENT_TOP - 4, "left", filled=False) if scene.badge else None
+        self.overlay = _overlay_item(scene.overlay) if scene.overlay is not None else None
         # The opening scene has no entrance animation: frame one already shows the whole hook, so it is readable before anyone
         # swipes away (and the cover image, a still of that frame, shows it too). Later scenes pop their text in from the cut:
         # a slow fade after a delay left the screen empty for about a second right after the hook (the moment viewers decide).
@@ -585,6 +669,10 @@ class _Prepared:
     def badge_alpha(self, lt: float) -> float:
         return ease_out_cubic(lt / TEXT_IN) if self.animate else 1.0
 
+    def overlay_alpha(self, lt: float) -> float:
+        at = self.scene.overlay_at
+        return ease_out_cubic((lt - max(at, self.delay)) / self.fade) if (at > 0 or self.animate) else 1.0
+
     def item_alpha(self, k: int, lt: float) -> float:
         """Opacity (and so the rise offset) of the k-th text item at scene time lt: 1.0 means in its final place."""
         if self.reveal:  # a stacked list: each line pops in at its own time and stays; the opening scene's first line is there on frame one
@@ -599,9 +687,18 @@ class _Prepared:
         img = Image.composite(self.solid, self.background(p, lt), self.mask)
         if self.badge:
             _blit(img, self.badge, self.badge_alpha(lt), rise=0)
+        if self.overlay:
+            _blit(img, self.overlay, self.overlay_alpha(lt) * text_a, rise=0)
         for k, it in enumerate(self.items):
             _blit(img, it, self.item_alpha(k, lt) * text_a, rise=24)
         return img
+
+
+def _overlay_item(overlay: Image.Image) -> Item:
+    """A scene's overlay, right-aligned to the text edge (clear of the like and share buttons) under the brand row."""
+    w, h = overlay.size
+    x, y = TEXT_RIGHT - w, CONTENT_TOP
+    return Item(overlay.convert("RGBA"), x, y, (x, y, x + w, y + h))
 
 
 def _blit(img: Image.Image, it: Item, a: float, rise: int = 46) -> None:

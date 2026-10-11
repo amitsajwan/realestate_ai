@@ -12,15 +12,17 @@ def render(copy: Copy, design: Design) -> List[Rendered]:
     c = Canvas(design.size, pal, "big_number", pattern="rings", glow_at=(0.5, 0.36))
     p = copy.payload
     value, label = str(p.get("value", "")), str(p.get("label", ""))
-    c.chip(str(p.get("kicker", "WORTH REMEMBERING")), c.left, c.top, icon="star")
+    chip = c.chip(str(p.get("kicker", "WORTH REMEMBERING")), c.left, c.top, icon="star")
+    rera_y = c.maharera_badge(beside=chip)
     w = c.right - c.left
-    top, bottom = c.top + 110, c.bottom - footer_h() - 110
+    top, bottom = max(c.top + 110, (rera_y or 0) + 40), c.bottom - footer_h() - 110
     num_size = 470 if tall else 380
-    num_fs, _, num_h, _ = c.fit(value, w, num_size, "bold", 1, int(num_size * 0.26), balance=False)
     lab_size = 68 if tall else 58
     lab_h = c.measure(label, w, lab_size, "bold", 3, pitch=1.14)
     sup_h = c.measure(copy.support, w, 36, "medium", 2, pitch=1.3) if copy.support else 0
     gap = 34
+    room = bottom - top - (40 + 10 + gap + lab_h + (gap + sup_h if sup_h else 0)) if rera_y else None   # the number gives way
+    num_fs, _, num_h, _ = c.fit(value, w, num_size, "bold", 1, int(num_size * 0.26), balance=False, h=room)
     total = num_h + 40 + 10 + gap + lab_h + (gap + sup_h if sup_h else 0)
     y = top + max(0, (bottom - top - total) // 2)
     c.glow((c.W // 2, y + num_h // 2), 480, pal.glow, 0.30 if not pal.light else 0.45)

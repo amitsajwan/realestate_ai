@@ -2,18 +2,26 @@
 
 Each angle is a small function: usable facts in, a creative Brief out (or None when the facts it needs are missing). Every number
 a post may say is written into the Brief's facts, so the creative guards accept it and still reject anything invented.
+Confirmed brochure facts (level builder_claim) feed their own angles only, each worded "as per the builder's brochure"; the
+angles that speak for MahaRERA (possession, rera_check, layout_size) need MahaRERA's own record and are skipped without it.
+Images the agent confirmed from the brochure (brochure.usable_images) carry two angles: `floor_plan` shows a plan big with the
+configuration and carpet area it belongs to (the listing's own, or a confirmed brochure claim, attributed), and `first_look`
+shows a render, always labelled "Artist's impression". Neither ever goes into the walkthrough reel (agent photos only).
 To add an angle: write one function and add it to ANGLES."""
 import logging
+import re
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from app.modules.creative import i18n, pipeline
+from app.modules.creative.guards import problems_in
 from app.modules.creative.hooks import PATTERNS
 from app.modules.creative.listing_brief import price_label
 from app.modules.creative.models import Brief, CardBrand, CreativePack, Voice
+from app.platform.text import bhk_label
 
-from . import surroundings
+from . import advert, surroundings
 from .facts import Fact
 
 log = logging.getLogger(__name__)
@@ -28,6 +36,12 @@ def day(iso: str) -> str:
 LINK_LINE = {"en": "Full details of {where}, with its MahaRERA record: link in bio.",
              "mr": "{where} ची पूर्ण माहिती, MahaRERA नोंदीसह: बायोमधील लिंक.",
              "hi": "{where} की पूरी जानकारी, MahaRERA रिकॉर्ड के साथ: बायो में लिंक."}
+LINK_LINE_PLAIN = {"en": "Full details of {where}: link in bio.",   # no MahaRERA record read: none is promised
+                   "mr": "{where} ची पूर्ण माहिती: बायोमधील लिंक.",
+                   "hi": "{where} की पूरी जानकारी: बायो में लिंक."}
+BROCHURE = "as per the builder's brochure"
+ARTISTS_IMPRESSION = "Artist's impression"   # brochure_parse.ARTISTS_IMPRESSION: on every render a post shows
+PLAN_LABEL = "Floor plan from the builder's brochure"
 
 # The caption's closing question for each angle, in each post language: one a buyer can answer about THIS subject
 # (a price card does not ask how many site visits they made). Code-written, so a translation never changes it.
@@ -65,27 +79,51 @@ ASKS: Dict[str, Dict[str, str]] = {
     "plot_or_flat": {"en": "Plot or flat: which would you pick? Tell us in the comments.",
                      "mr": "प्लॉट की फ्लॅट: तुम्ही काय निवडाल? कमेंटमध्ये सांगा.",
                      "hi": "प्लॉट या फ्लैट: आप क्या चुनेंगे? कमेंट में बताइए."},
+    "amenities": {"en": "Which amenity would you use most? Tell us below.",
+                  "mr": "तुम्ही कोणती सुविधा सर्वात जास्त वापराल? खाली सांगा.",
+                  "hi": "आप कौन-सी सुविधा सबसे ज़्यादा इस्तेमाल करेंगे? नीचे बताइए."},
+    "specifications": {"en": "Which of these do you check first on a site visit? Tell us below.",
+                       "mr": "साइट व्हिजिटला तुम्ही यापैकी सर्वात आधी काय तपासता? खाली सांगा.",
+                       "hi": "साइट विज़िट पर आप इनमें से सबसे पहले क्या जाँचते हैं? नीचे बताइए."},
+    "configurations": {"en": "Which size suits your family? Tell us below.",
+                       "mr": "तुमच्या कुटुंबासाठी कोणता आकार योग्य आहे? खाली सांगा.",
+                       "hi": "आपके परिवार के लिए कौन-सा साइज़ सही है? नीचे बताइए."},
+    "floor_plan": {"en": "Which room would you set up first? Tell us below.",
+                   "mr": "तुम्ही सर्वात आधी कोणती खोली सजवाल? खाली सांगा.",
+                   "hi": "आप सबसे पहले कौन-सा कमरा सजाएँगे? नीचे बताइए."},
+    "first_look": {"en": "What would you ask the builder on a site visit? Tell us below.",
+                   "mr": "साइट व्हिजिटला तुम्ही बिल्डरला काय विचाराल? खाली सांगा.",
+                   "hi": "साइट विज़िट पर आप बिल्डर से क्या पूछेंगे? नीचे बताइए."},
     "plot_myth": {"en": "Did you know a plot needs an NA order? Tell us below.",
                   "mr": "प्लॉटसाठी NA ऑर्डर लागते हे तुम्हाला माहीत होते का? खाली सांगा.",
                   "hi": "क्या आप जानते थे कि प्लॉट के लिए NA ऑर्डर चाहिए? नीचे बताइए."},
 }
 
 
-def link_line_for(where: str, language: str = "en") -> str:
-    """Instagram's pointer to the listing page (Facebook swaps it for the link itself: schedule.facebook_caption)."""
+def link_line_for(where: str, language: str = "en", maharera: bool = True) -> str:
+    """Instagram's pointer to the listing page (Facebook swaps it for the link itself: schedule.facebook_caption). Without a
+    MahaRERA record (`maharera=False`) the line promises none."""
     if language in ("mr", "hi"):  # a place name as the language spells it (Ranjangaon -> रांजणगाव); project names stay
         where = ", ".join(i18n.PLACES.get(p.strip(), {}).get(language, p.strip()) for p in where.split(","))
-    return LINK_LINE.get(language, LINK_LINE["en"]).format(where=where)
+    lines = LINK_LINE if maharera else LINK_LINE_PLAIN
+    return lines.get(language, lines["en"]).format(where=where)
 
 
 class Ctx:
     """Usable fact values, with the names every angle needs."""
 
     def __init__(self, facts: Dict[str, Fact], photo: str = "none", link: str = "", voice: Optional[Voice] = None,
-                 card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (), language: str = "en"):
+                 card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (), language: str = "en",
+                 images: Sequence[Dict[str, Any]] = (), kit: Optional[dict] = None):
         self.v: Dict[str, Any] = {k: f.value for k, f in facts.items() if f.usable}
+        # the project registration the cards may print (the QR badge and the strip's MahaRERA line): advert.trusted, which
+        # reads the brochure kit's answer too (`exempt` or an unverified number: none)
+        self.registration = advert.trusted({}, facts, kit)
+        self.claims: Dict[str, Any] = {k: f.value for k, f in facts.items() if f.level == "builder_claim"}  # say whose claim
+        # MahaRERA's own record was read (not only a number typed into the listing or printed in a brochure)
+        self.maharera = any("maharera" in f.sources for f in facts.values() if f.usable)
         self.photo, self.link = photo, link
-        self.project = self.v.get("project_name") or ""
+        self.project = self.v.get("project_name") or self.claims.get("project_name") or ""
         self.locality = self.v.get("locality") or ""
         areas = ", ".join(p for p in (self.locality, self.v.get("city") or "Pune") if p) if self.locality else ""
         v = voice or Voice()
@@ -93,16 +131,20 @@ class Ctx:
         self.contact, self.language = list(contact), language  # an agent's contact lines and the post language
         if card_brand is not None:  # an agent's cards also carry this listing's price and MahaRERA number
             price = price_label(self.v["price_inr"]) if self.v.get("price_inr") else ""
-            card_brand = replace(card_brand, price=card_brand.price or price, rera=card_brand.rera or str(self.v.get("rera_no") or ""))
+            card_brand = replace(card_brand, price=card_brand.price or price,
+                                 rera=card_brand.rera or (self.registration.regno if self.registration else ""))
         self.card_brand = card_brand
         self.where = ", ".join(p for p in (self.project, self.locality) if p)
         self.plot = self.v.get("property_type") == "plot"
         self.kind = "plot" if self.plot else "home"
         self.sqft = self.v.get("plot_sqft") or self.v.get("carpet_sqft")
+        # images the agent confirmed from the brochure (brochure.usable_images): {kind, path, label, configs}
+        self.images = [dict(i) for i in images if isinstance(i, dict) and i.get("path") and Path(str(i["path"])).is_file()]
 
     def tags(self) -> List[str]:
         words = [w.capitalize() for w in self.locality.split()]
-        return ["#" + "".join(words)] * bool(words) + ["#PuneProperty", "#PlotsInPune" if self.plot else "#PuneHomes", "#MahaRERA"]
+        return (["#" + "".join(words)] * bool(words) + ["#PuneProperty", "#PlotsInPune" if self.plot else "#PuneHomes"]
+                + ["#MahaRERA"] * self.maharera)
 
     def brief(self, hook: str = "", angle: str = "", **kw) -> Brief:
         """A Brief with this property's tags, photo, link and chip; `hook` (when given) opens the post whatever pattern runs;
@@ -114,15 +156,17 @@ class Ctx:
         kw.setdefault("kicker", self.project.upper()[:28])
         where = self.where or "this property"
         kw.setdefault("intro", f"{where}." if self.where else "")
-        kw.setdefault("link_line", link_line_for(where, self.language))
-        kw.setdefault("writer_note", f"This post markets one property: {where}. Its listed price, project name, MahaRERA "
-                                     "details and nearby places are facts you may use exactly as written; add no other number.")
+        kw.setdefault("link_line", link_line_for(where, self.language, self.maharera))
+        official = "MahaRERA details and " if self.maharera else ""
+        kw.setdefault("writer_note", f"This post markets one property: {where}. Its listed price, project name, {official}"
+                                     "nearby places are facts you may use exactly as written; add no other number.")
         kw.setdefault("hashtags", self.tags())
         kw.setdefault("photo", self.photo)
         kw.setdefault("link", self.link)
         kw.setdefault("voice", self.voice)
         kw.setdefault("mode", "listing")
         kw.setdefault("card_brand", self.card_brand)
+        kw.setdefault("maharera", self.registration)
         kw.setdefault("contact", list(self.contact))
         kw.setdefault("language", self.language)
         return Brief(**kw)
@@ -173,7 +217,7 @@ def emi(c: Ctx) -> Optional[Brief]:
 
 def possession(c: Ctx) -> Optional[Brief]:
     now, then = c.v.get("possession_now"), c.v.get("possession_at_registration")
-    if not now:
+    if not (now and c.maharera):
         return None
     moved = c.v.get("possession_moved_months") or 0
     facts = [f"MahaRERA completion date for {c.project}: {day(now)}."]
@@ -189,7 +233,7 @@ def possession(c: Ctx) -> Optional[Brief]:
 
 def rera_check(c: Ctx) -> Optional[Brief]:
     rera = c.v.get("rera_no")
-    if not rera:
+    if not (rera and c.maharera):  # a number typed into the listing is not MahaRERA's record
         return None
     steps = ["Open the MahaRERA website", f"Search for {rera}", "Check the completion date and approvals",
              "Match the promoter name with your agreement", "Read the latest quarterly progress update"]
@@ -230,7 +274,7 @@ def near_work(c: Ctx) -> Optional[Brief]:
 
 def layout_size(c: Ctx) -> Optional[Brief]:
     units, on = c.v.get("units_total"), c.v.get("registered_on")
-    if not units:
+    if not (units and c.maharera):
         return None
     unit = "plots" if c.plot else "homes"
     line = f"{c.project} has {units} {unit}, registered on MahaRERA" + (f" on {day(on)}." if on else ".")
@@ -264,6 +308,129 @@ def plot_myth(c: Ctx) -> Optional[Brief]:
                    facts=["A plot needs an NA order and an approved layout before you build."], prefer="myth-vs-fact")
 
 
+def _postable(items: Any, limit: int = 8) -> List[str]:
+    """Brochure list items a post can carry as written: short, and nothing the guards refuse on its own ("luxurious")."""
+    out = []
+    for i in items if isinstance(items, list) else []:
+        if isinstance(i, str) and i.strip() and len(i.split()) <= 14 and not problems_in(i, i):
+            out.append(i.strip().rstrip("."))
+    return out[:limit]
+
+
+def _brochure_brief(c: Ctx, angle: str, hook: str, **kw) -> Brief:
+    where = c.where or c.project or "this property"
+    kw.setdefault("intro", f"{BROCHURE[0].upper() + BROCHURE[1:]} for {where}:")
+    kw.setdefault("writer_note", f"This post markets one property: {where}. The items below come from the builder's brochure, "
+                                 "not from MahaRERA: whenever you mention them say 'as per the builder's brochure', use them "
+                                 "exactly as written, and add no other number or claim.")
+    return c.brief(angle=angle, hook=hook, **kw)
+
+
+def amenities(c: Ctx) -> Optional[Brief]:
+    items = _postable(c.claims.get("brochure.amenities"))
+    if len(items) < 3:
+        return None
+    name = c.project or c.locality or "this project"
+    return _brochure_brief(c, "amenities", f"Amenities at {name}, {BROCHURE}", topic=f"Amenities at {name}", short="amenities",
+                           steps=items[:6], facts=[f"{BROCHURE.capitalize()}, {name} has: {', '.join(items)}."],
+                           tip="Ask which amenities will be ready at possession, and see them on site.", prefer="carousel")
+
+
+def specifications(c: Ctx) -> Optional[Brief]:
+    items = _postable(c.claims.get("brochure.specifications"))
+    if len(items) < 3:
+        return None
+    name = c.project or c.locality or "this project"
+    return _brochure_brief(c, "specifications", f"How {name} is built, {BROCHURE}", topic=f"Specifications of {name}",
+                           short="specifications", steps=items[:6],
+                           facts=[f"{BROCHURE.capitalize()}: {item}." for item in items],
+                           tip="Ask for the specifications in your agreement, item by item.", prefer="carousel")
+
+
+def configurations(c: Ctx) -> Optional[Brief]:
+    configs = _postable(c.claims.get("brochure.configurations"))
+    if not configs:
+        return None
+    sizes = _postable(c.claims.get("brochure.carpet_area"))
+    name = c.project or c.locality or "this project"
+    what = " and ".join([", ".join(configs[:-1]), configs[-1]] if len(configs) > 1 else configs)
+    facts = [f"{BROCHURE.capitalize()}, {name} offers {what} homes."] + [f"{BROCHURE.capitalize()}, {s}." for s in sizes]
+    nums = [x.split()[0] for x in configs if x.endswith(" BHK")]
+    short = (" & ".join([", ".join(nums[:-1]), nums[-1]] if len(nums) > 1 else nums) + " BHK") if len(nums) == len(configs) else what
+    if len(sizes) >= 3:
+        kw: Dict[str, Any] = {"steps": sizes[:6], "prefer": "carousel"}
+    elif len(short) <= 12:  # the big number on a stat card fits about 12 characters
+        kw = {"stat_value": short, "stat_label": f"homes at {name}, {BROCHURE}", "prefer": "stat"}
+        facts.append(f"{BROCHURE.capitalize()}, {short} homes at {name}.")
+    else:
+        kw = {"prefer": "single"}
+    return _brochure_brief(c, "configurations", f"{what} at {name}, {BROCHURE}", topic=f"Home sizes at {name}",
+                           short="home sizes", facts=facts, tip="Ask for the RERA carpet area of your unit in writing.", **kw)
+
+
+_CARPET = re.compile(r"^\s*(?:(?P<bhk>\d(?:\.5)?)\s*BHK|(?P<rk>1\s*RK))\s*:\s*(?P<area>.+?)\s*carpet\s*$", re.I)
+
+
+def _carpets(c: Ctx) -> List[Tuple[str, str, bool]]:
+    """(configuration, carpet area as written, official) a floor plan post may state: the listing's own (official), else
+    the confirmed brochure claims ("2 BHK: 650 sq ft carpet"), which a post must attribute. A listing with a configuration
+    only ever shows that configuration's plan."""
+    if c.plot:
+        return []
+    try:
+        mine = bhk_label(float(c.v["bhk"])) if c.v.get("bhk") else ""
+        if mine and c.v.get("carpet_sqft"):
+            return [(mine, f"{int(c.v['carpet_sqft']):,} sq ft", True)]
+    except (TypeError, ValueError):
+        mine = ""
+    out: List[Tuple[str, str, bool]] = []
+    for item in _postable(c.claims.get("brochure.carpet_area"), limit=12):
+        m = _CARPET.match(item)
+        config = (bhk_label(float(m.group("bhk"))) if m.group("bhk") else "1 RK") if m else ""
+        if config and (not mine or config == mine) and not any(o[0] == config for o in out):
+            out.append((config, m.group("area").strip(), False))
+    return out
+
+
+def floor_plan(c: Ctx) -> Optional[Brief]:
+    """The plan of the home, big, with its configuration and carpet area: the size made real. Needs a floor plan the agent
+    confirmed and a carpet area that is official (the listing) or a confirmed brochure claim, for a configuration the plan
+    names (or the only configuration there is, when the plan names none)."""
+    plans = [i for i in c.images if i.get("kind") == "floor_plan"]
+    carpets = _carpets(c)
+    if not plans or not carpets:
+        return None
+    pick = None
+    for config, area, official in carpets:
+        plan = next((p for p in plans if config in (p.get("configs") or [])), None)
+        if plan is None and len(carpets) == 1:
+            plan = next((p for p in plans if not p.get("configs")), None)
+        if plan is not None:
+            pick = (config, area, official, plan)
+            break
+    if pick is None:
+        return None
+    config, area, official, plan = pick
+    name = c.project or c.locality or "this project"
+    fact = (f"The {config} at {c.where or name} has a carpet area of {area}." if official
+            else f"{BROCHURE.capitalize()}, the {config} at {name} has a carpet area of {area}.")
+    return _brochure_brief(c, "floor_plan", f"The {config} floor plan: {area} carpet", topic=f"Floor plan of a {config} at {name}",
+                           short="floor plan", facts=[fact, f"The floor plan is from the builder's brochure for {name}."],
+                           tip="Ask for the RERA carpet area of your unit in writing.", prefer="plan", plan_image=plan["path"],
+                           plan_label=PLAN_LABEL, plan_fit="contain")
+
+
+def first_look(c: Ctx) -> Optional[Brief]:
+    """The builder's render of the project, always labelled "Artist's impression" on the image."""
+    render = next((i for i in c.images if i.get("kind") == "render"), None)
+    if render is None or not c.project:
+        return None
+    return _brochure_brief(c, "first_look", f"A first look at {c.project}", topic=f"How {c.project} will look",
+                           short="first look", facts=[f"The builder's brochure shows {c.project} in an artist's impression."],
+                           tip="A render is not the finished building: see the site and the sample flat.", prefer="plan",
+                           plan_image=render["path"], plan_label=ARTISTS_IMPRESSION, plan_fit="cover")
+
+
 @dataclass(frozen=True)
 class AngleDef:
     id: str
@@ -271,15 +438,17 @@ class AngleDef:
 
 
 ANGLES: Tuple[AngleDef, ...] = tuple(AngleDef(f.__name__, f) for f in (
-    price_reveal, possession, near_work, nearby, size_in_guntha, rera_check, emi, plot_checklist, rate_per_sqft, layout_size,
-    plot_or_flat, plot_myth))
+    price_reveal, floor_plan, possession, near_work, nearby, size_in_guntha, rera_check, emi, plot_checklist, rate_per_sqft,
+    layout_size, plot_or_flat, plot_myth, configurations, amenities, specifications, first_look))
 
 
 def plan(facts: Dict[str, Fact], photo: str = "none", link: str = "", angles: Sequence[AngleDef] = ANGLES,
          voice: Optional[Voice] = None, card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (),
-         language: str = "en") -> List[Tuple[str, Brief]]:
-    """`voice`, `card_brand`, `contact`, `language`: whose posts these are (default ours) and in which language."""
-    c = Ctx(facts, photo, link, voice, card_brand, contact, language)
+         language: str = "en", images: Sequence[Dict[str, Any]] = (), kit: Optional[dict] = None) -> List[Tuple[str, Brief]]:
+    """`voice`, `card_brand`, `contact`, `language`: whose posts these are (default ours) and in which language. `images`: the
+    brochure images the agent confirmed (brochure.usable_images); `kit`: the listing's brochure kit (its registration answer
+    decides the MahaRERA badge with the facts, see advert.trusted)."""
+    c = Ctx(facts, photo, link, voice, card_brand, contact, language, images, kit)
     out = []
     for a in angles:
         b = a.build(c)
@@ -294,12 +463,13 @@ RETRIES = 3  # other seeds (other layouts) to try before an angle is dropped: so
 async def make(facts: Dict[str, Fact], out_dir: Path, llm: Any = None, photo: str = "none", link: str = "",
                channel: str = "instagram", dropped: Optional[Dict[str, Any]] = None,
                voice: Optional[Voice] = None, card_brand: Optional[CardBrand] = None, contact: Sequence[str] = (),
-               language: str = "en") -> List[Tuple[str, CreativePack]]:
+               language: str = "en", images: Sequence[Dict[str, Any]] = (), kit: Optional[dict] = None) -> List[Tuple[str, CreativePack]]:
     """Render every planned angle; consecutive posts avoid repeating a layout. An angle that fails a guard is retried with
     other seeds, then dropped (its problems go into `dropped` when given). `voice`: who speaks (default the brand desk)."""
     packs: List[Tuple[str, CreativePack]] = []
     recent: List[str] = []
-    for i, (aid, brief) in enumerate(plan(facts, photo, link, voice=voice, card_brand=card_brand, contact=contact, language=language)):
+    for i, (aid, brief) in enumerate(plan(facts, photo, link, voice=voice, card_brand=card_brand, contact=contact, language=language,
+                                          images=images, kit=kit)):
         for attempt in range(RETRIES):
             pack = await pipeline.make(brief, "buyer", channel, llm, seed=i + 17 * attempt, recent_layouts=recent,
                                        out_dir=Path(out_dir) / aid, reviewer=None)

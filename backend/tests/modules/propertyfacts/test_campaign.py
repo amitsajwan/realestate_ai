@@ -49,12 +49,17 @@ def gulmohar():
            Reading("nearby.industry", [{"name": "IndoSpace Industrial Park Ranjangaon", "km": 3.0},
                                        {"name": "Maharashtra Industrial Development Corporation", "km": 5.2}], "osm")]
     rs += calc.readings({"price_inr": 3230000, "plot_sqft": 1927, "transaction": "sale"})
+    rs += [Reading("brochure.configurations", ["2 BHK", "3 BHK"], "brochure"),   # confirmed from the builder's brochure
+           Reading("brochure.carpet_area", ["2 BHK: 650 sq ft carpet", "3 BHK: 890 sq ft carpet"], "brochure"),
+           Reading("brochure.amenities", ["Swimming pool", "Gymnasium", "Jogging track", "Clubhouse"], "brochure"),
+           Reading("brochure.specifications", ["Flooring: vitrified tiles", "Kitchen: granite platform",
+                                               "Doors: laminated flush doors"], "brochure")]
     return sheet(rs)
 
 
 def test_plan_uses_every_angle_the_facts_support():
     ids = [aid for aid, _ in campaign.plan(gulmohar())]
-    assert ids == [a.id for a in campaign.ANGLES]
+    assert ids == [a.id for a in campaign.ANGLES if a.id not in ("floor_plan", "first_look")]   # those need brochure images
     b = dict(campaign.plan(gulmohar()))
     assert b["price_reveal"].kicker == "GULMOHAR CITY" and "#Ranjangaon" in b["price_reveal"].hashtags
     assert b["possession"].truth == "MahaRERA now shows 30 Apr 2029 for Gulmohar City."

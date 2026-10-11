@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from . import campaign, identity
+from .brochure import Brochures, usable_images
 from .facts import USABLE
 from .gather import Clients, gather
 from .store import FactsStore, facts_of
@@ -200,7 +201,8 @@ class MarketingRuns:
         run, idx = await self._done_run(agent_id, listing_id, angle)
         listing = await self._listing(agent_id, listing_id)
         who = await self._identity(run)
-        briefs = dict(campaign.plan(await self._facts(run, listing), **self._who(run, who)))
+        briefs = dict(campaign.plan(await self._facts(run, listing), images=await self._brochure_images(agent_id, listing_id),
+                                    **self._who(run, who)))
         corpus = briefs[angle].corpus() if angle in briefs else ""
         checked = "\n".join(line for line in caption.splitlines() if line.strip() not in who.contact)  # code-made contact block
         problems = [p for p in problems_in(checked, corpus, allow_url=True) if p != "url"] if corpus else []
@@ -215,7 +217,10 @@ class MarketingRuns:
         note = (note or "").strip()[:NOTE_MAX]
         run, idx = await self._done_run(agent_id, listing_id, angle)
         listing = await self._listing(agent_id, listing_id)
-        briefs = dict(campaign.plan(await self._facts(run, listing), self._photo(listing), run.get("page_url") or "",
+        photo = await asyncio.to_thread(self._photo, listing)
+        briefs = dict(campaign.plan(await self._facts(run, listing), photo, run.get("page_url") or "",
+                                    images=await self._brochure_images(agent_id, listing_id),
+                                    kit=await self._kit(listing_id, agent_id),
                                     **self._who(run, await self._identity(run))))
         if angle not in briefs:
             raise RunError("The facts for this post are no longer available. Start marketing again.", 409)
@@ -310,10 +315,33 @@ class MarketingRuns:
         page = await page_for(self.db, regno)
         return regno, (page or {}).get("url")
 
+    async def _brochure_images(self, agent_id: str, listing_id: str) -> List[dict]:
+        """The floor plans and renders the agent said to use from this listing's brochure (brochure.usable_images). They go
+        into posts only (campaign.floor_plan, first_look), never into the walkthrough reel, which uses the agent's photos."""
+        try:
+            kit = await Brochures(self.db, self.uploads_dir).current(listing_id)
+        except Exception:
+            log.warning("marketing: could not read the brochure kit of %s", listing_id, exc_info=True)
+            return []
+        if not kit or kit.get("agent_id") != agent_id:
+            return []
+        return usable_images(kit, self.uploads_dir)
+
+    async def _kit(self, listing_id: str, agent_id: Optional[str] = None) -> Optional[dict]:
+        """The listing's brochure kit (its registration answer decides the MahaRERA badge with the facts); None without one, or
+        when it is another agent's (the same rule as its images)."""
+        try:
+            kit = await Brochures(self.db, self.uploads_dir).current(listing_id)
+        except Exception:
+            log.info("marketing: no brochure kit read for %s", listing_id, exc_info=True)
+            return None
+        return kit if kit and (agent_id is None or kit.get("agent_id") == agent_id) else None
+
     def _photo(self, listing: dict) -> str:
-        """The listing's first photo as a local file for the cards, or "none" (never a stock photo of something else)."""
-        from app.modules.marketing.images import first_photo_url, local_upload_path
-        p = local_upload_path(first_photo_url(listing.get("media") or []), self.uploads_dir)
+        """The listing's best photo (marketing.images.cover_photo_path) as a local file for the cards, or "none" (never a
+        stock photo of something else)."""
+        from app.modules.marketing.images import cover_photo_path
+        p = cover_photo_path(listing.get("media") or [], self.uploads_dir)
         return str(p) if p and Path(p).is_file() else "none"
 
     async def _reels(self, job: dict, listing: dict, posts: List[dict], out: Path, project: str, link_line: str) -> List[dict]:
@@ -337,7 +365,7 @@ class MarketingRuns:
                 lang, style = job.get("language") or "en", walkthrough_style(job["listing_id"])   # spoken in the posts' language
                 doc, _ = await self.reel_jobs.create(job["agent_id"], job["listing_id"], lang, style=style)
                 reels.append({"kind": "walkthrough", "job_id": doc["_id"], "status": doc["status"], "video": doc.get("video_path"),
-                              "style": style, "language": lang, "caption": reel_caption(listing, "") + "\n\n" + link_line})
+                              "style": style, "language": lang, "caption": reel_caption(listing, "", lang) + "\n\n" + link_line})
             except Exception as e:  # fewer than 2 photos, the daily limit...: the campaign goes on without it
                 reels.append({"kind": "walkthrough", "status": "skipped", "note": str(getattr(e, "detail", "") or "not made")})
         return reels
@@ -381,8 +409,10 @@ class MarketingRuns:
             out = self.uploads_dir / "campaigns" / _safe(job["listing_id"]) / jid[:8]
             dropped: Dict[str, Any] = {}
             llm = self.llm_factory() if self.llm_factory else None
-            packs = await campaign.make(sheet.facts, out, llm=llm, photo=self._photo(listing), link=page, dropped=dropped,
-                                        **self._who(job, await self._identity(job)))
+            photo = await asyncio.to_thread(self._photo, listing)
+            images = await self._brochure_images(job["agent_id"], job["listing_id"])
+            packs = await campaign.make(sheet.facts, out, llm=llm, photo=photo, link=page, dropped=dropped, images=images,
+                                        kit=await self._kit(job["listing_id"], job["agent_id"]), **self._who(job, await self._identity(job)))
             posts: List[dict] = []
             for aid, p in packs:
                 imgs = ["/uploads/" + Path(i).resolve().relative_to(self.uploads_dir.resolve()).as_posix() for i in p.images]
@@ -391,10 +421,11 @@ class MarketingRuns:
             ctx = campaign.Ctx(sheet.facts)
             where = ctx.where or "this property"
             await self._set(jid, posts=posts, dropped={k: str(v)[:300] for k, v in dropped.items()},
-                            link_line=campaign.link_line_for(where, job.get("language") or "en"))
+                            link_line=campaign.link_line_for(where, job.get("language") or "en", ctx.maharera))
             # step 3 (best effort, never fails the run): reels from the best carousels, and the walkthrough reel
             step = "reels"
-            reels = await self._reels(job, listing, posts, out, ctx.project, campaign.link_line_for(where, job.get("language") or "en"))
+            link_line = campaign.link_line_for(where, job.get("language") or "en", ctx.maharera)
+            reels = await self._reels(job, listing, posts, out, ctx.project, link_line)
             await self._set(jid, status="done", reels=reels, error=None, finished_at=self.now())
         except Exception:
             log.exception("marketing run %s failed in step %s", jid, step)
@@ -421,8 +452,11 @@ def default_runs() -> MarketingRuns:
     from app.platform.llm import default_llm
     db = get_database()
     from app.modules.reels.listing_reel import ReelJobs
-    return MarketingRuns(db, Path(settings.upload_directory), settings.public_site_url,
-                         clients_factory=lambda: Clients(register=Store(db), facts_store=FactsStore(db)), llm_factory=default_llm,
+    uploads = Path(settings.upload_directory)
+    return MarketingRuns(db, uploads, settings.public_site_url,
+                         clients_factory=lambda: Clients(register=Store(db), facts_store=FactsStore(db),
+                                                         brochures=Brochures(db, uploads)),
+                         llm_factory=default_llm,
                          reel_jobs=ReelJobs(db, Path(settings.upload_directory), llm_factory=default_llm))
 
 

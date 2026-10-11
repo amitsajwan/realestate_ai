@@ -329,3 +329,5 @@ async def test_the_walkthrough_is_made_in_the_campaign_language(tmp_path):
     d = await runs.latest("a1", "L1")
     walk = next(r for r in d["reels"] if r["kind"] == "walkthrough")
     assert runs.reel_jobs.asked["lang"] == "mr" and walk["language"] == "mr" and walk["style"] == jobs.walkthrough_style("L1")
+    head = walk["caption"].splitlines()[0]   # the caption follows the reel's language too
+    assert any("\u0900" <= ch <= "\u097f" for ch in head) and " for " not in head

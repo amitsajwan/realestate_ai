@@ -19,9 +19,10 @@ def render(copy: Copy, design: Design) -> List[Rendered]:
     mask = Image.new("L", c.size, 0)
     ImageDraw.Draw(mask).text((c.left - 14, c.top + (150 if tall else 90)), "“", font=load_font(620 if tall else 480, "bold"), fill=70 if pal.light else 60, anchor="ls")
     c.img.paste(pal.accent_fill, (0, 0), mask)
-    c.chip(str(copy.payload.get("kicker", "QUICK TIP")), c.left, c.top, icon="bolt")
+    chip = c.chip(str(copy.payload.get("kicker", "QUICK TIP")), c.left, c.top, icon="bolt")
+    rera_y = c.maharera_badge(beside=chip)
     c.brand_bar(dark_bg=not pal.light)
-    top, bottom = c.top + (270 if tall else 200), c.bottom - footer_h() - 40
+    top, bottom = max(c.top + (270 if tall else 200), (rera_y or 0) + 40), c.bottom - footer_h() - 40
     sup = copy.support or str(copy.payload.get("tip") or "")
     size = 100 if tall else 84
     hh = c.measure(copy.hook, w, size, "bold", 3, pitch=1.1, min_size=56)

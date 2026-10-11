@@ -86,7 +86,7 @@ async def status(user: User = Depends(owner_only), store: Store = Depends(get_st
 @router.get("/recent")
 async def recent(hours: int = 72, user: User = Depends(owner_only), store: Store = Depends(get_store)) -> list:
     """What finished lately: posted (with the link), failed (with the reason), removed. Newest first."""
-    since = datetime.now(timezone.utc) - timedelta(hours=max(1, min(hours, 24 * 30)))
+    since = store.clock() - timedelta(hours=max(1, min(hours, 24 * 30)))
     return await _titled([_view(d) for d in await store.recent(since)], store)
 
 

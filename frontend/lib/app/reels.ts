@@ -14,6 +14,13 @@ export const REEL_LANGS: Array<{ code: ReelLang; label: string }> = [
   { code: 'mr', label: 'मराठी' },
 ]
 
+/** Walkthrough styles (backend `listing_reel.STYLES`). 'tour' is the default and the one posted outside the calendar. */
+export type ReelStyle = 'tour' | 'stack'
+export const REEL_STYLES: Array<{ code: ReelStyle; label: string; help: string }> = [
+  { code: 'tour', label: 'Tour', help: 'One photo per beat' },
+  { code: 'stack', label: 'Stack', help: 'Lines build up on one screen' },
+]
+
 export interface ReelPost {
   channel: 'instagram' | 'facebook_page'
   status: string
@@ -24,6 +31,8 @@ export interface ReelJob {
   id: string
   listing_id: string
   lang: ReelLang
+  /** Jobs from before styles existed come back as 'tour'. */
+  style?: ReelStyle
   status: ReelStatus
   video_path: string | null
   video_url: string | null
@@ -39,8 +48,12 @@ export type ReelJobs = Partial<Record<ReelLang, ReelJob>>
 
 /** What the reel card needs; the agent and the owner (on the agent's behalf) each get one. */
 export interface ReelSource {
-  make(lang: ReelLang, again?: boolean): Promise<ReelJob>
-  latest(): Promise<ReelJobs>
+  /** `style` is sent only when the source supports styles (`styles: true`); otherwise the server makes a tour. */
+  make(lang: ReelLang, again?: boolean, style?: ReelStyle): Promise<ReelJob>
+  /** Latest job per language for one style (default tour). */
+  latest(style?: ReelStyle): Promise<ReelJobs>
+  /** True when the endpoint takes a style (the agent's own listing; the concierge path does not yet). */
+  styles?: boolean
 }
 
 export interface ReelsApi {
@@ -64,8 +77,8 @@ export function whatsappReelUrl(videoUrl: string, caption: string): string {
   return whatsappShareUrl(`${caption.trim()}\n${videoUrl}`.trim())
 }
 
-export function reelFilename(job: Pick<ReelJob, 'listing_id' | 'lang'>): string {
-  return `reel-${job.listing_id}-${job.lang}.mp4`
+export function reelFilename(job: Pick<ReelJob, 'listing_id' | 'lang' | 'style'>): string {
+  return `reel-${job.listing_id}-${job.lang}${job.style === 'stack' ? '-stack' : ''}.mp4`
 }
 
 export function friendlyReelError(e: unknown): string {
@@ -106,14 +119,21 @@ export function createReelsApi(opts: { getToken: () => string | null; baseUrl?: 
     if (!res.ok) throw parseErrorBody(data, res.status)
     return data as T
   }
-  const source = (path: string): ReelSource => ({
-    make: async (lang, again = false) => (await request<{ job: ReelJob }>(path, { method: 'POST', json: again ? { lang, again } : { lang } })).job,
-    latest: async () => (await request<{ jobs: ReelJobs }>(path)).jobs ?? {},
+  const source = (path: string, styles: boolean): ReelSource => ({
+    styles,
+    make: async (lang, again = false, style) => {
+      const json: { lang: ReelLang; again?: boolean; style?: ReelStyle } = { lang }
+      if (again) json.again = true
+      if (styles && style) json.style = style
+      return (await request<{ job: ReelJob }>(path, { method: 'POST', json })).job
+    },
+    latest: async (style) =>
+      (await request<{ jobs: ReelJobs }>(styles && style ? `${path}?style=${style}` : path)).jobs ?? {},
   })
   const enc = encodeURIComponent
   return {
-    forListing: (lid) => source(`/listings/${enc(lid)}/reel`),
-    forAgentListing: (aid, lid) => source(`/concierge/agents/${enc(aid)}/listings/${enc(lid)}/reel`),
+    forListing: (lid) => source(`/listings/${enc(lid)}/reel`, true),
+    forAgentListing: (aid, lid) => source(`/concierge/agents/${enc(aid)}/listings/${enc(lid)}/reel`, false),
     postReel: async (aid, lid, lang, channels) =>
       (await request<{ publications: ReelPost[] }>(`/concierge/agents/${enc(aid)}/listings/${enc(lid)}/reel/post`, {
         method: 'POST', json: channels ? { lang, channels } : { lang },
@@ -125,35 +145,36 @@ export function createReelsApi(opts: { getToken: () => string | null; baseUrl?: 
 export function createFixtureReelsApi(): ReelsApi {
   const jobs = new Map<string, ReelJob>()
   const polls = new Map<string, number>()
-  const key = (lid: string, lang: string) => `${lid}:${lang}`
+  const key = (lid: string, lang: string, style: ReelStyle = 'tour') => `${lid}:${lang}:${style}`
   const advance = (j: ReelJob) => {
     const n = (polls.get(j.id) ?? 0) + 1
     polls.set(j.id, n)
     if (j.status === 'queued' && n >= 1) j.status = 'rendering'
     else if (j.status === 'rendering' && n >= 3) {
       j.status = 'done'
-      j.video_path = `/uploads/reels/listing-${j.listing_id}-${j.lang}-fixture.mp4`
+      j.video_path = `/uploads/reels/listing-${j.listing_id}-${j.lang}-${j.style === 'stack' ? 'stack-' : ''}fixture.mp4`
       j.video_url = j.video_path
       j.audio = 'music'
       j.note = 'Made without a voiceover (test mode). Music only.'
       j.finished_at = new Date().toISOString()
     }
   }
-  const source = (lid: string): ReelSource => ({
-    make: async (lang, again = false) => {
-      const cur = jobs.get(key(lid, lang))
+  const source = (lid: string, styles = true): ReelSource => ({
+    styles,
+    make: async (lang, again = false, style: ReelStyle = 'tour') => {
+      const cur = jobs.get(key(lid, lang, style))
       if (cur && (isActive(cur) || (cur.status === 'done' && !again))) return { ...cur }
       const j: ReelJob = {
-        id: `fx-reel-${jobs.size + 1}`, listing_id: lid, lang, status: 'queued', video_path: null, video_url: null, audio: null,
+        id: `fx-reel-${jobs.size + 1}`, listing_id: lid, lang, style, status: 'queued', video_path: null, video_url: null, audio: null,
         note: '', error: '', sample: false, created_at: new Date().toISOString(), finished_at: null, posts: [],
       }
-      jobs.set(key(lid, lang), j)
+      jobs.set(key(lid, lang, style), j)
       return { ...j }
     },
-    latest: async () => {
+    latest: async (style: ReelStyle = 'tour') => {
       const out: ReelJobs = {}
       for (const { code } of REEL_LANGS) {
-        const j = jobs.get(key(lid, code))
+        const j = jobs.get(key(lid, code, style))
         if (j) {
           advance(j)
           out[code] = { ...j }
@@ -164,7 +185,7 @@ export function createFixtureReelsApi(): ReelsApi {
   })
   return {
     forListing: source,
-    forAgentListing: (_aid, lid) => source(lid),
+    forAgentListing: (_aid, lid) => source(lid, false),
     postReel: async (_aid, lid, lang, channels = ['instagram', 'facebook_page']) => {
       const j = jobs.get(key(lid, lang))
       if (!j || j.status !== 'done') throw new ApiError(409, 'Make the reel first, then post it')

@@ -13,6 +13,7 @@ from PIL import Image
 from app.core.auth_backend import current_active_user
 from app.modules.reels import compose, listing_reel as lr
 from app.modules.reels import router as rr
+from app.modules.reels import director
 from app.modules.reels.director import _valid
 
 from ..listings_fakes import ListingsDb
@@ -147,8 +148,21 @@ async def test_worker_renders_with_the_listing_photos_the_listed_by_line_and_no_
     assert call["closing"] == "Listed by Rahul Homes · RERA A51800012345" and "98765" not in str(call)
     assert "badge" not in call and call["kicker"] == "KHARADI, PUNE" and call["voiced"] is False
     assert out["script"]["made_by"] == "rules"
-    assert not re.search(r"[ऀ-ॿ]", " ".join(b["screen"] for b in out["script"]["beats"]))  # Roman on screen
-    assert re.search(r"[ऀ-ॿ]", out["script"]["beats"][0]["voice"])                        # Marathi voice
+    assert compose.devanagari_ok()                                                         # libraqm is here (Pillow wheels)
+    assert all(re.search(r"[ऀ-ॿ]", b["screen"]) for b in out["script"]["beats"])         # Marathi on screen
+    assert re.search(r"[ऀ-ॿ]", out["script"]["beats"][0]["voice"])                        # and in the voice
+    assert out["script"]["cta_screen"] == "पूर्ण माहितीसाठी *INTERESTED* कमेंट करा"
+
+
+async def test_without_libraqm_a_marathi_reel_keeps_roman_screen_text(tmp_path, monkeypatch):
+    monkeypatch.setattr(lr, "devanagari_ok", lambda: False)
+    r = Renderer()
+    jobs, db = await setup(tmp_path, renderer=r)
+    await jobs.create(AGENT, "L1", "mr")
+    await jobs.run_once()
+    script = r.calls[0]["script"]
+    assert not re.search(r"[ऀ-ॿ]", " ".join(b["screen"] for b in script["beats"]) + script["cta_screen"])   # Roman, as before
+    assert re.search(r"[ऀ-ॿ]", script["beats"][0]["voice"]) and script["cta_screen"] == director.CTA_SCREEN["mr"]
 
 
 async def test_a_sample_listing_gets_no_reel(tmp_path):
@@ -229,9 +243,59 @@ async def test_rules_script_passes_the_director_rules_in_every_language(lang):
         dict(_id="c", title="Plot", transaction="sale", property_type="plot", city="Pune"),
     ):
         subject, facts, f = lr.reel_facts(listing, PROFILE)
+        facts_text = subject + "\n" + "\n".join(f"- {x}" for x in facts)
         script = lr.rules_script(f, lang)
-        assert _valid(script, subject + "\n" + "\n".join(f"- {x}" for x in facts)), (lang, script)
+        assert _valid(script, facts_text, devanagari_screen=lr.screen_devanagari(lang)), (lang, script)
+        roman = lr.rules_script(f, lang, devanagari=False)                  # the script on a server without libraqm
+        assert _valid(roman, facts_text), (lang, roman)
+        if lang == "en":
+            assert roman == script                                          # English reels are unchanged
+        else:
+            assert all(re.search(r"[ऀ-ॿ]", b["screen"]) for b in script["beats"]), script
+            assert [b["voice"] for b in roman["beats"]] == [b["voice"] for b in script["beats"]]   # only the screen changes
     assert "98765" not in str(lr.reel_facts(listing, PROFILE))
+
+
+def test_a_devanagari_screen_passes_the_same_number_checks():
+    facts = "2 BHK in Kharadi\n- Price ₹85 Lakh\n- Carpet area 780 sq ft\n- Floor 7 of 22"
+    beats = [{"screen": "Kharadi मध्ये *2 BHK*", "voice": "खराडीमध्ये 2 BHK घर."},
+             {"screen": "*₹85 लाख*", "voice": "किंमत 85 लाख रुपये."},
+             {"screen": "*७८०* चौरस फूट, मजला ७", "voice": "७८० स्क्वेअर फूट, सातवा मजला."}]   # Devanagari digits read as 780 and 7
+    mr = {"beats": beats, "cta_screen": "पूर्ण माहितीसाठी *INTERESTED* कमेंट करा", "cta_voice": "कमेंटमध्ये इंटरेस्टेड लिहा."}
+    assert _valid(mr, facts, devanagari_screen=True)
+    assert not _valid(mr, facts)                                             # an English or Roman reel still refuses Devanagari
+    invented = {**mr, "beats": beats[:2] + [{"screen": "मेट्रोपासून *५* मिनिटे", "voice": "मेट्रो जवळ आहे."}]}
+    assert not _valid(invented, facts, devanagari_screen=True)               # ५ = 5: not in the facts
+    invented_western = {**mr, "beats": beats[:2] + [{"screen": "मेट्रोपासून *5* मिनिटे", "voice": "मेट्रो जवळ आहे."}]}
+    assert not _valid(invented_western, facts, devanagari_screen=True)
+    phone = {**mr, "cta_voice": "९८७६५४३२१० वर कॉल करा."}
+    assert not _valid(phone, facts + "\n9876543210", devanagari_screen=True)   # a phone number in Devanagari digits
+    hinglish = {**mr, "beats": [{"screen": "Kharadi mein *2 BHK*", "voice": "खराडीमध्ये 2 BHK."},
+                                {"screen": "*85 Lakh*", "voice": "85 लाख."}, beats[2]]}
+    assert not _valid(hinglish, facts, devanagari_screen=True)               # a Marathi screen asked for, Hinglish written
+    assert director.numbers_in("७८० आणि 1,050") == {"780", "1050"}
+
+
+async def test_a_marathi_reel_asks_the_llm_for_devanagari_screen_text_and_keeps_it(tmp_path):
+    seen = []
+
+    class Recorder(LLM):
+        async def json(self, system, user):
+            seen.append(system)
+            return await super().json(system, user)
+
+    out = {"beats": [{"screen": "Kharadi मध्ये *2 BHK*", "voice": "खराडीमध्ये 2 BHK फ्लॅट."},
+                     {"screen": "*780* चौरस फूट", "voice": "780 स्क्वेअर फूट कार्पेट एरिया."},
+                     {"screen": "मजला *7*, एकूण 22", "voice": "22 पैकी सातव्या मजल्यावर."}],
+           "cta_screen": "x", "cta_voice": "y"}
+    r = Renderer()
+    jobs, _ = await setup(tmp_path, llm=Recorder(out), renderer=r)
+    await jobs.create(AGENT, "L1", "mr")
+    await jobs.run_once()
+    script = r.calls[0]["script"]
+    assert script["made_by"] == "llm" and script["beats"][0]["screen"] == "Kharadi मध्ये *2 BHK*"
+    assert lr.SCREEN_DEVANAGARI in seen[0] and lr.SCREEN_ROMAN not in seen[0]
+    assert lr.system_prompt(False) == lr.SYSTEM and lr.SCREEN_ROMAN in lr.SYSTEM            # English: the prompt as before
 
 
 def test_listed_by_line_never_carries_a_phone_number():
@@ -249,7 +313,7 @@ def test_compose_allows_a_rera_number_but_not_a_phone_number():
 # ---- render() with compose, voice and ffmpeg stubbed ----------------------------------------------------------------------
 @pytest.fixture
 def stubs(monkeypatch):
-    seen = {"ffmpeg": [], "synth": []}
+    seen = {"ffmpeg": [], "synth": [], "takes": []}
 
     def make_reel(scenes, out, music=None, **kw):
         seen["scenes"], seen["music"] = scenes, Path(music)
@@ -263,8 +327,8 @@ def stubs(monkeypatch):
         Path(args[-2]).write_bytes(b"m4a")  # the narration output
         return ""
 
-    def synth(text, lang):
-        seen["synth"].append((text, lang))
+    def synth(text, lang, ssml=False):
+        (seen["takes"] if ssml else seen["synth"]).append((text, lang))
         return b"mp3"
 
     monkeypatch.setattr(lr, "make_reel", make_reel)
@@ -289,6 +353,7 @@ def test_render_voiced_mixes_voice_and_music_and_closes_with_listed_by(tmp_path,
     assert scenes[0].kicker == "KHARADI" and scenes[1].kicker is None
     assert [l.text for l in scenes[-1].lines[1:]] == ["Listed by Rahul Homes", "RERA A51800012345"]
     assert all(s.seconds == pytest.approx(3.05) for s in scenes)
+    assert [l for _, l in stubs["takes"]] == ["hi"]             # one take was tried first; the stub's audio does not cut
     assert [l for _, l in stubs["synth"]] == ["hi"] * 5 and stubs["ffmpeg"] and stubs["music"].suffix == ".m4a"
     compose._no_phone_numbers(scenes)  # the renderer's own phone check accepts the RERA number
 
@@ -296,11 +361,11 @@ def test_render_voiced_mixes_voice_and_music_and_closes_with_listed_by(tmp_path,
 def test_render_without_the_voice_key_is_music_only_and_says_so(tmp_path, stubs):
     out = lr.render(_script(), ["a.jpg", "b.jpg"], "en", tmp_path / "r.mp4", voiced=False)
     assert out["audio"] == "music" and out["note"] == lr.NO_VOICE_NOTE
-    assert not stubs["synth"] and not stubs["ffmpeg"] and stubs["music"].suffix == ".wav"
+    assert not stubs["synth"] and not stubs["takes"] and not stubs["ffmpeg"] and stubs["music"].suffix == ".wav"
 
 
 def test_render_falls_back_to_music_when_the_voice_service_fails(tmp_path, stubs, monkeypatch):
-    def boom(text, lang):
+    def boom(text, lang, ssml=False):
         raise lr.voice.VoiceError("HTTP 403")
     monkeypatch.setattr(lr.voice, "synth", boom)
     out = lr.render(_script(), ["a.jpg", "b.jpg"], "en", tmp_path / "r.mp4", voiced=True)
@@ -461,12 +526,18 @@ def test_every_reel_cta_asks_for_the_interested_comment_in_roman_letters():
     from app.modules.reels import director, templates
     from app.modules.reels.listing_reel import _WORDS, with_cta
     llm_cta = {**GOOD, "cta_screen": "Message to book a *visit*", "cta_voice": "Message us."}
+    deva_beats = [{"screen": "Kharadi मध्ये *2 BHK*", "voice": "2 BHK."}] * 3
     for lang in ("en", "hi", "mr"):
-        for s in (with_cta(llm_cta, lang),):
+        for deva in (False, True):
+            s = with_cta(llm_cta, lang, devanagari=deva)
             screen = s["cta_screen"].replace("*", "")
-            assert "INTERESTED" in screen and INTERESTED.search(screen) and not _re.search(r"[\u0900-\u097f]", screen)
+            assert "INTERESTED" in screen and INTERESTED.search(screen)    # the keyword stays in Roman capitals in every language
+            assert bool(_re.search(r"[\u0900-\u097f]", screen)) == (deva and lang != "en")
             assert INTERESTED.search(s["cta_voice"]) and "bio" not in screen.lower() + s["cta_voice"].lower()
-            assert director._valid({**s, "beats": GOOD["beats"]}, "2 BHK in Kharadi 780 7 22")
+            on_screen = deva and lang != "en"
+            assert director._valid({**s, "beats": deva_beats if on_screen else GOOD["beats"]}, "2 BHK in Kharadi 780 7 22",
+                                   devanagari_screen=on_screen)
+        assert with_cta(llm_cta, lang)["cta_screen"] == with_cta(llm_cta, lang, devanagari=lr.screen_devanagari(lang))["cta_screen"]
         assert "visit" not in _WORDS[lang]["cta_s"].lower()
     assert director.CTA_SCREEN["en"] == "Comment *INTERESTED* for details"
     assert "comment the word INTERESTED" in director.SYSTEM and "tap 'interested'" not in director.SYSTEM
@@ -491,7 +562,7 @@ def test_render_stack_puts_every_beat_in_one_list_over_the_walkthrough_and_speak
     assert list(scene.image_at) == pytest.approx(starts[1:])                           # the photo changes with the line
     assert scene.seconds == pytest.approx(5 * 3.05) and scene.kicker == "KHARADI"
     assert [l for _, l in stubs["synth"]] == ["mr"] * 5 and stubs["music"].suffix == ".m4a"
-    delays = re.findall(r"adelay=(\d+)", " ".join(stubs["ffmpeg"][0]))
+    delays = re.findall(r"adelay=(\d+)", " ".join(stubs["ffmpeg"][-1]))
     assert [int(d) for d in delays] == [int((t + (0.35 if i == 0 else 0.25)) * 1000) for i, t in enumerate(starts)]
     compose._no_phone_numbers([scene])
     with pytest.raises(ValueError):
@@ -517,3 +588,27 @@ async def test_a_stack_reel_is_its_own_job_and_the_tour_flows_are_untouched(tmp_
     old = {k: v for k, v in tour.items() if k != "style"}                              # a job from before styles: a tour
     db.get_collection("reel_jobs").docs[:] = [old]
     assert (await jobs.latest(AGENT, "L1"))["en"]["_id"] == tour["_id"] and not await jobs.latest(AGENT, "L1", "stack")
+
+
+def test_devanagari_screen_lines_read_as_phrases_not_labels():
+    listing = dict(_id="a", title="Flat", transaction="sale", price_inr=8500000, city="Pune", locality="Kharadi", bhk=2,
+                   carpet_sqft=780, floor=7, total_floors=22, furnishing="semi", possession="ready",
+                   amenities=["Gym", "Covered Parking", "Lift", "Pool"])
+    subject, facts, f = lr.reel_facts(listing, PROFILE)
+    facts_text = subject + "\n" + "\n".join(f"- {x}" for x in facts)
+    screens = {}
+    for lang in ("hi", "mr"):
+        script = lr.rules_script(f, lang, devanagari=True)
+        assert _valid(script, facts_text, devanagari_screen=True), script
+        screens[lang] = [b["screen"] for b in script["beats"]]
+        assert all(len(s.split()) <= 8 for s in screens[lang])
+        assert not any(w in " ".join(screens[lang]) for w in ("एकूण", "कुल", "मजला 7", "मंज़िल 7"))   # no labels
+    assert screens["mr"][1:4] == ["किंमत *₹85 लाख*", "*780* चौरस फूट, 22 मजली इमारतीत 7वा मजला", "रेडी टू मूव, Gym आणि *Lift*"]
+    assert screens["hi"][1:4] == ["कीमत *₹85 लाख*", "*780* वर्ग फुट, 22 में से 7वीं मंज़िल", "रेडी टू मूव, Gym और *Lift*"]
+    rent = lr.reel_facts(dict(_id="b", title="Flat", transaction="rent", price_inr=45000, city="Pune", locality="Wakad",
+                              bhk=1, floor=0, total_floors=4, amenities=["Gym"]), PROFILE)[2]
+    mr = [b["screen"] for b in lr.rules_script(rent, "mr", devanagari=True)["beats"]]
+    assert mr[1:4] == ["भाडं *₹45,000/महिना*", "तळमजला", "*Gym*"]
+    first = lr.reel_facts({**listing, "floor": 1, "total_floors": None}, PROFILE)[2]
+    assert lr._screen_floor(first, "mr") == "पहिला मजला" and lr._screen_floor(first, "hi") == "पहली मंज़िल"
+    assert lr.rules_script(f, "en") == lr.rules_script(f, "en", devanagari=True)                  # English unchanged

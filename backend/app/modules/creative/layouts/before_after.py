@@ -36,13 +36,13 @@ def _clean_art(c: Canvas, box) -> None:
     c.icon("check", (cx + 70, cy - 46), 28, (255, 255, 255), 5)
 
 
-def _column(c: Canvas, box, items: List[str], good: bool, tall: bool) -> None:
+def _column(c: Canvas, box, items: List[str], good: bool, tall: bool, compact: bool = False) -> None:
     x0, y0, x1, y1 = box
     pal = c.pal
     fill = (255, 253, 246) if good else (22, 34, 58)
     ink = (16, 35, 64) if good else (226, 232, 244)
     c.rrect(box, 34, fill, outline=FACT_GREEN if good else MYTH_RED, width=4, shadow=True)
-    art_h = 190 if tall else 140
+    art_h = (190 if tall else 140) - (70 if compact else 0)   # compact: under the MahaRERA badge
     art = (x0, y0 + 14, x1, y0 + 14 + art_h)
     (_clean_art(c, art) if good else _messy_art(c, art, True))
     label = "CLEAN" if good else "MESSY"
@@ -69,15 +69,16 @@ def render(copy: Copy, design: Design) -> List[Rendered]:
     c = Canvas(design.size, pal, "before_after", pattern="dots", glow_at=(0.9, 0.1))
     p = copy.payload
     w = c.right - c.left
-    c.chip(str(p.get("kicker", "SIDE BY SIDE")), c.left, c.top, icon="bolt")
-    hy = c.top + 100
+    chip = c.chip(str(p.get("kicker", "SIDE BY SIDE")), c.left, c.top, icon="bolt")
+    rera_y = c.maharera_badge(beside=chip)
+    hy = max(c.top + 100, (rera_y or 0) + 30)
     hsize = 84 if tall else 68
     hh = c.measure(copy.hook, w, hsize, "bold", 2, pitch=1.08, min_size=50)
     c.text(copy.hook, c.left, hy, w, hsize, "bold", pal.ink, 2, pitch=1.08, min_size=50, emph=design.emphasis, role="hook")
     top, bottom = hy + hh + 40, c.bottom - footer_h() - 34
     gap = 28
     cw = (w - gap) // 2
-    _column(c, (c.left, top, c.left + cw, bottom), [str(x) for x in p.get("messy", [])], False, tall)
-    _column(c, (c.left + cw + gap, top, c.right, bottom), [str(x) for x in p.get("clean", [])], True, tall)
+    _column(c, (c.left, top, c.left + cw, bottom), [str(x) for x in p.get("messy", [])], False, tall, bool(rera_y))
+    _column(c, (c.left + cw + gap, top, c.right, bottom), [str(x) for x in p.get("clean", [])], True, tall, bool(rera_y))
     c.brand_bar(dark_bg=not pal.light)
     return [c.finish()]

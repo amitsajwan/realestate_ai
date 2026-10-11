@@ -1,7 +1,7 @@
 # Marketing: how it works
 
 How content is made, approved, posted to Facebook and Instagram, and followed up. Code as of 7 Oct 2026; production settings
-read from the VM the same day. Plans and work items live in `docs/CONTENT_PLATFORM.md`; the rules every module follows are in
+read from the VM the same day. Plans and work items live in `docs/CONTENT_PLATFORM.md`; the architecture review of the photos and brochure to reels and posts journey is `docs/MARKETING_ARCHITECTURE_REVIEW.md`; the rules every module follows are in
 `docs/ARCHITECTURE.md` §6 and §7. Update this file when a part changes status. Reels and campaign reels updated 11 Oct 2026.
 
 Every part below carries one status:
@@ -29,6 +29,7 @@ Every part below carries one status:
 | Interest links, `/go` hub, `?src=` tracking | LIVE | |
 | Public feed of our posts (`/posts`) | LIVE | |
 | Project page enrichment from MahaRERA | LIVE | |
+| MahaRERA QR badge on project ads (AR-3) | BUILT | Pack cards, campaign cards, reel closing scene; only for a trusted project number (§4). |
 | Daily reels (area insight + project, 2 a day) | BUILT, OFF | `CALENDAR_DAILY_REELS` unset. |
 | Instagram location tags | BUILT, OFF | Needs `IG_LOCATION_*` place ids. |
 | Reading reach, plays and watch time back from Meta | BUILT | `insights/collector.py` (PR #60) reads them into `content_metrics`, grouped by the calendar tags. Production state not checked here. |
@@ -108,6 +109,38 @@ The agent taps "Start marketing" on a listing (`MarketingRunCard.tsx`).
    agent's id, so enquiries count per post. Facebook captions carry the listing link with `?src=fb_<angle>`. Edits reach
    planned rows only; approved rows never change.
 
+### Brochure (BUILT)
+The agent uploads the builder's brochure PDF on the listing (`POST /api/v1/listings/{id}/brochure`, up to 40 pages and 30 MB;
+`propertyfacts/brochure.py`, `brochure_parse.py`, collection `brochures`). The original is kept under
+`uploads/brochures/<listing>/<sha>.pdf` and read once per file: pdfium reads each page's text layer and makes a page thumbnail.
+Rules find the project, builder, MahaRERA number, address, configurations, carpet area per configuration, amenities,
+specifications, possession, land area, towers, floors and units, each with its page and the exact words. The free model may add
+facts, but only ones whose quote is on that page and whose value is in the quote (brochure text goes in a marked data block,
+never in the instructions). Pages without text are listed as image-only (no vision step yet; no paid AI); plans, maps and renders are kept as images (below).
+- Every fact is a `builder_claim`, pending until the agent confirms, fixes or drops it (`PATCH .../brochure/facts/{id}`).
+  Confirmed claims join the fact sheet (`gather.py`) but never override MahaRERA or the listing: a different possession month,
+  unit count, carpet area or RERA number is kept as a disagreement and listed in the run's notes.
+- Posts use claims only attributed: the `configurations`, `amenities` and `specifications` angles say "as per the builder's
+  brochure", and their numbers are written into the Brief, so the guards accept them as stated and refuse any other.
+- Registration: a brochure's MahaRERA number is looked up (`verified`), else held (`unverified`, never posted as registered).
+  With no number the kit asks "registered, or exempt?" (RERA Act section 3) and keeps the answer
+  (`POST .../brochure/registration`). Without a MahaRERA record the possession, MahaRERA check and project size angles are
+  skipped, and captions promise no MahaRERA record.
+- Plans and images (no AI, no vision call): a page whose own text says what picture it holds is kept as a 1600 px JPEG
+  (`<sha>/i<page>.jpg`, `brochure_parse.image_kind`): `floor_plan` ("floor plan", "unit plan", "typical floor", a BHK
+  label with room sizes such as 10'0" x 12'0"), `master_plan` ("master plan", "site plan", "layout"), `location_map`
+  ("location map", "route map", "not to scale"), `render` ("artist's impression", "artistic impression", "render", "3D
+  view", on a page with little text and no disclaimer). The kit lists them as `images: [{id, page, kind, label, url,
+  state}]`, all `pending`; a render's `label` is always "Artist's impression". The agent taps Use or Don't use on the
+  confirm screen (`PATCH .../brochure/images/{id}` with `{"state": "confirmed" | "dropped" | "pending"}`;
+  `GET .../brochure/images/{id}.jpg` serves the image, owner only, like page thumbnails).
+- Confirmed images reach posts only (`brochure.usable_images`, read by the marketing run): `floor_plan` shows the plan
+  whole and full width on the `plan_full` card (format `plan`) with the configuration and carpet area: the listing's own
+  (official) or a confirmed brochure claim (attributed). A listing with a BHK only shows that configuration's plan; a plan
+  names its configurations from its page text. `first_look` shows a render filling the frame, with "Artist's impression"
+  drawn on it by the layout (the label comes from code, not from the kit). The walkthrough reel and slides reels never use
+  brochure images: the walkthrough takes the agent's photos only, and plan posts are single images.
+
 ### Agent pack (LIVE)
 `POST /api/v1/listings/{id}/marketing` builds copy from listing facts only, in English, Hindi or Marathi, and renders the
 cards `cover`, `facts`, `amenities` (when there are any), `cta` and a WhatsApp `status` image. One pack per listing in
@@ -121,6 +154,82 @@ listing's own photos, a checked script and a voice-over. 5 per agent per day. Th
 - **stack**: one screen. Each beat's line joins under the ones before and stays, the photos walk through behind it (a new
   photo with each line), and each line is spoken as it lands. The call to action and "Listed by" land last.
 A stack reel is its own job and file (`listing-<id>-<lang>-stack-<short>.mp4`). Posting outside the calendar uses the tour.
+In Studio the agent picks Tour or Stack under "Make my reel" and sees the latest reel of each style (`GET .../reel?style=`).
+The owner's concierge reel path does not take a style yet (tour only).
+
+### Which photos (LIVE: pixel checks, plus optional room tags)
+`photoquality.rank_photos` chooses the photos for the walkthrough reel (`listing_reel.scene_photos`, up to 5), and its hero
+is the photo on the pack's cover card and on the campaign posts (`marketing.images.cover_photo_path`), so the slides reels
+built from those posts get it too. Near-identical photos (a perceptual hash and a colour check) keep only the best copy.
+Blurry, dark, small and "mostly floor or sky" photos are left out, and come back last only when fewer than the minimum
+would remain (2 for a reel, 1 for a cover). The agent's order decides otherwise. The hero is a well-exposed landscape photo
+with the best score (scores within 10 points count as equal). The enhanced copy is used when the agent kept it on.
+
+Room tags (AR-5, first part; `photoquality/tagging.py`): the reel worker asks the vision chain the visual review already
+uses (free tier, 3 photos per request, 12 s timeout) what each of the first 9 ranked photos shows: a kind (exterior,
+interior, view, amenity, floor_plan, document, other) and a room (living, kitchen, bedroom, bath, balcony, dining, lobby,
+other). Replies are checked against that list (an unknown value is `other`, a reply with the wrong number of items is
+dropped) and cached per file hash next to the review cache, so a photo is tagged once. With tags, the reel keeps the hero
+first and walks through the home: exterior, living, dining, kitchen, bedrooms, bath, balcony and view, amenities (the
+ranked order breaks ties); floor plans and papers stay out while 2 other photos remain. Tags are never required: no key, a
+rate limit (429, no waiting), a timeout or a bad reply leaves the ranked order. Tagging runs only in the reel worker, never
+in a request path. `AI_PHOTO_TAGS=off` (or `AI_VISION_REVIEW=off`) turns it off.
+
+Pack cards (`marketing.images.card_photos`): each card gets its own photo where there are enough. The cover has the hero,
+the other cards the next ranked photos in turn; the amenities card prefers a photo tagged amenity, then exterior. Photos
+repeat only when there are fewer photos than cards. The pack is made in a request, so it reads cached tags only (from an
+earlier reel); without them the ranked order decides.
+
+### MahaRERA on our ads (BUILT, AR-3)
+**What MahaRERA requires** (researched 11 Oct 2026; MahaRERA's own site does not answer from our build sandbox, so the order's
+wording comes from MahaRERA's order list and the law-firm and press summaries below, not from the PDF itself):
+- **Order 46C/2025, 8 April 2025**, "Norms for QR Code and font size of MahaRERA registration number in advertisements", is the
+  one in force. Every advertisement of a registered project, by a promoter or a registered agent, in any medium (print,
+  hoardings, social media posts, WhatsApp, digital banners, video thumbnails) shows three things: the **MahaRERA project
+  registration number**, the **website maharera.maharashtra.gov.in**, and the **project's own MahaRERA QR code**.
+- **Size and place.** The number and the website are set in a font no smaller than the largest font used for the ad's contact
+  details and address. The summaries place all three in the **top right** of the creative, in a visible colour, and the QR
+  code keeps its aspect ratio so it stays scannable. No minimum QR size in pixels is given.
+- **Earlier orders it builds on.** Order 46/2023 (May 2023) put a QR code on every project's registration certificate from
+  1 Aug 2023 and required it on ads; Order 46A/2023 set the penalties; Order 46B/2023 (Aug 2023) extended the rule to agents
+  (the QR code shown prominently, next to the project registration number).
+- **Still applies in 2026.** No later order replaces 46C/2025; 2026 compliance checklists still cite it, and MahaRERA keeps
+  fining: 628 projects for Rs 88.90 lakh in 2024, six Pune projects Rs 15,000 each. Penalties are reported as Rs 10,000 to
+  Rs 50,000 per ad (section 63 of the RERA Act).
+- **What the official QR opens.** Scanning a project's MahaRERA QR opens that project's public page on MahaRERA (name,
+  promoter, dates, approvals). The exact URL inside the official code could not be confirmed from here.
+
+**What we print.** `marketing/maharera.py` draws one badge with `segno` (QR) and Pillow: a white panel, the QR code with its
+quiet zone, "MahaRERA: P5..." and "maharera.maharashtra.gov.in". The QR encodes the most specific official URL we can verify:
+the project's public page `https://maharerait.maharashtra.gov.in/public/project/view/<MahaRERA id>` (the page MahaRERA's
+own search links each project to; our code reads it, verified 3 Oct 2026) when the fact sheet or our register knows the id,
+otherwise `https://maharera.maharashtra.gov.in/`, where the number under the code is searched. No other URL can be encoded.
+- Where: top right of the pack's cover, cta and WhatsApp status cards; every campaign card (all seven buyer layouts, beside or
+  under the kicker chip; a carousel carries it on its cover and closing slide, not the inner slides); the walkthrough reel's
+  closing scene (tour) or with the closing lines (stack). QR codes are 148 to 185 px on the pack cards, 135 to 148 px on campaign cards, 222 to 225 px on a reel frame, with
+  whole pixels per module. Tests decode each one back with OpenCV.
+- When (`propertyfacts/advert.py`): only for a project number we trust: MahaRERA's own record of it on the fact sheet, else
+  the listing's `rera_no` (the agent's data), else the brochure kit's `verified` or `registered_by_agent` number. `exempt`,
+  `unknown`, an `unverified` brochure number, a number MahaRERA contradicts, a sample listing and the agent's own registration
+  (A5..., which stays in "Listed by ... · RERA ...") never get a badge or a registration line. The pack and the reel ask through
+  `marketing.maharera.configure` (wired in `app/wiring.py`); campaigns pass the brochure kit to `campaign.plan/make`.
+- Open: the contact strip on an agent's campaign cards shows the phone at 40 px while the badge text is 24 px, below the
+  order's font rule; the pack cards (no phone) use 30 px, as large as "Listed by". Owner to decide: a smaller phone or a
+  larger badge. Letting the agent upload the official QR from the registration certificate would make the code identical to
+  MahaRERA's; not built.
+- Samples: `docs/content/showcase/maharera-qr/`.
+
+Sources: [MahaRERA orders list](https://maharera.maharashtra.gov.in/order);
+[Complinity on Order 46C/2025](https://complinity.com/legal-update/maharashtra-real-estate-regulatory-authority-maharera-issues-order-regarding-the-mandatory-display-of-qr-code-font-size-specifications-for-maharera-registration-number-and-website-address-in-advertisements-18613/);
+[Desai and Diwanji](https://desaidiwanji.com/insights/articles/transparency-first-maharera-enforces-stricter-rules-for-real-estate-advertising);
+[Real Estate Law Journal](https://realestatelawjournal.in/maharera-qr-code-registration-ad-guidelines-2025/);
+[Palladian, 2026 checklist](https://palladian.in/maharera-advertising-rules-2026-the-compliance-checklist-to-run-before-your-next-launch/);
+[TaxGuru on the 2023 order](https://taxguru.in/corporate-law/matter-non-display-quick-response-qr-code-promotions-advertisement-real-estate-projects-registered-maharera.html);
+[WIRC-ICAI, Sep 2023 (46A, 46B)](https://old.wirc-icai.org/newsletters/2023/september/maharera.html);
+[Housing.com, QR from 1 Aug 2023](https://housing.com/news/qr-code-display-in-all-maharera-registered-projects-mandatory-from-aug-1-2023/);
+[Storyboard18, 628 projects fined](https://www.storyboard18.com/amp/how-it-works/maharera-penalises-628-projects-over-absence-of-qr-codes-in-ads-registration-number-36609.htm);
+[Pune Pulse, Ravetkar fines](https://www.mypunepulse.com/pune-maharera-fines-six-ravetkar-projects-%E2%82%B990000-for-violating-advertisement-disclosure-norms/);
+[99acres on the project QR](https://www.99acres.com/articles/maharera-launches-qr-code-to-access-project-details-nid.html).
 
 ### Reel formats (templates, `reels/templates.py`)
 - **Tip, pitch, listing tour** ("guess the price"): scenes that replace each other.
@@ -128,8 +237,11 @@ A stack reel is its own job and file (`listing-<id>-<lang>-stack-<short>.mp4`). 
   two beats of the brand theme (84 bpm, 1.43 s) and stays; the call to action lands last. `listing_stack` opens with the
   price and holds the locality back to the end. `stacked_list` takes any lines, such as a buyer requirement ("Wanted: 2 to 5
   acres..."). A listing photo is blurred into a backdrop so frame one is calm.
-- Reel text is drawn in Poppins (Latin letters only): on-screen text is English or Hinglish; voice-overs speak Hindi and
-  Marathi.
+- Reel text: Latin text is drawn in Poppins, Devanagari in Mukta (the creative cards' font), shaped by libraqm. A Hindi or
+  Marathi walkthrough (tour and stack) and `listing_stack(lang=...)` show their screen lines in Devanagari; the comment
+  keyword stays INTERESTED in Roman capitals, and digits stay Western (Devanagari digits in an LLM line are read as the same
+  numbers by the no-invented-number check). Without libraqm the screen text falls back to English or Hinglish, as before.
+  Tip, pitch, trend and recruitment reels keep Roman text. Sample frames: `docs/content/showcase/devanagari/`.
 
 ### Owner content (LIVE, by script)
 - **Brand calendar.** `calendar_admin.py plan --start <date> --weeks 4 [--llm]` lays out about 5 Instagram and 5 Facebook
@@ -211,6 +323,7 @@ as "may already be live": check the page, then delete that ledger document to al
 | `publish_ledger` | One document per publish key: sending, sent or failed. |
 | `marketing_runs` | Listing campaign jobs with their posts. |
 | `property_facts` | Kept fact sheets with sources and levels. |
+| `brochures` | Brochure kits per listing and file: facts with page, quote and state, the registration answer, the plans, maps and renders kept as images with the agent's use or don't-use (`propertyfacts/brochure.py`). |
 | `marketing_packs`, `publications` | Agent packs, and pack posts with consent. |
 | `reel_jobs` | Walkthrough reel jobs. |
 | `engage_comments` | Each handled comment, once. |
@@ -249,10 +362,9 @@ Found while building the stacked reels. Most impact first.
 
 | What | Why it matters | Size |
 |---|---|---|
-| Walkthrough caption is built in English (`listing_reel.caption`) | Marathi and Hindi campaigns get an English caption under a native voice-over | Small |
-| Voice-over sounds machine-made | Each line is synthesised on its own (intonation resets every line); the script reads like a form ("मजला 7, एकूण 22"); the voice sits flat over the music. Fix: one take for the whole script, cut into lines; conversational Hindi and Marathi script rules (facts only); music ducking under the voice. A cloned or custom voice must be a consenting person's, and realistic AI audio gets Meta's AI label. | Medium |
-| No Devanagari font for reel text | On-screen text cannot be Marathi or Hindi | Medium |
-| No control to pick the reel style in the app | The backend takes `style`, the frontend does not send it | Small |
+| DONE: walkthrough caption in the reel's language | `listing_reel.caption(listing, attribution, lang)`: the title line in English, Hindi or Marathi, the same price and area, 'Listed by' and RERA as before. The campaign and the concierge pass the reel's language | Small |
+| DONE: voice-over sounds more natural | `reels/narration.py`: the whole script in one request (SSML with a 1.2 s `<break>` between lines; Chirp 3 HD voices take `<break>`, `<prosody>` and `<voice>`, not `<mark>`, so there are no timepoints), cut at those pauses and each line placed at its beat; when the cut does not give one piece per line, each line is synthesised on its own as before. The music is ducked under the voice (`sidechaincompress`) and comes back between lines and at the end. Hindi and Marathi rules lines are spoken sentences ("कार्पेट एरिया आहे 780 स्क्वेअर फूट, आणि हे 22 मजली इमारतीत 7व्या मजल्यावर आहे"), and the LLM prompt asks for the same. Same voice and free tier. A cloned or custom voice must be a consenting person's, and realistic AI audio gets Meta's AI label. | Medium |
+| No Devanagari font for reel text | DONE (11 Oct): Hindi and Marathi walkthroughs and listing stacks show Devanagari (Mukta, §4) | Medium |
 | No buyer-requirement post type | "Wanted" posts draw replies from sellers and brokers; only the reel template exists | Small to medium |
 | `main` is a stale 2025 branch | Work happens on `cursor/analyze-and-fix-styling-issues-cacb`; new PRs point at `main` by default and show unrelated history. Make the working branch the default on GitHub. | Small |
 | `scripts/reels_admin.py` imports a `publish` module that no longer exists | The preview command fails | Tiny |
