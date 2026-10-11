@@ -2,7 +2,7 @@
 
 How content is made, approved, posted to Facebook and Instagram, and followed up. Code as of 7 Oct 2026; production settings
 read from the VM the same day. Plans and work items live in `docs/CONTENT_PLATFORM.md`; the rules every module follows are in
-`docs/ARCHITECTURE.md` §6 and §7. Update this file when a part changes status.
+`docs/ARCHITECTURE.md` §6 and §7. Update this file when a part changes status. Reels and campaign reels updated 11 Oct 2026.
 
 Every part below carries one status:
 
@@ -20,7 +20,7 @@ Every part below carries one status:
 | Listing campaign from Studio ("Start marketing") | LIVE | Facts, posts, slides reels, edit and redo, send to calendar. |
 | Agent marketing pack (cards, captions, WhatsApp) | LIVE | One per listing. |
 | Posting a pack straight to the Avasetu Page and Instagram | LIVE | Bypasses the calendar; see §8. |
-| Listing walkthrough reel | LIVE | Voice-over on (Google TTS key set). |
+| Listing walkthrough reel | LIVE | Voice-over on (Google TTS key set). Two styles: tour and stack (§4). |
 | Agent-recruitment reels | LIVE | 10 reels, 4 to 13 Oct, through the calendar. |
 | Brand calendar plan (evergreen library, by script) | LIVE | Run by the owner when needed. |
 | Trend reels, House Deal launch (by script) | LIVE | Run by the owner when needed. |
@@ -31,7 +31,7 @@ Every part below carries one status:
 | Project page enrichment from MahaRERA | LIVE | |
 | Daily reels (area insight + project, 2 a day) | BUILT, OFF | `CALENDAR_DAILY_REELS` unset. |
 | Instagram location tags | BUILT, OFF | Needs `IG_LOCATION_*` place ids. |
-| Reading reach, plays and watch time back from Meta | TARGET | Nothing reads results yet. |
+| Reading reach, plays and watch time back from Meta | BUILT | `insights/collector.py` (PR #60) reads them into `content_metrics`, grouped by the calendar tags. Production state not checked here. |
 | Shared store of verified facts | TARGET | Facts live in three places today. |
 | Builder record, portal prices, road distances | TARGET | Campaign facts come from MahaRERA, OpenStreetMap and calculators only. |
 | Per-listing LLM budget | TARGET | |
@@ -98,11 +98,13 @@ The agent taps "Start marketing" on a listing (`MarketingRunCard.tsx`).
      listing page shows it as "Checked for you".
    - **Posts.** One Brief per angle the facts support (11 angles, such as price reveal, commute, MahaRERA check, EMI), each
      run through the creative pipeline. Up to 2 slides reels come from the carousels. A walkthrough reel is queued when the
-     listing has 2 or more photos. A failed posts step keeps the facts.
+     listing has 2 or more photos, voiced in the campaign's language. Its style (tour or stack) is fixed per listing from the
+     listing id, about half each (`jobs.walkthrough_style`). A failed posts step keeps the facts.
 3. The agent can edit a caption (`PATCH .../campaign/posts/{angle}`; guard problems come back as warnings) or redo a post
    with a note (`POST .../posts/{angle}/redo`; the note goes to the copywriter).
 4. "Send to calendar" (`POST .../campaign/calendar`) adds `planned` rows, one a day at 7 pm IST, 12 hours from other posts on
-   the channel. Posts go to both channels; slides reels go to Instagram only. Slugs are `campaign-<listing>-<angle>` with the
+   the channel. Posts go to both channels; slides reels go to Instagram only; the walkthrough goes to both once rendered,
+   tagged `experiment: walkthrough_style`, `variant: tour | stack` so its results compare the two styles. Slugs are `campaign-<listing>-<angle>` with the
    agent's id, so enquiries count per post. Facebook captions carry the listing link with `?src=fb_<angle>`. Edits reach
    planned rows only; approved rows never change.
 
@@ -113,7 +115,21 @@ cards `cover`, `facts`, `amenities` (when there are any), `cta` and a WhatsApp `
 
 ### Walkthrough reel (LIVE)
 `POST /api/v1/listings/{id}/reel` queues a job in `reel_jobs`. The `listing_reels` loop renders one at a time from the
-listing's own photos, a checked script and a voice-over. 5 per agent per day.
+listing's own photos, a checked script and a voice-over. 5 per agent per day. The body takes `lang` (en, hi, mr) and
+`style`:
+- **tour** (default): one photo per beat, slide cuts, the beat's line on each photo.
+- **stack**: one screen. Each beat's line joins under the ones before and stays, the photos walk through behind it (a new
+  photo with each line), and each line is spoken as it lands. The call to action and "Listed by" land last.
+A stack reel is its own job and file (`listing-<id>-<lang>-stack-<short>.mp4`). Posting outside the calendar uses the tour.
+
+### Reel formats (templates, `reels/templates.py`)
+- **Tip, pitch, listing tour** ("guess the price"): scenes that replace each other.
+- **Stacked list** (`stacked_list`, `listing_stack`): the hook is on screen from frame one; each fact joins under it every
+  two beats of the brand theme (84 bpm, 1.43 s) and stays; the call to action lands last. `listing_stack` opens with the
+  price and holds the locality back to the end. `stacked_list` takes any lines, such as a buyer requirement ("Wanted: 2 to 5
+  acres..."). A listing photo is blurred into a backdrop so frame one is calm.
+- Reel text is drawn in Poppins (Latin letters only): on-screen text is English or Hinglish; voice-overs speak Hindi and
+  Marathi.
 
 ### Owner content (LIVE, by script)
 - **Brand calendar.** `calendar_admin.py plan --start <date> --weeks 4 [--llm]` lays out about 5 Instagram and 5 Facebook
@@ -211,5 +227,22 @@ as "may already be live": check the page, then delete that ledger document to al
   through the calendar, or retire it in favour of campaigns.
 - **Who approves agent campaigns.** Campaign rows land on the owner's calendar and only the owner approves them. Agents do not
   see their posts' approval state.
-- **Measurement first.** Posts are tagged for measurement, but nothing reads results back. Ranking angles and hooks needs the
-  Meta insights reader (TARGET).
+- **Measurement first.** Posts are tagged for measurement and the insights collector (PR #60) reads results back. The first
+  comparison running is the walkthrough style (tour vs stack) on campaign reels.
+
+## 9. Improvements found (11 Oct 2026)
+
+Found while building the stacked reels. Most impact first.
+
+| What | Why it matters | Size |
+|---|---|---|
+| Walkthrough caption is built in English (`listing_reel.caption`) | Marathi and Hindi campaigns get an English caption under a native voice-over | Small |
+| Voice-over sounds machine-made | Each line is synthesised on its own (intonation resets every line); the script reads like a form ("मजला 7, एकूण 22"); the voice sits flat over the music. Fix: one take for the whole script, cut into lines; conversational Hindi and Marathi script rules (facts only); music ducking under the voice. A cloned or custom voice must be a consenting person's, and realistic AI audio gets Meta's AI label. | Medium |
+| No Devanagari font for reel text | On-screen text cannot be Marathi or Hindi | Medium |
+| No control to pick the reel style in the app | The backend takes `style`, the frontend does not send it | Small |
+| No buyer-requirement post type | "Wanted" posts draw replies from sellers and brokers; only the reel template exists | Small to medium |
+| `main` is a stale 2025 branch | Work happens on `cursor/analyze-and-fix-styling-issues-cacb`; new PRs point at `main` by default and show unrelated history. Make the working branch the default on GitHub. | Small |
+| `scripts/reels_admin.py` imports a `publish` module that no longer exists | The preview command fails | Tiny |
+
+Voice cost (Google Cloud TTS, list prices seen 11 Oct 2026): Chirp 3 HD has 1 million free characters a month (a reel's
+voice-over is about 300 to 400 characters); instant custom voice is US$60 per million characters with no free tier.

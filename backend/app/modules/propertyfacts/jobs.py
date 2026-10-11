@@ -8,6 +8,7 @@
 Jobs live in `marketing_runs`; the worker loop "marketing_runs" (app/worker.py) runs one at a time under its runner lease.
 A job interrupted by a restart is marked failed after STALE_AFTER, keeping whatever step already finished."""
 import asyncio
+import hashlib
 import logging
 import re
 import uuid
@@ -26,6 +27,12 @@ COLLECTION = "marketing_runs"
 MARKETABLE = ("live", "under_offer")
 ACTIVE = ("queued", "facts", "posts")
 SLIDE_REELS = 2  # slides reels per campaign, from its first carousel posts
+# The walkthrough reel's style, split by listing so the two can be compared on real results (schedule.WALKTHROUGH_EXPERIMENT
+# tags the calendar rows; the insights collector reads them back). Fixed per listing: a campaign made again keeps its style.
+
+
+def walkthrough_style(listing_id: str) -> str:
+    return ("tour", "stack")[int(hashlib.sha1(str(listing_id).encode()).hexdigest(), 16) % 2]
 CAPTION_MAX = 2200  # Instagram's caption limit
 NOTE_MAX = 300
 STALE_AFTER = timedelta(minutes=20)
@@ -327,9 +334,10 @@ class MarketingRuns:
         if self.reel_jobs is not None:
             try:
                 from app.modules.reels.listing_reel import caption as reel_caption
-                doc, _ = await self.reel_jobs.create(job["agent_id"], job["listing_id"], "en")
+                lang, style = job.get("language") or "en", walkthrough_style(job["listing_id"])   # spoken in the posts' language
+                doc, _ = await self.reel_jobs.create(job["agent_id"], job["listing_id"], lang, style=style)
                 reels.append({"kind": "walkthrough", "job_id": doc["_id"], "status": doc["status"], "video": doc.get("video_path"),
-                              "caption": reel_caption(listing, "") + "\n\n" + link_line})
+                              "style": style, "language": lang, "caption": reel_caption(listing, "") + "\n\n" + link_line})
             except Exception as e:  # fewer than 2 photos, the daily limit...: the campaign goes on without it
                 reels.append({"kind": "walkthrough", "status": "skipped", "note": str(getattr(e, "detail", "") or "not made")})
         return reels

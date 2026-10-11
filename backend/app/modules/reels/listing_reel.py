@@ -11,7 +11,11 @@ A sample listing (title starting 'Sample', e.g. the demo agent's) gets no reel: 
 
 Limits: 5 reels per agent per rolling 24 hours (failed ones do not count), one active job per listing + language (a re-request
 returns it), and a finished reel is returned again unless the listing changed since or `again` is asked for.
-Output: <uploads>/reels/listing-<id>-<lang>-<short>.mp4, served under /uploads/reels/.
+Two styles: 'tour' (one photo per beat, slide cuts) and 'stack' (the same beats as a stacked list: each beat's line joins under
+the ones before and stays, the photos walk through behind it, and each line is spoken as it lands). The calendar and the posting
+flows use 'tour'; a 'stack' reel is asked for by name.
+
+Output: <uploads>/reels/listing-<id>-<lang>-<short>.mp4 (stack: listing-<id>-<lang>-stack-<short>.mp4), served under /uploads/reels/.
 """
 import asyncio
 import logging
@@ -35,6 +39,7 @@ log = logging.getLogger(__name__)
 
 COLLECTION = "reel_jobs"
 LANGS = ("en", "hi", "mr")
+STYLES = ("tour", "stack")
 LANG_NAMES = {"en": "English", "hi": "Hindi", "mr": "Marathi"}
 ACTIVE = ("queued", "rendering")
 COUNTED = ("queued", "rendering", "done")
@@ -231,10 +236,51 @@ async def write_script(subject: str, facts: Sequence[str], lang: str, llm, fallb
 
 
 # ---- rendering (blocking; runs in a worker thread) -----------------------------------------------------------------
+def _closing_lines(closing: str) -> List[TextLine]:
+    """'Listed by X · RERA Y' as two lines, so the separator never starts a wrapped line."""
+    return [TextLine(part, size=44, weight="medium", max_lines=2) for part in [p.strip() for p in closing.split(" · ") if p.strip()]]
+
+
+def _stack_scene(beats: List[Dict], picks: Sequence, durs: Sequence[float], badge: Optional[str], kicker: Optional[str],
+                 closing: str) -> Scene:
+    """The beats as one stacked list over a walkthrough: beat i's line joins at the start of its voice line and stays, and photo i
+    comes in behind it at the same moment. The call to action and 'Listed by' land last."""
+    starts = [sum(durs[:i]) for i in range(len(durs))]
+    lines = [TextLine(b["screen"], size=96, max_lines=3) if i == 0 else
+             TextLine(b["screen"], size=52 if i == len(beats) - 1 else 68, weight="semibold",
+                      color=None if i == len(beats) - 1 else (255, 255, 255), max_lines=2)
+             for i, b in enumerate(beats)]
+    extra = _closing_lines(closing)
+    return Scene(image=picks[0], images=list(picks[1:]), image_at=starts[1:], lines=lines + extra,
+                 reveal=starts + [starts[-1]] * len(extra), layout="lower", align="left", badge=badge, kicker=kicker,
+                 seconds=sum(durs), seed="listing-stack")
+
+
+def _narration(work: Path, clips: Sequence[Path], starts: Sequence[float], total: float, bed: Path) -> Path:
+    """The voice lines, each placed at its start, mixed over the music bed."""
+    inputs, filters = [], []
+    for i, c in enumerate(clips):
+        inputs += ["-i", str(c)]
+        ms = int((starts[i] + (0.35 if i == 0 else 0.25)) * 1000)
+        filters.append(f"[{i}:a]adelay={ms}|{ms},aresample=48000[a{i}]")
+    mix = "".join(f"[a{i}]" for i in range(len(clips)))
+    filters.append(f"{mix}amix=inputs={len(clips)}:normalize=0,apad=whole_dur={total:.2f},volume=1.35[voice]")
+    inputs += ["-i", str(bed)]
+    filters.append(f"[{len(clips)}:a]aresample=48000,volume=0.22[bed]")
+    filters.append("[voice][bed]amix=inputs=2:normalize=0:duration=first[out]")
+    audio = work / "narration.m4a"
+    ffmpeg.run([*inputs, "-filter_complex", ";".join(filters), "-map", "[out]", "-t", f"{total:.2f}",
+                "-c:a", "aac", "-b:a", "160k", str(audio), "-y"])
+    return audio
+
+
 def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Optional[str] = None, kicker: Optional[str] = None,
-           closing: str = "", voiced: bool = True) -> Dict:
+           closing: str = "", voiced: bool = True, style: str = "tour") -> Dict:
     """Render the reel. Returns {"audio": "voice+music"|"music", "note": str}. Falls back to music only if the voice fails.
-    One photo per scene: with fewer photos than beats the last beats are left out rather than a photo shown twice."""
+    One photo per beat: with fewer photos than beats the last beats are left out rather than a photo shown twice.
+    style 'stack': the same beats, voice and photos as one stacked list (see _stack_scene)."""
+    if style not in STYLES:
+        raise ValueError(f"style must be one of {STYLES}")
     beats, picks = fit_beats(script, photos)
     work = Path(tempfile.mkdtemp(prefix="listing-reel-"))
     note = ""
@@ -253,35 +299,28 @@ def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opt
         if not voiced:
             note = note or NO_VOICE_NOTE
             durs = [SILENT_SECONDS + (0.4 if i == 0 else 0.0) for i in range(len(beats))]
-        durs = stretch(durs, XFADE)
+        stack = style == "stack"
+        durs = stretch(durs, 0.0 if stack else XFADE)
+        if stack:
+            scene = _stack_scene(beats, picks, durs, badge, kicker, closing)
+            starts, total = [sum(durs[:i]) for i in range(len(durs))], sum(durs)
+            from .music import write as write_music
+            bed = write_music(work / "bed.wav", seconds=total + 1.0)
+            audio = _narration(work, clips, starts, total, bed) if voiced else bed
+            make_reel([scene], out_path, music=audio, xfade=0.0, hook_tag=False)
+            return {"audio": "voice+music" if voiced else "music", "note": note}
         scenes = []
         for i, b in enumerate(beats):
             first, last = i == 0, i == len(beats) - 1
             lines = [TextLine(b["screen"], size=104 if first else 96)]
-            if last and closing:  # 'Listed by X · RERA Y' as two lines, so the separator never starts a wrapped line
-                for part in [p.strip() for p in closing.split(" · ") if p.strip()]:
-                    lines.append(TextLine(part, size=44, weight="medium", max_lines=2))
+            if last and closing:
+                lines += _closing_lines(closing)
             scenes.append(Scene(image=picks[i], lines=lines, layout="lower", badge=badge,
                                 kicker=kicker if first else None, seconds=durs[i], seed=f"listing-{i}"))
         tl = plan(durs, XFADE)   # no end card: the closing scene carries the brand mark and the reel loops
         from .music import write as write_music
         bed = write_music(work / "bed.wav", seconds=tl.total + 1.0)
-        if voiced:
-            inputs, filters = [], []
-            for i, c in enumerate(clips):
-                inputs += ["-i", str(c)]
-                ms = int((tl.starts[i] + (0.35 if i == 0 else 0.25)) * 1000)
-                filters.append(f"[{i}:a]adelay={ms}|{ms},aresample=48000[a{i}]")
-            mix = "".join(f"[a{i}]" for i in range(len(clips)))
-            filters.append(f"{mix}amix=inputs={len(clips)}:normalize=0,apad=whole_dur={tl.total:.2f},volume=1.35[voice]")
-            inputs += ["-i", str(bed)]
-            filters.append(f"[{len(clips)}:a]aresample=48000,volume=0.22[bed]")
-            filters.append("[voice][bed]amix=inputs=2:normalize=0:duration=first[out]")
-            audio = work / "narration.m4a"
-            ffmpeg.run([*inputs, "-filter_complex", ";".join(filters), "-map", "[out]", "-t", f"{tl.total:.2f}",
-                        "-c:a", "aac", "-b:a", "160k", str(audio), "-y"])
-        else:
-            audio = bed
+        audio = _narration(work, clips, tl.starts, tl.total, bed) if voiced else bed
         make_reel(scenes, out_path, music=audio, transition="slide", xfade=XFADE)
         return {"audio": "voice+music" if voiced else "music", "note": note}
     finally:
@@ -298,11 +337,16 @@ def job_out(doc: Optional[dict], base_url: str = "") -> Optional[dict]:
     if not doc:
         return None
     path = doc.get("video_path")
-    return {"id": doc["_id"], "listing_id": doc["listing_id"], "lang": doc["lang"], "status": doc["status"],
+    return {"id": doc["_id"], "listing_id": doc["listing_id"], "lang": doc["lang"], "style": doc.get("style") or "tour", "status": doc["status"],
             "video_path": path, "video_url": (base_url.rstrip("/") + path if base_url and path else path),
             "script": doc.get("script"), "audio": doc.get("audio"), "note": doc.get("note") or "", "error": doc.get("error") or "",
             "created_at": _iso(doc.get("created_at")), "finished_at": _iso(doc.get("finished_at")),
             "posts": doc.get("posts") or []}
+
+
+def _style(style: str) -> dict:
+    """The query for one style. Jobs from before styles existed have no `style` field: they are tours."""
+    return {"style": {"$in": [None, "tour"]}} if style == "tour" else {"style": style}
 
 
 def is_sample(listing: dict) -> bool:
@@ -334,20 +378,23 @@ class ReelJobs:
         docs = await self.jobs.find(flt).sort("created_at", -1).limit(1).to_list(1)
         return docs[0] if docs else None
 
-    async def create(self, agent_id: str, listing_id: str, lang: str, again: bool = False) -> Tuple[dict, bool]:
-        """(job doc, created). Re-requests return the active job, or the finished one if the listing has not changed."""
+    async def create(self, agent_id: str, listing_id: str, lang: str, again: bool = False, style: str = "tour") -> Tuple[dict, bool]:
+        """(job doc, created). Re-requests return the active job, or the finished one if the listing has not changed (per style)."""
         if lang not in LANGS:
             raise ReelJobError("Language must be en, hi or mr", 422)
+        if style not in STYLES:
+            raise ReelJobError("Style must be tour or stack", 422)
         listing = await self._listing(agent_id, listing_id)
         if listing.get("status") not in MARKETABLE:
             raise ReelJobError("Only live or under-offer listings can have a reel. Publish this listing first.", 409)
         if is_sample(listing):
             raise ReelJobError("Sample listings cannot have a reel. Reels are for real homes.", 409)
-        active = await self._latest({"listing_id": listing_id, "agent_id": agent_id, "lang": lang, "status": {"$in": list(ACTIVE)}})
+        active = await self._latest({"listing_id": listing_id, "agent_id": agent_id, "lang": lang, **_style(style),
+                                     "status": {"$in": list(ACTIVE)}})
         if active:
             return active, False
         if not again:
-            done = await self._latest({"listing_id": listing_id, "agent_id": agent_id, "lang": lang, "status": "done"})
+            done = await self._latest({"listing_id": listing_id, "agent_id": agent_id, "lang": lang, **_style(style), "status": "done"})
             changed = listing.get("updated_at")
             if done and not (isinstance(changed, datetime) and changed > done["created_at"]):
                 return done, False
@@ -359,22 +406,22 @@ class ReelJobs:
         if used >= DAILY_LIMIT:
             raise ReelJobError(f"You can make {DAILY_LIMIT} reels a day. Try again tomorrow.", 429)
         jid = uuid.uuid4().hex
-        doc = {"_id": jid, "listing_id": listing_id, "agent_id": agent_id, "lang": lang, "status": "queued", "video_path": None,
+        doc = {"_id": jid, "listing_id": listing_id, "agent_id": agent_id, "lang": lang, "style": style, "status": "queued", "video_path": None,
                "script": None, "error": None, "note": None, "audio": None, "created_at": now, "started_at": None, "finished_at": None}
         await self.jobs.insert_one(doc)
         return doc, True
 
-    async def latest(self, agent_id: str, listing_id: str) -> Dict[str, dict]:
+    async def latest(self, agent_id: str, listing_id: str, style: str = "tour") -> Dict[str, dict]:
         await self._listing(agent_id, listing_id)
         out = {}
         for lang in LANGS:
-            doc = await self._latest({"listing_id": listing_id, "agent_id": agent_id, "lang": lang})
+            doc = await self._latest({"listing_id": listing_id, "agent_id": agent_id, "lang": lang, **_style(style)})
             if doc:
                 out[lang] = doc
         return out
 
-    async def latest_done(self, agent_id: str, listing_id: str, lang: str) -> Optional[dict]:
-        return await self._latest({"listing_id": listing_id, "agent_id": agent_id, "lang": lang, "status": "done"})
+    async def latest_done(self, agent_id: str, listing_id: str, lang: str, style: str = "tour") -> Optional[dict]:
+        return await self._latest({"listing_id": listing_id, "agent_id": agent_id, "lang": lang, **_style(style), "status": "done"})
 
     # ---- worker side -------------------------------------------------------------------------------------------
     async def fail_stale(self) -> None:
@@ -419,11 +466,14 @@ class ReelJobs:
             script = await write_script(subject, facts, job["lang"], llm, rules_script(f, job["lang"]))
             script = with_cta(script, job["lang"])
             await self.jobs.update_one({"_id": jid}, {"$set": {"script": script}})
-            name = f"listing-{_safe_id(job['listing_id'])}-{job['lang']}-{jid[:8]}.mp4"
+            style = job.get("style") or "tour"
+            name = f"listing-{_safe_id(job['listing_id'])}-{job['lang']}-{'stack-' if style == 'stack' else ''}{jid[:8]}.mp4"
             out = self.uploads_dir / "reels" / name
             kicker = _short(f.loc.upper(), 5) or None
+            kw = {"style": style} if style != "tour" else {}
             result = await asyncio.to_thread(
-                self.renderer, script, photos[:MAX_SCENE_PHOTOS], job["lang"], out, kicker=kicker, closing=listed_by_line(profile), voiced=self.voice_available())
+                self.renderer, script, photos[:MAX_SCENE_PHOTOS], job["lang"], out, kicker=kicker, closing=listed_by_line(profile),
+                voiced=self.voice_available(), **kw)
             await self._finish(jid, status="done", video_path=f"/uploads/reels/{name}", audio=result.get("audio"),
                                note=result.get("note") or "", error=None)
         except Exception as e:  # ffmpeg missing, disk full, a bad photo...

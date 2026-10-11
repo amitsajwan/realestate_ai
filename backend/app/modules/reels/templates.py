@@ -1,11 +1,14 @@
-"""Three reel templates. Each returns (scenes, options) to pass to compose.make_reel(scenes, out, **options).
+"""Reel templates. Each returns (scenes, options) to pass to compose.make_reel(scenes, out, **options).
 
 Rules (docs/NEWSROOM_PLAN.md, brand): no phone numbers, no invented facts, no price unless given; a builder's render is labelled (badge).
 """
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from .compose import Scene, TextLine, distinct_photos, read_seconds, split_screens, stretch
+from PIL import ImageFilter
+
+from .compose import MIN_SECONDS, Scene, TextLine, _load, distinct_photos, read_seconds, split_screens, stretch
 from .director import CTA_SCREEN, CTA_WORD  # noqa: F401  (CTA_WORD re-exported: the comment keyword)
+from .music import BEAT
 HOOK_SECONDS = 2.2  # the opening scene: most viewers decide in the first 1-2 s, so the hook is short and on screen from frame one
 # Tip and pitch reels open like the slide reels (reels/slides.py): the first slide reel lost 62% of plays in one second when frame
 # one was a busy picture. So frame one is a hook card: the hook alone, big, on the plain brand background (no photo, no label, no
@@ -112,6 +115,57 @@ def agent_pitch(problem: str = "Buyers message you all day. *Same* questions. Ev
         scenes.append(Scene(image=img(i + 2), lines=[TextLine(p, size=108)], kicker="What you get", seconds=2.4, seed=f"pitch-proof-{i}"))
     scenes.append(Scene(image=img(4), lines=[TextLine(cta, size=104)], seconds=2.6, seed="pitch-cta"))
     return scenes, dict(HOOK_OPTIONS)
+
+
+# 'Stacked list': one screen, the facts join one by one and stay. A new line every two beats of the brand theme (84 bpm: 1.43 s),
+# so every entry lands on a beat of music we make ourselves (reels.music) with no beat detection; the stack holds after the last line.
+STACK_STEP = 2 * BEAT
+STACK_HOLD = 2.6
+STACK_MAX_FACTS = 5   # more than this and the lines get too small to read on a phone
+STACK_OPTIONS = {"transition": "fade", "xfade": 0.0, "hook_tag": False}
+
+
+def stacked_list(lines: Sequence[str], cta: Optional[str] = None, image=None, kicker: Optional[str] = None,
+                 badge: Optional[str] = None, seed: str = "stack") -> Tuple[List[Scene], Dict]:
+    """'Stacked list': lines[0] is the hook, on screen from frame one; each of lines[1:6] joins under it every two beats and stays;
+    the call to action lands last. One scene, laid out at its final size, so nothing moves when a line joins. `image` (a listing
+    photo) is blurred into a backdrop: frame one is the hook on a calm background, not a busy picture. *asterisks* colour gold."""
+    lines = [l.strip() for l in lines if l and l.strip()]
+    if len(lines) < 2:
+        raise ValueError("a stacked list needs a hook and at least one line")
+    hook, facts = lines[0], lines[1:1 + STACK_MAX_FACTS]
+    text = ([TextLine(hook, size=100, max_lines=3)]
+            + [TextLine(f, size=72, weight="semibold", color=(255, 255, 255), max_lines=2) for f in facts]
+            + [TextLine(cta or CTA_SCREEN["en"], size=52, weight="semibold", max_lines=2)])
+    reveal = [i * STACK_STEP for i in range(len(text))]
+    backdrop = _load(image)
+    if backdrop is not None:
+        backdrop = backdrop.filter(ImageFilter.GaussianBlur(max(8, backdrop.width // 90)))
+    scene = Scene(image=backdrop, lines=text, kicker=kicker, align="left", badge=badge, reveal=reveal, seed=seed,
+                  seconds=max(MIN_SECONDS, reveal[-1] + STACK_HOLD))
+    return [scene], dict(STACK_OPTIONS)
+
+
+def listing_stack(facts: Dict, image=None, badge: Optional[str] = None) -> Tuple[List[Scene], Dict]:
+    """A listing as a stacked list, the place held back to the end: price (or the home) first, then area, what it is, possession,
+    furnishing, builder, and the locality last ('wait till the end'). Same facts keys as listing_tour, plus `builder`; a fact is
+    shown only when given."""
+    bhk = facts.get("bhk")
+    ptype = facts.get("property_type") or "apartment"
+    head = f"{int(bhk) if float(bhk).is_integer() else bhk} BHK {ptype}" if bhk else ptype.capitalize()
+    locality, city = facts.get("locality") or "", facts.get("city") or "Pune"
+    poss = {"ready": "Ready to move", "under_construction": "Under construction"}.get(facts.get("possession") or "", facts.get("possession"))
+    price = facts.get("price_text")
+    lines = [f"*{price}*" if price else head]
+    if facts.get("area_sqft"):
+        lines.append(f"{int(facts['area_sqft']):,} sq ft")
+    if price:
+        lines.append(head)
+    lines += [str(v) for v in (poss, facts.get("furnishing"), facts.get("builder") and f"By {facts['builder']}") if v]
+    lines.append(f"In *{locality}*, {city}" if locality else f"In {city}")
+    if len(lines) < 2:
+        lines.append(f"In {city}")
+    return stacked_list(lines, image=image, badge=badge, kicker="Watch till the end" if locality else None, seed="listing-stack")
 
 
 def _at_least_min(scenes: List[Scene], xfade: float) -> List[Scene]:

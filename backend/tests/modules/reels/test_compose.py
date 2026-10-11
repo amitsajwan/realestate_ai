@@ -71,8 +71,10 @@ def _all_scenes():
     facts = {**templates.DEMO_FACTS["wagholi"], "price_text": "Rs 1.2 Cr", "furnishing": "Semi-furnished"}
     tour, _ = templates.listing_tour([Image.new("RGB", (1600, 1000), "gray")], facts, badge="Artist's impression")
     plain, _ = templates.listing_tour(PHOTOS6, templates.DEMO_FACTS["kharadi"])
+    stack, _ = templates.listing_stack({**facts, "builder": "A Long Builder Name Developers", "area_sqft": 1420})
+    full, _ = templates.stacked_list(["Wanted: *2 to 5 acres*"] + ["a fairly long requirement line here"] * 6, kicker="Wanted")
     # as rendered: the last scene of each reel carries the brand mark; the optional end card is checked too
-    return [s for group in (tip, pitch, tour, plain) for s in compose.finish_scenes(group)] + [compose.end_scene()]
+    return [s for group in (tip, pitch, tour, plain, stack, full) for s in compose.finish_scenes(group)] + [compose.end_scene()]
 
 
 def _in_zone(box) -> bool:
@@ -313,4 +315,76 @@ def test_screens_of_one_split_line_share_one_continuous_background():
     r = compose.Renderer(scenes, **opts)
     a, b = r.prep[1], r.prep[2]   # 'Ask for the *RERA number*.' / 'Then look it up on the MahaRERA site.'
     assert a.scene.seed == b.scene.seed and b.punch == 0.0 < a.punch
+    a, b = a.backdrops[0], b.backdrops[0]
     assert a.base.tobytes() == b.base.tobytes() and (a.z1, a.fx1, a.fy1) == (b.z0, b.fx0, b.fy0)   # starts where the last ended
+
+
+# ---- stacked list: the facts join one by one and stay -------------------------------------------------------------------------
+STACK_FACTS = {**templates.DEMO_FACTS["kharadi"], "price_text": "Rs 30 Lakh", "builder": "Kolte Patil"}
+
+
+def test_listing_stack_leads_with_the_price_and_holds_the_place_back_to_the_end():
+    (scene,), opts = templates.listing_stack(STACK_FACTS)
+    texts = [l.text for l in scene.lines]
+    assert texts[0] == "*Rs 30 Lakh*" and texts[-2] == "In *Kharadi*, Pune" and texts[-1] == templates.CTA_SCREEN["en"]
+    assert "By Kolte Patil" in texts and scene.kicker == "Watch till the end"
+    (plain,), _ = templates.listing_stack(templates.DEMO_FACTS["wagholi"])
+    assert plain.lines[0].text == "3 BHK apartment" and not any("Rs" in l.text or l.text.startswith("By ") for l in plain.lines)
+
+
+def test_stack_lines_land_on_the_beat_and_the_reel_stays_between_the_limits():
+    (scene,), opts = templates.listing_stack(STACK_FACTS)
+    beat = templates.BEAT
+    assert scene.reveal[0] == 0 and all(t / (2 * beat) == pytest.approx(i) for i, t in enumerate(scene.reveal))
+    total = compose.plan([scene.seconds], opts["xfade"]).total
+    assert compose.MIN_SECONDS <= total < 30 and total == pytest.approx(scene.reveal[-1] + templates.STACK_HOLD)
+    (short,), _ = templates.stacked_list(["Hook", "One fact"])
+    assert short.seconds == compose.MIN_SECONDS
+    with pytest.raises(ValueError):
+        templates.stacked_list(["Hook only"])
+
+
+def test_the_stack_shows_the_hook_on_frame_one_and_each_line_joins_at_its_time_without_moving_the_others():
+    scenes, opts = templates.listing_stack(STACK_FACTS)
+    r = compose.Renderer(scenes, **{k: v for k, v in opts.items() if k != "hook_tag"}, hook_tag=False)
+    p = r.prep[0]
+    at = lambda k: p.reveal[p.items[k].block]
+    for k, it in enumerate(p.items):
+        if at(k) == 0:
+            assert p.item_alpha(k, 0.0) == 1.0          # the hook (and its kicker) are there on frame one
+        else:
+            assert p.item_alpha(k, at(k) - 0.01) == 0.0 < p.item_alpha(k, at(k) + 0.05) < 1.0
+            assert p.item_alpha(k, at(k) + compose.TEXT_IN) == 1.0
+    tops = [it.box[1] for it in p.items if it.block > 0]
+    assert tops == sorted(tops)                                 # each new line sits under the ones before it
+    last = max(k for k, it in enumerate(p.items) if it.block == p.items[-1].block)
+    x0, y0, x1, y1 = p.items[last].box
+    lit = lambda t: sum(1 for px in r.frame_at(t).crop((x0, y0, x1, y1)).getdata() if min(px) >= 200)
+    assert lit(0.0) == 0 < lit(r.tl.total - 0.2)                # the call to action is not there at the start, and is at the end
+
+
+def test_a_stack_needs_one_reveal_time_per_line():
+    with pytest.raises(compose.ReelError):
+        compose.layout_scene(Scene(lines=["a", "b"], reveal=[0.0]))
+
+
+def test_photos_change_behind_a_stack_while_the_text_stays_put():
+    red, blue = Image.new("RGB", (1080, 1920), (220, 30, 30)), Image.new("RGB", (1080, 1920), (30, 30, 220))
+    scene = Scene(image=red, images=[blue], image_at=[2.0], lines=["Hook", "Fact"], reveal=[0.0, 2.0], seconds=4.0, seed="w")
+    r = compose.Renderer([scene], xfade=0.0, hook_tag=False)
+    px = lambda t: r.frame_at(t).getpixel((W // 2, H - 60))
+    before, mid, after = px(1.9), px(2.0 + compose.IMAGE_BLEND / 2), px(3.0)
+    assert before[0] > before[2] and after[2] > after[0]            # red, then blue
+    assert before[0] > mid[0] > after[0]                            # blended, not a hard jump
+    p = r.prep[0]
+    assert [it.box for it in p.items] == [it.box for it in compose.layout_scene(compose.finish_scenes([scene])[0])]   # one layout: nothing moves
+    with pytest.raises(compose.ReelError):
+        compose.Renderer([Scene(image=red, images=[blue], lines=["x"], seconds=3.0)])
+
+
+def test_a_full_screen_of_text_never_runs_into_the_badge():
+    for layout in ("lower", "center", "top"):
+        sc = Scene(lines=[TextLine("word " * 40, size=120)] + ["a line"] * 5, kicker="Kicker", badge="Sample listing", layout=layout,
+                   brand_mark=True)
+        badge = compose._chip_item(sc.badge, compose.CONTENT_TOP - 4, "left", filled=False).box
+        assert min(it.box[1] for it in compose.layout_scene(sc)) > badge[3], layout
