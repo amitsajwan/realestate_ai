@@ -9,6 +9,8 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from app.modules.calendar.store import Store as CalendarStore, aware
 
+WALKTHROUGH_EXPERIMENT = "walkthrough_style"   # calendar tag: experiment + variant tour | stack (jobs.walkthrough_style)
+
 IST = timezone(timedelta(hours=5, minutes=30))
 POST_AT = time(19, 0)          # 7 pm IST: after work, when buyers browse
 MIN_GAP = timedelta(hours=12)  # the calendar's own rule: posts on a channel at least 12 hours apart
@@ -87,8 +89,10 @@ def items(run: dict, link_line: str) -> List[Dict]:
                     {"layout": "slides_reel", "template": "campaign"})
             elif r["kind"] == "walkthrough" and r.get("status") == "done":
                 caption = r.get("caption") or (run["posts"][0]["caption"] if run.get("posts") else "")
+                style = r.get("style") or "tour"
                 add(slug_for(lid, "walkthrough"), channel, "reel", caption, [], _rel(r["video"]), "walkthrough",
-                    {"layout": "walkthrough_reel", "template": "campaign"})
+                    {"layout": "stacked_walkthrough_reel" if style == "stack" else "walkthrough_reel", "template": "campaign",
+                     "experiment": WALKTHROUGH_EXPERIMENT, "variant": style, "language": r.get("language") or "en"})
     return out
 
 
