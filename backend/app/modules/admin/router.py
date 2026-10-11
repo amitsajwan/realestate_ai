@@ -57,11 +57,12 @@ async def overview(user: User = Depends(owner_only), svc: AdminService = Depends
     from app.modules.newsroom.config import load as load_newsroom
     from app.platform.meta_graph.config import load as load_social
     from app.modules.whatsapp.config import load as load_wa
+    from app.modules.whatsapp.dm_config import load as load_dm
     ctl = await svc.controls()
     cal_run, news_run = await svc.run_status("calendar_status"), await svc.run_status("newsroom_status")
     rows = health.build_health(social=load_social(), wa=load_wa(), engage=load_engage(), calendar=load_calendar(), newsroom=load_newsroom(),
                                meta=await svc.meta_status(), cal_run=cal_run, news_run=news_run, controls=ctl,
-                               ai=await health.ai_status(ai_ping))
+                               ai=await health.ai_status(ai_ping), dm=load_dm())
     return {
         "generated_at": datetime.utcnow().isoformat() + "Z",
         "counts": await svc.counts(),

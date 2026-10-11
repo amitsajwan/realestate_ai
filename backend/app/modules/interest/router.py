@@ -4,6 +4,7 @@
   GET  /public/interest/{code}              what the landing page shows
   POST /public/interest/{code}/click        a visit
   POST /public/interest/{code}              the one-tap interest (details optional, only with consent)
+  POST /public/interest/{code}/answers      the configuration and budget tapped after it
   GET  /public/hub                          the Instagram bio-link page data (cached 60 s)
 `router` is mounted at /interest (bearer auth): POST /interest/links, GET /interest/links/{ref}.
 """
@@ -13,7 +14,7 @@ import time
 from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.core.auth_backend import current_active_user
 from app.core.database import get_database
@@ -58,8 +59,25 @@ class ClickIn(BaseModel):
     anon_id: Optional[str] = Field(None, max_length=64)
 
 
-class InterestIn(BaseModel):
+class AnswersIn(BaseModel):
+    """What the visitor is looking for, as tapped on the interest page (the same bounds as the website enquiry form)."""
     anon_id: Optional[str] = Field(None, max_length=64)
+    bhk: Optional[float] = Field(None, ge=0.5, le=10)
+    budget_min_inr: Optional[int] = Field(None, ge=0)
+    budget_max_inr: Optional[int] = Field(None, ge=0)
+
+    @model_validator(mode="after")
+    def _budget_order(self):
+        lo, hi = self.budget_min_inr, self.budget_max_inr
+        if lo is not None and hi is not None and lo > hi:
+            raise ValueError("budget_min_inr must be <= budget_max_inr")
+        return self
+
+    def answers(self) -> dict:
+        return {"bhk": self.bhk, "budget_min_inr": self.budget_min_inr, "budget_max_inr": self.budget_max_inr}
+
+
+class InterestIn(AnswersIn):
     name: Optional[str] = Field(None, max_length=100)
     phone: Optional[str] = Field(None, max_length=20)
     note: Optional[str] = Field(None, max_length=500)
@@ -100,7 +118,15 @@ async def interest_tap(code: str, request: Request, body: Optional[InterestIn] =
     b = body or InterestIn()
     try:
         return await svc.record_interest(code, name=b.name, phone=b.phone, note=b.note, consent=b.consent,
-                                         website=b.website, anon_id=b.anon_id, ip=_ip(request))
+                                         website=b.website, anon_id=b.anon_id, ip=_ip(request), answers=b.answers())
+    except InterestError as e:
+        raise _http(e)
+
+
+@public_router.post("/interest/{code}/answers")
+async def interest_answers(code: str, body: AnswersIn, request: Request, svc: InterestService = Depends(get_service)):
+    try:
+        return await svc.record_answers(code, answers=body.answers(), anon_id=body.anon_id, ip=_ip(request))
     except InterestError as e:
         raise _http(e)
 
