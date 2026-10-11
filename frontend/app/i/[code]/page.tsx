@@ -3,13 +3,13 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { absoluteImage, getInterest } from '@/lib/interest/api'
-import InterestActions, { type Step } from './InterestActions'
-import WhatsAppButton from '@/components/site/WhatsAppButton'
+import InterestActions, { type Question, type Step } from './InterestActions'
+import WhatsAppButton, { waNumber } from '@/components/site/WhatsAppButton'
 import { BRAND_NAME, LOGO } from '@/lib/brand'
 
 interface Props {
   params: Promise<{ code: string }>
-  searchParams: Promise<{ done?: string; e?: string }>
+  searchParams: Promise<{ done?: string; e?: string; q?: string }>
 }
 
 const headline = (s: { title: string; kind: string }) => s.title || (s.kind === 'listing' ? 'A home in Pune' : `From ${BRAND_NAME}`)
@@ -38,7 +38,12 @@ export default async function InterestPage({ params, searchParams }: Props) {
   if (!s) notFound()
   const cfg = getMarketingConfig()
   const step: Step = q.done === '2' ? 'saved' : q.done === '1' ? 'tapped' : 'start'
+  const question: Question = q.q === 'budget' || q.q === 'details' ? q.q : 'bhk'
   const img = s.image_url || null
+  const agentWa = (s as { agent_whatsapp?: string }).agent_whatsapp
+  const showAgentWa = (s as { show_whatsapp?: boolean }).show_whatsapp === true
+  // WhatsApp leads when there is a number to chat with: the chat gives us the buyer's number without any typing
+  const hasWa = !!((showAgentWa && waNumber(agentWa)) || waNumber(process.env.NEXT_PUBLIC_WHATSAPP_NUMBER))
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col">
@@ -67,15 +72,23 @@ export default async function InterestPage({ params, searchParams }: Props) {
           </div>
         </article>
 
-        <div className="mt-5">
+        {hasWa && step === 'start' && (
+          <div className="mt-5">
+            {/* the agent's own number only when his branding opts in (show_whatsapp); otherwise the Avasetu number */}
+            <WhatsAppButton title={headline(s)} code={s.code} agentNumber={agentWa} showAgentNumber={showAgentWa}
+              className="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-6 text-lg font-bold text-[#053b1a] no-underline shadow-md" />
+            <p className="mt-2 text-center text-sm text-slate-600">Opens WhatsApp with a message ready to send.</p>
+          </div>
+        )}
+        <div className={hasWa && step === 'start' ? 'mt-4' : 'mt-5'}>
           <InterestActions code={s.code} agentName={s.agent_name} sample={s.sample} consentWording={s.consent_wording}
-            initialStep={step} initialError={q.e || ''} />
+            initialStep={step} initialError={q.e || ''} initialQuestion={question} secondary={hasWa} />
         </div>
-        <div className="mt-3">
-          {/* the agent's own number only when his branding opts in (show_whatsapp); otherwise the Avasetu number, if set */}
-          <WhatsAppButton title={headline(s)} code={s.code} agentNumber={(s as { agent_whatsapp?: string }).agent_whatsapp}
-            showAgentNumber={(s as { show_whatsapp?: boolean }).show_whatsapp === true} />
-        </div>
+        {hasWa && step !== 'start' && (
+          <div className="mt-3">
+            <WhatsAppButton title={headline(s)} code={s.code} agentNumber={agentWa} showAgentNumber={showAgentWa} />
+          </div>
+        )}
         <p className="mt-8 text-center text-xs text-slate-500">
           We only store what you type here, and only if you tick the box. See our <a href="/privacy" className="underline">privacy page</a>.
         </p>

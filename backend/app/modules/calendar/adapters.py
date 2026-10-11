@@ -467,3 +467,31 @@ async def register_hub(db, doc: dict, permalink: str = "") -> None:
                               "", code, permalink or "")
     except Exception:
         return
+
+
+INTEREST_LINK = re.compile(r"https?://\S+/i/[a-z0-9]{4,12}\b")
+
+
+def link_comment_text(caption: str) -> Optional[str]:
+    """The Page's own first comment under a Facebook reel: the post's interest link, which is tappable in a comment (a reel's
+    description link often is not). None when the caption carries no interest link (e.g. recruitment posts)."""
+    found = INTEREST_LINK.search(caption or "")
+    return f"Interested? Details in one tap: {found.group(0)}" if found else None
+
+
+async def link_comment(db, doc: dict, object_id: str, social: SocialConfig) -> None:
+    """Best effort, once per calendar row: a failure is logged and never fails or repeats the post. CALENDAR_REEL_LINK_COMMENT=off
+    turns it off."""
+    import logging
+    import os
+    from app.modules.social.distribution import page_comment, send
+    log = logging.getLogger(__name__)
+    text = link_comment_text(doc.get("caption", ""))
+    if not text or not object_id or os.environ.get("CALENDAR_REEL_LINK_COMMENT", "").lower() in ("off", "false", "0"):
+        return
+    try:
+        async def post() -> Result:
+            return Result(await page_comment(social, object_id, text))
+        await send(db, f"calendar-comment:{doc['_id']}", post)
+    except Exception as e:
+        log.warning("calendar: link comment on %s failed: %s", doc.get("slug"), type(e).__name__ if not isinstance(e, PublishError) else e)

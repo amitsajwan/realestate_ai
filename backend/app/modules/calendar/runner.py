@@ -7,6 +7,8 @@ Kinds: post (1 image, or an Instagram carousel), reel (video staged, then Instag
 (a sample home, retired 2026-10-07) is skipped, never posted.
 A carousel's Facebook copy goes out as a Page Reel of its slides (Facebook shows a multi-photo post as a grid, not a swipe), unless
 CALENDAR_FB_CAROUSEL_AS_REEL=off; if that reel cannot be made, the slides go out as one multi-photo post as before.
+A Facebook reel (or slides reel) gets the Page's own first comment with its interest link, tappable where the description link is not
+(CALENDAR_REEL_LINK_COMMENT=off turns it off).
 Reels take about a minute to render, so `prerender_reels` renders them in the background up to two hours before they are due.
 """
 import asyncio
@@ -57,7 +59,8 @@ async def prerender_reels(store: Store, now: datetime, uploads: Optional[Path] =
 
 async def run_once(store: Store, publisher, social: SocialConfig, cfg: CalendarConfig, now: datetime, uploads: Optional[Path] = None,
                    render_reel: Callable = adapters.render_reel_for, publish_reel: Callable = adapters.publish_reel,
-                   render_slides_reel: Callable = adapters.render_slides_reel_for) -> Dict[str, int]:
+                   render_slides_reel: Callable = adapters.render_slides_reel_for,
+                   link_comment: Callable = adapters.link_comment) -> Dict[str, int]:
     """Publish what is due and approved. `publisher` is used only when SOCIAL_DRY_RUN is off. Returns counts and records them in calendar_status."""
     counts = {"published": 0, "failed": 0, "retry": 0, "skipped": 0, "waiting": 0}
     uploads = uploads or uploads_dir()
@@ -90,7 +93,7 @@ async def run_once(store: Store, publisher, social: SocialConfig, cfg: CalendarC
             continue
         seen.add(ch)
         outcome = await _publish_one(store, publisher, social, doc, uploads, render_reel, publish_reel,
-                                     render_slides_reel if cfg.fb_carousel_as_reel else None)
+                                     render_slides_reel if cfg.fb_carousel_as_reel else None, link_comment)
         counts[outcome] += 1
     await store.set_run(last_run_at=now, last_counts=counts, last_error=None if not counts["failed"] and not counts["retry"] else "see items")
     return counts
@@ -121,7 +124,7 @@ async def _slides_reel(store: Store, doc: dict, uploads: Path, render: Callable)
 
 
 async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict, uploads: Path, render_reel: Callable, publish_reel: Callable,
-                       render_slides_reel: Optional[Callable] = None) -> str:
+                       render_slides_reel: Optional[Callable] = None, link_comment: Optional[Callable] = None) -> str:
     attempts = int(doc.get("attempts") or 0) + 1
     try:
         kind = doc.get("kind") or "post"
@@ -157,6 +160,8 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
                                                                              location_id=reach.location_id(doc))))
         await store.published(doc["_id"], res.external_id, res.permalink)
         await adapters.register_hub(store.db, doc, res.permalink or "")
+        if link_comment and doc["channel"] == "facebook_page" and (kind == "reel" or reel):
+            await link_comment(store.db, doc, res.external_id, social)
         return "published"
     except asyncio.CancelledError:
         raise

@@ -189,3 +189,42 @@ def test_a_slides_reel_opens_on_the_posts_hook_line(tmp_path, monkeypatch):
     adapters.render_slides_reel_for({**base, "_id": "r1", "creative": {"hook": "The creative's hook"}}, tmp_path)
     adapters.render_slides_reel_for({**base, "_id": "r2"}, tmp_path)
     assert seen == ["The creative's hook", "Caption first line\nmore"]  # make_slides_reel keeps the first line
+
+
+def test_link_comment_text_uses_the_captions_interest_link_only():
+    from app.modules.calendar.adapters import link_comment_text
+    cap = "3 BHK homes in Kharadi\n\n👉 Interested? One tap tells us: https://avasetu.in/i/k3x9ab\n\nAvasetu · https://avasetu.in"
+    assert link_comment_text(cap) == "Interested? Details in one tap: https://avasetu.in/i/k3x9ab"
+    assert link_comment_text("Free trial for agents: https://avasetu.in/trial") is None
+    assert link_comment_text("") is None
+
+
+async def test_link_comment_posts_once_and_never_raises(monkeypatch):
+    from app.modules.calendar import adapters
+    from app.modules.social import distribution
+    from app.platform.meta_graph.config import SocialConfig
+    from app.platform.meta_graph.publisher import PublishError
+    from ..fakes import FakeDb
+    monkeypatch.setenv("PUBLISH_LEDGER", "on")
+    sent = []
+
+    async def page_comment(cfg, object_id, text, transport=None):
+        sent.append((object_id, text))
+        return "c1"
+
+    monkeypatch.setattr(distribution, "page_comment", page_comment)
+    db, social = FakeDb(), SocialConfig(dry_run=False, page_id="P1", page_token="t")
+    doc = {"_id": "row1", "slug": "s", "caption": "Hi\n👉 Interested? One tap tells us: https://avasetu.in/i/k3x9ab"}
+    await adapters.link_comment(db, doc, "reel1", social)
+    await adapters.link_comment(db, doc, "reel1", social)  # a retried slot: the ledger keeps it to one comment
+    assert sent == [("reel1", "Interested? Details in one tap: https://avasetu.in/i/k3x9ab")]
+
+    async def broken(*a, **k):
+        raise PublishError("Graph API error 200: permission")
+
+    monkeypatch.setattr(distribution, "page_comment", broken)
+    await adapters.link_comment(db, {**doc, "_id": "row2"}, "reel2", social)  # logged, not raised
+    monkeypatch.setenv("CALENDAR_REEL_LINK_COMMENT", "off")
+    monkeypatch.setattr(distribution, "page_comment", page_comment)
+    await adapters.link_comment(db, {**doc, "_id": "row3"}, "reel3", social)
+    assert len(sent) == 1
