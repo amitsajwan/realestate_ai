@@ -7,6 +7,12 @@ A reading is one source's value for one key. A fact is the decision over all rea
     corroborated  two independent sources give the same value                -> usable
     single        one source only                                            -> stored, not posted
     conflict      sources disagree and nothing official settles it          -> not posted; raise an issue
+    builder_claim only the builder's brochure says so, and the agent confirmed it -> posts may use it, always worded
+                  "as per the builder's brochure" (campaign.py); never as a MahaRERA or measured fact
+
+A brochure reading never outranks another source and never counts towards corroboration: where MahaRERA, the listing, our
+calculators or a portal also give the key, they decide, and a brochure value that differs is kept in `disagree` (counts and
+dates compared exactly), so a brochure saying 240 units or "Dec 2028" against MahaRERA's 236 or 2029-04-30 is raised.
 
 An official or measured value wins over portals; portal readings that disagree with it are kept in `disagree` so the
 mismatch can be shown (a portal saying "Dec 2028" when MahaRERA now says 2029-04-30)."""
@@ -16,7 +22,9 @@ from typing import Any, Dict, Iterable, List, Optional
 
 OFFICIAL = frozenset({"maharera", "listing"})  # "listing": the agent's own offer (their asking price is the price)
 MEASURED = frozenset({"osm", "calc"})
+BUILDER = frozenset({"brochure"})  # the builder's brochure, confirmed by the agent (brochure.py)
 USABLE = ("official", "measured", "corroborated")
+ATTRIBUTED = "builder_claim"
 NUMBER_TOLERANCE = 0.05  # two numbers within 5% of each other are the same reading (portals round differently)
 
 
@@ -42,6 +50,11 @@ class Fact:
         return self.level in USABLE
 
     @property
+    def attributed(self) -> bool:
+        """Usable only with "as per the builder's brochure"."""
+        return self.level == ATTRIBUTED
+
+    @property
     def sources(self) -> List[str]:
         return sorted({r.source for r in self.readings})
 
@@ -56,14 +69,14 @@ def _norm(v: Any) -> Any:
     return v
 
 
-def same(a: Any, b: Any) -> bool:
-    """Equal after normalising text; numbers within NUMBER_TOLERANCE of each other."""
+def same(a: Any, b: Any, tolerance: float = NUMBER_TOLERANCE) -> bool:
+    """Equal after normalising text; numbers within `tolerance` of each other."""
     if isinstance(a, bool) or isinstance(b, bool):
         return isinstance(a, bool) and isinstance(b, bool) and a == b  # True == 1 in Python; not here
     if isinstance(a, (int, float)) and isinstance(b, (int, float)):
         if a == b:
             return True
-        return abs(a - b) <= NUMBER_TOLERANCE * max(abs(a), abs(b))
+        return abs(a - b) <= tolerance * max(abs(a), abs(b))
     return _norm(a) == _norm(b)
 
 
@@ -79,30 +92,43 @@ def _groups(readings: List[Reading]) -> List[List[Reading]]:
     return out
 
 
+def _agrees(r: Reading, value: Any) -> bool:
+    return same(r.value, value, 0.0 if r.source in BUILDER else NUMBER_TOLERANCE)
+
+
 def _settled(key: str, trusted: List[Reading], others: List[Reading], level: str) -> Fact:
     groups = _groups(trusted)
     if len(groups) > 1:  # two official (or two measured) readings disagree: nothing settles it
         return Fact(key, groups[0][0].value, "conflict", groups[0], [r for g in groups[1:] for r in g] + others)
     value = groups[0][0].value
-    agree = groups[0] + [r for r in others if same(r.value, value)]
-    return Fact(key, value, level, agree, [r for r in others if not same(r.value, value)])
+    agree = groups[0] + [r for r in others if _agrees(r, value)]
+    return Fact(key, value, level, agree, [r for r in others if not _agrees(r, value)])
 
 
 def decide(key: str, readings: Iterable[Reading]) -> Optional[Fact]:
     rs = [r for r in readings if r.key == key and r.value not in (None, "", [], ())]
     if not rs:
         return None
+    claims = [r for r in rs if r.source in BUILDER]
+    rs = [r for r in rs if r.source not in BUILDER]
+    if not rs:  # only the brochure says so
+        groups = _groups(claims)
+        if len(groups) > 1:
+            return Fact(key, groups[0][0].value, "conflict", groups[0], [r for g in groups[1:] for r in g])
+        return Fact(key, groups[0][0].value, ATTRIBUTED, groups[0], [])
     official = [r for r in rs if r.source in OFFICIAL]
     if official:
-        return _settled(key, official, [r for r in rs if r.source not in OFFICIAL], "official")
+        return _settled(key, official, [r for r in rs if r.source not in OFFICIAL] + claims, "official")
     measured = [r for r in rs if r.source in MEASURED]
     if measured:
-        return _settled(key, measured, [r for r in rs if r.source not in MEASURED], "measured")
+        return _settled(key, measured, [r for r in rs if r.source not in MEASURED] + claims, "measured")
     groups = sorted(_groups(rs), key=lambda g: -len({r.source for r in g}))
+    value = groups[0][0].value
+    agree, disagree = [r for r in claims if _agrees(r, value)], [r for r in claims if not _agrees(r, value)]
     if len(groups) > 1:
-        return Fact(key, groups[0][0].value, "conflict", groups[0], [r for g in groups[1:] for r in g])
+        return Fact(key, value, "conflict", groups[0] + agree, [r for g in groups[1:] for r in g] + disagree)
     level = "corroborated" if len({r.source for r in groups[0]}) >= 2 else "single"
-    return Fact(key, groups[0][0].value, level, groups[0], [])
+    return Fact(key, value, level, groups[0] + agree, disagree)
 
 
 def sheet(readings: Iterable[Reading]) -> Dict[str, Fact]:
@@ -119,6 +145,11 @@ def sheet(readings: Iterable[Reading]) -> Dict[str, Fact]:
 
 def usable(facts: Dict[str, Fact]) -> Dict[str, Fact]:
     return {k: f for k, f in facts.items() if f.usable}
+
+
+def claims(facts: Dict[str, Fact]) -> Dict[str, Fact]:
+    """Confirmed brochure claims nothing else states: posts use them only attributed."""
+    return {k: f for k, f in facts.items() if f.attributed}
 
 
 def conflicts(facts: Dict[str, Fact]) -> List[Fact]:

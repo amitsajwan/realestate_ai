@@ -6,18 +6,22 @@ same for a project's own page.
 `router` (mounted at /api/v1/listings, bearer auth, owner only): `POST /{listing_id}/campaign` starts marketing a listing
 (step 1 facts and page, then step 2 posts; see jobs.py), `GET /{listing_id}/campaign` its latest run,
 `POST /{listing_id}/campaign/calendar` sends its posts to the approval calendar (schedule.py),
-`PATCH /{listing_id}/campaign/posts/{angle}` saves an edited caption, `POST .../posts/{angle}/redo` remakes it with a note."""
-from typing import Literal, Optional
+`PATCH /{listing_id}/campaign/posts/{angle}` saves an edited caption, `POST .../posts/{angle}/redo` remakes it with a note.
+The builder's brochure (brochure.py), same auth, the agent's own listing only: `POST /{listing_id}/brochure` (multipart `file`)
+reads it into a kit, `GET /{listing_id}/brochure` the kit (404 when none), `PATCH .../brochure/facts/{fact_id}` confirms, drops
+or edits a fact, `POST .../brochure/registration` keeps the agent's "registered or exempt" answer, `GET .../pages/{n}.jpg` a
+page's thumbnail."""
+from typing import Any, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
 
 from app.core.auth_backend import current_active_user
 from app.core.database import get_database
 from app.models.user import User
 
-from . import jobs
-
+from . import brochure, jobs
 from .public import view
 from .store import FactsStore
 
@@ -128,3 +132,75 @@ async def redo_post(listing_id: str, angle: str, body: RedoIn, request: Request,
     except jobs.RunError as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     return {"run": jobs.run_out(doc, str(request.base_url)), "synced": doc.get("synced", 0)}
+
+
+# ---- the builder's brochure (brochure.py): read it, confirm its facts, answer the registration question ------------------
+class FactStateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    state: Literal["confirmed", "dropped", "pending"]
+    value: Any = None
+
+
+class RegistrationIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    status: Literal["registered", "exempt"]
+    rera_no: Optional[str] = None
+
+
+def get_brochures() -> brochure.Brochures:
+    return brochure.default_brochures()
+
+
+@router.post("/{listing_id}/brochure")
+async def upload_brochure(listing_id: str, file: UploadFile = File(...), user: User = Depends(current_active_user),
+                          kits: brochure.Brochures = Depends(get_brochures)) -> dict:
+    """Read the builder's brochure (PDF, up to 40 pages and 30 MB) into the listing's kit of facts to confirm."""
+    data = await file.read(brochure.MAX_BYTES + 1)
+    try:
+        doc = await kits.upload(str(user.id), listing_id, file.filename or "brochure.pdf", data)
+    except brochure.BrochureError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    return brochure.kit_out(doc)
+
+
+@router.get("/{listing_id}/brochure")
+async def get_brochure(listing_id: str, user: User = Depends(current_active_user),
+                       kits: brochure.Brochures = Depends(get_brochures)) -> dict:
+    try:
+        return brochure.kit_out(await kits.get(str(user.id), listing_id))
+    except brochure.BrochureError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+
+
+@router.patch("/{listing_id}/brochure/facts/{fact_id}")
+async def set_brochure_fact(listing_id: str, fact_id: str, body: FactStateIn, user: User = Depends(current_active_user),
+                            kits: brochure.Brochures = Depends(get_brochures)) -> dict:
+    """Confirm, drop or reopen one fact; a `value` replaces what was read (the page and quote stay, `edited` is set)."""
+    try:
+        doc = await kits.set_fact(str(user.id), listing_id, fact_id, body.state, body.value,
+                                  has_value="value" in body.model_fields_set)
+    except brochure.BrochureError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    return brochure.kit_out(doc)
+
+
+@router.post("/{listing_id}/brochure/registration")
+async def answer_brochure_registration(listing_id: str, body: RegistrationIn, user: User = Depends(current_active_user),
+                                       kits: brochure.Brochures = Depends(get_brochures)) -> dict:
+    """The agent's answer to "registered on MahaRERA, or exempt?", kept on the kit."""
+    try:
+        doc = await kits.answer_registration(str(user.id), listing_id, body.status, body.rera_no)
+    except brochure.BrochureError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    return brochure.kit_out(doc)
+
+
+@router.get("/{listing_id}/brochure/pages/{n}.jpg")
+async def brochure_page(listing_id: str, n: int, user: User = Depends(current_active_user),
+                        kits: brochure.Brochures = Depends(get_brochures)) -> FileResponse:
+    """A page's thumbnail (pages count from 1), for the confirm screen."""
+    try:
+        path = await kits.page_image(str(user.id), listing_id, n)
+    except brochure.BrochureError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=3600"})
