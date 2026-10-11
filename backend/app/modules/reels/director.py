@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
-from . import ffmpeg, voice
+from . import ffmpeg, narration
 from .compose import Scene, TextLine, make_reel, photo_plan, plan, stretch
 
 END_SECONDS = 2.6   # length of the optional end card (reels have none by default)
@@ -87,15 +87,11 @@ def build(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opti
     beats, picks = fit_beats(script, photos)
     work = Path(tempfile.mkdtemp(prefix="reel-"))
     clips, durs = [], []
-    for i, b in enumerate(beats):
-        if not voiced:
-            durs.append(2.6 if i == 0 else 3.0)
-            continue
-        mp3 = work / f"b{i}.mp3"
-        mp3.write_bytes(voice.synth(b["voice"], lang))
-        d = ffmpeg.probe(mp3).duration
-        clips.append(mp3)
-        durs.append(max(2.2, d + 0.55))
+    if voiced:
+        clips, _ = narration.voice_lines([b["voice"] for b in beats], lang, work)
+        durs = [max(2.2, ffmpeg.probe(c).duration + 0.55) for c in clips]
+    else:
+        durs = [2.6 if i == 0 else 3.0 for i in range(len(beats))]
     durs = stretch(durs, XFADE)
     scenes = []
     for i, b in enumerate(beats):
@@ -106,23 +102,9 @@ def build(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opti
     if not voiced:
         return make_reel(scenes, out_path, transition="slide", xfade=XFADE)
     tl = plan(durs, XFADE)   # no end card: the last scene (with the brand mark) loops back to the hook
-    # narration: each line starts just after its scene appears; one track as long as the whole reel
-    inputs, filters = [], []
-    for i, c in enumerate(clips):
-        inputs += ["-i", str(c)]
-        ms = int((tl.starts[i] + (0.35 if i == 0 else 0.25)) * 1000)
-        filters.append(f"[{i}:a]adelay={ms}|{ms},aresample=48000[a{i}]")
-    mix = "".join(f"[a{i}]" for i in range(len(clips)))
-    filters.append(f"{mix}amix=inputs={len(clips)}:normalize=0,apad=whole_dur={tl.total:.2f},volume=1.35[voice]")
+    bed = None
     if with_music:
         from .music import write as write_music
         bed = write_music(work / "bed.wav", seconds=tl.total + 1.0)
-        inputs += ["-i", str(bed)]
-        m = len(clips)
-        filters.append(f"[{m}:a]aresample=48000,volume=0.22[bed]")
-        filters.append("[voice][bed]amix=inputs=2:normalize=0:duration=first[out]")
-    else:
-        filters[-1] = filters[-1].replace("[voice]", "[out]")
-    narration = work / "narration.m4a"
-    ffmpeg.run([*inputs, "-filter_complex", ";".join(filters), "-map", "[out]", "-t", f"{tl.total:.2f}", "-c:a", "aac", "-b:a", "160k", str(narration), "-y"])
-    return make_reel(scenes, out_path, music=narration, transition="slide", xfade=XFADE)
+    audio = narration.mix(work, clips, tl.starts, tl.total, bed)   # the voice in one take where it cuts cleanly, the music ducked under it
+    return make_reel(scenes, out_path, music=audio, transition="slide", xfade=XFADE)

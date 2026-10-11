@@ -249,7 +249,7 @@ def test_compose_allows_a_rera_number_but_not_a_phone_number():
 # ---- render() with compose, voice and ffmpeg stubbed ----------------------------------------------------------------------
 @pytest.fixture
 def stubs(monkeypatch):
-    seen = {"ffmpeg": [], "synth": []}
+    seen = {"ffmpeg": [], "synth": [], "takes": []}
 
     def make_reel(scenes, out, music=None, **kw):
         seen["scenes"], seen["music"] = scenes, Path(music)
@@ -263,8 +263,8 @@ def stubs(monkeypatch):
         Path(args[-2]).write_bytes(b"m4a")  # the narration output
         return ""
 
-    def synth(text, lang):
-        seen["synth"].append((text, lang))
+    def synth(text, lang, ssml=False):
+        (seen["takes"] if ssml else seen["synth"]).append((text, lang))
         return b"mp3"
 
     monkeypatch.setattr(lr, "make_reel", make_reel)
@@ -289,6 +289,7 @@ def test_render_voiced_mixes_voice_and_music_and_closes_with_listed_by(tmp_path,
     assert scenes[0].kicker == "KHARADI" and scenes[1].kicker is None
     assert [l.text for l in scenes[-1].lines[1:]] == ["Listed by Rahul Homes", "RERA A51800012345"]
     assert all(s.seconds == pytest.approx(3.05) for s in scenes)
+    assert [l for _, l in stubs["takes"]] == ["hi"]             # one take was tried first; the stub's audio does not cut
     assert [l for _, l in stubs["synth"]] == ["hi"] * 5 and stubs["ffmpeg"] and stubs["music"].suffix == ".m4a"
     compose._no_phone_numbers(scenes)  # the renderer's own phone check accepts the RERA number
 
@@ -296,11 +297,11 @@ def test_render_voiced_mixes_voice_and_music_and_closes_with_listed_by(tmp_path,
 def test_render_without_the_voice_key_is_music_only_and_says_so(tmp_path, stubs):
     out = lr.render(_script(), ["a.jpg", "b.jpg"], "en", tmp_path / "r.mp4", voiced=False)
     assert out["audio"] == "music" and out["note"] == lr.NO_VOICE_NOTE
-    assert not stubs["synth"] and not stubs["ffmpeg"] and stubs["music"].suffix == ".wav"
+    assert not stubs["synth"] and not stubs["takes"] and not stubs["ffmpeg"] and stubs["music"].suffix == ".wav"
 
 
 def test_render_falls_back_to_music_when_the_voice_service_fails(tmp_path, stubs, monkeypatch):
-    def boom(text, lang):
+    def boom(text, lang, ssml=False):
         raise lr.voice.VoiceError("HTTP 403")
     monkeypatch.setattr(lr.voice, "synth", boom)
     out = lr.render(_script(), ["a.jpg", "b.jpg"], "en", tmp_path / "r.mp4", voiced=True)
@@ -491,7 +492,7 @@ def test_render_stack_puts_every_beat_in_one_list_over_the_walkthrough_and_speak
     assert list(scene.image_at) == pytest.approx(starts[1:])                           # the photo changes with the line
     assert scene.seconds == pytest.approx(5 * 3.05) and scene.kicker == "KHARADI"
     assert [l for _, l in stubs["synth"]] == ["mr"] * 5 and stubs["music"].suffix == ".m4a"
-    delays = re.findall(r"adelay=(\d+)", " ".join(stubs["ffmpeg"][0]))
+    delays = re.findall(r"adelay=(\d+)", " ".join(stubs["ffmpeg"][-1]))
     assert [int(d) for d in delays] == [int((t + (0.35 if i == 0 else 0.25)) * 1000) for i, t in enumerate(starts)]
     compose._no_phone_numbers([scene])
     with pytest.raises(ValueError):

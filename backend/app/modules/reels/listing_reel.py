@@ -5,8 +5,9 @@ POST /listings/{id}/reel {lang} queues a job; the worker renders ONE job at a ti
   * a script from the listing's facts and its `about` only (an LLM writes it, director._valid checks it: no invented numbers,
     no phone numbers, Roman on-screen text; otherwise a rules script built from the same facts),
   * 'Listed by <business> · RERA <no>' on the closing scene (never a phone number), with the small Avasetu mark (no end card),
-  * a voiceover in English, Hindi or Marathi (Google TTS) with Hinglish/Roman on-screen text (the renderer cannot shape
-    Devanagari), over our own generated music bed. Without the TTS key the reel is made with music only, and the job says so.
+  * a voiceover in English, Hindi or Marathi (Google TTS, the script in one take when it cuts cleanly, see reels.narration)
+    with Hinglish/Roman on-screen text (the renderer cannot shape Devanagari), over our own generated music bed, which steps
+    back while the voice speaks. Without the TTS key the reel is made with music only, and the job says so.
 A sample listing (title starting 'Sample', e.g. the demo agent's) gets no reel: reels are for real homes.
 
 Limits: 5 reels per agent per rolling 24 hours (failed ones do not count), one active job per listing + language (a re-request
@@ -31,7 +32,7 @@ from app.core import brand
 from app.modules.marketing.facts import T, Facts
 from app.modules.marketing.images import latin, local_upload_path
 
-from . import ffmpeg, voice
+from . import ffmpeg, narration, voice
 from .compose import Scene, TextLine, make_reel, plan, stretch
 from .director import CTA_SCREEN, CTA_VOICE, XFADE, _valid, fit_beats
 
@@ -58,7 +59,10 @@ SYSTEM = (
     "Rules: 4 beats. beat 1 is the hook: what the home is and where, said so a buyer stops scrolling. "
     "screen: at most 6 words, Roman letters only (English, or Hinglish for Hindi and Marathi), wrap ONE key word in *stars*. "
     "voice: one natural spoken sentence of at most 16 words in the requested voice language (Hindi = Devanagari script, "
-    "Marathi = Devanagari, English = English). Write numbers as digits exactly as they appear in the facts. "
+    "Marathi = Devanagari, English = English), said the way a person talks to a friend, not read off a form: "
+    "'the carpet area is 780 square feet, on the 7th floor of a 22-storey building', never labels such as 'floor 7, total 22'. "
+    "The four lines are one take read in a row, so they should flow from one to the next. "
+    "Write numbers as digits exactly as they appear in the facts. "
     "Use ONLY the facts given: never invent numbers, distances, prices, schools, builders, views or promises. "
     "Never mention phone numbers, names of people or the agent. "
     "Plain, calm words: no sales words such as only, just, best, hurry, grab or limited. "
@@ -146,6 +150,25 @@ _WORDS = {
            "cta_s": CTA_SCREEN["mr"], "cta_v": CTA_VOICE["mr"], "with": "सोबत", "in": "{l} madhye {w}"},
 }
 _KIND = {"hi": {"carpet": "कार्पेट", "super built-up": "सुपर बिल्ट-अप"}, "mr": {"carpet": "कार्पेट", "super built-up": "सुपर बिल्ट-अप"}}
+# Spoken Hindi and Marathi: whole sentences a person would say ("the carpet area is 780 square feet, on the 7th floor of a
+# 22-storey building"), never labels ("मजला 7, एकूण 22"). The same facts and numbers as the screen text.
+_SAY = {
+    "hi": {"hook": "{l} में एक {w}, {tx}।", "hook_nl": "एक {w}, {tx}।", "sale": "कीमत है {p}।", "rent": "किराया है {p}।",
+           "area": "{k} एरिया है {a} स्क्वेयर फीट", "it": "यह", "and": "और",
+           "floor_of": "यह {t} मंज़िला बिल्डिंग में {at} है", "floor": "यह {at} है", "ground": "ग्राउंड फ्लोर पर",
+           "at": "{n} मंज़िल पर", "ord": {1: "पहली", 2: "दूसरी", 3: "तीसरी", 4: "चौथी", 6: "छठी"}, "ord_n": "{n}वीं",
+           "poss": {"ready": "यह रेडी टू मूव है", "under_construction": "यह अभी निर्माणाधीन है"},
+           "furn": {"unfurnished": "बिना फर्नीचर है", "semi": "सेमी-फर्निश्ड है", "furnished": "फर्निश्ड है"},
+           "amen": "साथ में {a} की सुविधा भी है", "amen_only": "यहाँ {a} की सुविधा है"},
+    "mr": {"hook": "{l} मध्ये एक {w}, {tx}.", "hook_nl": "एक {w}, {tx}.", "sale": "किंमत आहे {p}.", "rent": "भाडं आहे {p}.",
+           "area": "{k} एरिया आहे {a} स्क्वेअर फूट", "it": "हे", "and": "आणि",
+           "floor_of": "हे {t} मजली इमारतीत {at} आहे", "floor": "हे {at} आहे", "ground": "ग्राउंड फ्लोअरवर",
+           "at": "{n} मजल्यावर", "ord": {1: "पहिल्या", 2: "दुसऱ्या", 3: "तिसऱ्या", 4: "चौथ्या"}, "ord_n": "{n}व्या",
+           "poss": {"ready": "हे रेडी टू मूव आहे", "under_construction": "याचं बांधकाम सुरू आहे"},
+           "furn": {"unfurnished": "अनफर्निश्ड आहे", "semi": "सेमी-फर्निश्ड आहे", "furnished": "फर्निश्ड आहे"},
+           "amen": "सोबत {a} अशा सुविधा आहेत", "amen_only": "इथे {a} अशा सुविधा आहेत",
+           "amen_one": "सोबत {a} ची सुविधा आहे", "amen_one_only": "इथे {a} ची सुविधा आहे"},   # one amenity
+}
 
 
 def _spoken_price(f: Facts, lang: str) -> str:
@@ -170,33 +193,88 @@ def _short(text: str, words: int = 6) -> str:
     return " ".join(latin(text).split()[:words])
 
 
+def _say_and(items: List[str], lang: str) -> str:
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + f" {_SAY[lang]['and']} " + items[-1]
+
+
+def _say_hook(f: Facts, lang: str) -> str:
+    """'Kharadi, Pune में एक 2 BHK अपार्टमेंट, बिक्री के लिए।'"""
+    if lang not in _SAY:
+        return f.title_line(lang) + _end(lang)
+    w = (f"{f.bhk_text} " if f.bhk_text else "") + f.type_text(lang)
+    loc, tx = f.loc or f.city or "", T[lang]["tx"][f.transaction]
+    return (_SAY[lang]["hook"].format(l=loc, w=w, tx=tx) if loc else _SAY[lang]["hook_nl"].format(w=w, tx=tx))
+
+
+def _say_floor(f: Facts, lang: str) -> Optional[str]:
+    """'यह 22 मंज़िला बिल्डिंग में 7वीं मंज़िल पर है' / 'हे 22 मजली इमारतीत 7व्या मजल्यावर आहे'."""
+    if f.floor is None or f.floor < 0:
+        return f.floor_text(lang)
+    say = _SAY[lang]
+    at = say["ground"] if f.floor == 0 else say["at"].format(n=say["ord"].get(f.floor) or say["ord_n"].format(n=f.floor))
+    return say["floor_of"].format(t=f.total_floors, at=at) if f.total_floors else say["floor"].format(at=at)
+
+
+def _say_size(f: Facts, lang: str) -> str:
+    say = _SAY[lang]
+    kind = f.area_kind or "carpet"
+    parts = [say["area"].format(a=f"{f.area:,}", k=_KIND[lang].get(kind, kind))] if f.area else []
+    floor = _say_floor(f, lang)
+    if floor:
+        parts.append(floor)
+    return f", {say['and']} ".join(parts) + _end(lang)
+
+
+def _say_features(f: Facts, lang: str, amen: List[str]) -> str:
+    """'यह रेडी टू मूव है, सेमी-फर्निश्ड है, साथ में Gym, Parking और Lift की सुविधा भी है।'"""
+    say = _SAY[lang]
+    parts = [say["poss"].get(f.possession or "") or f.possession_text(lang) or ""]
+    furn = say["furn"].get(f.furnishing or "")
+    if furn:
+        parts.append(furn if parts[0] else f"{say['it']} {furn}")
+    parts = [x for x in parts if x]
+    if not amen:
+        return _say_and(parts, lang) + _end(lang)
+    key = "amen_one" if len(amen) == 1 and "amen_one" in say else "amen"
+    parts.append(say[key if parts else key + "_only"].format(a=_say_and(amen, lang)))
+    return ", ".join(parts) + _end(lang)
+
+
 def rules_script(f: Facts, lang: str) -> Dict:
-    """A plain script from the facts alone: hook, price, size and floor, features (3 to 4 beats) and the comment call."""
+    """A plain script from the facts alone: hook, price, size and floor, features (3 to 4 beats) and the comment call.
+    Hindi and Marathi lines are spoken sentences (_SAY), not labels."""
     w = _WORDS[lang]
     what = latin(f.bhk_text or f.type_text("en").title())
     place = _short(f.locality or f.city or "", 3)
     hook_s = w["in"].format(w=f"*{what}*", l=place) if place else f"*{what}*"
-    beats = [{"screen": hook_s, "voice": f.title_line(lang) + _end(lang)}]
+    beats = [{"screen": hook_s, "voice": _say_hook(f, lang)}]
     if f.price_text:
-        beats.append({"screen": f"*{f.price_text}*", "voice": w["price"].format(p=_spoken_price(f, lang))})
+        said = _SAY[lang]["rent" if f.rent else "sale"] if lang in _SAY else w["price"]
+        beats.append({"screen": f"*{f.price_text}*", "voice": said.format(p=_spoken_price(f, lang))})
     if f.area or f.floor is not None:
         # commas, not ' · ': the renderer wraps on spaces, so a lone dot could start the next line
         screen = ", ".join(x for x in [f"*{f.area:,}* sq ft" if f.area else "", f.floor_text("en") or ""] if x)
-        kind = f.area_kind or "carpet"
-        spoken = [w["area"].format(a=f"{f.area:,}", k=_KIND.get(lang, {}).get(kind, kind))] if f.area else []
-        if f.floor_text(lang):
-            spoken.append(("on " + f.floor_text(lang).lower()) if lang == "en" and spoken else f.floor_text(lang))
-        beats.append({"screen": screen, "voice": ", ".join(spoken) + _end(lang)})
+        if lang in _SAY:
+            beats.append({"screen": screen, "voice": _say_size(f, lang)})
+        else:
+            kind = f.area_kind or "carpet"
+            spoken = [w["area"].format(a=f"{f.area:,}", k=kind)] if f.area else []
+            if f.floor_text(lang):
+                spoken.append(("on " + f.floor_text(lang).lower()) if spoken else f.floor_text(lang))
+            beats.append({"screen": screen, "voice": ", ".join(spoken) + _end(lang)})
     feats_en = [x for x in (f.possession_text("en"), T["en"]["furn"].get(f.furnishing or "")) if x]
     amen = [latin(a) for a in f.amenities if latin(a)][:3]
     if feats_en or amen:
         screen_bits = [_short(x, 3) for x in (feats_en[:1] + amen)[:3]]
         screen_bits[-1] = f"*{screen_bits[-1]}*"
-        spoken = [x for x in (f.possession_text(lang), T[lang]["furn"].get(f.furnishing or "")) if x]
-        if amen:
-            spoken.append(f"with {_join_and(amen)}" if lang == "en" else f"{w['with']} " + ", ".join(amen))
-        text = ", ".join(x[:1].lower() + x[1:] if lang == "en" else x for x in spoken)
-        beats.append({"screen": ", ".join(screen_bits), "voice": text[:1].upper() + text[1:] + _end(lang)})
+        if lang in _SAY:
+            beats.append({"screen": ", ".join(screen_bits), "voice": _say_features(f, lang, amen)})
+        else:
+            spoken = [x for x in (f.possession_text(lang), T[lang]["furn"].get(f.furnishing or "")) if x]
+            if amen:
+                spoken.append(f"with {_join_and(amen)}")
+            text = ", ".join(x[:1].lower() + x[1:] for x in spoken)
+            beats.append({"screen": ", ".join(screen_bits), "voice": text[:1].upper() + text[1:] + _end(lang)})
     if f.highlights and len(beats) < 4 and latin(f.highlights[0]):
         h = latin(f.highlights[0])
         beats.append({"screen": _short(h, 6), "voice": h if lang == "en" else f.highlights[0]})
@@ -257,21 +335,8 @@ def _stack_scene(beats: List[Dict], picks: Sequence, durs: Sequence[float], badg
 
 
 def _narration(work: Path, clips: Sequence[Path], starts: Sequence[float], total: float, bed: Path) -> Path:
-    """The voice lines, each placed at its start, mixed over the music bed."""
-    inputs, filters = [], []
-    for i, c in enumerate(clips):
-        inputs += ["-i", str(c)]
-        ms = int((starts[i] + (0.35 if i == 0 else 0.25)) * 1000)
-        filters.append(f"[{i}:a]adelay={ms}|{ms},aresample=48000[a{i}]")
-    mix = "".join(f"[a{i}]" for i in range(len(clips)))
-    filters.append(f"{mix}amix=inputs={len(clips)}:normalize=0,apad=whole_dur={total:.2f},volume=1.35[voice]")
-    inputs += ["-i", str(bed)]
-    filters.append(f"[{len(clips)}:a]aresample=48000,volume=0.22[bed]")
-    filters.append("[voice][bed]amix=inputs=2:normalize=0:duration=first[out]")
-    audio = work / "narration.m4a"
-    ffmpeg.run([*inputs, "-filter_complex", ";".join(filters), "-map", "[out]", "-t", f"{total:.2f}",
-                "-c:a", "aac", "-b:a", "160k", str(audio), "-y"])
-    return audio
+    """The voice lines, each placed at its start, over the music bed, which steps back while the voice speaks."""
+    return narration.mix(work, clips, starts, total, bed)
 
 
 def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Optional[str] = None, kicker: Optional[str] = None,
@@ -289,11 +354,9 @@ def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opt
         durs: List[float] = []
         if voiced:
             try:
-                for i, b in enumerate(beats):
-                    mp3 = work / f"b{i}.mp3"
-                    mp3.write_bytes(voice.synth(b["voice"], lang))
-                    clips.append(mp3)
-                    durs.append(max(2.2, ffmpeg.probe(mp3).duration + 0.55))
+                clips, how = narration.voice_lines([b["voice"] for b in beats], lang, work)
+                durs = [max(2.2, ffmpeg.probe(c).duration + 0.55) for c in clips]
+                log.info("listing reel voice-over: %s", "one take" if how == "take" else "line by line")
             except voice.VoiceError:
                 voiced, clips, note = False, [], VOICE_FAILED_NOTE
         if not voiced:
@@ -547,11 +610,17 @@ def ensure_worker() -> Optional[asyncio.Task]:
     return _task
 
 
-def caption(listing: dict, attribution: str) -> str:
-    """Caption for posting the reel on the Avasetu pages: what and where, price, the 'Listed by' attribution, the brand."""
+_CAPTION_KIND = {"en": {"carpet": "carpet", "super built-up": "super built-up"}, "hi": _KIND["hi"], "mr": _KIND["mr"]}
+
+
+def caption(listing: dict, attribution: str, lang: str = "en") -> str:
+    """Caption for posting the reel on the Avasetu pages, in the reel's language: what and where, price and area, the
+    'Listed by' attribution, the brand. The same facts in every language; never a phone number."""
+    lang = lang if lang in LANGS else "en"
     f = Facts.from_docs(listing, None, "")
-    bits = " · ".join(x for x in (f.price_text, f.area_text and f"{f.area_text} {f.area_kind}") if x)
-    lines = [f.title_line("en") + (f"\n{bits}" if bits else "")]
+    kind = _CAPTION_KIND[lang].get(f.area_kind or "", f.area_kind or "")
+    bits = " · ".join(x for x in (f.price_text, f.area_text and f"{f.area_text} {kind}".strip()) if x)
+    lines = [f.title_line(lang) + (f"\n{bits}" if bits else "")]
     if attribution:
         lines.append(attribution)
     lines.append(f"{brand.NAME} · {brand.TAGLINE} {brand.HASHTAG}")

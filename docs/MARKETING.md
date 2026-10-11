@@ -249,8 +249,8 @@ Found while building the stacked reels. Most impact first.
 
 | What | Why it matters | Size |
 |---|---|---|
-| Walkthrough caption is built in English (`listing_reel.caption`) | Marathi and Hindi campaigns get an English caption under a native voice-over | Small |
-| Voice-over sounds machine-made | Each line is synthesised on its own (intonation resets every line); the script reads like a form ("मजला 7, एकूण 22"); the voice sits flat over the music. Fix: one take for the whole script, cut into lines; conversational Hindi and Marathi script rules (facts only); music ducking under the voice. A cloned or custom voice must be a consenting person's, and realistic AI audio gets Meta's AI label. | Medium |
+| DONE: walkthrough caption in the reel's language | `listing_reel.caption(listing, attribution, lang)`: the title line in English, Hindi or Marathi, the same price and area, 'Listed by' and RERA as before. The campaign and the concierge pass the reel's language | Small |
+| DONE: voice-over sounds more natural | `reels/narration.py`: the whole script in one request (SSML with a 1.2 s `<break>` between lines; Chirp 3 HD voices take `<break>`, `<prosody>` and `<voice>`, not `<mark>`, so there are no timepoints), cut at those pauses and each line placed at its beat; when the cut does not give one piece per line, each line is synthesised on its own as before. The music is ducked under the voice (`sidechaincompress`) and comes back between lines and at the end. Hindi and Marathi rules lines are spoken sentences ("कार्पेट एरिया आहे 780 स्क्वेअर फूट, आणि हे 22 मजली इमारतीत 7व्या मजल्यावर आहे"), and the LLM prompt asks for the same. Same voice and free tier. A cloned or custom voice must be a consenting person's, and realistic AI audio gets Meta's AI label. | Medium |
 | No Devanagari font for reel text | On-screen text cannot be Marathi or Hindi | Medium |
 | No control to pick the reel style in the app | The backend takes `style`, the frontend does not send it | Small |
 | No buyer-requirement post type | "Wanted" posts draw replies from sellers and brokers; only the reel template exists | Small to medium |
