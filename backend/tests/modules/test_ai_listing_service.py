@@ -441,7 +441,8 @@ async def test_fallback_llm_uses_the_next_provider_when_the_first_has_no_answer(
         async def text(self, s, u, timeout=None): return self.out
 
     assert await FallbackLLM([P(None), P({"ok": 1})]).json("s", "u") == {"ok": 1}
-    assert await FallbackLLM([P({"a": 1}), P({"b": 2})]).json("s", "u") == {"a": 1}
+    two = [P({"a": 1}), P({"b": 2})]   # calls take turns over the providers: two calls, one answer from each
+    assert sorted([str(await FallbackLLM(two).json("s", "u")) for _ in range(2)]) == ["{'a': 1}", "{'b': 2}"]
     assert await FallbackLLM([P(None), P(None)]).text("s", "u") is None
 
 
