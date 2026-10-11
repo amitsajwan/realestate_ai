@@ -144,7 +144,7 @@ export const LANDING = {
     items: [
       {
         q: 'How do I start?',
-        a: 'Tap Claim your free trial and leave your number. Your sign-up code comes on WhatsApp, usually the same day; sign in and add your first property.',
+        a: 'Tap Claim your free trial and send TRIAL on WhatsApp. Your sign-up code comes back at once; sign in and add your first property.',
       },
       {
         q: 'Is it really free?',
@@ -190,7 +190,7 @@ export const INVITE = {
   metaTitle: 'Ask us to call you | Free trial for real estate agents in Pune',
   metaDescription: 'Leave your number and we call you back about your free trial: 1 month free, every property.',
   title: 'Ask us to call you',
-  lead: 'Free trial for real estate agents in Pune: 1 month free, every property, no card. Open to the first 20 Pune agents. Leave your number and we will send your sign-up code on WhatsApp, usually the same day.',
+  lead: 'Free trial for real estate agents in Pune: 1 month free, every property, no card. Open to the first 20 Pune agents. Send TRIAL on WhatsApp and your sign-up code comes back at once.',
   labels: {
     name: 'Your name',
     phone: 'Mobile number',
