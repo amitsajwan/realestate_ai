@@ -13,6 +13,7 @@ LAYOUTS: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...], Tuple[str, ...]]] = {
     "photo_led": (("single",), ("buyer",), ("navy_gold", "navy_teal", "navy_coral")),
     "product_showcase": (("single",), ("agent",), ("navy_gold", "navy_teal", "navy_coral")),
     "quote_tip": (("single",), ("buyer", "agent"), PALETTE_IDS),
+    "plan_full": (("plan",), ("buyer", "agent"), ("navy_gold", "navy_teal", "navy_coral")),
 }
 
 

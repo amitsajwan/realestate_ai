@@ -7,6 +7,10 @@ layer, and the listing gets a kit of fact candidates the agent confirms, fixes o
     level   -> every candidate is a `builder_claim`, pending until the agent confirms it. Only confirmed claims reach the fact
                sheet (`readings`), where they never override MahaRERA or the listing, and posts say "as per the builder's
                brochure" whenever they use them (campaign.py)
+    images  -> a page whose text says it is a floor plan, master plan, location map or an artist's impression
+               (brochure_parse.image_kind) is also kept as a large JPEG (i<page>.jpg, IMAGE_LONG_SIDE px), pending until the
+               agent says "use" or "don't use". A confirmed floor plan can carry a post (campaign.floor_plan); a confirmed
+               render is only ever shown labelled "Artist's impression" and never in the walkthrough reel (S4)
     MahaRERA-> a registration number in the brochure is looked up. MahaRERA not returning it means `unverified`: held for the
                agent, never posted as registered. No number and no record means `unknown`, and the agent is asked whether the
                project is registered or exempt (RERA Act section 3)
@@ -39,6 +43,8 @@ LLM_BUDGET_S = 12.0      # the optional model pass; past it the rules' findings 
 LOOKUP_BUDGET_S = 25.0   # the MahaRERA check; past it the number stays unverified
 THUMB_WIDTH = 360
 THUMB_MAX_HEIGHT = 1000
+IMAGE_LONG_SIDE = 1600   # a plan, map or render kept as an image: its long side in pixels
+IMAGE_QUALITY = 85
 SOURCE = "brochure"
 ATTRIBUTION = "as per the builder's brochure"
 STATES = ("pending", "confirmed", "dropped")
@@ -62,6 +68,7 @@ class PdfRead:
     image_only: List[int] = field(default_factory=list)
     error: str = ""
     too_many: bool = False  # over the page limit: the upload is refused, not kept as a failed kit
+    images: List[Tuple[int, str, List[str]]] = field(default_factory=list)  # (page, kind, configurations named on it)
 
 
 def _safe(s: str) -> str:
@@ -70,8 +77,9 @@ def _safe(s: str) -> str:
 
 def read_pdf(data: bytes, thumbs: Optional[Path] = None, max_pages: int = MAX_PAGES, budget_s: float = READ_BUDGET_S,
              clock: Callable[[], float] = time.monotonic) -> PdfRead:
-    """The text of every page and, with `thumbs`, a JPEG per page (p1.jpg, p2.jpg...). Never raises: a file pdfium cannot
-    open, a password, too many pages or too long a read come back as `error`."""
+    """The text of every page and, with `thumbs`, a JPEG per page (p1.jpg, p2.jpg...) plus a large JPEG of each page that
+    holds a plan, map or render (i3.jpg: `images`). Never raises: a file pdfium cannot open, a password, too many pages or
+    too long a read come back as `error`."""
     import pypdfium2 as pdfium  # heavy optional library, loaded on first use
 
     out = PdfRead()
@@ -107,11 +115,17 @@ def read_pdf(data: bytes, thumbs: Optional[Path] = None, max_pages: int = MAX_PA
                         out.image_only.append(i + 1)
                     else:
                         out.texts[i + 1] = text
+                    kind = bp.image_kind(text)
                     if thumbs is not None:
                         w, h = page.get_size()
                         scale = min(THUMB_WIDTH / max(w, 1.0), THUMB_MAX_HEIGHT / max(h, 1.0))
                         img = page.render(scale=scale, may_draw_forms=False).to_pil()
                         img.convert("RGB").save(thumbs / f"p{i + 1}.jpg", "JPEG", quality=70)
+                        if kind:
+                            big = page.render(scale=IMAGE_LONG_SIDE / max(w, h, 1.0), may_draw_forms=False).to_pil()
+                            big.convert("RGB").save(thumbs / f"i{i + 1}.jpg", "JPEG", quality=IMAGE_QUALITY, optimize=True)
+                    if kind:
+                        out.images.append((i + 1, kind, bp.plan_configs(text) if kind == "floor_plan" else []))
                 finally:
                     page.close()
         except pdfium.PdfiumError:
@@ -130,11 +144,18 @@ def _iso(dt: Any) -> Optional[str]:
     return dt.replace(microsecond=0).isoformat() + "Z"
 
 
+def image_url(listing_id: str, image_id: str) -> str:
+    return f"/api/v1/listings/{listing_id}/brochure/images/{image_id}.jpg"
+
+
 def kit_out(doc: Optional[dict]) -> Optional[dict]:
     """The kit as the API returns it (the contract the confirm screen is built on)."""
     if not doc:
         return None
     reg = doc.get("registration") or {}
+    images = [{"id": im["id"], "page": im["page"], "kind": im["kind"], "label": im.get("label") or None,
+               "url": image_url(doc["listing_id"], im["id"]), "state": im.get("state") or "pending"}
+              for im in doc.get("images") or []]
     out = {"id": doc["_id"], "listing_id": doc["listing_id"], "filename": doc.get("filename") or "",
            "pages": int(doc.get("pages") or 0), "image_only_pages": list(doc.get("image_only_pages") or []),
            "status": doc.get("status") or "failed", "read_at": _iso(doc.get("read_at")),
@@ -142,9 +163,31 @@ def kit_out(doc: Optional[dict]) -> Optional[dict]:
                       "quote": f["quote"], "level": "builder_claim", "state": f["state"], "edited": bool(f.get("edited"))}
                      for f in doc.get("facts") or []],
            "registration": {"status": reg.get("status") or "unknown", "rera_no": reg.get("rera_no") or None,
-                            "note": reg.get("note") or ""}}
+                            "note": reg.get("note") or ""},
+           "images": images}
     if doc.get("error"):
         out["error"] = doc["error"]
+    return out
+
+
+def _image_doc(page: int, kind: str, configs: List[str]) -> dict:
+    return {"id": f"i{page}", "page": page, "kind": kind, "state": "pending", "configs": list(configs),
+            "label": bp.ARTISTS_IMPRESSION if kind == "render" else ""}
+
+
+def usable_images(kit: Optional[dict], uploads_dir: Any) -> List[dict]:
+    """The kit's images the agent said to use, whose file is on disk: [{id, page, kind, label, configs, path}]. A render's
+    label is always "Artist's impression"."""
+    if not kit or kit.get("status") != "done":
+        return []
+    folder = Path(uploads_dir) / "brochures" / _safe(kit["listing_id"]) / kit["sha256"]
+    out = []
+    for im in kit.get("images") or []:
+        p = folder / f"{_safe(im['id'])}.jpg"
+        if im.get("state") == "confirmed" and im.get("kind") in bp.IMAGE_KINDS and p.is_file():
+            label = bp.ARTISTS_IMPRESSION if im["kind"] == "render" else (im.get("label") or "")
+            out.append({"id": im["id"], "page": im["page"], "kind": im["kind"], "label": label,
+                        "configs": list(im.get("configs") or []), "path": str(p)})
     return out
 
 
@@ -341,7 +384,7 @@ class Brochures:
         doc: Dict[str, Any] = {"_id": uuid.uuid4().hex, "listing_id": listing_id, "agent_id": agent_id, "sha256": sha,
                                "filename": (filename or "brochure.pdf")[:200], "pages": read.pages,
                                "image_only_pages": read.image_only, "uploaded_at": now, "read_at": now, "facts": [],
-                               "page_types": {}, "used_llm": False}
+                               "page_types": {}, "used_llm": False, "images": []}
         if read.error:
             doc.update(status="failed", error=read.error,
                        registration={"status": "unknown", "rera_no": None, "note": ASK})
@@ -349,6 +392,7 @@ class Brochures:
             return doc
         texts = read.texts
         doc["page_types"] = {str(n): bp.page_type(t, n) for n, t in texts.items()}
+        doc["images"] = [_image_doc(n, kind, configs) for n, kind, configs in read.images]
         rules = bp.extract(sorted(texts.items()))
         model, used = await self._model_facts(texts)
         cands = bp.merge(rules, model)
@@ -428,6 +472,28 @@ class Brochures:
         reg["answer"] = answer
         await self.col.update_one({"_id": kit["_id"]}, {"$set": {"registration": reg}})
         return {**kit, "registration": reg}
+
+    async def set_image(self, agent_id: str, listing_id: str, image_id: str, state: str) -> dict:
+        """Use (confirmed), don't use (dropped) or undecided (pending) for one image from the brochure."""
+        if state not in STATES:
+            raise BrochureError("state is confirmed, dropped or pending.", 422)
+        kit = await self.get(agent_id, listing_id)
+        images = [dict(im) for im in kit.get("images") or []]
+        im = next((x for x in images if x["id"] == image_id), None)
+        if im is None:
+            raise BrochureError("No such image in this brochure.", 404)
+        im.update(state=state, decided_at=self.now())
+        await self.col.update_one({"_id": kit["_id"]}, {"$set": {"images": images}})
+        return {**kit, "images": images}
+
+    async def image_file(self, agent_id: str, listing_id: str, image_id: str) -> Path:
+        kit = await self.get(agent_id, listing_id)
+        if not any(im["id"] == image_id for im in kit.get("images") or []):
+            raise BrochureError("No such image.", 404)
+        p = self._dir(listing_id) / kit["sha256"] / f"{_safe(image_id)}.jpg"
+        if not p.is_file():
+            raise BrochureError("No such image.", 404)
+        return p
 
     async def page_image(self, agent_id: str, listing_id: str, n: int) -> Path:
         kit = await self.get(agent_id, listing_id)

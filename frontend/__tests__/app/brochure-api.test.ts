@@ -149,6 +149,43 @@ test('page thumbnails are fetched once with the token and kept', async () => {
   }
 })
 
+test('images: PATCH the state, GET the JPEG once with the token', async () => {
+  const created = jest.fn(() => 'blob:image-i3')
+  const orig = URL.createObjectURL
+  ;(URL as unknown as { createObjectURL: unknown }).createObjectURL = created
+  try {
+    const { api, calls } = client([ok(kit), ok(undefined)])
+    const k = await api.setImage('L1', 'i3', 'confirmed')
+    expect(k.images?.map((i) => i.id)).toEqual(['i1', 'i7'])
+    expect(calls[0].init.method).toBe('PATCH')
+    expect(calls[0].url).toBe('https://api.test/api/v1/listings/L1/brochure/images/i3')
+    expect(JSON.parse(calls[0].init.body as string)).toEqual({ state: 'confirmed' })
+    expect(await api.image('L1', 'i3')).toBe('blob:image-i3')
+    expect(await api.image('L1', 'i3')).toBe('blob:image-i3')
+    expect(calls).toHaveLength(2)
+    expect(calls[1].url).toBe('https://api.test/api/v1/listings/L1/brochure/images/i3.jpg')
+    expect((calls[1].init.headers as Record<string, string>).Authorization).toBe('Bearer tok')
+  } finally {
+    ;(URL as unknown as { createObjectURL: unknown }).createObjectURL = orig
+  }
+})
+
+test('a missing image is an ApiError and is fetched again next time', async () => {
+  const { api, calls } = client([ok({ detail: 'No such image.' }, 404)])
+  await expect(api.image('L1', 'i9')).rejects.toMatchObject({ status: 404 })
+  await expect(api.image('L1', 'i9')).rejects.toBeInstanceOf(ApiError)
+  expect(calls).toHaveLength(2)
+})
+
+test('fixture fake: images can be used and dropped', async () => {
+  const fx = createFixtureBrochureApi()
+  await fx.upload('L1', pdf())
+  const k = await fx.setImage('L1', 'i7', 'confirmed')
+  expect(k.images?.find((i) => i.id === 'i7')?.state).toBe('confirmed')
+  expect(k.images?.find((i) => i.id === 'i1')?.label).toBe("Artist's impression")
+  await expect(fx.setImage('L1', 'nope', 'confirmed')).rejects.toBeInstanceOf(ApiError)
+})
+
 test('file checks before upload: PDF only, not empty, 30 MB at most', () => {
   expect(brochureFileError(pdf())).toBeNull()
   expect(brochureFileError(pdf(1000, 'b.PDF', ''))).toBeNull()

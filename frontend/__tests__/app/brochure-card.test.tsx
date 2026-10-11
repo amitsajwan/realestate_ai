@@ -19,6 +19,7 @@ function fakeClient(start?: BrochureKit) {
         seeded = true
         await fx.upload(lid, new File(['%PDF'], start!.filename, { type: 'application/pdf' }))
         for (const f of start!.facts) await fx.setFact(lid, f.id, f.state)
+        for (const i of start!.images ?? []) await fx.setImage(lid, i.id, i.state)
       }
       const k = await fx.get(lid)
       return k && start ? { ...k, image_only_pages: start.image_only_pages, registration: start.registration } : k
@@ -27,6 +28,8 @@ function fakeClient(start?: BrochureKit) {
     setFact: jest.fn(fx.setFact),
     setRegistration: jest.fn(fx.setRegistration),
     pageImage: jest.fn(async (_l: string, n: number) => `blob:page-${n}`),
+    setImage: jest.fn(fx.setImage),
+    image: jest.fn(async (_l: string, id: string) => `blob:image-${id}`),
   }
   return c as typeof c & BrochureApi
 }
@@ -168,6 +171,63 @@ test('page thumbnail opens large; Escape closes it', async () => {
   expect(within(dialog).getByRole('button', { name: 'Close' })).toHaveFocus()
   fireEvent.keyDown(document, { key: 'Escape' })
   expect(screen.queryByRole('dialog')).toBeNull()
+})
+
+test('plans and images: thumbnails with what they are; Use and Don\'t use call the API and toggle back', async () => {
+  const c = fakeClient(sampleKit('L1'))
+  render(<BrochureCard listingId="L1" client={c} />)
+  const row = await screen.findByTestId('brochure-images')
+  expect(within(row).getByRole('heading', { name: 'Plans and images from the brochure' })).toBeInTheDocument()
+  expect(row).toHaveTextContent('never go in the walkthrough video')
+  const render1 = screen.getByTestId('image-i1')
+  expect(render1).toHaveTextContent("Render · Artist's impression")
+  expect(render1).toHaveTextContent('Page 1')
+  const plan = screen.getByTestId('image-i7')
+  expect(plan).toHaveTextContent('Floor plan')
+  await waitFor(() => expect(c.image).toHaveBeenCalledWith('L1', 'i7'))
+
+  await act(async () => { fireEvent.click(within(plan).getByRole('button', { name: 'Use' })) })
+  expect(c.setImage).toHaveBeenLastCalledWith('L1', 'i7', 'confirmed')
+  expect(screen.getByTestId('image-i7')).toHaveAttribute('data-state', 'confirmed')
+  expect(within(screen.getByTestId('image-i7')).getByRole('button', { name: '✓ Use' })).toHaveAttribute('aria-pressed', 'true')
+  await act(async () => { fireEvent.click(within(screen.getByTestId('image-i7')).getByRole('button', { name: '✓ Use' })) })
+  expect(c.setImage).toHaveBeenLastCalledWith('L1', 'i7', 'pending')
+  await act(async () => { fireEvent.click(within(render1).getByRole('button', { name: "Don't use" })) })
+  expect(c.setImage).toHaveBeenLastCalledWith('L1', 'i1', 'dropped')
+  expect(screen.getByTestId('image-i1')).toHaveAttribute('data-state', 'dropped')
+  expect(c.setFact).not.toHaveBeenCalled()
+})
+
+test('a refused image tap puts it back and says why', async () => {
+  const c = fakeClient(sampleKit('L1'))
+  c.setImage.mockRejectedValueOnce(new ApiError(404, 'No such image in this brochure.'))
+  render(<BrochureCard listingId="L1" client={c} />)
+  const plan = await screen.findByTestId('image-i7')
+  await act(async () => { fireEvent.click(within(plan).getByRole('button', { name: 'Use' })) })
+  expect(screen.getByTestId('image-i7')).toHaveAttribute('data-state', 'pending')
+  expect(screen.getByRole('alert')).toHaveTextContent('This listing or brochure was not found')
+})
+
+test('an image opens large in the same viewer; Close shuts it', async () => {
+  const c = fakeClient(sampleKit('L1'))
+  render(<BrochureCard listingId="L1" client={c} />)
+  const plan = await screen.findByTestId('image-i7')
+  const thumb = within(plan).getByRole('button', { name: 'Enlarge: Floor plan, page 7' })
+  await waitFor(() => expect(thumb).toBeEnabled())
+  fireEvent.click(thumb)
+  const dialog = screen.getByRole('dialog', { name: 'Floor plan' })
+  expect(within(dialog).getByRole('img', { name: 'Floor plan' })).toHaveAttribute('src', 'blob:image-i7')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
+  expect(screen.queryByRole('dialog')).toBeNull()
+})
+
+test('a kit without images shows no images row', async () => {
+  const k = sampleKit('L1')
+  const c = fakeClient(k)
+  c.get.mockImplementationOnce(async () => ({ ...k, images: undefined }))
+  render(<BrochureCard listingId="L1" client={c} />)
+  await screen.findByTestId('brochure-kit')
+  expect(screen.queryByTestId('brochure-images')).toBeNull()
 })
 
 test('registration: unknown asks the question; a bad number is refused, a good one is saved', async () => {

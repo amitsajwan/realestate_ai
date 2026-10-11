@@ -59,7 +59,7 @@ def gulmohar():
 
 def test_plan_uses_every_angle_the_facts_support():
     ids = [aid for aid, _ in campaign.plan(gulmohar())]
-    assert ids == [a.id for a in campaign.ANGLES]
+    assert ids == [a.id for a in campaign.ANGLES if a.id not in ("floor_plan", "first_look")]   # those need brochure images
     b = dict(campaign.plan(gulmohar()))
     assert b["price_reveal"].kicker == "GULMOHAR CITY" and "#Ranjangaon" in b["price_reveal"].hashtags
     assert b["possession"].truth == "MahaRERA now shows 30 Apr 2029 for Gulmohar City."

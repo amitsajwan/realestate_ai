@@ -1,7 +1,8 @@
 'use client'
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react'
-import { BROCHURE_MAX_BYTES, brochureApi, isReraNo, needsRegistrationAnswer, normaliseReraNo, pendingFacts } from '@/lib/app/brochure'
-import type { BrochureApi, BrochureFact, BrochureKit, FactValue } from '@/lib/app/brochure'
+import { BROCHURE_MAX_BYTES, brochureApi, isReraNo, kitImages, needsRegistrationAnswer, normaliseReraNo, pendingFacts } from '@/lib/app/brochure'
+import type { BrochureApi, BrochureFact, BrochureImage, BrochureKit, FactState, FactValue } from '@/lib/app/brochure'
+import type { StringKey } from '@/lib/app/strings'
 import { t } from '@/lib/app/strings'
 import { useBrochure } from '@/lib/app/useBrochure'
 import { Btn, ErrorBox, inputCls } from './ui'
@@ -41,8 +42,9 @@ function PageThumb({ listingId, page, client, onOpen }: { listingId: string; pag
   )
 }
 
-/** Full-screen page view. Escape or Close returns focus to the page. */
-function PageViewer({ src, page, onClose }: { src: string; page: number; onClose: () => void }) {
+/** Full-screen page view (or a plan or render: `title`). Escape or Close returns focus to the page. */
+function PageViewer({ src, page, title, onClose }: { src: string; page: number; title?: string; onClose: () => void }) {
+  const name = title ?? `${t('brochurePage')} ${page}`
   const closeRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     const back = document.activeElement as HTMLElement | null
@@ -55,7 +57,7 @@ function PageViewer({ src, page, onClose }: { src: string; page: number; onClose
     }
   }, [onClose])
   return (
-    <div role="dialog" aria-modal="true" aria-label={`${t('brochurePage')} ${page}`} className="fixed inset-0 z-50 flex flex-col bg-black/90 p-3"
+    <div role="dialog" aria-modal="true" aria-label={name} className="fixed inset-0 z-50 flex flex-col bg-black/90 p-3"
       onClick={onClose} data-testid="page-viewer">
       <div className="flex justify-end">
         <button ref={closeRef} type="button" onClick={onClose} className="min-h-[44px] rounded-xl bg-white px-4 text-base font-semibold text-gray-900">
@@ -63,7 +65,7 @@ function PageViewer({ src, page, onClose }: { src: string; page: number; onClose
         </button>
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt={`${t('brochurePage')} ${page}`} className="mx-auto mt-3 max-h-full max-w-full flex-1 object-contain"
+      <img src={src} alt={name} className="mx-auto mt-3 max-h-full max-w-full flex-1 object-contain"
         onClick={(e) => e.stopPropagation()} />
     </div>
   )
@@ -193,6 +195,68 @@ function FactRow({ fact, listingId, client, busy, onSet, onView }: {
   )
 }
 
+const KIND_LABEL: Record<BrochureImage['kind'], StringKey> = {
+  floor_plan: 'imageKindFloorPlan',
+  master_plan: 'imageKindMasterPlan',
+  location_map: 'imageKindLocationMap',
+  render: 'imageKindRender',
+}
+
+/** What an image is, as the agent reads it: "Floor plan", "Render · Artist's impression". */
+export function imageTitle(im: BrochureImage): string {
+  const kind = t(KIND_LABEL[im.kind] ?? 'imageKindFloorPlan')
+  return im.label ? `${kind} · ${im.label}` : kind
+}
+
+/** One plan, map or render: its thumbnail (tap to enlarge), what it is, and Use / Don't use. */
+function ImageTile({ im, listingId, client, busy, onSet, onView }: {
+  im: BrochureImage
+  listingId: string
+  client: BrochureApi
+  busy: boolean
+  onSet: (state: FactState) => void
+  onView: (src: string) => void
+}) {
+  const [src, setSrc] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    let on = true
+    client.image(listingId, im.id).then((u) => on && setSrc(u), () => on && setFailed(true))
+    return () => {
+      on = false
+    }
+  }, [client, listingId, im.id])
+  const title = imageTitle(im)
+  const used = im.state === 'confirmed'
+  const dropped = im.state === 'dropped'
+  return (
+    <li className={`w-36 shrink-0 rounded-xl border p-2 ${used ? 'border-emerald-300 bg-emerald-50/40' : 'border-gray-200 bg-white'}`}
+      data-testid={`image-${im.id}`} data-state={im.state}>
+      <button type="button" onClick={() => src && onView(src)} disabled={!src} aria-label={`${t('brochureImageEnlarge')}: ${title}, ${t('brochurePage').toLowerCase()} ${im.page}`}
+        className={`flex h-24 w-full items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 text-xs text-gray-500 ${dropped ? 'opacity-50' : ''}`}>
+        {src ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={src} alt="" className="h-full w-full object-contain" />
+        ) : (
+          <span>{failed ? `${t('brochurePage')} ${im.page}` : '...'}</span>
+        )}
+      </button>
+      <p className="mt-1 text-xs font-semibold text-gray-800">{title}</p>
+      <p className="text-xs text-gray-500">{t('brochurePage')} {im.page}</p>
+      <div className="mt-1 grid grid-cols-2 gap-1" role="group" aria-label={title}>
+        <button type="button" aria-pressed={used} disabled={busy} onClick={() => onSet(used ? 'pending' : 'confirmed')}
+          className={`min-h-[44px] rounded-lg border text-xs font-semibold disabled:opacity-60 ${used ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-emerald-300 bg-white text-emerald-800'}`}>
+          {used ? `✓ ${t('brochureImageUse')}` : t('brochureImageUse')}
+        </button>
+        <button type="button" aria-pressed={dropped} disabled={busy} onClick={() => onSet(dropped ? 'pending' : 'dropped')}
+          className={`min-h-[44px] rounded-lg border text-xs font-semibold disabled:opacity-60 ${dropped ? 'border-gray-700 bg-gray-700 text-white' : 'border-gray-300 bg-white text-gray-700'}`}>
+          {t('brochureImageDontUse')}
+        </button>
+      </div>
+    </li>
+  )
+}
+
 /** "Registered, or exempt?" Asked when MahaRERA has no record we could check; the answer is kept on the listing. */
 function RegistrationBlock({ kit, busy, onAnswer }: {
   kit: BrochureKit
@@ -272,13 +336,14 @@ function RegistrationBlock({ kit, busy, onAnswer }: {
 export function BrochureCard({ listingId, client = brochureApi }: { listingId: string; client?: BrochureApi }) {
   const b = useBrochure(listingId, client)
   const fileRef = useRef<HTMLInputElement>(null)
-  const [view, setView] = useState<{ page: number; src: string } | null>(null)
+  const [view, setView] = useState<{ page: number; src: string; title?: string } | null>(null)
   const closeView = useCallback(() => setView(null), [])
   const inputId = useId()
   const { kit } = b
   const uploading = b.phase !== 'idle'
   const pending = pendingFacts(kit)
   const imageOnly = kit?.image_only_pages.length ?? 0
+  const images = kitImages(kit)
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
@@ -365,10 +430,24 @@ export function BrochureCard({ listingId, client = brochureApi }: { listingId: s
               </ul>
             </>
           )}
+
+          {images.length > 0 && (
+            <section aria-labelledby="brochure-images-title" className="space-y-2" data-testid="brochure-images">
+              <h3 id="brochure-images-title" className="text-base font-bold text-gray-900">{t('brochureImagesTitle')}</h3>
+              <p className="text-xs text-gray-600">{t('brochureImagesHelp')}</p>
+              <ul className="-mx-1 flex list-none gap-2 overflow-x-auto p-1">
+                {images.map((im) => (
+                  <ImageTile key={im.id} im={im} listingId={listingId} client={client} busy={!!b.saving[`img:${im.id}`]}
+                    onSet={(state) => void b.setImage(im.id, state)}
+                    onView={(src) => setView({ page: im.page, src, title: imageTitle(im) })} />
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
       )}
 
-      {view && <PageViewer src={view.src} page={view.page} onClose={closeView} />}
+      {view && <PageViewer src={view.src} page={view.page} title={view.title} onClose={closeView} />}
     </section>
   )
 }

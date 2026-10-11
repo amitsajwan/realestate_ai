@@ -19,6 +19,10 @@ KEYS = tuple(LABELS)
 LIST_KEYS = ("configurations", "amenities", "specifications")
 COUNT_KEYS = ("towers", "floors", "units")
 PAGE_TYPES = ("cover", "amenities", "specifications", "floor_plan", "location_map", "pricing", "legal", "other")
+IMAGE_KINDS = ("floor_plan", "master_plan", "location_map", "render")
+ARTISTS_IMPRESSION = "Artist's impression"   # drawn on every render a post shows (docs/MARKETING_ARCHITECTURE_REVIEW.md S4)
+PLAN_TEXT_MAX = 1200   # letters and digits: a page with more text than this is a text page, not a plan
+RENDER_TEXT_MAX = 400  # a render page is mostly picture: a caption, the project name, "artist's impression"
 MIN_TEXT = 40        # letters and digits on a page below which it is image-only (a later vision step reads it)
 QUOTE_MAX = 400
 ITEM_MAX = 120
@@ -131,6 +135,50 @@ def page_type(text: str, n: int) -> str:
     if n == 1 and best not in ("amenities", "specifications", "floor_plan"):
         return "cover"
     return best if scores[best] else "other"
+
+
+# ---- which pages are pictures worth keeping (plans, maps, renders) -------------------------------------------------------
+FLOOR_PLAN_WORDS = re.compile(r"floor\s*-?\s*plans?|unit\s+plans?|typical\s+(?:floor|unit)|(?:unit|flat|apartment|home)\s+layouts?|"
+                              r"\bisometric\b|cluster\s+plan", re.I)
+MASTER_PLAN_WORDS = re.compile(r"master\s*-?\s*plan|site\s+plan|site\s+layout|layout\s+plan|plot\s+layout|project\s+layout", re.I)
+LOCATION_MAP_WORDS = re.compile(r"location\s+(?:map|plan)|route\s+map|connectivity\s+map|map\s+not\s+to\s+scale", re.I)
+RENDER_WORDS = re.compile(r"artist'?s?\s*(?:impression|perspective|rendering|view)|artistic\s+(?:impression|view|representation|"
+                          r"rendering)|\b3\s?d\s+(?:view|render\w*)|\brender(?:ing|ed)?s?\b", re.I)
+LEGAL_WORDS = re.compile(r"disclaimer|terms\s+(?:and|&)\s+conditions|not\s+an?\s+offer|not\s+a\s+legal", re.I)
+DIMENSION = re.compile(r"\d{1,2}\s*['’′]\s*(?:-?\s*\d{1,2}\s*(?:\"|”|″|''))?\s*[xX×]\s*\d{1,2}\s*['’′]|"
+                       r"\b\d{1,2}\.\d{1,2}\s*m?\s*[xX×]\s*\d{1,2}\.\d{1,2}\b")
+ROOM_WORDS = re.compile(r"\b(?:m\.?\s*bed(?:room)?|master\s+bed(?:room)?|bed\s*room|kitchen|living|dining|toilet|bath(?:room)?|"
+                        r"balcony|terrace|passage|utility|foyer|deck)\b", re.I)
+LAYOUT_WORD = re.compile(r"\blayout\b", re.I)
+
+
+def image_kind(text: str) -> str:
+    """What picture a page holds, read from its (short) text: floor_plan, master_plan, location_map, render, or "" when it
+    is a text page or none of these. Deterministic rules on the text layer; the picture itself is not looked at."""
+    t = text or ""
+    letters = sum(ch.isalnum() for ch in t)
+    if letters > PLAN_TEXT_MAX:
+        return ""
+    if FLOOR_PLAN_WORDS.search(t):
+        return "floor_plan"
+    if MASTER_PLAN_WORDS.search(t):
+        return "master_plan"
+    if LOCATION_MAP_WORDS.search(t):
+        return "location_map"
+    dims, rooms = len(DIMENSION.findall(t)), len(set(m.lower() for m in ROOM_WORDS.findall(t)))
+    if (BHK.search(t) and (dims >= 2 or rooms >= 3)) or (dims >= 3 and rooms >= 2):
+        return "floor_plan"
+    if letters <= RENDER_TEXT_MAX and not LEGAL_WORDS.search(t):
+        if RENDER_WORDS.search(t):
+            return "render"
+        if LAYOUT_WORD.search(t):
+            return "master_plan"
+    return ""
+
+
+def plan_configs(text: str) -> List[str]:
+    """The configurations a plan page names ("2 BHK"), in page order."""
+    return list(dict.fromkeys([bhk_label(float(x)) for x in BHK.findall(text or "")] + (["1 RK"] if RK.search(text or "") else [])))
 
 
 def _line_of(text: str, start: int) -> str:

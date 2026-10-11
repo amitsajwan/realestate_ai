@@ -23,6 +23,7 @@ CTA_BY_FORMAT = {
     "checklist": "Save this checklist for your site visit.",
     "carousel": "Save this and send it to someone buying.",
     "single": "Save this for later.",
+    "plan": "Save this for your site visit.",
 }
 CTA_AGENT = {
     "single": "Comment INTERESTED to see how it works.",
@@ -32,6 +33,7 @@ CTA_AGENT = {
     "myth-vs-fact": "Comment INTERESTED to see the fix.",
     "before-after": "Comment INTERESTED to see the clean version.",
     "poll": "Vote in the comments.",
+    "plan": "Comment INTERESTED to see how it works.",
 }
 PATTERN_FOR_FORMAT = {"stat": "number", "myth-vs-fact": "myth", "before-after": "comparison", "poll": "question"}
 

@@ -23,6 +23,21 @@ export interface BrochureFact {
   edited: boolean
 }
 
+export type BrochureImageKind = 'floor_plan' | 'master_plan' | 'location_map' | 'render'
+
+/** A page kept as a large image because its text says it is a plan, a map or a render. Posts use it only once it is `confirmed`. */
+export interface BrochureImage {
+  id: string
+  /** 1-based page the image is. */
+  page: number
+  kind: BrochureImageKind
+  /** "Artist's impression" on every render; null otherwise. */
+  label: string | null
+  /** Server path of the JPEG (needs the agent's token; use `BrochureApi.image`). */
+  url: string
+  state: FactState
+}
+
 export interface BrochureRegistration {
   status: RegistrationStatus
   rera_no: string | null
@@ -40,6 +55,8 @@ export interface BrochureKit {
   read_at: string | null
   facts: BrochureFact[]
   registration: BrochureRegistration
+  /** Plans, maps and renders kept from the brochure (absent on kits read before images were kept). */
+  images?: BrochureImage[]
 }
 
 export type RegistrationAnswer = { status: 'registered'; rera_no: string } | { status: 'exempt' }
@@ -53,6 +70,10 @@ export interface BrochureApi {
   setRegistration(listingId: string, answer: RegistrationAnswer): Promise<BrochureKit>
   /** A browser URL for page `n`'s thumbnail (the image needs the bearer token, so it is fetched and kept as an object URL). */
   pageImage(listingId: string, n: number): Promise<string>
+  /** Use (confirmed), don't use (dropped) or undecided (pending) for one image. */
+  setImage(listingId: string, imageId: string, state: FactState): Promise<BrochureKit>
+  /** An object URL of the image, fetched with the token once. */
+  image(listingId: string, imageId: string): Promise<string>
 }
 
 export const BROCHURE_MAX_MB = 30
@@ -79,6 +100,7 @@ export function isReraNo(raw: string): boolean {
 }
 
 export const pendingFacts = (kit: BrochureKit | null) => (kit ? kit.facts.filter((f) => f.state === 'pending') : [])
+export const kitImages = (kit: BrochureKit | null): BrochureImage[] => kit?.images ?? []
 export const needsRegistrationAnswer = (kit: BrochureKit | null) =>
   !!kit && (kit.registration.status === 'unknown' || kit.registration.status === 'unverified')
 
@@ -145,6 +167,20 @@ export function createBrochureApi(opts: {
   }
 
   const thumbs = new Map<string, Promise<string>>()
+  /** GET a JPEG with the token once; a failure is tried again next time. */
+  const blobUrl = (key: string, path: string, what: string): Promise<string> => {
+    let p = thumbs.get(key)
+    if (!p) {
+      p = (async () => {
+        const res = await send(path)
+        if (!res.ok) throw new ApiError(res.status, `${what} could not be shown`)
+        return URL.createObjectURL(await res.blob())
+      })()
+      p.catch(() => thumbs.delete(key))
+      thumbs.set(key, p)
+    }
+    return p
+  }
 
   return {
     get: async (lid) => {
@@ -193,21 +229,11 @@ export function createBrochureApi(opts: {
         json: answer.status === 'registered' ? { status: 'registered', rera_no: normaliseReraNo(answer.rera_no) } : { status: 'exempt' },
       }),
 
-    pageImage: (lid, n) => {
-      const k = `${lid}:${n}`
-      let p = thumbs.get(k)
-      if (!p) {
-        p = (async () => {
-          const res = await send(`${root(lid)}/pages/${n}.jpg`)
-          if (!res.ok) throw new ApiError(res.status, `Page ${n} could not be shown`)
-          const blob = await res.blob()
-          return URL.createObjectURL(blob)
-        })()
-        p.catch(() => thumbs.delete(k)) // a failed thumbnail is tried again next time
-        thumbs.set(k, p)
-      }
-      return p
-    },
+    pageImage: (lid, n) => blobUrl(`${lid}:${n}`, `${root(lid)}/pages/${n}.jpg`, `Page ${n}`),
+
+    setImage: (lid, iid, state) => request<BrochureKit>(`${root(lid)}/images/${enc(iid)}`, { method: 'PATCH', json: { state } }),
+
+    image: (lid, iid) => blobUrl(`${lid}:img:${iid}`, `${root(lid)}/images/${enc(iid)}.jpg`, 'The image'),
   }
 }
 
@@ -228,6 +254,10 @@ export function sampleKit(listingId: string, filename = 'brochure.pdf'): Brochur
       { id: 'f4', key: 'flooring', label: 'Flooring', value: 'Vitrified tiles in all rooms', page: 8, quote: '2x2 vitrified tiles in all rooms', level: 'builder_claim', state: 'pending', edited: false },
     ],
     registration: { status: 'unknown', rera_no: null, note: 'No MahaRERA number was found in the brochure.' },
+    images: [
+      { id: 'i1', page: 1, kind: 'render', label: "Artist's impression", url: `/api/v1/listings/${listingId}/brochure/images/i1.jpg`, state: 'pending' },
+      { id: 'i7', page: 7, kind: 'floor_plan', label: null, url: `/api/v1/listings/${listingId}/brochure/images/i7.jpg`, state: 'pending' },
+    ],
   }
 }
 
@@ -243,7 +273,12 @@ export function createFixtureBrochureApi(): BrochureApi {
     if (!k) throw new ApiError(404, 'Upload the brochure first')
     return k
   }
-  const copy = (k: BrochureKit): BrochureKit => ({ ...k, facts: k.facts.map((f) => ({ ...f })), registration: { ...k.registration } })
+  const copy = (k: BrochureKit): BrochureKit => ({
+    ...k,
+    facts: k.facts.map((f) => ({ ...f })),
+    registration: { ...k.registration },
+    images: (k.images ?? []).map((i) => ({ ...i })),
+  })
   return {
     get: async (lid) => {
       const k = kits.get(lid)
@@ -277,6 +312,14 @@ export function createFixtureBrochureApi(): BrochureApi {
       return copy(k)
     },
     pageImage: async () => PLACEHOLDER_PAGE,
+    setImage: async (lid, iid, state) => {
+      const k = need(lid)
+      const im = (k.images ?? []).find((x) => x.id === iid)
+      if (!im) throw new ApiError(404, 'This image was not found')
+      im.state = state
+      return copy(k)
+    },
+    image: async () => PLACEHOLDER_PAGE,
   }
 }
 
@@ -290,4 +333,6 @@ export const brochureApi: BrochureApi = {
   setFact: (...a) => pick().setFact(...a),
   setRegistration: (...a) => pick().setRegistration(...a),
   pageImage: (...a) => pick().pageImage(...a),
+  setImage: (...a) => pick().setImage(...a),
+  image: (...a) => pick().image(...a),
 }

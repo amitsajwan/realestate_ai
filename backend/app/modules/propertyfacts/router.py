@@ -10,7 +10,8 @@ same for a project's own page.
 The builder's brochure (brochure.py), same auth, the agent's own listing only: `POST /{listing_id}/brochure` (multipart `file`)
 reads it into a kit, `GET /{listing_id}/brochure` the kit (404 when none), `PATCH .../brochure/facts/{fact_id}` confirms, drops
 or edits a fact, `POST .../brochure/registration` keeps the agent's "registered or exempt" answer, `GET .../pages/{n}.jpg` a
-page's thumbnail."""
+page's thumbnail, `PATCH .../brochure/images/{image_id}` uses or drops a plan, map or render kept from the brochure, and
+`GET .../brochure/images/{image_id}.jpg` serves it."""
 from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
@@ -141,6 +142,11 @@ class FactStateIn(BaseModel):
     value: Any = None
 
 
+class ImageStateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    state: Literal["confirmed", "dropped", "pending"]
+
+
 class RegistrationIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     status: Literal["registered", "exempt"]
@@ -193,6 +199,28 @@ async def answer_brochure_registration(listing_id: str, body: RegistrationIn, us
     except brochure.BrochureError as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     return brochure.kit_out(doc)
+
+
+@router.patch("/{listing_id}/brochure/images/{image_id}")
+async def set_brochure_image(listing_id: str, image_id: str, body: ImageStateIn, user: User = Depends(current_active_user),
+                             kits: brochure.Brochures = Depends(get_brochures)) -> dict:
+    """Use (confirmed) or don't use (dropped) a floor plan, master plan, map or render kept from the brochure."""
+    try:
+        doc = await kits.set_image(str(user.id), listing_id, image_id, body.state)
+    except brochure.BrochureError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    return brochure.kit_out(doc)
+
+
+@router.get("/{listing_id}/brochure/images/{image_id}.jpg")
+async def brochure_image(listing_id: str, image_id: str, user: User = Depends(current_active_user),
+                         kits: brochure.Brochures = Depends(get_brochures)) -> FileResponse:
+    """A plan, map or render from the brochure (IMAGE_LONG_SIDE px), for the confirm screen."""
+    try:
+        path = await kits.image_file(str(user.id), listing_id, image_id)
+    except brochure.BrochureError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=3600"})
 
 
 @router.get("/{listing_id}/brochure/pages/{n}.jpg")
