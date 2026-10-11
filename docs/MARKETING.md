@@ -193,6 +193,10 @@ as "may already be live": check the page, then delete that ledger document to al
   because a reel's description link is often not tappable and a comment's is. Once per row (ledger key `calendar-comment:<row>`),
   best effort, never pinned (the Graph API cannot pin). `CALENDAR_REEL_LINK_COMMENT=off` turns it off. Instagram has no
   equivalent: comment links are not tappable there.
+- **DM assistant (BUILT, OFF).** Messages to the Page (Messenger) and to Instagram are answered by the WhatsApp assistant's brain
+  (`whatsapp/dms.py`, webhook `/messenger/webhook`): grounded answers in the buyer's language, the number asked with consent, a lead from
+  the first message (the commenter's existing lead when the comment assistant messaged them). A person replying from the Page inbox pauses
+  it in that chat for 12 hours. Setup: `docs/MESSENGER_SETUP.md`. `MESSENGER_ENABLED` (off), `MESSENGER_DRY_RUN` (on).
 - **Comments.** The `engage` loop reads new comments on the Page and on Instagram, decides with rules and an LLM, and answers
   from the post's facts. Every answer is checked for numbers, phone numbers and hype. Interested commenters get a DM with
   the link. Replies are capped per hour and per person.

@@ -38,6 +38,7 @@ from app.modules.engage.router import router as engage_router
 from app.modules.newsroom.router import router as newsroom_router
 from app.modules.concierge.router import router as concierge_router
 from app.modules.whatsapp.router import router as whatsapp_router
+from app.modules.whatsapp.dm_router import router as messenger_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.newsroom.public import router as newsroom_public_router
 from app.modules.calendar.router import router as calendar_router
@@ -94,6 +95,7 @@ api_router.include_router(newsroom_router, prefix="/newsroom", tags=["newsroom"]
 api_router.include_router(concierge_router, prefix="/concierge", tags=["concierge"])
 api_router.include_router(admin_router, prefix="/admin", tags=["admin"])
 api_router.include_router(whatsapp_router, prefix="/whatsapp", tags=["whatsapp"])
+api_router.include_router(messenger_router, prefix="/messenger", tags=["messenger"])
 api_router.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(newsroom_public_router, prefix="/public", tags=["public"])
 api_router.include_router(calendar_router, prefix="/calendar", tags=["calendar"])

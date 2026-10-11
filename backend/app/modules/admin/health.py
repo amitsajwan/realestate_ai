@@ -64,7 +64,7 @@ def meta_row(key: str, label: str, configured: bool, state: Optional[dict]) -> D
 
 
 def build_health(*, social, wa, engage, calendar, newsroom, meta: Dict[str, Optional[dict]], cal_run: dict, news_run: dict,
-                 controls: dict, ai: dict) -> List[Dict]:
+                 controls: dict, ai: dict, dm=None) -> List[Dict]:
     rows = [
         meta_row("facebook", "Facebook", social.configured("facebook_page"), meta.get("facebook")),
         meta_row("instagram", "Instagram", social.configured("instagram"), meta.get("instagram")),
@@ -78,6 +78,17 @@ def build_health(*, social, wa, engage, calendar, newsroom, meta: Dict[str, Opti
         rows.append(_row("whatsapp", "WhatsApp", BAD, "On, but no access token", "Run deploy/gcp/whatsapp_connect.ps1"))
     else:
         rows.append(_row("whatsapp", "WhatsApp", OK, "On and sending replies"))
+    if dm is not None:
+        if not dm.enabled:
+            rows.append(_row("messenger", "Messenger and Instagram DMs", WARN, "DM replies are off",
+                             "Subscribe the Page and Instagram to the /messenger/webhook, then set MESSENGER_ENABLED=true"))
+        elif dm.dry_run:
+            rows.append(_row("messenger", "Messenger and Instagram DMs", WARN, "On, in practice mode: replies are worked out but not sent",
+                             "Set MESSENGER_DRY_RUN=false on the server to send replies"))
+        elif not dm.can_send:
+            rows.append(_row("messenger", "Messenger and Instagram DMs", BAD, "On, but no Page token", "Set META_PAGE_ACCESS_TOKEN"))
+        else:
+            rows.append(_row("messenger", "Messenger and Instagram DMs", OK, "On and sending replies"))
 
     if not ai.get("configured", True):
         rows.append(_row("ai", "AI", BAD, "No AI provider is set up", "Run deploy/gcp/ai_connect.ps1 to add an AI key"))

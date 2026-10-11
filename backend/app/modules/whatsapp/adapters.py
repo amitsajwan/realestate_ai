@@ -253,3 +253,67 @@ async def claim_trial(db, phone: str, lang: str, now: Optional[datetime] = None)
 def trial_claims_on() -> bool:
     from app.modules.onboarding.trial import enabled
     return enabled()
+
+
+# ---- Messenger / Instagram DM leads -------------------------------------------------------------------------------
+DM_LABEL = {"messenger": "Messenger", "instagram": "Instagram"}
+DM_SOURCE = {"messenger": "facebook", "instagram": "instagram"}
+
+
+async def find_dm_lead(db, platform: str, sender: str) -> Optional[dict]:
+    """The lead this DM sender already has: one the comment assistant made when it messaged them after a comment (`dm.id`), or one an
+    earlier DM made."""
+    contacts = db.get_collection("contacts")
+    return await contacts.find_one({"dm.id": sender}) or await contacts.find_one({"anon_ids": f"{platform}_dm:{sender}"})
+
+
+async def upsert_dm_lead(db, *, agent_id: str, platform: str, sender: str, data: dict, message: str, now: datetime,
+                         interest: Optional[dict] = None) -> tuple:
+    """Create or update the DM buyer's lead. Returns (contact_id, created). No number until the buyer shares one (the chat engine asks, with
+    the consent line); a shared number joins an existing lead with that number for the agent rather than making a second one."""
+    contacts = db.get_collection("contacts")
+    fields, sources = requirement_fields(data)
+    text = summary(data).replace("WhatsApp enquiry", f"{DM_LABEL[platform]} enquiry", 1)
+    phone = (data.get("phone") or "").strip()
+    consent = {"given_at": now, "purpose": "enquiry follow-up", "basis": f"shared their number in a {DM_LABEL[platform]} chat",
+               "channel": platform}
+    existing = await find_dm_lead(db, platform, sender)
+    if phone and not (existing and existing.get("phone")):
+        same = await contacts.find_one({"agent_id": agent_id, "phone": phone})
+        if same and (not existing or same["_id"] != existing["_id"]):
+            if existing and not existing.get("phone") and hasattr(contacts, "delete_one"):
+                await contacts.delete_one({"_id": existing["_id"]})  # the number-less placeholder joins the lead that has the number
+            existing = same
+    dm = {"channel": DM_SOURCE[platform], "id": sender, "platform": platform, "summary": text, "last_inbound_at": now}
+    if existing:
+        changes = {"last_activity_at": now, "last_message": message[:1000], "dm": {**(existing.get("dm") or {}), **dm}}
+        if fields:
+            changes["requirement"] = rq.merge(existing.get("requirement"), fields, sources)
+        if phone and not existing.get("phone"):
+            changes.update(phone=phone, score_base=max(int(existing.get("score_base") or 0), 25))
+            if not (existing.get("consent") or {}).get("given_at"):
+                changes["consent"] = consent
+        await contacts.update_one({"_id": existing["_id"]}, {"$set": changes, "$addToSet": {"anon_ids": f"{platform}_dm:{sender}"}})
+        return existing["_id"], False
+    cid = uuid.uuid4().hex
+    await contacts.insert_one({
+        "_id": cid, "agent_id": agent_id, "name": (data.get("name") or f"{DM_LABEL[platform]} buyer")[:100], "phone": phone,
+        "message": text, "anon_ids": [f"{platform}_dm:{sender}"], "stage": "new", "source": DM_SOURCE[platform], "utm": {},
+        "first_listing_id": (interest or {}).get("listing_id"), "consent": consent if phone else None,
+        "score_base": 25 if phone else 10, "created_at": now, "last_activity_at": now, "last_message": message[:1000], "notes": [],
+        "requirement": rq.merge(None, fields, sources) if fields else None, "interest_code": (interest or {}).get("code"), "dm": dm,
+    })
+    return cid, True
+
+
+async def mark_dm_opt_out(db, contact_id: Optional[str], opted_out: bool, now: datetime) -> None:
+    if not contact_id:
+        return
+    contacts = db.get_collection("contacts")
+    doc = await contacts.find_one({"_id": contact_id})
+    if not doc:
+        return
+    changes = {"dm": {**(doc.get("dm") or {}), "opted_out": opted_out, "opted_out_at": now if opted_out else None}}
+    if opted_out and doc.get("consent"):
+        changes["consent"] = {**doc["consent"], "withdrawn_at": now}
+    await contacts.update_one({"_id": contact_id}, {"$set": changes})

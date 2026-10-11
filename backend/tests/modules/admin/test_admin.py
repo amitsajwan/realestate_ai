@@ -119,7 +119,8 @@ def test_overview_counts_waiting_agents_health_and_controls(monkeypatch):
     assert o["invite_requests"][0]["mobile"] == "90******17"
     assert o["agents"][0]["name"] == "Rahul Sharma" and o["agents"][0]["progress"]["total"] == 8 and o["agents"][0]["mobile"] == "98******10"
     rows = {h["key"]: h for h in o["health"]}
-    assert set(rows) == {"facebook", "instagram", "whatsapp", "ai", "posting", "comments", "news"}
+    assert set(rows) == {"facebook", "instagram", "whatsapp", "messenger", "ai", "posting", "comments", "news"}
+    assert rows["messenger"]["status"] == "warn"  # off by default
     assert rows["facebook"]["status"] == "bad" and "meta_connect.ps1" in rows["facebook"]["fix"]
     assert rows["ai"]["status"] == "ok" and rows["posting"]["status"] == "ok" and rows["posting"]["last_run_at"]
     assert rows["news"]["status"] == "warn" and rows["whatsapp"]["status"] == "warn"
