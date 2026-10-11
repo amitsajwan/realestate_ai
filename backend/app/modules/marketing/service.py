@@ -7,6 +7,7 @@ from typing import Callable, Optional
 from .content import build_content
 from .facts import Facts
 from .images import render_all
+from .maharera import for_listing as project_registration
 from .polish import Polish, polish_content
 from .schemas import MarketingPack
 
@@ -22,6 +23,7 @@ class MarketingError(Exception):
 class MarketingService:
     def __init__(self, db, uploads_dir, public_site_url: str, polish: Optional[Polish] = None,
                  now: Callable[[], datetime] = datetime.utcnow):
+        self.db = db
         self.listings = db.get_collection("listings")
         self.profiles = db.get_collection("agent_public_profiles")
         self.packs = db.get_collection("marketing_packs")
@@ -61,6 +63,7 @@ class MarketingService:
         profile = await self.profiles.find_one({"agent_id": agent_id})
         facts = Facts.from_docs(listing, profile, self._share_url((profile or {}).get("slug"), listing_id))
         facts.as_of = self.now().strftime("%d %b %Y")  # groups punish stale posts, so every group text says 'available as of'
+        facts.registration = await project_registration(listing, self.db)  # the MahaRERA badge: only a project number we trust
         content = await polish_content(build_content(facts, language), facts, self.polish)
         try:
             images = await asyncio.to_thread(render_all, facts, listing.get("media") or [], self.uploads_dir, listing_id)

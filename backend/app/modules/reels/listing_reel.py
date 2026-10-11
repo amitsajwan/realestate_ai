@@ -32,6 +32,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple
 from app.core import brand
 from app.modules.marketing.facts import T, Facts
 from app.modules.marketing.images import latin, photo_paths
+from app.modules.marketing.maharera import ProjectRegistration, badge as maharera_badge, for_listing as project_registration
 from app.modules.photoquality import rank_photos
 
 from . import ffmpeg, narration, voice
@@ -382,8 +383,15 @@ def _closing_lines(closing: str) -> List[TextLine]:
     return [TextLine(part, size=44, weight="medium", max_lines=2) for part in [p.strip() for p in closing.split(" · ") if p.strip()]]
 
 
+MAHARERA_QR, MAHARERA_TEXT = 216, 32   # the closing scene's MahaRERA badge on a 1080 x 1920 frame: a phone reads it at a glance
+
+
+def _maharera_overlay(reg: Optional[ProjectRegistration]):
+    return maharera_badge(reg, MAHARERA_QR, MAHARERA_TEXT).img if reg is not None else None
+
+
 def _stack_scene(beats: List[Dict], picks: Sequence, durs: Sequence[float], badge: Optional[str], kicker: Optional[str],
-                 closing: str) -> Scene:
+                 closing: str, maharera: Optional[ProjectRegistration] = None) -> Scene:
     """The beats as one stacked list over a walkthrough: beat i's line joins at the start of its voice line and stays, and photo i
     comes in behind it at the same moment. The call to action and 'Listed by' land last."""
     starts = [sum(durs[:i]) for i in range(len(durs))]
@@ -394,7 +402,8 @@ def _stack_scene(beats: List[Dict], picks: Sequence, durs: Sequence[float], badg
     extra = _closing_lines(closing)
     return Scene(image=picks[0], images=list(picks[1:]), image_at=starts[1:], lines=lines + extra,
                  reveal=starts + [starts[-1]] * len(extra), layout="lower", align="left", badge=badge, kicker=kicker,
-                 seconds=sum(durs), seed="listing-stack")
+                 seconds=sum(durs), seed="listing-stack", overlay=_maharera_overlay(maharera),
+                 overlay_at=starts[-1] if len(starts) > 1 else 0.0)   # the badge lands with the closing lines
 
 
 def _narration(work: Path, clips: Sequence[Path], starts: Sequence[float], total: float, bed: Path) -> Path:
@@ -403,10 +412,11 @@ def _narration(work: Path, clips: Sequence[Path], starts: Sequence[float], total
 
 
 def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Optional[str] = None, kicker: Optional[str] = None,
-           closing: str = "", voiced: bool = True, style: str = "tour") -> Dict:
+           closing: str = "", voiced: bool = True, style: str = "tour", maharera: Optional[ProjectRegistration] = None) -> Dict:
     """Render the reel. Returns {"audio": "voice+music"|"music", "note": str}. Falls back to music only if the voice fails.
     One photo per beat: with fewer photos than beats the last beats are left out rather than a photo shown twice.
-    style 'stack': the same beats, voice and photos as one stacked list (see _stack_scene)."""
+    style 'stack': the same beats, voice and photos as one stacked list (see _stack_scene). `maharera`: the project's trusted
+    registration, drawn as the QR badge on the closing scene (MahaRERA's advertisement order)."""
     if style not in STYLES:
         raise ValueError(f"style must be one of {STYLES}")
     beats, picks = fit_beats(script, photos)
@@ -428,7 +438,7 @@ def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opt
         stack = style == "stack"
         durs = stretch(durs, 0.0 if stack else XFADE)
         if stack:
-            scene = _stack_scene(beats, picks, durs, badge, kicker, closing)
+            scene = _stack_scene(beats, picks, durs, badge, kicker, closing, maharera)
             starts, total = [sum(durs[:i]) for i in range(len(durs))], sum(durs)
             from .music import write as write_music
             bed = write_music(work / "bed.wav", seconds=total + 1.0)
@@ -442,7 +452,8 @@ def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opt
             if last and closing:
                 lines += _closing_lines(closing)
             scenes.append(Scene(image=picks[i], lines=lines, layout="lower", badge=badge,
-                                kicker=kicker if first else None, seconds=durs[i], seed=f"listing-{i}"))
+                                kicker=kicker if first else None, seconds=durs[i], seed=f"listing-{i}",
+                                overlay=_maharera_overlay(maharera) if last else None))
         tl = plan(durs, XFADE)   # no end card: the closing scene carries the brand mark and the reel loops
         from .music import write as write_music
         bed = write_music(work / "bed.wav", seconds=tl.total + 1.0)
@@ -487,6 +498,7 @@ def _safe_id(s: str) -> str:
 class ReelJobs:
     def __init__(self, db, uploads_dir, llm_factory: Optional[Callable] = None, renderer: Callable = render,
                  now: Callable[[], datetime] = datetime.utcnow, voice_available: Callable[[], bool] = voice.available):
+        self.db = db
         self.jobs = db.get_collection(COLLECTION)
         self.listings = db.get_collection("listings")
         self.profiles = db.get_collection("agent_public_profiles")
@@ -597,6 +609,9 @@ class ReelJobs:
             out = self.uploads_dir / "reels" / name
             kicker = _short(f.loc.upper(), 5) or None
             kw = {"style": style} if style != "tour" else {}
+            reg = await project_registration(listing, self.db)   # the MahaRERA badge: only a project number we trust
+            if reg is not None:
+                kw["maharera"] = reg
             result = await asyncio.to_thread(
                 self.renderer, script, photos[:MAX_SCENE_PHOTOS], job["lang"], out, kicker=kicker, closing=listed_by_line(profile),
                 voiced=self.voice_available(), **kw)

@@ -51,7 +51,7 @@ def test_local_upload_is_shown_brightly_with_a_scrim_only_behind_the_text(up):
     render_all(facts(), media(url), up, "L1")
     render_all(facts(_id="L2"), [], up, "L2")
     with Image.open(up / "marketing/L1/cover.jpg") as a, Image.open(up / "marketing/L2/cover.jpg") as b:
-        r, g, bl = a.getpixel((900, 200))
+        r, g, bl = a.getpixel((150, 300))  # left of the MahaRERA badge (top right)
         assert r > 2.5 * g and r > 150          # the photo is clearly visible in the upper part (not buried)...
         r_low, g_low, _ = a.getpixel((900, 1040))
         assert r_low < 110                       # ...and darkened near the bottom where the text sits, so it stays legible
@@ -64,12 +64,12 @@ def test_info_cards_show_the_photo_as_a_header_strip_and_story_uses_top_half(up)
     render_all(facts(), media(url), up, "L1")
     for kind in ("facts", "amenities", "cta"):
         with Image.open(up / f"marketing/L1/{kind}.jpg") as im:
-            r, g, _ = im.getpixel((900, 100))
+            r, g, _ = im.getpixel((150, 150))  # left of the MahaRERA badge
             assert r > 2.5 * g and r > 150, kind      # header strip
             r2, g2, _ = im.getpixel((900, 900))
             assert r2 < 2.5 * g2, kind                # the panel below is the calm brand gradient
     with Image.open(up / "marketing/L1/status.jpg") as im:
-        r, g, _ = im.getpixel((900, 400))
+        r, g, _ = im.getpixel((900, 700))  # below the MahaRERA badge and the Listed-by pill
         assert r > 2.5 * g and r > 150
 
 

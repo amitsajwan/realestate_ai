@@ -20,13 +20,15 @@ def render(copy: Copy, design: Design) -> List[Rendered]:
     c = Canvas(design.size, pal, "myth_fact", pattern="grid", glow_at=(0.1, 0.9))
     p = copy.payload
     myth, truth = str(p.get("myth", "")), str(p.get("truth", ""))
-    c.chip(str(p.get("kicker", "MYTH VS FACT")), c.left, c.top, icon="bolt")
+    chip = c.chip(str(p.get("kicker", "MYTH VS FACT")), c.left, c.top, icon="bolt")
+    rera_y = c.maharera_badge(beside=chip)
     c.brand_bar(dark_bg=not pal.light)
-    top = c.top + 100
+    top = max(c.top + 100, (rera_y or 0) + 30)
     bottom = c.bottom - footer_h() - 30
     gap = 56
     avail = bottom - top - gap
-    h_myth, h_fact = int(avail * 0.42), int(avail * 0.58)
+    share = 0.5 if rera_y else 0.42   # under the MahaRERA badge the myth card needs its share of the smaller space
+    h_myth, h_fact = int(avail * share), int(avail * (1 - share))
     pad = 44
     w = c.right - c.left - 2 * pad
     dark = (20, 32, 58) if pal.light else mix(pal.card, (0, 0, 0), 0.45)

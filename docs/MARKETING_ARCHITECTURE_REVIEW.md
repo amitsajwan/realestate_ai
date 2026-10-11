@@ -145,7 +145,7 @@ The same format as `CONTENT_PLATFORM.md`. Sizes: S = under a day, M = 1 to 3 day
 |---|---|---|---|---|
 | AR-1 | `llm_calls` log in the gateway, with outcomes (G1, G2) | Every creative, reel and vision call writes a row; Studio Admin shows calls, failures and tokens per day | M | |
 | AR-2 | Per-task model routing (G3) | `AI_MODEL_<TASK>` settings; the vision tagger and brochure reader have pinned models | S | AR-1 |
-| AR-3 | MahaRERA QR and registration badge (S3) | Current MahaRERA advertisement order confirmed and cited in `docs/`; cards and reel end cards carry the QR whenever a project RERA number is known | M | |
+| AR-3 | MahaRERA QR and registration badge (S3) | Current MahaRERA advertisement order confirmed and cited in `docs/`; cards and reel end cards carry the QR whenever a project RERA number is known. BUILT 11 Oct 2026: Order 46C/2025, `MARKETING.md` §4 "MahaRERA on our ads" | M | |
 | AR-4 | Media catalogue with pixel checks, perceptual hash and hero rank, no AI yet (S2) | `listing_media` filled on upload; reels choose photos by hero rank, then upload order | M | |
 | AR-5 | Vision tagging: kind, room, flags (G5, S11) | Tags on every new photo; 85% or better room accuracy on the labelled set (AR-9) | M | AR-1, AR-4 |
 | AR-6 | Brochure upload and text-layer reader (S1, G4) | A text PDF gives amenities, specs and configurations with page and quote; validators pass | L | AR-1 |

@@ -218,7 +218,7 @@ class MarketingRuns:
         listing = await self._listing(agent_id, listing_id)
         photo = await asyncio.to_thread(self._photo, listing)
         briefs = dict(campaign.plan(await self._facts(run, listing), photo, run.get("page_url") or "",
-                                    **self._who(run, await self._identity(run))))
+                                    kit=await self._kit(listing_id), **self._who(run, await self._identity(run))))
         if angle not in briefs:
             raise RunError("The facts for this post are no longer available. Start marketing again.", 409)
         n = int(run["posts"][idx].get("redos") or 0) + 1
@@ -312,6 +312,14 @@ class MarketingRuns:
         page = await page_for(self.db, regno)
         return regno, (page or {}).get("url")
 
+    async def _kit(self, listing_id: str) -> Optional[dict]:
+        """The listing's brochure kit (its registration answer decides the MahaRERA badge with the facts); None without one."""
+        try:
+            return await Brochures(self.db, self.uploads_dir).current(listing_id)
+        except Exception:
+            log.info("marketing: no brochure kit read for %s", listing_id, exc_info=True)
+            return None
+
     def _photo(self, listing: dict) -> str:
         """The listing's best photo (marketing.images.cover_photo_path) as a local file for the cards, or "none" (never a
         stock photo of something else)."""
@@ -386,7 +394,7 @@ class MarketingRuns:
             llm = self.llm_factory() if self.llm_factory else None
             photo = await asyncio.to_thread(self._photo, listing)
             packs = await campaign.make(sheet.facts, out, llm=llm, photo=photo, link=page, dropped=dropped,
-                                        **self._who(job, await self._identity(job)))
+                                        kit=await self._kit(job["listing_id"]), **self._who(job, await self._identity(job)))
             posts: List[dict] = []
             for aid, p in packs:
                 imgs = ["/uploads/" + Path(i).resolve().relative_to(self.uploads_dir.resolve()).as_posix() for i in p.images]

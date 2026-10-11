@@ -20,6 +20,7 @@ from app.modules.photoquality import rank_photos
 from app.platform.media import display_url
 
 from .facts import T, Facts
+from .maharera import badge as maharera_badge
 
 SQUARE = (1080, 1080)
 STORY = (1080, 1920)
@@ -319,6 +320,24 @@ def _stamp_logo(c: "Card", x: int, y: int, diameter: int = 96) -> None:
     c.boxes.append((x, y, x + diameter, y + diameter))
 
 
+MAHARERA_QR, MAHARERA_TEXT = 160, 30          # the badge on the square cards: its text no smaller than "Listed by"
+STORY_MAHARERA = (192, 32)                     # and on the WhatsApp status card, seen full screen
+
+
+def _stamp_maharera(c: "Card", f: Facts, y: int, qr_px: int = MAHARERA_QR, text_px: int = MAHARERA_TEXT) -> Optional[Tuple[int, int]]:
+    """The MahaRERA badge (QR, "MahaRERA: P5...", the website) at the top right, where MahaRERA's order puts it, when the
+    project's registration is known (f.registration). Returns (its left edge, its bottom), or None when there is none."""
+    if f.registration is None or f.sample:
+        return None
+    b = maharera_badge(f.registration, qr_px, text_px)
+    w, h = b.size
+    x = c.right - w
+    c.img.paste(b.img, (x, y), b.img)
+    c.boxes.append((x, y, x + w, y + h))
+    c.texts.extend(b.texts)
+    return x, y + h
+
+
 def _panel_with_header(size: Tuple[int, int], src: Optional[Image.Image], seed: str, header_h: int) -> Image.Image:
     """Brand gradient panel; the photo (if any) sits at the top and fades smoothly into the panel."""
     panel = gradient_card(size, seed)
@@ -411,12 +430,15 @@ def _fact_bits(f: Facts) -> str:
     return "  |  ".join(latin(b) for b in bits if b)
 
 
-def _tag_chips(c: "Card", f: Facts, y: int) -> int:
-    """'FOR SALE' (gold) and 'READY TO MOVE' (outline) chips. Returns the y below them."""
+def _tag_chips(c: "Card", f: Facts, y: int, right: Optional[int] = None) -> int:
+    """'FOR SALE' (gold) and 'READY TO MOVE' (outline) chips, the second only when it fits left of `right` (the MahaRERA
+    badge). Returns the y below them."""
     if f.sample:
         return _chip(c, "SAMPLE LISTING", c.left, y)[1]
     x, bottom = _chip(c, "FOR RENT" if f.rent else "FOR SALE", c.left, y)
-    if f.possession == "ready" and x + 14 < c.right - 200:
+    fits = (x + 14 < c.right - 200 if right is None else
+            x + 14 + c.draw.textlength("READY TO MOVE", font=load_font(28, "semibold")) + 48 <= right - 16)
+    if f.possession == "ready" and fits:
         _, b2 = _chip(c, "READY TO MOVE", x + 14, y, fill=None, ink=WHITE, outline=WHITE)
         bottom = max(bottom, b2)
     return bottom
@@ -458,11 +480,13 @@ def render(kind: str, f: Facts, src: Optional[Image.Image]) -> Card:
     if kind == "cover":
         img = _scrim_bottom(_fit(src, size), 0.34, 0.94) if src is not None else brand_background(size, seed, windows_above=int(size[1] * 0.5))
         c = Card(size, img, top, bottom)
-        _tag_chips(c, f, c.top)
-        _stamp_logo(c, c.right - 96, c.top)
+        rera = _stamp_maharera(c, f, c.top)   # the badge takes the logo's corner
+        _tag_chips(c, f, c.top, rera[0] if rera else None)
+        if rera is None:
+            _stamp_logo(c, c.right - 96, c.top)
         footer_y = _cover_footer(c, f)
         c.bottom = footer_y - 34
-        c.stack([{"text": f.price_text, "size": 124, "fill": GOLD, "min_size": 60, "weight": "bold"},
+        c.stack(y0=rera[1] + 24 if rera else None, items=[{"text": f.price_text, "size": 124, "fill": GOLD, "min_size": 60, "weight": "bold"},
                  {"text": what, "size": 56, "min_size": 34, "lines": 2, "weight": "semibold"},
                  {"text": where, "size": 42, "fill": SOFT, "min_size": 26, "lines": 2, "weight": "medium"},
                  {"text": latin(f.project), "size": 34, "fill": SOFT, "min_size": 24},
@@ -481,13 +505,16 @@ def render(kind: str, f: Facts, src: Optional[Image.Image]) -> Card:
         probe = Card(size, Image.new("RGB", size), top, bottom)
         total = sum(probe.height_of(i["text"], i["size"], i.get("lines", 1), i.get("min_size", 24), weight=i.get("weight", "regular")) + gap
                     for i in items if i.get("text")) + 30 + _button_height(btn) + 20 + int(34 * PITCH)
-        start = max(top + 160, probe.bottom - total)
+        rera_h = maharera_badge(f.registration, *STORY_MAHARERA).size[1] + 20 if f.registration and not f.sample else 0
+        start = max(top + 160 + rera_h, probe.bottom - total)
         head = min(1300, start + 60)
         img = _panel_with_header(size, src, seed, head) if src is not None else brand_background(size, seed, windows_above=int(size[1] * 0.45))
         c = Card(size, img, top, bottom)
-        _stamp_logo(c, c.right - 96, c.top)
+        rera = _stamp_maharera(c, f, c.top, *STORY_MAHARERA)   # the badge takes the logo's corner; 'Listed by' goes under it
+        if rera is None:
+            _stamp_logo(c, c.right - 96, c.top)
         if agent:
-            _pill(c, _listed_by(f) or f"Listed by {agent}", c.top)
+            _pill(c, _listed_by(f) or f"Listed by {agent}", rera[1] + 20 if rera else c.top)
         y = c.stack(items, anchor="top", gap=gap, y0=start) + 30 - gap
         y = _button(c, f"Reply {CTA_WORD}", y, btn, True) + 20
         c.block("to get the details and plan a site visit", y, 34, SOFT, 1, 22, weight="medium")
@@ -512,7 +539,7 @@ def render(kind: str, f: Facts, src: Optional[Image.Image]) -> Card:
         y = c.block(title, y, 32, SOFT, 2, 22) + 6
         if _listed_by(f):
             y = c.block(_listed_by(f), y, 26, SOFT, 1, 18, weight="medium") + 6
-        if f.rera:
+        if f.rera and f.registration is None:  # with the badge, the number is on it
             y = c.block(f"RERA: {f.rera}", y, 28, SOFT, 1, 20)
         return y
 
@@ -557,7 +584,11 @@ def render(kind: str, f: Facts, src: Optional[Image.Image]) -> Card:
             c.block(a, yy, sz, WHITE, 2, 26, x=x + 46, weight="medium")
         c.right = saved_right
     elif kind == "cta":
-        _stamp_logo(c, c.right - 96, c.top)
+        rera = _stamp_maharera(c, f, c.top)   # over the photo strip, in the logo's corner
+        if rera is None:
+            _stamp_logo(c, c.right - 96, c.top)
+        else:
+            y0 = max(y0, rera[1] + 24)
         total = cta_layout(Card(size, Image.new("RGB", size), top, bottom), 0)
         cta_layout(c, y0 + max(0, (c.bottom - y0 - total) // 2))
     else:

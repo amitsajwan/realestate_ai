@@ -57,6 +57,7 @@ MAX_SCREEN_WORDS = 8   # on-screen text longer than this is split over quick scr
 TAG_Y = TEXT_TOP               # the brand tag row (logo + name), under the progress bar
 CONTENT_TOP = TAG_Y + 94       # 362: below the brand tag row
 BADGE_ROW = 64 + 24            # the outlined badge (drawn at CONTENT_TOP - 4) and a gap under it
+OVERLAY_GAP = 36               # between a scene's overlay (the MahaRERA badge) and its text
 
 
 class ReelError(Exception):
@@ -93,6 +94,9 @@ class Scene:
                                                         # joins never moves the ones already there; a line at 0 is there on frame one
     images: Sequence = ()                               # more photos behind the same text (a walkthrough under a stacked list): images[k]
     image_at: Sequence[float] = ()                      # takes over from the one before at image_at[k] seconds, with a short blend
+    overlay: Optional[Image.Image] = None               # RGBA drawn as it is at the top right under the brand row (the MahaRERA
+                                                        # badge); the scene's text keeps below it
+    overlay_at: float = 0.0                             # seconds after the scene starts at which the overlay comes in
 
 
 def end_scene(seconds: float = 2.6) -> Scene:
@@ -457,6 +461,8 @@ def layout_scene(scene: Scene) -> List[Item]:
     lines = [l for l in lines if l.text]
     bottom = TEXT_BOTTOM
     top = CONTENT_TOP + (BADGE_ROW if scene.badge else 0)   # a full screen of text never runs into the badge
+    if scene.overlay is not None:                            # nor into the overlay at the top right
+        top = max(top, CONTENT_TOP + scene.overlay.size[1] + OVERLAY_GAP)
     avail = bottom - top
     max_w = TEXT_W if align == "left" else TEXT_W_CENTER
     shrink = 1.0
@@ -619,6 +625,7 @@ class _Prepared:
         self.reveal = [t for l, t in zip(scene.lines, scene.reveal) if (l.text if isinstance(l, TextLine) else l)] if scene.reveal else None
         self.is_first = is_first
         self.badge = _chip_item(scene.badge, CONTENT_TOP - 4, "left", filled=False) if scene.badge else None
+        self.overlay = _overlay_item(scene.overlay) if scene.overlay is not None else None
         # The opening scene has no entrance animation: frame one already shows the whole hook, so it is readable before anyone
         # swipes away (and the cover image, a still of that frame, shows it too). Later scenes pop their text in from the cut:
         # a slow fade after a delay left the screen empty for about a second right after the hook (the moment viewers decide).
@@ -662,6 +669,10 @@ class _Prepared:
     def badge_alpha(self, lt: float) -> float:
         return ease_out_cubic(lt / TEXT_IN) if self.animate else 1.0
 
+    def overlay_alpha(self, lt: float) -> float:
+        at = self.scene.overlay_at
+        return ease_out_cubic((lt - max(at, self.delay)) / self.fade) if (at > 0 or self.animate) else 1.0
+
     def item_alpha(self, k: int, lt: float) -> float:
         """Opacity (and so the rise offset) of the k-th text item at scene time lt: 1.0 means in its final place."""
         if self.reveal:  # a stacked list: each line pops in at its own time and stays; the opening scene's first line is there on frame one
@@ -676,9 +687,18 @@ class _Prepared:
         img = Image.composite(self.solid, self.background(p, lt), self.mask)
         if self.badge:
             _blit(img, self.badge, self.badge_alpha(lt), rise=0)
+        if self.overlay:
+            _blit(img, self.overlay, self.overlay_alpha(lt) * text_a, rise=0)
         for k, it in enumerate(self.items):
             _blit(img, it, self.item_alpha(k, lt) * text_a, rise=24)
         return img
+
+
+def _overlay_item(overlay: Image.Image) -> Item:
+    """A scene's overlay, right-aligned to the text edge (clear of the like and share buttons) under the brand row."""
+    w, h = overlay.size
+    x, y = TEXT_RIGHT - w, CONTENT_TOP
+    return Item(overlay.convert("RGBA"), x, y, (x, y, x + w, y + h))
 
 
 def _blit(img: Image.Image, it: Item, a: float, rise: int = 46) -> None:
