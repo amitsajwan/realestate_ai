@@ -237,3 +237,41 @@ def test_no_photo_cover_is_a_designed_panel_not_an_empty_gradient():
     with_towers = render("cover", facts(), None).img
     plain = im.gradient_card(with_towers.size, "Rahul Sharma|Baner")
     assert with_towers.getpixel((300, 700)) != plain.getpixel((300, 700)) or with_towers.getpixel((600, 800)) != plain.getpixel((600, 800))
+
+
+def test_each_card_gets_its_own_ranked_photo_and_repeats_only_when_photos_run_out(up):
+    from .photo_helpers import save, scene
+    for i in range(6):
+        save(up / "images", f"r{i}.jpg", scene(i + 1))
+    m = [{"url": f"/uploads/images/r{i}.jpg", "kind": "image", "order": i} for i in range(6)]
+    picks = im.card_photos(m, up, KINDS, tags={})
+    assert picks["cover"] == im.cover_photo_path(m, up) and len(set(picks.values())) == len(KINDS)
+    two = im.card_photos(m[:2], up, KINDS, tags={})
+    assert len(set(two.values())) == 2 and two["cover"] != two["facts"]
+    assert two["amenities"] == two["status"] == two["cover"] and two["cta"] == two["facts"]   # round again, alternating
+    assert im.card_photos([], up, KINDS) == {k: None for k in KINDS}
+    one = im.card_photos(m[:1], up, ["cover", "facts", "cta", "status"], tags={})
+    assert set(one.values()) == {one["cover"]}
+
+    ranked = [im.cover_photo_path(m, up)] + [p for p in im.photo_paths(m, up) if p != im.cover_photo_path(m, up)]
+    tags = {ranked[4]: {"kind": "amenity", "room": None}, ranked[1]: {"kind": "floor_plan", "room": None},
+            ranked[2]: {"kind": "exterior", "room": None}}
+    tagged = im.card_photos(m, up, KINDS, tags=tags)
+    assert tagged["amenities"] == ranked[4]                       # an amenity photo behind the amenities card
+    assert ranked[1] not in tagged.values()                       # a floor plan is not a card background while others remain
+    assert im.card_photos(m, up, KINDS, tags={ranked[2]: {"kind": "exterior", "room": None}})["amenities"] == ranked[2]
+
+
+def test_render_all_draws_each_card_over_its_own_photo(up, monkeypatch):
+    from .photo_helpers import save, scene
+    m = []
+    for i in range(3):
+        save(up / "images", f"s{i}.jpg", scene(i + 1))
+        m.append({"url": f"/uploads/images/s{i}.jpg", "kind": "image", "order": i})
+    seen = {}
+    real = im.render
+    monkeypatch.setattr(im, "render", lambda kind, f, src, *a, **k: seen.setdefault(kind, src) and real(kind, f, src, *a, **k))
+    out = render_all(facts(), m, up, "L1", tags={})
+    assert list(out) == KINDS and all(seen[k] is not None for k in KINDS)
+    assert len({id(seen[k]) for k in ("cover", "facts", "amenities")}) == 3         # three photos, three different cards
+    assert seen["cta"] is seen["cover"] and seen["status"] is seen["facts"]          # then they repeat; each is loaded once

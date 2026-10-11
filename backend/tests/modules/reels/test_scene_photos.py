@@ -57,3 +57,53 @@ async def test_the_worker_renders_the_ranked_photos(up):
     await jobs.create(AGENT, "L1", "en")
     assert await jobs.run_once()
     assert names(r.calls[0]["photos"]) == ["a", "tall", "b"]
+
+
+def test_photo_tags_order_the_scenes_room_by_room_after_the_hero(up):
+    listing = {"media": media("a", "b", "c", "d", "e")}
+    ranked = lr.scene_photos(listing, up)
+    by = {p.stem: p for p in lr.listing_photos(listing, up)}
+    tags = {by["a"]: {"kind": "interior", "room": "living"}, by["b"]: {"kind": "amenity", "room": None},
+            by["c"]: {"kind": "interior", "room": "bedroom"}, by["d"]: {"kind": "interior", "room": "kitchen"},
+            by["e"]: {"kind": "exterior", "room": None}}
+    assert names(ranked) == ["a", "b", "c", "d", "e"]
+    assert names(lr.scene_photos(listing, up, tags)) == ["a", "e", "d", "c", "b"]   # the hero, outside, kitchen, bedroom...
+    assert names(lr.scene_photos(listing, up, {})) == names(ranked)                # no tags: the ranked order
+
+
+def test_plans_and_papers_stay_out_of_the_reel_while_two_photos_remain(up):
+    listing = {"media": media("a", "b", "c")}
+    by = {p.stem: p for p in lr.listing_photos(listing, up)}
+    plan = {by["b"]: {"kind": "floor_plan", "room": None}, by["c"]: {"kind": "document", "room": None}}
+    assert names(lr.scene_photos(listing, up, plan)) == ["a", "b", "c"]            # only one other photo: they stay
+    four = {"media": media("a", "b", "c", "d")}
+    assert names(lr.scene_photos(four, up, {by["c"]: {"kind": "document", "room": None}})) == ["a", "b", "d"]
+
+
+@pytest.mark.asyncio
+async def test_the_worker_tags_the_ranked_photos_and_falls_back_when_tagging_fails(up):
+    seen = []
+
+    async def tagger(paths):
+        seen.append(names(paths))
+        return {p: {"kind": "exterior", "room": None} if p.stem == "b" else {"kind": "interior", "room": "bedroom"}
+                for p in paths}
+
+    r = Renderer()
+    jobs, db = await setup(up, renderer=r)
+    jobs.tagger = tagger
+    await db.get_collection("listings").update_one({"_id": "L1"}, {"$set": {"media": media("blur", "tall", "a", "c", "b")}})
+    await jobs.create(AGENT, "L1", "en")
+    assert await jobs.run_once()
+    assert seen == [["a", "tall", "c", "b"]] and names(r.calls[0]["photos"]) == ["a", "b", "tall", "c"]
+
+    async def rate_limited(paths):
+        raise RuntimeError("429")
+
+    r2 = Renderer()
+    jobs, db = await setup(up, renderer=r2)
+    jobs.tagger = rate_limited
+    await db.get_collection("listings").update_one({"_id": "L1"}, {"$set": {"media": media("blur", "tall", "a", "c", "b")}})
+    await jobs.create(AGENT, "L1", "en")
+    assert await jobs.run_once() and names(r2.calls[0]["photos"]) == ["a", "tall", "c", "b"]   # the ranked order, still made
+    assert lr.ReelJobs(db, up).tagger is None                                    # only the worker's jobs (default_jobs) tag

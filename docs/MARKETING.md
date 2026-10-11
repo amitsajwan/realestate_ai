@@ -142,14 +142,28 @@ A stack reel is its own job and file (`listing-<id>-<lang>-stack-<short>.mp4`). 
 In Studio the agent picks Tour or Stack under "Make my reel" and sees the latest reel of each style (`GET .../reel?style=`).
 The owner's concierge reel path does not take a style yet (tour only).
 
-### Which photos (LIVE, pixel checks only)
+### Which photos (LIVE: pixel checks, plus optional room tags)
 `photoquality.rank_photos` chooses the photos for the walkthrough reel (`listing_reel.scene_photos`, up to 5), and its hero
 is the photo on the pack's cover card and on the campaign posts (`marketing.images.cover_photo_path`), so the slides reels
 built from those posts get it too. Near-identical photos (a perceptual hash and a colour check) keep only the best copy.
 Blurry, dark, small and "mostly floor or sky" photos are left out, and come back last only when fewer than the minimum
 would remain (2 for a reel, 1 for a cover). The agent's order decides otherwise. The hero is a well-exposed landscape photo
-with the best score (scores within 10 points count as equal). The enhanced copy is used when the agent kept it on. No AI is
-involved; room and kind tags (AR-5) come later.
+with the best score (scores within 10 points count as equal). The enhanced copy is used when the agent kept it on.
+
+Room tags (AR-5, first part; `photoquality/tagging.py`): the reel worker asks the vision chain the visual review already
+uses (free tier, 3 photos per request, 12 s timeout) what each of the first 9 ranked photos shows: a kind (exterior,
+interior, view, amenity, floor_plan, document, other) and a room (living, kitchen, bedroom, bath, balcony, dining, lobby,
+other). Replies are checked against that list (an unknown value is `other`, a reply with the wrong number of items is
+dropped) and cached per file hash next to the review cache, so a photo is tagged once. With tags, the reel keeps the hero
+first and walks through the home: exterior, living, dining, kitchen, bedrooms, bath, balcony and view, amenities (the
+ranked order breaks ties); floor plans and papers stay out while 2 other photos remain. Tags are never required: no key, a
+rate limit (429, no waiting), a timeout or a bad reply leaves the ranked order. Tagging runs only in the reel worker, never
+in a request path. `AI_PHOTO_TAGS=off` (or `AI_VISION_REVIEW=off`) turns it off.
+
+Pack cards (`marketing.images.card_photos`): each card gets its own photo where there are enough. The cover has the hero,
+the other cards the next ranked photos in turn; the amenities card prefers a photo tagged amenity, then exterior. Photos
+repeat only when there are fewer photos than cards. The pack is made in a request, so it reads cached tags only (from an
+earlier reel); without them the ranked order decides.
 
 ### Reel formats (templates, `reels/templates.py`)
 - **Tip, pitch, listing tour** ("guess the price"): scenes that replace each other.

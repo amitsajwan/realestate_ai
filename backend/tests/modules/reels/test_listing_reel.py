@@ -588,3 +588,27 @@ async def test_a_stack_reel_is_its_own_job_and_the_tour_flows_are_untouched(tmp_
     old = {k: v for k, v in tour.items() if k != "style"}                              # a job from before styles: a tour
     db.get_collection("reel_jobs").docs[:] = [old]
     assert (await jobs.latest(AGENT, "L1"))["en"]["_id"] == tour["_id"] and not await jobs.latest(AGENT, "L1", "stack")
+
+
+def test_devanagari_screen_lines_read_as_phrases_not_labels():
+    listing = dict(_id="a", title="Flat", transaction="sale", price_inr=8500000, city="Pune", locality="Kharadi", bhk=2,
+                   carpet_sqft=780, floor=7, total_floors=22, furnishing="semi", possession="ready",
+                   amenities=["Gym", "Covered Parking", "Lift", "Pool"])
+    subject, facts, f = lr.reel_facts(listing, PROFILE)
+    facts_text = subject + "\n" + "\n".join(f"- {x}" for x in facts)
+    screens = {}
+    for lang in ("hi", "mr"):
+        script = lr.rules_script(f, lang, devanagari=True)
+        assert _valid(script, facts_text, devanagari_screen=True), script
+        screens[lang] = [b["screen"] for b in script["beats"]]
+        assert all(len(s.split()) <= 8 for s in screens[lang])
+        assert not any(w in " ".join(screens[lang]) for w in ("एकूण", "कुल", "मजला 7", "मंज़िल 7"))   # no labels
+    assert screens["mr"][1:4] == ["किंमत *₹85 लाख*", "*780* चौरस फूट, 22 मजली इमारतीत 7वा मजला", "रेडी टू मूव, Gym आणि *Lift*"]
+    assert screens["hi"][1:4] == ["कीमत *₹85 लाख*", "*780* वर्ग फुट, 22 में से 7वीं मंज़िल", "रेडी टू मूव, Gym और *Lift*"]
+    rent = lr.reel_facts(dict(_id="b", title="Flat", transaction="rent", price_inr=45000, city="Pune", locality="Wakad",
+                              bhk=1, floor=0, total_floors=4, amenities=["Gym"]), PROFILE)[2]
+    mr = [b["screen"] for b in lr.rules_script(rent, "mr", devanagari=True)["beats"]]
+    assert mr[1:4] == ["भाडं *₹45,000/महिना*", "तळमजला", "*Gym*"]
+    first = lr.reel_facts({**listing, "floor": 1, "total_floors": None}, PROFILE)[2]
+    assert lr._screen_floor(first, "mr") == "पहिला मजला" and lr._screen_floor(first, "hi") == "पहली मंज़िल"
+    assert lr.rules_script(f, "en") == lr.rules_script(f, "en", devanagari=True)                  # English unchanged

@@ -39,7 +39,7 @@ def test_the_cover_card_is_drawn_from_the_hero(tmp_path, monkeypatch):
     real = im._load_source
     monkeypatch.setattr(im, "_load_source", lambda p: seen.append(p) or real(p))
     render_all(facts(), media("blur", "tall", "a"), up, "L1")
-    assert [p.stem for p in seen] == ["a"]
+    assert [p.stem for p in seen] == ["a", "tall"]        # the hero first (the cover); the next ranked photo for the other cards
     with Image.open(up / "marketing" / "L1" / "cover.jpg") as c:
         assert c.size == (1080, 1080)
 

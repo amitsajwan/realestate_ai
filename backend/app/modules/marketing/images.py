@@ -1,6 +1,7 @@
 """Server-side share cards (Pillow + bundled Poppins). 1080x1080 carousel cards + one 1080x1920 status card.
 
-Background photo: ONLY the listing's own best photo (cover_photo_path), and only when it is one of our own uploads
+Background photos: ONLY the listing's own photos (card_photos: the hero on the cover, the next ranked photos on the other
+cards), and only our own uploads
 (`/uploads/images/<file>` that exists under the backend uploads dir). Remote URLs, `..`, absolute paths and anything else are never opened or fetched.
 Image text is English/numerals (Devanagari on images is out of scope), always inside safe margins over a dark overlay.
 """
@@ -16,7 +17,7 @@ from urllib.parse import urlparse
 from PIL import Image, ImageDraw, ImageFile, ImageFont, ImageOps
 
 from app.core import brand
-from app.modules.photoquality import rank_photos
+from app.modules.photoquality import cached_tags, rank_photos, shown
 from app.platform.media import display_url
 
 from .facts import T, Facts
@@ -84,6 +85,42 @@ def cover_photo_path(media: List[dict], uploads_dir: Path) -> Optional[Path]:
     blurry or duplicate first upload never fronts the listing. None without a photo of our own."""
     ranked = rank_photos(photo_paths(media, uploads_dir), min_keep=1)
     return ranked[0] if ranked else None
+
+
+def card_photos(media: List[dict], uploads_dir: Path, kinds: List[str],
+                tags: Optional[Dict[Path, dict]] = None) -> Dict[str, Optional[Path]]:
+    """A photo per card kind, each card its own where there are enough photos: the cover gets the hero (cover_photo_path's),
+    the others the next ranked photos in turn; the amenities card prefers a photo tagged amenity, then exterior. Floor plans
+    and papers are skipped while other photos remain. Photos repeat only when there are fewer of them than cards. `tags`
+    (default: photoquality.cached_tags, the cache only, no network) come from the reel worker; without them the ranked
+    order decides."""
+    ranked = rank_photos(photo_paths(media, uploads_dir), min_keep=1)
+    if not ranked:
+        return {k: None for k in kinds}
+    tags = cached_tags(ranked) if tags is None else tags
+    rest = [p for p in ranked[1:] if shown(tags.get(p))] or ranked[1:]
+    cycle = [ranked[0]] + rest
+    out: Dict[str, Optional[Path]] = {}
+    if "cover" in kinds:
+        out["cover"] = ranked[0]
+    pool = list(rest)
+    if "amenities" in kinds and pool:
+        for want in ("amenity", "exterior"):
+            hit = next((p for p in pool if (tags.get(p) or {}).get("kind") == want), None)
+            if hit is not None:
+                out["amenities"] = hit
+                pool.remove(hit)
+                break
+    reuse = 0
+    for k in kinds:
+        if k in out:
+            continue
+        if pool:
+            out[k] = pool.pop(0)
+        else:  # more cards than photos: go round again from the hero
+            out[k] = cycle[reuse % len(cycle)]
+            reuse += 1
+    return out
 
 
 def _load_source(path: Optional[Path]) -> Optional[Image.Image]:
@@ -591,18 +628,23 @@ def save_jpeg(img: Image.Image, path: Path) -> int:
     return len(data)
 
 
-def render_all(f: Facts, media: List[dict], uploads_dir: Path, listing_id: str) -> Dict[str, dict]:
-    """Render + write all cards. Returns {kind: {path (relative under /uploads), width, height}}."""
+def render_all(f: Facts, media: List[dict], uploads_dir: Path, listing_id: str,
+               tags: Optional[Dict[Path, dict]] = None) -> Dict[str, dict]:
+    """Render + write all cards, each over its own listing photo where there are enough (card_photos). Returns {kind: {path
+    (relative under /uploads), width, height}}."""
     if not ID_RE.match(listing_id or ""):
         raise ValueError("unsafe listing id")
     uploads_dir = Path(uploads_dir)
     out_dir = uploads_dir / "marketing" / listing_id
-    src = _load_source(cover_photo_path(media, uploads_dir))
     kinds = ["cover", "facts"] + (["amenities"] if f.amenities else []) + ["cta", "status"]
+    photos = card_photos(media, uploads_dir, kinds, tags)
+    loaded: Dict[Optional[Path], Optional[Image.Image]] = {}
     result: Dict[str, dict] = {}
     for kind in kinds:
         size = STORY if kind == "status" else SQUARE
-        card = render(kind, f, src)
+        if photos[kind] not in loaded:
+            loaded[photos[kind]] = _load_source(photos[kind])
+        card = render(kind, f, loaded[photos[kind]])
         save_jpeg(card.img, out_dir / f"{kind}.jpg")
         result[kind] = {"path": f"/uploads/marketing/{listing_id}/{kind}.jpg", "width": size[0], "height": size[1]}
     if not f.amenities:

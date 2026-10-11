@@ -32,7 +32,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple
 from app.core import brand
 from app.modules.marketing.facts import T, Facts
 from app.modules.marketing.images import latin, photo_paths
-from app.modules.photoquality import rank_photos
+from app.modules.photoquality import rank_photos, room_order, shown, tag_photos
 
 from . import ffmpeg, narration, voice
 from .compose import Scene, TextLine, devanagari_clean, devanagari_ok, make_reel, plan, stretch
@@ -102,10 +102,21 @@ def listing_photos(listing: dict, uploads_dir: Path) -> List[Path]:
     return photo_paths(listing.get("media") or [], uploads_dir)
 
 
-def scene_photos(listing: dict, uploads_dir: Path) -> List[Path]:
-    """The photos the reel shows, best first (photoquality.rank_photos): no duplicates, no blurry or dark ones unless the
-    reel would otherwise have fewer than MIN_PHOTOS, the hero photo on the first scene. At most MAX_SCENE_PHOTOS."""
-    return rank_photos(listing_photos(listing, uploads_dir), min_keep=MIN_PHOTOS)[:MAX_SCENE_PHOTOS]
+def ranked_photos(listing: dict, uploads_dir: Path) -> List[Path]:
+    """The listing's photos best first (photoquality.rank_photos): no duplicates, no blurry or dark ones unless the reel would
+    otherwise have fewer than MIN_PHOTOS, the hero first."""
+    return rank_photos(listing_photos(listing, uploads_dir), min_keep=MIN_PHOTOS)
+
+
+def scene_photos(listing: dict, uploads_dir: Path, tags: Optional[Dict[Path, dict]] = None) -> List[Path]:
+    """The photos the reel shows (ranked_photos, at most MAX_SCENE_PHOTOS), the hero photo on the first scene. With photo tags
+    (photoquality.tag_photos) floor plans and papers stay out while MIN_PHOTOS others remain, and the scenes after the hero
+    walk through the home room by room (photoquality.room_order); without tags the ranked order stands."""
+    photos = ranked_photos(listing, uploads_dir)
+    if tags:
+        seen = [p for p in photos if shown(tags.get(p))]
+        photos = seen if len(seen) >= MIN_PHOTOS else photos
+    return room_order(photos[:MAX_SCENE_PHOTOS], tags or {})
 
 
 def listed_by_line(profile: Optional[dict]) -> str:
@@ -168,13 +179,21 @@ _WORDS = {
            "cta_s": CTA_SCREEN["mr"], "cta_v": CTA_VOICE["mr"], "with": "सोबत", "in": "{l} madhye {w}"},
 }
 _KIND = {"hi": {"carpet": "कार्पेट", "super built-up": "सुपर बिल्ट-अप"}, "mr": {"carpet": "कार्पेट", "super built-up": "सुपर बिल्ट-अप"}}
-# Screen words for a Devanagari screen (screen_devanagari): short labels, digits stay Western so they match the facts.
+# Screen words for a Devanagari screen (screen_devanagari): short natural phrases ("780 चौरस फूट, 22 मजली इमारतीत 7वा मजला"),
+# never labels ("मजला 7, एकूण 22"). Digits stay Western and exactly as in the facts, so director._valid can check them.
 _SCREEN = {
     "hi": {"in": "{l} में {w}", "sqft": "वर्ग फुट", "look": "अंदर एक *नज़र*", "month": "/महीना", "Lakh": "लाख", "Cr": "करोड़",
+           "sale": "कीमत {p}", "rent": "किराया {p}", "and": "और",
+           "floor_of": "{t} में से {at}", "at": "{n} मंज़िल", "ground": "ग्राउंड फ्लोर",
+           "ord": {1: "पहली", 2: "दूसरी", 3: "तीसरी", 4: "चौथी", 6: "छठी"}, "ord_n": "{n}वीं",
            "poss": {"ready": "रेडी टू मूव", "under_construction": "निर्माणाधीन"}},
     "mr": {"in": "{l} मध्ये {w}", "sqft": "चौरस फूट", "look": "आत एक *नजर*", "month": "/महिना", "Lakh": "लाख", "Cr": "कोटी",
+           "sale": "किंमत {p}", "rent": "भाडं {p}", "and": "आणि",
+           "floor_of": "{t} मजली इमारतीत {at}", "at": "{n} मजला", "ground": "तळमजला",
+           "ord": {1: "पहिला", 2: "दुसरा", 3: "तिसरा", 4: "चौथा"}, "ord_n": "{n}वा",
            "poss": {"ready": "रेडी टू मूव", "under_construction": "बांधकाम सुरू"}},
 }
+SCREEN_WORDS = 6  # a Devanagari screen line aims at this many words (director._valid allows 8)
 # Spoken Hindi and Marathi: whole sentences a person would say ("the carpet area is 780 square feet, on the 7th floor of a
 # 22-storey building"), never labels ("मजला 7, एकूण 22"). The same facts and numbers as the screen text.
 _SAY = {
@@ -228,20 +247,43 @@ def _screen_price(f: Facts, lang: str) -> str:
     return f.price_text.replace("/month", w["month"]).replace("Lakh", w["Lakh"]).replace("Cr", w["Cr"])
 
 
+def _screen_floor(f: Facts, lang: str) -> Optional[str]:
+    """'22 मजली इमारतीत 7वा मजला' / '22 में से 7वीं मंज़िल'; '7वा मजला' without the building's height, 'तळमजला' for the
+    ground floor."""
+    if f.floor is None:
+        return None
+    if f.floor < 0:
+        return f.floor_text(lang)
+    w = _SCREEN[lang]
+    if f.floor == 0:
+        return w["ground"]
+    at = w["at"].format(n=w["ord"].get(f.floor) or w["ord_n"].format(n=f.floor))
+    return w["floor_of"].format(t=f.total_floors, at=at) if f.total_floors else at
+
+
 def _devanagari_screens(f: Facts, lang: str) -> Dict:
-    """The rules script's screen lines in Hindi or Marathi (Devanagari), beat by beat as rules_script picks them."""
+    """The rules script's screen lines in Hindi or Marathi (Devanagari), beat by beat as rules_script picks them: short
+    phrases a person would write ('किंमत ₹85 लाख', '780 चौरस फूट, 22 मजली इमारतीत 7वा मजला', 'रेडी टू मूव, Gym आणि Lift')."""
     w = _SCREEN[lang]
     what = f.bhk_text or f.type_text(lang)
     place = _short(f.locality or f.city or "", 3)
-    size = ", ".join(x for x in [f"*{f.area:,}* {w['sqft']}" if f.area else "", f.floor_text(lang) or ""] if x)
+    size = ", ".join(x for x in [f"*{f.area:,}* {w['sqft']}" if f.area else "", _screen_floor(f, lang) or ""] if x)
     feats = [x for x in (w["poss"].get(f.possession or "") or f.possession_text(lang), T[lang]["furn"].get(f.furnishing or "")) if x]
-    amen = [latin(a) for a in f.amenities if latin(a)][:3]
-    bits = [_short_deva(x, 3) for x in (feats[:1] + amen)[:3]]
-    if bits:
-        bits[-1] = f"*{bits[-1]}*"
+    first = [_short_deva(feats[0], 3)] if feats else []
+    amen: List[str] = []
+    for a in [_short_deva(latin(a), 3) for a in f.amenities if latin(a)]:
+        if len(amen) < 3 and len(" ".join(first + amen + [a]).split()) + bool(amen) <= SCREEN_WORDS:
+            amen.append(a)   # the amenities that fit: fewer of them rather than a crowded line
+    if amen:
+        amen[-1] = f"*{amen[-1]}*"
+        listed = amen[0] if len(amen) == 1 else ", ".join(amen[:-1]) + f" {w['and']} " + amen[-1]
+        feats_line = ", ".join(first + [listed])
+    else:
+        feats_line = f"*{first[0]}*" if first else ""
+    price = w["rent" if f.rent else "sale"].format(p=f"*{_screen_price(f, lang)}*") if f.price_text else ""
     return {"hook": w["in"].format(w=f"*{what}*", l=place) if place else f"*{what}*",
-            "price": f"*{_screen_price(f, lang)}*" if f.price_text else "", "size": size, "feats": ", ".join(bits),
-            "highlight": _short_deva(f.highlights[0], 6) if f.highlights else "", "look": w["look"]}
+            "price": price, "size": size, "feats": feats_line,
+            "highlight": _short_deva(f.highlights[0], SCREEN_WORDS) if f.highlights else "", "look": w["look"]}
 
 
 def _say_and(items: List[str], lang: str) -> str:
@@ -486,13 +528,15 @@ def _safe_id(s: str) -> str:
 
 class ReelJobs:
     def __init__(self, db, uploads_dir, llm_factory: Optional[Callable] = None, renderer: Callable = render,
-                 now: Callable[[], datetime] = datetime.utcnow, voice_available: Callable[[], bool] = voice.available):
+                 now: Callable[[], datetime] = datetime.utcnow, voice_available: Callable[[], bool] = voice.available,
+                 tagger: Optional[Callable] = None):
         self.jobs = db.get_collection(COLLECTION)
         self.listings = db.get_collection("listings")
         self.profiles = db.get_collection("agent_public_profiles")
         self.uploads_dir = Path(uploads_dir)
         self.llm_factory = llm_factory
         self.renderer, self.now, self.voice_available = renderer, now, voice_available
+        self.tagger = tagger  # async (photos) -> {path: tag} (photoquality.tag_photos in the worker); None: the ranked order
 
     async def _listing(self, agent_id: str, listing_id: str) -> dict:
         doc = await self.listings.find_one({"_id": listing_id, "agent_id": agent_id})
@@ -583,7 +627,13 @@ class ReelJobs:
                 return await self._finish(jid, status="failed", error="The listing was removed.")
             if is_sample(listing):
                 return await self._finish(jid, status="failed", error="Sample listings cannot have a reel.")
-            photos = await asyncio.to_thread(scene_photos, listing, self.uploads_dir)
+            tags: Dict[Path, dict] = {}
+            if self.tagger is not None:  # what each photo shows, for a room-by-room order; never required
+                try:
+                    tags = await self.tagger(await asyncio.to_thread(ranked_photos, listing, self.uploads_dir)) or {}
+                except Exception:
+                    log.info("listing reel %s: photo tags unavailable", jid, exc_info=True)
+            photos = await asyncio.to_thread(scene_photos, listing, self.uploads_dir, tags)
             if len(photos) < MIN_PHOTOS:
                 return await self._finish(jid, status="failed", error="Add at least 2 photos")
             profile = await self.profiles.find_one({"agent_id": job["agent_id"]})
@@ -623,7 +673,7 @@ def default_jobs() -> ReelJobs:
     from app.core.config import settings
     from app.core.database import get_database
     from app.platform.llm import default_llm
-    return ReelJobs(get_database(), Path(settings.upload_directory), llm_factory=default_llm)
+    return ReelJobs(get_database(), Path(settings.upload_directory), llm_factory=default_llm, tagger=tag_photos)
 
 
 HEARTBEAT_EVERY_S = 60.0  # the loop polls every few seconds; its heartbeat is written at most once a minute
