@@ -158,9 +158,23 @@ The same format as `CONTENT_PLATFORM.md`. Sizes: S = under a day, M = 1 to 3 day
 | AR-13 | Two-step approval: agent, then owner (S6) | Agents see and approve their own rows; the owner sees agent-approved rows first | M | owner decision |
 | AR-14 | Object storage for media (S8) | Uploads and renders on GCS with the same public URL contract; originals backed up | M | |
 
-**Suggested order:** AR-1 and AR-3 first (one is visibility, the other is compliance). Then AR-4 and AR-6, which add value
-without new AI risk. Then AR-5, AR-8 and AR-9 together, because no vision or brochure output reaches a post until the
-evaluation set exists. Then AR-7 and AR-10. AR-12 and AR-13 wait on the owner, and AR-14 waits until a second worker is needed.
+**Order (owner, 11 Oct 2026): best output first.** The call log (AR-1) and model routing (AR-2) wait until after the pilot.
+First the items that change what a buyer sees: AR-4 (best photos, no duplicates, no blurry ones), then the reel and voice fixes
+in `MARKETING.md` §9, then AR-6 and AR-8 (the brochure, which is the main source for new projects; see below), then AR-5,
+AR-7 and AR-10. AR-3 follows the registration rule below. AR-12 and AR-13 wait on the owner, and AR-14 waits until a second
+worker is needed.
+
+**New projects without a MahaRERA record.** Many new projects have no record we can read yet, so the brochure and the agent
+are the only sources. The pipeline must work without MahaRERA:
+- Facts come from the listing (`official` for the agent's own offer) and the brochure (`builder_claim`, attributed). Nothing
+  is shown as "MahaRERA checked", and the angles that need MahaRERA (MahaRERA check, possession moved) are skipped.
+- The QR code and registration line (AR-3) appear only when the fact sheet holds a registration number.
+- A project the brochure shows a RERA number for, but that MahaRERA does not return, is held for the agent to confirm. It is
+  not posted as registered.
+- Under section 3 of the RERA Act, a project that needs registration (more than 500 sq m of land or more than 8 units) may not
+  be advertised before it is registered, and an agent may not market it. Small projects and resale homes are outside this
+  rule. So "no record" should ask the agent one question, "Is this project registered, or exempt?", and keep the answer on
+  the listing.
 
 ## 7. Decisions for the owner
 
