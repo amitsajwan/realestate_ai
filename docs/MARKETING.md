@@ -108,6 +108,24 @@ The agent taps "Start marketing" on a listing (`MarketingRunCard.tsx`).
    agent's id, so enquiries count per post. Facebook captions carry the listing link with `?src=fb_<angle>`. Edits reach
    planned rows only; approved rows never change.
 
+### Brochure (BUILT)
+The agent uploads the builder's brochure PDF on the listing (`POST /api/v1/listings/{id}/brochure`, up to 40 pages and 30 MB;
+`propertyfacts/brochure.py`, `brochure_parse.py`, collection `brochures`). The original is kept under
+`uploads/brochures/<listing>/<sha>.pdf` and read once per file: pdfium reads each page's text layer and makes a page thumbnail.
+Rules find the project, builder, MahaRERA number, address, configurations, carpet area per configuration, amenities,
+specifications, possession, land area, towers, floors and units, each with its page and the exact words. The free model may add
+facts, but only ones whose quote is on that page and whose value is in the quote (brochure text goes in a marked data block,
+never in the instructions). Pages without text are listed as image-only (no vision step yet; no paid AI).
+- Every fact is a `builder_claim`, pending until the agent confirms, fixes or drops it (`PATCH .../brochure/facts/{id}`).
+  Confirmed claims join the fact sheet (`gather.py`) but never override MahaRERA or the listing: a different possession month,
+  unit count, carpet area or RERA number is kept as a disagreement and listed in the run's notes.
+- Posts use claims only attributed: the `configurations`, `amenities` and `specifications` angles say "as per the builder's
+  brochure", and their numbers are written into the Brief, so the guards accept them as stated and refuse any other.
+- Registration: a brochure's MahaRERA number is looked up (`verified`), else held (`unverified`, never posted as registered).
+  With no number the kit asks "registered, or exempt?" (RERA Act section 3) and keeps the answer
+  (`POST .../brochure/registration`). Without a MahaRERA record the possession, MahaRERA check and project size angles are
+  skipped, and captions promise no MahaRERA record.
+
 ### Agent pack (LIVE)
 `POST /api/v1/listings/{id}/marketing` builds copy from listing facts only, in English, Hindi or Marathi, and renders the
 cards `cover`, `facts`, `amenities` (when there are any), `cta` and a WhatsApp `status` image. One pack per listing in
@@ -211,6 +229,7 @@ as "may already be live": check the page, then delete that ledger document to al
 | `publish_ledger` | One document per publish key: sending, sent or failed. |
 | `marketing_runs` | Listing campaign jobs with their posts. |
 | `property_facts` | Kept fact sheets with sources and levels. |
+| `brochures` | Brochure kits per listing and file: facts with page, quote and state, the registration answer (`propertyfacts/brochure.py`). |
 | `marketing_packs`, `publications` | Agent packs, and pack posts with consent. |
 | `reel_jobs` | Walkthrough reel jobs. |
 | `engage_comments` | Each handled comment, once. |

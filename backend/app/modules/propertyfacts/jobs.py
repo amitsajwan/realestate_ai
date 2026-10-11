@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from . import campaign, identity
+from .brochure import Brochures
 from .facts import USABLE
 from .gather import Clients, gather
 from .store import FactsStore, facts_of
@@ -391,10 +392,11 @@ class MarketingRuns:
             ctx = campaign.Ctx(sheet.facts)
             where = ctx.where or "this property"
             await self._set(jid, posts=posts, dropped={k: str(v)[:300] for k, v in dropped.items()},
-                            link_line=campaign.link_line_for(where, job.get("language") or "en"))
+                            link_line=campaign.link_line_for(where, job.get("language") or "en", ctx.maharera))
             # step 3 (best effort, never fails the run): reels from the best carousels, and the walkthrough reel
             step = "reels"
-            reels = await self._reels(job, listing, posts, out, ctx.project, campaign.link_line_for(where, job.get("language") or "en"))
+            link_line = campaign.link_line_for(where, job.get("language") or "en", ctx.maharera)
+            reels = await self._reels(job, listing, posts, out, ctx.project, link_line)
             await self._set(jid, status="done", reels=reels, error=None, finished_at=self.now())
         except Exception:
             log.exception("marketing run %s failed in step %s", jid, step)
@@ -421,8 +423,11 @@ def default_runs() -> MarketingRuns:
     from app.platform.llm import default_llm
     db = get_database()
     from app.modules.reels.listing_reel import ReelJobs
-    return MarketingRuns(db, Path(settings.upload_directory), settings.public_site_url,
-                         clients_factory=lambda: Clients(register=Store(db), facts_store=FactsStore(db)), llm_factory=default_llm,
+    uploads = Path(settings.upload_directory)
+    return MarketingRuns(db, uploads, settings.public_site_url,
+                         clients_factory=lambda: Clients(register=Store(db), facts_store=FactsStore(db),
+                                                         brochures=Brochures(db, uploads)),
+                         llm_factory=default_llm,
                          reel_jobs=ReelJobs(db, Path(settings.upload_directory), llm_factory=default_llm))
 
 

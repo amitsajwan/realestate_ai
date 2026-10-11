@@ -1,0 +1,451 @@
+"""The builder's brochure (docs/MARKETING_ARCHITECTURE_REVIEW.md §5.1, G6, G11): an agent uploads the PDF, we read its text
+layer, and the listing gets a kit of fact candidates the agent confirms, fixes or drops on one screen.
+
+    upload  -> the original kept under <uploads>/brochures/<listing>/<sha>.pdf (the same file is read once per listing),
+               a small JPEG of every page for the confirm screen, the text of each page read with pdfium
+    facts   -> brochure_parse finds candidates by rules; the free model may add more, each checked against the page text
+    level   -> every candidate is a `builder_claim`, pending until the agent confirms it. Only confirmed claims reach the fact
+               sheet (`readings`), where they never override MahaRERA or the listing, and posts say "as per the builder's
+               brochure" whenever they use them (campaign.py)
+    MahaRERA-> a registration number in the brochure is looked up. MahaRERA not returning it means `unverified`: held for the
+               agent, never posted as registered. No number and no record means `unknown`, and the agent is asked whether the
+               project is registered or exempt (RERA Act section 3)
+
+Collection `brochures`: one document per (listing, brochure file); the listing's kit is the latest one uploaded. This module is
+its only writer. The PDF is untrusted input: pdfium reads it without forms or scripts, under page, size and time limits."""
+import asyncio
+import hashlib
+import logging
+import re
+import threading
+import time
+import uuid
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+
+from . import brochure_parse as bp
+from . import registration
+from .facts import Reading
+
+log = logging.getLogger(__name__)
+
+COLLECTION = "brochures"
+MAX_PAGES = 40
+MAX_BYTES = 30 * 1024 * 1024
+READ_BUDGET_S = 30.0     # reading every page (text and thumbnail); a brochure that takes longer is not read
+LLM_BUDGET_S = 12.0      # the optional model pass; past it the rules' findings stand alone
+LOOKUP_BUDGET_S = 25.0   # the MahaRERA check; past it the number stays unverified
+THUMB_WIDTH = 360
+THUMB_MAX_HEIGHT = 1000
+SOURCE = "brochure"
+ATTRIBUTION = "as per the builder's brochure"
+STATES = ("pending", "confirmed", "dropped")
+REG_STATUSES = ("verified", "unverified", "unknown", "registered_by_agent", "exempt")
+ASK = ("Is this project registered on MahaRERA, or exempt? Under section 3 of the RERA Act, a project on more than 500 sq m of "
+       "land or with more than 8 units must be registered before it is advertised; smaller projects and resale homes are exempt.")
+
+_pdfium_lock = threading.Lock()  # pdfium is not thread-safe: one document at a time in this process
+
+
+class BrochureError(Exception):
+    def __init__(self, detail: str, status_code: int = 400):
+        super().__init__(detail)
+        self.detail, self.status_code = detail, status_code
+
+
+@dataclass
+class PdfRead:
+    pages: int = 0
+    texts: Dict[int, str] = field(default_factory=dict)  # page number (from 1) -> cleaned text
+    image_only: List[int] = field(default_factory=list)
+    error: str = ""
+    too_many: bool = False  # over the page limit: the upload is refused, not kept as a failed kit
+
+
+def _safe(s: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_-]", "", str(s))[:64] or "x"
+
+
+def read_pdf(data: bytes, thumbs: Optional[Path] = None, max_pages: int = MAX_PAGES, budget_s: float = READ_BUDGET_S,
+             clock: Callable[[], float] = time.monotonic) -> PdfRead:
+    """The text of every page and, with `thumbs`, a JPEG per page (p1.jpg, p2.jpg...). Never raises: a file pdfium cannot
+    open, a password, too many pages or too long a read come back as `error`."""
+    import pypdfium2 as pdfium  # heavy optional library, loaded on first use
+
+    out = PdfRead()
+    start = clock()
+    with _pdfium_lock:
+        try:
+            doc = pdfium.PdfDocument(data)
+        except pdfium.PdfiumError as e:
+            out.error = ("The PDF is password-protected. Upload a copy without a password."
+                         if "password" in str(e).lower() else "This file could not be read as a PDF.")
+            return out
+        try:
+            out.pages = len(doc)
+            if out.pages == 0:
+                out.error = "The PDF has no pages."
+                return out
+            if out.pages > max_pages:
+                out.error = f"The brochure has {out.pages} pages; up to {max_pages} can be read. Upload the main pages only."
+                out.too_many = True
+                return out
+            if thumbs is not None:
+                thumbs.mkdir(parents=True, exist_ok=True)
+            for i in range(out.pages):
+                if clock() - start > budget_s:
+                    out.error = "The brochure took too long to read. Try a smaller file."
+                    return out
+                page = doc[i]
+                try:
+                    tp = page.get_textpage()
+                    text = bp.clean(tp.get_text_range())
+                    tp.close()
+                    if bp.image_only(text):
+                        out.image_only.append(i + 1)
+                    else:
+                        out.texts[i + 1] = text
+                    if thumbs is not None:
+                        w, h = page.get_size()
+                        scale = min(THUMB_WIDTH / max(w, 1.0), THUMB_MAX_HEIGHT / max(h, 1.0))
+                        img = page.render(scale=scale, may_draw_forms=False).to_pil()
+                        img.convert("RGB").save(thumbs / f"p{i + 1}.jpg", "JPEG", quality=70)
+                finally:
+                    page.close()
+        except pdfium.PdfiumError:
+            out.error = "This file could not be read as a PDF."
+        finally:
+            doc.close()
+    return out
+
+
+# ---- the kit ---------------------------------------------------------------------------------------------------------------
+def _iso(dt: Any) -> Optional[str]:
+    if not isinstance(dt, datetime):
+        return dt
+    if dt.tzinfo:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt.replace(microsecond=0).isoformat() + "Z"
+
+
+def kit_out(doc: Optional[dict]) -> Optional[dict]:
+    """The kit as the API returns it (the contract the confirm screen is built on)."""
+    if not doc:
+        return None
+    reg = doc.get("registration") or {}
+    out = {"id": doc["_id"], "listing_id": doc["listing_id"], "filename": doc.get("filename") or "",
+           "pages": int(doc.get("pages") or 0), "image_only_pages": list(doc.get("image_only_pages") or []),
+           "status": doc.get("status") or "failed", "read_at": _iso(doc.get("read_at")),
+           "facts": [{"id": f["id"], "key": f["key"], "label": f["label"], "value": f["value"], "page": f["page"],
+                      "quote": f["quote"], "level": "builder_claim", "state": f["state"], "edited": bool(f.get("edited"))}
+                     for f in doc.get("facts") or []],
+           "registration": {"status": reg.get("status") or "unknown", "rera_no": reg.get("rera_no") or None,
+                            "note": reg.get("note") or ""}}
+    if doc.get("error"):
+        out["error"] = doc["error"]
+    return out
+
+
+def _fact_doc(i: int, c: bp.Candidate) -> dict:
+    return {"id": f"f{i}", "key": c.key, "label": c.label, "value": c.value, "page": c.page, "quote": c.quote,
+            "level": "builder_claim", "state": "pending", "edited": False, "config": c.config, "by": c.by}
+
+
+def _value_ok(key: str, value: Any) -> Any:
+    """The agent's edit in the shape its key needs, or BrochureError."""
+    if key in bp.LIST_KEYS:
+        if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
+            raise BrochureError("Give a list of short texts.", 422)
+        vals = [v.strip() for v in value if v.strip()]
+        if not vals or len(vals) > bp.LIST_MAX or any(len(v) > bp.ITEM_MAX for v in vals):
+            raise BrochureError(f"Give 1 to {bp.LIST_MAX} items, each under {bp.ITEM_MAX} characters.", 422)
+        return vals
+    if key in bp.COUNT_KEYS:
+        n = value if isinstance(value, int) and not isinstance(value, bool) else (
+            int(value) if isinstance(value, str) and value.strip().isdigit() else None)
+        if n is None or not 0 < n < 100000:
+            raise BrochureError("Give a whole number.", 422)
+        return n
+    if not isinstance(value, str) or not value.strip() or len(value) > 300:
+        raise BrochureError("Give a short text.", 422)
+    v = value.strip()
+    if key == "rera_no":
+        v = bp.rera_no(v)
+        if not v:
+            raise BrochureError("A MahaRERA project number looks like P52100012345.", 422)
+    if key == "carpet_area" and bp.area_sqft(v) is None:
+        raise BrochureError("Give the area with its unit, such as 650 sq ft.", 422)
+    return v
+
+
+# ---- the registration check ------------------------------------------------------------------------------------------------
+async def check_registration(clients: Any, rera: str, name: str = "", now: Optional[datetime] = None) -> dict:
+    """{status, rera_no, note}. `clients` needs get_text, fetch_general and optionally register (gather.Clients; tests fake
+    it). Only MahaRERA (or our register of it) returning this very number makes it `verified`."""
+    if not rera:
+        return {"status": "unknown", "rera_no": None, "note": "No MahaRERA number was found in the brochure. " + ASK}
+    held = f"The brochure shows {rera}, but MahaRERA did not return it"
+    if clients is None:
+        return {"status": "unverified", "rera_no": rera, "note": f"{held} (not checked). It will not be posted as registered "
+                                                                  "until it is confirmed."}
+    try:
+        match, _ = await asyncio.wait_for(registration.lookup(clients.get_text, clients.fetch_general, name, rera, None, now,
+                                                              getattr(clients, "register", None)), LOOKUP_BUDGET_S)
+    except Exception:  # timeout or a site failure: not an answer either way
+        log.info("brochure: MahaRERA check of %s failed", rera, exc_info=True)
+        match = None
+    if match is not None and match.project is not None and match.project.regno.upper() == rera:
+        return {"status": "verified", "rera_no": rera, "note": f"MahaRERA lists {rera} as {match.project.name}."}
+    why = f" ({match.how})" if match is not None and match.how else ""
+    return {"status": "unverified", "rera_no": rera,
+            "note": f"{held}{why}. It will not be posted as registered: check the number with the builder, then confirm."}
+
+
+# ---- into the fact sheet -----------------------------------------------------------------------------------------------------
+def confirmed(kit: Optional[dict]) -> List[dict]:
+    return [f for f in (kit or {}).get("facts") or [] if f.get("state") == "confirmed"] if (kit or {}).get("status") == "done" else []
+
+
+def lookup_inputs(kit: Optional[dict]) -> Tuple[str, str]:
+    """(project name, MahaRERA number) the kit adds for the MahaRERA lookup, from confirmed facts and the agent's answer."""
+    reg = (kit or {}).get("registration") or {}
+    facts = {f["key"]: f["value"] for f in confirmed(kit) if f["key"] in ("project_name", "rera_no")}
+    rera = ""
+    if reg.get("status") in ("verified", "registered_by_agent") and reg.get("rera_no"):
+        rera = reg["rera_no"]
+    rera = rera or bp.rera_no(str(facts.get("rera_no") or ""))
+    return str(facts.get("project_name") or ""), rera
+
+
+def readings(kit: Optional[dict], now: datetime, official: Optional[Dict[str, Any]] = None,
+             listing: Optional[Dict[str, Any]] = None) -> List[Reading]:
+    """Confirmed brochure facts as readings with source "brochure". Their own keys ("brochure.amenities") become builder claims;
+    a value MahaRERA or the listing also states (RERA number, possession, units, carpet area, project, builder) is read on the
+    same key, so a disagreement shows up as one (facts.decide). `official`: MahaRERA's values by key; `listing`: the listing."""
+    official, listing = official or {}, listing or {}
+    url = f"brochure:{(kit or {}).get('sha256', '')[:12]}"
+    out: List[Reading] = []
+    lists: Dict[str, List[str]] = {}
+    carpets: List[str] = []
+    listing_bhk = f"{float(listing['bhk']):g} BHK" if listing.get("bhk") else ""
+
+    def r(key: str, value: Any, page: int):
+        out.append(Reading(key, value, SOURCE, f"{url}#page={page}", now))
+
+    for f in confirmed(kit):
+        k, v, p = f["key"], f["value"], f["page"]
+        if k in ("project_name", "promoter"):
+            r(k, v, p)
+        elif k == "rera_no":
+            if bp.rera_no(str(v)):
+                r("rera_no", bp.rera_no(str(v)), p)
+        elif k in ("address", "land_area"):
+            r(f"brochure.{k}", v, p)
+        elif k in bp.LIST_KEYS:
+            lists.setdefault(k, [])
+            lists[k] += [x for x in v if x not in lists[k]]
+        elif k == "possession":
+            r("brochure.possession", v, p)
+            now_iso = official.get("possession_now")
+            if now_iso:  # the same month reads as MahaRERA's own date; another month is a disagreement
+                r("possession_now", now_iso if bp.same_possession(str(v), now_iso) else str(v), p)
+        elif k in ("towers", "floors"):
+            r(f"brochure.{k}", bp.count_of(v), p)
+        elif k == "units":
+            if official.get("units_total") is not None:
+                r("units_total", bp.count_of(v), p)
+            r("brochure.units", bp.count_of(v), p)
+        elif k == "carpet_area":
+            config = f.get("config") or ""
+            carpets.append(f"{config}: {v} carpet" if config else f"{v} carpet")
+            if listing.get("carpet_sqft") and config and config == listing_bhk:
+                area = bp.area_sqft(v)
+                theirs = int(listing["carpet_sqft"])
+                if area is not None:
+                    r("carpet_sqft", theirs if area == theirs else area, p)
+    for k, vals in lists.items():
+        page = next(f["page"] for f in confirmed(kit) if f["key"] == k)
+        r(f"brochure.{k}", vals, page)
+    if carpets:
+        page = next(f["page"] for f in confirmed(kit) if f["key"] == "carpet_area")
+        r("brochure.carpet_area", carpets, page)
+    return out
+
+
+# ---- the service ---------------------------------------------------------------------------------------------------------
+class Brochures:
+    def __init__(self, db, uploads_dir, clients_factory: Optional[Callable[[], Any]] = None,
+                 llm_factory: Optional[Callable[[], Any]] = None, now: Callable[[], datetime] = datetime.utcnow):
+        """`clients_factory()` gives what the MahaRERA check needs (gather.Clients); `llm_factory()` the optional free model
+        (None: rules only)."""
+        self.col = db.get_collection(COLLECTION)
+        self.listings = db.get_collection("listings")
+        self.uploads_dir = Path(uploads_dir)
+        self.clients_factory, self.llm_factory, self.now = clients_factory, llm_factory, now
+
+    def _dir(self, listing_id: str) -> Path:
+        return self.uploads_dir / "brochures" / _safe(listing_id)
+
+    async def _listing(self, agent_id: str, listing_id: str) -> dict:
+        doc = await self.listings.find_one({"_id": listing_id, "agent_id": agent_id})
+        if not doc:
+            raise BrochureError("Listing not found", 404)
+        return doc
+
+    async def current(self, listing_id: str) -> Optional[dict]:
+        """The listing's kit: the brochure uploaded last (for the fact sheet; no owner check)."""
+        docs = await self.col.find({"listing_id": str(listing_id)}).sort("uploaded_at", -1).limit(1).to_list(1)
+        return docs[0] if docs else None
+
+    async def get(self, agent_id: str, listing_id: str) -> dict:
+        await self._listing(agent_id, listing_id)
+        kit = await self.current(listing_id)
+        if not kit:
+            raise BrochureError("No brochure for this listing yet.", 404)
+        return kit
+
+    async def _model_facts(self, texts: Dict[int, str]) -> Tuple[List[bp.Candidate], bool]:
+        llm = self.llm_factory() if self.llm_factory else None
+        if llm is None or not texts:
+            return [], False
+        system, user = bp.llm_prompt(sorted(texts.items()))
+        try:
+            data = await asyncio.wait_for(llm.json(system, user), LLM_BUDGET_S)
+        except Exception:
+            log.info("brochure: the model pass failed; rules only", exc_info=True)
+            return [], False
+        return bp.verify(data, texts), data is not None
+
+    async def upload(self, agent_id: str, listing_id: str, filename: str, data: bytes) -> dict:
+        """Read the brochure into a kit (or return the kit already made from this very file for this listing)."""
+        listing = await self._listing(agent_id, listing_id)
+        if len(data) > MAX_BYTES:
+            raise BrochureError(f"The brochure is over {MAX_BYTES // (1024 * 1024)} MB. Upload a smaller PDF.", 413)
+        if not data.lstrip()[:5].startswith(b"%PDF-"):
+            raise BrochureError("Upload the brochure as a PDF file.", 415)
+        sha = hashlib.sha256(data).hexdigest()
+        now = self.now()
+        same = await self.col.find_one({"listing_id": listing_id, "sha256": sha, "status": "done"})
+        if same:
+            await self.col.update_one({"_id": same["_id"]}, {"$set": {"uploaded_at": now, "filename": filename or same.get("filename")}})
+            return {**same, "uploaded_at": now, "filename": filename or same.get("filename")}
+        folder = self._dir(listing_id)
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / f"{sha}.pdf").write_bytes(data)
+        read = await asyncio.to_thread(read_pdf, data, folder / sha)
+        if read.too_many:
+            (folder / f"{sha}.pdf").unlink(missing_ok=True)
+            raise BrochureError(read.error, 413)
+        doc: Dict[str, Any] = {"_id": uuid.uuid4().hex, "listing_id": listing_id, "agent_id": agent_id, "sha256": sha,
+                               "filename": (filename or "brochure.pdf")[:200], "pages": read.pages,
+                               "image_only_pages": read.image_only, "uploaded_at": now, "read_at": now, "facts": [],
+                               "page_types": {}, "used_llm": False}
+        if read.error:
+            doc.update(status="failed", error=read.error,
+                       registration={"status": "unknown", "rera_no": None, "note": ASK})
+            await self.col.insert_one(doc)
+            return doc
+        texts = read.texts
+        doc["page_types"] = {str(n): bp.page_type(t, n) for n, t in texts.items()}
+        rules = bp.extract(sorted(texts.items()))
+        model, used = await self._model_facts(texts)
+        cands = bp.merge(rules, model)
+        doc["facts"] = [_fact_doc(i + 1, c) for i, c in enumerate(cands)]
+        doc["used_llm"] = used
+        rera = next((c.value for c in cands if c.key == "rera_no"), "") or bp.rera_no(str(listing.get("rera_no") or ""))
+        name = next((c.value for c in cands if c.key == "project_name"), "") or (listing.get("project_name") or "")
+        clients = self.clients_factory() if self.clients_factory else None
+        doc["registration"] = await check_registration(clients, rera, name, now)
+        if read.image_only:
+            doc["notes"] = [f"Pages {', '.join(map(str, read.image_only))} have no text layer (images only); they are not "
+                            "read yet."]
+        doc.update(status="done", error=None)
+        await self.col.insert_one(doc)
+        return doc
+
+    async def set_fact(self, agent_id: str, listing_id: str, fact_id: str, state: str, value: Any = None,
+                       has_value: bool = False) -> dict:
+        """Confirm, drop or reopen one fact; a new value keeps the page and quote it came from and marks it edited."""
+        if state not in STATES:
+            raise BrochureError("state is confirmed, dropped or pending.", 422)
+        kit = await self.get(agent_id, listing_id)
+        facts = list(kit.get("facts") or [])
+        idx = next((i for i, f in enumerate(facts) if f["id"] == fact_id), None)
+        if idx is None:
+            raise BrochureError("No such fact in this brochure.", 404)
+        f = dict(facts[idx])
+        f["state"] = state
+        changed_rera = False
+        if has_value:
+            v = _value_ok(f["key"], value)
+            if v != f["value"]:
+                f.setdefault("original", f["value"])
+                f.update(value=v, edited=True)
+                changed_rera = f["key"] == "rera_no"
+        f["decided_at"] = self.now()
+        facts[idx] = f
+        update: Dict[str, Any] = {"facts": facts}
+        reg = kit.get("registration") or {}
+        if changed_rera and reg.get("status") not in ("exempt", "registered_by_agent"):
+            clients = self.clients_factory() if self.clients_factory else None
+            update["registration"] = await check_registration(clients, f["value"], self._name(facts), self.now())
+        await self.col.update_one({"_id": kit["_id"]}, {"$set": update})
+        return {**kit, **update}
+
+    @staticmethod
+    def _name(facts: Sequence[dict]) -> str:
+        return next((str(f["value"]) for f in facts if f["key"] == "project_name" and f["state"] != "dropped"), "")
+
+    async def answer_registration(self, agent_id: str, listing_id: str, status: str, rera_no: Optional[str] = None) -> dict:
+        """The agent's answer to "registered, or exempt?", kept on the kit. A number they give is looked up; MahaRERA returning
+        it makes it `verified`, otherwise it is kept as the agent's word (`registered_by_agent`) and still not posted as
+        MahaRERA-checked."""
+        kit = await self.get(agent_id, listing_id)
+        now = self.now()
+        answer = {"status": status, "rera_no": None, "by": agent_id, "at": now}
+        if status == "exempt":
+            reg = {"status": "exempt", "rera_no": None,
+                   "note": "The agent says this project is exempt from MahaRERA registration (RERA Act section 3: up to "
+                           "500 sq m of land and up to 8 units, or a resale home). Posts carry no registration line."}
+        elif status == "registered":
+            rera = ""
+            if rera_no:
+                rera = bp.rera_no(rera_no)
+                if not rera:
+                    raise BrochureError("A MahaRERA project number looks like P52100012345.", 422)
+            answer["rera_no"] = rera or None
+            clients = self.clients_factory() if self.clients_factory else None
+            reg = await check_registration(clients, rera, self._name(kit.get("facts") or []), now) if rera else {}
+            if reg.get("status") != "verified":
+                reg = {"status": "registered_by_agent", "rera_no": rera or None,
+                       "note": ("The agent says the project is registered as " + rera + ", but MahaRERA did not return it. "
+                                "It is not shown as MahaRERA-checked." if rera else
+                                "The agent says the project is registered. Add its MahaRERA number: ads must show it.")}
+        else:
+            raise BrochureError("status is registered or exempt.", 422)
+        reg["answer"] = answer
+        await self.col.update_one({"_id": kit["_id"]}, {"$set": {"registration": reg}})
+        return {**kit, "registration": reg}
+
+    async def page_image(self, agent_id: str, listing_id: str, n: int) -> Path:
+        kit = await self.get(agent_id, listing_id)
+        if not 1 <= n <= int(kit.get("pages") or 0):
+            raise BrochureError("No such page.", 404)
+        p = self._dir(listing_id) / kit["sha256"] / f"p{n}.jpg"
+        if not p.is_file():
+            raise BrochureError("No such page.", 404)
+        return p
+
+
+def default_brochures() -> Brochures:
+    from app.core.config import settings
+    from app.core.database import get_database
+    from app.modules.newsroom.store import Store
+    from app.platform.llm import default_llm
+
+    from .gather import Clients
+    db = get_database()
+    return Brochures(db, Path(settings.upload_directory), clients_factory=lambda: Clients(timeout=15.0, register=Store(db)),
+                     llm_factory=default_llm)
