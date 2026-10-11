@@ -43,8 +43,9 @@ def render(copy: Copy, design: Design) -> List[Rendered]:
     c = Canvas(design.size, pal, "plan_full", pattern=None, glow_at=(0.9, 0.05))
     w = c.right - c.left
     chip = c.chip(str(p.get("kicker", "FLOOR PLAN")), c.left, c.top, icon="home")
+    rera_y = c.maharera_badge(beside=chip)  # top right; the headline starts below it
     hook_size = 66 if tall else 54
-    y = c.text(copy.hook, c.left, chip[3] + 30, w, hook_size, "bold", pal.ink, 2, pitch=1.08, min_size=40, emph=design.emphasis,
+    y = c.text(copy.hook, c.left, max(chip[3], rera_y or 0) + 30, w, hook_size, "bold", pal.ink, 2, pitch=1.08, min_size=40, emph=design.emphasis,
                role="hook", balance=False)
     top = y + 34
     bottom = c.bottom - footer_h() - 30
