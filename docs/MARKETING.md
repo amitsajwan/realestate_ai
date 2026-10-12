@@ -342,6 +342,7 @@ as "may already be live": check the page, then delete that ledger document to al
 | `NEWSROOM_ENABLED` | true | false |
 | `PROJECT_ENRICH_ENABLED` | on | off |
 | `INDEXNOW_KEY` | unset (off) | off |
+| `COMMUNITY_ARTICLES_ENABLED` | unset (off) | off |
 | `PUBLISH_LEDGER` | unset (on) | on |
 | `META_PAGE_ID`, `META_PAGE_ACCESS_TOKEN`, `META_IG_BUSINESS_ID`, `PUBLIC_MEDIA_BASE_URL` | set | unset |
 | `GOOGLE_TTS_API_KEY` | set | unset |

@@ -119,7 +119,7 @@ def test_overview_counts_waiting_agents_health_and_controls(monkeypatch):
     assert o["invite_requests"][0]["mobile"] == "90******17"
     assert o["agents"][0]["name"] == "Rahul Sharma" and o["agents"][0]["progress"]["total"] == 8 and o["agents"][0]["mobile"] == "98******10"
     rows = {h["key"]: h for h in o["health"]}
-    assert set(rows) == {"facebook", "instagram", "whatsapp", "messenger", "ai", "posting", "comments", "news", "indexnow", "google_index"}
+    assert set(rows) == {"facebook", "instagram", "whatsapp", "messenger", "ai", "posting", "comments", "news", "indexnow", "google_index", "neighbourhoods"}
     assert rows["messenger"]["status"] == "warn"  # off by default
     assert rows["facebook"]["status"] == "bad" and "meta_connect.ps1" in rows["facebook"]["fix"]
     assert rows["ai"]["status"] == "ok" and rows["posting"]["status"] == "ok" and rows["posting"]["last_run_at"]
@@ -293,7 +293,7 @@ def test_seo_rows_say_what_is_off_failing_or_working():
     from app.modules.admin.health import seo_rows
     at = datetime(2026, 10, 12, 9, 0, tzinfo=timezone.utc)
     off = seo_rows(indexnow_on=False, gsc_on=False, indexnow=None, coverage=None, pages=None)
-    assert [(r["key"], r["status"]) for r in off] == [("indexnow", "warn"), ("google_index", "warn")]
+    assert [(r["key"], r["status"]) for r in off] == [("indexnow", "warn"), ("google_index", "warn"), ("neighbourhoods", "warn")]
     assert "INDEXNOW_KEY" in off[0]["fix"] and "GSC_SA_KEY_B64" in off[1]["fix"]
     refused = seo_rows(indexnow_on=True, gsc_on=True, indexnow={"status": 403, "failed_at": at}, coverage=None, pages=None)
     assert refused[0]["status"] == "bad" and "403" in refused[0]["text"] and refused[1]["text"].startswith("On, first check")
@@ -304,3 +304,13 @@ def test_seo_rows_say_what_is_off_failing_or_working():
     assert rows[1]["status"] == "warn" and rows[1]["text"] == "5 of 10 checked sitemap pages are in Google; 2 pages just off page one"
     assert rows[1]["fix"] == 'Most common reason: "Crawled - currently not indexed" (4 pages)'
     assert seo_rows(indexnow_on=True, gsc_on=True, indexnow=None, coverage={**cov, "indexed": 9}, pages=None)[1]["status"] == "ok"
+
+
+def test_neighbourhood_article_row():
+    from app.modules.admin.health import seo_rows
+    def row(**kw):
+        return seo_rows(indexnow_on=True, gsc_on=True, indexnow=None, coverage=None, pages=None, **kw)[-1]
+    assert row()["status"] == "warn" and "COMMUNITY_ARTICLES_ENABLED" in row()["fix"]
+    assert row(articles_on=True, articles={"found": 0})["text"].startswith("On, finding")
+    r = row(articles_on=True, articles={"found": 9, "published": 4, "last_note": "Ubale Nagar: too few facts"})
+    assert r["text"] == "4 published of 9 neighbourhoods found" and r["fix"] == "Last one held back: Ubale Nagar: too few facts"

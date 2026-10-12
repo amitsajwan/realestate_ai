@@ -53,6 +53,7 @@ from app.modules.photoquality.router import router as quality_router
 from app.modules.agentprojects.router import router as agentprojects_router, public_router as agentprojects_public_router
 from app.modules.areastats.router import public_router as areastats_public_router
 from app.modules.seo.router import public_router as seo_public_router
+from app.modules.communities.router import public_router as communities_public_router
 from app.modules.propertyfacts.router import public_router as propertyfacts_public_router, router as propertyfacts_router
 
 # Create main API router
@@ -113,6 +114,7 @@ api_router.include_router(agentprojects_router, prefix="/agentprojects", tags=["
 api_router.include_router(agentprojects_public_router, prefix="/public", tags=["public"])
 api_router.include_router(areastats_public_router, prefix="/public", tags=["public"])
 api_router.include_router(seo_public_router, prefix="/public", tags=["public"])
+api_router.include_router(communities_public_router, prefix="/public", tags=["public"])
 api_router.include_router(propertyfacts_public_router, prefix="/public", tags=["public"])
 
 # Health check for API v1

@@ -4,6 +4,7 @@ import { LOCALITIES, getLocality, localitySlug } from '@/lib/marketing/localitie
 import { getMarketingConfig } from '@/lib/marketing/config'
 import { fetchNews } from '@/lib/news/data'
 import { fetchPosts, postPath } from '@/lib/posts/data'
+import { getCommunities } from '@/components/localities/communities'
 import { getCatalog, getSitemapEntries } from '@/lib/site/api'
 import { livePages } from '@/lib/site/filters'
 import { getRegisterProjects } from '@/lib/site/register'
@@ -23,7 +24,7 @@ const POSTS_MAX = 500 // the API's most per call: every published post for years
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = getMarketingConfig().siteUrl
   const at = (path: string, priority: number, date?: string | null) => ({ url: base + path, lastModified: day(date), priority })
-  const [news, agents, projects, posts, register] = await Promise.all([fetchNews(50), getSitemapEntries(), getCatalog(), fetchPosts(POSTS_MAX), getRegisterProjects()])
+  const [news, agents, projects, posts, register, hoods] = await Promise.all([fetchNews(50), getSitemapEntries(), getCatalog(), fetchPosts(POSTS_MAX), getRegisterProjects(), getCommunities()])
   const listedRegnos = new Set(projects.map((p) => p.rera_no))   // those redirect to the shared agent page, listed above
   const shared = new Set(projects.flatMap((p) => p.agents.map((a) => a.slug + '/' + a.project_slug)))
   const fallbackLocalities = new Map<string, string | null | undefined>()
@@ -50,6 +51,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     at('/pune-maharera-tracker', 0.8),
     ...LOCALITIES.map((l) => at(`/localities/${l.slug}`, 0.8, l.updated)),
     ...[...fallbackLocalities].map(([slug, d]) => at(`/localities/${slug}`, 0.5, d)),
+    ...hoods.map((h) => at(`/localities/${h.area_slug}/${h.slug}`, 0.6, h.updated)),
     at('/news', 0.8),
     ...news.items.map((n) => at(`/news/${n.id}`, 0.6, n.published_at ?? n.as_of)),
     at('/insights', 0.7),

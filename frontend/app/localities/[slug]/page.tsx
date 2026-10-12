@@ -14,6 +14,7 @@ import AreaLatest from '@/components/localities/AreaLatest'
 import AreaRecords from '@/components/localities/AreaRecords'
 import { getAreaNews, getAreaPosts } from '@/components/localities/areaFeed'
 import { getAreaStats } from '@/components/localities/areaStats'
+import { getCommunities } from '@/components/localities/communities'
 import { AVASETU_SITE_VARS } from '@/lib/marketing/siteTheme'
 import { getCatalog, getLocalityListings } from '@/lib/site/api'
 import { livePages } from '@/lib/site/filters'
@@ -106,9 +107,10 @@ export default async function LocalityPage({ params }: Props) {
   const slug = (await params).slug
   if (!validSlug(slug)) notFound()
   const l = pageLocality(slug)
-  const [listings, projects, stats, posts, news] = await Promise.all([
+  const [listings, projects, stats, posts, news, hoods] = await Promise.all([
     getLocalityListings(l.listingName), getCatalog(l.listingName), l.fallback ? Promise.resolve(null) : getAreaStats(l.slug),
     l.fallback ? Promise.resolve([]) : getAreaPosts(l, 6), l.fallback ? Promise.resolve([]) : getAreaNews(l, 5),
+    l.fallback ? Promise.resolve([]) : getCommunities(l.key),
   ])
   if (l.fallback && listings.length === 0 && projects.length === 0) notFound()
   const sameTier = localitiesByTier(l.tier).filter((o) => o.slug !== l.slug)
@@ -138,6 +140,20 @@ export default async function LocalityPage({ params }: Props) {
           {l.gettingAround.map((p) => <p key={p} className="mt-3 leading-relaxed text-slate-800">{p}</p>)}</section>
 
         <AreaRecords name={l.name} stats={stats} />
+
+        {hoods.length > 0 && (
+          <section className="mt-9" aria-labelledby="hoods-title">
+            <h2 id="hoods-title" className="text-xl font-semibold text-slate-900">Neighbourhoods in {l.name}</h2>
+            <ul className="mt-3 grid list-none gap-3 p-0 sm:grid-cols-2">
+              {hoods.map((h) => (
+                <li key={h.slug}><Link href={`/localities/${h.area_slug}/${h.slug}`} className="block h-full rounded-xl border border-slate-200 p-4 no-underline hover:border-slate-400">
+                  <span className="font-semibold text-[#0f2340]">{h.name}</span>
+                  {h.summary && <span className="mt-1 block text-sm text-slate-600">{h.summary}</span>}
+                </Link></li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {projects.length > 0 && (
           <section className="mt-9" style={AVASETU_SITE_VARS} aria-labelledby="projects-title">

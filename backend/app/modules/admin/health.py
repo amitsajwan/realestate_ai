@@ -64,7 +64,7 @@ def meta_row(key: str, label: str, configured: bool, state: Optional[dict]) -> D
 
 
 def seo_rows(*, indexnow_on: bool, gsc_on: bool, indexnow: Optional[dict], coverage: Optional[dict],
-             pages: Optional[dict]) -> List[Dict]:
+             pages: Optional[dict], articles_on: bool = False, articles: Optional[dict] = None) -> List[Dict]:
     """Search engines (IndexNow) and Google's index (Search Console coverage), from the seo loop's marks (docs/plan/seo.md)."""
     rows = []
     n = indexnow or {}
@@ -93,6 +93,16 @@ def seo_rows(*, indexnow_on: bool, gsc_on: bool, indexnow: Optional[dict], cover
         top = max(missing.items(), key=lambda kv: kv[1]) if missing else None
         fix = f'Most common reason: "{top[0]}" ({top[1]} pages)' if top else ""
         rows.append({**_row("google_index", "Google index", OK if share >= 0.7 else WARN, text, fix), "last_run_at": _iso(c.get("at"))})
+    a = articles or {}
+    if not articles_on:
+        rows.append(_row("neighbourhoods", "Neighbourhood articles", WARN, "Off: the bot is not finding or writing neighbourhood pages",
+                         "Set COMMUNITY_ARTICLES_ENABLED=true in the server settings (docs/plan/seo.md)"))
+    elif not a.get("found"):
+        rows.append(_row("neighbourhoods", "Neighbourhood articles", OK, "On, finding neighbourhoods on its first run"))
+    else:
+        text = f"{a.get('published', 0)} published of {a['found']} neighbourhoods found"
+        fix = f"Last one held back: {a['last_note']}" if a.get("last_note") else ""
+        rows.append(_row("neighbourhoods", "Neighbourhood articles", OK, text, fix))
     return rows
 
 

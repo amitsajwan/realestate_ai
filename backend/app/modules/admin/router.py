@@ -53,8 +53,15 @@ async def _seo_rows(svc: AdminService) -> list:
     from app.modules.areastats.searchconsole import key as gsc_key
     from app.modules.seo.indexnow import key as indexnow_key
     marks = {d["_id"]: d for d in await svc.c("newsroom_status").find({"_id": {"$in": ["indexnow", "gsc_coverage", "gsc_pages"]}}).to_list(3)}
+    from app.modules.communities.discover import COLLECTION as COMMUNITIES
+    from app.modules.communities.runner import enabled as articles_on
+    hoods = await svc.c(COMMUNITIES).find({}).to_list(None)
+    held = sorted((d for d in hoods if not d.get("published") and d.get("write_notes")), key=lambda d: d.get("written_at"), reverse=True)
+    articles = {"found": len(hoods), "published": sum(1 for d in hoods if d.get("published")),
+                "last_note": f"{held[0]['name']}: {held[0]['write_notes'][0]}" if held else None}
     return health.seo_rows(indexnow_on=indexnow_key() is not None, gsc_on=gsc_key() is not None, indexnow=marks.get("indexnow"),
-                           coverage=marks.get("gsc_coverage"), pages=marks.get("gsc_pages"))
+                           coverage=marks.get("gsc_coverage"), pages=marks.get("gsc_pages"), articles_on=articles_on(),
+                           articles=articles)
 
 
 @router.get("/overview")

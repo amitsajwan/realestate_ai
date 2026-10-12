@@ -1,6 +1,6 @@
 """The worker process: runs the background loops outside the API (docs/ARCHITECTURE.md §1 and §6).
 
-    python -m app.worker           run engage, newsroom, calendar, listing reels, marketing runs, insights, answer gaps and seo (IndexNow, index coverage) until SIGTERM/SIGINT
+    python -m app.worker           run engage, newsroom, calendar, listing reels, marketing runs, insights, answer gaps, seo (IndexNow, index coverage) and neighbourhood articles until SIGTERM/SIGINT
     python -m app.worker --check   print one line per loop; exit 1 when an enabled loop's heartbeat is older than twice its
                                    interval, 2 when the database cannot be read (deploy/gcp/health_check.sh calls this)
 
@@ -34,10 +34,11 @@ def loops() -> LoopTable:
     from app.modules.newsroom.runner import loop as newsroom_loop
     from app.modules.propertyfacts.jobs import loop as marketing_loop
     from app.modules.reels.listing_reel import loop as reels_loop
+    from app.modules.communities.runner import loop as communities_loop
     from app.modules.seo.runner import loop as seo_loop
     return {"engage": engage_loop, "newsroom": newsroom_loop, "calendar": calendar_loop, "listing_reels": reels_loop,
             "marketing_runs": marketing_loop, "project_enrich": enrich_loop, "insights": insights_loop,
-            "answer_gaps": gaps_loop, "seo": seo_loop}
+            "answer_gaps": gaps_loop, "seo": seo_loop, "communities": communities_loop}
 
 
 def start_loops(table: LoopTable, get_db: Callable[[], Any] = get_database) -> Dict[str, asyncio.Task]:
@@ -88,6 +89,8 @@ def expected_intervals() -> Dict[str, Optional[float]]:
     from app.modules.newsroom.config import load as newsroom_cfg
     from app.modules.propertyfacts.jobs import HEARTBEAT_INTERVAL_S as MARKETING_INTERVAL_S
     from app.modules.reels.listing_reel import HEARTBEAT_INTERVAL_S
+    from app.modules.communities.runner import POLL_SECONDS as COMMUNITIES_POLL_S
+    from app.modules.communities.runner import enabled as communities_on
     from app.modules.seo.runner import INTERVAL_S as SEO_INTERVAL_S
     from app.modules.seo.runner import enabled as seo_on
     e, n, c = engage_cfg(), newsroom_cfg(), calendar_cfg()
@@ -101,6 +104,7 @@ def expected_intervals() -> Dict[str, Optional[float]]:
         "insights": float(INSIGHTS_INTERVAL_S) if insights_on(social_cfg()) else None,  # real posts with a token, not dry run
         "answer_gaps": float(GAPS_INTERVAL_S),  # always on (reads stored replies, notifies agents)
         "seo": float(SEO_INTERVAL_S) if seo_on() else None,  # INDEXNOW_KEY or GSC_SA_KEY_B64
+        "communities": float(COMMUNITIES_POLL_S) if communities_on() else None,  # COMMUNITY_ARTICLES_ENABLED
     }
 
 
