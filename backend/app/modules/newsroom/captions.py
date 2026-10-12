@@ -3,10 +3,11 @@
 Facebook: short summary, our view and 'what to check' when there is room, the fixed 'Worth checking' buyer line for the pillar
 (presentation.buyer_line; English is the only caption language),'Source: X, as of D', a question, 'Read more: <our /news URL>'
 (never the source link, which is often a long Google redirect), a few hashtags, the footer. Instagram: the same without any URL
-(captions cannot hold links): 'Read more: link in our bio', up to 8 hashtags, the footer. The owner sees these strings before approving and
+(captions cannot hold links): 'Read more: link in our bio', up to 5 hashtags (Instagram's limit), the footer. The owner sees these strings before approving and
 the publisher sends exactly them. `verify` runs the `check` stage over each final caption, so an edit or a template change can never slip a
 number, a name or a link policy problem past the owner."""
 from app.core import brand
+from app.platform.text import IG_MAX_HASHTAGS
 import inspect
 import re
 from dataclasses import replace
@@ -18,7 +19,7 @@ from . import presentation as pr
 FB_MAX = policy.POST_MAX_CHARS  # strictly under, footer included
 IG_MAX = policy.POST_MAX_CHARS
 DIGEST_MAX = 1800
-FB_TAGS, IG_TAGS = 5, 8
+FB_TAGS, IG_TAGS = 5, IG_MAX_HASHTAGS
 CHANNELS = ("facebook", "instagram")
 
 
@@ -57,13 +58,19 @@ def story(doc: dict, channel: str) -> str:
     tags = pr.hashtags(doc, FB_TAGS if channel == "facebook" else IG_TAGS)
     view = f"Our view: {p.our_view}" if p.our_view else ""
     chk = f"What to check: {p.what_to_check}" if p.what_to_check else ""
-    why = pr.buyer_line(doc)  # fixed house line, after the fact and before the source; kept longer than the draft's own extras
-    for blocks in ([p.summary, view, chk, why, src, q, link], [p.summary, view, why, src, q, link], [p.summary, why, src, q, link],
-                   [p.summary, src, q, link]):
+    why = pr.buyer_line(doc)  # fixed house line, after the fact and before the source
+    room = limit - len("\n\n".join([src, q, link, " ".join(tags), footer(channel)])) - 10
+    if view:
+        # Our own view is what makes a news post original (Instagram stops recommending reposts, credit line or not), so when
+        # room runs out the fixed house line goes first, then 'what to check', then part of the summary; 'our view' stays.
+        tries = ([p.summary, view, chk, why, src, q, link], [p.summary, view, chk, src, q, link], [p.summary, view, src, q, link],
+                 [_cut(p.summary, max(room - len(view) - 2, 80)), view, src, q, link])
+    else:
+        tries = ([p.summary, chk, why, src, q, link], [p.summary, why, src, q, link], [p.summary, src, q, link])
+    for blocks in tries:
         got = _assemble(blocks, tags, channel, limit)
         if got:
             return got
-    room = limit - len("\n\n".join([src, q, link, " ".join(tags), footer(channel)])) - 10
     return (_assemble([_cut(p.summary, max(room - len(why) - 2, 80)), why, src, q, link], tags, channel, limit)
             or _assemble([_cut(p.summary, max(room, 80)), src, q, link], tags, channel, limit)
             or _assemble([_cut(p.summary, 60), src, q, link], [], channel, limit) or "")

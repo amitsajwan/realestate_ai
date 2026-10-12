@@ -15,13 +15,14 @@ from .models import AUDIENCES, CHANNELS, Angle, Brief
 
 log = logging.getLogger(__name__)
 
+# No share, vote or tag requests: Meta demotes them as engagement bait. A save or a real question is fine.
 CTA_BY_FORMAT = {
     "stat": "Save this for your next site visit.",
-    "myth-vs-fact": "Send this to someone who believes the myth.",
-    "poll": "Vote in the comments.",
+    "myth-vs-fact": "Save this for your next site visit.",
+    "poll": "Pick one and tell us why below.",
     "before-after": "Which side is your file on? Tell us below.",
     "checklist": "Save this checklist for your site visit.",
-    "carousel": "Save this and send it to someone buying.",
+    "carousel": "Save this for your site visit.",
     "single": "Save this for later.",
     "plan": "Save this for your site visit.",
 }
@@ -32,7 +33,7 @@ CTA_AGENT = {
     "checklist": "Comment INTERESTED and we will show you.",
     "myth-vs-fact": "Comment INTERESTED to see the fix.",
     "before-after": "Comment INTERESTED to see the clean version.",
-    "poll": "Vote in the comments.",
+    "poll": "Pick one and tell us why below.",
     "plan": "Comment INTERESTED to see how it works.",
 }
 PATTERN_FOR_FORMAT = {"stat": "number", "myth-vs-fact": "myth", "before-after": "comparison", "poll": "question"}

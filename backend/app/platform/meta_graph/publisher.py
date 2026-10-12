@@ -37,6 +37,7 @@ class Post:
     image_urls: List[str]
     link: Optional[str] = None  # Facebook feed post only (used when there is no image)
     location_id: Optional[str] = None  # Instagram only: a Facebook place id (location tag)
+    alt_text: Optional[str] = None  # Instagram only: alt text of the first image (screen readers, and what the image shows)
 
 
 @dataclass

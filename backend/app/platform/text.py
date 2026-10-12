@@ -9,6 +9,29 @@ import re
 HYPE = re.compile(r"\b(best|guarantee\w*|lowest|cheapest|perfect|dream|unbeatable|no\.? ?1|luxurious)\b", re.I)
 PHONE = re.compile(r"(?<!\d)(?:\+?91[\s-]?)?[6-9]\d{9}(?!\d)")
 
+# ---- hashtags: Instagram allows at most 5 per post or reel (since December 2025; it was 30) ---------------------------
+IG_MAX_HASHTAGS = 5
+_HASHTAG = re.compile(r"#\w+")
+
+
+def cap_hashtags(text: str, limit: int = IG_MAX_HASHTAGS) -> str:
+    """`text` keeping only its first `limit` hashtags; the later ones are removed, and a line left holding nothing is dropped.
+    Text within the limit is returned unchanged."""
+    if len(_HASHTAG.findall(text or "")) <= limit:
+        return text
+    seen = 0
+
+    def keep(m: "re.Match") -> str:
+        nonlocal seen
+        seen += 1
+        return m.group(0) if seen <= limit else ""
+
+    out = _HASHTAG.sub(keep, text)
+    out = re.sub(r"[ \t]{2,}", " ", out)
+    out = re.sub(r"[ \t]+$", "", out, flags=re.M)
+    out = re.sub(r"\n{3,}", "\n\n", out)
+    return out.strip()
+
 # ---- caption hooks: the first line is what Instagram shows before '... more' -----------------------------------------
 HOOK_MAX = 125  # Instagram cuts the caption at about this many characters
 # A first line that is only a section label or a greeting wastes the visible part of the caption (the card already carries the label).

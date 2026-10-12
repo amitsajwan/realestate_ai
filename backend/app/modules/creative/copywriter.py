@@ -1,11 +1,12 @@
 """Layer 2, the copywriter: Angle -> Copy (cover hook, slide texts, caption with a strong first line, body, question CTA, hashtags).
 
-Channel rules are enforced in code: Instagram captions carry no URL (the caption() helper says "link in our bio") and 3 to 8
-hashtags; Facebook may link. Slides are at most 14 words, one idea each. Every number must appear in the brief's facts and the
+Channel rules are enforced in code: Instagram captions carry no URL (the caption() helper says "link in our bio") and 3 to 5
+hashtags (Instagram's limit); Facebook may link. Slides are at most 14 words, one idea each. Every number must appear in the brief's facts and the
 HYPE / PHONE guards run on every field; a field that fails is replaced by its deterministic draft, so the result is always clean.
 English first; Hinglish and Marathi caption variants only when asked and only with an LLM.
 """
 from app.core import brand
+from app.platform.text import IG_MAX_HASHTAGS
 import logging
 import re
 from typing import Any, Dict, List, Optional, Sequence
@@ -28,7 +29,7 @@ AGENT_TAGS = ["#PuneRealEstate", "#RealEstateAgent", "#PropertyAgentIndia", "#Le
 QUESTION = {
     "stat": "Did this number surprise you? Tell us below.",
     "myth-vs-fact": "Did you believe this one? Tell us below.",
-    "poll": "Your pick? Tell us in the comments.",
+    "poll": "Which would you pick, and why? Tell us below.",
     "before-after": "Which side does your paperwork look like? Tell us below.",
     "checklist": "Which one would you check first? Tell us below.",
     "carousel": "Which one surprised you most? Tell us below.",
@@ -36,12 +37,12 @@ QUESTION = {
     "plan": "What would you change in this layout? Tell us below.",
 }
 QUESTION_AGENT = {
-    "poll": "Your pick? Tell us in the comments.",
+    "poll": "Which would you pick, and why? Tell us below.",
     "myth-vs-fact": "Which side are you on? Tell us below.",
     "before-after": "Which column is your week? Tell us below.",
 }
 LISTING_QUESTION = {
-    "poll": "Your pick? Tell us in the comments.",
+    "poll": "Which would you pick, and why? Tell us below.",
     "myth-vs-fact": "Did you believe this one? Tell us below.",
     "checklist": "Which one would you check first? Tell us below.",
     "carousel": "Which one would you check first? Tell us below.",
@@ -54,7 +55,8 @@ INTRO = {
     "poll": "Two honest options. Pick one.", "before-after": "The same job, done two ways.",
     "checklist": "Save this list.", "carousel": "Swipe through. One idea per slide.", "single": "", "plan": "",
 }
-CARD_CTA = {"stat": "Save this", "myth-vs-fact": "Share with a buyer", "poll": "Vote in the comments", "before-after": "Save this",
+# No share, vote or tag requests: Meta demotes them as engagement bait.
+CARD_CTA = {"stat": "Save this", "myth-vs-fact": "Save this", "poll": "Which one, and why?", "before-after": "Save this",
             "checklist": "Save this list", "carousel": "Swipe", "single": "Save this", "plan": "Save this"}
 
 VARIANT_LANG = {"hinglish": "Hinglish (Hindi written in Roman letters, mixed with English)", "marathi": "Marathi (Devanagari script)"}
@@ -88,7 +90,7 @@ def _payload(brief: Brief, angle: Angle) -> Dict[str, object]:
 def _tags(brief: Brief, audience: str, channel: str) -> List[str]:
     tags = [t if t.startswith("#") else "#" + t for t in brief.hashtags] or list(AGENT_TAGS if audience == "agent" else BUYER_TAGS)
     tags = [t for t in dict.fromkeys(tags) if TAG.match(t)]
-    return tags[:6] if channel == "instagram" else tags[:3]
+    return tags[:IG_MAX_HASHTAGS] if channel == "instagram" else tags[:3]
 
 
 def first_line_for(hook: str, question: bool = False) -> str:
@@ -173,7 +175,7 @@ def build_user(angle: Angle, brief: Brief, feedback: Optional[str]) -> str:
         lines += ["Slide material (one idea per slide, rewrite tighter if you can, keep the facts):", *[f"- {s}" for s in brief.steps[:5]]]
     lines.append(f"Call to action: {angle.cta}")
     if angle.channel == "instagram":
-        lines.append("Instagram: no URLs at all. 3 to 6 hashtags.")
+        lines.append(f"Instagram: no URLs at all. 3 to {IG_MAX_HASHTAGS} hashtags.")
     if brief.writer_note:
         lines.append(brief.writer_note)
     if feedback:
@@ -233,7 +235,7 @@ def _merge(base: Copy, data: dict, angle: Angle, corpus: str, sign_off: str = SI
     tags = [t for t in (data.get("hashtags") or []) if isinstance(t, str) and TAG.match(t.strip())] if isinstance(data.get("hashtags"), list) else []
     lo = 3
     tags = list(dict.fromkeys(t.strip() for t in tags))
-    tags = tags[:6] if angle.channel == "instagram" else tags[:3]
+    tags = tags[:IG_MAX_HASHTAGS] if angle.channel == "instagram" else tags[:3]
     llm_used = any([support, body, question, slides is not base.slides])
     return Copy(hook=base.hook, support=support if support is not None else base.support, slides=slides,
                 caption_first_line=base.caption_first_line, body=body or base.body,
@@ -270,8 +272,8 @@ def review_copy(copy: Copy, corpus: str, channel: str) -> List[str]:
         out.append("first line too long for the preview")
     if copy.hook and not same_headline(copy.caption_first_line, copy.hook):
         out.append("the caption's first line is not the card's headline")
-    if channel == "instagram" and not 3 <= len(copy.hashtags) <= 8:
-        out.append("Instagram needs 3 to 8 hashtags")
+    if channel == "instagram" and not 3 <= len(copy.hashtags) <= IG_MAX_HASHTAGS:
+        out.append(f"Instagram needs 3 to {IG_MAX_HASHTAGS} hashtags")
     if filler_hits(copy.hook):
         out.append("generic hook")
     return out

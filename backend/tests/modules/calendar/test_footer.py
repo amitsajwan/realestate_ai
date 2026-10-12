@@ -27,10 +27,11 @@ def test_length_limits_keep_the_footer():
     assert len(ig) < 2000 and ig.endswith(INSTAGRAM_FOOTER)
 
 
-def test_at_most_ten_hashtags_and_tail_block_survives():
+def test_at_most_ten_hashtags_five_on_instagram_and_tail_block_survives():
     tags = " ".join(f"#t{i}" for i in range(15))
     out = with_footer("Nice home\n\n" + tags, "instagram")
-    assert out.count("#") == 10 and out.endswith(INSTAGRAM_FOOTER)
+    assert out.count("#") == 5 and out.endswith(INSTAGRAM_FOOTER)
+    assert with_footer("Nice home\n\n" + tags, "facebook_page").count("#") == 10
     body = "word " * 300 + "\n" + " ".join(f"#t{i}" for i in range(5))
     out = with_footer(body, "facebook_page")
     assert len(out) < 900 and "#t4" in out
