@@ -24,7 +24,9 @@ def test_bookings_are_homes_sold_inside_the_window():
     d = {"booked_history": [{"at": days_ago(200), "booked": 100}, {"at": days_ago(100), "booked": 120},
                             {"at": days_ago(40), "booked": 150}, {"at": days_ago(5), "booked": 162}]}
     s = hot.bookings(d, NOW)
-    assert s["value"] == 42 and "42 homes booked" in s["evidence"]     # from the reading just before 90 days (120) to now (162)
+    assert s["value"] == 42                                             # from the reading just before 90 days (120) to now (162)
+    assert s["evidence"] == "42 homes booked between 2026-07-14 and 2026-10-07"   # the window's start, not the old reading's date
+    assert "(10% of its 420 homes)" in hot.bookings({**d, "units_total": 420}, NOW)["evidence"]   # big and small projects compare
     assert hot.bookings({"booked_history": [{"at": days_ago(5), "booked": 10}]}, NOW) is None   # one reading says nothing yet
     assert hot.bookings({"booked_history": [{"at": days_ago(50), "booked": 10}, {"at": days_ago(5), "booked": 10}]}, NOW) is None
 
@@ -124,3 +126,27 @@ def test_details_keep_a_dated_homes_booked_reading_only_when_it_changes():
     assert refresh._booked(first, {"units_booked": 10}, NOW) == {}
     assert len(refresh._booked(first, {"units_booked": 12}, NOW)["booked_history"]) == 2
     assert refresh._booked({}, {"units_booked": None}, NOW) == {}
+
+
+def test_search_name_is_what_people_call_the_project():
+    assert hot.search_name("LODHA CAMELOT PHASE 1 - TOWER A") == "Lodha Camelot"
+    assert hot.search_name("Rohan Abhilasha 4 Wing C") == "Rohan Abhilasha 4"
+    assert hot.search_name("Kolte Patil Life Republic Sector R10 (Plot 4)") == "Kolte Patil Life Republic"
+    assert hot.search_name("Om Tower") == ""                      # too short to search without unrelated matches
+
+
+async def test_youtube_stops_on_a_spent_quota_and_skips_one_failed_search(monkeypatch):
+    monkeypatch.setenv("YOUTUBE_API_KEY", "k")
+    asked = []
+
+    def handler(req):
+        asked.append(req.url.params["q"])
+        if "Alpha" in req.url.params["q"]:
+            return httpx.Response(500)
+        if "Bravo" in req.url.params["q"]:
+            return httpx.Response(200, json={"items": [{"snippet": {"title": "Bravo Heights tour", "channelTitle": "C"}}]})
+        return httpx.Response(403)
+    fn = hot.youtube_signal(transport=httpx.MockTransport(handler))
+    projects = [{"_id": n[0], "name": n, "locality": "wagholi"} for n in ("Alpha Homes", "Bravo Heights", "Charlie Park", "Delta Greens")]
+    out = await fn(projects, NOW)
+    assert list(out) == ["B"] and len(asked) == 3                 # Alpha failed alone; Charlie's 403 stopped before Delta

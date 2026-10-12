@@ -17,6 +17,7 @@ Read-only towards every outside service; nothing here posts anything.
 """
 import logging
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Awaitable, Callable, Dict, List, Optional
 from urllib.parse import urlencode
@@ -91,7 +92,11 @@ def bookings(d: dict, now: datetime) -> Optional[dict]:
     sold = hist[-1][1] - base[1]
     if sold <= 0:
         return None
-    return {"value": float(sold), "evidence": f"{sold} homes booked between {base[0].date().isoformat()} and "
+    # the history keeps a reading only when the count changed, so the count at the window's start is the reading before it
+    start = max(base[0], since)
+    total = d.get("units_total")
+    share = f" ({round(100 * sold / total)}% of its {total} homes)" if isinstance(total, int) and total > 0 else ""
+    return {"value": float(sold), "evidence": f"{sold} homes booked{share} between {start.date().isoformat()} and "
             f"{hist[-1][0].date().isoformat()}", "source": "MahaRERA"}
 
 
@@ -124,6 +129,16 @@ YT_DAYS = 30
 YT_PROJECTS = 20               # a search costs 100 of the 10,000 daily quota units: only the projects already scoring highest
 
 
+_SUFFIX = re.compile(r"\s*(?:[-,(].*|\b(?:phase|ph|tower|towers|wing|wings|building|bldg|sector|plot|stage|part|cluster)\b.*)$", re.I)
+
+
+def search_name(name: str) -> str:
+    """The name people use for a project, from the registered one: "LODHA CAMELOT PHASE 1 - TOWER A" -> "Lodha Camelot".
+    Empty when what is left is too short to search for without matching unrelated videos."""
+    short = _SUFFIX.sub("", name or "").strip()
+    return short.title() if len(short) >= 6 else ""
+
+
 def youtube_signal(transport: Optional[httpx.AsyncBaseTransport] = None, limit: int = YT_PROJECTS) -> Signal:
     async def fn(projects: List[dict], now: datetime) -> Dict[str, dict]:
         key = (os.environ.get("YOUTUBE_API_KEY") or "").strip()
@@ -133,14 +148,24 @@ def youtube_signal(transport: Optional[httpx.AsyncBaseTransport] = None, limit: 
         after = (now - timedelta(days=YT_DAYS)).strftime("%Y-%m-%dT%H:%M:%SZ")
         async with httpx.AsyncClient(timeout=20, transport=transport) as c:
             for d in projects[:limit]:
+                name = search_name(d.get("name", ""))
+                if not name:
+                    continue
                 area = BY_KEY.get(d.get("locality") or "")
-                q = f"\"{d.get('name', '')}\" {area.name if area else ''} Pune".strip()
-                r = await c.get(YT_SEARCH + "?" + urlencode({"part": "snippet", "q": q, "type": "video", "publishedAfter": after,
-                                                             "maxResults": 25, "regionCode": "IN", "key": key}))
-                r.raise_for_status()
-                name = (d.get("name") or "").lower()
+                q = f"\"{name}\" {area.name if area else ''} Pune".strip()
+                try:
+                    r = await c.get(YT_SEARCH + "?" + urlencode({"part": "snippet", "q": q, "type": "video", "publishedAfter": after,
+                                                                 "maxResults": 25, "regionCode": "IN", "key": key}))
+                    r.raise_for_status()
+                except httpx.HTTPStatusError as e:
+                    if e.response.status_code == 403:      # quota spent or key refused: the rest would fail the same way
+                        log.warning("hot: YouTube refused (%s), stopping for today", e.response.status_code)
+                        break
+                    log.warning("hot: YouTube search for %s failed (%s)", name, e.response.status_code)
+                    continue
+                low = name.lower()
                 items = [i for i in r.json().get("items") or []
-                         if name and name in str((i.get("snippet") or {}).get("title", "")).lower()]
+                         if low in str((i.get("snippet") or {}).get("title", "")).lower()]
                 if items:
                     channels = sorted({str(i["snippet"].get("channelTitle") or "") for i in items} - {""})
                     out[d.get("regno") or d["_id"]] = {
