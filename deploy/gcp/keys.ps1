@@ -6,6 +6,7 @@
   Run in your own PowerShell, from the repo root:
       .\deploy\gcp\keys.ps1           # shows every key (set: last 4 characters only; or empty), then lets you pick
       .\deploy\gcp\keys.ps1 -List     # only shows them
+      .\deploy\gcp\keys.ps1 -Verify   # checks every key that is set against its service, on the VM (backend/scripts/keys_check.py)
   Without prompts (a script, or a test): -Set "SERPER_API_KEY=...;YOUTUBE_API_KEY=..." (add -SkipCheck to skip the service checks).
 
   Keys with their own guided script are shown but changed there: the text-AI keys (ai_connect.ps1, which also tests and orders the
@@ -14,6 +15,7 @@
 #>
 param(
   [switch]$List,
+  [switch]$Verify,
   [string]$Set = "",                # "NAME=value;NAME=value": no prompts
   [switch]$SkipCheck,
   [string]$Project   = "trader-502012",
@@ -61,7 +63,9 @@ $Catalog = @(
   @{ Name = "AI_LLM_FALLBACK_API_KEY"; For = "Text AI fallback"; Owner = "ai_connect.ps1" }
   @{ Name = "AI_STT_API_KEY"; For = "Speech to text"; Owner = "ai_connect.ps1" }
   @{ Name = "AI_VISION_API_KEY"; For = "Photo review (vision)"; Owner = "ai_connect.ps1" }
+  @{ Name = "AI_VISION_FALLBACK_API_KEY"; For = "Photo review fallback"; Owner = "ai_connect.ps1" }
   @{ Name = "META_PAGE_ACCESS_TOKEN"; For = "Facebook and Instagram posting"; Owner = "meta_connect.ps1" }
+  @{ Name = "WHATSAPP_ACCESS_TOKEN"; For = "WhatsApp"; Owner = "whatsapp_connect.ps1" }
 )
 
 $common = @("--project", $Project, "--zone", $Zone); if ($Iap) { $common += "--tunnel-through-iap" }
@@ -86,6 +90,15 @@ function Show-Status {
   Write-Host ""
 }
 
+function Test-Keys {
+  # runs inside the backend container, which has the .env loaded: the keys are checked where they live and never leave the VM
+  Write-Host "==> Checking every key with its service (on the VM)" -ForegroundColor Cyan
+  & gcloud compute ssh $Instance @common --command "cd ~/$RemoteDir/deploy/gcp && sudo docker compose exec -T backend python scripts/keys_check.py"
+  if ($LASTEXITCODE -eq 0) { Write-Host "All set keys work." -ForegroundColor Green }
+  else { Write-Host "Some keys FAILED (see above): replace them with this script, or with the script named next to them." -ForegroundColor Yellow }
+}
+
+if ($Verify) { Test-Keys; return }
 Write-Host "==> Reading which keys the server has" -ForegroundColor Cyan
 Show-Status
 if ($List) { return }
@@ -158,4 +171,5 @@ try {
 }
 Write-Host "==> Now" -ForegroundColor Cyan
 Show-Status
+Test-Keys
 Write-Host "Done. The old file is kept on the VM as deploy/gcp/.env.bak-keys." -ForegroundColor Green
