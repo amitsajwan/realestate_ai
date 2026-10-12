@@ -5,8 +5,11 @@ The promoter name is not in this answer, so callers keep it from the search card
 """
 import asyncio
 import logging
+import ssl
+from pathlib import Path
 from typing import Awaitable, Callable, List, Optional
 
+import certifi
 import httpx
 
 log = logging.getLogger(__name__)
@@ -19,6 +22,18 @@ VIEW = "https://maharerait.maharashtra.gov.in/public/project/view/"
 TIMEOUT_S = 30.0
 TRIES = 3
 RETRY_DELAY = 3.0  # seconds, grows per try; tests set it to 0
+# MahaRERA's server sends the wrong intermediate (GlobalSign RSA OV SSL CA 2018) for a certificate issued by GlobalSign GCC R46
+# OV TLS CA 2025 (seen 2026-10-12): browsers fetch the right one, Python cannot, and every read failed. We add it ourselves.
+INTERMEDIATE = Path(__file__).parent / "assets" / "globalsign_gcc_r46_ov_tls_ca_2025.pem"
+
+
+def _tls() -> ssl.SSLContext:
+    ctx = ssl.create_default_context(cafile=certifi.where())
+    ctx.load_verify_locations(cafile=str(INTERMEDIATE))
+    return ctx
+
+
+TLS = _tls()
 
 Fetch = Callable[[int], Awaitable[Optional[dict]]]
 
@@ -115,7 +130,7 @@ def _make(url: str, what: str, transport: Optional[httpx.AsyncBaseTransport] = N
         delay = RETRY_DELAY
         for attempt in range(TRIES):
             try:
-                async with httpx.AsyncClient(timeout=TIMEOUT_S, transport=transport,
+                async with httpx.AsyncClient(timeout=TIMEOUT_S, transport=transport, verify=TLS,
                                              headers={"User-Agent": "Mozilla/5.0 (Avasetu project check)"}) as c:
                     res = await c.post(url, json={"projectId": int(maharera_id)})
                 if res.status_code == 200:
