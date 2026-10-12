@@ -1,4 +1,5 @@
-"""What the marketing pipeline can do on this server, logged once at start (API and worker), one line per dependency:
+"""What the marketing pipeline can do on this server, logged once at start (API and worker), one line per dependency (voice, LLM, ffmpeg, social, calendar, the
+MahaRERA register and project enrichment):
 
     pipeline=startup ref=- step=voice outcome=skipped reason="GOOGLE_TTS_API_KEY is not set" effect="reels are music only"
 
@@ -16,7 +17,9 @@ Check = Tuple[str, str, str, str]   # (step, outcome, reason, effect when not ok
 
 
 def checks() -> List[Check]:
+    from app.modules.areastats.enrich import load as load_enrich
     from app.modules.calendar.config import load as load_calendar
+    from app.modules.newsroom.config import load as load_newsroom
     from app.modules.reels import ffmpeg, voice
     from app.platform.llm import groq_api_key
     from app.platform.meta_graph.config import load as load_social
@@ -42,6 +45,17 @@ def checks() -> List[Check]:
                    ("social", trace.FAILED, "missing " + ", ".join(missing), "posts on those channels fail"))
     out.append(("calendar", trace.OK, "", "") if load_calendar().enabled else
                ("calendar", trace.SKIPPED, "CALENDAR_ENABLED is off", "approved posts are not sent"))
+    news = load_newsroom()
+    if not news.enabled:
+        out.append(("rera_register", trace.SKIPPED, "NEWSROOM_ENABLED is off",
+                    "no new MahaRERA projects, no completion-date updates (the register sweep runs in the newsroom cycle)"))
+    elif "maharera" not in news.sources:
+        out.append(("rera_register", trace.SKIPPED, "maharera is not in NEWSROOM_SOURCES", "the project register is not refreshed"))
+    else:
+        out.append(("rera_register", trace.OK, f"in the newsroom cycle, every {news.interval_s}s", ""))
+    out.append(("project_enrich", trace.OK, "", "") if load_enrich().enabled else
+               ("project_enrich", trace.SKIPPED, "PROJECT_ENRICH_ENABLED is off",
+                "project pages keep the code-written paragraph; campaigns' urgent enrichments wait"))
     return out
 
 

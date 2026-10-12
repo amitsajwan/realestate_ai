@@ -8,7 +8,7 @@ pipeline=reel ref=3f2a9c… step=voice outcome=failed reason="HTTP 403: API key 
 
 | field      | meaning |
 |------------|---------|
-| `pipeline` | `startup`, `marketing` (a "Start marketing" run), `reel` (a listing reel job), `publish` (a calendar post going to Facebook / Instagram) |
+| `pipeline` | `startup`, `marketing` (a "Start marketing" run), `reel` (a listing reel job), `publish` (a calendar post going to Facebook / Instagram), `rera` (the MahaRERA project register and lookups), `enrich` (project page enrichment) |
 | `ref`      | the run, job or post: `grep "ref=<id>"` gives that run's whole story, in order |
 | `step`     | the stage inside the pipeline (below) |
 | `outcome`  | `ok` worked · `fallback` worked with less (music without voice, rules script without the LLM) · `skipped` did not run (a setting is off or missing) · `failed` did not work |
@@ -84,9 +84,65 @@ grep "pipeline=publish" logs/app.log
 `ref` is the post's slug. `outcome=ok` has the permalink; `outcome=fallback` is a failed attempt that will be retried
 (`attempt=1/3`); `outcome=failed` means it gave up; `outcome=skipped` means dry run (nothing was sent).
 
+## 6. MahaRERA projects: the register
+
+Two jobs keep our project register (`newsroom_projects`) current. Both run **inside the newsroom cycle**, so they need
+`NEWSROOM_ENABLED` and `maharera` in `NEWSROOM_SOURCES` (the startup line `step=rera_register` says so). The cycle runs every
+`NEWSROOM_INTERVAL_SECONDS` (3 h by default).
+
+```
+grep "pipeline=rera" logs/app.log | tail -20
+```
+
+| line | meaning |
+|---|---|
+| `ref=newest step=fetch outcome=ok projects=… pages=…` | the newest Pune registrations were read |
+| `ref=newest step=fetch outcome=fallback empty_pages=…` | MahaRERA answered some pages empty even after retries; those projects come next cycle |
+| `ref=newest step=fetch outcome=failed reason="no result count…"` | MahaRERA's search was down: no new projects this cycle |
+| `ref=register step=sweep … new=… updated=… empty=…` | the pincode sweep that fills in older projects in our areas (`fallback` = MahaRERA gave an empty page; the same page is tried next time) |
+| `ref=register step=details … read=… failed=…` | completion dates and homes booked from MahaRERA's project API (`fallback` = some reads failed; retried after a day) |
+| `ref=register step=relabel / watch / pages` | areas re-checked, watched projects (agents' projects outside our areas) added, pages given to new projects |
+| `ref=<regno or name> step=lookup` | a listing's project looked up during a marketing run: `ok` with details, `fallback` card only, `skipped` with why no match (e.g. two projects with that name), `failed` when the search did not answer |
+
+Any `outcome=failed` on a `ref=register` line is a bug or an outage: the other parts still ran.
+
+## 7. Project page enrichment
+
+Runs one project every `PROJECT_ENRICH_EVERY_MINUTES` (30) when `PROJECT_ENRICH_ENABLED` is on, and at once for a project a
+campaign is about to post about.
+
+```
+grep "pipeline=enrich" logs/app.log | tail -20
+pipeline=enrich ref=P52100012345 step=done outcome=ok text=model facts=gathered
+pipeline=enrich ref=P52100067890 step=done outcome=fallback text=code facts=gathered notes="draft refused: numbers not in the facts: 4; kept the code-written paragraph"
+```
+
+`fallback` means the page kept the code-written paragraph, and `notes` says why: no LLM key, the model call failed, the draft
+was refused (numbers not in the facts, sales words, too long), or the facts could not be gathered.
+
+## 8. Is everything running? `python -m app.worker --check`
+
+Run it in the worker container (`docker compose exec worker python -m app.worker --check`). First one line per background
+loop from its heartbeat (`OK`, `STALE`, or `OFF` when its setting is off); then, for information, whether the register and
+the enrichment are actually moving:
+
+```
+OK    newsroom: last heartbeat 812s ago
+OK    project_enrich: last heartbeat 41s ago
+OK   rera sweep: at pincode 412207 page 4, moved 2.1h ago; last full round 6d ago
+OK   rera details: 1180 projects in our areas, 12 watched; details ok 1150, last read failed 9, never read 33, due now 40
+OK   rera pages: 1192 of 1192 kept projects have a page
+OK   enrichment: 210 of 1192 pages enriched, 188 with model text, 0 urgent waiting, last 0.4h ago
+```
+
+A heartbeat says a loop is alive; the `rera`/`enrichment` lines say its work is getting done. `WARN` marks: the sweep has not
+moved for a day, more detail reads failing than succeeding, projects without a page, or urgent enrichments waiting with nothing
+enriched for an hour. The exit code is the heartbeats' alone (deploy/gcp/health_check.sh).
+
 ## Quick checks
 
 ```
 grep -E "outcome=(failed|fallback|skipped)" logs/app.log | grep -v "pipeline=startup" | tail -50   # everything that went less than well
 grep "pipeline=reel" logs/app.log | grep "step=done" | tail -20                                   # last 20 reels and their audio
+grep -E "pipeline=(rera|enrich)" logs/app.log | grep -E "outcome=(failed|fallback)" | tail -20     # register and enrichment trouble
 ```
