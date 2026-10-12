@@ -24,6 +24,7 @@ export default function LocalitiesPage() {
       <div className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Pune area guides</h1>
         <p className="mt-3 text-lg leading-relaxed text-slate-700">Who each area suits, how to get around and what to check before you buy. Facts come from official sources, listed on each page.</p>
+        <p className="mt-3 text-slate-700">Comparing areas? The <Link href="/pune-maharera-tracker" className="font-medium text-[#0f2340] underline underline-offset-2">Pune MahaRERA tracker</Link> puts every area&apos;s registered projects, booked homes and completion dates side by side.</p>
         {TIERS.map((tier) => (
           <section key={tier} className="mt-10" aria-labelledby={`tier-${tier}`}>
             <h2 id={`tier-${tier}`} className="text-2xl font-semibold text-slate-900">{TIER_LABELS[tier].title}</h2>

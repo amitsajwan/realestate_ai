@@ -47,6 +47,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     at('/', 1),
     at('/localities', 0.8),
+    at('/pune-maharera-tracker', 0.8),
     ...LOCALITIES.map((l) => at(`/localities/${l.slug}`, 0.8, l.updated)),
     ...[...fallbackLocalities].map(([slug, d]) => at(`/localities/${slug}`, 0.5, d)),
     at('/news', 0.8),

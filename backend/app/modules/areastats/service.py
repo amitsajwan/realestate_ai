@@ -78,17 +78,29 @@ def all_views(docs: List[dict], today: date) -> Dict[str, dict]:
     return {a.key: area_view(a, [d for d in docs if d.get("locality") == a.key], as_of) for a in AREAS}
 
 
+async def _views(db, today: Optional[date]) -> Dict[str, dict]:
+    """Every area's dict, from the cache when fresh. Passing `today` (tests) skips the cache. Callers get the cached dicts:
+    copy before handing them out."""
+    if today is None:
+        hit = _cache.get("views")
+        if hit is not None and _cache.get("db") is db and time.monotonic() - _cache["at"] < CACHE_SECONDS:
+            return hit
+    views = all_views(await Store(db).all_projects(), today or datetime.now(IST).date())
+    if today is None:
+        _cache.update(db=db, at=time.monotonic(), views=views)
+    return views
+
+
 async def area_stats(db, key: str, today: Optional[date] = None) -> Optional[dict]:
     """One area's stats by key or slug ("upper_kharadi" or "upper-kharadi"); None for an area we do not cover. Passing `today`
     (tests) skips the cache."""
     area = get(key)
     if area is None:
         return None
-    if today is None:
-        hit = _cache.get("views")
-        if hit is not None and _cache.get("db") is db and time.monotonic() - _cache["at"] < CACHE_SECONDS:
-            return copy.deepcopy(hit[area.key])
-    views = all_views(await Store(db).all_projects(), today or datetime.now(IST).date())
-    if today is None:
-        _cache.update(db=db, at=time.monotonic(), views=views)
-    return copy.deepcopy(views[area.key])
+    return copy.deepcopy((await _views(db, today))[area.key])
+
+
+async def all_area_stats(db, today: Optional[date] = None) -> List[dict]:
+    """Every area's stats in AREAS order (the city tracker page): the same dicts as `area_stats`."""
+    views = await _views(db, today)
+    return [copy.deepcopy(views[a.key]) for a in AREAS]

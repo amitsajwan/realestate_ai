@@ -5,13 +5,21 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 
 from app.core.database import get_database
 
-from .service import CACHE_SECONDS, area_stats
+from .service import CACHE_SECONDS, SOURCE, all_area_stats, area_stats
 
 public_router = APIRouter()
 
 
 def get_db():
     return get_database()
+
+
+@public_router.get("/areas/stats")
+async def public_all_area_stats(response: Response, db=Depends(get_db)) -> dict:
+    """Every area we cover, in menu order: the Pune MahaRERA tracker page (frontend/app/pune-maharera-tracker)."""
+    areas = await all_area_stats(db)
+    response.headers["Cache-Control"] = f"public, max-age={CACHE_SECONDS}"
+    return {"as_of": max((a["as_of"] for a in areas), default=None), "areas": areas, "source": SOURCE}
 
 
 @public_router.get("/areas/{slug}/stats")

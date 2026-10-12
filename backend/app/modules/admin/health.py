@@ -63,6 +63,39 @@ def meta_row(key: str, label: str, configured: bool, state: Optional[dict]) -> D
     return _row(key, label, OK, "Connected")
 
 
+def seo_rows(*, indexnow_on: bool, gsc_on: bool, indexnow: Optional[dict], coverage: Optional[dict],
+             pages: Optional[dict]) -> List[Dict]:
+    """Search engines (IndexNow) and Google's index (Search Console coverage), from the seo loop's marks (docs/plan/seo.md)."""
+    rows = []
+    n = indexnow or {}
+    if not indexnow_on:
+        rows.append(_row("indexnow", "Bing and IndexNow", WARN, "Off: Bing learns about new pages only when it next crawls",
+                         "Set INDEXNOW_KEY in the server settings (docs/plan/seo.md)"))
+    elif n.get("failed_at") and (not n.get("at") or n["failed_at"] > n["at"]):
+        rows.append(_row("indexnow", "Bing and IndexNow", BAD, f"IndexNow refused our last send (status {n.get('status')})",
+                         "Check that /indexnow-key.txt shows the key; tried again every 30 minutes"))
+    elif n.get("at"):
+        rows.append({**_row("indexnow", "Bing and IndexNow", OK, f"Sending new and changed pages (last round: {n.get('sent', 0)})"),
+                     "last_run_at": _iso(n["at"])})
+    else:
+        rows.append(_row("indexnow", "Bing and IndexNow", OK, "On, has not run yet"))
+    c = coverage or {}
+    if not gsc_on:
+        rows.append(_row("google_index", "Google index", WARN, "Search Console is not connected",
+                         "Add the read-only service account key as GSC_SA_KEY_B64 (docs/plan/seo.md)"))
+    elif not c.get("inspected"):
+        rows.append(_row("google_index", "Google index", OK, "On, first check runs within a day"))
+    else:
+        share = c.get("indexed", 0) / c["inspected"]
+        near = len((pages or {}).get("near_page_one") or [])
+        text = f"{c.get('indexed', 0)} of {c['inspected']} checked sitemap pages are in Google" + (f"; {near} pages just off page one" if near else "")
+        missing = c.get("missing_by_state") or {}
+        top = max(missing.items(), key=lambda kv: kv[1]) if missing else None
+        fix = f'Most common reason: "{top[0]}" ({top[1]} pages)' if top else ""
+        rows.append({**_row("google_index", "Google index", OK if share >= 0.7 else WARN, text, fix), "last_run_at": _iso(c.get("at"))})
+    return rows
+
+
 def build_health(*, social, wa, engage, calendar, newsroom, meta: Dict[str, Optional[dict]], cal_run: dict, news_run: dict,
                  controls: dict, ai: dict, dm=None) -> List[Dict]:
     rows = [

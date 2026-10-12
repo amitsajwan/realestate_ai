@@ -100,11 +100,11 @@ def test_the_worker_runs_the_nine_loops_under_the_api_lease_names():
     from app.modules.newsroom.runner import loop as newsroom_loop
     from app.modules.propertyfacts.jobs import loop as marketing_loop
     from app.modules.areastats.enrich import loop as enrich_loop
-    from app.modules.seo.indexnow import loop as indexnow_loop
+    from app.modules.seo.runner import loop as seo_loop
     assert worker.loops() == {"engage": engage_loop, "newsroom": newsroom_loop, "calendar": calendar_loop,
                               "listing_reels": listing_reel.loop, "marketing_runs": marketing_loop,
                               "project_enrich": enrich_loop, "insights": insights_loop,
-                              "answer_gaps": gaps_loop, "indexnow": indexnow_loop}
+                              "answer_gaps": gaps_loop, "seo": seo_loop}
 
 
 # ---- --check ----------------------------------------------------------------------------------------------------------

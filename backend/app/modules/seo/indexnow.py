@@ -1,6 +1,6 @@
 """IndexNow: Bing, Yandex, Seznam, Naver and the engines that read Bing's index learn about new and changed pages within minutes.
 
-Every INTERVAL_S the worker reads the public sitemap (frontend/app/sitemap.ts, which already dates every page by its last change)
+Every round of the seo loop (app/modules/seo/runner.py) reads the public sitemap (frontend/app/sitemap.ts, which already dates every page by its last change)
 and sends IndexNow the pages changed since the last successful send; the first send is every page in the sitemap. Free, no
 account: ownership is proved by a key the frontend serves at <site>/indexnow-key.txt (from GET /api/v1/public/indexnow-key).
 Google does not read IndexNow; it reads the same sitemap (robots.txt names it).
@@ -23,7 +23,6 @@ from app.modules.newsroom.store import Store
 log = logging.getLogger(__name__)
 
 ENDPOINT = "https://api.indexnow.org/indexnow"
-INTERVAL_S = 1800
 BATCH = 10000                       # IndexNow's most URLs per request
 SLACK = timedelta(hours=1)          # pages dated just before the last send are sent again rather than missed
 MARK = "indexnow"                   # newsroom_status document: {at, sent, status}
@@ -101,23 +100,3 @@ async def run_once(store: Store, now: datetime, transport: Optional[httpx.AsyncB
     await store.set_mark(MARK, at=now, sent=len(urls), status=200)
     return {"sent": len(urls), "status": 200}
 
-
-async def loop() -> None:
-    """Worker loop (app/worker.py): one round every INTERVAL_S while INDEXNOW_KEY is set."""
-    import asyncio
-
-    from app.core.database import get_database
-    from app.platform.heartbeats import heartbeat
-
-    log.info("indexnow: loop started")
-    while True:
-        try:
-            async with heartbeat("indexnow", get_database, on=key() is not None):
-                out = await run_once(Store(get_database()), datetime.now(timezone.utc))
-                if out and out["sent"]:
-                    log.info("indexnow: %s", out)
-        except asyncio.CancelledError:
-            raise
-        except Exception:
-            log.exception("indexnow: round failed")
-        await asyncio.sleep(INTERVAL_S)

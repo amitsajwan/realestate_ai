@@ -80,3 +80,33 @@ export function longDate(day: string | null | undefined): string {
   if (!m || +m[2] < 1 || +m[2] > 12) return ''
   return `${+m[3]} ${MONTHS[+m[2] - 1]} ${m[1]}`
 }
+
+export interface CityStats { asOf: string; areas: AreaStats[]; source: string }
+
+/** Every area's facts for the city tracker page: GET /api/v1/public/areas/stats. Areas with no projects are left out. Null in
+ *  fixture mode or when the API cannot be read (also at build time, when no backend runs): the page then says the figures are
+ *  being refreshed and asks not to be indexed until they are back, like the other list pages. */
+export async function getCityStats(): Promise<CityStats | null> {
+  if (fixturesForced()) return null
+  try {
+    const res = await fetch(serverApiBase() + '/api/v1/public/areas/stats', {
+      headers: { Accept: 'application/json' },
+      next: { revalidate: 300 },
+      signal: AbortSignal.timeout(8000),
+    })
+    return res.ok ? cleanCityStats(await res.json()) : null
+  } catch {
+    return null
+  }
+}
+
+export function cleanCityStats(raw: unknown): CityStats | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  const areas = (Array.isArray(r.areas) ? r.areas : [])
+    .map((a) => cleanAreaStats(a, (a as AreaStats | null)?.area?.slug ?? ''))
+    .filter((a): a is AreaStats => a !== null)
+  if (!areas.length) return null
+  const asOf = areas.map((a) => a.as_of).sort().pop() as string
+  return { asOf, areas, source: typeof r.source === 'string' && r.source ? r.source : 'MahaRERA public records' }
+}
