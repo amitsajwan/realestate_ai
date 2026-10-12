@@ -6,8 +6,11 @@ their completion dates. Each step:
    every project in our areas reaches the register and its Last Modified date stays fresh (about 250 pages in all on
    2026-10-04: a full round in about 10 days at 3 pages a cycle, 8 cycles a day);
 2. relabel: records whose area changed with the rules get the new one (411047 projects were Wagholi, are Lohegaon);
+   discover: one project number seen in Google results that we lack is looked up on MahaRERA by name (areastats.discover);
+   a found one joins the watch list in the next part;
 3. details: reads MahaRERA's project API for up to `details` records: completion dates and homes booked, again every
-   DETAILS_MAX_AGE_DAYS because builders file updates.
+   DETAILS_MAX_AGE_DAYS because builders file updates. A changed homes-booked count is also kept, dated, in `booked_history`
+   (how fast a project sells: areastats.hot).
 Requests are spaced by PAUSE seconds: MahaRERA is a public service and must not feel us.
 
 It catches up on its own: while the first sweep round is not done, or more records wait for details than one step reads, a step
@@ -27,7 +30,8 @@ from app.modules.newsroom.policy import AREA_PINCODES, SHARED_PINCODES
 from app.modules.newsroom.sources import maharera as search
 from app.modules.newsroom.store import Store
 
-from . import pages
+from . import discover
+from . import pages as project_pages  # not `pages`: step() takes a `pages` batch size
 from . import watch as watchlist
 
 log = logging.getLogger(__name__)
@@ -41,6 +45,7 @@ DETAILS_RETRY_DAYS = 1  # after a failed read
 PAUSE = 2.0  # seconds between MahaRERA requests; tests set it to 0
 SKIP_AFTER_MISSES = 3  # a sweep page still empty after this many steps is skipped until the next round
 MARK = "area_sweep"  # newsroom_status document: where the sweep is
+BOOKED_HISTORY = 24  # dated homes-booked readings kept per project (about two years at one read a month)
 DETAIL_FIELDS = ("project_type", "registered_on", "completion_at_registration", "completion_now", "units_total", "units_booked")
 
 
@@ -147,8 +152,17 @@ async def details(store: Store, fetch: project_api.Fetch, now: datetime, limit: 
             await store.set_project(d["_id"], details_checked_at=now, details_ok=False)
             continue
         out["read"] += 1
-        await store.set_project(d["_id"], **fields, details_checked_at=now, details_ok=True)
+        await store.set_project(d["_id"], **fields, details_checked_at=now, details_ok=True, **_booked(d, fields, now))
     return out
+
+
+def _booked(d: dict, fields: dict, now: datetime) -> dict:
+    """A dated reading of homes booked when it changed (or is the first): how areastats.hot sees which projects are selling."""
+    hist = list(d.get("booked_history") or [])
+    n = fields.get("units_booked")
+    if not isinstance(n, int) or (hist and hist[-1].get("booked") == n):
+        return {}
+    return {"booked_history": (hist + [{"at": now, "booked": n}])[-BOOKED_HISTORY:]}
 
 
 async def step(store: Store, get, fetch: project_api.Fetch, now: datetime, pages: Optional[int] = None,
@@ -160,8 +174,8 @@ async def step(store: Store, get, fetch: project_api.Fetch, now: datetime, pages
     limit = limit if limit is not None else (CATCHUP_DETAILS if catching_up else DETAILS_PER_STEP)
     out: dict = {"mode": "catch-up" if catching_up else "steady"}
     for name, part in (("sweep", lambda: sweep(store, get, now, pages)), ("relabel", lambda: relabel(store)),
-                       ("watch", lambda: watchlist.sync(store, now)), ("details", lambda: details(store, fetch, now, limit)),
-                       ("pages", lambda: pages.assign_all(store))):
+                       ("discover", lambda: discover.resolve(store, get, now)), ("watch", lambda: watchlist.sync(store, now)), ("details", lambda: details(store, fetch, now, limit)),
+                       ("pages", lambda: project_pages.assign_all(store))):
         try:
             out[name] = await part()
         except Exception:

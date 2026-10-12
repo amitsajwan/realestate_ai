@@ -1,7 +1,8 @@
 """What Google already shows of our project pages (Search Console), so enrichment starts with the pages people see.
 
 Once a day (inside the enrichment loop) it reads impressions and clicks per page for the last 28 days and stores them on the
-register record behind each /projects/<slug> page (`gsc_impressions`, `gsc_clicks`, `gsc_read_at`). Read-only access through a
+register record behind each /projects/<slug> page (`gsc_impressions`, `gsc_clicks`, `gsc_read_at`), with the dated readings
+(`gsc_history`) and the impressions of the 28 days before (`gsc_impressions_prev`), so areastats.hot sees searches rising. Read-only access through a
 service account the owner added in Search Console as a Restricted user. Its key lives only in the VM's environment
 (GSC_SA_KEY_B64: the key file, base64), never in git or chat. Without a key this does nothing.
 """
@@ -25,6 +26,7 @@ SCOPE = "https://www.googleapis.com/auth/webmasters.readonly"
 API = "https://searchconsole.googleapis.com/webmasters/v3/sites/{site}/searchAnalytics/query"
 DAYS = 28
 READ_EVERY = timedelta(hours=24)
+HISTORY = 60         # daily readings kept per project: enough to compare with 28 days ago
 MARK = "gsc_pages"   # newsroom_status document: when we last read
 
 
@@ -67,6 +69,13 @@ async def page_counts(sa: dict, today: date, transport: Optional[httpx.AsyncBase
     return out
 
 
+def _previous(hist: list, now: datetime) -> int:
+    """Impressions of the 28 days before the current 28: the latest reading at least DAYS old (0 when there is none yet)."""
+    old = [h for h in hist if isinstance(h.get("at"), datetime)
+           and now - (h["at"] if h["at"].tzinfo else h["at"].replace(tzinfo=timezone.utc)) >= timedelta(days=DAYS)]
+    return int(old[-1].get("impressions") or 0) if old else 0
+
+
 async def refresh(store: Store, now: datetime, transport: Optional[httpx.AsyncBaseTransport] = None, force: bool = False) -> Optional[dict]:
     """Read Search Console at most once per READ_EVERY and store the counts on project records. None when skipped."""
     sa = key()
@@ -82,7 +91,9 @@ async def refresh(store: Store, now: datetime, transport: Optional[httpx.AsyncBa
         c = counts.get(f"/projects/{slug}") if slug else None
         if c or d.get("gsc_impressions"):
             c = c or {"impressions": 0, "clicks": 0}
-            await store.set_project(d["_id"], gsc_impressions=c["impressions"], gsc_clicks=c["clicks"], gsc_read_at=now)
+            hist = (list(d.get("gsc_history") or []) + [{"at": now, "impressions": c["impressions"]}])[-HISTORY:]
+            await store.set_project(d["_id"], gsc_impressions=c["impressions"], gsc_clicks=c["clicks"], gsc_read_at=now,
+                                    gsc_history=hist, gsc_impressions_prev=_previous(hist, now))
             updated += 1
     await store.set_mark(MARK, at=now, pages=len(counts), projects=updated)
     return {"pages": len(counts), "projects": updated}

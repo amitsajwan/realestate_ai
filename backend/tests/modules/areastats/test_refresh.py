@@ -159,3 +159,5 @@ async def test_step_runs_all_parts_and_survives_a_broken_one():
     out = await refresh.step(store, site({("411014", 1): page_of("411014", 10)}, calls), fetch, NOW, pages=1, limit=5)
     assert out["sweep"]["new"] == 10 and out["relabel"] == 1 and out["details"] is None
     assert (await store.project("P1"))["locality"] == "lohegaon"
+    # every new in-area record gets its page in the same step (the batch size `pages` must not hide the pages module)
+    assert out["pages"] == 11 and (await store.project("P1"))["page_slug"]
