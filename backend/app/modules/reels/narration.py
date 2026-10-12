@@ -79,10 +79,11 @@ def one_take(lines: Sequence[str], lang: str, work: Path) -> Optional[List[Path]
         mp3.write_bytes(voice.synth(voice.take_ssml(lines), lang, ssml=True))
         pieces = split(_decode(mp3), len(lines))
     except Exception as e:  # the service refused the script, ffmpeg could not decode it...: the lines one by one instead
-        log.info("one-take voice-over not used (%s)", type(e).__name__)
+        reason = str(e) if isinstance(e, voice.VoiceError) else type(e).__name__   # a VoiceError's message is already redacted
+        log.warning("voice-over: one take not used (%s); trying line by line", reason)
         return None
     if pieces is None:
-        log.info("one-take voice-over not used: it did not cut into %d lines", len(lines))
+        log.info("voice-over: one take did not cut into %d lines; trying line by line", len(lines))
         return None
     return [_write_wav(work / f"take{i}.wav", p) for i, p in enumerate(pieces)]
 

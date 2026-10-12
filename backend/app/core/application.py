@@ -66,7 +66,9 @@ async def lifespan(app: FastAPI):
     # Initialize production-ready logging
     setup_logging(environment=settings.environment)
     logger = get_logger("core")
-    
+    from app.readiness import log_readiness
+    await asyncio.to_thread(log_readiness, "api")   # what the marketing pipeline can do here (voice, LLM, ffmpeg, social...)
+
     # Startup
     try:
         await init_database()

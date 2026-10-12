@@ -53,6 +53,8 @@ async def stop_loops(tasks: Dict[str, asyncio.Task]) -> None:
 async def run(stop: asyncio.Event, table: Optional[LoopTable] = None, get_db: Callable[[], Any] = get_database) -> None:
     setup_logging(environment=settings.environment)
     logger = get_logger("worker")
+    from app.readiness import log_readiness
+    await asyncio.to_thread(log_readiness, "worker")   # what the marketing pipeline can do here (voice, LLM, ffmpeg, social...)
     try:
         await init_database()
     except Exception as e:
