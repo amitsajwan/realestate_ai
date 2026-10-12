@@ -168,4 +168,17 @@ async def listing(db, area: Optional[str] = None, only_indexable: bool = True, l
     docs.sort(key=lambda d: (_day(d.get("last_modified")) or "", d.get("name", "")), reverse=True)
     return [{"slug": d["page_slug"], "regno": d.get("regno") or d["_id"], "name": d.get("name", ""), "area": d.get("locality"),
              "completion_now": _day(d.get("completion_now")),
-             "listed_or_updated": _day(d.get("last_modified")), "indexable": indexable(d)} for d in docs[:limit]]
+             "listed_or_updated": _day(d.get("last_modified")), "updated": updated(d), "indexable": indexable(d)} for d in docs[:limit]]
+
+
+def updated(doc: dict) -> Optional[str]:
+    """When the PAGE last changed (YYYY-MM-DD), for the sitemap's lastmod: the newest of MahaRERA's own date, our last good read
+    of the details, and the last rewrite of the page text. Google re-reads a page sooner when its sitemap date moves."""
+    days = [_day(doc.get("last_modified"))]
+    for k in ("page_text_at", "enriched_at"):
+        if isinstance(doc.get(k), datetime):
+            days.append(doc[k].date().isoformat())
+    if isinstance(doc.get("details_checked_at"), datetime) and doc.get("details_ok"):
+        days.append(doc["details_checked_at"].date().isoformat())
+    days = [d for d in days if d]
+    return max(days) if days else None

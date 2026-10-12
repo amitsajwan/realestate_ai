@@ -32,6 +32,8 @@ export interface RegisterListItem {
   area: string | null
   completion_now: string | null
   listed_or_updated: string | null
+  /** when the page last changed (newest of MahaRERA's date, our details read, our page text): the sitemap's lastmod */
+  updated?: string | null
   indexable: boolean
 }
 

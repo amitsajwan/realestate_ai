@@ -42,12 +42,16 @@ AREA_PER_DAY = 8
 PROJECT_PER_DAY = 12
 KEEP_DAYS = 7
 TOP = 10
+KEEP_RESULTS = 40                    # results kept per search: organic, ads, related searches and questions
 SEEN_KEEP = 10                       # places a discovered number was seen, kept per number
 # sites that are not marketing a project: us, the regulator, encyclopaedias and video/social hosts (counted by their own signals)
 NOT_MARKETERS = ("avasetu.in", "maharashtra.gov.in", "wikipedia.org", "youtube.com", "facebook.com", "instagram.com", "x.com",
                  "twitter.com", "linkedin.com", "reddit.com", "quora.com")
 
-Search = Callable[[str], Awaitable[List[dict]]]   # query -> [{"title", "link", "snippet", "position", "ad": bool}]
+# query -> [{"title", "link", "snippet", "position", "ad": bool, "type"}]: type "organic" or "ad" (results), "related" (Google's
+# related searches: the title is the search) or "question" ("People also ask": the title is the question)
+Search = Callable[[str], Awaitable[List[dict]]]
+PHRASE_TYPES = ("related", "question")
 
 
 def serper(key: str, transport: Optional[httpx.AsyncBaseTransport] = None) -> Search:
@@ -59,9 +63,15 @@ def serper(key: str, transport: Optional[httpx.AsyncBaseTransport] = None) -> Se
             r.raise_for_status()
             body = r.json()
         out = [{"title": str(i.get("title") or ""), "link": str(i.get("link") or ""), "snippet": str(i.get("snippet") or ""),
-                "position": int(i.get("position") or n + 1), "ad": False} for n, i in enumerate(body.get("organic") or [])]
+                "position": int(i.get("position") or n + 1), "ad": False, "type": "organic"}
+               for n, i in enumerate(body.get("organic") or [])]
         out += [{"title": str(i.get("title") or ""), "link": str(i.get("link") or ""), "snippet": str(i.get("snippet") or ""),
-                 "position": 0, "ad": True} for i in body.get("ads") or []]
+                 "position": 0, "ad": True, "type": "ad"} for i in body.get("ads") or []]
+        # what else people search: free with the same search (areastats.demand keeps them)
+        out += [{"title": str(i.get("query") or ""), "link": "", "snippet": "", "position": 0, "ad": False, "type": "related"}
+                for i in body.get("relatedSearches") or [] if i.get("query")]
+        out += [{"title": str(i.get("question") or ""), "link": str(i.get("link") or ""), "snippet": str(i.get("snippet") or ""),
+                 "position": 0, "ad": False, "type": "question"} for i in body.get("peopleAlsoAsk") or [] if i.get("question")]
         return out
     return search
 
@@ -134,7 +144,7 @@ async def run_searches(store: Store, projects: List[dict], now: datetime, search
             handled += 1
             log.exception("websearch: search failed: %s", b["q"])
             continue
-        doc = {"kind": b["kind"], "area": b.get("area"), "regno": b.get("regno"), "at": now, "results": results[:TOP + 5]}
+        doc = {"kind": b["kind"], "area": b.get("area"), "regno": b.get("regno"), "at": now, "results": results[:KEEP_RESULTS]}
         if await coll.find_one({"_id": b["q"]}):
             await coll.update_one({"_id": b["q"]}, {"$set": doc})
         else:
@@ -176,6 +186,8 @@ def score(projects: List[dict], docs: List[dict]) -> Dict[str, dict]:
         places, sites, ads = [], set(), set()
         for doc in docs:
             for r in doc.get("results") or []:
+                if r.get("type") in PHRASE_TYPES:          # searches and questions, not pages: areastats.demand reads them
+                    continue
                 text = f"{r.get('title', '')} {r.get('snippet', '')}"
                 if doc.get("kind") == "area" and doc.get("area") == d.get("locality") and not r.get("ad") \
                         and 0 < int(r.get("position") or 0) <= TOP and mentions(name, text):
@@ -213,6 +225,11 @@ def signal(search: Optional[Search] = None) -> hot.Signal:
         out = score(projects, docs)
         for regno, sig in out.items():
             await store.set_project(regno, web_marketers=sig.pop("marketers"), web_advertisers=sig.pop("advertisers"), web_read_at=now)
+        try:   # our own rank for each search, and the related searches and questions Google showed (areastats.demand)
+            from . import demand
+            await demand.from_results(store, docs, now)
+        except Exception:
+            log.exception("websearch: keeping the search phrases failed")
         log.info("websearch: %s, %d new project numbers, %d projects seen", ran, found, len(out))
         return out
     return fn

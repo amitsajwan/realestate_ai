@@ -92,10 +92,15 @@ async def test_serper_provider_sends_the_query_for_india_and_reads_organic_and_a
     def handler(req):
         seen.append((str(req.url), req.headers["X-API-KEY"], json.loads(req.content)))
         return httpx.Response(200, json={"organic": [{"title": "A", "link": "https://a.in", "snippet": "s", "position": 1}],
-                                         "ads": [{"title": "B", "link": "https://b.in"}]})
+                                         "ads": [{"title": "B", "link": "https://b.in"}],
+                                         "relatedSearches": [{"query": "kharadi new projects 2026"}],
+                                         "peopleAlsoAsk": [{"question": "Is Kharadi good for investment?", "link": "https://c.in",
+                                                            "snippet": "s2"}]})
     out = await websearch.serper("k", transport=httpx.MockTransport(handler))("new launch projects in Kharadi Pune")
     assert seen[0] == ("https://google.serper.dev/search", "k", {"q": "new launch projects in Kharadi Pune", "gl": "in", "hl": "en", "num": 10})
-    assert out == [r("A", "https://a.in", 1, "s"), r("B", "https://b.in", 0, ad=True)]
+    assert out == [{**r("A", "https://a.in", 1, "s"), "type": "organic"}, {**r("B", "https://b.in", 0, ad=True), "type": "ad"},
+                   {**r("kharadi new projects 2026", "", 0), "type": "related"},
+                   {**r("Is Kharadi good for investment?", "https://c.in", 0, "s2"), "type": "question"}]
 
 
 def test_marketers_exclude_us_the_regulator_and_social_sites():

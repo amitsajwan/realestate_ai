@@ -677,6 +677,7 @@ The site address is one setting, but several places cache or copy it.
 | Health check never alerts | No `ALERT_WEBHOOK_URL` or `ALERT_EMAIL` set; test with `bash health_check.sh --test-alert`. |
 | A key does not seem to work | `keys.ps1 -Verify` shows each key's state and the service's own reason for a FAILED one. |
 | No hot projects, or no Google / YouTube reasons on them | `PROJECT_ENRICH_ENABLED` off, or `SERPER_API_KEY` / `YOUTUBE_API_KEY` EMPTY or FAILED in `keys.ps1 -Verify`. "Homes booked lately" needs two MahaRERA reads of a project, about a month apart. |
+| What are people searching for, and where do we rank? | On the VM: `sudo docker compose exec -T -e PYTHONPATH=. backend python scripts/demand_report.py` (`--rising`, `--area kharadi`, `--kind project`). Filled daily from Search Console (`GSC_SA_KEY_B64`) and our Google searches (`SERPER_API_KEY`), inside the project-page loop. `--missing` lists project numbers MahaRERA search could not find. |
 | A project is missing from `/projects` | The register is still filling (the newsroom loop sweeps our areas' pincodes over about 10 days, `NEWSROOM_ENABLED`), or the project's pincode is outside our areas. A project whose number appears in Google results is looked up by name and added by itself (`discover.py`, with `SERPER_API_KEY`); one whose registered name differs from every title stays in the `discovered_projects` collection (status `open`, `tried_names`): add it with `areastats.watch` and its MahaRERA id. |
 | A pull request's checks are red | Open the failing check's log on GitHub; run the same command on your PC (section 5.1). Do not merge until both are green. |
 
@@ -708,10 +709,10 @@ Background reading in the repo: `docs/PILOT_RUNBOOK.md`, `docs/META_SETUP.md`, `
 | `backend/app/modules/whatsapp`, `notifications` | WhatsApp webhook and assistant; in-app lead badges |
 | `backend/app/modules/interest`, `tracking`, `report` | Interest links, `/go` hub, leads, matching, weekly summary |
 | `backend/app/modules/waitlist` | Website invite requests (`/request-invite`) |
-| `backend/app/modules/areastats` | The MahaRERA register sweep, area stats, `/projects/<slug>` pages, page enrichment, hot projects (`hot.py`), Google results (`websearch.py`), Search Console (`searchconsole.py`) |
+| `backend/app/modules/areastats` | The MahaRERA register sweep, area stats, `/projects/<slug>` pages, page enrichment, hot projects (`hot.py`), Google results (`websearch.py`), Search Console (`searchconsole.py`), missing projects (`discover.py`), search phrases and our rank (`demand.py`) |
 | `backend/app/modules/propertyfacts` | Fact sheets with sources: MahaRERA records, brochures, places nearby; campaigns from them |
 | `backend/app/modules/insights` | Meta's numbers for published posts |
-| `backend/scripts/` | Server-side admin scripts, run with `sudo docker compose exec -T -e PYTHONPATH=. backend python scripts/<name>.py` (for example `invite.py`, `invite_requests.py`, `calendar_admin.py`, `showcase_admin.py`, `reels_admin.py`, `verify_engage_live.py`, `keys_check.py`) |
+| `backend/scripts/` | Server-side admin scripts, run with `sudo docker compose exec -T -e PYTHONPATH=. backend python scripts/<name>.py` (for example `invite.py`, `invite_requests.py`, `calendar_admin.py`, `showcase_admin.py`, `reels_admin.py`, `verify_engage_live.py`, `keys_check.py`, `demand_report.py`) |
 | `backend/tests/` | Backend tests (pytest) |
 | `frontend/app/` | Next.js pages: public site, `/studio/*` (Studio tabs: home, listings, interest, newsroom, content, leads, admin, agents) |
 | `frontend/components/app/` | Studio components (Admin, Agents, listing flow, brand editor) |
