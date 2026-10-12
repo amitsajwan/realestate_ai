@@ -40,7 +40,10 @@ module), so newly swept projects got no /projects page and were never enriched.
 
 ## Next (same pattern: one `hot.add_signal(name, fn)` each)
 1. Instagram: hashtag search through the Graph API on our business account (30 hashtags a week): reels and posts per project.
-2. Look up `discovered_projects` on MahaRERA and add real ones to the watch list (the Lodha Camelot case).
+2. Done (areastats/discover.py): each register step looks up one `discovered_projects` number on MahaRERA by names taken from
+   the result titles that showed it, takes a card only when its number is exactly the one seen, and hands found ones to the
+   watch list (source `web_discovered`): the register reads its details, the area rules place it, it gets its page. Numbers no
+   name finds stay open for new titles; `discover.pending()` lists them for a person.
 3. Marketing partner pages: read a page (found through search or given by an agent), keep its project numbers, agent RERA
    number, claimed prices and offers as labelled claims; a project number we do not have goes to the watch list.
 4. Discovery: a project named in news, social or Search Console queries that the register lacks becomes a lookup task, so a

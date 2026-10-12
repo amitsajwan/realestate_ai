@@ -14,6 +14,7 @@ import logging
 import re
 from datetime import datetime, timezone
 from typing import List, Optional
+from urllib.parse import quote
 
 from app.modules.newsroom.policy import MAHARERA_PAGES, MAHARERA_PHRASE
 from app.modules.newsroom.sources._util import canonical_url, item_id, now_utc, strip_html
@@ -36,6 +37,7 @@ DETAIL = "https://maharerait.maharashtra.gov.in/public/project/view/"
 # the same search with project_location set to a pincode lists that pincode's projects in Pune district (verified 2026-10-04:
 # 411047 gave 196, 411057 gave 645; a place name there gives nothing): how the area sweep reads older projects in our areas
 BY_PINCODE = SEARCH.replace("project_location=", "project_location={pincode}")
+BY_NAME = SEARCH.replace("project_name=", "project_name={name}")
 
 _TOTAL = re.compile(r'Showing Final\s*<span[^>]*>\s*(\d+)\s*</span>', re.I)
 _CARD = re.compile(r'<div class="row shadow[^"]*">(.*?)(?=<div class="row shadow|\Z)', re.S)
@@ -94,6 +96,15 @@ async def read_pincode_page(get: Fetcher, pincode: str, page: int, district: int
     """(total results, projects) for one page of a pincode's projects; (None, []) when the site gave nothing after retries."""
     body = await _ask(get, BY_PINCODE.format(district=district, pincode=pincode, page=page), lambda b: parse_projects(b))
     return (parse_total(body), parse_projects(body)) if body else (None, [])
+
+
+async def search_by_name(get: Fetcher, name: str, district: int = PUNE_DISTRICT) -> Optional[List[MahaReraProject]]:
+    """The cards MahaRERA's search gives for a project name in the district ([] when none); None when the site did not answer.
+    The site searches by name only (its registration-number filter is ignored, verified 2026-10-06); a real answer always
+    carries its result count, its failures do not. Spaces must be %20 ("gulmohar+city" finds nothing)."""
+    url = BY_NAME.format(district=district, page=1, name=quote((name or "").strip(), safe=""))
+    body = await _ask(get, url, lambda b: parse_total(b) is not None)
+    return parse_projects(body) if body is not None else None
 
 
 def to_item(p: MahaReraProject, fetched_at: Optional[datetime] = None) -> RawItem:

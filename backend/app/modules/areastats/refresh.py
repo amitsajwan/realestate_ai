@@ -6,6 +6,8 @@ their completion dates. Each step:
    every project in our areas reaches the register and its Last Modified date stays fresh (about 250 pages in all on
    2026-10-04: a full round in about 10 days at 3 pages a cycle, 8 cycles a day);
 2. relabel: records whose area changed with the rules get the new one (411047 projects were Wagholi, are Lohegaon);
+   discover: one project number seen in Google results that we lack is looked up on MahaRERA by name (areastats.discover);
+   a found one joins the watch list in the next part;
 3. details: reads MahaRERA's project API for up to `details` records: completion dates and homes booked, again every
    DETAILS_MAX_AGE_DAYS because builders file updates. A changed homes-booked count is also kept, dated, in `booked_history`
    (how fast a project sells: areastats.hot).
@@ -28,6 +30,7 @@ from app.modules.newsroom.policy import AREA_PINCODES, SHARED_PINCODES
 from app.modules.newsroom.sources import maharera as search
 from app.modules.newsroom.store import Store
 
+from . import discover
 from . import pages as project_pages  # not `pages`: step() takes a `pages` batch size
 from . import watch as watchlist
 
@@ -171,7 +174,7 @@ async def step(store: Store, get, fetch: project_api.Fetch, now: datetime, pages
     limit = limit if limit is not None else (CATCHUP_DETAILS if catching_up else DETAILS_PER_STEP)
     out: dict = {"mode": "catch-up" if catching_up else "steady"}
     for name, part in (("sweep", lambda: sweep(store, get, now, pages)), ("relabel", lambda: relabel(store)),
-                       ("watch", lambda: watchlist.sync(store, now)), ("details", lambda: details(store, fetch, now, limit)),
+                       ("discover", lambda: discover.resolve(store, get, now)), ("watch", lambda: watchlist.sync(store, now)), ("details", lambda: details(store, fetch, now, limit)),
                        ("pages", lambda: project_pages.assign_all(store))):
         try:
             out[name] = await part()

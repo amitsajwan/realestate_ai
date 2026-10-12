@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Awaitable, Callable, Dict, Iterable, Optional
 
+from app.modules.newsroom import register
 from app.modules.newsroom.sources.maharera import DETAIL
 from app.modules.newsroom.store import Store
 
@@ -54,9 +55,11 @@ async def watch(store: Store, item: WatchItem, source: str, now: datetime) -> bo
     if doc is None:
         if not item.maharera_id:
             return False
+        # the area rules decide at once (a project found in Kharadi gets its area, and so its page slug, on day one)
+        area, how = register.locality_of(item.name, item.pincode) or (None, "watched, not in our areas")
         await store.record_projects([{
-            "regno": regno, "name": item.name or regno, "pincode": item.pincode, "locality": None,
-            "locality_from": "watched, not in our areas", "source": "MahaRERA", "source_url": f"{DETAIL}{int(item.maharera_id)}",
+            "regno": regno, "name": item.name or regno, "pincode": item.pincode, "locality": area,
+            "locality_from": how, "source": "MahaRERA", "source_url": f"{DETAIL}{int(item.maharera_id)}",
             "checked_at": now,
         }])
         doc = {"watched_by": []}
