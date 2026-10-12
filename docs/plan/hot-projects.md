@@ -29,6 +29,9 @@ hottest projects not searched in 7 days. From the results:
 - `discovered_projects`: MahaRERA numbers in results that the register lacks, with where they were seen, for the lookup job.
 The score is out of a fixed SCALE, so turning a source on or off never moves every other project's score.
 
+Keys (SERPER_API_KEY, YOUTUBE_API_KEY and the others) are set on the VM with `deploy/gcp/keys.ps1`: it shows which keys are set
+or empty, checks a new one against its service and writes it only into the VM's private .env.
+
 Hot projects (score >= HOT_MIN) go first in page enrichment, after urgent campaign requests, and are rewritten every 14 days
 instead of 60. `hot.top(store, area)` gives the list with reasons, for agents' briefs.
 
