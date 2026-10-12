@@ -3,8 +3,9 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def no_pauses(monkeypatch):
-    from app.modules.areastats import refresh, service, watch
+    from app.modules.areastats import hot, refresh, service, watch
     monkeypatch.setattr(watch, "_SOURCES", {})  # each test registers the sources it wants
+    monkeypatch.setattr(hot, "_SIGNALS", {})
     from app.modules.newsroom.sources import maharera
     monkeypatch.setattr(refresh, "PAUSE", 0)
     monkeypatch.setattr(maharera, "RETRY_DELAY", 0)

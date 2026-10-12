@@ -49,3 +49,14 @@ async def test_impressions_land_on_project_records_once_a_day(monkeypatch):
     p1 = await store.project("P1")
     assert (p1["gsc_impressions"], p1["gsc_clicks"]) == (40, 3) and "gsc_impressions" not in await store.project("P2")
     assert await searchconsole.refresh(store, NOW + timedelta(hours=3), transport=google(seen)) is None   # once a day
+
+
+async def test_impressions_keep_a_history_and_the_28_days_before(monkeypatch):
+    monkeypatch.setenv("GSC_SA_KEY_B64", base64.b64encode(json.dumps(fake_key()).encode()).decode())
+    db, store = await seeded(("P1", "Rohan Abhilasha 4", "wagholi", FULL))
+    await pages.assign_all(store)
+    await store.set_project("P1", gsc_history=[{"at": NOW - timedelta(days=30), "impressions": 10},
+                                               {"at": NOW - timedelta(days=1), "impressions": 35}])
+    await searchconsole.refresh(store, NOW, transport=google([]))
+    p1 = await store.project("P1")
+    assert p1["gsc_impressions_prev"] == 10 and p1["gsc_history"][-1] == {"at": NOW, "impressions": 40}

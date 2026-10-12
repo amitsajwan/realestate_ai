@@ -42,6 +42,9 @@ def wire() -> None:
     from app.modules.areastats import enrich as project_enrich
     project_enrich.configure(gather=_gather_project)
     register_watch.add_source("property_facts", _property_facts_watch)  # every project we gathered facts for to market it
+    # hot projects (areastats.hot): outside signals beyond MahaRERA, news and Search Console; YouTube is on with YOUTUBE_API_KEY
+    from app.modules.areastats import hot as hot_projects
+    hot_projects.add_signal("youtube", hot_projects.youtube_signal())
     # the MahaRERA badge on the pack cards and the walkthrough reel prints only a project number propertyfacts trusts (AR-3)
     from app.modules.marketing import maharera as maharera_badge
     maharera_badge.configure(resolve=_project_registration)
