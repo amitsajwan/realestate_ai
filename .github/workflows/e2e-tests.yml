@@ -1,12 +1,9 @@
 name: E2E Visual Tests
 
+# Run by hand only (Actions > this workflow > Run workflow) until the Playwright suites are kept up to date; they are not part
+# of the checks a pull request needs. Pushes, pull requests and the nightly run no longer start it.
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
-  schedule:
-    - cron: '0 2 * * *' # Daily at 2 AM
+  workflow_dispatch:
 
 jobs:
   visual-regression:
