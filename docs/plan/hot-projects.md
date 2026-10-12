@@ -50,6 +50,21 @@ module), so newly swept projects got no /projects page and were never enriched.
    project like Camelot is added the day people start talking about it.
 5. Agent alerts: a weekly WhatsApp brief per agent from `hot.top` for their areas.
 
+## Search demand (areastats/demand.py)
+One list of search phrases, `search_demand`, for the page work that answers them:
+- from Search Console, daily: the searches that showed our pages (query and page), impressions, clicks, position, and the 28
+  days before; a phrase is `rising` at 1.5x the 28 days before (with at least 10 impressions), or when it is new this week;
+- from our Google searches, daily and free with them: Google's related searches and "People also ask" questions, and our own
+  place in each search's results (`rank`, with a dated history), so "top on Google" is a number we watch;
+- each phrase is placed by the rules: `project` (names a register project the way people write it), `area` or `topic`.
+`demand.top(store, kind, area, rising_only)` lists them; `scripts/demand_report.py` prints them on the VM (`--missing` lists the
+project numbers MahaRERA search did not find). The sitemap now dates a project page by its last change (`pages.updated`: MahaRERA's
+date, our details read, our page text), so Google re-reads a page after we improve it.
+
+Next: answers on project and area pages for project and area phrases (automatic, from checked facts only), topic drafts in the
+Newsroom (owner approves), rising phrases in agents' briefs; then telling search engines (Search Console sitemap submit,
+IndexNow for Bing) and checking that hot pages are indexed (URL Inspection API).
+
 ## Rules
 Official APIs and public records only; no scraping against a site's terms, no captcha solving. The one exception, chosen by the
 owner (2026-10-12): Google results come from a paid results provider, since Google offers no web-search API any more; those

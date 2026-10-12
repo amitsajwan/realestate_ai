@@ -87,3 +87,12 @@ async def test_zero_booked_after_completion_means_not_reported_and_the_page_says
     assert "0 of 1185" not in text and "bookings were not reported" in text and "occupancy certificate (OC)" in text
     future_new = {**FULL, "units_booked": 0}   # a new project with nothing sold yet: 0 is a real number
     assert pages.booked(future_new) == 0 and pages.indexable(future_new)
+
+
+def test_a_page_is_dated_by_its_last_change():
+    from datetime import datetime, timezone
+    doc = {"last_modified": "2026-09-01", "details_checked_at": datetime(2026, 10, 3, tzinfo=timezone.utc), "details_ok": True}
+    assert pages.updated(doc) == "2026-10-03"
+    assert pages.updated({**doc, "page_text_at": datetime(2026, 10, 12, tzinfo=timezone.utc)}) == "2026-10-12"
+    assert pages.updated({**doc, "details_ok": False}) == "2026-09-01"          # a failed read changed nothing on the page
+    assert pages.updated({}) is None
