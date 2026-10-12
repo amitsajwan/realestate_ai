@@ -25,6 +25,12 @@ DENY_TOPICS = [
         r"visarjan|immersion|fervour|fervor|devotion|jayanti|mahotsav)\b", re.I)),
     ("sports", re.compile(r"\b(cricket|ipl|football|kabaddi|tournament|badminton|tennis|match(es)?|marathon|league|trophy)\b", re.I)),
     ("entertainment", re.compile(r"\b(movies?|films?|bollywood|actor|actress|web series|concert|box office|trailer|singer|album)\b", re.I)),
+    # flights, passengers and terminal services: airport news that does not change anything about a home. Land acquisition, approvals
+    # and the Purandar site are not matched here, so those stay in.
+    ("air travel", re.compile(
+        r"\b(flights?|flyers?|passengers?|passenger traffic|footfall|airlines?|indigo|air india|akasa|spicejet|boarding|baggage|"
+        r"check-?in|security check|immigration|parking (fee|fees|charges?|rates?)|cab (fare|fares|pick-?up)|bird hit|runway closure|"
+        r"departures?|arrivals?|domestic terminal|international terminal|terminal building|lounge)\b", re.I)),
     ("weather", re.compile(r"\b(weather|imd|temperature|heat ?wave|cold wave|rainfall forecast|yellow alert|orange alert)\b", re.I)),
     ("unrelated government talk", re.compile(
         r"\b(maternal|nutrition|anganwadi|vaccination|immuni[sz]ation|blood donation|health camp|child health|"

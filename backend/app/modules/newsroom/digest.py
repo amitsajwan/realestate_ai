@@ -23,7 +23,7 @@ IST = timezone(timedelta(hours=5, minutes=30))
 MIN_ITEMS, MAX_ITEMS, PER_PILLAR, WINDOW_DAYS = 2, 5, 2, 7
 TITLE = "Kharadi and Wagholi this week"
 DONE_STATES = ("approved", "scheduled", "published")
-PILLAR_RANK = {p: i for i, p in enumerate(("infrastructure", "new_supply", "rules_money", "locality_life", "education"))}
+PILLAR_RANK = {p: i for i, p in enumerate(policy.PILLAR_PRIORITY)}
 
 # Evergreen buyer tips: general, no figures, no names, no predictions. One per week, rotating.
 TIPS = [
