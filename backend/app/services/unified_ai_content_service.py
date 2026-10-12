@@ -13,6 +13,7 @@ from datetime import datetime
 from enum import Enum
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.config import settings
+from app.platform.text import IG_MAX_HASHTAGS
 
 logger = logging.getLogger(__name__)
 
@@ -142,8 +143,8 @@ class UnifiedAIContentService:
         
         # Channel-specific instructions
         channel_instructions = {
-            ContentChannel.FACEBOOK: "Facebook post (engaging, community-focused, encourage comments and shares, max 5000 chars)",
-            ContentChannel.INSTAGRAM: "Instagram post (visual storytelling, max 2200 chars, max 30 hashtags, use relevant emojis)",
+            ContentChannel.FACEBOOK: "Facebook post (engaging, community-focused, end with a genuine question; never ask people to share, tag, vote or react, max 5000 chars)",
+            ContentChannel.INSTAGRAM: "Instagram post (visual storytelling, max 2200 chars, at most 5 hashtags, use relevant emojis)",
             ContentChannel.WEBSITE: "Website blog post (comprehensive, SEO-optimized, detailed property description, include local insights)",
             ContentChannel.WHATSAPP: "WhatsApp message (concise, personal, direct communication style)",
             ContentChannel.EMAIL: "Email content (professional, detailed, formal communication)"
@@ -310,7 +311,7 @@ FORMATTING REQUIREMENTS:
 IMPORTANT: Return ONLY the final formatted content, not JSON or any technical formatting. The content should be ready to publish directly on social media platforms.
 
 PLATFORM-SPECIFIC OPTIMIZATION:
-- **Instagram**: Visual storytelling, lifestyle focus, max 30 hashtags, 2,200 character limit, use relevant emojis
+- **Instagram**: Visual storytelling, lifestyle focus, at most 5 hashtags, 2,200 character limit, use relevant emojis
 - **Facebook**: Community-focused, encourage comments and shares, max 63,206 characters, longer content acceptable
 - **Website**: SEO-optimized, comprehensive details, local market analysis, professional tone, 1,500-3,000 words
 - **WhatsApp**: Personal, direct, concise communication, max 4,096 characters, 2-3 paragraphs
@@ -655,8 +656,8 @@ FINAL LANGUAGE REQUIREMENT:
         if channel == ContentChannel.INSTAGRAM:
             if validation_result["character_count"] > 2200:
                 validation_result["issues"].append("Content exceeds Instagram's 2,200 character limit")
-            if validation_result["hashtag_count"] > 30:
-                validation_result["issues"].append("Too many hashtags for Instagram (max 30)")
+            if validation_result["hashtag_count"] > IG_MAX_HASHTAGS:
+                validation_result["issues"].append(f"Too many hashtags for Instagram (max {IG_MAX_HASHTAGS})")
         
         elif channel == ContentChannel.FACEBOOK:
             if validation_result["character_count"] > 63206:
@@ -769,8 +770,8 @@ FINAL LANGUAGE REQUIREMENT:
             # Ensure Instagram limits
             if len(content["body"]) > 2200:
                 content["body"] = content["body"][:2200] + "..."
-            if len(content["hashtags"]) > 30:
-                content["hashtags"] = content["hashtags"][:30]
+            if len(content["hashtags"]) > IG_MAX_HASHTAGS:
+                content["hashtags"] = content["hashtags"][:IG_MAX_HASHTAGS]
         
         # Ensure agent contact is included
         if agent_data and agent_data.get('agent_name'):

@@ -7,6 +7,8 @@ from urllib.parse import quote
 
 import httpx
 
+from app.platform.text import cap_hashtags
+
 from .config import SocialConfig
 from .publisher import Post, PublishError, Result, sanitize
 
@@ -15,6 +17,7 @@ POLL_INTERVAL_S = 2.0
 POLL_TIMEOUT_S = 60.0
 REQUEST_TIMEOUT_S = 20.0
 MAX_CAROUSEL = 10
+ALT_TEXT_MAX = 1000  # Instagram's limit for an image's alt text
 DEDUP_WINDOW = 12  # recent Instagram posts checked for an identical caption before publishing
 
 
@@ -165,20 +168,23 @@ class GraphPublisher:
         urls = post.image_urls[:MAX_CAROUSEL]
         if not urls:
             raise PublishError("Instagram needs at least one image")
-        found = await self._already_on_instagram(post.text)
+        caption = cap_hashtags(post.text)  # Instagram allows at most 5 hashtags
+        found = await self._already_on_instagram(caption)
         if found:
             return found
         place = {"location_id": post.location_id} if post.location_id else {}
+        alt = (post.alt_text or "").strip()[:ALT_TEXT_MAX]
+        first_alt = {"alt_text": alt} if alt else {}  # it describes the cover, so only the first image carries it
         if len(urls) == 1:
-            container = self._need_id(await self._call("POST", f"{ig}/media", {"image_url": urls[0], "caption": post.text, **place}),
-                                      "the container")
+            container = self._need_id(await self._call("POST", f"{ig}/media", {"image_url": urls[0], "caption": caption, **place,
+                                                                              **first_alt}), "the container")
         else:
             children = []
-            for u in urls:
-                body = await self._call("POST", f"{ig}/media", {"image_url": u, "is_carousel_item": "true"})
+            for i, u in enumerate(urls):
+                body = await self._call("POST", f"{ig}/media", {"image_url": u, "is_carousel_item": "true", **(first_alt if i == 0 else {})})
                 children.append(self._need_id(body, "a carousel item"))
             container = self._need_id(await self._call("POST", f"{ig}/media", {
-                "media_type": "CAROUSEL", "children": ",".join(children), "caption": post.text, **place}), "the carousel")
+                "media_type": "CAROUSEL", "children": ",".join(children), "caption": caption, **place}), "the carousel")
         await self._wait_finished(container)
         media_id = self._need_id(await self._call("POST", f"{ig}/media_publish", {"creation_id": container}), "the published media")
         permalink = None

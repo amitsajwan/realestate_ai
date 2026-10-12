@@ -140,7 +140,7 @@ TRENDS: List[TrendReel] = [
             {"screen": f"And {_n(_K_LOW)}–{_n(_K_HIGH)} sq ft in *Kharadi*",
              "voice": f"And roughly {_n(_K_LOW)} to {_n(_K_HIGH)} in Kharadi. Before taxes and extras."},
         ),
-        cta={"screen": "Save this. Send it to someone buying.", "voice": "Save this, and send it to someone who is buying in Pune."},
+        cta={"screen": "Save this for your site visit.", "voice": "Save this for your next site visit in Pune."},
         caption=("₹50 lakh in Pune: Kharadi or Wagholi?\n\nProperty portals list Wagholi at about ₹5,000–6,500 per sq ft and Kharadi at about "
                  f"₹8,600–10,400 (Oct 2026). At those rates ₹50 lakh buys roughly {_n(_W_LOW)}–{_n(_W_HIGH)} sq ft in Wagholi and "
                  f"{_n(_K_LOW)}–{_n(_K_HIGH)} sq ft in Kharadi, before taxes and extras. Rates differ by project and by what the area figure "

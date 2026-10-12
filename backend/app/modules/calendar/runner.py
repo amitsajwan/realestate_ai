@@ -157,7 +157,8 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
             else:
                 urls = [f"{social.media_base_url}/uploads/{p}" for p in imgs]
                 res = await _once(store, doc, lambda: publisher.publish(Post(doc["channel"], doc["caption"], urls,
-                                                                             location_id=reach.location_id(doc))))
+                                                                             location_id=reach.location_id(doc),
+                                                                             alt_text=(doc.get("creative") or {}).get("alt_text"))))
         await store.published(doc["_id"], res.external_id, res.permalink)
         await adapters.register_hub(store.db, doc, res.permalink or "")
         if link_comment and doc["channel"] == "facebook_page" and (kind == "reel" or reel):

@@ -237,7 +237,7 @@ class ReelSpec:
 
 PITCH_CAPTION_BODY = ("\U0001F91D Property agent in Pune?\n\nBuyers message all day, and the same questions come back every time.\n\n"
                       "✅ Post a property from your phone\n✅ Ready-made posts for Facebook, Instagram and WhatsApp\n✅ Your own website is ready\n\n"
-                      "Claim your free trial: your first 3 properties marketed free. \U0001F4E4 Know an agent who would like this? Share this reel.")
+                      "Claim your free trial: your first 3 properties marketed free. Questions about how it works? Ask below.")
 
 
 def reel_caption(spec: ReelSpec, channel: str, entry: Optional[Entry] = None) -> str:

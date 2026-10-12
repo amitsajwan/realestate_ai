@@ -3,14 +3,14 @@ import re
 from pathlib import Path
 from typing import Iterable, List, Optional, Set
 
-from app.platform.text import HOOK_MAX, HYPE, PHONE, first_line, hook_problems
+from app.platform.text import HOOK_MAX, HYPE, IG_MAX_HASHTAGS, PHONE, first_line, hook_problems
 
 from .library import SITE, Entry
 
 FB_MAX = 900
 IG_MAX = 2000
-IG_TAGS_MIN, IG_TAGS_MAX = 3, 8
-IG_TAGS_HARD_MAX = 10
+IG_TAGS_MIN, IG_TAGS_MAX = 3, IG_MAX_HASHTAGS
+IG_TAGS_HARD_MAX = IG_MAX_HASHTAGS  # Instagram's own limit
 HOOK_TARGET = 110  # library hooks aim below Instagram's ~125 visible characters (HOOK_MAX), leaving room for the emoji
 URL = re.compile(r"https?://|www\.", re.I)
 HASHTAG = re.compile(r"#\w+")

@@ -45,7 +45,15 @@ def _feedback(report: Report) -> str:
 
 
 def _alt_text(angle: Angle, copy: Copy, design: Design) -> str:
-    return f"{design.layout.replace('_', ' ')} card: {copy.hook}" + (f". {copy.support}" if copy.support else "")
+    """What the card says, for screen readers (Instagram sends it with the first image): the headline, the support line and the
+    slides' texts. Not the layout's name, which tells a listener nothing."""
+    kind = "Photo card" if design.photo else "Text card"
+    parts = [f"{kind}. Headline: {copy.hook.strip().rstrip('.')}."]
+    if copy.support:
+        parts.append(copy.support.strip())
+    if copy.slides:
+        parts.append("Slides: " + "; ".join(s.strip().rstrip(".") for s in copy.slides) + ".")
+    return " ".join(parts)
 
 
 def _default_reviewer() -> Optional[Callable]:

@@ -21,6 +21,7 @@ from app.platform.meta_graph.config import SocialConfig
 from app.platform.meta_graph.config import load as load_config
 from app.platform.meta_graph.graph import REQUEST_TIMEOUT_S, GraphPublisher
 from app.platform.meta_graph.publisher import PublishError, Result
+from app.platform.text import cap_hashtags
 
 REEL_POLL_INTERVAL_S = 5.0
 REEL_POLL_TIMEOUT_S = 300.0     # reels take longer than photos to process
@@ -114,6 +115,7 @@ class ReelPublisher(GraphPublisher):
     async def _instagram_reel(self, video_url: str, caption: str, cover_url: Optional[str] = None,
                               location_id: Optional[str] = None) -> Result:
         ig = self.cfg.ig_id
+        caption = cap_hashtags(caption)  # Instagram allows at most 5 hashtags
         found = await self._already_on_instagram(caption, video=True)  # a retry after a "failed" publish that went out
         if found:
             return found
