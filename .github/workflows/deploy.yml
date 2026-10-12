@@ -1,10 +1,9 @@
 name: Deploy PropertyAI Platform
 
+# Run by hand only (Actions > this workflow > Run workflow) until it does real work: the production and staging steps are
+# placeholders and the real deploy is the VM scripts (deploy.sh). Pushes and pull requests no longer start it.
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
