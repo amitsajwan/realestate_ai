@@ -77,11 +77,11 @@ async def test_an_outside_signal_adds_and_a_failing_one_is_skipped():
     db, store = await seeded(("P1", "Camelot", "kharadi", FULL), ("P2", "Quiet", "kharadi", FULL))
     seen = []
 
-    async def social(projects, now):
+    async def social(store, projects, now):
         seen.append([p["_id"] for p in projects])
         return {"P2": {"value": 5, "evidence": "5 reels", "source": "Instagram"}, "NOT_OURS": {"value": 9, "evidence": "", "source": ""}}
 
-    async def broken(projects, now):
+    async def broken(store, projects, now):
         raise RuntimeError("quota")
     hot.add_signal("social", social)
     hot.add_signal("broken", broken)
@@ -101,9 +101,9 @@ async def test_youtube_needs_a_key_and_counts_only_videos_naming_the_project(mon
     fn = hot.youtube_signal(transport=httpx.MockTransport(handler))
     projects = [{"_id": "P1", "name": "Camelot", "locality": "kharadi"}]
     monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
-    assert await fn(projects, NOW) == {} and asked == []
+    assert await fn(None, projects, NOW) == {} and asked == []
     monkeypatch.setenv("YOUTUBE_API_KEY", "k")
-    out = await fn(projects, NOW)
+    out = await fn(None, projects, NOW)
     assert out["P1"]["value"] == 2 and "Pune Homes, Realty Talk" in out["P1"]["evidence"]
     assert asked[0]["q"] == '"Camelot" Kharadi Pune' and asked[0]["publishedAfter"] == "2026-09-12T06:00:00Z"
 
@@ -148,5 +148,5 @@ async def test_youtube_stops_on_a_spent_quota_and_skips_one_failed_search(monkey
         return httpx.Response(403)
     fn = hot.youtube_signal(transport=httpx.MockTransport(handler))
     projects = [{"_id": n[0], "name": n, "locality": "wagholi"} for n in ("Alpha Homes", "Bravo Heights", "Charlie Park", "Delta Greens")]
-    out = await fn(projects, NOW)
+    out = await fn(None, projects, NOW)
     assert list(out) == ["B"] and len(asked) == 3                 # Alpha failed alone; Charlie's 403 stopped before Delta

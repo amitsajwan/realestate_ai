@@ -6,6 +6,8 @@ each kept with what it saw and where (`hot_signals`), so an agent can see WHY a 
 - bookings: homes booked in the last BOOKING_DAYS, from the dated `booked_history` the register's details step keeps;
 - news:     news stories linked to the project (newsroom pipeline) in the last NEWS_DAYS;
 - search:   Google Search Console impressions of its page, and their growth since the previous read;
+- google:   where the project ranks in Google for buyers' searches in its area, and how many sites market it (areastats.websearch,
+            on only with SERPER_API_KEY);
 - more:     any module or outside source registers `add_signal(name, fn)` at startup (app/wiring.py). The YouTube signal below is one,
             on only when YOUTUBE_API_KEY is set (the official Data API; never scraping).
 Each signal gives a raw value; `score` turns it into 0..1 with a saturating curve (the first few stories count most) and adds them
@@ -36,11 +38,13 @@ BOOKING_DAYS = 90
 NEWS_DAYS = 30
 HOT_MIN = 25                   # a score at or above this counts as hot (enrichment first, sooner refresh)
 # how much each signal can add, and the raw value that counts as "half way" (saturating: v / (v + half))
-WEIGHTS: Dict[str, float] = {"launch": 1.0, "bookings": 1.5, "news": 1.0, "search": 1.0, "youtube": 1.0}
-HALF: Dict[str, float] = {"launch": 1.0, "bookings": 10.0, "news": 2.0, "search": 200.0, "youtube": 3.0}
+WEIGHTS: Dict[str, float] = {"launch": 1.0, "bookings": 1.5, "news": 1.0, "search": 1.0, "google": 1.5, "youtube": 1.0}
+# the weighted total that counts as 100: fixed, so adding a signal (or a source being off) never lowers every other project's score
+SCALE = 4.0
+HALF: Dict[str, float] = {"launch": 1.0, "bookings": 10.0, "news": 2.0, "search": 200.0, "google": 4.0, "youtube": 3.0}
 
-# fn(projects, now) -> {regno: {"value": float, "evidence": str, "source": str}}
-Signal = Callable[[List[dict], datetime], Awaitable[Dict[str, dict]]]
+# fn(store, projects, now) -> {regno: {"value": float, "evidence": str, "source": str}}; the store lets a signal keep what it read
+Signal = Callable[[Store, List[dict], datetime], Awaitable[Dict[str, dict]]]
 _SIGNALS: Dict[str, Signal] = {}
 
 
@@ -140,7 +144,7 @@ def search_name(name: str) -> str:
 
 
 def youtube_signal(transport: Optional[httpx.AsyncBaseTransport] = None, limit: int = YT_PROJECTS) -> Signal:
-    async def fn(projects: List[dict], now: datetime) -> Dict[str, dict]:
+    async def fn(store: Optional[Store], projects: List[dict], now: datetime) -> Dict[str, dict]:
         key = (os.environ.get("YOUTUBE_API_KEY") or "").strip()
         if not key:
             return {}
@@ -179,7 +183,7 @@ def youtube_signal(transport: Optional[httpx.AsyncBaseTransport] = None, limit: 
 
 def score(signals: Dict[str, dict]) -> int:
     total = sum(WEIGHTS.get(k, 1.0) * (s["value"] / (s["value"] + HALF.get(k, 1.0))) for k, s in signals.items() if s["value"] > 0)
-    return round(100 * total / sum(WEIGHTS.values()))
+    return min(100, round(100 * total / SCALE))
 
 
 async def refresh(store: Store, now: datetime, force: bool = False) -> Optional[dict]:
@@ -198,7 +202,7 @@ async def refresh(store: Store, now: datetime, force: bool = False) -> Optional[
     docs.sort(key=lambda d: -score(found[d["_id"]]))
     for name, fn in list(_SIGNALS.items()):
         try:
-            for regno, s in (await fn(docs, now) or {}).items():
+            for regno, s in (await fn(store, docs, now) or {}).items():
                 if regno in found and s.get("value", 0) > 0:
                     found[regno][name] = s
         except Exception:
@@ -222,5 +226,6 @@ async def top(store: Store, area: Optional[str] = None, limit: int = 10) -> List
     docs.sort(key=lambda d: -(d.get("hot_score") or 0))
     return [{"regno": d.get("regno") or d["_id"], "name": d.get("name", ""), "area": d.get("locality"),
              "page": f"/projects/{d['page_slug']}" if d.get("page_slug") else None, "hot_score": d["hot_score"],
-             "why": [{"signal": s["signal"], "evidence": s["evidence"], "source": s["source"]} for s in d.get("hot_signals") or []]}
+             "why": [{"signal": s["signal"], "evidence": s["evidence"], "source": s["source"]} for s in d.get("hot_signals") or []],
+             "marketed_by": d.get("web_marketers") or []}            # agent-only: never on the public page
             for d in docs[:limit]]

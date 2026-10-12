@@ -45,6 +45,8 @@ def wire() -> None:
     # hot projects (areastats.hot): outside signals beyond MahaRERA, news and Search Console; YouTube is on with YOUTUBE_API_KEY
     from app.modules.areastats import hot as hot_projects
     hot_projects.add_signal("youtube", hot_projects.youtube_signal())
+    from app.modules.areastats import websearch
+    hot_projects.add_signal("google", websearch.signal())   # Google results through SERPER_API_KEY; off without it
     # the MahaRERA badge on the pack cards and the walkthrough reel prints only a project number propertyfacts trusts (AR-3)
     from app.modules.marketing import maharera as maharera_badge
     maharera_badge.configure(resolve=_project_registration)
