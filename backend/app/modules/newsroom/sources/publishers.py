@@ -34,7 +34,8 @@ REAL_ESTATE_KEYWORDS = [
     "real estate", "realty", "realtor", "property", "properties", "housing", "homebuyer", "home buyer", "home loan",
     "home sales", "homes", "residential", "plot", "plots", "flat", "flats", "apartment", "apartments", "township",
     "redevelopment", "builder", "builders", "developer", "developers", "rera", "maharera", "stamp duty", "ready reckoner", "registration fee", "fsi", "tdr",
-    "metro", "ring road", "flyover", "airport", "it park", "commercial space", "office space", "rental", "rents",
+    "metro", "ring road", "flyover", "it park", "commercial space", "office space", "rental", "rents",
+    "housing sales", "home sales", "unsold inventory", "per sq ft", "refund", "possession", "homebuyers", "home buyers",
 ]
 
 _PUNE_TERMS = list(policy.PUNE_HINT) + ["hinjewadi", "hadapsar", "baner", "wakad", "hinjawadi", "shivajinagar"]

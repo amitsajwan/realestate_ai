@@ -6,10 +6,11 @@ always there. Every draft still goes through `check` afterwards: this stage does
 from app.core import brand
 import re
 import asyncio
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from .. import policy
-from ..types import Draft, Facts, Llm, RawItem, Relevance
+from ..types import Draft, Facts, Llm, RawItem, Relevance, Research
+from .research import readable_chars
 
 BRAND = brand.TEAM
 AREA_NAMES = {"kharadi": "Kharadi", "upper_kharadi": "Upper Kharadi", "wagholi": "Wagholi"}
@@ -40,6 +41,24 @@ SYSTEM_HEADLINE = (
     'question ending with ?).'
 )
 HEADLINE_CHECK = "Read the source and any official notice for the latest status before you decide."
+
+# A full news article, written from researched facts (several reports when we found them) and our verified area guide.
+SYSTEM_ARTICLE = (
+    f"You are a reporter for the {BRAND}, writing a news article for people in Pune who want to buy or rent a home. Write in clear, "
+    "plain English, like a good local newspaper: the news first, then the details, then context. Use ONLY the facts and background "
+    "you are given. Do not add any number, date, name, place or claim that is not in them. Say where each important figure or claim "
+    "comes from ('according to <source>', '<source> reported'); the source names are given with each fact. If two sources give "
+    "different figures, say so and give both. Do not copy wording word for word; say it in your own words. No hype or superlatives, "
+    "no phone numbers, no predictions about prices, no praise or criticism of any builder. If something is only approved or planned, "
+    "say 'approved' or 'planned', never that it is running or open unless a fact says so. Reply with JSON only, with these keys: "
+    '"title" (a plain, specific headline of 6 to 12 words, no hype), "standfirst" (one sentence: the news in brief), "body" (a list '
+    "of 3 to 6 paragraphs, each 2 to 4 sentences: what happened, the key figures and dates, who decided or said what, what happens "
+    'next as reported), "background" (1 to 2 sentences built only from the background lines, or "" when they do not help), "why" '
+    "(2 to 3 sentences: why it may matter to someone buying or renting, hedged with may or could, concrete, no generic filler), "
+    '"check" (a list of 1 to 3 practical things a buyer can verify, each one sentence), "question" (one friendly question ending with ?).'
+)
+ARTICLE_MIN_FACTS = 3  # fewer than this is a post, not an article
+ARTICLE_MIN_CHARS = 800  # real article text the research must have read (full reports, not feed summaries)
 # MahaRERA cards carry only a "Last Modified" date, so we cannot say when a project was registered or launched
 MAHARERA_RULE = (f"This is a MahaRERA record. Say the project was '{policy.MAHARERA_PHRASE}'. Never say it was newly registered, "
                  "just registered, launched or a new launch.")
@@ -107,6 +126,76 @@ def _safe_title(title, item: RawItem, facts: Facts) -> Optional[str]:
     return t
 
 
+def _sources(item: RawItem, facts: Facts, research: Optional[Research]) -> List[Tuple[str, str]]:
+    """(name, link) of every report the draft draws on: the item's own source first, then each other report that gave a fact, then
+    the publishers that also reported the story (no link: we could not read them)."""
+    main = (_source_name(item), item.url or "")
+    if research is None:
+        return [main]
+    used = {f.source for f in facts.facts if f.source}
+    out = [main]
+    for s in research.sources:
+        if s.role != "main" and s.name in used and s.name not in [n for n, _ in out]:
+            out.append((s.name, s.url))
+    for n in research.also_reported:
+        if n not in [x for x, _ in out]:
+            out.append((n, ""))
+    return out
+
+
+def _readable(url: str) -> bool:
+    return bool(url) and "news.google.com" not in url.lower()
+
+
+def _source_line(sources: List[Tuple[str, str]], as_of: str) -> str:
+    when = f", as of {as_of}" if as_of else ""
+    if len(sources) == 1:
+        name, url = sources[0]
+        return f"Source: {name}{when}. Read it here: {url}"
+    cited = [f"{n} ({u})" if u else n for n, u in sources]
+    return f"Sources: {'; '.join(cited)}{when}."
+
+
+def _article(item: RawItem, facts: Facts, rel: Relevance, parts: dict, research: Optional[Research]) -> Draft:
+    """A full article: standfirst, body paragraphs, labelled background, our labelled view, what to check, every source with its
+    link, the 'as of' date and the disclaimer. `split_text` takes the same text apart for the site and the captions."""
+    sources = _sources(item, facts, research)
+    body = [_clean(p) for p in (parts.get("body") or []) if isinstance(p, str) and _clean(p)]
+    checks = parts.get("check")
+    checks = [_clean(c) for c in (checks if isinstance(checks, list) else [checks]) if isinstance(c, str) and _clean(c)]
+    bg, why = _clean(parts.get("background")), _clean(parts.get("why"))
+    paras = [_clean(parts.get("standfirst"))] + body
+    paras += [f"Background: {bg}"] if bg else []
+    paras += [f"Why it may matter: {why} This is our view, not a fact from the source."] if why else []
+    paras += [f"What to check: {' '.join(c if c.endswith(('.', '?')) else c + '.' for c in checks)}"] if checks else []
+    paras += [_source_line(sources, _as_of(facts, item)), policy.DISCLAIMER]
+    link = next((u for _, u in sources if _readable(u)), item.url)
+    return Draft("article", "\n\n".join(p for p in paras if p), _safe_title(parts.get("title"), item, facts), link,
+                 [n for n, _ in sources], [u for _, u in sources])
+
+
+def can_be_article(item: RawItem, facts: Facts, research: Optional[Research]) -> bool:
+    """An article needs real reporting to stand on: enough facts, and full article text that the research actually read. A headline
+    and a line make a post, however important the story."""
+    return len(facts.facts) >= ARTICLE_MIN_FACTS and readable_chars(research) >= ARTICLE_MIN_CHARS
+
+
+def template_article(item: RawItem, facts: Facts, rel: Relevance, research: Optional[Research]) -> Optional[Draft]:
+    """Deterministic article straight from the facts, grouped by the report they come from. Used when the LLM is unavailable."""
+    texts = [(f.source or _source_name(item), _clean(f.text)) for f in facts.facts if _clean(f.text)]
+    if not texts:
+        return None
+    dot = lambda t: t if t.endswith(".") else t + "."  # noqa: E731
+    groups: dict = {}
+    for name, t in texts[1:]:
+        groups.setdefault(name, []).append(dot(t))
+    body = [f"{' '.join(ts)} (Reported by {name}.)" for name, ts in groups.items()]
+    bg = " ".join(research.background[:2]) if research and research.background else ""
+    parts = {"title": texts[0][1].rstrip(".")[:90], "standfirst": dot(texts[0][1]), "body": body, "background": bg, "why": "",
+             "check": [HEADLINE_CHECK]}
+    return _article(item, facts, rel, parts, research)
+
+
 def _assemble(item: RawItem, facts: Facts, rel: Relevance, fmt: str, parts: dict) -> Draft:
     name, as_of = _source_name(item), _as_of(facts, item)
     src = f"Source: {name}" + (f", as of {as_of}" if as_of else "")
@@ -154,9 +243,49 @@ LLM_TRIES = 3
 RETRY_DELAY = 2.0  # seconds; tests set it to 0
 
 
-async def draft(item: RawItem, facts: Facts, relevance: Relevance, fmt: str, llm: Optional[Llm]) -> Optional[Draft]:
+def _facts_block(facts: Facts) -> str:
+    return "\n".join(f"- {_clean(f.text)}" + (f" [source: {f.source}]" if f.source else "") for f in facts.facts)
+
+
+async def _ask(llm: Llm, system: str, user: str, ok) -> Optional[dict]:
+    parts = None
+    for attempt in range(LLM_TRIES):  # free models are flaky under a burst of calls: try again before giving up
+        try:
+            parts = await llm.json(system, user)
+        except Exception:  # an LLM outage must never crash the pipeline
+            parts = None
+        if isinstance(parts, dict) and ok(parts):
+            return parts
+        if attempt < LLM_TRIES - 1:
+            await asyncio.sleep(RETRY_DELAY * (attempt + 1))
+    return None
+
+
+async def write_article(item: RawItem, facts: Facts, relevance: Relevance, llm: Optional[Llm], research: Optional[Research]) -> Optional[Draft]:
+    """The researched article (see SYSTEM_ARTICLE); the deterministic one when the model fails or returns too little."""
+    if llm is None:
+        return template_article(item, facts, relevance, research)
+    where = ", ".join(AREA_NAMES[a] for a in _areas(relevance)) or "Pune"
+    bg = research.background if research else []
+    user = (f"Area: {where}\nTopic: {relevance.pillar or 'general'}\nAs of: {_as_of(facts, item) or 'unknown'}\n"
+            f"Sources read: {', '.join(n for n, _ in _sources(item, facts, research))}\n"
+            + "Facts (each with its source):\n" + _facts_block(facts)
+            + ("\nBackground (our own verified area guide; context only, never news):\n" + "\n".join(f"- {b}" for b in bg) if bg else ""))
+    body_ok = lambda p: isinstance(p.get("body"), list) and sum(1 for x in p["body"] if isinstance(x, str) and _clean(x)) >= 2  # noqa: E731
+    parts = await _ask(llm, SYSTEM_ARTICLE, user, lambda p: bool(_clean(p.get("standfirst"))) and body_ok(p) and bool(_clean(p.get("why"))))
+    if parts is None:
+        return template_article(item, facts, relevance, research)
+    return _article(item, facts, relevance, parts, research)
+
+
+async def draft(item: RawItem, facts: Facts, relevance: Relevance, fmt: str, llm: Optional[Llm],
+                research: Optional[Research] = None) -> Optional[Draft]:
     if not facts.facts:
         return None
+    if fmt == "article" and can_be_article(item, facts, research):
+        return await write_article(item, facts, relevance, llm, research)
+    if fmt == "article":
+        fmt = "post"  # too little reporting behind it for an honest article
     if llm is None:
         return template_draft(item, facts, relevance, fmt)
     where = ", ".join(AREA_NAMES[a] for a in _areas(relevance)) or "Pune"

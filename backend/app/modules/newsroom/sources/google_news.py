@@ -10,6 +10,10 @@ from app.modules.newsroom.types import Fetcher, RawItem
 
 BASE = "https://news.google.com/rss/search?q={q}&hl=en-IN&gl=IN&ceid=IN:en"
 EXTRA_QUERIES = ["Pune metro Kharadi", "Pune metro Wagholi", "Kharadi real estate", "Wagholi real estate"]
+# what buyers follow city-wide: the money they pay, the rulings that protect them, and published market figures
+BUYER_QUERIES = ["Pune property prices", "Pune housing sales", "Pune real estate report", "MahaRERA Pune order",
+                 "MahaRERA refund Pune", "Pune ready reckoner rate", "Maharashtra stamp duty", "home loan rates",
+                 "Pune redevelopment society", "Lohegaon water supply", "Wagholi water supply", "Kharadi traffic"]
 
 
 def build_queries() -> List[str]:
@@ -19,6 +23,7 @@ def build_queries() -> List[str]:
         terms.extend(words)
     terms.extend(policy.CORRIDOR_KEYWORDS)
     terms.extend(EXTRA_QUERIES)
+    terms.extend(BUYER_QUERIES)
     seen, out = set(), []
     for t in terms:
         key = t.strip().lower()

@@ -18,7 +18,7 @@ BRAND = brand.TEAM
 SPACE = re.compile(r"\s+")
 AREA_NAMES = {"kharadi": "Kharadi", "upper_kharadi": "Upper Kharadi", "wagholi": "Wagholi"}
 AREA_SLUGS = {"kharadi": "kharadi", "upper_kharadi": "upper-kharadi", "wagholi": "wagholi"}
-PILLAR_LABELS = {"infrastructure": "Infrastructure", "new_supply": "New supply", "rules_money": "Rules and money",
+PILLAR_LABELS = {"infrastructure": "Infrastructure", "new_supply": "New supply", "rules_money": "Rules and money", "market": "Market",
                  "locality_life": "Locality life", "education": "Buyer education", "digest": "This week"}
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 HOOK_MAX_WORDS = 12
@@ -46,6 +46,13 @@ class Parts:
     question: str = ""
     source_line: str = ""
     tags: List[str] = field(default_factory=list)
+    body: List[str] = field(default_factory=list)  # the news paragraphs in order (a post has one; an article has a standfirst and more)
+    background: str = ""  # an article's labelled context from our area guide
+
+    @property
+    def lead(self) -> str:
+        """The news in brief: an article's standfirst, or a post's whole summary."""
+        return self.body[0] if len(self.body) > 1 else self.summary
 
 
 def _strip_prefix(p: str, prefixes: Tuple[str, ...]) -> Optional[str]:
@@ -69,12 +76,15 @@ def split_text(text: str) -> Parts:
             parts.our_view = v.replace("This is our view, not a fact from the source.", "").strip()
         elif (v := _strip_prefix(flat, ("What to check:",))) is not None:
             parts.what_to_check = v
-        elif flat.lower().startswith("source:") or (URL.search(flat) and len(flat) < 260):
+        elif (v := _strip_prefix(flat, ("Background:",))) is not None:
+            parts.background = v
+        elif flat.lower().startswith(("source:", "sources:")) or (URL.search(flat) and len(flat) < 260):
             parts.source_line = flat
         elif "?" in flat and i > 0 and not parts.question:  # 'Does this change ...? Tell us in the comments.'
             parts.question = flat
         else:
             summary.append(URL.sub("", flat).strip())
+    parts.body = [one_line(s) for s in summary if one_line(s)]
     parts.summary = one_line(" ".join(summary))
     return parts
 
@@ -97,6 +107,28 @@ def source_name(doc: dict) -> str:
         return names[0].strip()
     s = ((doc.get("raw") or {}).get("source") or "").replace("_", " ").strip()
     return s if any(c.isupper() for c in s) else s.title()  # "MahaRERA" stays as written
+
+
+def source_names(doc: dict) -> List[str]:
+    """Every source the draft credits, in order (one for a post; an article written from several reports names each)."""
+    names = [n.strip() for n in ((doc.get("draft") or {}).get("source_names") or []) if n and n.strip()]
+    return list(dict.fromkeys(names)) or ([source_name(doc)] if source_name(doc) else [])
+
+
+def sources(doc: dict) -> List[dict]:
+    """[{name, url}] for the site's source list: each credited source with its own link when it has one we can show."""
+    d = doc.get("draft") or {}
+    names, urls = d.get("source_names") or [], d.get("source_urls") or []
+    raw_url = (doc.get("raw") or {}).get("url") or d.get("link") or ""
+    out, seen = [], set()
+    for i, n in enumerate(names):
+        n = (n or "").strip()
+        if not n or n in seen:
+            continue
+        seen.add(n)
+        u = urls[i] if i < len(urls) else (raw_url if i == 0 else "")
+        out.append({"name": n, "url": u if str(u).startswith("http") else None})
+    return out
 
 
 def is_google_redirect(url: str) -> bool:
@@ -210,7 +242,7 @@ def buyer_line(doc: dict) -> str:
 
 
 HASHTAGS_BASE = ["#Pune", brand.HASHTAG]
-HASHTAG_BY_PILLAR = {"infrastructure": "#PuneInfrastructure", "new_supply": "#MahaRERA", "rules_money": "#HomeBuyerTips",
+HASHTAG_BY_PILLAR = {"infrastructure": "#PuneInfrastructure", "new_supply": "#MahaRERA", "rules_money": "#HomeBuyerTips", "market": "#PuneRealEstate",
                      "locality_life": "#PuneLife", "education": "#HomeBuyerTips", "digest": "#PuneNews"}
 AREA_TAGS = {"kharadi": "#Kharadi", "upper_kharadi": "#UpperKharadi", "wagholi": "#Wagholi"}
 

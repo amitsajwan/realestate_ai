@@ -27,6 +27,7 @@ class NewsroomConfig:
     sources: Tuple[str, ...] = ("publishers", "google_news", "maharera")
     owner_ids: Tuple[str, ...] = ()  # user ids allowed to review and approve; empty = superusers only
     read_articles: bool = False  # fetch the article page when a source gives only a headline and a line
+    research: bool = True  # before writing: read the full report, other publishers' reports of the story, and our area guide
 
 
 def load() -> NewsroomConfig:
@@ -38,4 +39,5 @@ def load() -> NewsroomConfig:
         sources=names,
         owner_ids=tuple(s.strip() for s in _env("NEWSROOM_OWNER_IDS").split(",") if s.strip()),
         read_articles=_env("NEWSROOM_READ_ARTICLES").lower() in TRUE,
+        research=_env("NEWSROOM_RESEARCH", "true").lower() in TRUE,
     )

@@ -10,7 +10,7 @@ STATUSES = (
     "new", "relevant", "extracted", "drafted", "checked", "pending_review",
     "approved", "scheduled", "published", "dropped", "rejected", "failed",
 )
-PILLARS = ("infrastructure", "new_supply", "rules_money", "locality_life", "education", "digest")
+PILLARS = ("infrastructure", "new_supply", "rules_money", "market", "locality_life", "education", "digest")
 AREAS = ("kharadi", "upper_kharadi", "wagholi")
 
 
@@ -48,9 +48,33 @@ class Relevance:
 
 
 @dataclass(frozen=True)
+class SourceDoc:
+    """One report the research stage read: the item itself ("main") or another publisher's report of the same story ("related")."""
+    name: str  # publisher name readers see
+    url: str
+    title: str
+    text: str  # what we could read: the article body when the page allowed it, else the feed summary
+    published_at: Optional[datetime] = None
+    role: str = "related"  # "main" | "related"
+    full: bool = False  # True when `text` is the article body, not only a headline and a line
+
+
+@dataclass(frozen=True)
+class Research:
+    """What the newsroom knows about a story before writing: the reports it read and background from our own area guide.
+    Facts are extracted from `sources` only; `background` sentences are already-verified context (app.modules.knowledge.areas)."""
+    sources: List[SourceDoc]
+    background: List[str] = field(default_factory=list)
+    background_name: str = ""  # how the background is credited ("<brand> area guide")
+    also_reported: List[str] = field(default_factory=list)  # publishers with the same story whose text we could not read
+    notes: List[str] = field(default_factory=list)  # audit trail for the owner: what was read, what was skipped and why
+
+
+@dataclass(frozen=True)
 class Fact:
     text: str  # one checkable statement, our words
     quote: str  # the exact sentence from the source that supports it (verbatim substring of RawItem.text or title)
+    source: str = ""  # the publisher the quote is from (a SourceDoc name); "" for single-source items
 
 
 @dataclass(frozen=True)
@@ -66,6 +90,7 @@ class Draft:
     title: Optional[str] = None  # article only
     link: Optional[str] = None  # link the post unfolds into (the source, or our article)
     source_names: List[str] = field(default_factory=list)
+    source_urls: List[str] = field(default_factory=list)  # same order as source_names ("" when a source has no link of its own)
 
 
 @dataclass(frozen=True)

@@ -28,6 +28,8 @@ def _match(doc, flt):
                     return False
                 if op == "$in" and val not in arg:
                     return False
+                if op == "$nin" and val in arg:
+                    return False
         elif isinstance(val, list) and not isinstance(cond, list):
             if cond not in val:  # Mongo array-membership semantics
                 return False
