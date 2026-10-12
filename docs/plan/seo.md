@@ -45,3 +45,16 @@ link to their area page, and the area page links to them.
 - Each `/localities/<slug>` page gets "Latest from <Area>": up to 6 posts (`fetchPosts(6, key)`), up to 5 news stories
   (`fetchNews(5, key)`) and its projects (exists). Each list hides itself when empty or when the call fails. Until S1/S2 merge,
   code against these contracts with the helpers' current signatures guarded (an extra optional `area` argument).
+
+## Automation that costs nothing (2026-10-12)
+What runs by itself once switched on. Backlinks themselves are never automated (bought links, link networks and comment spam
+break Google's spam policies and would put every agent page at risk); these only make pages found faster and keep them healthy.
+
+| What | Where | Switch |
+|---|---|---|
+| **IndexNow**: every 30 minutes the worker reads the sitemap and sends pages changed since the last send to Bing, Yandex, Seznam and Naver (and the engines that read Bing's index). The first send is the whole sitemap. Google ignores IndexNow and reads the sitemap named in robots.txt. | `backend/app/modules/seo/indexnow.py`; key file at `/indexnow-key.txt` (`frontend/app/indexnow-key.txt/route.ts` asks `GET /api/v1/public/indexnow-key`) | `INDEXNOW_KEY` in the VM's `.env` (8 to 128 letters, digits or dashes, e.g. `openssl rand -hex 16`). `INDEXNOW_SITEMAP_URL` overrides where the sitemap is read. |
+| **Just off page one**: the daily Search Console read now stores each page's average position too. Project pages at position 8 to 20 with at least 20 impressions are enriched before other pages Google shows; the 50 such pages of any kind are kept on the `gsc_pages` mark (`near_page_one`) for whoever writes content next. | `backend/app/modules/areastats/searchconsole.py`, `enrich.py` | `GSC_SA_KEY_B64` (already used) |
+| **Weekly SEO audit**: robots.txt, the sitemap and up to 300 of its pages read like a search engine. Fails (GitHub emails the owner) on a sitemap page that is blocked, noindex, canonical elsewhere, not a 200, untitled, or has broken JSON-LD; warns on titles, descriptions, headings and alt text. | `backend/app/modules/seo/audit.py`, `.github/workflows/seo-audit.yml` | Mondays; site from the repository variable `SEO_SITE_URL`, else `https://avasetu.in`. Run by hand from the Actions tab after a deploy. |
+
+Also free, done by hand once: submit `https://avasetu.in/sitemap.xml` in Bing Webmaster Tools (it can import the site from Search
+Console), and keep the Google Business Profile's name, address and phone the same as the site's footer.

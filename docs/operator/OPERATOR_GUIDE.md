@@ -192,6 +192,7 @@ All backend settings go in `~/app/deploy/gcp/.env` on the VM; Compose passes the
 |---|---|---|
 | `SITE_HOST` | none (required) | The public host name. Caddy serves and certifies it; `PUBLIC_SITE_URL` and the frontend's `NEXT_PUBLIC_SITE_URL` follow it. |
 | `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` | empty | Google Search Console's "HTML tag" code (only the `content="..."` value). Read at build time, so redeploy after setting it. Not needed if the domain is verified with a DNS TXT record. |
+| `INDEXNOW_KEY` | empty (off) | Turns on IndexNow: the worker tells Bing and other engines about new and changed pages within 30 minutes (docs/plan/seo.md). Any 8 to 128 letters, digits or dashes, e.g. `openssl rand -hex 16`; served at `/indexnow-key.txt`. Restart the backend and worker after setting it. |
 | `MONGO_PASSWORD` | none (required) | Password of the `app` root user, used by Compose to build `MONGODB_URL`. Applies only when the database volume is first created. |
 | `MONGODB_URL` | set by Compose | Do not set by hand on the VM. |
 | `DATABASE_NAME` | `propertyai` | Database name (also used by `backup.sh` and `restore_test.sh`). |

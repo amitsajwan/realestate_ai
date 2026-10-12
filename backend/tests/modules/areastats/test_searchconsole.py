@@ -28,8 +28,9 @@ def google(seen):
         seen.append(json.loads(req.content))
         assert req.headers["Authorization"] == "Bearer abc" and "sc-domain%3Aavasetu.in" in str(req.url)
         return httpx.Response(200, json={"rows": [
-            {"keys": ["https://avasetu.in/projects/rohan-abhilasha-4-wagholi"], "impressions": 40, "clicks": 3},
-            {"keys": ["https://avasetu.in/localities/wagholi"], "impressions": 500, "clicks": 20}]})
+            {"keys": ["https://avasetu.in/projects/rohan-abhilasha-4-wagholi"], "impressions": 40, "clicks": 3, "position": 9.46},
+            {"keys": ["https://avasetu.in/localities/wagholi"], "impressions": 500, "clicks": 20, "position": 4.1},
+            {"keys": ["https://avasetu.in/2-bhk/wagholi"], "impressions": 120, "clicks": 1, "position": 14.0}]})
     return httpx.MockTransport(handler)
 
 
@@ -45,7 +46,10 @@ async def test_impressions_land_on_project_records_once_a_day(monkeypatch):
     await pages.assign_all(store)
     seen = []
     out = await searchconsole.refresh(store, NOW, transport=google(seen))
-    assert out == {"pages": 2, "projects": 1} and seen[0] == "token" and seen[1]["dimensions"] == ["page"]
+    assert out == {"pages": 3, "projects": 1} and seen[0] == "token" and seen[1]["dimensions"] == ["page"]
     p1 = await store.project("P1")
-    assert (p1["gsc_impressions"], p1["gsc_clicks"]) == (40, 3) and "gsc_impressions" not in await store.project("P2")
+    assert (p1["gsc_impressions"], p1["gsc_clicks"], p1["gsc_position"]) == (40, 3, 9.5)
+    assert "gsc_impressions" not in await store.project("P2")
+    near = (await store.get_mark(searchconsole.MARK))["near_page_one"]
+    assert [n["path"] for n in near] == ["/2-bhk/wagholi", "/projects/rohan-abhilasha-4-wagholi"]   # most seen first; page one left out
     assert await searchconsole.refresh(store, NOW + timedelta(hours=3), transport=google(seen)) is None   # once a day
