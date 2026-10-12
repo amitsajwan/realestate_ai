@@ -1,11 +1,11 @@
 name: Architecture and backend tests
 
-# Runs on every pull request (the main CI only covers main and next) so modernization work is checked as it lands.
+# Runs on every pull request and on pushes to the main line, so work is checked as it lands (the frontend: ci.yml).
 # See docs/ARCHITECTURE.md (the rules) and docs/MODERNIZATION.md (the plan).
 on:
   pull_request:
   push:
-    branches: [ modernization ]
+    branches: [ main, cursor/analyze-and-fix-styling-issues-cacb, modernization ]
 
 jobs:
   backend:
