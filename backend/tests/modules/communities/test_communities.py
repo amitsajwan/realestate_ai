@@ -83,6 +83,23 @@ async def test_finds_neighbourhoods_that_belong_to_the_area_with_their_evidence(
     assert await db.get_collection(discover.COLLECTION).count_documents({}) == 2
 
 
+def test_the_query_asks_for_each_place_s_position():
+    assert "out body;" in discover.query(18.58, 73.98)   # `out tags` answers names without lat/lon: nothing could be kept
+
+
+async def test_the_local_copy_answers_when_overpass_does_not(tmp_path, monkeypatch):
+    import gzip
+    import json
+    local = tmp_path / "n.json.gz"
+    local.write_bytes(gzip.compress(json.dumps([[p["tags"]["name"], p["tags"]["place"], p["lat"], p["lon"], p["id"]]
+                                                for p in PLACES]).encode("utf-8")))
+    monkeypatch.setattr(discover, "LOCAL", local)
+    db, store = await seeded()
+    assert await discover.run(store, osm(down=True), NOW) == {"areas": 2, "found": 3}
+    ids = {d["_id"] for d in await db.get_collection(discover.COLLECTION).find({}).to_list(None)}
+    assert ids == {"wagholi/kesnand", "wagholi/ubale-nagar", "kharadi/eon-free-zone"}   # each kept by its nearest area
+
+
 async def test_writes_from_facts_and_publishes_only_a_checked_article():
     db, store = await seeded()
     await discover.run(store, osm(), NOW)

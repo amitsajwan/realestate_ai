@@ -7,8 +7,11 @@ area, name, slug, lat, lon, osm_url, km_from_area, projects_named, found_at}). `
 same area whose name says the neighbourhood (whole words): the evidence that buyers know the name. Records are never deleted;
 one OSM drops is simply not refreshed, and keeps its page.
 """
+import gzip
+import json
 import re
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from app.core.areas import AREAS, Area
@@ -20,6 +23,18 @@ COLLECTION = "communities"
 RADIUS_M = 4000
 KINDS = ("suburb", "neighbourhood", "quarter", "village", "hamlet")
 MIN_NAME = 4
+# a copy of the same OSM place nodes for the Pune district box (surroundings.LOCAL_BOX), used when Overpass does not answer:
+# [[name, kind, lat, lon, osm id], ...], made by scripts/osm_neighbourhoods.py
+LOCAL = Path(__file__).resolve().parents[1] / "propertyfacts" / "data" / "pune_neighbourhoods.json.gz"
+
+
+def local_answer(lat: float, lon: float, radius_m: int = RADIUS_M) -> Any:
+    """The local copy in Overpass's answer shape, for the places within `radius_m`; None when there is no copy."""
+    if not LOCAL.is_file():
+        return None
+    rows = json.loads(gzip.decompress(LOCAL.read_bytes()).decode("utf-8"))
+    return {"elements": [{"type": "node", "id": i, "lat": la, "lon": lo, "tags": {"name": n, "place": k}}
+                         for n, k, la, lo, i in rows if k in KINDS and km(lat, lon, la, lo) * 1000 <= radius_m]}
 
 
 def slugify(name: str) -> str:
@@ -28,7 +43,7 @@ def slugify(name: str) -> str:
 
 def query(lat: float, lon: float, radius_m: int = RADIUS_M) -> str:
     return (f'[out:json][timeout:25];node(around:{radius_m},{lat},{lon})["place"~"^({"|".join(KINDS)})$"]["name"];'
-            "out tags;")
+            "out body;")   # body: a node's lat/lon too (`out tags` gave names without places, so nothing was ever kept)
 
 
 def _ours(name: str) -> bool:
@@ -79,6 +94,8 @@ async def run(store: Store, get_json: GetJson, now: datetime) -> dict:
             continue
         lat, lon = centres[a.key]
         data = await get_json(OVERPASS, {"data": query(lat, lon)})
+        if not (data or {}).get("elements"):   # Overpass busy or refusing: the local copy
+            data = local_answer(lat, lon)
         mine = [d for d in projects if d.get("locality") == a.key]
         for p in places(data, a, lat, lon, centres):
             _id = f"{a.slug}/{p['slug']}"
