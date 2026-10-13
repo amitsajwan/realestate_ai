@@ -1,24 +1,6 @@
 # Buyer-intent radar
 
-Status: **v1 LIVE** (YouTube + pasted posts, ran in production 2026-10-09). **v2-v4 BUILT, OFF until deployed** (2026-10-10): every
-stage below is in `backend/app/modules/radar/`; sources need their keys (`YOUTUBE_API_KEY`; Reddit works keyless or with
-`REDDIT_CLIENT_ID`/`_SECRET`; Instagram uses the Page token; RSS feeds are added as watches). Turn on with `RADAR_ENABLED=true`.
-Follows `docs/ARCHITECTURE.md`; the discovery agent is the one exception to §8 there, recorded in §8.
-
-**Where the build differs from the design below** (the design text is kept where it still holds):
-- `own_comments` is not a source: `engage` already reads, answers and records our own Page/Instagram comments as leads.
-- L2 is a k-nearest-neighbour vote (softmax over cosine, k=9) against the example bank, not a fixed similarity threshold:
-  e5 similarities sit in a narrow 0.7-0.95 band. It only drops a comment when the vote for "home need" is below 0.18.
-- The embedder is `multilingual-e5-small` (ONNX, quantized) run with onnxruntime + tokenizers in the **worker only**; pasted
-  posts in the web process skip L2. A character n-gram hash embedder takes over if the model cannot load.
-- Near-duplicates merge only within one person (`person_key`); different people asking the same short question are separate leads.
-- Themes use average-linkage agglomerative clustering in numpy (no HDBSCAN dependency).
-- The follow-up flow is a five-state machine checkpointed on the signal in Mongo, not LangGraph; nothing is sent by it.
-  WhatsApp sends stay out until WhatsApp is turned on.
-- The scorer refit is a MAP logistic regression pulled towards the live weights, so it starts at 60 labels, not 200.
-- Every reply link is a per-lead short link `/r/<code>` (frontend `app/r/[code]`), so clicks are credited to the lead,
-  its watch (bandit) and its source.
-- Discovery and the weekly jobs run inside the `radar` worker loop (times kept in `radar_runs`), not a second worker.
+Status: **v1 BUILT OFF** (2026-10-09, not deployed): YouTube + pasted posts, rules, LLM classify, match, score, template draft, studio tab `/studio/radar`. Turn on with `RADAR_ENABLED=true` + `YOUTUBE_API_KEY` (+ `RADAR_OWNER_AGENT_ID` for tracked listing links). v2-v4 below are **TARGET**. Follows `docs/ARCHITECTURE.md`; §9 names the one place it goes beyond §8 there (a read-only discovery agent).
 
 ## 1. What it does
 
@@ -183,12 +165,8 @@ thousand vectors take under a few milliseconds). The same in-process approach th
 - New platform pieces: `platform/youtube.py` (client) and `platform/embed.py` (multilingual embedder, loaded once per process).
 - Public API: `loop`, `router`, `configure`, `top_signals(db, agent_id, area?)`, `area_demand(db, area)` (for agent reports).
 - Routes: `GET /radar/signals`, `POST /radar/signals/{id}/label`, `GET|POST /radar/watches`, `POST /radar/manual`, `GET /radar/metrics`.
-- Worker: `radar` (every 2h; discovery daily, refit / draft rules / themes weekly). Pause switch `radar_paused`.
-- Config `RADAR_*`: `ENABLED`, `INTERVAL_SECONDS`, `MIN_SCORE`, `DAILY_LLM_CAP`, `DAILY_SEARCH_CAP`, `VIDEOS_PER_CYCLE`, `SOURCES`,
-  `L2`, `CRITIC`, `ROUTE_BY_AREA`, `DISCOVERY_ENABLED`, `OWNER_AGENT_ID`; `EMBED_MODEL_DIR`, `EMBED_BACKEND=hash` (no model).
-- Routes (built): `GET /radar/signals` (owner: all; agent: theirs), `POST /radar/signals/{id}/label`, `GET /radar/followups`,
-  `POST /radar/followups/{id}`, `GET|POST /radar/watches`, `PATCH /radar/watches/{id}`, `POST /radar/manual`, `GET /radar/themes`,
-  `GET /radar/runs`, `GET /radar/metrics`, public `GET /radar/r/{code}`. Studio: Queue, Follow-ups, Demand, Watches, Health tabs.
+- Worker: `radar` (pipeline, every 2h) and `radar_discovery` (agent, daily). Pause switch `radar_paused`.
+- Config `RADAR_*`: `ENABLED`, `INTERVAL_S`, `YOUTUBE_API_KEY`, `L2_THRESHOLD`, `MIN_SCORE`, `DAILY_LLM_CAP`, `DISCOVERY_ENABLED`.
 - **Beyond ARCHITECTURE §8:** one read-only tool-calling agent (discovery). This needs the owner's OK and a line in §8 once built.
 
 ## 10. Build order
