@@ -2,7 +2,9 @@
 claims, during 'Start marketing' (jobs.MarketingRuns).
 
     brochure  pages -> JPEGs under <run>/brochure/ (they join the post cards' picture pool, blurred like video stills);
-              the vision model reads the first pages into short claims
+              brochure_triage labels every page from contact sheets (triage.json beside the pages), and the vision model
+              reads the pages worth reading (RERA page, plans, map first; never the developer's other projects) into short
+              claims. Without a triage: the first pages, as before
     video     the presenter's words (video_director.transcribe) -> short claims by the LLM
 
 Claims are the BUILDER's, never our facts: they are stored on the listing as `file_claims` and the assistant states them as
@@ -10,6 +12,7 @@ Claims are the BUILDER's, never our facts: they are stored on the listing as `fi
 dropped by the post checks; a brochure without a MahaRERA number is flagged for Studio."""
 import asyncio
 import base64
+import hashlib
 import io
 import logging
 import re
@@ -19,14 +22,14 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
-from app.core.rera import SEARCH
+from app.core.rera import SEARCH, find_all
 
-from . import points
+from . import brochure_triage, points
 
 log = logging.getLogger(__name__)
 
-MAX_PAGES = 10          # pages rendered into pictures
-READ_PAGES = 4          # pages the vision model reads for claims (each page costs ~2k tokens)
+MAX_PAGES = 40          # pages rendered into pictures (brochure.MAX_PAGES: the most a brochure may have)
+READ_PAGES = 6          # pages the vision model reads for claims (each page costs ~2k tokens)
 PAGE_W = 1080
 MAX_CLAIMS = 25        # a 4-page brochure: travel times alone fill a dozen
 CLAIM_MAX_CHARS = 160
@@ -38,11 +41,15 @@ INVEST = re.compile(r"\b(investment|returns?|appreciation|profit|earning)\b|ग�
 READ_PROMPT = (
     "These are pages of a real-estate project brochure (India). List what the BUILDER claims about the project, one short "
     "plain sentence each, in English: location and distances, land area, plot or flat sizes, roads, water, power, amenities, "
-    "approvals, prices or offers as written. Copy numbers exactly as printed. Text may be in Marathi or Hindi: write "
+    "approvals, prices or offers as written. Copy numbers exactly as printed; copy room sizes exactly as printed, with their "
+    "units. A page may show the developer's OTHER projects, its portfolio or company achievements (awards, other cities, "
+    "landmarks, years in business): never report those as this project's claims; leave them out. \"(CGI)\" on a picture "
+    "means a computer-generated artist's impression, not a photo. Text may be in Marathi or Hindi: write "
     "place names as they are known in English, for example शिक्रापूर Shikrapur, मळठण Malthan, रांजणगाव Ranjangaon, चाकण "
     "Chakan, शिरूर Shirur, लोणी काळभोर Loni Kalbhor, राजगुरूनगर Rajgurunagar, वाघोली Wagholi, सणसवाडी Sanaswadi; a name "
     "you cannot read, leave out rather than guess. Leave out slogans and adjectives (dream, best, "
-    "safe investment, high returns). Copy any MahaRERA registration number (P followed by 11 digits, or two letters such as PR followed by 13 digits) exactly, or \"\". Give the project's own name as "
+    "safe investment, high returns). Copy any MahaRERA registration number (P followed by 11 digits, or two letters such as PR followed by 13 digits) exactly, or \"\"; "
+    "a project sold tower by tower prints several: put the first in rera_no and every one in rera_nos. Give the project's own name as "
     "shown in its logo or title, in English letters (for example \"Gulmohar City\"), or \"\". Also fill \"facts\" with what the "
     "page prints, null (or []) when it does not: starting_price_inr (the lowest price, in rupees as a number: \"₹2,99,000/-\" "
     "-> 299000), booking_amount_inr (the amount to pay to book, a number: \"₹1 लाख\" -> 100000), offer_label (an offer's "
@@ -50,7 +57,7 @@ READ_PROMPT = (
     "road_widths_ft (every road width in feet, as numbers), vastu (true when plots are as per vastu), total_acres (the whole "
     "project's land, a number), village and taluka (in English letters). language: the brochure's main language, "
     "\"mr\", \"hi\" or \"en\". Reply with JSON only: "
-    '{"claims": ["..."], "rera_no": "...", "project_name": "...", "language": "mr", "facts": {"starting_price_inr": null, '
+    '{"claims": ["..."], "rera_no": "...", "rera_nos": [], "project_name": "...", "language": "mr", "facts": {"starting_price_inr": null, '
     '"booking_amount_inr": null, "offer_label": null, "water": null, "power": null, "road_widths_ft": [], "vastu": null, '
     '"total_acres": null, "village": null, "taluka": null}}'
 )
@@ -106,14 +113,16 @@ def trusted_name(name: str) -> bool:
     return 2 <= len(name) <= 60 and bool(re.fullmatch(r"[A-Za-z0-9 .&'-]+", name)) and bool(re.search(r"[A-Za-z]{3}", name))
 
 
-async def read_pages(pages: List[str]) -> Dict[str, Any]:
-    """{"claims": [...], "rera_no": str} read by the vision model from the first READ_PAGES pages, or {} without one."""
+async def read_pages(pages: List[str], order: Optional[List[int]] = None) -> Dict[str, Any]:
+    """{"claims": [...], "rera_no": str, "rera_nos": [...]} read by the vision model from READ_PAGES pages, or {} without one.
+    `order`: page numbers (from 1) best first (brochure_triage.read_order); without it, the first pages."""
     from app.modules.photoquality.vision_review import default_clients, parse_reply
     from PIL import Image
     if not pages:
         return {}
+    chosen = [pages[n - 1] for n in (order or []) if 1 <= n <= len(pages)] if order else list(pages)
     images: List[Dict[str, Any]] = []
-    for p in pages[:READ_PAGES]:
+    for p in chosen[:READ_PAGES]:
         im = Image.open(p).convert("RGB")
         im.thumbnail((900, 1400))
         buf = io.BytesIO()
@@ -124,6 +133,7 @@ async def read_pages(pages: List[str]) -> Dict[str, Any]:
     clients = default_clients()
     claims: List[str] = []
     rera_no = project_name = language = None
+    rera_nos: List[str] = []
     facts: Dict[str, Any] = {}
     trusted_keys: set = set()
     lang_trusted = False
@@ -150,13 +160,16 @@ async def read_pages(pages: List[str]) -> Dict[str, Any]:
                 project_name = name[:80]
             if trusted:  # a small model makes up registration numbers: only a trusted reader's is kept
                 rera_no = rera_no or data.get("rera_no")
+                more = data.get("rera_nos") if isinstance(data.get("rera_nos"), list) else []
+                rera_nos += [x for x in find_all(" ".join([str(data.get("rera_no") or "")] + [str(x) for x in more]))
+                             if x not in rera_nos]
             weak = weak or not trusted
             points.merge(facts, points.clean_facts(data.get("facts")), trusted, trusted_keys)
             if data.get("language") in ("mr", "hi", "en") and (not language or (trusted and not lang_trusted)):
                 language, lang_trusted = data["language"], trusted
             break
     if claims or facts:
-        return {"claims": claims, "rera_no": rera_no, "weak": weak, "project_name": project_name, "facts": facts,
+        return {"claims": claims, "rera_no": rera_no, "rera_nos": rera_nos, "weak": weak, "project_name": project_name, "facts": facts,
                 "language": language or "en"}
     return {}
 
@@ -225,22 +238,49 @@ def claims_for(listing: dict, pdf: Path) -> Optional[Dict[str, Any]]:
             "facts": dict(fc.get("brochure_facts") or {}), "language": fc.get("language") or "en"}
 
 
+def _file_hash(pdf: Path) -> str:
+    try:
+        return hashlib.sha1(Path(pdf).read_bytes()).hexdigest()
+    except Exception:
+        return ""
+
+
+async def page_labels(pages: List[str], out_dir: Path, source: str = "") -> Dict[int, Dict[str, Any]]:
+    """The brochure's page labels (brochure_triage): the ones saved beside the pages for this very file, else read now and
+    saved. {} without a vision model. Never raises."""
+    labels = brochure_triage.load(out_dir, source) if source else {}
+    if labels and max(labels) <= len(pages):
+        return labels
+    try:
+        labels = await brochure_triage.triage(pages)
+    except Exception as e:
+        log.info("project files: brochure triage failed (%s)", type(e).__name__)
+        labels = {}
+    if labels:
+        brochure_triage.save(out_dir, labels, source)
+    return labels
+
+
 async def read_brochure(pdf: Path, out_dir: Path) -> Dict[str, Any]:
-    """{"pages": [jpg...], "claims": [...], "rera_no": str|None, "rera_missing": bool}. Never raises."""
+    """{"pages": [jpg...], "claims": [...], "rera_no": str|None, "rera_nos": [...], "rera_missing": bool, "triage": {page:
+    label}}. Never raises."""
     try:
         pages = await asyncio.to_thread(pdf_pages, pdf, out_dir)
     except Exception as e:
         log.warning("project files: could not render the brochure (%s)", type(e).__name__)
-        return {"pages": [], "claims": [], "rera_no": None, "rera_missing": False, "error": "The PDF could not be read."}
-    read = await read_pages(pages)
+        return {"pages": [], "claims": [], "rera_no": None, "rera_nos": [], "rera_missing": False, "triage": {},
+                "error": "The PDF could not be read."}
+    labels = await page_labels(pages, out_dir, await asyncio.to_thread(_file_hash, pdf))
+    read = await read_pages(pages, brochure_triage.read_order(labels, len(pages)) if labels else None)
     try:
         text = await asyncio.to_thread(pdf_text, pdf)
     except Exception:
         text = ""
-    found = RERA.search(f"{read.get('rera_no') or ''} {text}")
-    return {"pages": pages, "claims": clean_claims(read.get("claims")), "project_name": read.get("project_name"), "rera_no": found.group(0).upper() if found else None,
-            "rera_missing": not found, "read_by_ai": bool(read), "weak": bool(read.get("weak")),
-            "facts": dict(read.get("facts") or {}), "language": read.get("language") or "en"}
+    nos = find_all(" ".join([str(read.get("rera_no") or "")] + list(read.get("rera_nos") or []) + [text]))
+    return {"pages": pages, "claims": clean_claims(read.get("claims")), "project_name": read.get("project_name"),
+            "rera_no": nos[0] if nos else None, "rera_nos": nos,
+            "rera_missing": not nos, "read_by_ai": bool(read), "weak": bool(read.get("weak")),
+            "facts": dict(read.get("facts") or {}), "language": read.get("language") or "en", "triage": labels}
 
 
 async def save_claims(listings, listing_id: str, *, brochure: Optional[List[str]] = None, video: Optional[List[str]] = None,

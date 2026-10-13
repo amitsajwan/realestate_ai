@@ -12,12 +12,15 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from app.core import rera as _rera
 from app.platform.text import bhk_label
 
-LABELS = {"project_name": "Project name", "promoter": "Builder", "rera_no": "MahaRERA number", "address": "Address",
+LABELS = {"project_name": "Project name", "promoter": "Builder", "rera_no": "MahaRERA number",
+          "rera_nos": "All MahaRERA numbers", "address": "Address",
           "configurations": "Configurations", "carpet_area": "Carpet area", "amenities": "Amenities",
           "specifications": "Specifications", "possession": "Possession", "land_area": "Land area", "towers": "Towers",
           "floors": "Floors", "units": "Units"}
 KEYS = tuple(LABELS)
-LIST_KEYS = ("configurations", "amenities", "specifications")
+# rera_nos: every MahaRERA number the brochure prints when it prints several (a project registered tower by tower, like Lodha
+# Camelot's five); rera_no stays the first, the one looked up
+LIST_KEYS = ("configurations", "amenities", "specifications", "rera_nos")
 COUNT_KEYS = ("towers", "floors", "units")
 PAGE_TYPES = ("cover", "amenities", "specifications", "floor_plan", "location_map", "pricing", "legal", "other")
 IMAGE_KINDS = ("floor_plan", "master_plan", "location_map", "render")
@@ -146,6 +149,10 @@ LOCATION_MAP_WORDS = re.compile(r"location\s+(?:map|plan)|route\s+map|connectivi
 RENDER_WORDS = re.compile(r"artist'?s?\s*(?:impression|perspective|rendering|view)|artistic\s+(?:impression|view|representation|"
                           r"rendering)|\b3\s?d\s+(?:view|render\w*)|\brender(?:ing|ed)?s?\b", re.I)
 LEGAL_WORDS = re.compile(r"disclaimer|terms\s+(?:and|&)\s+conditions|not\s+an?\s+offer|not\s+a\s+legal", re.I)
+# the small print of a legal page: "The plans ... are indicative", "does not constitute an offer", "Date of Printing"
+LEGAL_PAGE_WORDS = re.compile(r"disclaimer|terms\s+(?:and|&)\s+conditions|not\s+an?\s+offer|not\s+a\s+legal|"
+                              r"(?:does\s+not|shall\s+not)\s+constitute|constitute\s+an?\s+offer|\bindicative\b|"
+                              r"reserves?\s+the\s+right|date\s+of\s+printing|solely\s+governed|agreement\s+for\s+sale", re.I)
 DIMENSION = re.compile(r"\d{1,2}\s*['’′]\s*(?:-?\s*\d{1,2}\s*(?:\"|”|″|''))?\s*[xX×]\s*\d{1,2}\s*['’′]|"
                        r"\b\d{1,2}\.\d{1,2}\s*m?\s*[xX×]\s*\d{1,2}\.\d{1,2}\b")
 ROOM_WORDS = re.compile(r"\b(?:m\.?\s*bed(?:room)?|master\s+bed(?:room)?|bed\s*room|kitchen|living|dining|toilet|bath(?:room)?|"
@@ -153,12 +160,23 @@ ROOM_WORDS = re.compile(r"\b(?:m\.?\s*bed(?:room)?|master\s+bed(?:room)?|bed\s*r
 LAYOUT_WORD = re.compile(r"\blayout\b", re.I)
 
 
+def legal_page(text: str) -> bool:
+    """A disclaimer / registration page: two kinds of small print, or one with a MahaRERA number on the page, and no room
+    dimensions (a floor plan's footer "plans are indicative, MahaRERA No. ..." keeps its plan). Its "typical unit/floor plans"
+    and "the plans, layouts ... are indicative" are not a plan."""
+    t = text or ""
+    hits = {m.group(0).lower() for m in LEGAL_PAGE_WORDS.finditer(t)}
+    if not hits or len(DIMENSION.findall(t)) >= 2:
+        return False
+    return len(hits) >= 2 or bool(RERA.search(t))
+
+
 def image_kind(text: str) -> str:
     """What picture a page holds, read from its (short) text: floor_plan, master_plan, location_map, render, or "" when it
-    is a text page or none of these. Deterministic rules on the text layer; the picture itself is not looked at."""
+    is a text page, a legal page or none of these. Deterministic rules on the text layer; the picture itself is not looked at."""
     t = text or ""
     letters = sum(ch.isalnum() for ch in t)
-    if letters > PLAN_TEXT_MAX:
+    if letters > PLAN_TEXT_MAX or legal_page(t):
         return ""
     if FLOOR_PLAN_WORDS.search(t):
         return "floor_plan"
@@ -444,12 +462,16 @@ def extract(pages: Sequence[Tuple[int, str]]) -> List[Candidate]:
     config_cand: Optional[Candidate] = None
     kinds = {n: page_type(text, n) for n, text in pages}
     amenity_pages = [n for n, k in kinds.items() if k == "amenities"]
+    regs: List[str] = []
+    regs_cand: Optional[Candidate] = None
     for n, text in pages:
         kind = kinds[n]
-        for m in RERA.finditer(text):
-            if rera_no(m.group(0)):
-                add(Candidate("rera_no", rera_no(m.group(0)), n, _line_of(text, m.start())))
-                break
+        found = [(m, rera_no(m.group(0))) for m in RERA.finditer(text) if rera_no(m.group(0))]
+        if found:
+            m, first = found[0]
+            add(Candidate("rera_no", first, n, _line_of(text, m.start())))   # the first is the one looked up
+            regs_cand = regs_cand or Candidate("rera_nos", [], n, _span(text, [x.group(0) for x, _ in found]))
+            regs += [v for _, v in found if v not in regs]
         add(_project_name(n, text))
         add(_promoter(n, text))
         add(_address(n, text))
@@ -473,6 +495,9 @@ def extract(pages: Sequence[Tuple[int, str]]) -> List[Candidate]:
     if config_cand:
         config_cand.value = configs
         out.append(config_cand)
+    if regs_cand and len(regs) > 1 and regs_cand.quote:   # several registrations (tower by tower): all of them, page order
+        regs_cand.value = regs[:LIST_MAX]
+        out.append(regs_cand)
     order = {k: i for i, k in enumerate(KEYS)}
     return sorted(out, key=lambda c: (order.get(c.key, 99), c.page))
 
@@ -529,6 +554,8 @@ def verify(data: Any, pages: Dict[int, str]) -> List[Candidate]:
                 continue
             vals = [v.strip() for v in value if isinstance(v, str) and v.strip() and len(v) <= ITEM_MAX
                     and on_page(v, pages[page])][:LIST_MAX]
+            if key == "rera_nos":
+                vals = list(dict.fromkeys(rera_no(v) for v in vals if rera_no(v)))
             if not vals:
                 continue
             out.append(Candidate(key, vals, page, quote, by="llm"))
