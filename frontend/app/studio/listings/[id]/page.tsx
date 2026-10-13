@@ -10,6 +10,7 @@ import { ListingPhotos } from '@/components/app/quality/ListingPhotos'
 import { ReviewForm } from '@/components/app/ReviewForm'
 import { SellingPoints } from '@/components/app/SellingPoints'
 import { ShareBar } from '@/components/app/ShareBar'
+import { SellersCard } from '@/components/app/SellersCard'
 import { ConfirmSheet } from '@/components/app/list'
 import { Btn, ErrorBox, Spinner, StatusChip } from '@/components/app/ui'
 import { ApiError } from '@/lib/app/api'
@@ -224,6 +225,7 @@ export default function ListingDetailPage() {
               <Btn variant="secondary" disabled={busy} onClick={() => run(() => api.updateListing(listing.id, { selling_points: form.selling_points }), saved)}>{t('spSave')}</Btn>
             </>
           )}
+          <SellersCard listingId={listing.id} />
         </>
       )}
 

@@ -52,6 +52,7 @@ from app.modules.reels.router import router as listing_reels_router
 from app.modules.photoquality.router import router as quality_router
 from app.modules.agentprojects.router import router as agentprojects_router, public_router as agentprojects_public_router
 from app.modules.areastats.router import public_router as areastats_public_router
+from app.api.v1.endpoints.listing_sellers import router as listing_sellers_router
 from app.modules.seo.router import public_router as seo_public_router
 from app.modules.communities.router import public_router as communities_public_router
 from app.modules.propertyfacts.router import public_router as propertyfacts_public_router, router as propertyfacts_router
@@ -116,6 +117,7 @@ api_router.include_router(areastats_public_router, prefix="/public", tags=["publ
 api_router.include_router(seo_public_router, prefix="/public", tags=["public"])
 api_router.include_router(communities_public_router, prefix="/public", tags=["public"])
 api_router.include_router(propertyfacts_public_router, prefix="/public", tags=["public"])
+api_router.include_router(listing_sellers_router, prefix="/listings", tags=["listing-sellers"])
 
 # Health check for API v1
 @api_router.get("/health")
