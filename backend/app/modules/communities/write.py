@@ -121,24 +121,29 @@ async def write_one(store: Store, doc: dict, llm, get_json: GetJson, now: dateti
     elif llm is None:
         notes.append("no AI provider")
     else:
-        try:
-            out = await llm.json(SYSTEM, "Facts:\n" + facts) or {}
-        except Exception:
-            log.exception("communities: model call failed for %s", doc["_id"])
-            out = {}
-        title = str(out.get("title") or "").strip()
-        paragraphs = [str(p).strip() for p in (out.get("paragraphs") or []) if str(p).strip()]
-        # a title that misses the name is replaced by ours, but only when the text itself is about this neighbourhood: a draft
-        # about another place is still refused
-        if not names(doc["name"], title) and names(doc["name"], " ".join(paragraphs)):
-            area = area_of(doc)
-            title = f"{doc['name']}, {area.name}: a neighbourhood guide" if area else f"{doc['name']}: a neighbourhood guide"
-            notes.append("title written by code (the model's did not name the neighbourhood)")
-        problems = check(title, paragraphs, facts, doc["name"])
-        if problems:
-            notes.append("draft refused: " + "; ".join(problems))
-        else:
-            published = True
+        ask = "Facts:\n" + facts
+        for attempt in range(2):   # a refused draft gets one more try, told what was refused
+            try:
+                out = await llm.json(SYSTEM, ask) or {}
+            except Exception:
+                log.exception("communities: model call failed for %s", doc["_id"])
+                out = {}
+            title = str(out.get("title") or "").strip()
+            paragraphs = [str(p).strip() for p in (out.get("paragraphs") or []) if str(p).strip()]
+            # a title that misses the name is replaced by ours, but only when the text itself is about this neighbourhood: a
+            # draft about another place is still refused
+            if not names(doc["name"], title) and names(doc["name"], " ".join(paragraphs)):
+                area = area_of(doc)
+                title = f"{doc['name']}, {area.name}: a neighbourhood guide" if area else f"{doc['name']}: a neighbourhood guide"
+                notes.append("title written by code (the model's did not name the neighbourhood)")
+            problems = check(title, paragraphs, facts, doc["name"])
+            if not problems:
+                published = True
+                break
+            notes.append(f"draft {attempt + 1} refused: " + "; ".join(problems))
+            words = sorted({m.group(0).lower() for m in BANNED.finditer(title + " " + " ".join(paragraphs))})
+            ask = ("Facts:\n" + facts + "\n\nYour last draft was refused: " + "; ".join(problems)
+                   + (f" (remove these words: {', '.join(words)})" if words else "") + ". Write it again from the facts only.")
     fields = {"written_at": now, "write_notes": notes}
     if published:
         fields.update(title=title, paragraphs=paragraphs, facts=shown, published=True, published_at=doc.get("published_at") or now,
