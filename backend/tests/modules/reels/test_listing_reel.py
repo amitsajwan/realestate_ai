@@ -1,5 +1,6 @@
 """Listing reels: jobs, limits, idempotency, facts-only scripts, the worker with a stubbed renderer, render() with stubbed
 compose / voice / ffmpeg (no network, no ffmpeg), the agent routes, and posting on behalf through the concierge."""
+import logging
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -346,7 +347,7 @@ def test_render_voiced_mixes_voice_and_music_and_closes_with_listed_by(tmp_path,
     photos = ["a.jpg", "b.jpg", "c.jpg", "d.jpg", "e.jpg"]
     out = lr.render(_script(), photos, "hi", tmp_path / "r.mp4", badge="Artist's impression", kicker="KHARADI",
                     closing="Listed by Rahul Homes · RERA A51800012345", voiced=True)
-    assert out == {"audio": "voice+music", "note": ""}
+    assert out == {"audio": "voice+music", "note": "", "voice": "lines", "voice_error": ""}
     scenes = stubs["scenes"]
     assert len(scenes) == 5 and all(s.badge == "Artist's impression" for s in scenes)
     assert [s.image for s in scenes] == photos   # one photo per scene, none twice
@@ -369,7 +370,7 @@ def test_render_falls_back_to_music_when_the_voice_service_fails(tmp_path, stubs
         raise lr.voice.VoiceError("HTTP 403")
     monkeypatch.setattr(lr.voice, "synth", boom)
     out = lr.render(_script(), ["a.jpg", "b.jpg"], "en", tmp_path / "r.mp4", voiced=True)
-    assert out == {"audio": "music", "note": lr.VOICE_FAILED_NOTE}
+    assert out == {"audio": "music", "note": lr.VOICE_FAILED_NOTE, "voice": "failed", "voice_error": "HTTP 403"}
 
 
 # ---- agent routes ------------------------------------------------------------------------------------------------------
@@ -550,7 +551,7 @@ def test_render_stack_puts_every_beat_in_one_list_over_the_walkthrough_and_speak
     photos = ["a.jpg", "b.jpg", "c.jpg", "d.jpg", "e.jpg"]
     out = lr.render(_script(), photos, "mr", tmp_path / "r.mp4", kicker="KHARADI", closing="Listed by Rahul Homes · RERA A51800012345",
                     voiced=True, style="stack")
-    assert out == {"audio": "voice+music", "note": ""}
+    assert out == {"audio": "voice+music", "note": "", "voice": "lines", "voice_error": ""}
     (scene,) = stubs["scenes"]
     script = _script()
     texts = [l.text for l in scene.lines]
@@ -612,3 +613,41 @@ def test_devanagari_screen_lines_read_as_phrases_not_labels():
     first = lr.reel_facts({**listing, "floor": 1, "total_floors": None}, PROFILE)[2]
     assert lr._screen_floor(first, "mr") == "पहिला मजला" and lr._screen_floor(first, "hi") == "पहली मंज़िल"
     assert lr.rules_script(f, "en") == lr.rules_script(f, "en", devanagari=True)                  # English unchanged
+
+
+# ---- logs: a reel without a voice says why -----------------------------------------------------------------------------
+async def test_a_failed_voice_is_logged_with_its_reason_and_kept_on_the_job(tmp_path, caplog):
+    class VoiceFails(Renderer):
+        def __call__(self, script, photos, lang, out, **kw):
+            super().__call__(script, photos, lang, out, **kw)
+            return {"audio": "music", "note": lr.VOICE_FAILED_NOTE, "voice": "failed", "voice_error": "HTTP 403: API key not valid"}
+    jobs, db = await setup(tmp_path, voiced=True, renderer=VoiceFails())
+    doc, _ = await jobs.create(AGENT, "L1", "hi")
+    with caplog.at_level("INFO", logger=lr.log.name):
+        assert await jobs.run_once()
+    job = await db.get_collection("reel_jobs").find_one({"_id": doc["_id"]})
+    assert job["status"] == "done" and job["voice_error"] == "HTTP 403: API key not valid"
+    lines = [r.getMessage() for r in caplog.records if f"ref={doc['_id']}" in r.getMessage()]
+    assert any("step=voice outcome=failed" in l and 'reason="HTTP 403: API key not valid"' in l for l in lines)
+    assert any("step=done outcome=fallback" in l and "audio=music" in l for l in lines)
+    assert any("step=script outcome=fallback" in l and "made_by=rules" in l for l in lines)   # no LLM in this setup
+
+
+async def test_a_reel_without_the_voice_key_logs_that_the_key_is_missing(tmp_path, caplog):
+    jobs, _ = await setup(tmp_path, voiced=False)
+    doc, _ = await jobs.create(AGENT, "L1", "en")
+    with caplog.at_level("INFO", logger=lr.log.name):
+        assert await jobs.run_once()
+    voice_lines = [r for r in caplog.records if f"ref={doc['_id']} step=voice" in r.getMessage()]
+    assert len(voice_lines) == 1 and "outcome=skipped" in voice_lines[0].getMessage()
+    assert "GOOGLE_TTS_API_KEY is not set" in voice_lines[0].getMessage() and voice_lines[0].levelno == logging.WARNING
+
+
+async def test_a_failed_render_is_logged_as_failed(tmp_path, caplog):
+    jobs, _ = await setup(tmp_path, renderer=Renderer(fail=RuntimeError("disk full")))
+    doc, _ = await jobs.create(AGENT, "L1", "en")
+    with caplog.at_level("INFO", logger=lr.log.name):
+        assert await jobs.run_once()
+    done = [r for r in caplog.records if f"ref={doc['_id']} step=done" in r.getMessage()]
+    assert len(done) == 1 and "outcome=failed" in done[0].getMessage() and 'reason="disk full"' in done[0].getMessage()
+    assert done[0].levelno == logging.ERROR

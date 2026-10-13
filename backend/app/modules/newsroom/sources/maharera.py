@@ -19,6 +19,7 @@ from urllib.parse import quote
 from app.modules.newsroom.policy import MAHARERA_PAGES, MAHARERA_PHRASE
 from app.modules.newsroom.sources._util import canonical_url, item_id, now_utc, strip_html
 from app.modules.newsroom.types import Fetcher, MahaReraProject, RawItem
+from app.platform import trace
 
 log = logging.getLogger(__name__)
 
@@ -162,7 +163,8 @@ class MahaReraSource:
                     break
             total = parse_total(first or "")
             if not total or total < 1:
-                log.warning("newsroom: MahaRERA gave no result count after %d rounds", 1 + LATE_ROUNDS)
+                trace.event(log, "rera", "newest", "fetch", trace.FAILED, reason=f"no result count after {1 + LATE_ROUNDS} rounds",
+                            effect="no new projects this cycle")
                 return []
             last = last_page(total)
             seen, missed = set(), list(range(last, max(last - self.pages, 0), -1))
@@ -180,10 +182,11 @@ class MahaReraSource:
                             seen.add(p.regno)
                             self.projects.append(p)
                 missed = still
-            if missed:  # a page still empty after the late rounds: its projects were not read this run
-                log.warning("newsroom: MahaRERA pages %s stayed empty after %d rounds", missed, 1 + LATE_ROUNDS)
+            trace.event(log, "rera", "newest", "fetch", trace.FALLBACK if missed else trace.OK, projects=len(self.projects),
+                        pages=len(range(last, max(last - self.pages, 0), -1)), empty_pages=",".join(map(str, missed)) or None)
             fetched_at = now_utc()
             return [to_item(p, fetched_at) for p in self.projects]
-        except Exception:
+        except Exception as e:
+            trace.event(log, "rera", "newest", "fetch", trace.FAILED, reason=f"{type(e).__name__}: {e}", exc_info=True)
             self.projects = []
             return []

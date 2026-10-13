@@ -29,6 +29,7 @@ from app.modules.newsroom import register
 from app.modules.newsroom.policy import AREA_PINCODES, SHARED_PINCODES
 from app.modules.newsroom.sources import maharera as search
 from app.modules.newsroom.store import Store
+from app.platform import trace
 
 from . import discover
 from . import pages as project_pages  # not `pages`: step() takes a `pages` batch size
@@ -178,7 +179,61 @@ async def step(store: Store, get, fetch: project_api.Fetch, now: datetime, pages
                        ("pages", lambda: project_pages.assign_all(store))):
         try:
             out[name] = await part()
-        except Exception:
+        except Exception as e:
             log.exception("areastats: %s failed", name)
+            trace.event(log, "rera", "register", name, trace.FAILED, reason=f"{type(e).__name__}: {e}")
             out[name] = None
+            continue
+        trace.event(log, "rera", "register", name, _outcome(name, out[name]), mode=out["mode"], **_counts(out[name]))
     return out
+
+
+def _outcome(part: str, got) -> str:
+    """ok, or fallback when MahaRERA gave empty sweep pages or project reads failed (the next step tries them again)."""
+    if part == "sweep" and isinstance(got, dict) and got.get("empty"):
+        return trace.FALLBACK
+    if part == "details" and isinstance(got, dict) and got.get("failed"):
+        return trace.FALLBACK
+    return trace.OK
+
+
+def _counts(got) -> dict:
+    return dict(got) if isinstance(got, dict) else {"changed": got} if isinstance(got, int) else {}
+
+
+async def status(store: Store, now: datetime) -> List[str]:
+    """Is the register being kept up? Lines for `python -m app.worker --check` (WARN marks something to look at)."""
+    from . import enrich
+    docs = await store.all_projects()
+    ours = [d for d in docs if d.get("locality") in BY_KEY]
+    wanted = [d for d in docs if _wanted(d)]
+    mark = await store.get_mark(MARK)
+    lines = []
+    at, done = mark.get("at"), mark.get("round_done_at")
+    if isinstance(at, datetime):
+        hours = (now - _aware(at)).total_seconds() / 3600
+        lines.append(f"{'WARN ' if hours > 24 else 'OK   '}rera sweep: at pincode {mark.get('pincode')} page {mark.get('page')}, "
+                     f"moved {hours:.1f}h ago" + (f"; last full round {(now - _aware(done)).days}d ago" if isinstance(done, datetime)
+                                                   else "; first round not finished"))
+    else:
+        lines.append("WARN rera sweep: never ran (it runs inside the newsroom cycle: NEWSROOM_ENABLED with the maharera source)")
+    ok = sum(1 for d in wanted if d.get("details_ok"))
+    failed = sum(1 for d in wanted if d.get("details_ok") is False)
+    never = sum(1 for d in wanted if not isinstance(d.get("details_checked_at"), datetime))
+    due = sum(1 for d in wanted if _due(d, now))
+    lines.append(f"{'WARN ' if failed > ok else 'OK   '}rera details: {len(ours)} projects in our areas, {len(wanted) - len(ours)} watched; "
+                 f"details ok {ok}, last read failed {failed}, never read {never}, due now {due}")
+    with_page = [d for d in docs if d.get("page_slug")]
+    lines.append(f"{'WARN ' if len(with_page) < len(wanted) else 'OK   '}rera pages: {len(with_page)} of {len(wanted)} kept projects have a page")
+    targets = [d for d in docs if enrich._ours(d)]
+    enriched = [d for d in targets if isinstance(d.get("enriched_at"), datetime)]
+    texts = sum(1 for d in targets if d.get("page_text"))
+    urgent = await store.db.get_collection(enrich.REQUESTS).count_documents({})
+    last = max((_aware(d["enriched_at"]) for d in enriched), default=None)
+    on = enrich.load().enabled
+    lines.append(f"{'OK   ' if on else 'OFF  '}enrichment: {len(enriched)} of {len(targets)} pages enriched, {texts} with model text, "
+                 f"{urgent} urgent waiting" + (f", last {(now - last).total_seconds() / 3600:.1f}h ago" if last else ", none yet")
+                 + ("" if on else " (PROJECT_ENRICH_ENABLED is off)"))
+    if on and urgent and last and (now - last) > timedelta(hours=1):
+        lines[-1] = "WARN " + lines[-1][5:] + " — urgent requests are waiting and nothing was enriched in the last hour"
+    return lines

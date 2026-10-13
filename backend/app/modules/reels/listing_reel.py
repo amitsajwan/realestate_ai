@@ -24,6 +24,7 @@ import logging
 import re
 import shutil
 import tempfile
+import time
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -34,6 +35,7 @@ from app.modules.marketing.facts import T, Facts
 from app.modules.marketing.images import latin, photo_paths
 from app.modules.marketing.maharera import ProjectRegistration, badge as maharera_badge, for_listing as project_registration
 from app.modules.photoquality import rank_photos, room_order, shown, tag_photos
+from app.platform import trace
 
 from . import ffmpeg, narration, voice
 from .compose import Scene, TextLine, devanagari_clean, devanagari_ok, make_reel, plan, stretch
@@ -54,7 +56,7 @@ MARKETABLE = ("live", "under_offer")
 STALE_AFTER = timedelta(minutes=15)       # a 'rendering' job older than this was lost (process restart): marked failed
 SILENT_SECONDS = 3.0                      # scene length when there is no voice to time it
 NO_VOICE_NOTE = "Made without a voiceover: the voice service is not set up on the server (GOOGLE_TTS_API_KEY). Music only."
-VOICE_FAILED_NOTE = "Made without a voiceover: the voice service did not answer. Music only."
+VOICE_FAILED_NOTE = "Made without a voiceover: the voice service failed. Music only."
 
 SCREEN_ROMAN = "screen: at most 6 words, Roman letters only (English, or Hinglish for Hindi and Marathi), wrap ONE key word in *stars*. "
 # A Hindi or Marathi reel the server can draw in Devanagari (screen_devanagari) asks for this screen rule instead.
@@ -403,19 +405,29 @@ def with_cta(script: Dict, lang: str, devanagari: Optional[bool] = None) -> Dict
     return {**script, "cta_screen": _cta_screen(lang, deva), "cta_voice": w["cta_v"]}
 
 
-async def write_script(subject: str, facts: Sequence[str], lang: str, llm, fallback: Dict) -> Dict:
+async def write_script(subject: str, facts: Sequence[str], lang: str, llm, fallback: Dict, ref: Optional[str] = None) -> Dict:
     """The LLM's script when it keeps to the facts (director._valid), else the rules script. A Hindi or Marathi reel asks for
-    Devanagari screen text when the server can draw it (screen_devanagari)."""
+    Devanagari screen text when the server can draw it (screen_devanagari). `ref`: the job, for the log line."""
     facts_text = "\n".join(f"- {x}" for x in facts)
     deva = screen_devanagari(lang)
+    why = "no LLM key (AI_LLM_API_KEY / GROQ_API_KEY)"
     if llm is not None:
         for _ in range(2):
             try:
                 out = await llm.json(system_prompt(deva), f"Voice language: {LANG_NAMES[lang]}\nSubject: {subject}\nFacts:\n{facts_text}")
-            except Exception:
-                out = None
-            if _valid(out, subject + "\n" + facts_text, devanagari_screen=deva) and not pushy(out):
+            except Exception as e:
+                why = f"LLM call failed ({type(e).__name__})"
+                continue
+            if out is None:
+                why = "LLM gave no answer"
+            elif not _valid(out, subject + "\n" + facts_text, devanagari_screen=deva):
+                why = "LLM script broke the fact rules"
+            elif pushy(out):
+                why = "LLM script pushed the buyer"
+            else:
+                trace.event(log, "reel", ref, "script", trace.OK, made_by="llm", lang=lang)
                 return {"beats": out["beats"], "cta_screen": out["cta_screen"], "cta_voice": out["cta_voice"], "made_by": "llm"}
+    trace.event(log, "reel", ref, "script", trace.FALLBACK, made_by="rules", reason=why, lang=lang)
     return {**fallback, "made_by": "rules"}
 
 
@@ -455,7 +467,8 @@ def _narration(work: Path, clips: Sequence[Path], starts: Sequence[float], total
 
 def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Optional[str] = None, kicker: Optional[str] = None,
            closing: str = "", voiced: bool = True, style: str = "tour", maharera: Optional[ProjectRegistration] = None) -> Dict:
-    """Render the reel. Returns {"audio": "voice+music"|"music", "note": str}. Falls back to music only if the voice fails.
+    """Render the reel. Returns {"audio": "voice+music"|"music", "note": str, "voice": "take"|"lines"|"off"|"failed",
+    "voice_error": str}. Falls back to music only if the voice fails ("voice_error" says why, for the job and the logs).
     One photo per beat: with fewer photos than beats the last beats are left out rather than a photo shown twice.
     style 'stack': the same beats, voice and photos as one stacked list (see _stack_scene). `maharera`: the project's trusted
     registration, drawn as the QR badge on the closing scene (MahaRERA's advertisement order)."""
@@ -463,7 +476,7 @@ def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opt
         raise ValueError(f"style must be one of {STYLES}")
     beats, picks = fit_beats(script, photos)
     work = Path(tempfile.mkdtemp(prefix="listing-reel-"))
-    note = ""
+    note, how, voice_error = "", "off", ""
     try:
         clips: List[Path] = []
         durs: List[float] = []
@@ -471,9 +484,8 @@ def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opt
             try:
                 clips, how = narration.voice_lines([b["voice"] for b in beats], lang, work)
                 durs = [max(2.2, ffmpeg.probe(c).duration + 0.55) for c in clips]
-                log.info("listing reel voice-over: %s", "one take" if how == "take" else "line by line")
-            except voice.VoiceError:
-                voiced, clips, note = False, [], VOICE_FAILED_NOTE
+            except voice.VoiceError as e:
+                voiced, clips, note, how, voice_error = False, [], VOICE_FAILED_NOTE, "failed", str(e)
         if not voiced:
             note = note or NO_VOICE_NOTE
             durs = [SILENT_SECONDS + (0.4 if i == 0 else 0.0) for i in range(len(beats))]
@@ -486,7 +498,7 @@ def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opt
             bed = write_music(work / "bed.wav", seconds=total + 1.0)
             audio = _narration(work, clips, starts, total, bed) if voiced else bed
             make_reel([scene], out_path, music=audio, xfade=0.0, hook_tag=False)
-            return {"audio": "voice+music" if voiced else "music", "note": note}
+            return {"audio": "voice+music" if voiced else "music", "note": note, "voice": how, "voice_error": voice_error}
         scenes = []
         for i, b in enumerate(beats):
             first, last = i == 0, i == len(beats) - 1
@@ -501,7 +513,7 @@ def render(script: Dict, photos: Sequence, lang: str, out_path: Path, badge: Opt
         bed = write_music(work / "bed.wav", seconds=tl.total + 1.0)
         audio = _narration(work, clips, tl.starts, tl.total, bed) if voiced else bed
         make_reel(scenes, out_path, music=audio, transition="slide", xfade=XFADE)
-        return {"audio": "voice+music" if voiced else "music", "note": note}
+        return {"audio": "voice+music" if voiced else "music", "note": note, "voice": how, "voice_error": voice_error}
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
@@ -633,25 +645,32 @@ class ReelJobs:
     async def run(self, job: dict) -> None:
         """Render one claimed job. Never raises: failures are stored on the job with a message safe to show."""
         jid = job["_id"]
+        started = time.monotonic()
+        trace.event(log, "reel", jid, "start", trace.OK, listing=job["listing_id"], agent=job["agent_id"], lang=job["lang"],
+                    style=job.get("style") or "tour")
         try:
             listing = await self.listings.find_one({"_id": job["listing_id"], "agent_id": job["agent_id"]})
             if not listing:
+                trace.event(log, "reel", jid, "done", trace.FAILED, reason="listing removed")
                 return await self._finish(jid, status="failed", error="The listing was removed.")
             if is_sample(listing):
+                trace.event(log, "reel", jid, "done", trace.FAILED, reason="sample listing")
                 return await self._finish(jid, status="failed", error="Sample listings cannot have a reel.")
             tags: Dict[Path, dict] = {}
             if self.tagger is not None:  # what each photo shows, for a room-by-room order; never required
                 try:
                     tags = await self.tagger(await asyncio.to_thread(ranked_photos, listing, self.uploads_dir)) or {}
-                except Exception:
-                    log.info("listing reel %s: photo tags unavailable", jid, exc_info=True)
+                except Exception as e:
+                    trace.event(log, "reel", jid, "photo_tags", trace.FALLBACK, reason=type(e).__name__, order="upload order")
+                    log.debug("listing reel %s: photo tags unavailable", jid, exc_info=True)
             photos = await asyncio.to_thread(scene_photos, listing, self.uploads_dir, tags)
             if len(photos) < MIN_PHOTOS:
+                trace.event(log, "reel", jid, "done", trace.FAILED, reason=f"{len(photos)} usable photos, need {MIN_PHOTOS}")
                 return await self._finish(jid, status="failed", error="Add at least 2 photos")
             profile = await self.profiles.find_one({"agent_id": job["agent_id"]})
             subject, facts, f = reel_facts(listing, profile)
             llm = self.llm_factory() if self.llm_factory else None
-            script = await write_script(subject, facts, job["lang"], llm, rules_script(f, job["lang"]))
+            script = await write_script(subject, facts, job["lang"], llm, rules_script(f, job["lang"]), ref=jid)
             script = with_cta(script, job["lang"])
             await self.jobs.update_one({"_id": jid}, {"$set": {"script": script}})
             style = job.get("style") or "tour"
@@ -662,14 +681,27 @@ class ReelJobs:
             reg = await project_registration(listing, self.db)   # the MahaRERA badge: only a project number we trust
             if reg is not None:
                 kw["maharera"] = reg
+            voiced = self.voice_available()
+            if not voiced:
+                trace.event(log, "reel", jid, "voice", trace.SKIPPED, reason="GOOGLE_TTS_API_KEY is not set", audio="music")
             result = await asyncio.to_thread(
                 self.renderer, script, photos[:MAX_SCENE_PHOTOS], job["lang"], out, kicker=kicker, closing=listed_by_line(profile),
-                voiced=self.voice_available(), **kw)
+                voiced=voiced, **kw)
+            how, voice_error = result.get("voice"), result.get("voice_error") or ""
+            if how == "failed":
+                trace.event(log, "reel", jid, "voice", trace.FAILED, reason=voice_error, audio="music", lang=job["lang"])
+            elif voiced:
+                trace.event(log, "reel", jid, "voice", trace.OK, mode=how, lang=job["lang"])
             await self._finish(jid, status="done", video_path=f"/uploads/reels/{name}", audio=result.get("audio"),
-                               note=result.get("note") or "", error=None)
+                               note=result.get("note") or "", voice_error=voice_error or None, error=None)
+            trace.event(log, "reel", jid, "done", trace.OK if result.get("audio") == "voice+music" else trace.FALLBACK,
+                        audio=result.get("audio"), script=script.get("made_by"), photos=min(len(photos), MAX_SCENE_PHOTOS),
+                        seconds=time.monotonic() - started, video=f"/uploads/reels/{name}")
         except Exception as e:  # ffmpeg missing, disk full, a bad photo...
             log.exception("listing reel %s failed", jid)
             msg = str(e) if e.__class__.__name__ in ("ReelError", "FfmpegError") else "Could not make the reel. Please try again."
+            trace.event(log, "reel", jid, "done", trace.FAILED, error=type(e).__name__, reason=str(e) or type(e).__name__,
+                        seconds=time.monotonic() - started)
             await self._finish(jid, status="failed", error=msg[:300])
 
     async def run_once(self) -> bool:

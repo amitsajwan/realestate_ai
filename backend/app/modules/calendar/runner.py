@@ -24,6 +24,7 @@ from app.platform.meta_graph.config import SocialConfig
 from app.platform.meta_graph.config import load as load_social
 from app.modules.social.distribution import graph_publisher, send
 from app.platform.meta_graph.publisher import DryRunPublisher, Post, sanitize
+from app.platform import trace
 
 from . import adapters, liveness, reach
 from .config import MAX_ATTEMPTS, RETRY_AFTER_S, CalendarConfig, load, uploads_dir
@@ -133,6 +134,8 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
         if social.dry_run:
             res = await DryRunPublisher().publish(Post(doc["channel"], doc["caption"], []))
             await store.published(doc["_id"], res.external_id, res.permalink, "dry run: nothing was sent")
+            trace.event(log, "publish", doc["slug"], "send", trace.SKIPPED, channel=doc["channel"], kind=kind,
+                        reason="SOCIAL_DRY_RUN is on: nothing was sent")
             return "published"
         if not social.configured(doc["channel"]) or not social.media_url_ok:
             raise RuntimeError("channel or PUBLIC_MEDIA_BASE_URL is not configured")
@@ -160,6 +163,8 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
                                                                              location_id=reach.location_id(doc),
                                                                              alt_text=(doc.get("creative") or {}).get("alt_text"))))
         await store.published(doc["_id"], res.external_id, res.permalink)
+        trace.event(log, "publish", doc["slug"], "send", trace.OK, channel=doc["channel"], kind="slides reel" if kind != "reel" and reel
+                    else kind, attempt=attempts, permalink=res.permalink or res.external_id)
         await adapters.register_hub(store.db, doc, res.permalink or "")
         if link_comment and doc["channel"] == "facebook_page" and (kind == "reel" or reel):
             await link_comment(store.db, doc, res.external_id, social)
@@ -170,7 +175,8 @@ async def _publish_one(store: Store, publisher, social: SocialConfig, doc: dict,
         reason = sanitize(str(e) or type(e).__name__, social.secrets)
         final = attempts >= MAX_ATTEMPTS
         await store.attempt_failed(doc["_id"], reason, attempts, final)
-        log.warning("calendar: %s %s attempt %d failed: %s", doc["channel"], doc["slug"], attempts, reason)
+        trace.event(log, "publish", doc["slug"], "send", trace.FAILED if final else trace.FALLBACK, channel=doc["channel"],
+                    attempt=f"{attempts}/{MAX_ATTEMPTS}", reason=reason, next="gives up" if final else "retries next cycle")
         return "failed" if final else "retry"
 
 

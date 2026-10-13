@@ -21,6 +21,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 from app.core.areas import BY_KEY
 from app.modules.newsroom.store import Store
+from app.platform import trace
 
 from . import hot, pages, searchconsole
 from .service import _day
@@ -154,19 +155,23 @@ SYSTEM = ("You write the description on a property website's page about one hous
           'Answer as JSON: {"text": "..."}')
 
 
-async def write_text(llm, doc: dict, gathered: Optional[dict]) -> Optional[str]:
+async def write_text(llm, doc: dict, gathered: Optional[dict], notes: Optional[List[str]] = None) -> Optional[str]:
+    """The model's page text, or None; `notes` gets why not."""
+    notes = notes if notes is not None else []
     if llm is None:
+        notes.append("no LLM key")
         return None
     facts = facts_text(doc, gathered)
     try:
         out = await llm.json(SYSTEM, "Facts:\n" + facts)
-    except Exception:
+    except Exception as e:
         log.exception("enrich: model call failed for %s", doc.get("_id"))
+        notes.append(f"model call failed ({type(e).__name__})")
         return None
     text = str((out or {}).get("text") or "").strip()
-    problems = check_text(text, facts)
+    problems = check_text(text, facts) if out is not None else ["no model answer"]
     if problems:
-        log.info("enrich: draft for %s refused: %s", doc.get("_id"), "; ".join(problems))
+        notes.append("draft refused: " + "; ".join(problems))
         return None
     return text
 
@@ -187,9 +192,11 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime) -> dict:
             notes.append(f"gathering failed ({type(e).__name__})")
     else:
         notes.append("no gatherer configured")
-    text = await write_text(llm, doc, gathered)
+    text = await write_text(llm, doc, gathered, notes)
     if text is None:
         notes.append("kept the code-written paragraph")
+    trace.event(log, "enrich", regno, "done", trace.OK if text and gathered else trace.FALLBACK, text="model" if text else "code",
+                facts="gathered" if gathered else "none", notes="; ".join(notes) or None)
     fields = {"enriched_at": now, "enrich_notes": notes, "enrich_gathered": bool(gathered)}
     if text:
         fields.update(page_text=text, page_text_at=now)
@@ -252,8 +259,7 @@ async def loop() -> None:
                     except Exception:
                         log.exception("enrich: hot projects scoring failed")
                     out = await step(Store(get_database()), default_llm(), now, last_regular, cfg.every)
-                    if out:
-                        log.info("enrich: %s", out)
+                    if out:   # enrich_one logged it (pipeline=enrich)
                         if not out["urgent"]:
                             last_regular = now
         except asyncio.CancelledError:
