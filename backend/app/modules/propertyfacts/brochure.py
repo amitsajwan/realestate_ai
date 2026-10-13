@@ -29,6 +29,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
+from app.core.rera import HINT as RERA_HINT
+
 from . import brochure_parse as bp
 from . import registration
 from .facts import Reading
@@ -217,7 +219,7 @@ def _value_ok(key: str, value: Any) -> Any:
     if key == "rera_no":
         v = bp.rera_no(v)
         if not v:
-            raise BrochureError("A MahaRERA project number looks like P52100012345.", 422)
+            raise BrochureError(RERA_HINT, 422)
     if key == "carpet_area" and bp.area_sqft(v) is None:
         raise BrochureError("Give the area with its unit, such as 650 sq ft.", 422)
     return v
@@ -469,7 +471,7 @@ class Brochures:
             if rera_no:
                 rera = bp.rera_no(rera_no)
                 if not rera:
-                    raise BrochureError("A MahaRERA project number looks like P52100012345.", 422)
+                    raise BrochureError(RERA_HINT, 422)
             answer["rera_no"] = rera or None
             clients = self.clients_factory() if self.clients_factory else None
             reg = await check_registration(clients, rera, self._name(kit.get("facts") or []), now) if rera else {}

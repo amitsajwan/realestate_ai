@@ -91,12 +91,12 @@ export function brochureFileError(file: Pick<File, 'name' | 'type' | 'size'>): s
   return null
 }
 
-/** MahaRERA project numbers: P5 followed by 10 digits (e.g. P52100076768), as the server checks them. Spaces are ignored and letters upper-cased. */
+/** MahaRERA project numbers: P + a letter + 13 digits (current, e.g. PR1260002501386) or P + 11 digits (older, e.g. P52100076768), as the server checks them (backend/app/core/rera.py). Spaces are ignored and letters upper-cased. */
 export function normaliseReraNo(raw: string): string {
   return raw.replace(/\s+/g, '').toUpperCase()
 }
 export function isReraNo(raw: string): boolean {
-  return /^P5\d{10}$/.test(normaliseReraNo(raw))
+  return /^P(?:\d{11}|[A-Z]\d{13})$/.test(normaliseReraNo(raw))
 }
 
 export const pendingFacts = (kit: BrochureKit | null) => (kit ? kit.facts.filter((f) => f.state === 'pending') : [])

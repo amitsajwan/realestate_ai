@@ -19,6 +19,8 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
+from app.core.rera import SEARCH
+
 from . import points
 
 log = logging.getLogger(__name__)
@@ -28,7 +30,7 @@ READ_PAGES = 4          # pages the vision model reads for claims (each page cos
 PAGE_W = 1080
 MAX_CLAIMS = 25        # a 4-page brochure: travel times alone fill a dozen
 CLAIM_MAX_CHARS = 160
-RERA = re.compile(r"\bP\d{11}\b", re.I)
+RERA = SEARCH            # MahaRERA number, either form (core/rera.py)
 PHONE = re.compile(r"(?:\d[\s-]?){8,}")
 SALES_PROBLEMS = ("hype word", "prediction", "promise", "claim not in facts")
 INVEST = re.compile(r"\b(investment|returns?|appreciation|profit|earning)\b|गुंतवणूक|गुंतवणुकी|कमाई|परतावा|निवेश|मुनाफ", re.I)
@@ -40,7 +42,7 @@ READ_PROMPT = (
     "place names as they are known in English, for example शिक्रापूर Shikrapur, मळठण Malthan, रांजणगाव Ranjangaon, चाकण "
     "Chakan, शिरूर Shirur, लोणी काळभोर Loni Kalbhor, राजगुरूनगर Rajgurunagar, वाघोली Wagholi, सणसवाडी Sanaswadi; a name "
     "you cannot read, leave out rather than guess. Leave out slogans and adjectives (dream, best, "
-    "safe investment, high returns). Copy any MahaRERA registration number (P followed by 11 digits) exactly, or \"\". Give the project's own name as "
+    "safe investment, high returns). Copy any MahaRERA registration number (P followed by 11 digits, or two letters such as PR followed by 13 digits) exactly, or \"\". Give the project's own name as "
     "shown in its logo or title, in English letters (for example \"Gulmohar City\"), or \"\". Also fill \"facts\" with what the "
     "page prints, null (or []) when it does not: starting_price_inr (the lowest price, in rupees as a number: \"₹2,99,000/-\" "
     "-> 299000), booking_amount_inr (the amount to pay to book, a number: \"₹1 लाख\" -> 100000), offer_label (an offer's "

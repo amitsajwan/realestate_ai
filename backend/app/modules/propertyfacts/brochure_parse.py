@@ -9,6 +9,7 @@ import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+from app.core import rera as _rera
 from app.platform.text import bhk_label
 
 LABELS = {"project_name": "Project name", "promoter": "Builder", "rera_no": "MahaRERA number", "address": "Address",
@@ -52,7 +53,7 @@ SPEC_WORDS = ("flooring", "floor", "kitchen", "main door", "doors", "door", "win
               "sanitary", "fittings", "wiring", "switches", "railing", "water proofing", "waterproofing", "lift", "lifts")
 
 _MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
-RERA = re.compile(r"\bP\s?5(?:\s?\d){10}\b")
+RERA = _rera.SPACED   # P + 11 digits or PR/PP/PM + 13, spaces allowed (core/rera.py)
 BHK = re.compile(r"\b(\d(?:\.5)?)\s*(?:BHK|B\.H\.K\.?)(?![a-z])", re.I)
 RK = re.compile(r"\b1\s*RK\b", re.I)
 AREA = re.compile(r"(?P<n>\d{2,6}(?:,\d{3})*(?:\.\d+)?)\s*(?P<u>sq\.?\s*f(?:ee)?t\.?|sqft|sft|square\s+f(?:ee|oo)t|"
@@ -203,9 +204,8 @@ def _trim(v: str) -> str:
 
 # ---- numbers --------------------------------------------------------------------------------------------------------------
 def rera_no(s: str) -> str:
-    """'P 52100 076768' -> 'P52100076768'; '' when it is not a MahaRERA project number."""
-    v = re.sub(r"\s", "", s or "").upper()
-    return v if re.fullmatch(r"P5\d{10}", v) else ""
+    """'P 52100 076768' -> 'P52100076768', 'PR1260002501386' as is; '' when it is not a MahaRERA project number."""
+    return _rera.normalise(s)
 
 
 def area_sqft(s: Any) -> Optional[int]:

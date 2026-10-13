@@ -242,7 +242,7 @@ test('registration: unknown asks the question; a bad number is refused, a good o
   await act(async () => { fireEvent.click(within(q).getByRole('button', { name: 'Save answer' })) })
   expect(c.setRegistration).not.toHaveBeenCalled()
   expect(num).toHaveAttribute('aria-invalid', 'true')
-  expect(within(q).getByRole('alert')).toHaveTextContent('P5 followed by digits')
+  expect(within(q).getByRole('alert')).toHaveTextContent('PR and 13 digits')
   fireEvent.change(num, { target: { value: 'p5210 0076768' } })
   await act(async () => { fireEvent.click(within(q).getByRole('button', { name: 'Save answer' })) })
   expect(c.setRegistration).toHaveBeenCalledWith('L1', { status: 'registered', rera_no: 'P52100076768' })

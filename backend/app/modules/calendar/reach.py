@@ -23,10 +23,11 @@ import re
 from typing import List, Optional, Tuple
 
 from app.core import areas as pune_areas
+from app.core.rera import SEARCH
 
 _TAG = re.compile(r"(?<![\w&])#\w+")
 _TAG_LINE = re.compile(r"^\s*(?:#\w+\s*)+$")
-_RERA_NO = re.compile(r"\bP5\d{10}\b")
+_RERA_NO = SEARCH  # MahaRERA number, either form (core/rera.py)
 _WORD = r"[A-Z0-9][\w'&-]*"
 # "Gulmohar City, Ranjangaon." (campaign intro) or "Goyal My Home, Upper Kharadi: ₹97 L" (agent project caption)
 _PROJECT_LINE = re.compile(rf"^\s*({_WORD}(?:\s+{_WORD}){{0,5}}),\s+([A-Z][A-Za-z-]*(?:\s+[A-Z][A-Za-z-]*){{0,3}})(?:,\s*Pune)?\s*[.:](?:\s|$)")

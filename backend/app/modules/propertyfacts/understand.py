@@ -17,12 +17,14 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
+from app.core.rera import BODY
+
 from .facts import same
 
 log = logging.getLogger(__name__)
 
 MAX_QUESTIONS = 6
-RERA_NO = re.compile(r"^P(?:\d{11}|[PR]\d{13})$", re.I)
+RERA_NO = re.compile(rf"^{BODY}$", re.I)   # either form (core/rera.py)
 SCOPES = ("single", "layout")
 TYPES = ("plot", "apartment", "house", "villa", "commercial", "office", "shop")
 TYPE_WORD = {"plot": "plot", "apartment": "flat", "house": "house", "villa": "villa"}
@@ -41,7 +43,7 @@ Fill these from the text above only; null when it does not say:
 - scope_sure: true only when the text says so plainly (a number of plots, "plots available", "layout"; or one unit's details)
 - sizes_sqft: every plot or flat size on offer, in sq ft as numbers (convert sq yd x9, sq m x10.764, guntha x1089); []
 - total_acres: every land area of the whole project mentioned, in acres as numbers (copy each one, even when they differ); []
-- other_registration: any registration or survey number that is NOT a MahaRERA number (P + 11 digits), copied as written, or ""
+- other_registration: any registration or survey number that is NOT a MahaRERA number (P + 11 digits, or PR, PP or PM + 13 digits), copied as written, or ""
 Reply: {{"property_type": ..., "scope": ..., "scope_sure": ..., "sizes_sqft": [...], "total_acres": [...], "other_registration": ""}}"""
 
 
@@ -183,7 +185,7 @@ def decide(listing: dict, seen: Dict[str, Any], registered: bool, units_total: O
                           + [("None of these", None), ("Not registered", "not_registered")], free_text="Another MahaRERA number"))
         else:
             ask.append(_q("rera", f"Is this project registered on MahaRERA?{note}",
-                          [("Not registered", "not_registered")], free_text="MahaRERA number (P + 11 digits)"))
+                          [("Not registered", "not_registered")], free_text="MahaRERA number, like PR1260002501386 or P52100012345"))
 
     # the brochure's selling points (price, booking, water, roads...): used in posts only once the agent says so
     if points:
@@ -233,7 +235,7 @@ def apply_answer(key: str, value: Any) -> Dict[str, Any]:
         if v == "NOT_REGISTERED":
             return {"rera_status": "not_registered"}
         if not RERA_NO.match(v):
-            raise ValueError("A MahaRERA number is P followed by 11 digits, like P52100012345.")
+            raise ValueError("A MahaRERA number is two letters and 13 digits, like PR1260002501386, or P and 11 digits, like P52100012345.")
         return {"rera_no": v}
     raise ValueError("Unknown question.")
 

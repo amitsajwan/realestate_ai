@@ -2,6 +2,8 @@
 import re
 from typing import Optional
 
+from app.core import rera
+
 from .gazetteer import CITIES, LOCALITIES
 
 NEAR_CLAUSE = re.compile(r"(?<![a-z])(?:near|nearby|opp|opposite|behind|adjacent to|next to|close to|beside)(?:\s+[a-z][a-z']*){1,3}")
@@ -92,7 +94,7 @@ def parse_amenities(clean: str) -> list[str]:
     return [k for k, rx in _AM_RES if rx.search(clean)]
 
 
-_RERA_MH = re.compile(r"(?<![a-z0-9])(p\d{11})(?!\d)", re.I)
+_RERA_MH = re.compile(rf"(?<![a-z0-9])({rera.BODY})(?![a-z0-9])", re.I)   # P + 11 digits or PR/PP/PM + 13 (core/rera.py)
 _RERA_GEN = re.compile(r"rera\s*(?:reg\w*\.?|no\.?|number|id)?\s*(?:no\.?|number)?\s*[:#\-]?\s*([a-z0-9][a-z0-9/\-]{7,})", re.I)
 
 
