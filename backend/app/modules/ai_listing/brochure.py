@@ -16,7 +16,7 @@ from app.modules.propertyfacts.registration import CANDIDATES, _words, core
 
 log = logging.getLogger(__name__)
 
-READ_TIMEOUT = 90.0       # the whole brochure read (render + vision); past it the draft goes on with what was read
+READ_TIMEOUT = 120.0      # the whole brochure read (render, page triage, vision); past it the draft goes on with its text
 TEXT_CHARS = 3000         # brochure text handed to the extractors
 HIGHLIGHTS = 6            # About.highlights cap
 _URL = re.compile(r"/uploads/documents/([A-Za-z0-9._-]+\.pdf)$", re.I)
@@ -67,7 +67,9 @@ async def read(url: str, uploads_dir: Path, timeout: float = READ_TIMEOUT) -> Di
     out["pages"] = len(info.get("pages") or [])
     if info.get("error"):
         out["error"] = info["error"]
-    out["rera_nos"] = rera.find_all(f"{info.get('rera_no') or ''} {out['text']}")   # a phased project prints several
+    # a phased project prints several (Lodha Camelot: one per tower): the reader's, then any more in the text layer
+    out["rera_nos"] = rera.find_all(" ".join([str(info.get("rera_no") or "")] + [str(x) for x in info.get("rera_nos") or []]
+                                             + [out["text"]]))
     out["rera_no"] = out["rera_nos"][0] if out["rera_nos"] else None
     return out
 

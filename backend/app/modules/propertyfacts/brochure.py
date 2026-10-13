@@ -17,7 +17,9 @@ layer, and the listing gets a kit of fact candidates the agent confirms, fixes o
                brochure without triage gives no page to the posts' photos (pictures.brochure_photos; the kit's photo_note says so)
     MahaRERA-> a registration number in the brochure is looked up. MahaRERA not returning it means `unverified`: held for the
                agent, never posted as registered. No number and no record means `unknown`, and the agent is asked whether the
-               project is registered or exempt (RERA Act section 3)
+               project is registered or exempt (RERA Act section 3). A brochure printing several numbers (tower by tower)
+               gets a `rera_nos` list too; the first number that is a member of a marketed project group
+               (agentprojects.groups) is the one checked, and the registration names the group
 
 Collection `brochures`: one document per (listing, brochure file); the listing's kit is the latest one uploaded. This module is
 its only writer. The PDF is untrusted input: pdfium reads it without forms or scripts, under page, size and time limits."""
@@ -303,6 +305,10 @@ def _value_ok(key: str, value: Any) -> Any:
         vals = [v.strip() for v in value if v.strip()]
         if not vals or len(vals) > bp.LIST_MAX or any(len(v) > bp.ITEM_MAX for v in vals):
             raise BrochureError(f"Give 1 to {bp.LIST_MAX} items, each under {bp.ITEM_MAX} characters.", 422)
+        if key == "rera_nos":
+            if not all(bp.rera_no(v) for v in vals):
+                raise BrochureError(RERA_HINT, 422)
+            vals = list(dict.fromkeys(bp.rera_no(v) for v in vals))
         return vals
     if key in bp.COUNT_KEYS:
         n = value if isinstance(value, int) and not isinstance(value, bool) else (
@@ -323,15 +329,50 @@ def _value_ok(key: str, value: Any) -> Any:
 
 
 # ---- the registration check ------------------------------------------------------------------------------------------------
-async def check_registration(clients: Any, rera: str, name: str = "", now: Optional[datetime] = None) -> dict:
-    """{status, rera_no, note}. `clients` needs get_text, fetch_general and optionally register (gather.Clients; tests fake
-    it). Only MahaRERA (or our register of it) returning this very number makes it `verified`."""
-    if not rera:
+async def _group_of(groups: Any, numbers: Sequence[str]) -> Tuple[Optional[dict], str]:
+    """The marketed project (agentprojects.groups) any of the brochure's numbers belongs to, and the first member number
+    found: (group, regno), or (None, "")."""
+    if groups is None:
+        return None, ""
+    for no in numbers:
+        try:
+            g = await groups.resolve(no, "")
+        except Exception as e:
+            log.info("brochure: project group lookup failed (%s)", type(e).__name__)
+            return None, ""
+        if g:
+            return g, no
+    return None, ""
+
+
+async def check_registration(clients: Any, rera: str, name: str = "", now: Optional[datetime] = None,
+                             others: Sequence[str] = ()) -> dict:
+    """{status, rera_no, note, group?}. `clients` needs get_text, fetch_general and optionally register and groups
+    (gather.Clients; tests fake it). Only MahaRERA (or our register of it) returning this very number makes it `verified`.
+    `others`: the brochure's other MahaRERA numbers (a project registered tower by tower). When any of them is a member of a
+    marketed project group (agentprojects.groups), that member is the number checked and the kit names the group."""
+    numbers = list(dict.fromkeys(n for n in [bp.rera_no(rera or "")] + [bp.rera_no(str(o)) for o in others or ()] if n))
+    if not numbers:
         return {"status": "unknown", "rera_no": None, "note": "No MahaRERA number was found in the brochure. " + ASK}
+    rera = numbers[0]
+    group, member = await _group_of(getattr(clients, "groups", None), numbers) if clients is not None else (None, "")
+    if group:
+        rera = member
     held = f"The brochure shows {rera}, but MahaRERA did not return it"
     if clients is None:
         return {"status": "unverified", "rera_no": rera, "note": f"{held} (not checked). It will not be posted as registered "
                                                                   "until it is confirmed."}
+    out = await _check_one(clients, rera, name, now, held)
+    if group:
+        regs = [r.get("regno") for r in group.get("registrations") or [] if r.get("regno")]
+        out["group"] = {"name": group.get("name") or "", "primary": group.get("primary") or "", "registrations": regs,
+                        "slug": group.get("slug")}
+        out["note"] += (f" {rera} is one of the {len(regs)} MahaRERA registrations {group.get('name') or 'this project'} "
+                        "is sold under.")
+    return out
+
+
+async def _check_one(clients: Any, rera: str, name: str, now: Optional[datetime], held: str) -> dict:
     try:
         match, _ = await asyncio.wait_for(registration.lookup(clients.get_text, clients.fetch_general, name, rera, None, now,
                                                               getattr(clients, "register", None),
@@ -359,6 +400,9 @@ def lookup_inputs(kit: Optional[dict]) -> Tuple[str, str]:
     if reg.get("status") in ("verified", "registered_by_agent") and reg.get("rera_no"):
         rera = reg["rera_no"]
     rera = rera or bp.rera_no(str(facts.get("rera_no") or ""))
+    if not rera:   # only the list of a project's registrations was confirmed: its first
+        rera = next((bp.rera_no(str(v)) for f in confirmed(kit) if f["key"] == "rera_nos" for v in f["value"] or []
+                     if bp.rera_no(str(v))), "")
     return str(facts.get("project_name") or ""), rera
 
 
@@ -420,12 +464,42 @@ def readings(kit: Optional[dict], now: datetime, official: Optional[Dict[str, An
     return out
 
 
+# ---- page labels (brochure_triage), after the upload ----------------------------------------------------------------------
+_label_tasks: set = set()   # running label tasks (a task nobody holds may be collected before it ends)
+
+
+async def label_pages(folder: Path, pages: int) -> None:
+    """brochure_triage on the kit's page thumbnails (p1.jpg...), saved as triage.json beside them. Never raises."""
+    from . import brochure_triage
+    try:
+        thumbs = [str(folder / f"p{n}.jpg") for n in range(1, pages + 1)]
+        if pages and all(Path(p).is_file() for p in thumbs) and not brochure_triage.load(folder):
+            labels = await brochure_triage.triage(thumbs)
+            if labels:
+                brochure_triage.save(folder, labels)
+    except Exception:
+        log.info("brochure: page labels failed", exc_info=True)
+
+
+def label_pages_later(folder: Path, pages: int) -> None:
+    """Label the pages in the background: the upload answers at once, the kit's next read finds triage.json."""
+    try:
+        task = asyncio.get_running_loop().create_task(label_pages(folder, pages))
+    except RuntimeError:
+        return
+    _label_tasks.add(task)
+    task.add_done_callback(_label_tasks.discard)
+
+
 # ---- the service ---------------------------------------------------------------------------------------------------------
 class Brochures:
     def __init__(self, db, uploads_dir, clients_factory: Optional[Callable[[], Any]] = None,
-                 llm_factory: Optional[Callable[[], Any]] = None, now: Callable[[], datetime] = datetime.utcnow):
+                 llm_factory: Optional[Callable[[], Any]] = None, now: Callable[[], datetime] = datetime.utcnow,
+                 label_pages: bool = False):
         """`clients_factory()` gives what the MahaRERA check needs (gather.Clients); `llm_factory()` the optional free model
-        (None: rules only)."""
+        (None: rules only); `label_pages`: after an upload, label every page with the vision model in the background
+        (brochure_triage; triage.json in the kit's folder)."""
+        self.label_pages = label_pages
         self.col = db.get_collection(COLLECTION)
         self.listings = db.get_collection("listings")
         self.uploads_dir = Path(uploads_dir)
@@ -530,13 +604,16 @@ class Brochures:
         rera = next((c.value for c in cands if c.key == "rera_no"), "") or bp.rera_no(str(listing.get("rera_no") or ""))
         name = next((c.value for c in cands if c.key == "project_name"), "") or (listing.get("project_name") or "")
         clients = self.clients_factory() if self.clients_factory else None
-        doc["registration"] = await check_registration(clients, rera, name, now)
+        others = [v for c in cands if c.key == "rera_nos" for v in c.value or []]
+        doc["registration"] = await check_registration(clients, rera, name, now, others)
         if read.image_only:
             doc["notes"] = [f"Pages {', '.join(map(str, read.image_only))} have no text layer (images only); they are not "
                             "read yet."]
         doc["photo_note"] = photo_note(read.image_only, read.pages, triage)
         doc.update(status="done", error=None)
         await self.col.insert_one(doc)
+        if self.label_pages:
+            label_pages_later(folder / sha, read.pages)
         return doc
 
     async def set_fact(self, agent_id: str, listing_id: str, fact_id: str, state: str, value: Any = None,
@@ -653,4 +730,4 @@ def default_brochures() -> Brochures:
     db = get_database()
     return Brochures(db, Path(settings.upload_directory),
                      clients_factory=lambda: Clients(timeout=15.0, register=Store(db), groups=Groups(db)),
-                     llm_factory=default_llm)
+                     llm_factory=default_llm, label_pages=True)
