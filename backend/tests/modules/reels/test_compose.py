@@ -71,8 +71,13 @@ def _all_scenes():
     facts = {**templates.DEMO_FACTS["wagholi"], "price_text": "Rs 1.2 Cr", "furnishing": "Semi-furnished"}
     tour, _ = templates.listing_tour([Image.new("RGB", (1600, 1000), "gray")], facts, badge="Artist's impression")
     plain, _ = templates.listing_tour(PHOTOS6, templates.DEMO_FACTS["kharadi"])
+    stack, _ = templates.listing_stack({**facts, "builder": "A Long Builder Name Developers", "area_sqft": 1420})
+    full, _ = templates.stacked_list(["Wanted: *2 to 5 acres*"] + ["a fairly long requirement line here"] * 6, kicker="Wanted")
+    marathi, _ = templates.listing_stack({**facts, "builder": "A Long Builder Name Developers", "area_sqft": 1420}, lang="mr")
+    hindi, _ = templates.stacked_list(["चाहिए: *2 से 5 एकड़* ज़मीन"] + ["पुणे के पास सड़क से लगी हुई खेती की ज़मीन"] * 6,
+                                      kicker="ज़रूरत", lang="hi")
     # as rendered: the last scene of each reel carries the brand mark; the optional end card is checked too
-    return [s for group in (tip, pitch, tour, plain) for s in compose.finish_scenes(group)] + [compose.end_scene()]
+    return [s for group in (tip, pitch, tour, plain, stack, full, marathi, hindi) for s in compose.finish_scenes(group)] + [compose.end_scene()]
 
 
 def _in_zone(box) -> bool:
@@ -313,4 +318,172 @@ def test_screens_of_one_split_line_share_one_continuous_background():
     r = compose.Renderer(scenes, **opts)
     a, b = r.prep[1], r.prep[2]   # 'Ask for the *RERA number*.' / 'Then look it up on the MahaRERA site.'
     assert a.scene.seed == b.scene.seed and b.punch == 0.0 < a.punch
+    a, b = a.backdrops[0], b.backdrops[0]
     assert a.base.tobytes() == b.base.tobytes() and (a.z1, a.fx1, a.fy1) == (b.z0, b.fx0, b.fy0)   # starts where the last ended
+
+
+# ---- stacked list: the facts join one by one and stay -------------------------------------------------------------------------
+STACK_FACTS = {**templates.DEMO_FACTS["kharadi"], "price_text": "Rs 30 Lakh", "builder": "Kolte Patil"}
+
+
+def test_listing_stack_leads_with_the_price_and_holds_the_place_back_to_the_end():
+    (scene,), opts = templates.listing_stack(STACK_FACTS)
+    texts = [l.text for l in scene.lines]
+    assert texts[0] == "*Rs 30 Lakh*" and texts[-2] == "In *Kharadi*, Pune" and texts[-1] == templates.CTA_SCREEN["en"]
+    assert "By Kolte Patil" in texts and scene.kicker == "Watch till the end"
+    (plain,), _ = templates.listing_stack(templates.DEMO_FACTS["wagholi"])
+    assert plain.lines[0].text == "3 BHK apartment" and not any("Rs" in l.text or l.text.startswith("By ") for l in plain.lines)
+
+
+def test_stack_lines_land_on_the_beat_and_the_reel_stays_between_the_limits():
+    (scene,), opts = templates.listing_stack(STACK_FACTS)
+    beat = templates.BEAT
+    assert scene.reveal[0] == 0 and all(t / (2 * beat) == pytest.approx(i) for i, t in enumerate(scene.reveal))
+    total = compose.plan([scene.seconds], opts["xfade"]).total
+    assert compose.MIN_SECONDS <= total < 30 and total == pytest.approx(scene.reveal[-1] + templates.STACK_HOLD)
+    (short,), _ = templates.stacked_list(["Hook", "One fact"])
+    assert short.seconds == compose.MIN_SECONDS
+    with pytest.raises(ValueError):
+        templates.stacked_list(["Hook only"])
+
+
+def test_the_stack_shows_the_hook_on_frame_one_and_each_line_joins_at_its_time_without_moving_the_others():
+    scenes, opts = templates.listing_stack(STACK_FACTS)
+    r = compose.Renderer(scenes, **{k: v for k, v in opts.items() if k != "hook_tag"}, hook_tag=False)
+    p = r.prep[0]
+    at = lambda k: p.reveal[p.items[k].block]
+    for k, it in enumerate(p.items):
+        if at(k) == 0:
+            assert p.item_alpha(k, 0.0) == 1.0          # the hook (and its kicker) are there on frame one
+        else:
+            assert p.item_alpha(k, at(k) - 0.01) == 0.0 < p.item_alpha(k, at(k) + 0.05) < 1.0
+            assert p.item_alpha(k, at(k) + compose.TEXT_IN) == 1.0
+    tops = [it.box[1] for it in p.items if it.block > 0]
+    assert tops == sorted(tops)                                 # each new line sits under the ones before it
+    last = max(k for k, it in enumerate(p.items) if it.block == p.items[-1].block)
+    x0, y0, x1, y1 = p.items[last].box
+    lit = lambda t: sum(1 for px in r.frame_at(t).crop((x0, y0, x1, y1)).getdata() if min(px) >= 200)
+    assert lit(0.0) == 0 < lit(r.tl.total - 0.2)                # the call to action is not there at the start, and is at the end
+
+
+def test_a_stack_needs_one_reveal_time_per_line():
+    with pytest.raises(compose.ReelError):
+        compose.layout_scene(Scene(lines=["a", "b"], reveal=[0.0]))
+
+
+def test_photos_change_behind_a_stack_while_the_text_stays_put():
+    red, blue = Image.new("RGB", (1080, 1920), (220, 30, 30)), Image.new("RGB", (1080, 1920), (30, 30, 220))
+    scene = Scene(image=red, images=[blue], image_at=[2.0], lines=["Hook", "Fact"], reveal=[0.0, 2.0], seconds=4.0, seed="w")
+    r = compose.Renderer([scene], xfade=0.0, hook_tag=False)
+    px = lambda t: r.frame_at(t).getpixel((W // 2, H - 60))
+    before, mid, after = px(1.9), px(2.0 + compose.IMAGE_BLEND / 2), px(3.0)
+    assert before[0] > before[2] and after[2] > after[0]            # red, then blue
+    assert before[0] > mid[0] > after[0]                            # blended, not a hard jump
+    p = r.prep[0]
+    assert [it.box for it in p.items] == [it.box for it in compose.layout_scene(compose.finish_scenes([scene])[0])]   # one layout: nothing moves
+    with pytest.raises(compose.ReelError):
+        compose.Renderer([Scene(image=red, images=[blue], lines=["x"], seconds=3.0)])
+
+
+def test_a_full_screen_of_text_never_runs_into_the_badge():
+    for layout in ("lower", "center", "top"):
+        sc = Scene(lines=[TextLine("word " * 40, size=120)] + ["a line"] * 5, kicker="Kicker", badge="Sample listing", layout=layout,
+                   brand_mark=True)
+        badge = compose._chip_item(sc.badge, compose.CONTENT_TOP - 4, "left", filled=False).box
+        assert min(it.box[1] for it in compose.layout_scene(sc)) > badge[3], layout
+
+
+# ---- Devanagari screen text (Hindi and Marathi reels): Mukta, shaped by libraqm ------------------------------------------------
+MARATHI = "पूर्ण माहितीसाठी *INTERESTED* कमेंट करा, ग्रुप्स कृष्ण ट्रेन स्टेशनजवळ"
+needs_raqm = pytest.mark.skipif(not compose.devanagari_ok(), reason="Pillow without libraqm")
+
+
+def _letters(it):
+    """The drawn letters of a text item (not its soft shadow)."""
+    return it.img.getchannel("A").point(lambda v: 255 if v > 200 else 0).getbbox()
+
+
+@needs_raqm
+def test_devanagari_is_drawn_with_real_glyphs_not_boxes():
+    import unicodedata
+    font = compose.text_font(96, "bold", devanagari=True)
+    assert compose.is_devanagari_font(font) and not compose.is_devanagari_font(compose.text_font(96, "bold"))
+    tofu = bytes(font.getmask(""))                     # a code point the font has no glyph for: the .notdef box
+    for ch in {c for c in MARATHI if unicodedata.category(c) == "Lo" and "ऀ" <= c <= "ॿ"}:
+        mask = font.getmask(ch)
+        assert mask.getbbox() and bytes(mask) != tofu, ch
+    word = "माहितीसाठी"
+    drawn = font.getmask(word)
+    assert drawn.getbbox() and bytes(drawn) != bytes(font.getmask("" * len(word)))
+    assert font.getlength("ध्ये") < sum(font.getlength(c) for c in "ध्ये")   # shaped: the conjunct joins, letters are not side by side
+    # in a laid-out scene the Devanagari line carries ink, and differs from the same words drawn in Poppins (boxes)
+    deva = compose.layout_scene(Scene(lines=[TextLine("माहितीसाठी कमेंट करा", size=96)], layout="lower"))[0]
+    poppins = compose._text_item([("माहितीसाठी", False, False), ("कमेंट", False, False), ("करा", False, False)],
+                                 compose.load_font(96, "bold"), compose.WHITE, "left", deva.box[1])
+    assert _letters(deva) and deva.img.tobytes() != poppins.img.tobytes()
+
+
+@needs_raqm
+def test_devanagari_lines_wrap_inside_the_frame_and_nothing_is_clipped():
+    for layout, align in (("lower", "left"), ("center", "center"), ("top", "left")):
+        sc = Scene(lines=[TextLine(MARATHI * 2, size=124), TextLine("मजला 7, एकूण 22, रेडी टू मूव", size=68)], kicker="खराडी, पुणे",
+                   layout=layout, align=align, brand_mark=True)
+        items = compose.layout_scene(sc)
+        assert len([it for it in items if it.block == 0]) > 2           # the long line wrapped over several lines
+        for it in items:
+            assert _in_zone(it.box), (layout, it.box)
+            a, (w, h) = _letters(it), it.img.size
+            assert a and a[0] > 0 and a[1] > 0 and a[2] < w and a[3] < h, (layout, a, it.img.size)   # no letter cut at the edge
+        lines = [it for it in items if it.block == 0]
+        for upper, lower in zip(lines, lines[1:]):                      # one line's lowest sign stays above the next line's highest
+            assert upper.y + _letters(upper)[3] < lower.y + _letters(lower)[1], layout
+    font = compose.text_font(100, "bold", devanagari=True)
+    top, bottom = font.getbbox("ग्रुप्स कृष्ण पूर्ण ट्रे ईं")[1::2]
+    assert 0 <= top and bottom <= sum(font.getmetrics()) and bottom < compose.line_step(font) + top
+
+
+@needs_raqm
+def test_a_devanagari_kicker_is_one_shaped_label_inside_its_pill():
+    chip = compose._chip_item("शेवटपर्यंत पाहा", compose.CONTENT_TOP, "left")
+    roman = compose._chip_item("Watch till the end", compose.CONTENT_TOP, "left")
+    assert chip.box[3] - chip.box[1] == roman.box[3] - roman.box[1] == 64 and _in_zone(chip.box)
+    pill = chip.img.crop((compose.PAD, compose.PAD, chip.img.width - compose.PAD, chip.img.height - compose.PAD))
+    ink = Image.new("L", pill.size)
+    ink.putdata([255 if a > 200 and sum(rgb) < 270 else 0 for *rgb, a in pill.getdata()])   # dark letters on the gold pill
+    dark = ink.getbbox()
+    assert dark and dark[1] > 2 and dark[3] < 62 and dark[2] - dark[0] > 150
+
+
+def test_english_text_keeps_poppins_and_its_spacing():
+    sc = Scene(lines=[TextLine("2 BHK in *Kharadi*", size=104), "Floor 7 of 22"], layout="lower")
+    items = compose.layout_scene(sc)
+    assert items[1].box[1] - items[0].box[1] == int(104 * 1.17) + 30
+    assert compose.line_step(compose.load_font(104, "bold")) == int(104 * 1.17)
+    assert compose._tokens("Kharadi मध्ये *2 BHK*") == [("Kharadi", False, False), ("2", True, False), ("BHK", True, False)]
+    assert compose._tokens("Kharadi मध्ये *2 BHK*", devanagari=True)[1] == ("मध्ये", False, False)
+
+
+def test_without_libraqm_devanagari_falls_back_to_roman_and_never_breaks(monkeypatch):
+    monkeypatch.setattr(compose, "devanagari_ok", lambda: False)
+    monkeypatch.setattr(templates, "devanagari_ok", lambda: False)
+    calls = []
+    monkeypatch.setattr(compose, "devanagari_font", lambda *a: calls.append(a))
+    items = compose.layout_scene(Scene(lines=["Kharadi मध्ये *2 BHK*"], kicker="खराडी"))
+    assert items and not calls                                                      # Poppins, Devanagari dropped (as before)
+    (stack,), _ = templates.listing_stack(STACK_FACTS, lang="mr")
+    assert [l.text for l in stack.lines] == [l.text for l in templates.listing_stack(STACK_FACTS)[0][0].lines]   # English, as before
+
+
+@needs_raqm
+def test_listing_stack_in_marathi_and_hindi():
+    (mr,), opts = templates.listing_stack(STACK_FACTS, lang="mr")
+    texts = [l.text for l in mr.lines]
+    assert texts[0] == "*Rs 30 लाख*" and texts[1] == "1,050 चौरस फूट" and texts[2] == "2 BHK अपार्टमेंट"
+    assert texts[-2] == "*Kharadi*, Pune येथे" and texts[-1] == templates.CTA_SCREEN_DEVANAGARI["mr"] and mr.kicker == "शेवटपर्यंत पाहा"
+    (hi,), _ = templates.listing_stack(STACK_FACTS, lang="hi")
+    assert hi.lines[-1].text == templates.CTA_SCREEN_DEVANAGARI["hi"] and hi.lines[-2].text == "*Kharadi*, Pune में"
+    assert mr.reveal == templates.listing_stack(STACK_FACTS)[0][0].reveal          # the same beat timing as the English stack
+    (en,), _ = templates.listing_stack(STACK_FACTS, lang="en")
+    assert [l.text for l in en.lines] == [l.text for l in templates.listing_stack(STACK_FACTS)[0][0].lines]
+    r = compose.Renderer([mr], **{k: v for k, v in opts.items() if k != "hook_tag"}, hook_tag=False)
+    assert r.frame_at(r.tl.total - 0.1).size == (W, H)

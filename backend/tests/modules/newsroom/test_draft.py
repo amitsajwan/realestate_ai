@@ -64,8 +64,15 @@ async def test_llm_sees_facts_only_never_the_raw_article():
     assert "no phone numbers" in system and "no predictions" in system
 
 
-async def test_article_shape():
+async def test_an_article_without_research_behind_it_is_written_as_a_post():
     d = await draft(ITEM, FACTS, REL, "article", FakeLlm(GOOD))
+    assert d.format == "post"
+    ok(d)
+
+
+async def test_article_shape():
+    from app.modules.newsroom.stages.draft import _assemble
+    d = _assemble(ITEM, FACTS, REL, "article", GOOD)
     assert d.format == "article" and d.title == GOOD["title"]
     assert "Why it may matter:" in d.text and "This is our view" in d.text and "What to check:" in d.text
     assert "as of 12 Sep 2026" in d.text and d.text.endswith(policy.DISCLAIMER)

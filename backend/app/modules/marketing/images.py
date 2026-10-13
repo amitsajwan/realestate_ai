@@ -1,7 +1,8 @@
 """Server-side share cards (Pillow + bundled Poppins). 1080x1080 carousel cards + one 1080x1920 status card.
 
-Background photo: ONLY the listing's first image when it is one of our own uploads (`/uploads/images/<file>` that exists
-under the backend uploads dir). Remote URLs, `..`, absolute paths and anything else are never opened or fetched.
+Background photos: ONLY the listing's own photos (card_photos: the hero on the cover, the next ranked photos on the other
+cards), and only our own uploads
+(`/uploads/images/<file>` that exists under the backend uploads dir). Remote URLs, `..`, absolute paths and anything else are never opened or fetched.
 Image text is English/numerals (Devanagari on images is out of scope), always inside safe margins over a dark overlay.
 """
 import hashlib
@@ -16,8 +17,11 @@ from urllib.parse import urlparse
 from PIL import Image, ImageDraw, ImageFile, ImageFont, ImageOps
 
 from app.core import brand
+from app.modules.photoquality import cached_tags, rank_photos, shown
+from app.platform.media import display_url
 
 from .facts import T, Facts
+from .maharera import badge as maharera_badge
 
 SQUARE = (1080, 1080)
 STORY = (1080, 1920)
@@ -60,9 +64,64 @@ def local_upload_path(url: Optional[str], uploads_dir: Path) -> Optional[Path]:
 
 def first_photo_url(media: List[dict]) -> Optional[str]:
     """The first photo's url; the enhanced copy when the agent kept 'Use enhanced' on (platform.media.display_url)."""
-    from app.platform.media import display_url
     imgs = [(m.get("order") or 0, i, m) for i, m in enumerate(media or []) if (m.get("kind") or "image") == "image"]
     return display_url(min(imgs, key=lambda t: (t[0], t[1]))[2]) if imgs else None
+
+
+def photo_paths(media: List[dict], uploads_dir: Path) -> List[Path]:
+    """The listing's own photo files in the agent's order, each the copy shown (the enhanced one when the agent kept
+    'Use enhanced' on and it exists, otherwise the original). Remote URLs are never fetched."""
+    imgs = [(m.get("order") or 0, i, m) for i, m in enumerate(media or [])
+            if isinstance(m, dict) and (m.get("kind") or "image") == "image"]
+    out: List[Path] = []
+    for _, _, m in sorted(imgs, key=lambda t: (t[0], t[1])):
+        p = local_upload_path(display_url(m), uploads_dir) or local_upload_path(m.get("url"), uploads_dir)
+        if p is not None and p not in out:
+            out.append(p)
+    return out
+
+
+def cover_photo_path(media: List[dict], uploads_dir: Path) -> Optional[Path]:
+    """The photo for the cover card and campaign posts: the hero of the ranked photos (photoquality.rank_photos), so a
+    blurry or duplicate first upload never fronts the listing. None without a photo of our own."""
+    ranked = rank_photos(photo_paths(media, uploads_dir), min_keep=1)
+    return ranked[0] if ranked else None
+
+
+def card_photos(media: List[dict], uploads_dir: Path, kinds: List[str],
+                tags: Optional[Dict[Path, dict]] = None) -> Dict[str, Optional[Path]]:
+    """A photo per card kind, each card its own where there are enough photos: the cover gets the hero (cover_photo_path's),
+    the others the next ranked photos in turn; the amenities card prefers a photo tagged amenity, then exterior. Floor plans
+    and papers are skipped while other photos remain. Photos repeat only when there are fewer of them than cards. `tags`
+    (default: photoquality.cached_tags, the cache only, no network) come from the reel worker; without them the ranked
+    order decides."""
+    ranked = rank_photos(photo_paths(media, uploads_dir), min_keep=1)
+    if not ranked:
+        return {k: None for k in kinds}
+    tags = cached_tags(ranked) if tags is None else tags
+    rest = [p for p in ranked[1:] if shown(tags.get(p))] or ranked[1:]
+    cycle = [ranked[0]] + rest
+    out: Dict[str, Optional[Path]] = {}
+    if "cover" in kinds:
+        out["cover"] = ranked[0]
+    pool = list(rest)
+    if "amenities" in kinds and pool:
+        for want in ("amenity", "exterior"):
+            hit = next((p for p in pool if (tags.get(p) or {}).get("kind") == want), None)
+            if hit is not None:
+                out["amenities"] = hit
+                pool.remove(hit)
+                break
+    reuse = 0
+    for k in kinds:
+        if k in out:
+            continue
+        if pool:
+            out[k] = pool.pop(0)
+        else:  # more cards than photos: go round again from the hero
+            out[k] = cycle[reuse % len(cycle)]
+            reuse += 1
+    return out
 
 
 def _load_source(path: Optional[Path]) -> Optional[Image.Image]:
@@ -298,6 +357,24 @@ def _stamp_logo(c: "Card", x: int, y: int, diameter: int = 96) -> None:
     c.boxes.append((x, y, x + diameter, y + diameter))
 
 
+MAHARERA_QR, MAHARERA_TEXT = 160, 30          # the badge on the square cards: its text no smaller than "Listed by"
+STORY_MAHARERA = (192, 32)                     # and on the WhatsApp status card, seen full screen
+
+
+def _stamp_maharera(c: "Card", f: Facts, y: int, qr_px: int = MAHARERA_QR, text_px: int = MAHARERA_TEXT) -> Optional[Tuple[int, int]]:
+    """The MahaRERA badge (QR, "MahaRERA: P5...", the website) at the top right, where MahaRERA's order puts it, when the
+    project's registration is known (f.registration). Returns (its left edge, its bottom), or None when there is none."""
+    if f.registration is None or f.sample:
+        return None
+    b = maharera_badge(f.registration, qr_px, text_px)
+    w, h = b.size
+    x = c.right - w
+    c.img.paste(b.img, (x, y), b.img)
+    c.boxes.append((x, y, x + w, y + h))
+    c.texts.extend(b.texts)
+    return x, y + h
+
+
 def _panel_with_header(size: Tuple[int, int], src: Optional[Image.Image], seed: str, header_h: int) -> Image.Image:
     """Brand gradient panel; the photo (if any) sits at the top and fades smoothly into the panel."""
     panel = gradient_card(size, seed)
@@ -390,12 +467,15 @@ def _fact_bits(f: Facts) -> str:
     return "  |  ".join(latin(b) for b in bits if b)
 
 
-def _tag_chips(c: "Card", f: Facts, y: int) -> int:
-    """'FOR SALE' (gold) and 'READY TO MOVE' (outline) chips. Returns the y below them."""
+def _tag_chips(c: "Card", f: Facts, y: int, right: Optional[int] = None) -> int:
+    """'FOR SALE' (gold) and 'READY TO MOVE' (outline) chips, the second only when it fits left of `right` (the MahaRERA
+    badge). Returns the y below them."""
     if f.sample:
         return _chip(c, "SAMPLE LISTING", c.left, y)[1]
     x, bottom = _chip(c, "FOR RENT" if f.rent else "FOR SALE", c.left, y)
-    if f.possession == "ready" and x + 14 < c.right - 200:
+    fits = (x + 14 < c.right - 200 if right is None else
+            x + 14 + c.draw.textlength("READY TO MOVE", font=load_font(28, "semibold")) + 48 <= right - 16)
+    if f.possession == "ready" and fits:
         _, b2 = _chip(c, "READY TO MOVE", x + 14, y, fill=None, ink=WHITE, outline=WHITE)
         bottom = max(bottom, b2)
     return bottom
@@ -437,11 +517,13 @@ def render(kind: str, f: Facts, src: Optional[Image.Image]) -> Card:
     if kind == "cover":
         img = _scrim_bottom(_fit(src, size), 0.34, 0.94) if src is not None else brand_background(size, seed, windows_above=int(size[1] * 0.5))
         c = Card(size, img, top, bottom)
-        _tag_chips(c, f, c.top)
-        _stamp_logo(c, c.right - 96, c.top)
+        rera = _stamp_maharera(c, f, c.top)   # the badge takes the logo's corner
+        _tag_chips(c, f, c.top, rera[0] if rera else None)
+        if rera is None:
+            _stamp_logo(c, c.right - 96, c.top)
         footer_y = _cover_footer(c, f)
         c.bottom = footer_y - 34
-        c.stack([{"text": f.price_text, "size": 124, "fill": GOLD, "min_size": 60, "weight": "bold"},
+        c.stack(y0=rera[1] + 24 if rera else None, items=[{"text": f.price_text, "size": 124, "fill": GOLD, "min_size": 60, "weight": "bold"},
                  {"text": what, "size": 56, "min_size": 34, "lines": 2, "weight": "semibold"},
                  {"text": where, "size": 42, "fill": SOFT, "min_size": 26, "lines": 2, "weight": "medium"},
                  {"text": latin(f.project), "size": 34, "fill": SOFT, "min_size": 24},
@@ -460,13 +542,16 @@ def render(kind: str, f: Facts, src: Optional[Image.Image]) -> Card:
         probe = Card(size, Image.new("RGB", size), top, bottom)
         total = sum(probe.height_of(i["text"], i["size"], i.get("lines", 1), i.get("min_size", 24), weight=i.get("weight", "regular")) + gap
                     for i in items if i.get("text")) + 30 + _button_height(btn) + 20 + int(34 * PITCH)
-        start = max(top + 160, probe.bottom - total)
+        rera_h = maharera_badge(f.registration, *STORY_MAHARERA).size[1] + 20 if f.registration and not f.sample else 0
+        start = max(top + 160 + rera_h, probe.bottom - total)
         head = min(1300, start + 60)
         img = _panel_with_header(size, src, seed, head) if src is not None else brand_background(size, seed, windows_above=int(size[1] * 0.45))
         c = Card(size, img, top, bottom)
-        _stamp_logo(c, c.right - 96, c.top)
+        rera = _stamp_maharera(c, f, c.top, *STORY_MAHARERA)   # the badge takes the logo's corner; 'Listed by' goes under it
+        if rera is None:
+            _stamp_logo(c, c.right - 96, c.top)
         if agent:
-            _pill(c, _listed_by(f) or f"Listed by {agent}", c.top)
+            _pill(c, _listed_by(f) or f"Listed by {agent}", rera[1] + 20 if rera else c.top)
         y = c.stack(items, anchor="top", gap=gap, y0=start) + 30 - gap
         y = _button(c, f"Reply {CTA_WORD}", y, btn, True) + 20
         c.block("to get the details and plan a site visit", y, 34, SOFT, 1, 22, weight="medium")
@@ -491,7 +576,7 @@ def render(kind: str, f: Facts, src: Optional[Image.Image]) -> Card:
         y = c.block(title, y, 32, SOFT, 2, 22) + 6
         if _listed_by(f):
             y = c.block(_listed_by(f), y, 26, SOFT, 1, 18, weight="medium") + 6
-        if f.rera:
+        if f.rera and f.registration is None:  # with the badge, the number is on it
             y = c.block(f"RERA: {f.rera}", y, 28, SOFT, 1, 20)
         return y
 
@@ -536,7 +621,11 @@ def render(kind: str, f: Facts, src: Optional[Image.Image]) -> Card:
             c.block(a, yy, sz, WHITE, 2, 26, x=x + 46, weight="medium")
         c.right = saved_right
     elif kind == "cta":
-        _stamp_logo(c, c.right - 96, c.top)
+        rera = _stamp_maharera(c, f, c.top)   # over the photo strip, in the logo's corner
+        if rera is None:
+            _stamp_logo(c, c.right - 96, c.top)
+        else:
+            y0 = max(y0, rera[1] + 24)
         total = cta_layout(Card(size, Image.new("RGB", size), top, bottom), 0)
         cta_layout(c, y0 + max(0, (c.bottom - y0 - total) // 2))
     else:
@@ -570,18 +659,23 @@ def save_jpeg(img: Image.Image, path: Path) -> int:
     return len(data)
 
 
-def render_all(f: Facts, media: List[dict], uploads_dir: Path, listing_id: str) -> Dict[str, dict]:
-    """Render + write all cards. Returns {kind: {path (relative under /uploads), width, height}}."""
+def render_all(f: Facts, media: List[dict], uploads_dir: Path, listing_id: str,
+               tags: Optional[Dict[Path, dict]] = None) -> Dict[str, dict]:
+    """Render + write all cards, each over its own listing photo where there are enough (card_photos). Returns {kind: {path
+    (relative under /uploads), width, height}}."""
     if not ID_RE.match(listing_id or ""):
         raise ValueError("unsafe listing id")
     uploads_dir = Path(uploads_dir)
     out_dir = uploads_dir / "marketing" / listing_id
-    src = _load_source(local_upload_path(first_photo_url(media), uploads_dir))
     kinds = ["cover", "facts"] + (["amenities"] if f.amenities else []) + ["cta", "status"]
+    photos = card_photos(media, uploads_dir, kinds, tags)
+    loaded: Dict[Optional[Path], Optional[Image.Image]] = {}
     result: Dict[str, dict] = {}
     for kind in kinds:
         size = STORY if kind == "status" else SQUARE
-        card = render(kind, f, src)
+        if photos[kind] not in loaded:
+            loaded[photos[kind]] = _load_source(photos[kind])
+        card = render(kind, f, loaded[photos[kind]])
         save_jpeg(card.img, out_dir / f"{kind}.jpg")
         result[kind] = {"path": f"/uploads/marketing/{listing_id}/{kind}.jpg", "width": size[0], "height": size[1]}
     if not f.amenities:

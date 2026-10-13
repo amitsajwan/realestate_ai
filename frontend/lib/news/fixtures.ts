@@ -9,13 +9,17 @@ const K = { key: 'kharadi', slug: 'kharadi', name: 'Kharadi' }
 const W = { key: 'wagholi', slug: 'wagholi', name: 'Wagholi' }
 const UK = { key: 'upper_kharadi', slug: 'upper-kharadi', name: 'Upper Kharadi' }
 
-const base = { kind: 'story' as const, permalinks: [], items: [], tip: '', article: [], disclaimer: DISCLAIMER, our_view: '', buyer_line: null }
+const base = {
+  kind: 'story' as const, permalinks: [], items: [], tip: '', article: [], disclaimer: DISCLAIMER, our_view: '', buyer_line: null,
+  body: [] as string[], background: '', sources: [] as NewsItem['sources'],
+}
 // the fixed lines the backend chooses for these pillars (backend/app/modules/newsroom/policy.py BUYER_LINES)
 const LINE = {
   transport: 'Worth checking: how far your shortlisted project is from this road or line.',
   maharera: "Worth checking: before a visit, open the project's MahaRERA page and match the possession date.",
   loan: 'Worth checking: ask your bank how this applies to your loan before you decide.',
   locality: 'Worth checking on a weekday visit: traffic and water at the times you would use them.',
+  rules: 'Worth checking: ask your lawyer how this applies to your purchase before you decide.',
 }
 
 export const FIXTURE_NEWS: NewsItem[] = [
@@ -63,6 +67,28 @@ export const FIXTURE_NEWS: NewsItem[] = [
     pillar: 'locality_life', pillar_label: 'Locality life', areas: [K], source_name: 'Punekar News', source_url: 'https://www.punekarnews.in/kharadi-signals',
     as_of: '2026-09-24T06:30:00+00:00', image_url: media('f6a7b8c9d0'), published_at: '2026-09-24T10:00:00+00:00',
     what_to_check: 'Check the tender notice for the junctions and the timeline.', buyer_line: LINE.locality,
+  },
+  {
+    // a researched article: written from two publishers' reports, with every source listed
+    ...base, id: 'pune-buyers-still-owed-rs-106-72-crore-under-maharera-a9b8c7',
+    headline: 'Pune buyers still owed Rs 106.72 crore under MahaRERA orders',
+    summary: 'Homebuyers in Pune district are owed Rs 106.72 crore in refunds and compensation that MahaRERA ordered, but developers have not paid.',
+    body: [
+      'According to Punekar News, the dues are spread across 176 recovery cases at the district collectorate.',
+      "When a developer ignores an order, the collector can attach and auction the developer's property to recover the money.",
+      'Hindustan Times reported that 41 of the cases involve projects in Haveli taluka.',
+    ],
+    pillar: 'rules_money', pillar_label: 'Rules and money', areas: [], source_name: 'Punekar News',
+    source_url: 'https://www.punekarnews.in/pune-homebuyers-await-refunds',
+    sources: [
+      { name: 'Punekar News', url: 'https://www.punekarnews.in/pune-homebuyers-await-refunds', is_redirect: false },
+      { name: 'Hindustan Times', url: 'https://www.hindustantimes.com/cities/pune-news/maharera-recovery-cases', is_redirect: false },
+      { name: 'The Times of India', url: null, is_redirect: false },
+    ],
+    as_of: '2026-09-30T09:00:00+00:00', image_url: null, published_at: '2026-09-30T10:00:00+00:00',
+    our_view: 'A MahaRERA order in your favour may still take a long time to turn into money. Buyers in a delayed project could weigh that before choosing refund or possession.',
+    what_to_check: "Ask the developer for the project's MahaRERA complaint history. Look up the project's registration status on the MahaRERA website.",
+    buyer_line: LINE.rules,
   },
   {
     ...base, id: 'digest-2026-w40', kind: 'digest', headline: 'Kharadi and Wagholi this week',

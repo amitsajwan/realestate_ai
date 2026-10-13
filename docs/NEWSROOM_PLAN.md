@@ -6,13 +6,18 @@ This plan makes the editorial decisions so the owner does not have to. The owner
 
 ## 1. Editorial policy (lives in one file: `policy.py`)
 
-**Pillars** (what we cover, in priority order)
-1. **Infrastructure and approvals**: metro, roads, ring road, airport, bridges, PMRDA/PMC notices. Why: changes daily life and prices, and news here is frequent.
+**Pillars** (what we cover, in priority order: what changes what a buyer pays or can claim comes first)
+1. **Rules and money**: stamp duty, ready reckoner rates, home-loan rates, RERA rules, and MahaRERA rulings that protect buyers (refunds, delay interest, projects in abeyance). City-wide: needs no area. Explained simply.
 2. **New supply (MahaRERA registrations)**: project name, locality, promoter, registered possession date. Facts only.
-3. **Rules and money**: RERA rules, stamp duty and registration changes, home-loan rate moves. Explained simply.
-4. **Locality life**: schools, hospitals, office and IT-park news, civic issues (water, traffic) in our three areas.
-5. **Buyer education (evergreen)**: checklists, myth vs fact, "how to read" guides. Fills gaps when there is no news.
-6. **Weekly digest**: one post a week, "Kharadi and Wagholi this week", 3 to 5 items.
+3. **Market**: published sales, price, supply and rent figures (CREDAI, Knight Frank, Anarock, PropEquity, Gera and the like). City-wide. Reported with the source named, never predicted.
+4. **Infrastructure and approvals near our areas**: metro, roads, ring road, bridges, PMRDA/PMC notices, airport land and building-height rules. Not air travel: flights, passenger counts and terminal parking are not property news. Frequent, so not first.
+5. **Locality life**: schools, hospitals, office and IT-park news, civic issues (water, traffic) in our areas.
+6. **Buyer education (evergreen)**: checklists, myth vs fact, "how to read" guides. Fills gaps when there is no news.
+7. **Weekly digest**: one post a week, 3 to 5 items, in the order above.
+
+**Research before writing** (`stages/research.py`). Before a word is written the newsroom reads the publisher's full article (robots.txt honoured), finds other publishers' reports of the same story from the last two weeks and reads those too, and adds background from our verified area guide. Facts are extracted from every report, each credited to the report that says it. The research (what was read, what could not be, and why) is stored on the item for the owner.
+
+**Proper articles**. A story with enough researched reporting behind it (at least 3 facts and 800 characters of real article text) becomes a full article: a standfirst, 3 to 6 paragraphs with each figure attributed, labelled background, our labelled view, what to check, and every source with its link. A headline and a line stay a short post: we do not stretch thin reporting. Social captions use the standfirst and link to the article on our site.
 
 **Formats**: short Page post (ends with a question), explainer article on the site, weekly digest, myth-vs-fact, poll. Each pillar maps to the formats that suit it.
 

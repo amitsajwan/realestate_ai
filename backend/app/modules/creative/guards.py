@@ -62,6 +62,9 @@ TAP = re.compile(r"\b(?:double[- ])?(?:tap|click)(?:ing)?\s+(?:to|the link|here|
                  r"\b(?:double[- ]tap|click here|tap here)\b|" + _dev("टॅप कर", "टैप कर", "क्लिक कर"), re.I)
 # "only", "just": a minimiser that sells ("only 3 km", "just ₹32 lakh"). "not only" and "if only" are ordinary English.
 MINIMISER = re.compile(r"(?<!\bnot )(?<!\bif )\b(?:only|just|merely)\b|" + _dev("फक्त", "केवळ", "केवल", "सिर्फ़", "सिर्फ"), re.I)
+# Engagement bait, which Meta demotes: asking people to share, tag, vote or react instead of asking a real question.
+BAIT = re.compile(r"\b(?:share (?:this|it|with)|send (?:this|it) to|tag (?:a|your|someone|them)\b|vote (?:in|below|with|for|a or b)|"
+                  r"react (?:with|if|below)|like (?:this post|if you)\b|double[- ]tap)", re.I)
 # Real listings are real: never "sample".
 SAMPLE = re.compile(r"\bsamples?\b|" + _dev("नमुना", "सॅम्पल", "सैंपल"), re.I)
 
@@ -158,6 +161,8 @@ def problems_in(text: str, corpus: str, *, allow_url: bool = False) -> List[str]
         out.append("tap or click")
     if MINIMISER.search(t):
         out.append("only/just")
+    if BAIT.search(t):
+        out.append("engagement bait")
     if SAMPLE.search(t) and not SAMPLE.search(corpus or ""):  # a project really named "Sample ..." may be named
         out.append("sample")
     claims = [m.group(0) for rx in (CLAIM, MORE_CLAIM) for m in rx.finditer(t)

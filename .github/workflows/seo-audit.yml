@@ -1,0 +1,40 @@
+name: SEO audit (live site)
+
+# Once a week, read the live site the way a search engine does (backend/app/modules/seo/audit.py): robots.txt, the sitemap and
+# up to 300 of its pages. Fails (and GitHub emails the repo owner) when a sitemap page is blocked, noindex, canonical to another
+# page, not a 200, untitled, or has broken structured data. Warnings are in the job summary. Reads only; free.
+# Site: the repository variable SEO_SITE_URL, else https://avasetu.in. Run it by hand from the Actions tab after a deploy.
+on:
+  schedule:
+    - cron: '17 3 * * 1'   # Mondays 03:17 UTC (08:47 IST)
+  workflow_dispatch:
+    inputs:
+      site:
+        description: 'Site to audit (default: SEO_SITE_URL or https://avasetu.in)'
+        required: false
+      max_pages:
+        description: 'Most sitemap pages to read'
+        required: false
+        default: '300'
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install
+      run: pip install httpx==0.25.2
+
+    - name: Audit
+      env:
+        SITE: ${{ inputs.site || vars.SEO_SITE_URL || 'https://avasetu.in' }}
+        MAX_PAGES: ${{ inputs.max_pages || '300' }}
+      run: python -m app.modules.seo.audit "$SITE" --max-pages "$MAX_PAGES"

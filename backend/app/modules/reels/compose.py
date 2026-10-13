@@ -6,6 +6,8 @@ Output: H.264 (yuv420p, High profile), 1080x1920, 30 fps, AAC stereo audio (the 
 Text stays inside the Instagram safe zone: every text line and the CTA between 14% and 72% of the height (TEXT_TOP / TEXT_BOTTOM;
 Instagram's caption, account row and the bottom bar cover roughly the last 20-28%) and left of the right 12% (TEXT_RIGHT: the like,
 comment and share buttons). Only the thin progress bar sits above TEXT_TOP.
+Text in Devanagari (a Hindi or Marathi reel) is drawn in Mukta, shaped by libraqm; Latin text stays in Poppins. Without libraqm
+(`devanagari_ok()` False) Devanagari would not join, so callers keep the screen text Roman and the renderer drops Devanagari.
 """
 from app.core import brand
 import os
@@ -13,9 +15,10 @@ import re
 import tempfile
 from dataclasses import dataclass, replace
 from pathlib import Path
+from functools import lru_cache
 from typing import Iterable, Iterator, List, Optional, Sequence, Tuple, Union
 
-from PIL import Image, ImageDraw, ImageFilter, ImageOps
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps, features
 
 from app.modules.marketing.images import GOLD, STORY, _logo, brand_background, latin, load_font
 
@@ -45,7 +48,7 @@ PHONE_RE = re.compile(r"(?<![A-Za-z0-9])(?:\+?\d[\s\-]?){9,}")
 PAD = 28
 # Which version of the look a reel was drawn with, kept in the calendar row's tags so results before and after a change of the
 # look can be told apart. Bump it with every change viewers would notice (timing, transitions, text size).
-RENDER_VERSION = "2026-10-07-smooth"   # quick text entrance, gentle punch-in, 0.35 s blends, short screens
+RENDER_VERSION = "2026-10-11-devanagari"   # Hindi and Marathi screen text in Devanagari (Mukta); English reels look the same
 TEXT_IN = 0.22         # a later scene's text is fully in this many seconds after its cut (no delay: never an empty screen)
 PUNCH_SCALE = 0.035    # each new picture starts 3.5% zoomed in ...
 PUNCH_SECONDS = 0.7    # ... and eases out over this long: a gentle push, not a jolt
@@ -53,6 +56,8 @@ TEXT_HANDOVER = (0.4, 0.6)   # during a blend the new text starts at 40% of it a
 MAX_SCREEN_WORDS = 8   # on-screen text longer than this is split over quick screens (most people watch muted and read)
 TAG_Y = TEXT_TOP               # the brand tag row (logo + name), under the progress bar
 CONTENT_TOP = TAG_Y + 94       # 362: below the brand tag row
+BADGE_ROW = 64 + 24            # the outlined badge (drawn at CONTENT_TOP - 4) and a gap under it
+OVERLAY_GAP = 36               # between a scene's overlay (the MahaRERA badge) and its text
 
 
 class ReelError(Exception):
@@ -84,6 +89,14 @@ class Scene:
     brand_mark: bool = False                            # small logo + name above the text (set on the last scene by Renderer)
     screen: bool = False                                # `image` is a designed frame (a product screen in a phone): shown as it is,
                                                         # with no dark scrim, no parallax and only a gentle zoom
+    reveal: Optional[Sequence[float]] = None            # a stacked list: seconds after the scene starts at which each line appears
+                                                        # (one per line). The stack is laid out at its final size, so a line that
+                                                        # joins never moves the ones already there; a line at 0 is there on frame one
+    images: Sequence = ()                               # more photos behind the same text (a walkthrough under a stacked list): images[k]
+    image_at: Sequence[float] = ()                      # takes over from the one before at image_at[k] seconds, with a short blend
+    overlay: Optional[Image.Image] = None               # RGBA drawn as it is at the top right under the brand row (the MahaRERA
+                                                        # badge); the scene's text keeps below it
+    overlay_at: float = 0.0                             # seconds after the scene starts at which the overlay comes in
 
 
 def end_scene(seconds: float = 2.6) -> Scene:
@@ -216,12 +229,74 @@ def active_scenes(tl: Timeline, t: float) -> List[Tuple[int, float]]:
     return [(out[0] if out else len(tl.starts) - 1, 1.0)]
 
 
+# ---- fonts: Poppins for Latin text, Mukta for Devanagari ---------------------------------------------------------------
+# The creative cards' Mukta files (SIL OFL; Devanagari, Latin and the rupee sign): one copy in the repo.
+DEVANAGARI_FONT_DIR = Path(__file__).resolve().parent.parent / "creative" / "assets" / "fonts"
+DEVANAGARI_FONTS = {"regular": "Mukta-Regular.ttf", "medium": "Mukta-Medium.ttf", "semibold": "Mukta-SemiBold.ttf",
+                    "bold": "Mukta-Bold.ttf"}
+DEVANAGARI_RE = re.compile(r"[\u0900-\u097F]")
+# Line step as a share of the font size. Poppins: 1.17. In Mukta, Devanagari ink runs from about 0.21 to 1.41 of the size below
+# the line's top (vowel signs above the headline, conjuncts and the u / ri signs below it), so its lines step 1.30: about 0.1 of
+# the size between one line's lowest sign and the next line's highest.
+STEP = 1.17
+STEP_DEVANAGARI = 1.30
+
+
+def has_devanagari(text: Optional[str]) -> bool:
+    return bool(DEVANAGARI_RE.search(text or ""))
+
+
+@lru_cache(maxsize=1)
+def devanagari_ok() -> bool:
+    """True when Devanagari can be drawn properly here: Pillow has libraqm (it joins the letters and places the vowel signs)
+    and the Mukta files are there. Without it the screen text stays Roman (as before) and no reel breaks."""
+    try:
+        if not features.check("raqm"):
+            return False
+        ImageFont.truetype(str(DEVANAGARI_FONT_DIR / DEVANAGARI_FONTS["bold"]), 20, layout_engine=ImageFont.Layout.RAQM)
+        return True
+    except Exception:
+        return False
+
+
+@lru_cache(maxsize=96)
+def devanagari_font(size: int, weight: str = "regular"):
+    """Mukta at `size`, laid out by libraqm. Only used when devanagari_ok()."""
+    return ImageFont.truetype(str(DEVANAGARI_FONT_DIR / DEVANAGARI_FONTS.get(weight, DEVANAGARI_FONTS["regular"])), size,
+                              layout_engine=ImageFont.Layout.RAQM)
+
+
+def _devanagari_text(text: Optional[str]) -> bool:
+    """Draw this text in Mukta: it has Devanagari and the shaper is here."""
+    return has_devanagari(text) and devanagari_ok()
+
+
+def text_font(size: int, weight: str = "regular", devanagari: bool = False):
+    return devanagari_font(size, weight) if devanagari else load_font(size, weight)
+
+
+def is_devanagari_font(font) -> bool:
+    return Path(getattr(font, "path", "") or "").name in DEVANAGARI_FONTS.values()
+
+
+def line_step(font) -> int:
+    """Distance from one line's top to the next one's, for this font."""
+    return int(font.size * (STEP_DEVANAGARI if is_devanagari_font(font) else STEP))
+
+
+def devanagari_clean(s: Optional[str]) -> str:
+    """Screen text drawn in Mukta: Devanagari, the Latin letters, digits and signs the cards use, and the joiners Devanagari
+    needs (ZWNJ, ZWJ). Anything else (emoji, other scripts) is dropped rather than drawn as a box."""
+    return "".join(c for c in (s or "") if ord(c) < 0x250 or "\u0900" <= c <= "\u097F" or c in "–—’₹\u200c\u200d").strip()
+
+
 # ---- text layers ----------------------------------------------------------------------------------------------------
-def _tokens(text: str) -> List[Tuple[str, bool, bool]]:
-    """(word, gold, glued): `glued` = no space before it (punctuation right after a gold word stays attached)."""
+def _tokens(text: str, devanagari: bool = False) -> List[Tuple[str, bool, bool]]:
+    """(word, gold, glued): `glued` = no space before it (punctuation right after a gold word stays attached).
+    `devanagari`: the text is drawn in Mukta, so its Devanagari is kept (otherwise only Latin is: marketing.images.latin)."""
     out: List[Tuple[str, bool, bool]] = []
     prev_end_space = True
-    for i, part in enumerate(latin(text).split("*")):
+    for i, part in enumerate((devanagari_clean(text) if devanagari else latin(text)).split("*")):
         words = part.split()
         lead = part[:1].isspace() if part else True
         for k, w in enumerate(words):
@@ -277,6 +352,7 @@ class Item:
     x: int
     y: int
     box: Tuple[int, int, int, int]  # the visible text/shape box in frame coordinates (used for safe-zone checks)
+    block: int = 0             # which of the scene's lines it belongs to (Scene.reveal); the kicker goes with the first, the mark with the last
 
 
 def _shadowed(w: int, h: int, draw_fn, strength: float = 0.55) -> Image.Image:
@@ -316,18 +392,29 @@ def _pill(tw: int, h: int, fill, outline=None) -> Image.Image:
 
 
 def _chip_item(text: str, y: int, align: str, filled: bool = True) -> Item:
-    font = load_font(34, "semibold")
-    label = latin(text).upper()
-    tw = int(sum(_DRAW.textlength(c, font=font) + 2 for c in label)) + 60
     h = 64
+    ink = (*INK, 255) if filled else (255, 255, 255, 255)
+    deva = _devanagari_text(text)
+    if deva:   # a Devanagari label is one shaped run (letter spacing would break the joins), centred on its ink
+        font = devanagari_font(34, "semibold")
+        label = devanagari_clean(text)
+        tw = int(_DRAW.textlength(label, font=font)) + 60
+    else:
+        font = load_font(34, "semibold")
+        label = latin(text).upper()
+        tw = int(sum(_DRAW.textlength(c, font=font) + 2 for c in label)) + 60
     x0 = SIDE if align == "left" else (W - tw) // 2
     img = Image.new("RGBA", (tw + 2 * PAD, h + 2 * PAD), (0, 0, 0, 0))
     pill = _pill(tw, h, (*GOLD, 255)) if filled else _pill(tw, h, (8, 10, 16, 150), (255, 255, 255, 235))
     img.alpha_composite(pill, (PAD, PAD))
     d = ImageDraw.Draw(img)
     x = PAD + 30
+    if deva:
+        top, bottom = font.getbbox(label)[1::2]
+        d.text((x, PAD + (h - top - bottom) // 2), label, font=font, fill=ink)
+        return Item(img, x0 - PAD, y - PAD, (x0, y, x0 + tw, y + h))
     for ch in label:
-        d.text((x, PAD + 9), ch, font=font, fill=(*INK, 255) if filled else (255, 255, 255, 255))
+        d.text((x, PAD + 9), ch, font=font, fill=ink)
         x += d.textlength(ch, font=font) + 2
     return Item(img, x0 - PAD, y - PAD, (x0, y, x0 + tw, y + h))
 
@@ -369,9 +456,14 @@ def layout_scene(scene: Scene) -> List[Item]:
         return _end_items()
     align = scene.align or ("left" if scene.layout == "lower" else "center")
     lines = [l if isinstance(l, TextLine) else TextLine(l) for l in scene.lines]
+    if scene.reveal is not None and len(scene.reveal) != len(lines):
+        raise ReelError("a stacked list needs one reveal time per line")
     lines = [l for l in lines if l.text]
     bottom = TEXT_BOTTOM
-    avail = bottom - CONTENT_TOP
+    top = CONTENT_TOP + (BADGE_ROW if scene.badge else 0)   # a full screen of text never runs into the badge
+    if scene.overlay is not None:                            # nor into the overlay at the top right
+        top = max(top, CONTENT_TOP + scene.overlay.size[1] + OVERLAY_GAP)
+    avail = bottom - top
     max_w = TEXT_W if align == "left" else TEXT_W_CENTER
     shrink = 1.0
     for _ in range(10):
@@ -380,41 +472,42 @@ def layout_scene(scene: Scene) -> List[Item]:
             size, weight, color, mx = _default_spec(i, scene.layout)
             size = int((tl.size or size) * shrink)
             weight, color, mx = tl.weight or weight, tl.color or color, tl.max_lines or mx
-            fnt = load_font(size, weight)
-            toks = _tokens(tl.text)
+            deva = _devanagari_text(tl.text)   # measured, wrapped and drawn with the same font and layout engine
+            fnt = text_font(size, weight, deva)
+            toks = _tokens(tl.text, deva)
             wr = _wrap_balanced(toks, fnt, max_w)
             while len(wr) > mx and size > 34:
                 size -= 4
-                fnt = load_font(size, weight)
+                fnt = text_font(size, weight, deva)
                 wr = _wrap_balanced(toks, fnt, max_w)
             blocks.append([(ln, fnt, color) for ln in wr])
         chip_h = 64 + 36 if scene.kicker else 0
         mark_h = MARK_D + 40 if scene.brand_mark else 0
-        total = mark_h + chip_h + sum(len(b) * int(b[0][1].size * 1.17) + 30 for b in blocks) - (30 if blocks else 0)
+        total = mark_h + chip_h + sum(len(b) * line_step(b[0][1]) + 30 for b in blocks) - (30 if blocks else 0)
         if blocks:  # the last line's glyph box (ascent + descent) can reach below its line step
             last = blocks[-1][-1][1]
-            total += max(0, sum(last.getmetrics()) - int(last.size * 1.17))
+            total += max(0, sum(last.getmetrics()) - line_step(last))
         if total <= avail:
             break
         shrink *= 0.9
     if scene.layout == "lower":
         y = bottom - total
     elif scene.layout == "top":
-        y = CONTENT_TOP
+        y = top
     else:
-        y = CONTENT_TOP + (avail - total) // 2 + 20
-    y = max(y, CONTENT_TOP)
+        y = min(top + (avail - total) // 2 + 20, bottom - total)   # the nudge down never pushes a full screen past the zone
+    y = max(y, top)
     items: List[Item] = []
     if scene.brand_mark:
-        items.append(_mark_item(y, align))
+        items.append(replace(_mark_item(y, align), block=max(0, len(blocks) - 1)))
         y += mark_h
     if scene.kicker:
         items.append(_chip_item(scene.kicker, y, align))
         y += chip_h
-    for b in blocks:
+    for i, b in enumerate(blocks):
         for ln, fnt, color in b:
-            items.append(_text_item(ln, fnt, color, align, y))
-            y += int(fnt.size * 1.17)
+            items.append(replace(_text_item(ln, fnt, color, align, y), block=i))
+            y += line_step(fnt)
         y += 30
     return items
 
@@ -462,18 +555,21 @@ def _load(image) -> Optional[Image.Image]:
         raise ReelError("could not read a scene image")
 
 
-class _Prepared:
-    """A scene with its base image scaled once, its scrim and text items laid out, ready to draw at any time."""
+IMAGE_BLEND = 0.35   # a photo change behind a stacked list: a quick blend, the text stays still
 
-    def __init__(self, scene: Scene, index: int, is_first: bool):
-        self.scene, self.index = scene, index
-        src = _load(scene.image)
+
+class _Backdrop:
+    """One picture with its own slow motion (zoom, pan, 2.5D parallax), drawn at any point of its time on screen."""
+
+    def __init__(self, image, scene: Scene, index: int):
+        src = _load(image)
         self.has_photo = src is not None
         if src is None:
             tall = 0.2 if scene.kind == "end" else 0.24
             src = brand_background((W, H), scene.seed, skyline=True, floor=0.985, tall=tall)
         s = max(W / src.width, H / src.height)
         self.base = src.resize((max(W, round(src.width * s)), max(H, round(src.height * s))), Image.LANCZOS)
+        self.index = index
         flip = index % 2
         self.z0, self.z1 = (1.0, 1.10) if not flip else (1.10, 1.0)
         if self.has_photo and self.base.width > W * 1.25:   # landscape photo in a portrait frame: pan across it
@@ -493,10 +589,43 @@ class _Prepared:
                 self.depth = None
         if self.depth is not None:  # with parallax the zoom stays gentle so the depth motion reads clearly
             self.z0, self.z1 = (1.02, 1.07) if not flip else (1.07, 1.02)
+
+    def view(self, p: float, zoom: float = 1.0) -> Image.Image:
+        z = (self.z0 + (self.z1 - self.z0) * p) * zoom
+        bw, bh = self.base.size
+        ww, wh = min(W / z, bw), min(H / z, bh)
+        cx = (self.fx0 + (self.fx1 - self.fx0) * p) * bw
+        cy = (self.fy0 + (self.fy1 - self.fy0) * p) * bh
+        x0 = min(max(cx - ww / 2, 0), bw - ww)
+        y0 = min(max(cy - wh / 2, 0), bh - wh)
+        view = self.base.resize((W, H), Image.BILINEAR, box=(x0, y0, x0 + ww, y0 + wh))
+        if self.depth is None:
+            return view
+        import cv2
+        dcrop = self.depth[int(y0):int(y0 + wh), int(x0):int(x0 + ww)]
+        d = cv2.resize(dcrop, (W, H), interpolation=cv2.INTER_LINEAR)
+        swing = (p - 0.5) * 2 * (1 if self.index % 2 == 0 else -1)
+        from .depth import parallax
+        return parallax(view, d, shift_x=34 * swing, shift_y=-10 * swing)
+
+
+class _Prepared:
+    """A scene with its base image scaled once, its scrim and text items laid out, ready to draw at any time."""
+
+    def __init__(self, scene: Scene, index: int, is_first: bool):
+        self.scene, self.index = scene, index
+        if len(scene.images) != len(scene.image_at):
+            raise ReelError("each extra image needs the time it comes in")
+        self.backdrops = [_Backdrop(scene.image, scene, index)] + [_Backdrop(im, scene, index + k + 1) for k, im in enumerate(scene.images)]
+        self.backdrop_at = [0.0] + [float(t) for t in scene.image_at]
+        self.has_photo = self.backdrops[0].has_photo
         self.mask = self._scrim_mask()
         self.solid = Image.new("RGB", (W, H), NAVY_BLACK)
         self.items = layout_scene(scene)
+        self.reveal = [t for l, t in zip(scene.lines, scene.reveal) if (l.text if isinstance(l, TextLine) else l)] if scene.reveal else None
+        self.is_first = is_first
         self.badge = _chip_item(scene.badge, CONTENT_TOP - 4, "left", filled=False) if scene.badge else None
+        self.overlay = _overlay_item(scene.overlay) if scene.overlay is not None else None
         # The opening scene has no entrance animation: frame one already shows the whole hook, so it is readable before anyone
         # swipes away (and the cover image, a still of that frame, shows it too). Later scenes pop their text in from the cut:
         # a slow fade after a delay left the screen empty for about a second right after the hook (the moment viewers decide).
@@ -517,28 +646,40 @@ class _Prepared:
         return grad.point(lut)
 
     def background(self, p: float, lt: float = 1.0) -> Image.Image:
-        z = (self.z0 + (self.z1 - self.z0) * p) * (1 + self.punch * (1 - ease_out_cubic(lt / PUNCH_SECONDS)))
-        bw, bh = self.base.size
-        ww, wh = min(W / z, bw), min(H / z, bh)
-        cx = (self.fx0 + (self.fx1 - self.fx0) * p) * bw
-        cy = (self.fy0 + (self.fy1 - self.fy0) * p) * bh
-        x0 = min(max(cx - ww / 2, 0), bw - ww)
-        y0 = min(max(cy - wh / 2, 0), bh - wh)
-        view = self.base.resize((W, H), Image.BILINEAR, box=(x0, y0, x0 + ww, y0 + wh))
-        if self.depth is None:
-            return view
-        import cv2
-        dcrop = self.depth[int(y0):int(y0 + wh), int(x0):int(x0 + ww)]
-        d = cv2.resize(dcrop, (W, H), interpolation=cv2.INTER_LINEAR)
-        swing = (p - 0.5) * 2 * (1 if self.index % 2 == 0 else -1)
-        from .depth import parallax
-        return parallax(view, d, shift_x=34 * swing, shift_y=-10 * swing)
+        """The scene's picture at progress p. With several pictures each one moves over its own stretch of the scene, lands with
+        the same gentle punch-in as a cut, and blends in over IMAGE_BLEND seconds."""
+        punch = lambda t, amount: 1 + amount * (1 - ease_out_cubic(t / PUNCH_SECONDS))
+        if len(self.backdrops) == 1:
+            return self.backdrops[0].view(p, punch(lt, self.punch))
+        dur = lt / p if p > 0 else (self.scene.seconds or 1.0)   # the scene's length as planned (plan() may have scaled it)
+        ends = self.backdrop_at[1:] + [max(dur, self.backdrop_at[-1] + 1e-3)]
+        k = max(i for i, t in enumerate(self.backdrop_at) if t <= lt)
+
+        def draw(i):
+            t0, t1 = self.backdrop_at[i], ends[i] + (IMAGE_BLEND if i < k else 0.0)
+            amount = self.punch if i == 0 else PUNCH_SCALE
+            return self.backdrops[i].view(clamp01((lt - t0) / max(1e-3, t1 - t0)), punch(lt - t0, amount))
+
+        cur = draw(k)
+        w = (lt - self.backdrop_at[k]) / IMAGE_BLEND
+        if k == 0 or w >= 1:
+            return cur
+        return Image.blend(draw(k - 1), cur, ease_in_out_cubic(w))
 
     def badge_alpha(self, lt: float) -> float:
         return ease_out_cubic(lt / TEXT_IN) if self.animate else 1.0
 
+    def overlay_alpha(self, lt: float) -> float:
+        at = self.scene.overlay_at
+        return ease_out_cubic((lt - max(at, self.delay)) / self.fade) if (at > 0 or self.animate) else 1.0
+
     def item_alpha(self, k: int, lt: float) -> float:
         """Opacity (and so the rise offset) of the k-th text item at scene time lt: 1.0 means in its final place."""
+        if self.reveal:  # a stacked list: each line pops in at its own time and stays; the opening scene's first line is there on frame one
+            at = self.reveal[self.items[k].block]
+            if at <= 0 and self.is_first:
+                return 1.0
+            return ease_out_cubic((lt - max(at, self.delay)) / self.fade)
         return ease_out_cubic((lt - self.delay - self.stagger * k) / self.fade) if self.animate else 1.0
 
     def frame(self, lt: float, p: float, text_a: float = 1.0) -> Image.Image:
@@ -546,9 +687,18 @@ class _Prepared:
         img = Image.composite(self.solid, self.background(p, lt), self.mask)
         if self.badge:
             _blit(img, self.badge, self.badge_alpha(lt), rise=0)
+        if self.overlay:
+            _blit(img, self.overlay, self.overlay_alpha(lt) * text_a, rise=0)
         for k, it in enumerate(self.items):
             _blit(img, it, self.item_alpha(k, lt) * text_a, rise=24)
         return img
+
+
+def _overlay_item(overlay: Image.Image) -> Item:
+    """A scene's overlay, right-aligned to the text edge (clear of the like and share buttons) under the brand row."""
+    w, h = overlay.size
+    x, y = TEXT_RIGHT - w, CONTENT_TOP
+    return Item(overlay.convert("RGBA"), x, y, (x, y, x + w, y + h))
 
 
 def _blit(img: Image.Image, it: Item, a: float, rise: int = 46) -> None:

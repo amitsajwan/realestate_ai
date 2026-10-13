@@ -7,9 +7,19 @@ from pymongo.errors import DuplicateKeyError
 _ids = itertools.count(1)
 
 
+def _get(doc, key):
+    """A field, following dotted paths ("dm.id") as Mongo does."""
+    val = doc
+    for part in key.split("."):
+        if not isinstance(val, dict):
+            return None
+        val = val.get(part)
+    return val
+
+
 def _match(doc, flt):
     for key, cond in flt.items():
-        val = doc.get(key)
+        val = _get(doc, key)
         if isinstance(cond, dict):
             for op, arg in cond.items():
                 if op == "$gte" and not (val is not None and val >= arg):
@@ -17,6 +27,8 @@ def _match(doc, flt):
                 if op == "$gt" and not (val is not None and val > arg):
                     return False
                 if op == "$in" and val not in arg:
+                    return False
+                if op == "$nin" and val in arg:
                     return False
         elif isinstance(val, list) and not isinstance(cond, list):
             if cond not in val:  # Mongo array-membership semantics
@@ -75,7 +87,14 @@ class FakeCollection:
     @staticmethod
     def _apply(d, update):
         for k, v in update.get("$set", {}).items():
-            d[k] = v
+            *path, last = k.split(".")
+            node = d
+            for part in path:   # "facts.3": into the dict or list, as Mongo's dotted paths do
+                node = node[int(part)] if isinstance(node, list) else node.setdefault(part, {})
+            if isinstance(node, list):
+                node[int(last)] = v
+            else:
+                node[last] = v
         for k, v in update.get("$inc", {}).items():
             d[k] = d.get(k, 0) + v
         for k, v in update.get("$addToSet", {}).items():

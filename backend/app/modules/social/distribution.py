@@ -90,6 +90,32 @@ async def page_feed_post(cfg: SocialConfig, text: str, link: Optional[str], when
     return str(body["id"])
 
 
+async def page_comment(cfg: SocialConfig, object_id: str, text: str, transport=None) -> str:
+    """A comment by the Page on one of its own posts or reels (a Facebook reel's description link is often not tappable, a
+    comment's link is). Returns the comment id."""
+    url = f"{GRAPH_HOST}/{cfg.graph_version}/{quote(str(object_id), safe='')}/comments"
+    try:
+        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_S, transport=transport) as c:
+            resp = await c.post(url, data={"message": text, "access_token": cfg.page_token})
+    except httpx.TimeoutException:
+        raise PublishError("Graph API request timed out")
+    except httpx.HTTPError as e:
+        raise PublishError(sanitize(f"Graph API request failed ({type(e).__name__})", cfg.secrets))
+    try:
+        body = resp.json()
+    except ValueError:
+        body = None
+    if not isinstance(body, dict):
+        raise PublishError(f"Graph API returned HTTP {resp.status_code} with an unexpected body")
+    err = body.get("error")
+    if err or resp.status_code >= 400:
+        e = err if isinstance(err, dict) else {}
+        raise PublishError(sanitize(f"Graph API error {e.get('code', resp.status_code)}: {e.get('message') or 'unknown error'}", cfg.secrets))
+    if not body.get("id"):
+        raise PublishError("Graph API did not return a comment id")
+    return str(body["id"])
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 

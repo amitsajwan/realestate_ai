@@ -173,7 +173,7 @@ async def approve(id: str, body: ApproveBody, user: User = Depends(owner_only), 
         new_draft = replace(codec.draft(doc), text=body.text.strip())
         fields["draft"] = codec.to_doc(new_draft)
         if checker is not None:
-            res = checker(new_draft, codec.facts(doc), codec.raw_item(doc))
+            res = checker(new_draft, codec.facts(doc), codec.evidence(doc))
             res = await res if inspect.isawaitable(res) else res
             if not res.ok:
                 raise HTTPException(422, {"message": "Edited text did not pass the checks", "problems": res.problems})

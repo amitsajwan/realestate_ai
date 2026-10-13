@@ -10,6 +10,8 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from app.modules.calendar.store import Store as CalendarStore, aware
 
+WALKTHROUGH_EXPERIMENT = "walkthrough_style"   # calendar tag: experiment + variant tour | stack (jobs.walkthrough_style)
+
 IST = timezone(timedelta(hours=5, minutes=30))
 POST_TIMES = (time(11, 0), time(19, 0))   # 2 a day on each channel (owner, 2026-10-08): lunchtime and after work, IST
 MIN_GAP = timedelta(hours=6)   # posts on a channel at least 6 hours apart (calendar.plan.daily_gap for more than one a day)
@@ -128,8 +130,10 @@ def items(run: dict, link_line: str) -> List[Dict]:
                     {"layout": "slides_reel", "template": "campaign"})
             elif r["kind"] == "walkthrough" and r.get("status") == "done":
                 caption = r.get("caption") or (run["posts"][0]["caption"] if run.get("posts") else "")
+                style = r.get("style") or "tour"
                 add(slug_for(lid, "walkthrough"), channel, "reel", caption, [], _rel(r["video"]), "walkthrough",
-                    {"layout": "walkthrough_reel", "template": "campaign"})
+                    {"layout": "stacked_walkthrough_reel" if style == "stack" else "walkthrough_reel", "template": "campaign",
+                     "experiment": WALKTHROUGH_EXPERIMENT, "variant": style, "language": r.get("language") or "en"})
             elif r["kind"] == "video" and r.get("status") == "done":   # the agent's own video, on both channels
                 caption = r.get("caption") or (run["posts"][0]["caption"] if run.get("posts") else "")
                 add(slug_for(lid, "video"), channel, "reel", caption, [], _rel(r["video"]), "video",

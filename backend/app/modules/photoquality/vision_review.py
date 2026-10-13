@@ -134,14 +134,20 @@ class OpenAIVision:
         self.url = f"{base_url.rstrip('/')}/chat/completions"
 
     async def review(self, images: List[bytes], prompt: str) -> Optional[Dict[str, Any]]:
+        return await self.ask(images, prompt, SYSTEM)
+
+    async def ask(self, images: List[bytes], prompt: str, system: str, max_tokens: int = 600,
+                  retry: bool = True) -> Optional[Dict[str, Any]]:
+        """The first JSON object of the reply to `system` + `prompt` + up to MAX_IMAGES images, or None. Never raises.
+        `retry=False`: a 429 gives up at once (the caller has a fallback and should not wait)."""
         content: List[Dict[str, Any]] = [{"type": "text", "text": prompt}]
         for b in images[:self.max_images]:
             content.append({"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(b).decode()}})
-        body = {"model": self.model, "temperature": 0, "max_completion_tokens": 600,
-                "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": content}]}
+        body = {"model": self.model, "temperature": 0, "max_completion_tokens": max_tokens,
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}]}
         headers = {"Authorization": f"Bearer {self.api_key}"}
         try:
-            for attempt in (1, 2):
+            for attempt in ((1, 2) if retry else (2,)):
                 if self._client:
                     r = await self._client.post(self.url, json=body, headers=headers, timeout=self.timeout)
                 else:
@@ -174,7 +180,13 @@ OPENROUTER_VISION_MODEL = "google/gemma-4-31b-it:free"   # reads Marathi and Hin
 def default_clients() -> List[VisionClient]:
     if (os.environ.get("AI_VISION_REVIEW") or "on").strip().lower() == "off":
         return []
-    out: List[VisionClient] = []
+    return list(provider_chain())
+
+
+def provider_chain(timeout: float = TIMEOUT) -> List[OpenAIVision]:
+    """The configured vision providers in order (see the module docstring), each with `timeout`. The callers check the off
+    switches."""
+    out: List[OpenAIVision] = []
     key = os.environ.get("AI_VISION_API_KEY")
     if not key:
         from app.platform.llm import groq_api_key
@@ -184,18 +196,19 @@ def default_clients() -> List[VisionClient]:
     keys = [key] * bool(key) + [k for k in extra_keys("GROQ_API_KEYS") if k != key]
     for k in keys:   # every Groq key has its own per-minute limit: a busy one passes to the next
         for model in [m.strip() for m in (os.environ.get("AI_VISION_MODEL") or DEFAULT_VISION_MODEL).split(",") if m.strip()]:
-            out.append(OpenAIVision(k, model, base))
+            out.append(OpenAIVision(k, model, base, timeout=timeout))
     for k in extra_keys("OPENROUTER_API_KEYS"):
-        out.append(OpenAIVision(k, os.environ.get("AI_OPENROUTER_VISION_MODEL") or OPENROUTER_VISION_MODEL, "https://openrouter.ai/api/v1"))
+        out.append(OpenAIVision(k, os.environ.get("AI_OPENROUTER_VISION_MODEL") or OPENROUTER_VISION_MODEL, "https://openrouter.ai/api/v1",
+                                timeout=timeout))
     fb_model = os.environ.get("AI_VISION_FALLBACK_MODEL")
     fb_key = os.environ.get("AI_VISION_FALLBACK_API_KEY") or os.environ.get("AI_LLM_FALLBACK_API_KEY")
     fb_base = os.environ.get("AI_VISION_FALLBACK_BASE_URL") or os.environ.get("AI_LLM_FALLBACK_BASE_URL")
     if fb_model and fb_key and fb_base:
-        out.append(OpenAIVision(fb_key, fb_model, fb_base))
+        out.append(OpenAIVision(fb_key, fb_model, fb_base, timeout=timeout))
     for key_var, base, model_var, model, per_request, trusted in EXTRA_VISION_PROVIDERS:
         if os.environ.get(key_var):
-            out.append(OpenAIVision(os.environ[key_var], os.environ.get(model_var) or model, base, max_images=per_request,
-                                    trusted=trusted))
+            out.append(OpenAIVision(os.environ[key_var], os.environ.get(model_var) or model, base, timeout=timeout,
+                                    max_images=per_request, trusted=trusted))
     return out
 
 

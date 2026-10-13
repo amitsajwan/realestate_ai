@@ -8,6 +8,7 @@ MahaRERA's public search filters by project name (verified 2026-10-06; its `regn
 by name, then told apart from same-named projects by its registration number or its taluka. A wrong match would put another
 project's dates on a post, so anything unclear is left unmatched and says why."""
 import asyncio
+import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -18,9 +19,12 @@ from app.modules.agentprojects.maharera import MahaReraError, parse_general
 from app.modules.newsroom.register import maharera_id
 from app.modules.newsroom.sources.maharera import PUNE_DISTRICT, SEARCH, parse_projects, parse_total
 from app.modules.newsroom.types import MahaReraProject
+from app.platform import trace
 
 from .facts import Reading
 from .place import Place
+
+log = logging.getLogger(__name__)
 
 GetText = Callable[[str], Awaitable[str]]                 # url -> body text
 FetchGeneral = Callable[[int], Awaitable[Optional[dict]]]  # MahaRERA internal id -> general-details answer
@@ -186,9 +190,11 @@ async def lookup(get_text: GetText, fetch_general: FetchGeneral, name: str, rera
         return Match(None, "the listing has no project name to search MahaRERA by"), []
     found = await search(get_text, name)
     if found is None:
+        trace.event(log, "rera", rera_no or name, "lookup", trace.FAILED, reason=f"MahaRERA search did not answer after {TRIES} tries")
         return Match(None, "could not check MahaRERA right now (its search did not answer); try again later"), []
     m = choose(found, name, rera_no, place)
     if m.project is None:
+        trace.event(log, "rera", rera_no or name, "lookup", trace.SKIPPED, reason=m.how, found=len(found))
         return m, []
     general = None
     mid = maharera_id(m.project.url)
@@ -196,6 +202,9 @@ async def lookup(get_text: GetText, fetch_general: FetchGeneral, name: str, rera
         body = await fetch_general(mid)
         try:
             general = parse_general(body, m.project.regno, mid) if body else None
-        except MahaReraError:
+        except MahaReraError as e:
+            trace.event(log, "rera", m.project.regno, "project_details", trace.FAILED, reason=str(e))
             general = None
+    trace.event(log, "rera", m.project.regno, "lookup", trace.OK if general else trace.FALLBACK, how=m.how,
+                details="read" if general else "not read (card only)")
     return m, readings(m.project, general, now)

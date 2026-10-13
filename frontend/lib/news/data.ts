@@ -28,6 +28,12 @@ export interface NewsItem {
   /** The fixed 'Worth checking: ...' line the social captions carry (chosen by the backend from a fixed list per pillar), or null when the
    *  item has none (education and digest items). */
   buyer_line: string | null
+  /** A researched article's paragraphs after `summary` (its standfirst); [] for a short note. */
+  body: string[]
+  /** Context from our own area guide, labelled as ours; '' when the article has none. */
+  background: string
+  /** Every report the item was written from, in order. `url` may be a Google redirect (`is_redirect`): link it, never print it. */
+  sources: Array<{ name: string; url: string | null; is_redirect: boolean }>
   disclaimer: string
   /** A digest's entries; `linked` is false for one with no page of its own (a MahaRERA project in a roundup). */
   items: Array<{ id: string; headline: string; source_name: string; line: string; linked: boolean }>
@@ -73,6 +79,13 @@ export function cleanNewsItem(raw: unknown): NewsItem | null {
     as_of: str(r.as_of) || null, image_url: https(r.image_url) ? r.image_url : null, permalinks: links,
     published_at: str(r.published_at) || null, our_view: str(r.our_view), what_to_check: str(r.what_to_check),
     buyer_line: str(r.buyer_line).trim() || null,
+    body: (Array.isArray(r.body) ? r.body : []).flatMap((p) => (typeof p === 'string' && p.trim() ? [p.trim()] : [])),
+    background: str(r.background),
+    sources: (Array.isArray(r.sources) ? r.sources : []).flatMap((s): NewsItem['sources'] => {
+      const o = s as Record<string, unknown>
+      return o && typeof o.name === 'string' && o.name.trim()
+        ? [{ name: o.name.trim(), url: https(o.url) ? o.url : null, is_redirect: o.is_redirect === true }] : []
+    }),
     disclaimer: str(r.disclaimer), items, tip: str(r.tip), article,
   }
 }
@@ -147,6 +160,11 @@ export const NEWS_TEXT = {
   error: 'News is not loading right now',
   errorLead: 'Please try again in a minute, or see our latest posts on Facebook or Instagram.',
   badge: 'Summary of a news report',
+  articleBadge: (n: number) => (n > 1 ? `Written from ${n} news reports` : 'Written from a news report'),
+  articleNote: 'Our article in our own words. The facts are from the reports named below.',
+  backgroundHeading: 'Background',
+  backgroundNote: 'From our own area guide, not from the reports.',
+  sourcesHeading: (n: number) => (n > 1 ? 'Sources' : 'Source'),
   asOf: 'As of',
   readOriginal: (source: string) => `Read the original at ${source || 'the source'}`,
   weCheck: 'What to check',

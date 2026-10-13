@@ -201,6 +201,26 @@ def _norm(s: str) -> str:
     return re.sub(r"\W+", " ", s.lower()).strip()
 
 
+async def read_page(url: str, get: Fetcher, robots: Optional[RobotsCache] = None) -> Tuple[str, str, str]:
+    """(body, meta summary, why not) for one article page. Body is "" when robots.txt says no, the page cannot be fetched (Google
+    News redirects are never fetched) or it yields less than MIN_BODY of main text; `why not` then says which. Never raises."""
+    if not url or _is_google_redirect(url):
+        return "", "", "Google News link: the publisher page is not known"
+    robots = robots or RobotsCache()
+    try:
+        if not await robots.allowed(url, get):
+            return "", "", "robots.txt does not allow reading this page"
+        html = await get(url)
+    except Exception as e:
+        return "", "", f"page could not be fetched ({type(e).__name__})"
+    if not isinstance(html, str):
+        return "", "", "page was not text"
+    body, summary = _extract(html)
+    if len(body) < MIN_BODY:
+        return "", summary, "no article text on the page (script-built page or paywall)"
+    return body, summary, ""
+
+
 # ---- the stage ----
 async def read(item: RawItem, get: Fetcher, robots: Optional[RobotsCache] = None,
                resolve: Optional[Callable[[str], Awaitable[Optional[str]]]] = None) -> RawItem:

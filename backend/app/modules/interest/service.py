@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import Callable, Optional
 
 from app.modules.tracking import limits
+from app.modules.tracking import requirement as reqmod
 from app.modules.tracking.schemas import InquiryIn
 from app.modules.tracking.service import TrackingError, TrackingService
 
@@ -25,7 +26,13 @@ KINDS = ("listing", "post", "page")
 CHANNELS = ("facebook", "instagram", "website", "whatsapp", "youtube")
 MAX_INTEREST_PER_CODE_PER_HOUR = 3   # per visitor IP and code
 MAX_CLICKS_PER_HOUR = 60             # per visitor IP, all codes
+MAX_ANSWERS_PER_CODE_PER_HOUR = 20   # per visitor IP and code: the configuration and budget taps after the one-tap
 CONSENT_WORDING = "I agree to be contacted about this by the agent."
+
+
+def _answer_fields(answers: Optional[dict]) -> dict:
+    """Only the answers actually given (bhk, budget_min_inr, budget_max_inr), already validated by the router."""
+    return {k: v for k, v in (answers or {}).items() if k in ("bhk", "budget_min_inr", "budget_max_inr") and v is not None}
 
 
 class InterestError(Exception):
@@ -131,7 +138,7 @@ class InterestService:
 
     async def record_interest(self, code: str, *, name: Optional[str] = None, phone: Optional[str] = None,
                               note: Optional[str] = None, consent: bool = False, website: Optional[str] = None,
-                              anon_id: Optional[str] = None, ip: Optional[str] = None) -> dict:
+                              anon_id: Optional[str] = None, ip: Optional[str] = None, answers: Optional[dict] = None) -> dict:
         if limits.is_honeypot(website):  # a bot: look successful, store nothing
             return {"received": True, "new_lead": False, "details_saved": False}
         link = await self.resolve(code)
@@ -150,11 +157,14 @@ class InterestService:
         context = self._context(link)
         listing_id = link["ref"] if link["kind"] == "listing" and not link.get("sample") else None
         if phone:
+            placeholder = await self.tracking.contacts.find_one({"agent_id": agent_id, "anon_ids": anon, "phone": ""})
+            # answers tapped earlier live on the anonymous placeholder, which is about to be replaced: carry them over
+            answers = {**_answer_fields((placeholder or {}).get("requirement")), **_answer_fields(answers)}
             try:
                 res = await self.tracking.capture_inquiry(InquiryIn(
                     agent_slug=profile["slug"], anon_id=anon, name=name or "Interested visitor", phone=phone,
                     message=(f"{note}\n\n" if note else "") + context, consent=True, source=link["channel"],
-                    listing_id=listing_id))
+                    listing_id=listing_id, **_answer_fields(answers)))
             except ValueError as e:
                 raise InterestError(str(e).replace("Value error, ", ""), 422)
             except TrackingError as e:
@@ -168,6 +178,28 @@ class InterestService:
         await self.store.log_attempt("interest", key, now)
         await self.store.add_event(link["code"], "interest", anon, now)
         return {"received": True, "new_lead": new_lead, "details_saved": details_saved}
+
+    async def record_answers(self, code: str, *, answers: dict, anon_id: Optional[str] = None, ip: Optional[str] = None) -> dict:
+        """The configuration and budget the visitor tapped after the one-tap interest: saved on their anonymous lead as a stated
+        requirement. Not personal data, so no consent is needed; not another interest, so it neither counts toward the interest
+        limit nor logs an interest event. Without an earlier one-tap there is no lead to attach to, and nothing is stored."""
+        link = await self.resolve(code)
+        fields = _answer_fields(answers)
+        if not fields:
+            return {"saved": False}
+        now = self.now()
+        key = f"{ip or 'unknown'}|{link['code']}"
+        if await self.store.attempts("answer", key, now - limits.WINDOW) >= MAX_ANSWERS_PER_CODE_PER_HOUR:
+            raise InterestError(limits.TOO_MANY, 429)
+        await self.store.log_attempt("answer", key, now)
+        agent_id = await self._target_agent(link)
+        lead = await self.tracking.contacts.find_one({"agent_id": agent_id, "anon_ids": _anon(ip, link["code"], anon_id), "phone": ""})
+        if not lead:
+            return {"saved": False}
+        sources = {("budget" if k.startswith("budget") else k): "stated" for k in fields}
+        merged = reqmod.merge(lead.get("requirement"), fields, sources)
+        await self.tracking.contacts.update_one({"_id": lead["_id"]}, {"$set": {"requirement": merged, "last_activity_at": now}})
+        return {"saved": True}
 
     @staticmethod
     def _context(link: dict) -> str:

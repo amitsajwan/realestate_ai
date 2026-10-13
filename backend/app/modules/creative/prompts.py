@@ -15,7 +15,7 @@ from .models import Voice
 
 BRAND, LISTING = "brand", "listing"
 MODES = (BRAND, LISTING)
-VERSIONS = {"strategist": 2, "copywriter": 3, "translator": 1, "critic": 3, "card_translator": 3}
+VERSIONS = {"strategist": 2, "copywriter": 4, "translator": 1, "critic": 3, "card_translator": 3}
 LANGUAGE_NAMES = {"mr": "Marathi (Devanagari script)", "hi": "Hindi (Devanagari script)"}
 
 
@@ -94,9 +94,10 @@ def copywriter(v: Voice, mode: str = BRAND) -> str:
             + "Avoid filler such as 'in today's world', 'unlock', 'game changer'. Each slide is at most "
             "14 words and carries ONE idea. The caption's first line is the only line visible before 'more': make it concrete and "
             "curious, at most 120 characters. The caption never contains a URL or a phone number. End with a question to the reader.\n"
+            "Never ask people to share, tag, vote or react (Meta demotes that as engagement bait); a real question or 'save this' is fine.\n"
             'Reply with ONE JSON object: {"support": str (one line, at most 14 words, may be empty), "slides": [str] (3 to 5, only '
             'when the format is carousel or checklist), "first_line": str, "body": str (2 to 4 short lines), "question": str, '
-            '"hashtags": [str] (3 to 6, each starting with #)}')
+            '"hashtags": [str] (3 to 5, each starting with #)}')
 
 
 def translator(v: Voice, mode: str = BRAND) -> str:

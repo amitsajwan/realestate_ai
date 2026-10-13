@@ -1,9 +1,9 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import React from 'react'
 import { ReelMaker } from '@/components/app/ReelMaker'
 import { PostSheet } from '@/components/app/agents/PostSheet'
 import { ApiError } from '@/lib/app/api'
-import { createFixtureReelsApi, createReelsApi, reelVideoUrl, whatsappReelUrl } from '@/lib/app/reels'
+import { createFixtureReelsApi, createReelsApi, reelFilename, reelVideoUrl, whatsappReelUrl } from '@/lib/app/reels'
 import type { ReelJob, ReelJobs, ReelSource } from '@/lib/app/reels'
 
 jest.mock('@/lib/app/client', () => ({ isFixtureMode: () => false }))
@@ -138,6 +138,77 @@ test('client: agent and concierge paths, and the fixture fake finishes a reel', 
   let latest: ReelJobs = {}
   for (let k = 0; k < 4; k++) latest = await fx.latest()
   expect(latest.en?.status).toBe('done')
+})
+
+test('style picker: Tour or Stack, each explained; the chosen style is sent and each style keeps its latest reel', async () => {
+  const tourDone = job({ status: 'done', style: 'tour', video_path: '/uploads/reels/listing-L1-en-aaaa.mp4' })
+  const s = {
+    styles: true,
+    make: jest.fn(async (_l: string, _a?: boolean, style?: string) => job({ id: 'j9', style: style as 'stack', status: 'queued' })),
+    latest: jest.fn(async (style?: string) => (style === 'stack' ? {} : { en: tourDone })),
+  }
+  render(<ReelMaker source={s} caption="2 BHK" />)
+  await screen.findByTestId('reel-video')
+  expect(s.latest).toHaveBeenCalledWith('stack')
+  expect(s.latest).toHaveBeenCalledWith('tour')
+  const group = screen.getByRole('radiogroup', { name: 'Reel style' })
+  const tour = within(group).getByRole('radio', { name: /Tour/ })
+  const stack = within(group).getByRole('radio', { name: /Stack/ })
+  expect(tour).toHaveAttribute('aria-checked', 'true')
+  expect(tour).toHaveTextContent('One photo per beat')
+  expect(tour).toHaveTextContent('Ready')
+  expect(stack).toHaveTextContent('Lines build up on one screen')
+  expect(screen.getByTestId('reel-video').getAttribute('src')).toMatch(/listing-L1-en-aaaa\.mp4$/)
+
+  fireEvent.click(stack)
+  expect(stack).toHaveAttribute('aria-checked', 'true')
+  expect(screen.queryByTestId('reel-video')).toBeNull() // no stack reel yet
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Make my reel' }))
+  })
+  expect(s.make).toHaveBeenCalledWith('en', false, 'stack')
+  expect(screen.getByTestId('reel-progress')).toBeInTheDocument()
+  expect(stack).toHaveTextContent('Making...')
+  fireEvent.click(tour) // the tour is still there
+  expect(screen.getByTestId('reel-video')).toBeInTheDocument()
+})
+
+test('no style picker where the endpoint has no styles (owner for an agent)', async () => {
+  const s = source([{}])
+  render(<ReelMaker source={s} caption="x" />)
+  await waitFor(() => expect(s.latest).toHaveBeenCalledWith())
+  expect(screen.queryByRole('radiogroup', { name: 'Reel style' })).toBeNull()
+})
+
+test('client: style goes in the body and the GET query for the agent, never for the concierge', async () => {
+  const calls: Array<[string, RequestInit]> = []
+  const fetchImpl = jest.fn(async (url: string, init: RequestInit) => {
+    calls.push([url, init])
+    return { ok: true, status: 200, text: async () => JSON.stringify({ job: job(), jobs: {} }) } as Response
+  })
+  const api = createReelsApi({ getToken: () => 't', baseUrl: 'https://api.test', fetchImpl: fetchImpl as unknown as typeof fetch })
+  expect(api.forListing('L1').styles).toBe(true)
+  expect(api.forAgentListing('a1', 'L1').styles).toBe(false)
+  await api.forListing('L1').make('hi', true, 'stack')
+  await api.forListing('L1').latest('stack')
+  await api.forAgentListing('a1', 'L1').make('en', false, 'stack')
+  await api.forAgentListing('a1', 'L1').latest('stack')
+  expect(calls.map(([u, i]) => `${i.method} ${u}`)).toEqual([
+    'POST https://api.test/api/v1/listings/L1/reel',
+    'GET https://api.test/api/v1/listings/L1/reel?style=stack',
+    'POST https://api.test/api/v1/concierge/agents/a1/listings/L1/reel',
+    'GET https://api.test/api/v1/concierge/agents/a1/listings/L1/reel',
+  ])
+  expect(JSON.parse(calls[0][1].body as string)).toEqual({ lang: 'hi', again: true, style: 'stack' })
+  expect(JSON.parse(calls[2][1].body as string)).toEqual({ lang: 'en' })
+  expect(reelFilename({ listing_id: 'L1', lang: 'en', style: 'stack' })).toBe('reel-L1-en-stack.mp4')
+})
+
+test('fixture fake keeps one reel per style', async () => {
+  const fx = createFixtureReelsApi().forListing('L7')
+  await fx.make('en', false, 'stack')
+  expect(await fx.latest('tour')).toEqual({})
+  expect((await fx.latest('stack')).en?.style).toBe('stack')
 })
 
 test('Post sheet: a finished reel can be posted as a Reel, only with consent', async () => {

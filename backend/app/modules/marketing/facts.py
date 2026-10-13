@@ -4,6 +4,8 @@ from app.platform.text import bhk_label, money, sqft
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+from .maharera import ProjectRegistration, from_listing
+
 PUBLIC_NAME = brand.TEAM
 
 # Round ceilings for the "under Rs X" angle (rupees). Sale first, then monthly rent.
@@ -85,6 +87,8 @@ class Facts:
     share_url: str = ""
     as_of: str = ""  # 'available as of' date shown on group posts (set when the pack is generated)
     sample: bool = False  # an illustrative listing (title starts with 'Sample'): labelled everywhere, never presented as available
+    # the PROJECT's MahaRERA registration we trust, printed as the QR badge (maharera.py); never the agent's own number
+    registration: Optional[ProjectRegistration] = None
 
     @classmethod
     def from_docs(cls, listing: dict, profile: Optional[dict], share_url: str) -> "Facts":
@@ -103,7 +107,8 @@ class Facts:
             agent_name=PUBLIC_NAME, agent_phone=profile.get("phone"),  # posts are signed by the team, never by an agent's own name
             agent_business=str(((profile.get("branding_data") or {}).get("business_name")) or "")[:60],
             agent_rera_no=str(((profile.get("branding_data") or {}).get("rera_agent_no")) or "")[:20],
-            share_url=share_url, sample=(listing.get("title") or "").strip().lower().startswith("sample"))
+            share_url=share_url, sample=(listing.get("title") or "").strip().lower().startswith("sample"),
+            registration=from_listing(listing))
 
     # -- derived text ------------------------------------------------------------------------
     @property

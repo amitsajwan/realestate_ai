@@ -107,7 +107,10 @@ def indexable(doc: dict) -> bool:
 
 def page_updated(doc: dict) -> Optional[str]:
     """Our own last change to the page (enrichment or the details read), ISO date; never MahaRERA's dates. The sitemap's lastmod."""
-    days = [v.date().isoformat() for v in (doc.get("enriched_at"), doc.get("details_checked_at")) if isinstance(v, datetime)]
+    stamps = [doc.get("enriched_at"), doc.get("page_text_at")]
+    if doc.get("details_ok", True):   # a failed details read changed nothing on the page
+        stamps.append(doc.get("details_checked_at"))
+    days = [v.date().isoformat() for v in stamps if isinstance(v, datetime)]
     return max(days) if days else None
 
 

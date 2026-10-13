@@ -15,7 +15,8 @@ jest.mock('@/lib/site/api', () => ({
 }))
 jest.mock('@/components/site/ChatWidget', () => ({ __esModule: true, default: () => null }))
 // Avasetu's own register pages (lib/site/register): none in these tests, so unknown slugs are 404s as before
-jest.mock('@/lib/site/register', () => ({ getRegisterProject: async () => null, getRegisterProjects: async () => [], longDay: () => '',
+const mockRegister = jest.fn(async (): Promise<unknown[]> => [])
+jest.mock('@/lib/site/register', () => ({ getRegisterProject: async () => null, getRegisterProjects: () => mockRegister(), longDay: () => '',
   getRegisterPlaces: async () => [], placePath: (s: string) => `/projects/area/${s}` }))
 const mockRedirect = jest.fn((url: string) => { throw new Error('REDIRECT ' + url) })
 const mockNotFound = jest.fn(() => { throw new Error('NOT_FOUND') })
@@ -131,6 +132,18 @@ describe('shared project pages', () => {
     const agent = { agent_name: 'House Deal', slug: 'house-deal', branding_data: {} } as never
     expect(projectMetadata(agent, GOYAL, '').alternates?.canonical).toBe('https://avasetu.in/projects/goyal-my-home')
     expect(projectMetadata(agent, { ...GOYAL, catalog_slug: null }, '').alternates?.canonical).toBe('https://avasetu.in/agent/house-deal/projects/goyal-my-home')
+  })
+
+  it('dates a register page by its last change, so Google re-reads it after we improve it', async () => {
+    mockRegister.mockResolvedValueOnce([
+      { slug: 'lodha-camelot-kharadi', regno: 'PR1', name: 'LODHA CAMELOT', area: 'kharadi', completion_now: null,
+        listed_or_updated: '2026-09-01', page_updated: '2026-10-12', indexable: true },
+      { slug: 'older-api', regno: 'PR2', name: 'OLD', area: 'kharadi', completion_now: null, listed_or_updated: '2026-09-02', indexable: true },
+    ])
+    const entries = await sitemap()
+    const at = (path: string) => entries.find((e) => e.url.endsWith(path))?.lastModified
+    expect(at('/projects/lodha-camelot-kharadi')).toEqual(new Date('2026-10-12'))
+    expect(at('/projects/older-api')).toBeUndefined()     // MahaRERA's own date never dates our page
   })
 
   it('puts shared pages and live filter pages in the sitemap', async () => {

@@ -41,9 +41,9 @@ TEXT_POSTS: List[Dict] = [
         "slug": "ready-or-uc", "link": "",
         "text": (
             "Ready-to-move or under construction? \U0001F3E0\n\n"
-            "\U0001F44D Ready-to-move: I want to see exactly what I buy\n"
-            "\U0001F62E Under construction: I am happy to wait for a lower entry price\n\n"
-            "React with one and tell us why in the comments. If you are looking in Kharadi, Upper Kharadi or Wagholi, comment INTERESTED and we will share what to check.\n\n" + TAGS),
+            "\U0001F3E0 Ready-to-move: I want to see exactly what I buy\n"
+            "\U0001F3D7 Under construction: I am happy to wait for a lower entry price\n\n"
+            "Which one fits you, and why? Tell us in the comments. If you are looking in Kharadi, Upper Kharadi or Wagholi, comment INTERESTED and we will share what to check.\n\n" + TAGS),
     },
     {
         "slug": "carpet-in-30-seconds", "link": f"{SITE}/insights/kharadi-upper-kharadi-wagholi",

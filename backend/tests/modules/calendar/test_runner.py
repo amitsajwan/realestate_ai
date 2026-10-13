@@ -415,3 +415,38 @@ async def test_a_single_image_facebook_post_is_never_turned_into_a_reel():
 
     await run(store, pub, render, render_slides_reel=never)
     assert [p.channel for p in pub.posts] == ["facebook_page"]
+
+
+async def test_a_facebook_reel_gets_the_link_comment_and_instagram_and_photo_posts_do_not():
+    store, pub, render = make()
+    fb = await reel_row(store, "facebook_page", NOW - timedelta(hours=1), video="calendar/reels/reel-w1-tip.mp4")
+    ig = await reel_row(store, "instagram", NOW - timedelta(hours=1), video="calendar/reels/reel-w1-tip.mp4")
+    photo = await add(store, "carpet-under-rera", "facebook_page", NOW - timedelta(minutes=30))
+    comments = []
+
+    async def fake_reel(doc, social, uploads):
+        return Result("reel-" + doc["channel"], None)
+
+    async def link_comment(db, doc, object_id, social):
+        comments.append((doc["_id"], object_id))
+
+    await run(store, pub, render, publish_reel=fake_reel, link_comment=link_comment)
+    await run(store, pub, render, now=NOW + timedelta(minutes=1), publish_reel=fake_reel, link_comment=link_comment)
+    assert comments == [(fb, "reel-facebook_page")]
+    assert [(await store.get(x))["status"] for x in (fb, ig, photo)] == ["published"] * 3
+
+
+async def test_a_carousels_facebook_slides_reel_gets_the_link_comment():
+    store, pub, render = make()
+    _, (ig, fb) = await _carousel(store)
+    comments = []
+
+    async def publish_reel(doc, social, uploads, name=None):
+        return Result("reel1", "https://fb/reel1")
+
+    async def link_comment(db, doc, object_id, social):
+        comments.append((doc["_id"], object_id))
+
+    await run(store, pub, render, render_slides_reel=lambda d, u: "calendar/slidereels/x.mp4", publish_reel=publish_reel,
+              link_comment=link_comment)
+    assert comments == [(fb, "reel1")]

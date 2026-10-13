@@ -16,7 +16,7 @@ def render_layout(copy: Copy, design: Design) -> List[Rendered]:
         raise ValueError(f"unknown layout {design.layout!r}")
     backdrop = design.photo if design.layout not in OWN_PHOTO_LAYOUTS and design.photo and Path(design.photo).is_file() else None
     layout = import_module(f"{__name__}.{design.layout}")
-    with card(language=copy.language, card_brand=design.brand), card_photo(backdrop):
+    with card(language=copy.language, card_brand=design.brand, maharera=design.maharera), card_photo(backdrop):
         if not backdrop:
             return layout.render(copy, design)
         with photo_pass("measure") as state:   # where the text goes, then one soft band behind all of it

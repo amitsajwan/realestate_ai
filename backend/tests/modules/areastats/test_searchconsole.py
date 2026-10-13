@@ -25,11 +25,21 @@ def google(seen):
         if req.url.host == "oauth2.test":
             seen.append("token")
             return httpx.Response(200, json={"access_token": "abc"})
-        seen.append(json.loads(req.content))
+        body = json.loads(req.content)
+        seen.append(body)
         assert req.headers["Authorization"] == "Bearer abc" and "sc-domain%3Aavasetu.in" in str(req.url)
+        if body["dimensions"] == ["query", "page"]:
+            return httpx.Response(200, json={"rows": [
+                {"keys": ["rohan abhilasha 4 possession date", "https://avasetu.in/projects/rohan-abhilasha-4-wagholi"],
+                 "impressions": 30, "clicks": 2, "position": 7.5},
+                {"keys": ["Rohan Abhilasha 4 possession date?", "https://avasetu.in/localities/wagholi"], "impressions": 10,
+                 "clicks": 0, "position": 11.5},
+                {"keys": ["new projects in wagholi", "https://avasetu.in/localities/wagholi"], "impressions": 400, "clicks": 9,
+                 "position": 14.0}]})
         return httpx.Response(200, json={"rows": [
-            {"keys": ["https://avasetu.in/projects/rohan-abhilasha-4-wagholi"], "impressions": 40, "clicks": 3},
-            {"keys": ["https://avasetu.in/localities/wagholi"], "impressions": 500, "clicks": 20}]})
+            {"keys": ["https://avasetu.in/projects/rohan-abhilasha-4-wagholi"], "impressions": 40, "clicks": 3, "position": 9.46},
+            {"keys": ["https://avasetu.in/localities/wagholi"], "impressions": 500, "clicks": 20, "position": 4.1},
+            {"keys": ["https://avasetu.in/2-bhk/wagholi"], "impressions": 120, "clicks": 1, "position": 14.0}]})
     return httpx.MockTransport(handler)
 
 
@@ -45,7 +55,35 @@ async def test_impressions_land_on_project_records_once_a_day(monkeypatch):
     await pages.assign_all(store)
     seen = []
     out = await searchconsole.refresh(store, NOW, transport=google(seen))
-    assert out == {"pages": 2, "projects": 1} and seen[0] == "token" and seen[1]["dimensions"] == ["page"]
+    assert out == {"pages": 3, "projects": 1, "phrases": 2} and seen[0] == "token" and seen[1]["dimensions"] == ["page"]
     p1 = await store.project("P1")
-    assert (p1["gsc_impressions"], p1["gsc_clicks"]) == (40, 3) and "gsc_impressions" not in await store.project("P2")
+    assert (p1["gsc_impressions"], p1["gsc_clicks"], p1["gsc_position"]) == (40, 3, 9.5)
+    assert "gsc_impressions" not in await store.project("P2")
+    near = (await store.get_mark(searchconsole.MARK))["near_page_one"]
+    assert [n["path"] for n in near] == ["/2-bhk/wagholi", "/projects/rohan-abhilasha-4-wagholi"]   # most seen first; page one left out
     assert await searchconsole.refresh(store, NOW + timedelta(hours=3), transport=google(seen)) is None   # once a day
+
+
+async def test_impressions_keep_a_history_and_the_28_days_before(monkeypatch):
+    monkeypatch.setenv("GSC_SA_KEY_B64", base64.b64encode(json.dumps(fake_key()).encode()).decode())
+    db, store = await seeded(("P1", "Rohan Abhilasha 4", "wagholi", FULL))
+    await pages.assign_all(store)
+    await store.set_project("P1", gsc_history=[{"at": NOW - timedelta(days=30), "impressions": 10},
+                                               {"at": NOW - timedelta(days=1), "impressions": 35}])
+    await searchconsole.refresh(store, NOW, transport=google([]))
+    p1 = await store.project("P1")
+    assert p1["gsc_impressions_prev"] == 10 and p1["gsc_history"][-1] == {"at": NOW, "impressions": 40}
+
+
+async def test_the_searches_behind_our_pages_become_phrases(monkeypatch):
+    from app.modules.areastats import demand
+    monkeypatch.setenv("GSC_SA_KEY_B64", base64.b64encode(json.dumps(fake_key()).encode()).decode())
+    db, store = await seeded(("P1", "Rohan Abhilasha 4", "wagholi", FULL))
+    await searchconsole.refresh(store, NOW, transport=google([]))
+    top = await demand.top(store)
+    assert [t["phrase"] for t in top] == ["new projects in wagholi", "rohan abhilasha 4 possession date"]
+    area, project = top
+    assert area["kind"] == "area" and area["area"] == "wagholi" and area["gsc"]["impressions"] == 400
+    # the same search on two pages, spelt two ways, is one phrase: impressions add up, position is the impression-weighted mean
+    assert project["kind"] == "project" and project["regno"] == "P1" and project["gsc"]["impressions"] == 40
+    assert project["gsc"]["position"] == 8.5 and project["gsc"]["pages"] == ["/localities/wagholi", "/projects/rohan-abhilasha-4-wagholi"]

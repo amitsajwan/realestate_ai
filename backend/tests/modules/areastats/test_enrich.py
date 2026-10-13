@@ -73,6 +73,18 @@ async def test_urgent_first_then_google_then_indexable_then_bigger():
     assert (await enrich.next_project(store, NOW))["_id"] == "E"   # urgent beats freshness
 
 
+async def test_among_pages_google_shows_those_just_off_page_one_go_first():
+    db, store = await ready(("A", "Alpha", "wagholi", {**FULL, "gsc_impressions": 900, "gsc_position": 3.2}),
+                            ("B", "Bravo", "wagholi", {**FULL, "gsc_impressions": 60, "gsc_position": 11.4}),
+                            ("C", "Charlie", "wagholi", {**FULL, "gsc_impressions": 5, "gsc_position": 12.0}))
+    order = []
+    for _ in range(3):
+        d = await enrich.next_project(store, NOW)
+        order.append(d["_id"])
+        await store.set_project(d["_id"], enriched_at=NOW)
+    assert order == ["B", "A", "C"]   # C is near page one but seen too rarely to count
+
+
 def test_the_checker_refuses_invented_numbers_sales_words_and_links():
     facts = enrich.facts_text({**FULL, "_id": "P1", "name": "Rohan Abhilasha 4", "locality": "wagholi", "regno": "P1"}, GATHERED)
     assert enrich.check_text(GOOD, facts) == []

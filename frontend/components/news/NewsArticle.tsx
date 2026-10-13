@@ -13,7 +13,11 @@ const CHANNEL = { facebook: 'Facebook', instagram: 'Instagram' } as const
 export default function NewsArticle({ item }: { item: NewsItem }) {
   const date = formatNewsDate(item.as_of)
   const digest = item.kind === 'digest'
-  const full = item.article.length > 0 // the full story replaces the short 'our view' and 'what to check' boxes, which it covers
+  // a researched article has paragraphs after its standfirst and may be written from several reports
+  const article = item.body.length > 0
+  const sources = item.sources.length > 0 ? item.sources : [{ name: item.source_name, url: item.source_url, is_redirect: false }]
+  // otherwise the full story (sections) replaces the short 'our view' and 'what to check' boxes, which it covers
+  const full = !article && item.article.length > 0
   return (
     <article data-testid="news-article" className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
       <p className="text-sm"><Link href="/news" className="text-[#0f2340] underline underline-offset-2">{NEWS_TEXT.all}</Link></p>
@@ -25,7 +29,11 @@ export default function NewsArticle({ item }: { item: NewsItem }) {
       <p className="mt-3 text-sm text-slate-700">
         By the {TEAM}{date && <> &middot; {NEWS_TEXT.asOf} <time dateTime={item.as_of ?? undefined}>{date}</time></>}
       </p>
-      {!digest && <p className="mt-1 text-sm font-medium text-slate-600" data-testid="summary-badge">{NEWS_TEXT.badge}{item.source_name && <> by {item.source_name}</>}</p>}
+      {!digest && (
+        <p className="mt-1 text-sm font-medium text-slate-600" data-testid="summary-badge">
+          {article ? NEWS_TEXT.articleBadge(sources.length) : <>{NEWS_TEXT.badge}{item.source_name && <> by {item.source_name}</>}</>}
+        </p>
+      )}
 
       {item.image_url && (
         // eslint-disable-next-line @next/next/no-img-element
@@ -55,7 +63,12 @@ export default function NewsArticle({ item }: { item: NewsItem }) {
       ) : (
         <>
           <p className="mt-8 text-lg font-medium leading-relaxed text-slate-900" data-testid="news-summary">{item.summary}</p>
-          <p className="mt-2 text-xs text-slate-600">{NEWS_TEXT.summaryNote}</p>
+          {article && (
+            <div className="mt-4 space-y-4 text-base leading-relaxed text-slate-800" data-testid="news-body">
+              {item.body.map((p, i) => <p key={i}>{p}</p>)}
+            </div>
+          )}
+          <p className="mt-3 text-xs text-slate-600">{article ? NEWS_TEXT.articleNote : NEWS_TEXT.summaryNote}</p>
 
           {full && item.article.map((s, i) => (
             <section key={i} className="mt-8" aria-labelledby={`art-h-${i}`} data-testid="news-section">
@@ -64,6 +77,14 @@ export default function NewsArticle({ item }: { item: NewsItem }) {
             </section>
           ))}
           <BuyerLine line={item.buyer_line} />
+
+          {item.background && (
+            <section className="mt-6 rounded-xl border border-slate-200 p-4" data-testid="news-background" aria-labelledby="bg-h">
+              <h2 id="bg-h" className="text-sm font-bold uppercase tracking-wide text-slate-700">{NEWS_TEXT.backgroundHeading}</h2>
+              <p className="mt-1 text-slate-800">{item.background}</p>
+              <p className="mt-1 text-xs text-slate-600">{NEWS_TEXT.backgroundNote}</p>
+            </section>
+          )}
 
           {!full && item.our_view && (
             <section className="mt-6 rounded-xl bg-slate-50 p-4" data-testid="news-our-view" aria-labelledby="view-h">
@@ -81,14 +102,20 @@ export default function NewsArticle({ item }: { item: NewsItem }) {
           )}
 
           <section className="mt-6 border-t border-slate-200 pt-5" aria-labelledby="source-h">
-            <h2 id="source-h" className="text-lg font-semibold text-slate-900">Source</h2>
-            <p className="mt-1 text-sm text-slate-700">{item.source_name || 'The source'}{date && <>, {NEWS_TEXT.asOf} {date}</>}</p>
-            {item.source_url && (
-              <a href={item.source_url} target="_blank" rel="noopener noreferrer nofollow" data-testid="read-original"
-                className="mt-2 inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-4">
-                {NEWS_TEXT.readOriginal(item.source_name)}<span className="sr-only"> (opens in a new tab)</span>
-              </a>
-            )}
+            <h2 id="source-h" className="text-lg font-semibold text-slate-900">{NEWS_TEXT.sourcesHeading(sources.length)}</h2>
+            {date && <p className="mt-1 text-sm text-slate-700">{NEWS_TEXT.asOf} {date}</p>}
+            <ul className="mt-1 list-none p-0" data-testid="news-sources">
+              {sources.map((s, i) => (
+                <li key={`${s.name}-${i}`} className="text-sm text-slate-700">
+                  {s.url ? (
+                    <a href={s.url} target="_blank" rel="noopener noreferrer nofollow" data-testid={i === 0 ? 'read-original' : undefined}
+                      className="inline-flex min-h-[44px] items-center font-semibold text-[#0f2340] underline underline-offset-4">
+                      {NEWS_TEXT.readOriginal(s.name)}<span className="sr-only"> (opens in a new tab)</span>
+                    </a>
+                  ) : <span className="inline-flex min-h-[44px] items-center">{s.name || 'The source'}</span>}
+                </li>
+              ))}
+            </ul>
           </section>
         </>
       )}

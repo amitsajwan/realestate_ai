@@ -1,8 +1,10 @@
 """The worker process: runs the background loops outside the API (docs/ARCHITECTURE.md §1 and §6).
 
-    python -m app.worker           run engage, newsroom, calendar, listing reels, marketing runs, insights and answer gaps until SIGTERM/SIGINT
+    python -m app.worker           run engage, newsroom, calendar, listing reels, marketing runs, insights, answer gaps, seo (IndexNow, index coverage) and neighbourhood articles until SIGTERM/SIGINT
     python -m app.worker --check   print one line per loop; exit 1 when an enabled loop's heartbeat is older than twice its
                                    interval, 2 when the database cannot be read (deploy/gcp/health_check.sh calls this)
+                                   ; then, for information only, whether the MahaRERA register and project enrichment are
+                                   moving (WARN lines; the exit code is the heartbeats' alone)
 
 Same image, same settings as the API. Each loop starts through its runner lease (app/platform/leases.py), so the worker and an
 API process with RUN_BACKGROUND_LOOPS=true never run the same loop twice. On shutdown the loops are cancelled, which releases
@@ -35,9 +37,11 @@ def loops() -> LoopTable:
     from app.modules.propertyfacts.jobs import loop as marketing_loop
     from app.modules.radar import loop as radar_loop
     from app.modules.reels.listing_reel import loop as reels_loop
+    from app.modules.communities.runner import loop as communities_loop
+    from app.modules.seo.runner import loop as seo_loop
     return {"engage": engage_loop, "newsroom": newsroom_loop, "calendar": calendar_loop, "listing_reels": reels_loop,
             "marketing_runs": marketing_loop, "project_enrich": enrich_loop, "insights": insights_loop,
-            "answer_gaps": gaps_loop, "radar": radar_loop}
+            "answer_gaps": gaps_loop, "radar": radar_loop, "seo": seo_loop, "communities": communities_loop}
 
 
 def start_loops(table: LoopTable, get_db: Callable[[], Any] = get_database) -> Dict[str, asyncio.Task]:
@@ -54,6 +58,8 @@ async def stop_loops(tasks: Dict[str, asyncio.Task]) -> None:
 async def run(stop: asyncio.Event, table: Optional[LoopTable] = None, get_db: Callable[[], Any] = get_database) -> None:
     setup_logging(environment=settings.environment)
     logger = get_logger("worker")
+    from app.readiness import log_readiness
+    await asyncio.to_thread(log_readiness, "worker")   # what the marketing pipeline can do here (voice, LLM, ffmpeg, social...)
     try:
         await init_database()
     except Exception as e:
@@ -89,6 +95,10 @@ def expected_intervals() -> Dict[str, Optional[float]]:
     from app.modules.propertyfacts.jobs import HEARTBEAT_INTERVAL_S as MARKETING_INTERVAL_S
     from app.modules.radar.config import load as radar_cfg
     from app.modules.reels.listing_reel import HEARTBEAT_INTERVAL_S
+    from app.modules.communities.runner import POLL_SECONDS as COMMUNITIES_POLL_S
+    from app.modules.communities.runner import enabled as communities_on
+    from app.modules.seo.runner import INTERVAL_S as SEO_INTERVAL_S
+    from app.modules.seo.runner import enabled as seo_on
     e, n, c = engage_cfg(), newsroom_cfg(), calendar_cfg()
     return {
         "engage": float(e.interval_s) if (e.enabled and e.page_id and e.page_token) else None,  # as engage/runner.py
@@ -100,6 +110,8 @@ def expected_intervals() -> Dict[str, Optional[float]]:
         "insights": float(INSIGHTS_INTERVAL_S) if insights_on(social_cfg()) else None,  # real posts with a token, not dry run
         "answer_gaps": float(GAPS_INTERVAL_S),  # always on (reads stored replies, notifies agents)
         "radar": float(radar_cfg().interval_s) if radar_cfg().enabled else None,  # RADAR_ENABLED
+        "seo": float(SEO_INTERVAL_S) if seo_on() else None,  # INDEXNOW_KEY or GSC_SA_KEY_B64
+        "communities": float(COMMUNITIES_POLL_S) if communities_on() else None,  # COMMUNITY_ARTICLES_ENABLED
     }
 
 
@@ -131,7 +143,23 @@ async def check(read: Optional[Callable[[], Awaitable[Dict[str, dict]]]] = None,
         return 2
     lines, bad = evaluate(docs, expected_intervals() if intervals is None else intervals, now or datetime.now(timezone.utc))
     print("\n".join(lines))
+    if read is None:   # the real database: is the MahaRERA register and enrichment work getting done? (information only)
+        try:
+            print("\n".join(await asyncio.wait_for(_register_status(now or datetime.now(timezone.utc)), 30)))
+        except Exception as e:
+            print(f"WARN could not read the project register: {type(e).__name__}")
     return 1 if bad else 0
+
+
+async def _register_status(now: datetime) -> List[str]:
+    from motor.motor_asyncio import AsyncIOMotorClient
+    from app.modules.areastats.refresh import status
+    from app.modules.newsroom.store import Store
+    client = AsyncIOMotorClient(settings.mongodb_url, serverSelectionTimeoutMS=10000)
+    try:
+        return await status(Store(client[settings.database_name]), now)
+    finally:
+        client.close()
 
 
 async def _read_heartbeats() -> Dict[str, dict]:

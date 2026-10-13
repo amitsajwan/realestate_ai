@@ -86,7 +86,7 @@ ENTRIES: List[Entry] = [
        "\U0001F4B8 A booking amount is not \"just a token\": RERA limits what can be taken before an agreement \U0001F447\n\nMyth: \"The booking amount is just a token, pay now and sort the rest later.\"\n\n"
        "Fact: under RERA (Section 13) a promoter cannot take more than 10% of the cost as an advance or application fee without first signing a written agreement for sale and registering it.\n\n"
        "So if a large amount is asked before any agreement: pause and ask for the draft agreement first.\n\n"
-       "\U0001F4E4 Share this with a friend who is about to book.",
+       "\U0001F516 Save this for the day you book.",
        (B, "#RERA", "#HomeBuyingTips", "#FirstHomeBuyer", "#PuneRealEstate"),
        f"Verified RERA Sec 13(1): no more than ten per cent as advance/application fee without a written agreement for sale registered. Source: {S_RERA}."),
     _e("myth-stamp-on-price", "myth", "MYTH VS FACT", "\"Stamp duty is on the price I pay\"",
@@ -167,7 +167,7 @@ ENTRIES: List[Entry] = [
        "3️⃣ The possession date and what happens if it slips\n4️⃣ What is included: parking, fittings, amenities\n"
        "5️⃣ Whether a lawyer of your choice has read it\n\n"
        "Ask for the draft days before signing day, not on the day.\n\n"
-       "\U0001F4E4 Share this with a friend who is about to sign.",
+       "\U0001F516 Save this for signing day.",
        (B, "#AgreementForSale", "#HomeBuyingTips", "#RERA", "#PuneRealEstate"),
        f"Practical checklist; RERA Sec 13 (agreement particulars incl. payment schedule and possession date) per {S_RERA}. Not legal advice."),
     _e("read-a-rera-page", "explainer", "HOW TO READ", "How to read a project's MahaRERA page",

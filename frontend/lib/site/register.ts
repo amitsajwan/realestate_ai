@@ -154,7 +154,7 @@ export interface RegisterListItem {
   /** the Pune place (key) and its name: every Pune district project has one */
   place?: string | null
   place_name?: string | null
-  /** newest of MahaRERA's update and our crawler's checks */
+  /** our own last change to the page (details read, enrichment, page text): the sitemap lastmod; never MahaRERA dates */
   page_updated?: string | null
   indexable: boolean
 }

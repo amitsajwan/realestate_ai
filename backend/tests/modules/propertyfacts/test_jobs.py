@@ -1,5 +1,6 @@
 """Start marketing: step 1 (facts and page) always before step 2 (posts); one job per listing at a time."""
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -39,7 +40,8 @@ class FakeReelJobs:
         self.docs = {}
         self.jobs = self
 
-    async def create(self, agent_id, listing_id, lang, again=False):
+    async def create(self, agent_id, listing_id, lang, again=False, style="tour"):
+        self.asked = {"lang": lang, "style": style}
         doc = {"_id": "reel1", "status": "queued", "video_path": None}
         self.docs[doc["_id"]] = doc
         return doc, True
@@ -208,6 +210,10 @@ async def test_send_to_calendar_plans_rows_for_approval(tmp_path):
     walk = [r for r in await cal.all() if r["slug"] == "campaign-L1-walkthrough"]
     assert {r["channel"] for r in walk} == {"instagram", "facebook_page"} and walk[0]["video"] == "reels/listing-L1-en-reel1.mp4"
     assert "Full details of Gulmohar City, Ranjangaon" in next(r for r in walk if r["channel"] == "instagram")["caption"]
+    style = jobs.walkthrough_style("L1")
+    assert runs.reel_jobs.asked == {"lang": "en", "style": style}
+    assert all(r["tags"]["experiment"] == "walkthrough_style" and r["tags"]["variant"] == style for r in walk)   # results compare the two
+    assert {r["creative"]["layout"] for r in walk} == {"stacked_walkthrough_reel" if style == "stack" else "walkthrough_reel"}
 
 
 async def test_reels_are_made_after_the_posts(tmp_path):
@@ -363,7 +369,7 @@ async def test_walkthrough_reel_rules(tmp_path):
         pool.append(str(f))
     seen = {}
 
-    async def create(agent_id, listing_id, lang, again=False, photos=None):
+    async def create(agent_id, listing_id, lang, again=False, photos=None, style="tour"):
         seen["photos"] = photos
         return {"_id": "reel1", "status": "queued", "video_path": None}, True
     runs.reel_jobs.create = create
@@ -376,3 +382,20 @@ async def test_walkthrough_reel_rules(tmp_path):
     runs._video_reel = video_reel
     reels = await runs._reels({"_id": "r", "agent_id": "a1", "listing_id": "L1"}, LISTING, [], tmp_path, "X", "", pool=pool)
     assert [r["kind"] for r in reels] == ["video"]
+def test_the_walkthrough_style_is_fixed_per_listing_and_splits_listings_about_evenly():
+    assert all(jobs.walkthrough_style("L1") == jobs.walkthrough_style("L1") for _ in range(3))
+    styles = [jobs.walkthrough_style(f"listing-{i}") for i in range(400)]
+    assert set(styles) == {"tour", "stack"} and 150 < styles.count("stack") < 250
+
+
+async def test_the_walkthrough_is_made_in_the_campaign_language(tmp_path, monkeypatch):
+    from app.modules.reels import listing_reel
+    monkeypatch.setattr(listing_reel, "listing_photos", lambda listing, uploads: [Path("a.jpg"), Path("b.jpg")])   # a listing with 2 photos
+    db, runs, _, _ = await setup(tmp_path)
+    await runs.create("a1", "L1", language="mr")
+    await runs.run_once()
+    d = await runs.latest("a1", "L1")
+    walk = next(r for r in d["reels"] if r["kind"] == "walkthrough")
+    assert runs.reel_jobs.asked["lang"] == "mr" and walk["language"] == "mr" and walk["style"] == jobs.walkthrough_style("L1")
+    head = walk["caption"].splitlines()[0]   # the caption follows the reel's language too
+    assert any("\u0900" <= ch <= "\u097f" for ch in head) and " for " not in head

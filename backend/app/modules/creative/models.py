@@ -3,10 +3,11 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from app.core import brand
+from app.modules.marketing.maharera import ProjectRegistration
 
 AUDIENCES = ("buyer", "agent")
 CHANNELS = ("instagram", "facebook")
-FORMATS = ("single", "carousel", "myth-vs-fact", "stat", "checklist", "before-after", "poll")
+FORMATS = ("single", "carousel", "myth-vs-fact", "stat", "checklist", "before-after", "poll", "plan")
 SIZES = {"instagram": (1080, 1350), "facebook": (1080, 1080)}
 
 
@@ -65,6 +66,7 @@ class Brief:
     voice: Voice = field(default_factory=Voice)
     mode: str = "brand"                   # "brand" (explainers: no prices) or "listing" (markets one property); see prompts.py
     card_brand: Optional[CardBrand] = None  # an agent's footer on the cards; None = the brand's own
+    maharera: Optional[ProjectRegistration] = None  # the project's trusted MahaRERA registration: a QR badge on the cards
     contact: List[str] = field(default_factory=list)  # lines code adds to every caption ("📞 +91 ...", "🌐 house-deal.com")
     language: str = "en"                  # "mr"/"hi": the cards and caption are translated after the English copy passes
     names: Dict[str, str] = field(default_factory=dict)  # a name -> the one way this campaign writes it in brief.language
@@ -81,6 +83,9 @@ class Brief:
     listing_rera_no: str = ""
     listing_amenities: List[str] = field(default_factory=list)
     listing_media_refs: List[str] = field(default_factory=list)  # photo URLs; kept out of corpus() (URLs carry stray digits)
+    plan_image: str = ""                  # a local image shown big (a floor plan or render from the brochure): the "plan" format
+    plan_label: str = ""                  # drawn on that image as written ("Artist's impression" on every render)
+    plan_fit: str = "contain"             # "contain": the whole image (a plan is never cropped); "cover": fill the frame
 
     def corpus(self) -> str:
         """Every string a number or claim may legitimately come from."""
@@ -92,7 +97,10 @@ class Brief:
         return " \n ".join(p for p in parts if p)
 
     def formats(self) -> List[str]:
-        """Formats this brief has the material for, in a stable order."""
+        """Formats this brief has the material for, in a stable order. A brief with a plan image is drawn only as "plan": the
+        image is the post."""
+        if self.plan_image:
+            return ["plan"]
         out = []
         if self.stat_value and self.stat_label:
             out.append("stat")
@@ -165,6 +173,7 @@ class Design:
     size: Tuple[int, int] = (1080, 1350)
     notes: str = ""
     brand: Optional[CardBrand] = None  # Brief.card_brand, for the footer
+    maharera: Optional[ProjectRegistration] = None  # Brief.maharera, for the badge at the top right
 
 
 @dataclass

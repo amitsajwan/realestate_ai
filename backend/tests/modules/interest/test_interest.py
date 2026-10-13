@@ -286,3 +286,65 @@ def test_an_empty_hub_shows_no_sample_homes(env, monkeypatch):
     assert body["items"] == [] and body["links"]["invite"].endswith("/request-invite")
     assert db.get_collection("interest_links").docs == []
     assert c.get("/public/interest/sample-image/kharadi-2bhk-ready").status_code != 200   # the sample photo route is gone
+
+
+# ---- configuration and budget answers after the one-tap ----
+async def test_answers_after_the_tap_become_the_anonymous_leads_stated_requirement():
+    svc, db, _ = await make()
+    link = await svc.create_link("post", "kharadi-reel", "A1", "facebook")
+    await svc.record_interest(link["code"], ip="1.1.1.1", anon_id="browser-abc-123")
+    assert await svc.record_answers(link["code"], answers={"bhk": 3}, ip="1.1.1.1", anon_id="browser-abc-123") == {"saved": True}
+    await svc.record_answers(link["code"], answers={"budget_min_inr": 12_000_000, "budget_max_inr": 20_000_000},
+                             ip="1.1.1.1", anon_id="browser-abc-123")
+    (lead,) = leads(db)
+    req = lead["requirement"]
+    assert req["bhk"] == 3 and req["budget_min_inr"] == 12_000_000 and req["budget_max_inr"] == 20_000_000
+    assert req["field_sources"] == {"bhk": "stated", "budget": "stated"}
+    # answers are not another interest: no extra event, and they never use up the 3-per-hour interest limit
+    assert await svc.store.count(link["code"], "interest") == 1
+    for _ in range(5):
+        await svc.record_answers(link["code"], answers={"bhk": 2}, ip="1.1.1.1", anon_id="browser-abc-123")
+    await svc.record_interest(link["code"], ip="1.1.1.1", anon_id="browser-abc-123")
+
+
+async def test_answers_without_a_tap_store_nothing():
+    svc, db, _ = await make()
+    link = await svc.create_link("post", "kharadi-reel", "A1", "facebook")
+    assert await svc.record_answers(link["code"], answers={"bhk": 3}, ip="1.1.1.1", anon_id="browser-abc-123") == {"saved": False}
+    assert await svc.record_answers(link["code"], answers={}, ip="1.1.1.1") == {"saved": False}
+    assert leads(db) == []
+
+
+async def test_answers_have_their_own_rate_limit():
+    svc, _, _ = await make()
+    link = await svc.create_link("post", "kharadi-reel", "A1", "facebook")
+    await svc.record_interest(link["code"], ip="1.1.1.1", anon_id="browser-abc-123")
+    for _ in range(20):
+        await svc.record_answers(link["code"], answers={"bhk": 3}, ip="1.1.1.1", anon_id="browser-abc-123")
+    with pytest.raises(InterestError) as e:
+        await svc.record_answers(link["code"], answers={"bhk": 3}, ip="1.1.1.1", anon_id="browser-abc-123")
+    assert e.value.status_code == 429
+
+
+async def test_answers_carry_over_when_the_visitor_then_leaves_a_number():
+    svc, db, _ = await make()
+    link = await svc.create_link("post", "kharadi-reel", "A1", "facebook")
+    await svc.record_interest(link["code"], ip="1.1.1.1", anon_id="browser-abc-123")
+    await svc.record_answers(link["code"], answers={"bhk": 3, "budget_min_inr": 12_000_000, "budget_max_inr": 20_000_000},
+                             ip="1.1.1.1", anon_id="browser-abc-123")
+    await svc.record_interest(link["code"], name="Asha Rao", phone="9876543210", consent=True, ip="1.1.1.1", anon_id="browser-abc-123")
+    (lead,) = leads(db)  # the placeholder is gone, the real lead has the answers
+    assert lead["phone"] == "+919876543210"
+    assert lead["requirement"]["bhk"] == 3 and lead["requirement"]["budget_max_inr"] == 20_000_000
+
+
+def test_router_answers_endpoint_validates_and_saves(env):
+    c, svc, db, loop = env
+    code = c.post("/interest/links", json={"kind": "post", "ref": "kharadi-reel", "channel": "facebook"}).json()["code"]
+    assert c.post(f"/public/interest/{code}", json={"anon_id": "browser-abc-123"}).status_code == 200
+    assert c.post(f"/public/interest/{code}/answers", json={"anon_id": "browser-abc-123", "bhk": 0}).status_code == 422
+    bad_order = {"anon_id": "browser-abc-123", "budget_min_inr": 20_000_000, "budget_max_inr": 12_000_000}
+    assert c.post(f"/public/interest/{code}/answers", json=bad_order).status_code == 422
+    r = c.post(f"/public/interest/{code}/answers", json={"anon_id": "browser-abc-123", "bhk": 3})
+    assert r.status_code == 200 and r.json() == {"saved": True}
+    assert c.post("/public/interest/nope123/answers", json={"bhk": 3}).status_code == 404

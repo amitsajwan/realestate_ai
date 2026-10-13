@@ -18,6 +18,7 @@ const cfg = buildMarketingConfig({ NEXT_PUBLIC_SITE_URL: 'https://site.example' 
 const ring = FIXTURE_NEWS[0] // source link is a long Google redirect
 const direct = FIXTURE_NEWS[1] // a real article address
 const digest = FIXTURE_NEWS.find((n) => n.kind === 'digest')!
+const researched = FIXTURE_NEWS.find((n) => n.body.length > 0)! // a full article written from several reports
 
 beforeAll(() => { process.env.SITE_USE_FIXTURES = '1' })
 afterAll(() => { delete process.env.SITE_USE_FIXTURES })
@@ -129,6 +130,39 @@ describe('NewsArticle', () => {
     render(<NewsArticle item={{ ...ring, image_url: null }} />)
     expect(screen.getByRole('link', { name: /Also on Facebook/ })).toHaveAttribute('href', 'https://www.facebook.com/PunePropertyHub/posts/1')
     expect(screen.queryByRole('img')).toBeNull()
+  })
+
+  it('renders a researched article: standfirst, paragraphs, every source it was written from, no bare links', () => {
+    const { container } = render(<NewsArticle item={researched} />)
+    expect(screen.getByTestId('news-summary')).toHaveTextContent(researched.summary)
+    const body = screen.getByTestId('news-body')
+    expect(within(body).getAllByText(/./)).toHaveLength(researched.body.length)
+    expect(screen.getByTestId('news-summary').compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByTestId('summary-badge')).toHaveTextContent('Written from 3 news reports')
+    expect(screen.getByRole('heading', { name: 'Sources' })).toBeInTheDocument()
+    const sources = within(screen.getByTestId('news-sources')).getAllByRole('listitem')
+    expect(sources).toHaveLength(3)
+    expect(within(sources[0]).getByRole('link', { name: /Read the original at Punekar News/ })).toHaveAttribute('href', researched.sources[0].url as string)
+    expect(within(sources[1]).getByRole('link', { name: /Read the original at Hindustan Times/ })).toBeInTheDocument()
+    expect(within(sources[2]).queryByRole('link')).toBeNull() // also reported it, but we could not read it: named, not linked
+    expect(container.textContent).not.toMatch(/https?:\/\//)
+  })
+
+  it('shows background from our area guide labelled as ours, and nothing when there is none', () => {
+    const { unmount } = render(<NewsArticle item={researched} />)
+    expect(screen.queryByTestId('news-background')).toBeNull()
+    unmount()
+    render(<NewsArticle item={{ ...researched, background: 'Corridor 2B has been approved, but approved is not the same as running.' }} />)
+    expect(screen.getByTestId('news-background')).toHaveTextContent('From our own area guide, not from the reports.')
+  })
+
+  it('reads body, background and sources from the API and drops unsafe source links', () => {
+    const item = cleanNewsItem({ id: '1', headline: 'H', body: ['One.', ' ', 7, 'Two.'], background: 'B',
+      sources: [{ name: 'A', url: 'https://a.example/x', is_redirect: false }, { name: 'B', url: 'javascript:x' }, { url: 'https://c.example' }] })!
+    expect(item.body).toEqual(['One.', 'Two.'])
+    expect(item.background).toBe('B')
+    expect(item.sources).toEqual([{ name: 'A', url: 'https://a.example/x', is_redirect: false }, { name: 'B', url: null, is_redirect: false }])
+    expect(cleanNewsItem({ id: '1', headline: 'H' })).toMatchObject({ body: [], background: '', sources: [] })
   })
 
   it('renders a digest as a list of linked stories plus the buyer tip, without a source link', () => {

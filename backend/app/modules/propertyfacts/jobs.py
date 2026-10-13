@@ -12,13 +12,17 @@ import hashlib
 import json
 import logging
 import re
+import time
 import uuid
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
+from app.platform import trace
+
 from . import campaign, identity, points, understand
+from .brochure import Brochures, usable_images
 from .facts import USABLE
 from .gather import Clients, gather
 from .store import FactsStore, facts_of
@@ -30,6 +34,12 @@ MARKETABLE = ("live", "under_offer")
 ACTIVE = ("queued", "facts", "asking", "posts")  # asking: waiting for the agent's answers (understand.py)
 AD_REELS = 6  # ad reels per campaign (ad_reel.py): one per post, in campaign order
 WALKTHROUGH_NOTE = "Add 2 photos to get a walkthrough reel with voiceover"
+# The walkthrough reel's style, split by listing so the two can be compared on real results (schedule.WALKTHROUGH_EXPERIMENT
+# tags the calendar rows; the insights collector reads them back). Fixed per listing: a campaign made again keeps its style.
+
+
+def walkthrough_style(listing_id: str) -> str:
+    return ("tour", "stack")[int(hashlib.sha1(str(listing_id).encode()).hexdigest(), 16) % 2]
 CAPTION_MAX = 2200  # Instagram's caption limit
 NOTE_MAX = 300
 STALE_AFTER = timedelta(minutes=20)
@@ -300,7 +310,8 @@ class MarketingRuns:
         run, idx = await self._done_run(agent_id, listing_id, angle)
         listing = await self._listing(agent_id, listing_id)
         who = await self._identity(run)
-        briefs = dict(campaign.plan(await self._facts(run, listing), follow_ups=None, **self._who(run, who)))
+        briefs = dict(campaign.plan(await self._facts(run, listing), follow_ups=None, images=await self._brochure_images(agent_id, listing_id),
+                                    kit=await self._kit(listing_id, agent_id), **self._who(run, who)))
         corpus = briefs[angle].corpus() if angle in briefs else ""
         checked = "\n".join(line for line in caption.splitlines() if line.strip() not in who.contact)  # code-made contact block
         problems = [p for p in problems_in(checked, corpus, allow_url=True) if p != "url"] if corpus else []
@@ -315,7 +326,10 @@ class MarketingRuns:
         note = (note or "").strip()[:NOTE_MAX]
         run, idx = await self._done_run(agent_id, listing_id, angle)
         listing = await self._listing(agent_id, listing_id)
-        briefs = dict(campaign.plan(await self._facts(run, listing), self._photo(listing), run.get("page_url") or "", follow_ups=None,
+        photo = await asyncio.to_thread(self._photo, listing)
+        briefs = dict(campaign.plan(await self._facts(run, listing), photo, run.get("page_url") or "", follow_ups=None,
+                                    images=await self._brochure_images(agent_id, listing_id),
+                                    kit=await self._kit(listing_id, agent_id),
                                     **self._who(run, await self._identity(run))))
         if angle not in briefs:
             raise RunError("The facts for this post are no longer available. Start marketing again.", 409)
@@ -419,10 +433,33 @@ class MarketingRuns:
         page = await page_for(self.db, regno)
         return regno, (page or {}).get("url")
 
+    async def _brochure_images(self, agent_id: str, listing_id: str) -> List[dict]:
+        """The floor plans and renders the agent said to use from this listing's brochure (brochure.usable_images). They go
+        into posts only (campaign.floor_plan, first_look), never into the walkthrough reel, which uses the agent's photos."""
+        try:
+            kit = await Brochures(self.db, self.uploads_dir).current(listing_id)
+        except Exception:
+            log.warning("marketing: could not read the brochure kit of %s", listing_id, exc_info=True)
+            return []
+        if not kit or kit.get("agent_id") != agent_id:
+            return []
+        return usable_images(kit, self.uploads_dir)
+
+    async def _kit(self, listing_id: str, agent_id: Optional[str] = None) -> Optional[dict]:
+        """The listing's brochure kit (its registration answer decides the MahaRERA badge with the facts); None without one, or
+        when it is another agent's (the same rule as its images)."""
+        try:
+            kit = await Brochures(self.db, self.uploads_dir).current(listing_id)
+        except Exception:
+            log.info("marketing: no brochure kit read for %s", listing_id, exc_info=True)
+            return None
+        return kit if kit and (agent_id is None or kit.get("agent_id") == agent_id) else None
+
     def _photo(self, listing: dict) -> str:
-        """The listing's first photo as a local file for the cards, or "none" (never a stock photo of something else)."""
-        from app.modules.marketing.images import first_photo_url, local_upload_path
-        p = local_upload_path(first_photo_url(listing.get("media") or []), self.uploads_dir)
+        """The listing's best photo (marketing.images.cover_photo_path) as a local file for the cards, or "none" (never a
+        stock photo of something else)."""
+        from app.modules.marketing.images import cover_photo_path
+        p = cover_photo_path(listing.get("media") or [], self.uploads_dir)
         return str(p) if p and Path(p).is_file() else "none"
 
     async def _reels(self, job: dict, listing: dict, posts: List[dict], out: Path, project: str, link_line: str,
@@ -430,7 +467,7 @@ class MarketingRuns:
         """An ad reel per post (up to AD_REELS), the video reel, and the walkthrough reel job. Each one that fails is skipped.
         The walkthrough: none for a listing with a video (its video reel covers the place); from the listing's
         photos when it has 2; else from the run's ranked pictures (`pool`: stills, brochure pages) when 2 are usable; else a
-        note asking for photos."""
+        note asking for photos. Its style (tour or stack) is fixed per listing (walkthrough_style), spoken in the posts' language."""
         reels = await self._ad_reels(job, posts, out, project, pool, facts or {})
         video = self._video(listing)
         if video:
@@ -443,15 +480,22 @@ class MarketingRuns:
                 usable = pictures.walkthrough_pictures(pool)
                 if len(usable) < MIN_PHOTOS:
                     reels.append({"kind": "walkthrough", "status": "skipped", "note": WALKTHROUGH_NOTE})
+                    trace.event(log, "marketing", job["_id"], "walkthrough_reel", trace.SKIPPED, reason=WALKTHROUGH_NOTE)
                     return reels
                 extra = {"photos": usable}
             try:
                 from app.modules.reels.listing_reel import caption as reel_caption
-                doc, _ = await self.reel_jobs.create(job["agent_id"], job["listing_id"], "en", **extra)
+                lang, style = job.get("language") or "en", walkthrough_style(job["listing_id"])
+                doc, _ = await self.reel_jobs.create(job["agent_id"], job["listing_id"], lang, style=style, **extra)
                 reels.append({"kind": "walkthrough", "job_id": doc["_id"], "status": doc["status"], "video": doc.get("video_path"),
-                              "caption": reel_caption(listing, "") + "\n\n" + link_line})
+                              "style": style, "language": lang, "caption": reel_caption(listing, "", lang) + "\n\n" + link_line})
+                trace.event(log, "marketing", job["_id"], "walkthrough_reel", trace.OK, reel_job=doc["_id"], status=doc["status"],
+                            lang=lang, style=style)
             except Exception as e:  # fewer than 2 photos, the daily limit...: the campaign goes on without it
-                reels.append({"kind": "walkthrough", "status": "skipped", "note": str(getattr(e, "detail", "") or "not made")})
+                note = str(getattr(e, "detail", "") or "not made")
+                reels.append({"kind": "walkthrough", "status": "skipped", "note": note})
+                trace.event(log, "marketing", job["_id"], "walkthrough_reel", trace.SKIPPED, reason=note if note != "not made" else
+                            (str(e) or type(e).__name__))
         return reels
 
     async def _ad_reels(self, job: dict, posts: List[dict], out: Path, project: str, pool: Sequence[str],
@@ -476,8 +520,10 @@ class MarketingRuns:
                 reels.append({"kind": "ad", "angle": p["angle"], "format": fmt, "script": script.out(),
                               "caption": ad_reel.caption(script, p["caption"]),
                               "video": "/uploads/" + dest.resolve().relative_to(self.uploads_dir.resolve()).as_posix()})
-            except Exception:
-                log.warning("marketing run %s: ad reel %s failed", job["_id"], p["angle"], exc_info=True)
+                trace.event(log, "marketing", job["_id"], "ad_reel", trace.OK, angle=p["angle"], format=fmt)
+            except Exception as e:
+                trace.event(log, "marketing", job["_id"], "ad_reel", trace.FAILED, angle=p["angle"], format=fmt,
+                            reason=str(e) or type(e).__name__, exc_info=True)
         return reels
 
     async def remake_reels(self, agent_id: str, listing_id: str) -> dict:
@@ -652,9 +698,13 @@ class MarketingRuns:
     async def run(self, job: dict) -> None:
         """Step 1, then step 2. Never raises: a failure is stored with a message safe to show, keeping a finished step 1."""
         jid, step = job["_id"], "facts"
+        started = time.monotonic()
+        trace.event(log, "marketing", jid, "start", trace.OK, listing=job["listing_id"], agent=job["agent_id"],
+                    lang=job.get("language") or "en")
         try:
             listing = await self.listings.find_one({"_id": job["listing_id"], "agent_id": job["agent_id"]})
             if not listing:
+                trace.event(log, "marketing", jid, "done", trace.FAILED, reason="listing removed")
                 return await self._set(jid, status="failed", error="The listing was removed.", finished_at=self.now())
             if job.get("mode") == "update":
                 step = "update"
@@ -665,8 +715,12 @@ class MarketingRuns:
             listing_url = await self._page_url(job["agent_id"], job["listing_id"])
             # page first (docs/plan/project-pages.md): a registered project is marketed only once its own page exists
             regno, project_url = await self._project_page(sheet)
+            summary = _summary(sheet)
+            trace.event(log, "marketing", jid, "facts", trace.OK, usable=summary["usable"], held=summary["held"],
+                        maharera=summary["maharera"] or "none", nearby=summary["nearby"], notes="; ".join(map(str, summary["notes"])) or None)
             if regno and not project_url:
-                return await self._set(jid, status="failed", step="facts", facts=_summary(sheet), page_url=listing_url,
+                trace.event(log, "marketing", jid, "done", trace.FAILED, reason=f"project page for {regno} not ready")
+                return await self._set(jid, status="failed", step="facts", facts=summary, page_url=listing_url,
                                        listing_url=listing_url, facts_done_at=self.now(), finished_at=self.now(),
                                        error=f"The facts are saved, but the project page for {regno} is not ready yet, so no "
                                              "posts were made. Please start marketing again in a few minutes.")
@@ -678,12 +732,12 @@ class MarketingRuns:
             if not job.get("understood"):
                 questions, changed = await self._understand(listing, sheet, brochure, llm)
                 if questions:
-                    return await self._set(jid, status="asking", step="facts", facts=_summary(sheet), page_url=page,
+                    return await self._set(jid, status="asking", step="facts", facts=summary, page_url=page,
                                            listing_url=listing_url, facts_done_at=self.now(), questions=questions)
                 if changed:  # the facts are gathered again with what was filled in
                     listing = await self.listings.find_one({"_id": job["listing_id"]}) or listing
                     sheet = await gather({**listing, "id": listing["_id"]}, clients, self.now())
-            await self._set(jid, status="posts", step="posts", facts=_summary(sheet), page_url=page, listing_url=listing_url,
+            await self._set(jid, status="posts", step="posts", facts=summary, page_url=page, listing_url=listing_url,
                             facts_done_at=self.now(), questions=[])
             # step 2: the posts, only now that the facts are kept
             step = "posts"
@@ -710,29 +764,39 @@ class MarketingRuns:
             await self._set(jid, names=names, claims=claims)
             job = {**job, "names": names, "claims": claims}
             who = self._who(job, await self._identity(job))
-            packs = await campaign.make(sheet.facts, out, llm=llm, photo=self._photo(listing), link=page, dropped=dropped,
-                                        photos=photos, previous=previous, on_plan=on_plan, on_post=on_post, used=used, **who)
-            keys = {aid: campaign.brief_key(b) for aid, b in campaign.plan(sheet.facts, follow_ups=None, **who)}
+            photo = await asyncio.to_thread(self._photo, listing)
+            images = await self._brochure_images(job["agent_id"], job["listing_id"])
+            kit = await self._kit(job["listing_id"], job["agent_id"])
+            packs = await campaign.make(sheet.facts, out, llm=llm, photo=photo, link=page, dropped=dropped,
+                                        photos=photos, previous=previous, on_plan=on_plan, on_post=on_post, used=used,
+                                        images=images, kit=kit, **who)
+            keys = {aid: campaign.brief_key(b) for aid, b in campaign.plan(sheet.facts, follow_ups=None, images=images, kit=kit, **who)}
             pages = {str(x) for x in brochure.get("pages", [])}
             ctx = campaign.Ctx(sheet.facts)
             where = ctx.where or "this property"
             link_line = campaign.link_line_for(where, job.get("language") or "en", ctx.registered)
             posts = await self._keep_edited({**job, "page_url": page, "link_line": link_line},
                                             [self._post(aid, p, keys.get(aid), used.get(aid, "none"), pages) for aid, p in packs])
+            trace.event(log, "marketing", jid, "posts", trace.OK if posts and not dropped else trace.FALLBACK if posts else trace.FAILED,
+                        made=len(posts), by_llm=sum(1 for p in posts if p["used_llm"]), photo="none" if photo == "none" else "listing",
+                        dropped="; ".join(f"{k}: {v}" for k, v in dropped.items()) or None)
             await self._set(jid, posts=posts, dropped={k: str(v)[:300] for k, v in dropped.items()}, inputs=self._inputs(listing),
                             link_line=link_line)
             # step 3 (best effort, never fails the run): reels from the best carousels, and the walkthrough reel
             step = "reels"
             await self._set(jid, step="reels")
-            reels = await self._reels(job, listing, posts, out, ctx.project, campaign.link_line_for(where, job.get("language") or "en", ctx.registered),
-                                      pool=photos, facts=sheet.facts)
+            reels = await self._reels(job, listing, posts, out, ctx.project, link_line, pool=photos, facts=sheet.facts)
             await self._set(jid, reels=reels)
             # the master boost pair (best effort: a failure is kept as boost.error, the run is done either way)
             step = "boost"
             await self._make_boost(job, listing, sheet.facts, out, own=[p for p in photos if p not in pages])
             await self._set(jid, status="done", reels=reels, error=None, finished_at=self.now())
-        except Exception:
+            trace.event(log, "marketing", jid, "done", trace.OK, posts=len(posts), reels=len(reels),
+                        seconds=time.monotonic() - started)
+        except Exception as e:
             log.exception("marketing run %s failed in step %s", jid, step)
+            trace.event(log, "marketing", jid, "done", trace.FALLBACK if step == "reels" else trace.FAILED, failed_step=step,
+                        error=type(e).__name__, reason=str(e) or type(e).__name__, seconds=time.monotonic() - started)
             msg = ("Could not gather the property facts. Please try again." if step == "facts"
                    else "The facts are saved, but the posts could not be made. Please try again." if step == "posts"
                    else "The posts are ready, but the reels could not be made.")
@@ -1052,8 +1116,11 @@ def default_runs() -> MarketingRuns:
     from app.platform.llm import default_llm
     db = get_database()
     from app.modules.reels.listing_reel import ReelJobs
-    return MarketingRuns(db, Path(settings.upload_directory), settings.public_site_url,
-                         clients_factory=lambda: Clients(register=Store(db), facts_store=FactsStore(db)), llm_factory=default_llm,
+    uploads = Path(settings.upload_directory)
+    return MarketingRuns(db, uploads, settings.public_site_url,
+                         clients_factory=lambda: Clients(register=Store(db), facts_store=FactsStore(db),
+                                                         brochures=Brochures(db, uploads)),
+                         llm_factory=default_llm,
                          reel_jobs=ReelJobs(db, Path(settings.upload_directory), llm_factory=default_llm))
 
 

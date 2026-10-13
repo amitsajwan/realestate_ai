@@ -28,6 +28,7 @@ class ReelIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     lang: Literal["en", "hi", "mr"] = "en"
     again: bool = False
+    style: Literal["tour", "stack"] = "tour"   # stack: the facts join one by one over the walkthrough
 
 
 def get_jobs() -> ReelJobs:
@@ -48,17 +49,17 @@ async def make_reel(listing_id: str, request: Request, body: Optional[ReelIn] = 
                     jobs: ReelJobs = Depends(get_jobs), _w: None = Depends(start_worker)):
     body = body or ReelIn()
     try:
-        doc, created = await jobs.create(str(user.id), listing_id, body.lang, body.again)
+        doc, created = await jobs.create(str(user.id), listing_id, body.lang, body.again, style=body.style)
     except ReelJobError as e:
         raise _http(e)
     return {"job": job_out(doc, str(request.base_url)), "created": created}
 
 
 @router.get("/{listing_id}/reel")
-async def get_reels(listing_id: str, request: Request, user: User = Depends(current_active_user),
+async def get_reels(listing_id: str, request: Request, style: Literal["tour", "stack"] = "tour", user: User = Depends(current_active_user),
                     jobs: ReelJobs = Depends(get_jobs), _w: None = Depends(start_worker)):
     try:
-        latest = await jobs.latest(str(user.id), listing_id)
+        latest = await jobs.latest(str(user.id), listing_id, style)
     except ReelJobError as e:
         raise _http(e)
     return {"jobs": {lang: job_out(d, str(request.base_url)) for lang, d in latest.items()}}

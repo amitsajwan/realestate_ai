@@ -51,10 +51,51 @@ describe('/i/[code] landing', () => {
     await expect(render1()).rejects.toThrow('NEXT_NOT_FOUND')
   })
 
-  it('shows the confirmation and the optional form after the done flag (no JS)', async () => {
-    await render1({ done: '1' })
+  it('after the done flag (no JS) asks the configuration first, as a real form', async () => {
+    const { container } = await render1({ done: '1' })
     expect(screen.getByRole('status')).toHaveTextContent(/noted your interest/i)
+    expect(screen.getByRole('heading', { name: 'Which configuration?' })).toBeInTheDocument()
+    expect(screen.getByText('Step 1 of 3')).toBeInTheDocument()
+    const chip = screen.getByRole('button', { name: '3 BHK' })
+    expect(chip).toHaveAttribute('type', 'submit')
+    expect(chip).toHaveAttribute('name', 'bhk')
+    expect(container.querySelector('form')!.getAttribute('action')).toBe('/i/abc2345/tap')
+    expect(screen.getByRole('link', { name: 'Skip' })).toHaveAttribute('href', '/i/abc2345?done=1&q=budget')
+  })
+
+  it('the q flag picks the question (no JS)', async () => {
+    await render1({ done: '1', q: 'budget' })
+    expect(screen.getByRole('heading', { name: 'Your budget?' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '1.2Cr-2Cr' })).toBeInTheDocument()
+  })
+
+  it('shows the optional details form on the last step (no JS)', async () => {
+    await render1({ done: '1', q: 'details' })
     expect(screen.getByLabelText(/mobile number/i)).toBeInTheDocument()
+    expect(screen.getByText('Step 3 of 3')).toBeInTheDocument()
+  })
+
+  it('without a WhatsApp number the one-tap stays the main button and no WhatsApp button shows', async () => {
+    delete process.env.NEXT_PUBLIC_WHATSAPP_NUMBER
+    await render1()
+    expect(screen.queryByRole('link', { name: /whatsapp/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'I am interested' }).className).toContain('bg-[#f0b440]')
+  })
+
+  it('with a WhatsApp number, WhatsApp leads and the one-tap is the outlined second choice', async () => {
+    process.env.NEXT_PUBLIC_WHATSAPP_NUMBER = '9876543210'
+    try {
+      const { container } = await render1()
+      const wa = screen.getByRole('link', { name: /chat on whatsapp/i })
+      expect(wa.getAttribute('href')).toContain('https://wa.me/919876543210?text=')
+      expect(decodeURIComponent(wa.getAttribute('href')!)).toContain('(ref abc2345)')
+      const tap = screen.getByRole('button', { name: 'I am interested' })
+      expect(tap.className).not.toContain('bg-[#f0b440]')
+      expect(wa.compareDocumentPosition(tap) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(container.textContent).toContain('Opens WhatsApp with a message ready to send.')
+    } finally {
+      delete process.env.NEXT_PUBLIC_WHATSAPP_NUMBER
+    }
   })
 
   it('has an og share preview with an absolute image', async () => {
@@ -84,8 +125,39 @@ describe('InterestActions', () => {
     expect(body.anon_id).toBeTruthy()
   })
 
-  it('does not send contact details without the consent tick', async () => {
+  it('after the tap asks configuration, then budget, one tap each, then the details form with a summary', async () => {
+    render(<InterestActions {...props} />)
+    fireEvent.click(screen.getByRole('button', { name: 'I am interested' }))
+    fireEvent.click(await screen.findByRole('button', { name: '3 BHK' }))
+    expect(await screen.findByRole('heading', { name: 'Your budget?' })).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: '1.2Cr-2Cr' }))
+    expect(await screen.findByLabelText(/mobile number/i)).toBeInTheDocument()
+    expect(screen.getByText('3 BHK · 1.2Cr-2Cr')).toBeInTheDocument()
+    const calls = (global.fetch as jest.Mock).mock.calls.filter(([u]) => String(u).endsWith('/answers'))
+    expect(calls.map(([, init]) => JSON.parse(init.body))).toEqual([
+      expect.objectContaining({ bhk: 3 }), expect.objectContaining({ budget_min_inr: 12_000_000, budget_max_inr: 20_000_000 }),
+    ])
+    fireEvent.change(screen.getByLabelText(/mobile number/i), { target: { value: '9876543210' } })
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: /send my details/i }))
+    expect(await screen.findByText(/details are saved/i)).toBeInTheDocument()
+    const all = (global.fetch as jest.Mock).mock.calls
+    const last = JSON.parse(all[all.length - 1][1].body)
+    expect(last).toMatchObject({ phone: '9876543210', consent: true, bhk: 3, budget_min_inr: 12_000_000, budget_max_inr: 20_000_000 })
+  })
+
+  it('skip moves on without sending anything, and a failed answer still moves on', async () => {
     render(<InterestActions {...props} initialStep="tapped" />)
+    fireEvent.click(screen.getByRole('link', { name: 'Skip' }))
+    expect(await screen.findByRole('heading', { name: 'Your budget?' })).toBeInTheDocument()
+    expect(global.fetch).not.toHaveBeenCalled()
+    ;(global as any).fetch = jest.fn().mockRejectedValue(new Error('down'))
+    fireEvent.click(screen.getByRole('button', { name: '2Cr+' }))
+    expect(await screen.findByLabelText(/mobile number/i)).toBeInTheDocument()
+  })
+
+  it('does not send contact details without the consent tick', async () => {
+    render(<InterestActions {...props} initialStep="tapped" initialQuestion="details" />)
     fireEvent.change(screen.getByLabelText(/mobile number/i), { target: { value: '9876543210' } })
     fireEvent.click(screen.getByRole('button', { name: /send my details/i }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/tick the box/i)
@@ -93,7 +165,7 @@ describe('InterestActions', () => {
   })
 
   it('sends details with consent and the empty honeypot, then says they are saved', async () => {
-    render(<InterestActions {...props} initialStep="tapped" />)
+    render(<InterestActions {...props} initialStep="tapped" initialQuestion="details" />)
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Asha' } })
     fireEvent.change(screen.getByLabelText(/mobile number/i), { target: { value: '9876543210' } })
     fireEvent.click(screen.getByRole('checkbox'))

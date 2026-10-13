@@ -1,9 +1,10 @@
 """Slow, steady enrichment of our project pages (docs/plan/project-pages.md): one project every EVERY_MINUTES, urgent ones at once.
 
-Each round picks ONE project (`next_project`): an urgent request first (a campaign about to post), then the pages Google already
-shows (Search Console impressions, when that job has stored them), then indexable pages never enriched, then the rest, then the
-oldest enrichment once it is REFRESH_DAYS old (records enriched before the checks below, with no `enrichment`, are redone
-right after Google's never-enriched pages). For that project:
+Each round picks ONE project (`next_project`): an urgent request first (a campaign about to post), then hot projects (areastats.hot:
+selling, in the news, searched for; refreshed every HOT_REFRESH_DAYS), then the pages Google already shows (Search Console
+impressions, when that job has stored them; those just off page one first), then records enriched before the checks below (no
+`enrichment`), then indexable pages never enriched (newest first), then the rest, then the oldest enrichment once it is
+REFRESH_DAYS old. Projects finished more than a year ago are skipped. For that project:
 0. MahaRERA, two open reads one after the other (PAUSE apart): the general record (kept only when its regno is the record's)
    and the building/wing summary (kept only when every row's projectId and regno are the record's) -> `buildings`,
    `building_totals`. A record with no pincode or locality gets them from the project's fact sheet (same regno) first.
@@ -29,8 +30,9 @@ from app.core.areas import BY_KEY
 from app.modules.agentprojects import maharera as project_api
 from app.modules.newsroom import register
 from app.modules.newsroom.store import Store
+from app.platform import trace
 
-from . import pages, searchconsole
+from . import hot, pages, searchconsole
 from .service import _day
 
 log = logging.getLogger(__name__)
@@ -40,6 +42,7 @@ PAUSE = 2.0                           # seconds between our two MahaRERA reads i
 NEAR_KM = 15.0                        # the located place must be this close to the pincode's centre
 STEPS = ("maharera_general", "buildings", "places", "text")
 REFRESH_DAYS = 60
+HOT_REFRESH_DAYS = 14                 # a hot project's page is rewritten from fresh facts this often
 POLL_SECONDS = 60
 REQUESTS = "enrich_requests"          # {_id: regno, at, by}: urgent enrichments asked for by campaigns
 MAX_TEXT = 900                        # characters
@@ -88,17 +91,21 @@ def priority(d: dict, urgent: set, now: datetime) -> Optional[tuple]:
         return (0, 0)
     if pages.is_old(d, now.date()):
         return None                                             # finished more than a year ago: MahaRERA facts only
-    done = d.get("enriched_at")
+    done, heat = d.get("enriched_at"), int(d.get("hot_score") or 0)
+    is_hot = heat >= hot.HOT_MIN
     seen = int(d.get("gsc_impressions") or 0)
-    if isinstance(done, datetime) and not d.get("enrichment"):
-        return (2, -seen, _aware(done).timestamp())             # enriched before buildings and checks: redo, after Google's new ones
-    if isinstance(done, datetime) and now - _aware(done) < timedelta(days=REFRESH_DAYS):
+    legacy = isinstance(done, datetime) and not d.get("enrichment")   # enriched before buildings and checks: redo
+    if not legacy and isinstance(done, datetime) and now - _aware(done) < timedelta(days=HOT_REFRESH_DAYS if is_hot else REFRESH_DAYS):
         return None
+    if is_hot:
+        return (1, -heat)                                       # people are buying, searching or talking about it now: hottest first
+    if legacy:
+        return (3, -seen, _aware(done).timestamp())             # after Google's pages, before the never-enriched ones
     if isinstance(done, datetime):
-        return (5, _aware(done).timestamp())                   # due for a refresh, oldest first
-    if seen:
-        return (1, -seen)                                       # Google already shows it: most impressions first
-    return (3 if pages.indexable(d) else 4, -pages.recency(d), -(int(d.get("units_total") or 0)))   # newest first, then bigger
+        return (6, _aware(done).timestamp())                   # due for a refresh, oldest first
+    if seen:   # Google already shows it: just off page one first, then most impressions first
+        return (2, 0 if searchconsole.near_page_one(d.get("gsc_position"), seen) else 1, -seen)
+    return (4 if pages.indexable(d) else 5, -pages.recency(d), -(int(d.get("units_total") or 0)))   # newest first, then bigger
 
 
 async def next_project(store: Store, now: datetime) -> Optional[dict]:
@@ -177,7 +184,7 @@ SYSTEM = ("You write the description on a property website's page about one hous
 async def write_text(llm, doc: dict, gathered: Optional[dict]) -> tuple:
     """(text or None, why it was refused: [] when accepted)."""
     if llm is None:
-        return None, ["no model configured"]
+        return None, ["no LLM key"]
     facts = facts_text(doc, gathered)
     try:
         out = await llm.json(SYSTEM, "Facts:\n" + facts)
@@ -185,7 +192,7 @@ async def write_text(llm, doc: dict, gathered: Optional[dict]) -> tuple:
         log.exception("enrich: model call failed for %s", doc.get("_id"))
         return None, [f"model call failed ({type(e).__name__})"]
     text = str((out or {}).get("text") or "").strip()
-    problems = check_text(text, facts)
+    problems = check_text(text, facts) if out is not None else ["no model answer"]
     if problems:
         log.info("enrich: draft for %s refused: %s", doc.get("_id"), "; ".join(problems))
         return None, problems
@@ -336,8 +343,11 @@ async def enrich_one(store: Store, doc: dict, llm, now: datetime) -> dict:
     text, refused = await write_text(llm, doc, gathered)
     steps["text"] = _step(bool(text), now, refused_reasons=refused)
     if text is None:
+        notes.extend(refused)
         notes.append("kept the code-written paragraph")
     enrichment = {"at": now, "steps": steps, "score": score(steps)}
+    trace.event(log, "enrich", regno, "done", trace.OK if text and gathered else trace.FALLBACK, text="model" if text else "code",
+                facts="gathered" if gathered else "none", score=enrichment["score"], notes="; ".join(notes) or None)
     fields = {"enriched_at": now, "enrich_notes": notes, "enrich_gathered": bool(gathered), "enrichment": enrichment, **placed}
     if text:
         fields.update(page_text=text, page_text_at=now)
@@ -435,9 +445,14 @@ async def loop() -> None:
                             log.info("enrich: Search Console %s", seen)
                     except Exception:
                         log.exception("enrich: Search Console read failed")
+                    try:  # which projects are hot today, so they are enriched first
+                        scored = await hot.refresh(Store(get_database()), now)
+                        if scored:
+                            log.info("enrich: hot projects %s", scored)
+                    except Exception:
+                        log.exception("enrich: hot projects scoring failed")
                     out = await step(Store(get_database()), default_llm(), now, last_regular, cfg.every)
-                    if out:
-                        log.info("enrich: %s", out)
+                    if out:   # enrich_one logged it (pipeline=enrich)
                         if not out["urgent"]:
                             last_regular = now
         except asyncio.CancelledError:

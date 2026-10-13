@@ -37,6 +37,7 @@ from app.modules.radar import router as radar_router
 from app.modules.newsroom.router import router as newsroom_router
 from app.modules.concierge.router import router as concierge_router
 from app.modules.whatsapp.router import router as whatsapp_router
+from app.modules.whatsapp.dm_router import router as messenger_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.newsroom.public import router as newsroom_public_router
 from app.modules.calendar.router import router as calendar_router
@@ -50,6 +51,8 @@ from app.modules.reels.router import router as listing_reels_router
 from app.modules.photoquality.router import router as quality_router
 from app.modules.agentprojects.router import router as agentprojects_router, public_router as agentprojects_public_router
 from app.modules.areastats.router import public_router as areastats_public_router
+from app.modules.seo.router import public_router as seo_public_router
+from app.modules.communities.router import public_router as communities_public_router
 from app.modules.propertyfacts.router import public_router as propertyfacts_public_router, router as propertyfacts_router
 
 # Create main API router
@@ -92,6 +95,7 @@ api_router.include_router(newsroom_router, prefix="/newsroom", tags=["newsroom"]
 api_router.include_router(concierge_router, prefix="/concierge", tags=["concierge"])
 api_router.include_router(admin_router, prefix="/admin", tags=["admin"])
 api_router.include_router(whatsapp_router, prefix="/whatsapp", tags=["whatsapp"])
+api_router.include_router(messenger_router, prefix="/messenger", tags=["messenger"])
 api_router.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(newsroom_public_router, prefix="/public", tags=["public"])
 api_router.include_router(calendar_router, prefix="/calendar", tags=["calendar"])
@@ -107,6 +111,8 @@ api_router.include_router(quality_router, prefix="/quality", tags=["quality"])
 api_router.include_router(agentprojects_router, prefix="/agentprojects", tags=["agent-projects"])
 api_router.include_router(agentprojects_public_router, prefix="/public", tags=["public"])
 api_router.include_router(areastats_public_router, prefix="/public", tags=["public"])
+api_router.include_router(seo_public_router, prefix="/public", tags=["public"])
+api_router.include_router(communities_public_router, prefix="/public", tags=["public"])
 api_router.include_router(propertyfacts_public_router, prefix="/public", tags=["public"])
 
 # Health check for API v1
