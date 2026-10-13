@@ -45,6 +45,28 @@ async def _guard(coro):
         return None
 
 
+async def project_group(register: Any, rera_no: Optional[str], project_name: Optional[str]) -> Optional[dict]:
+    """The marketed project (agentprojects.groups) a brochure's number is a member of, or (with no number) its name means:
+    "Lodha Camelot" is "Kharadi New Project - Tower 1".. on MahaRERA. Read from the register's database; never raises."""
+    db = getattr(register, "db", None)
+    if db is None:
+        return None
+    rera = (rera_no or "").strip().upper()
+    try:
+        from app.modules.agentprojects.groups import Groups
+        return await Groups(db).resolve(rera, "" if rera else (project_name or ""))
+    except Exception as e:
+        log.info("ai_listing project group lookup failed: %s", type(e).__name__)
+        return None
+
+
+def _group_picks(group: dict) -> list:
+    """The group's registrations as one-tap picks (same shape as bro.match_register's candidates)."""
+    return [{"regno": r["regno"], "name": " ".join(x for x in (group["name"], r.get("tower", ""),
+                                                              f"({r['holds']})" if r.get("holds") else "") if x),
+             "taluka": ""} for r in group["registrations"]]
+
+
 HALF_ACRE_SQFT = 21780  # a plot or flat this big is a layout's land, not one unit
 
 
@@ -115,6 +137,14 @@ class AIListingService:
                              ("project_name", maharera.get("name"))):
                     if v and (k != "project_name" or not facts.get(k)):
                         facts[k], conf[k], sources[k] = v, 0.95, "maharera"
+            group = await project_group(register, facts.get("rera_no"), by_name)
+            if group and group["regno"] and group["regno"] == facts.get("rera_no"):
+                # a member tower: the project is sold under the group's name and place, not MahaRERA's working name
+                for k, v in (("project_name", group["name"]), ("locality", group["locality"])):
+                    if v:
+                        facts[k], conf[k], sources[k] = v, 0.95, "brochure"
+            elif group and not facts.get("rera_no"):
+                rera_candidates = _group_picks(group)  # the marketed name alone: pick the tower, never guessed
 
         draft: dict = dict(facts)
         title = copy.make_title(facts)

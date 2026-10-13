@@ -235,7 +235,8 @@ async def check_registration(clients: Any, rera: str, name: str = "", now: Optio
                                                                   "until it is confirmed."}
     try:
         match, _ = await asyncio.wait_for(registration.lookup(clients.get_text, clients.fetch_general, name, rera, None, now,
-                                                              getattr(clients, "register", None)), LOOKUP_BUDGET_S)
+                                                              getattr(clients, "register", None),
+                                                              getattr(clients, "groups", None)), LOOKUP_BUDGET_S)
     except Exception:  # timeout or a site failure: not an answer either way
         log.info("brochure: MahaRERA check of %s failed", rera, exc_info=True)
         match = None
@@ -519,10 +520,12 @@ class Brochures:
 def default_brochures() -> Brochures:
     from app.core.config import settings
     from app.core.database import get_database
+    from app.modules.agentprojects.groups import Groups
     from app.modules.newsroom.store import Store
     from app.platform.llm import default_llm
 
     from .gather import Clients
     db = get_database()
-    return Brochures(db, Path(settings.upload_directory), clients_factory=lambda: Clients(timeout=15.0, register=Store(db)),
+    return Brochures(db, Path(settings.upload_directory),
+                     clients_factory=lambda: Clients(timeout=15.0, register=Store(db), groups=Groups(db)),
                      llm_factory=default_llm)

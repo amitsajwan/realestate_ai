@@ -55,7 +55,8 @@ def public_view(doc: dict) -> dict:
     return {
         "id": doc["_id"], "slug": doc["slug"], "name": doc["name"], "builder": doc["builder"],
         "locality": doc["locality"], "address": doc.get("address", ""), "pincode": doc.get("pincode", ""),
-        "rera_no": doc["rera_no"], "scope_note": doc.get("scope_note", ""), "configurations": confs,
+        "rera_no": doc["rera_no"], "registrations": doc.get("registrations") or [],  # never `candidates` (owner-only)
+        "scope_note": doc.get("scope_note", ""), "configurations": confs,
         "price_min": min(prices) if prices else None, "price_max": max(prices) if prices else None,
         "bhk_options": sorted({c["bhk"] for c in confs}), "possession_target": doc.get("possession_target"),
         "positioning": doc.get("positioning", ""), "who_it_suits": doc.get("who_it_suits") or [],
@@ -100,12 +101,12 @@ class ProjectService:
         if not doc:
             raise ProjectError("Project not found", 404)
         return OwnerProject(**public_view(doc), agent_id=agent_id, status=doc.get("status", "draft"),
-                            issues=doc.get("issues") or [])
+                            issues=doc.get("issues") or [], candidates=doc.get("candidates") or [])
 
     async def list_for_owner(self, agent_id: str) -> List[OwnerProject]:
         docs = await self.col.find({"agent_id": agent_id}).sort("order", 1).to_list(MAX_PER_AGENT)
         return [OwnerProject(**public_view(d), agent_id=agent_id, status=d.get("status", "draft"),
-                             issues=d.get("issues") or []) for d in docs]
+                             issues=d.get("issues") or [], candidates=d.get("candidates") or []) for d in docs]
 
     async def check_maharera(self, agent_id: str, slug: str) -> OwnerProject:
         """Re-read the project's MahaRERA record and store it with today's date. Fails loudly, never guesses."""

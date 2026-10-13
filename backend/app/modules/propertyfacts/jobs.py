@@ -1112,6 +1112,7 @@ class MarketingRuns:
 def default_runs() -> MarketingRuns:
     from app.core.config import settings
     from app.core.database import get_database
+    from app.modules.agentprojects.groups import Groups
     from app.modules.newsroom.store import Store
     from app.platform.llm import default_llm
     db = get_database()
@@ -1119,7 +1120,7 @@ def default_runs() -> MarketingRuns:
     uploads = Path(settings.upload_directory)
     return MarketingRuns(db, uploads, settings.public_site_url,
                          clients_factory=lambda: Clients(register=Store(db), facts_store=FactsStore(db),
-                                                         brochures=Brochures(db, uploads)),
+                                                         brochures=Brochures(db, uploads), groups=Groups(db)),
                          llm_factory=default_llm,
                          reel_jobs=ReelJobs(db, Path(settings.upload_directory), llm_factory=default_llm))
 

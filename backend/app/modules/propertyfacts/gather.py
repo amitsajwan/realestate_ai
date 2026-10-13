@@ -54,11 +54,13 @@ def place_readings(p: place_mod.Place, now: datetime) -> List[Reading]:
 class Clients:
     """Real network access, polite by default: Nominatim at most 1 request a second, answers cached for the process."""
 
-    def __init__(self, timeout: float = 60.0, register: Any = None, facts_store: Any = None, brochures: Any = None):
+    def __init__(self, timeout: float = 60.0, register: Any = None, facts_store: Any = None, brochures: Any = None,
+                 groups: Any = None):
         """`register`: the newsroom Store, read before MahaRERA; `facts_store`: where gathered sheets are kept; `brochures`: the
-        listing's brochure kits (brochure.Brochures). All optional."""
+        listing's brochure kits (brochure.Brochures); `groups`: marketed projects sold under several registrations
+        (agentprojects.groups.Groups). All optional."""
         self.timeout = timeout
-        self.register, self.facts_store, self.brochures = register, facts_store, brochures
+        self.register, self.facts_store, self.brochures, self.groups = register, facts_store, brochures, groups
         self._cache: Dict[str, Any] = {}
         self._last_osm = 0.0
         self._osm_lock = asyncio.Lock()
@@ -148,7 +150,8 @@ async def gather(doc: Dict[str, Any], clients: Any, now: Optional[datetime] = No
     kit = await kits.current(str(lid)) if kits is not None and lid else None
     kit_name, kit_rera = brochure.lookup_inputs(kit)
     match, official = await registration.lookup(clients.get_text, clients.fetch_general, doc.get("project_name") or kit_name,
-                                                doc.get("rera_no") or kit_rera, where, now, getattr(clients, "register", None))
+                                                doc.get("rera_no") or kit_rera, where, now, getattr(clients, "register", None),
+                                                getattr(clients, "groups", None))
     rs += official
     if match.project is None:
         notes.append("MahaRERA: " + match.how)

@@ -87,13 +87,17 @@ async def _web_discovered_watch():
 
 
 async def _agent_project_watch():
-    """Every builder project an agent has added (with MahaRERA's id), for the register's watch list."""
+    """Every builder project an agent has added (with MahaRERA's id), for the register's watch list: each of the registrations
+    a marketed project is sold under (agentprojects.groups), never its unconfirmed candidates."""
     from app.core.database import get_database
     from app.modules.areastats.watch import WatchItem
 
     docs = await get_database().get_collection("agent_projects").find(
-        {"rera_no": {"$exists": True}}, {"rera_no": 1, "maharera_id": 1, "name": 1}).to_list(2000)
-    return [WatchItem(d["rera_no"], d.get("maharera_id"), d.get("name", "")) for d in docs if d.get("rera_no")]
+        {"rera_no": {"$exists": True}}, {"rera_no": 1, "maharera_id": 1, "name": 1, "registrations": 1}).to_list(2000)
+    out = [WatchItem(d["rera_no"], d.get("maharera_id"), d.get("name", "")) for d in docs if d.get("rera_no")]
+    out += [WatchItem(r["regno"], r.get("maharera_id"), f"{d.get('name', '')} {r.get('tower', '')}".strip())
+            for d in docs for r in d.get("registrations") or [] if r.get("regno") and r["regno"] != d.get("rera_no")]
+    return out
 
 
 async def _project_registration(db, listing):

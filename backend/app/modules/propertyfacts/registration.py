@@ -177,15 +177,65 @@ async def from_register(register: Any, name: str, rera_no: str, place: Optional[
     return m, readings(m.project, general, _aware(d["details_checked_at"]))
 
 
+async def _group(groups: Any, rera_no: str, name: str) -> Optional[dict]:
+    """The marketed project (agentprojects.groups) this number belongs to, or (with no number) this name. A number that is
+    not a member never takes the group from the name: a look-alike tower is not part of the project. Never raises."""
+    if groups is None:
+        return None
+    rera = (rera_no or "").strip().upper()
+    try:
+        return await groups.resolve(rera, "" if rera else (name or ""))
+    except Exception as e:
+        log.info("project group lookup failed: %s", type(e).__name__)
+        return None
+
+
+async def _register_doc(register: Any, regno: str) -> Optional[dict]:
+    if register is None:
+        return None
+    try:
+        return await register.project(regno)
+    except Exception:
+        return None
+
+
+async def _group_cards(register: Any, group: dict) -> List[MahaReraProject]:
+    """The group's registrations as search cards, from our register when it has them."""
+    out = []
+    for r in group["registrations"]:
+        d = await _register_doc(register, r["regno"])
+        out.append(card_of(d) if d else MahaReraProject(
+            regno=r["regno"], name=f"{group['name']} {r.get('tower', '')}".strip(), promoter=group.get("promoter", ""),
+            location="", district="", pincode=group.get("pincode", ""), last_modified="", url=""))
+    return out
+
+
 async def lookup(get_text: GetText, fetch_general: FetchGeneral, name: str, rera_no: str = "",
                  place: Optional[Place] = None, now: Optional[datetime] = None,
-                 register: Any = None) -> "tuple[Match, List[Reading]]":
-    """`register`: the newsroom Store (or a fake with project(regno) and all_projects()); asked before MahaRERA."""
+                 register: Any = None, groups: Any = None) -> "tuple[Match, List[Reading]]":
+    """`register`: the newsroom Store (or a fake with project(regno) and all_projects()); asked before MahaRERA.
+    `groups`: agentprojects.groups.Groups (or a fake with resolve(regno, name)). A marketed name sold under several
+    registrations ("Lodha Camelot") is not a MahaRERA name: the tower the name says is looked up, else its towers are offered
+    to pick from (never one guessed); a member's number is searched on MahaRERA under the working name MahaRERA uses for it."""
     now = now or datetime.utcnow()
+    group = await _group(groups, rera_no, name)
+    if group and not (rera_no or "").strip():
+        if not group["regno"]:
+            cards = await _group_cards(register, group)
+            towers = ", ".join(f"{r.get('tower') or r['regno']} ({r['regno']})" for r in group["registrations"])
+            return Match(None, f"{group['name']} is sold under {len(cards)} MahaRERA registrations: {towers}; "
+                               "say which tower", cards), []
+        rera_no = group["regno"]
     if register is not None and ((name or "").strip() or (rera_no or "").strip()):
         got = await from_register(register, name, rera_no, place, now)
         if got:
+            if group and got[0].project is not None:
+                got[0].how += f" ({group['name']}, {group['tower'] or 'one of its registrations'})"
             return got
+    if group and group["regno"]:  # MahaRERA's search knows a member by its working name, not the marketed one
+        d = await _register_doc(register, group["regno"])
+        if d and d.get("name"):
+            name = d["name"]
     if not (name or "").strip():
         return Match(None, "the listing has no project name to search MahaRERA by"), []
     found = await search(get_text, name)

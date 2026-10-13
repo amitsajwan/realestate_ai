@@ -45,3 +45,29 @@ Frontend:
   catalog project; otherwise it renders the register page. A catalog project that is also in the register keeps its catalog page.
 - Property facts block (property-facts owner): the page asks `GET /api/v1/public/property-facts/by-regno/{regno}` (to be provided by
   the property-facts owner) and, when it returns usable facts, shows them as "From the agent's sheet" with each fact's source.
+
+## Marketed projects sold under several registrations (2026-10-13)
+Builders register a big project tower by tower under working names: Lodha Camelot (Upper Kharadi) is "Kharadi New Project -
+Tower 1", "- Tower 2"... on MahaRERA, and nothing there says they are one project. The register keeps one record per number.
+
+BUILT (branch work/project-groups, not deployed):
+- The link lives on the project record (`agent_projects`, `ProjectIn`): `rera_no` stays the primary registration;
+  `registrations: [{regno, tower, holds, maharera_id, completion, checked_at, source}]` lists every number the project is sold
+  under (rera_no must be one of them); `candidates: [{regno, tower, maharera_id, why, source}]` are look-alikes (same promoter,
+  pincode, naming) no trusted source puts in the project. Records without `registrations` are unchanged.
+- Public reads show `registrations`; `candidates` are owner-only (OwnerProject): they never match, never feed chat, are never watched.
+- `agentprojects.groups.Groups(db).resolve(regno, name)`: a member number, or the marketed name ("Lodha Camelot", "Camelot
+  Kharadi", "Lodha Camelot Tower 11"; the distinctive word alone is not enough) -> {name, builder, promoter, locality, regno, tower,
+  registrations, siblings}. Two different groups answering one name -> none. Reads drafts too (matching only, nothing published).
+- Wired: propertyfacts `registration.lookup` for campaign runs and brochure kits (the marketed name with no number -> the tower
+  it names, else its towers offered to pick; a member number is searched on MahaRERA under its working name); ai_listing brochure
+  drafts (member number -> project name and locality from the group; name only -> the towers as one-tap picks); the register
+  watch list (every member); chat grounding (all member numbers, brochure travel times); `pune_places.VERIFIED` places Camelot's
+  5 numbers in Upper Kharadi (not towers 5, 6, 9).
+- Seed: `backend/scripts/lodha_camelot.py` (draft; `--dry-run` prints it).
+
+TARGET (not built):
+- Register project pages (`/projects/<slug>` for a register record) and area pages say "part of Lodha Camelot" and link the group.
+- The shared catalog and the frontend project page show the registrations and the brochure's travel times (`nearby[].minutes`).
+- propertyfacts sheets stay one per registration; a listing named only "Lodha Camelot" keeps its own name-keyed sheet.
+- Owner review in Studio: confirm or drop a candidate (today: edit the record and re-run the seed).

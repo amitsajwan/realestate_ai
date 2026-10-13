@@ -279,7 +279,13 @@ def project_grounding(p: dict, agent_name: str = "the agent", page_url: str = ""
     _add(g.facts, where + (f", at {p['address']}." if p.get("address") else "."))
     r = p.get("rera") or {}
     _add(g.facts, f"Builder: {p['builder']}." + (f" Promoter on MahaRERA: {r['promoter']}." if r.get("promoter") else ""))
-    _add(g.facts, f"MahaRERA registration number: {p['rera_no']}.")
+    regs = p.get("registrations") or []
+    if len(regs) > 1:  # a marketed project sold under several registrations (agentprojects.groups); never its candidates
+        _add(g.facts, f"{p['name']} is registered on MahaRERA as {len(regs)} separate registrations: "
+                      + "; ".join(f"{r.get('tower') or 'one part'} {r['regno']}" + (f" ({r['holds']})" if r.get("holds") else "")
+                                  for r in regs) + ".")
+    else:
+        _add(g.facts, f"MahaRERA registration number: {p['rera_no']}.")
     if p.get("scope_note"):
         _add(g.facts, p["scope_note"])
     for c in p.get("configurations") or []:
@@ -295,6 +301,8 @@ def project_grounding(p: dict, agent_name: str = "the agent", page_url: str = ""
     for n in p.get("nearby") or []:
         if n.get("km"):
             _add(g.facts, f"{n['name']} is about {n['km']} km away by road.")
+        elif n.get("minutes"):
+            _add(g.facts, f"{n['name']} is about {n['minutes']} minutes away" + (", as the builder says." if n.get("source") == "builder" else " (as quoted)."))
     if p.get("amenities"):
         _add(g.facts, "Amenities: " + ", ".join(p["amenities"][:12]) + ".")
     if page_url:

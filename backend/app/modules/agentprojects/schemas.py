@@ -2,7 +2,7 @@
 import re
 from typing import Dict, List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator, model_validator
 
 # Where a fact comes from. "maharera" facts are re-read from MahaRERA's public API; the rest are labelled claims.
 Source = Literal["maharera", "builder", "agent", "avasetu", "osm"]
@@ -11,6 +11,7 @@ Status = Literal["draft", "live"]
 SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+){0,8}$")
 REGNO = re.compile(r"^P[A-Z]?\d{11,14}$")
 MONTH = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+DAY = re.compile(r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$")
 
 
 class _In(BaseModel):
@@ -28,6 +29,7 @@ class Configuration(_In):
 class Nearby(_In):
     name: str = Field(..., min_length=2, max_length=60)
     km: Optional[float] = Field(None, gt=0, lt=100)  # road distance, only when measured (source "osm")
+    minutes: Optional[StrictInt] = Field(None, gt=0, lt=300)  # travel time as the source quotes it (a brochure: "builder")
     source: Source = "builder"
 
 
@@ -56,6 +58,54 @@ class Issue(_In):
     status: Literal["open", "fixed", "agent_confirmed"] = "open"
 
 
+class Registration(_In):
+    """One MahaRERA registration of a marketed project. Builders register a big project tower by tower under working names
+    ("Kharadi New Project - Tower 1"), so one marketed name can hold several registrations."""
+    regno: str
+    tower: str = Field(..., min_length=1, max_length=40)  # as the builder labels it: "Tower 1"
+    holds: str = Field("", max_length=120)  # what this registration sells: "3 BHK, 3 BHK + study"
+    maharera_id: Optional[StrictInt] = Field(None, gt=0)
+    # completion date filed with MahaRERA (always source "maharera") and the day it was read, both YYYY-MM-DD; the register
+    # keeps the current value, this is the reading the record was made from
+    completion: Optional[str] = None
+    checked_at: Optional[str] = None
+    source: Source = "builder"  # who says this registration belongs to the project (the brochure: "builder")
+
+    @field_validator("completion", "checked_at")
+    @classmethod
+    def _day(cls, v):
+        if v and not DAY.match(v):
+            raise ValueError("dates are YYYY-MM-DD")
+        return v or None
+
+    @field_validator("regno")
+    @classmethod
+    def _regno(cls, v: str) -> str:
+        return clean_regno(v)
+
+
+class Candidate(_In):
+    """A registration that looks like part of the project (same promoter, pincode, naming) but no source we trust says so.
+    Never shown as part of the project; kept so the owner can confirm or drop it."""
+    regno: str
+    tower: str = Field("", max_length=40)
+    maharera_id: Optional[StrictInt] = Field(None, gt=0)
+    why: str = Field(..., min_length=2, max_length=200)
+    source: Source = "maharera"
+
+    @field_validator("regno")
+    @classmethod
+    def _regno(cls, v: str) -> str:
+        return clean_regno(v)
+
+
+def clean_regno(v: str) -> str:
+    v = v.strip().upper()
+    if not REGNO.match(v):
+        raise ValueError("must be a MahaRERA registration number like P52100078796 or PR1260002501386")
+    return v
+
+
 class ProjectIn(_In):
     name: str = Field(..., min_length=2, max_length=80)  # the marketed name: "Goyal My Home"
     builder: str = Field(..., min_length=2, max_length=80)  # brand: "Goyal Properties"
@@ -63,8 +113,11 @@ class ProjectIn(_In):
     locality: str = Field(..., min_length=2, max_length=60)
     address: str = Field("", max_length=240)
     pincode: str = Field("", max_length=6)
-    rera_no: str
+    rera_no: str  # the primary registration (the one MahaRERA checks read); with `registrations`, it must be one of them
     maharera_id: Optional[StrictInt] = Field(None, gt=0)  # MahaRERA's internal id (public/project/view/<id>)
+    # every registration the project is sold under, when it has more than one (empty: just rera_no); see groups.py
+    registrations: List[Registration] = Field(default_factory=list, max_length=30)
+    candidates: List[Candidate] = Field(default_factory=list, max_length=30)  # owner-only, until confirmed or dropped
     scope_note: str = Field("", max_length=200)  # "This registration covers Building C only"
     configurations: List[Configuration] = Field(default_factory=list, max_length=12)
     possession_target: Optional[str] = None  # builder's own target month, YYYY-MM
@@ -74,7 +127,7 @@ class ProjectIn(_In):
     amenities: List[str] = Field(default_factory=list, max_length=40)
     specs: Dict[str, str] = Field(default_factory=dict)  # land, towers, floors as quoted
     provenance: Dict[str, Source] = Field(default_factory=dict)  # field -> source for the plain fields above
-    nearby: List[Nearby] = Field(default_factory=list, max_length=12)
+    nearby: List[Nearby] = Field(default_factory=list, max_length=20)
     place: Optional[Place] = None
     maps_query: str = Field("", max_length=120)  # what a buyer types into Google Maps to find it
     media: List[Media] = Field(default_factory=list, max_length=20)
@@ -89,6 +142,17 @@ class ProjectIn(_In):
         if not REGNO.match(v):
             raise ValueError("rera_no must be a MahaRERA registration number like P52100078796")
         return v
+
+    @model_validator(mode="after")
+    def _members(self):
+        regs = [r.regno for r in self.registrations]
+        if len(set(regs)) != len(regs):
+            raise ValueError("registrations: each registration number once")
+        if regs and self.rera_no not in regs:
+            raise ValueError("rera_no must be one of the registrations")
+        if set(regs) & {c.regno for c in self.candidates}:
+            raise ValueError("a registration cannot also be a candidate")
+        return self
 
     @field_validator("possession_target")
     @classmethod
@@ -138,6 +202,7 @@ class PublicProject(BaseModel):
     address: str = ""
     pincode: str = ""
     rera_no: str
+    registrations: List[Registration] = []
     scope_note: str = ""
     configurations: List[PublicConfiguration] = []
     price_min: Optional[int] = None
@@ -192,3 +257,4 @@ class OwnerProject(PublicProject):
     agent_id: str
     status: Status
     issues: List[Issue] = []
+    candidates: List[Candidate] = []

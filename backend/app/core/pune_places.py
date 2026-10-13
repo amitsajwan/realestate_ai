@@ -145,6 +145,13 @@ PIN_DEFAULTS: Dict[str, str] = {"412207": "wagholi", "411036": "mundhwa", "41230
 # projects whose name does not say where they are, placed by hand after checking (registration number -> place key)
 VERIFIED: Dict[str, str] = {
     "PR1261012500289": "upper_kharadi",  # Geras Avive Towers Phase I, 412307: sold as Upper Kharadi (owner, 2026-10-09)
+    # Lodha Camelot, 412207 ("Kharadi New Project - Tower N" on MahaRERA): the 5 registrations its brochure (Nov 2025) lists,
+    # sold as Upper Kharadi. Towers 5, 6 and 9 (same promoter and naming) are not in the brochure and are not placed here.
+    "PR1260002501386": "upper_kharadi",  # Tower 1
+    "PR1260002501413": "upper_kharadi",  # Tower 2
+    "PR1260002501399": "upper_kharadi",  # Tower 3
+    "PR1260002501398": "upper_kharadi",  # Tower 4
+    "PR1260002501449": "upper_kharadi",  # Tower 11
 }
 
 BY_KEY: Dict[str, Place] = {p.key: p for p in PLACES}
