@@ -69,11 +69,21 @@ def facts_for(doc: dict, nearby: dict, named: List[dict], stats: Optional[dict])
                               "as_of": (stats or {}).get("as_of")}
 
 
+_ROMAN = {"i": "1", "ii": "2", "iii": "3", "iv": "4", "v": "5"}
+
+
+def names(name: str, text: str) -> bool:
+    """`text` names the place, spelling aside: case, hyphens and spaces, and Phase I for Phase 1."""
+    def norm(t: str) -> str:
+        return "".join(_ROMAN.get(w, w) for w in re.findall(r"[a-z0-9]+", (t or "").lower()))
+    return norm(name) in norm(text)
+
+
 def check(title: str, paragraphs: List[str], facts: str, name: str) -> List[str]:
     """Problems with a drafted article; [] means it may be published."""
     text = " ".join(paragraphs)
     problems = []
-    if name.lower() not in (title or "").lower():
+    if not names(name, title):
         problems.append("title does not name the neighbourhood")
     if not 3 <= len(paragraphs) <= 5:
         problems.append("not 3 to 5 paragraphs")
@@ -118,6 +128,12 @@ async def write_one(store: Store, doc: dict, llm, get_json: GetJson, now: dateti
             out = {}
         title = str(out.get("title") or "").strip()
         paragraphs = [str(p).strip() for p in (out.get("paragraphs") or []) if str(p).strip()]
+        # a title that misses the name is replaced by ours, but only when the text itself is about this neighbourhood: a draft
+        # about another place is still refused
+        if not names(doc["name"], title) and names(doc["name"], " ".join(paragraphs)):
+            area = area_of(doc)
+            title = f"{doc['name']}, {area.name}: a neighbourhood guide" if area else f"{doc['name']}: a neighbourhood guide"
+            notes.append("title written by code (the model's did not name the neighbourhood)")
         problems = check(title, paragraphs, facts, doc["name"])
         if problems:
             notes.append("draft refused: " + "; ".join(problems))

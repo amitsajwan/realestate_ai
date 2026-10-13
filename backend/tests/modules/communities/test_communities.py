@@ -121,6 +121,16 @@ async def test_writes_from_facts_and_publishes_only_a_checked_article():
     assert saved["published"] and saved["title"] == GOOD["title"] and len(saved["facts"]["projects"]) == 2
 
 
+async def test_a_title_that_misses_the_name_is_replaced_not_refused():
+    db, store = await seeded()
+    await discover.run(store, osm(), NOW)
+    doc = await db.get_collection(discover.COLLECTION).find_one({"_id": "wagholi/kesnand"})
+    out = await write.write_one(store, doc, FakeLLM({**GOOD, "title": "A guide to the area"}), osm(), NOW)
+    assert out["published"]
+    saved = await db.get_collection(discover.COLLECTION).find_one({"_id": "wagholi/kesnand"})
+    assert saved["title"] == "Kesnand, Wagholi: a neighbourhood guide"
+
+
 async def test_invented_numbers_sales_words_or_thin_facts_are_not_published():
     db, store = await seeded()
     await discover.run(store, osm(), NOW)
