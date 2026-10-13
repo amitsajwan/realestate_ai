@@ -10,7 +10,7 @@ list first (areastats.watch), and then has its page at once.
 import re
 import time
 import unicodedata
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
 
 from app.core import brand
@@ -115,12 +115,13 @@ def indexable(doc: dict) -> bool:
 
 
 def page_updated(doc: dict) -> Optional[str]:
-    """Our own last change to the page (enrichment or the details read), ISO date; never MahaRERA's dates. The sitemap's lastmod."""
+    """Our own last change to the page (enrichment or the details read), full ISO datetime; never MahaRERA's dates. The sitemap's lastmod."""
     stamps = [doc.get("enriched_at"), doc.get("page_text_at")]
     if doc.get("details_ok", True):   # a failed details read changed nothing on the page
         stamps.append(doc.get("details_checked_at"))
-    days = [v.date().isoformat() for v in stamps if isinstance(v, datetime)]
-    return max(days) if days else None
+    # Full datetime (not just date) so IndexNow sees the actual change time within the day
+    dts = [v if v.tzinfo else v.replace(tzinfo=timezone.utc) for v in stamps if isinstance(v, datetime)]
+    return max(dts).isoformat() if dts else None
 
 
 # ---- the name buyers use -------------------------------------------------------------------------------------------------
