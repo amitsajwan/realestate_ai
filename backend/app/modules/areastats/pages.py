@@ -62,12 +62,21 @@ async def assign_slug(store: Store, doc: dict) -> str:
 
 
 async def assign_all(store: Store, docs: Optional[List[dict]] = None) -> int:
-    """Give every record in our areas or on the watch list its page slug (cheap: only the ones without one). Returns how many."""
+    """Give every record in our areas or on the watch list its page slug (cheap: only the ones without one). Returns how many.
+
+    Also recomputes cluster_id and cluster_primary for all docs: which registrations belong to the same project
+    (towers, phases) so the primary page can be identified.  The cluster fields are stored but no redirects are
+    added here — that is a separate step once the coordinator has reviewed the cluster report.
+    """
+    all_docs = docs if docs is not None else await store.all_projects()
     n = 0
-    for d in docs if docs is not None else await store.all_projects():
+    for d in all_docs:
         if not d.get("page_slug") and in_register(d):
             await assign_slug(store, d)
             n += 1
+    # Recompute cluster membership across all docs (needs all records together)
+    from .clusters import assign_clusters
+    await assign_clusters(store, all_docs)
     return n
 
 

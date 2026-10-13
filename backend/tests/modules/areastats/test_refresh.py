@@ -1,8 +1,10 @@
 """The gentle register refresh behind the area stats: the pincode sweep, relabelling, and details from MahaRERA's project API."""
+import logging
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from app.modules.agentprojects.maharera import MahaReraError
 from app.modules.areastats import refresh
 from app.modules.areastats.service import area_stats
 from app.modules.newsroom.store import Store
@@ -153,6 +155,71 @@ async def test_details_limit_and_failures_retry_next_day():
     assert out == {"read": 0, "failed": 1}  # PR3 (no project id in its link); the other two wait a day
     assert all(d["details_ok"] is False for d in await store.all_projects())
     assert (await refresh.details(store, fetch, NOW + timedelta(days=1), limit=5))["failed"] == 3
+
+
+async def test_details_sets_error_field_on_failure_and_clears_it_on_success():
+    """details_error records the reason; cleared when the next read succeeds."""
+    store = await seeded(
+        ("PR1", "wagholi", 11, {}),   # fetch returns None → no_answer
+        ("PR2", "wagholi", None, {}),  # no MahaRERA id in url → no_id
+    )
+
+    async def fetch(mid):
+        return None  # always down
+
+    await refresh.details(store, fetch, NOW, limit=5)
+    p1 = await store.project("PR1")
+    p2 = await store.project("PR2")
+    assert p1["details_error"] == "no_answer" and p1["details_ok"] is False
+    assert p2["details_error"] == "no_id" and p2["details_ok"] is False
+
+    # now fix the fetch: PR1 should have error cleared on success, PR2 still no_id (no mid)
+    async def fixed(mid):
+        return general("PR1")
+
+    await refresh.details(store, fixed, NOW + timedelta(days=1), limit=5)
+    p1 = await store.project("PR1")
+    assert p1["details_ok"] is True and p1.get("details_error") is None
+
+
+async def test_details_error_refused_keeps_maharera_message():
+    """When parse_general raises MahaReraError the short message is stored, not just 'refused'."""
+    store = await seeded(("PR1", "wagholi", 11, {}))
+
+    async def fetch(mid):
+        return {"status": "1", "responseObject": None}  # parse_general will raise MahaReraError
+
+    await refresh.details(store, fetch, NOW, limit=5)
+    p1 = await store.project("PR1")
+    assert p1["details_ok"] is False
+    # error is a non-empty string describing why MahaRERA refused (not just "refused")
+    assert isinstance(p1.get("details_error"), str) and p1["details_error"]
+
+
+async def test_details_logs_trace_per_read(caplog):
+    """One trace.event per project read: ok on success, failed with reason on failure."""
+    store = await seeded(
+        ("PR1", "wagholi", 11, {}),   # will succeed
+        ("PR2", "wagholi", 12, {}),   # will fail (fetch returns None)
+        ("PR3", "wagholi", None, {}),  # no_id
+    )
+
+    async def fetch(mid):
+        if mid == 11:
+            return general("PR1")
+        return None
+
+    with caplog.at_level(logging.ERROR, logger=refresh.log.name):
+        # also capture INFO (ok) and WARNING (failed) levels
+        pass
+    with caplog.at_level(logging.INFO, logger=refresh.log.name):
+        await refresh.details(store, fetch, NOW, limit=5)
+
+    per_read = [r for r in caplog.records if "pipeline=register" in r.getMessage() and "step=details" in r.getMessage()]
+    outcomes = {r.getMessage().split("ref=")[1].split()[0]: r.getMessage() for r in per_read}
+    assert "PR1" in outcomes and "outcome=ok" in outcomes["PR1"]
+    assert "PR2" in outcomes and "outcome=failed" in outcomes["PR2"] and "no_answer" in outcomes["PR2"]
+    assert "PR3" in outcomes and "outcome=failed" in outcomes["PR3"] and "no_id" in outcomes["PR3"]
 
 
 async def test_step_runs_all_parts_and_survives_a_broken_one():

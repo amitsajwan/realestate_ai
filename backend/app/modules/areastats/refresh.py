@@ -149,23 +149,38 @@ async def details(store: Store, fetch: project_api.Fetch, now: datetime, limit: 
             await asyncio.sleep(PAUSE)
         mid, regno = register.maharera_id(d.get("source_url", "")), d.get("regno") or d["_id"]
         fields = None
-        if mid is not None:
+        details_error: Optional[str] = None
+        if mid is None:
+            details_error = "no_id"
+        else:
             body = await fetch(mid)
-            try:
-                got = project_api.parse_general(body, regno, mid) if body is not None else None
-                fields = {k: got[k] for k in DETAIL_FIELDS} if got else None
-            except project_api.MahaReraError as e:
-                log.warning("areastats: MahaRERA project %s (%s): %s", mid, regno, e)
+            if body is None:
+                details_error = "no_answer"
+            else:
+                try:
+                    got = project_api.parse_general(body, regno, mid)
+                    fields = {k: got[k] for k in DETAIL_FIELDS} if got else None
+                    if fields is None:
+                        details_error = "no_answer"
+                except project_api.MahaReraError as e:
+                    log.warning("areastats: MahaRERA project %s (%s): %s", mid, regno, e)
+                    details_error = str(e)[:120]  # "refused": keep the short reason
+                except Exception as e:
+                    log.warning("areastats: MahaRERA project %s (%s): unexpected: %s", mid, regno, e)
+                    details_error = "other"
         if fields is None:
             out["failed"] += 1
-            await store.set_project(d["_id"], details_checked_at=now, details_ok=False)
+            trace.event(log, "register", regno, "details", trace.FAILED, reason=details_error)
+            await store.set_project(d["_id"], details_checked_at=now, details_ok=False, details_error=details_error)
             continue
         out["read"] += 1
+        trace.event(log, "register", regno, "details", trace.OK)
         before, after = str(d.get("completion_now") or "")[:10], str(fields.get("completion_now") or "")[:10]
         if before and after and before != after:   # the builder filed a new date: kept as history for the date-watch reels
             await store.add_date_move(d["_id"], {"from": before, "to": after, "seen_at": now})
             out["moved"] = out.get("moved", 0) + 1
-        await store.set_project(d["_id"], **fields, details_checked_at=now, details_ok=True, **_booked(d, fields, now))
+        await store.set_project(d["_id"], **fields, details_checked_at=now, details_ok=True, details_error=None,
+                                **_booked(d, fields, now))
     return out
 
 
@@ -229,12 +244,23 @@ async def status(store: Store, now: datetime) -> List[str]:
                                                    else "; first round not finished"))
     else:
         lines.append("WARN rera sweep: never ran (it runs inside the newsroom cycle: NEWSROOM_ENABLED with the maharera source)")
-    ok = sum(1 for d in wanted if d.get("details_ok"))
-    failed = sum(1 for d in wanted if d.get("details_ok") is False)
+    cutoff = now - timedelta(hours=24)
+    recent_ok = sum(1 for d in wanted if d.get("details_ok") and
+                    isinstance(d.get("details_checked_at"), datetime) and _aware(d["details_checked_at"]) >= cutoff)
+    recent_failed = [d for d in wanted if d.get("details_ok") is False and
+                     isinstance(d.get("details_checked_at"), datetime) and _aware(d["details_checked_at"]) >= cutoff]
+    old_failed = sum(1 for d in wanted if d.get("details_ok") is False and
+                     isinstance(d.get("details_checked_at"), datetime) and _aware(d["details_checked_at"]) < cutoff)
     never = sum(1 for d in wanted if not isinstance(d.get("details_checked_at"), datetime))
     due = sum(1 for d in wanted if _due(d, now))
-    lines.append(f"{'WARN ' if failed > ok else 'OK   '}rera details: {len(ours)} projects in our areas, {len(wanted) - len(ours)} watched; "
-                 f"details ok {ok}, last read failed {failed}, never read {never}, due now {due}")
+    # count recent failure reasons
+    from collections import Counter
+    reason_counts = Counter(d.get("details_error") or "unknown" for d in recent_failed)
+    reason_str = (", ".join(f"{v} {k}" for k, v in reason_counts.most_common()) + "; " if reason_counts else "")
+    backlog_str = f"; {old_failed} failed before (retrying {DETAILS_RETRY_DAYS}d, not a warning)" if old_failed else ""
+    lines.append(f"{'WARN ' if len(recent_failed) > recent_ok else 'OK   '}rera details: {len(ours)} projects in our areas, "
+                 f"{len(wanted) - len(ours)} watched; last 24h ok {recent_ok}, failed {len(recent_failed)} ({reason_str}never read {never}, "
+                 f"due now {due}){backlog_str}")
     with_page = [d for d in docs if d.get("page_slug")]
     lines.append(f"{'WARN ' if len(with_page) < len(wanted) else 'OK   '}rera pages: {len(with_page)} of {len(wanted)} kept projects have a page")
     targets = [d for d in docs if enrich._ours(d)]

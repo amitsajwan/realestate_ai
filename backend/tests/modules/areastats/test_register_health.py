@@ -59,13 +59,47 @@ async def test_status_says_whether_the_register_is_moving():
                          ("PR3", "wagholi", 103, {}))
     lines = await refresh.status(store, NOW)
     assert lines[0].startswith("WARN rera sweep: never ran")
-    assert "3 projects in our areas" in lines[1] and "details ok 1, last read failed 1, never read 1" in lines[1]
+    # PR1 ok, PR2 failed (both in last 24h), PR3 never read — ok not outnumbered so OK, not WARN
+    assert "3 projects in our areas" in lines[1] and "last 24h ok 1, failed 1" in lines[1] and "never read 1" in lines[1]
+    assert lines[1].startswith("OK   ")
     assert lines[2].startswith("WARN rera pages: 1 of 3")
     await store.set_mark(refresh.MARK, pincode="412207", page=4, at=NOW - timedelta(hours=2))
     lines = await refresh.status(store, NOW)
     assert lines[0].startswith("OK   rera sweep: at pincode 412207 page 4, moved 2.0h ago; first round not finished")
     await store.set_mark(refresh.MARK, at=NOW - timedelta(days=3))
     assert (await refresh.status(store, NOW))[0].startswith("WARN")
+
+
+async def test_status_warns_when_recent_failures_outnumber_recent_successes():
+    """Recent (last 24h) failures > recent ok triggers WARN; old failures are info only."""
+    store = await seeded(
+        ("PR1", "wagholi", 101, {"details_ok": True, "details_checked_at": NOW - timedelta(days=2)}),  # old ok
+        ("PR2", "wagholi", 102, {"details_ok": False, "details_checked_at": NOW, "details_error": "no_answer"}),
+        ("PR3", "wagholi", 103, {"details_ok": False, "details_checked_at": NOW, "details_error": "no_id"}),
+    )
+    lines = await refresh.status(store, NOW)
+    # recent: 0 ok, 2 failed → WARN
+    assert lines[1].startswith("WARN "), lines[1]
+    assert "last 24h ok 0, failed 2" in lines[1]
+    assert "no_answer" in lines[1] or "no_id" in lines[1]
+    # old ok (PR1) is not in recent — old backlog reported as info
+    assert "failed before" in lines[1] or "0 failed before" not in lines[1]  # no old_failed since PR1 is ok
+
+
+async def test_status_old_backlog_reported_as_info_not_warn():
+    """2140 old failures before the TLS fix: those are not a WARN once recent reads are clean."""
+    from datetime import timezone
+    old = NOW - timedelta(days=4)
+    store = await seeded(
+        ("PR1", "wagholi", 101, {"details_ok": True, "details_checked_at": NOW}),  # recent ok
+        ("PR2", "wagholi", 102, {"details_ok": False, "details_checked_at": old, "details_error": "no_answer"}),
+        ("PR3", "wagholi", 103, {"details_ok": False, "details_checked_at": old, "details_error": "no_answer"}),
+    )
+    lines = await refresh.status(store, NOW)
+    # recent: 1 ok, 0 failed → OK
+    assert lines[1].startswith("OK   "), lines[1]
+    # old failures are mentioned as info
+    assert "2 failed before" in lines[1], lines[1]
 
 
 async def test_an_enrichment_logs_what_it_did_and_why(caplog):
