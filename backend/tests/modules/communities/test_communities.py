@@ -1,6 +1,7 @@
 """Neighbourhood articles: found from OpenStreetMap, written from facts only, published only when checked and not thin."""
 from datetime import datetime, timedelta, timezone
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -25,6 +26,13 @@ NEARBY = [
     {"type": "node", "id": 14, "lat": 18.5980, "lon": 73.9880, "tags": {"shop": "supermarket", "name": "D Mart"}},
     {"type": "node", "id": 15, "lat": 18.6020, "lon": 73.9920, "tags": {"amenity": "place_of_worship", "religion": "hindu", "name": "Shiv Mandir"}},
 ]
+
+
+@pytest.fixture(autouse=True)
+def no_local_copies(monkeypatch, tmp_path):
+    """The shipped OSM copies cover these test coordinates: the tests use their own OpenStreetMap answers instead."""
+    monkeypatch.setattr(discover, "LOCAL", tmp_path / "none.json.gz")
+    monkeypatch.setattr(write, "from_local", lambda lat, lon: None)
 
 
 def osm(nearby=NEARBY, down=False):

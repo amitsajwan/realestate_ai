@@ -15,7 +15,7 @@ from app.modules.areastats.enrich import BANNED, _numbers
 from app.modules.areastats.service import area_stats
 from app.modules.newsroom.store import Store
 from app.modules.propertyfacts.place import GetJson
-from app.modules.propertyfacts.surroundings import CATEGORIES, OVERPASS, from_overpass
+from app.modules.propertyfacts.surroundings import CATEGORIES, OVERPASS, from_local, from_overpass
 from app.modules.propertyfacts.surroundings import query as nearby_query
 
 from .discover import COLLECTION, area_of, projects_named
@@ -93,10 +93,15 @@ async def write_one(store: Store, doc: dict, llm, get_json: GetJson, now: dateti
     """Gather, write, check and store one neighbourhood's article. Returns {"id", "published", "notes"}."""
     coll = store.db.get_collection(COLLECTION)
     notes: List[str] = []
-    data = await get_json(OVERPASS, {"data": nearby_query(doc["lat"], doc["lon"], NEARBY_M)})
-    nearby = from_overpass((data or {}).get("elements") or [], doc["lat"], doc["lon"]) if isinstance(data, dict) else {}
-    if not isinstance(data, dict):
-        notes.append("OpenStreetMap did not answer; tried again later")
+    local = from_local(doc["lat"], doc["lon"])   # our OSM copy of Pune district first (Overpass is often busy or refusing)
+    if local is not None:
+        nearby = {k: [p for p in v if p["km"] <= NEARBY_M / 1000] for k, v in local.items()}
+        nearby = {k: v for k, v in nearby.items() if v}
+    else:
+        data = await get_json(OVERPASS, {"data": nearby_query(doc["lat"], doc["lon"], NEARBY_M)})
+        nearby = from_overpass((data or {}).get("elements") or [], doc["lat"], doc["lon"]) if isinstance(data, dict) else {}
+        if not isinstance(data, dict):
+            notes.append("OpenStreetMap did not answer; tried again later")
     mine = [d for d in await store.all_projects() if d.get("locality") == doc.get("area")]
     stats = await area_stats(store.db, doc.get("area") or "")
     facts, shown = facts_for(doc, nearby, projects_named(doc["name"], mine), stats)
