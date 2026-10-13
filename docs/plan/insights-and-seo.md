@@ -25,7 +25,7 @@ No route serves it yet.
 
 ## 2. Buyer (public site)
 
-Rule: show **facts with their source**, never "hot" or "trending" (**DECIDE**, recommended). A buyer trusts "38 homes booked
+Rule: show **facts with their source**, never "hot" or "trending" (decided). A buyer trusts "38 homes booked
 in 90 days (MahaRERA)" more than a badge.
 
 | # | What | State | Notes |
@@ -34,17 +34,17 @@ in 90 days (MahaRERA)" more than a badge.
 | B2 | **"Most active projects in <area>"** on area pages (`/projects/area/<place>`, `/localities/<area>`) | NEW | Order by `hot_score`, show the B1 fact line, never the score. Also gives hot pages internal links (S4). |
 | B3 | **Neighbourhood guides linked both ways**: project page → "Near <neighbourhood>"; guide → "Projects nearby" | NEW | `communities` has lat/lon; projects have `geo`. Nearest guide within 2 km. |
 | B4 | **One page per project, not per tower** (see S1) | NEW | Hinjewadi Phase 3 has 16 near-identical tower pages today. |
+| B6 | **One page per builder** (`/builders/<promoter>`): every Pune project of the promoter from MahaRERA, homes booked, completion dates and how often they moved | NEW | Buyers search "<builder> projects in Pune". Facts only, each with MahaRERA as source. Built after S1 so it links to merged project pages. |
 | B5 | **"Follow this project" on WhatsApp**: a message when the completion date moves or bookings jump | NEW, later | Needs `WHATSAPP_PUBLIC_NUMBER` live. Doubles as lead capture with consent. |
 
-Not to build: "also listed on 99acres or Housing.com" on public pages. It sends buyers to competitors (**DECIDE**,
-recommended: never public).
+Not to build: "also listed on 99acres or Housing.com" on public pages. It sends buyers to competitors (decided: never public).
 
 ## 3. Agent (studio)
 
 | # | What | State | Notes |
 |---|---|---|---|
 | A1 | **"Projects buyers are looking at in your area"**: hot projects in the agent's localities, with the reason and a **Start a campaign** button prefilled with the project and its MahaRERA facts | NEW | `hot.top(store, area)`; reasons are `why[]`. |
-| A2 | **Who else markets this project**: on the agent's own project or listing, "11 sites rank for this project" with the domains | DATA ONLY → show to agents only | `marketed_by` from `hot.top`, or `web_marketers` on the project. |
+| A2 | **Who else sells this project**: on the agent's project page in the studio, the sites ranking on Google for it, grouped: **other agents and channel partners** (e.g. bhandariassociates.co.in, housiey.com, jllhomes.co.in, project microsites), **the builder's own site**, **portals** (99acres, Housing, MagicBricks: a count), and **agents on our platform** with the same project. Each with its page link and Google position for the project name | DATA ONLY → agents only | `web_search_results` (kind `project`) for links and positions; `web_marketers` for the domains. 101 projects have marketers on 2026-10-13, ~12 more searched a day. Misses sellers with no website; MahaRERA publishes no agent list per project. |
 | A3 | **Real search phrases for posts**: the post writer uses phrases people search ("2 BHK Wagholi under 60 lakh") in the search line and hashtags | NEW | From `demand.py`. Ties into `docs/plan/reach-captions.md` (segment hashtags, search line). |
 
 ## 4. Owner (Studio → Insights)
@@ -54,7 +54,7 @@ One owner-only screen with tabs, read-only from stored data. Studio already has 
 
 | # | Tab | Shows | Action |
 |---|---|---|---|
-| O1 | **Hot projects** (BUILT: `areastats/owner.hot`, `GET /newsroom/insights/hot`) | score, reasons, marketers, last page refresh (`enriched_at`), next due (`HOT_REFRESH_DAYS` = 14) | Refresh page now (sets the enrichment urgent request) |
+| O1 | **Hot projects** (BUILT: `areastats/owner.hot`, `GET /newsroom/insights/hot`) | score, reasons, marketers, promoter (to add), last page refresh (`enriched_at`), next due (`HOT_REFRESH_DAYS` = 14) | Refresh page now (sets the enrichment urgent request) |
 | O2 | **Found on Google** (BUILT: `owner.found`) | `discovered_projects`: number, where it was seen, searching / needs a name / found / added / ignored | Search MahaRERA under a name the owner gives (`discover.search_as`) / Ignore (`discover.ignore`) |
 | O3 | **Search demand** | phrases, our rank, rising phrases (what `demand_report.py` prints) | "Make a page" for a phrase with no page (S5) |
 | O4 | **Pages and Google** | indexed or not and why (coverage), impressions, near page one, last IndexNow send | Refresh page |
@@ -62,7 +62,13 @@ One owner-only screen with tabs, read-only from stored data. Studio already has 
 | O6 | **System** (BUILT: `owner.system`) | one row per loop from heartbeats (as `worker --check`): last ok, last failure; the register report; Serper credits left (`/account`, no credit used) | none |
 | O7 | **Daily digest** (WhatsApp or email), only when something changed: "3 new hot projects, 1 found on Google, a page near page one, Serper 2,340 credits left" | NEW | |
 
-Build O1, O2 and O6 first: the data is already stored and the owner cannot see it today.
+O1, O2 and O6 are deployed (b247751f, 2026-10-13).
+
+## 4b. Data health (fix first: other steps stand on it)
+
+| # | What | State | Notes |
+|---|---|---|---|
+| D1 | **MahaRERA detail reads failing**: 2,140 failed against 1,988 ok on 2026-10-13 (`worker --check`, Insights → System) | NEW, week 1 | Bookings over time (`booked_history`), completion moves and the hot "bookings" signal all come from these reads; B1, B6 and the hot scores are only as good as they are. Find why they fail (TLS chain, rate, changed answer) before building on them. |
 
 ## 5. SEO: how the data drives rankings
 
@@ -79,15 +85,18 @@ The loop: **measure** (Search Console + Serper) → **decide** (hot + near page 
 | S6 | **Freshness.** The sitemap date moves only on real change (`pages.page_updated`: enrichment, details read, page text; never MahaRERA's own dates); IndexNow sends changed pages | LIVE | Keep this rule for every new page type. |
 | S7 | **Weekly SEO report**: pages indexed, impressions, clicks, average position for target phrases, week on week | NEW | The weekly audit (`seo/audit.py`) exists; add the trend numbers. |
 
-## 6. Order
+## 6. Order (final, 2026-10-13)
 
-| Week | Build | Why first |
+| Week | Build | Why then |
 |---|---|---|
-| 1 | O1 Hot projects, O2 Found on Google, O6 System | Data already stored; the owner sees it the same day |
-| 1 | S1 tower and phase consolidation | Biggest SEO problem; every later step depends on one page per project |
+| 1 | ~~O1 Hot projects, O2 Found on Google, O6 System~~ | DONE, live b247751f |
+| 1 | D1 MahaRERA detail reads | Bookings and completion data feed hot scores, B1 and B6 |
+| 1 | A2 who else sells this project (agents) | Data already stored; what agents asked for |
+| 1 | S1 one page per project (towers and phases merged, old URLs 301) | Biggest SEO problem; B2, B6, S2 link to these pages |
 | 2 | B1 activity box, B2 most active in area, B3 + S4 links | Buyer value and internal links in one change |
-| 2 | S2 titles and H1s from searches | Cheap ranking gain |
-| 3 | A1, A2, A3 agent tools | Feeds campaigns |
+| 2 | S2 titles and H1s from searches; promoter on O1 | Cheap ranking gain |
+| 3 | A1 projects buyers look at, A3 search phrases in posts | Feeds campaigns |
+| 3 | B6 builder pages | Needs S1 |
 | 3 | O3 Search demand + S5 pages for searches | Content gaps |
 | 4 | O4, O5, O7 digest, S3 FAQs, S7 weekly report | Polish |
 | later | B5 follow a project on WhatsApp | Needs the WhatsApp number live |
