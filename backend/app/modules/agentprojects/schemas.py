@@ -87,7 +87,7 @@ class ProjectIn(_In):
     def _regno(cls, v: str) -> str:
         v = v.strip().upper()
         if not REGNO.match(v):
-            raise ValueError("rera_no must be a MahaRERA registration number like P52100078796")
+            raise ValueError("rera_no must be a MahaRERA registration number like PR1260002501386 or P52100078796")
         return v
 
     @field_validator("possession_target")

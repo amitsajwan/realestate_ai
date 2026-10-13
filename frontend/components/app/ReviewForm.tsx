@@ -230,7 +230,7 @@ export function ReviewForm({ value, onChange, confidence = {}, missing = [], err
       </Field>
 
       <Field label="MahaRERA number (optional)" htmlFor="rera" {...flag('rera_no')}>
-        <input id="rera" className={inputCls} placeholder="P52100012345" disabled={value.rera_status === 'not_registered'} value={value.rera_no ?? ''}
+        <input id="rera" className={inputCls} placeholder="PR1260002501386" disabled={value.rera_status === 'not_registered'} value={value.rera_no ?? ''}
           onChange={(e) => set({ rera_no: e.target.value.toUpperCase().replace(/\s/g, '') })} />
         {value.rera_no && src('rera_no')}
         {!value.rera_no && value.rera_status !== 'not_registered' && reraCandidates.length > 0 && <ReraPicks candidates={reraCandidates} onPick={set} />}

@@ -202,7 +202,7 @@ class FileClaims(BaseModel):
     so 'Start marketing' does not read the brochure again (propertyfacts/jobs.py _brochure). Claims, not facts."""
     model_config = ConfigDict(extra="forbid")
     brochure: List[str] = Field(default_factory=list, max_length=25)
-    rera_on_brochure: Optional[str] = Field(None, max_length=12)
+    rera_on_brochure: Optional[str] = Field(None, max_length=15)   # PR + 13 digits, the longer form
     brochure_url: Optional[str] = Field(None, max_length=2000)
     brochure_facts: Optional[dict] = None   # structured facts as printed (propertyfacts/points.clean_facts)
     language: Optional[Literal["en", "mr", "hi"]] = None
@@ -224,10 +224,9 @@ class FileClaims(BaseModel):
     @field_validator("rera_on_brochure", mode="before")
     @classmethod
     def _rera(cls, v):
-        """Only a MahaRERA number (P + 11 digits); anything else is dropped, not refused."""
-        import re
-        v = v.strip().upper() if isinstance(v, str) else ""
-        return v if re.fullmatch(r"P\d{11}", v) else None
+        """Only a MahaRERA number (P + 11 digits, or PR/PP/PM + 13 digits: core/rera.py); anything else is dropped, not refused."""
+        from app.core.rera import normalise
+        return normalise(v if isinstance(v, str) else "") or None
 
 
 class ListingCreate(_Fields):

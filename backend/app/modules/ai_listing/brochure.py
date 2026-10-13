@@ -2,7 +2,7 @@
 the facts it prints, and match the project in OUR MahaRERA register (never live MahaRERA: too slow for a form).
 
 Everything here is the builder's word or the register's: it fills a DRAFT the agent confirms. Nothing is invented: sizes,
-prices and numbers only when printed, a registration number only in MahaRERA's form (P + 11 digits; "Gat No." is land)."""
+prices and numbers only when printed, a registration number only in MahaRERA's form (P + 11 digits or PR/PP/PM + 13 digits, core/rera.py; "Gat No." is land)."""
 import asyncio
 import hashlib
 import logging
@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from app.core import pune_places
+from app.core import pune_places, rera
 from app.modules.propertyfacts import files
 from app.modules.propertyfacts.registration import CANDIDATES, _words, core
 
@@ -20,7 +20,7 @@ READ_TIMEOUT = 90.0       # the whole brochure read (render + vision); past it t
 TEXT_CHARS = 3000         # brochure text handed to the extractors
 HIGHLIGHTS = 6            # About.highlights cap
 _URL = re.compile(r"/uploads/documents/([A-Za-z0-9._-]+\.pdf)$", re.I)
-RERA = re.compile(r"(?<![A-Za-z0-9])P\d{11}(?!\d)", re.I)
+RERA = rera.SEARCH         # service.py fullmatches a typed number against it
 _SQFT = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(?:-|to)?\s*(?:(\d[\d,]*(?:\.\d+)?)\s*)?"
                    r"(sq\.?\s*ft\.?|sqft|square\s*feet|sq\.?\s*m(?:tr|eter|etre)?s?\.?|sqm|square\s*met(?:er|re)s?)", re.I)
 _TALUKAS = {t.lower() for t in pune_places.TALUKA_BY_PIN.values()}
@@ -52,7 +52,7 @@ async def read(url: str, uploads_dir: Path, timeout: float = READ_TIMEOUT) -> Di
         text = await asyncio.wait_for(asyncio.to_thread(files.pdf_text, pdf), 20)
     except Exception:
         text = ""
-    out: Dict[str, Any] = {"text": text or "", "claims": [], "rera_no": None, "pages": 0}
+    out: Dict[str, Any] = {"text": text or "", "claims": [], "rera_no": None, "rera_nos": [], "pages": 0}
     try:
         info = await asyncio.wait_for(files.read_brochure(pdf, out_dir), timeout)
     except asyncio.TimeoutError:
@@ -67,8 +67,8 @@ async def read(url: str, uploads_dir: Path, timeout: float = READ_TIMEOUT) -> Di
     out["pages"] = len(info.get("pages") or [])
     if info.get("error"):
         out["error"] = info["error"]
-    found = RERA.search(f"{info.get('rera_no') or ''} {out['text']}")
-    out["rera_no"] = found.group(0).upper() if found else None
+    out["rera_nos"] = rera.find_all(f"{info.get('rera_no') or ''} {out['text']}")   # a phased project prints several
+    out["rera_no"] = out["rera_nos"][0] if out["rera_nos"] else None
     return out
 
 
