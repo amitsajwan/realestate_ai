@@ -626,6 +626,9 @@ class MarketingRuns:
         except Exception:
             log.info("marketing: no brochure kit to match for %s", listing.get("_id"), exc_info=True)
         triage = await asyncio.to_thread(pictures.load_triage, *dirs)
+        if not triage:  # a resumed run or claims already read: the pages were only drawn, so label them now
+            from . import files
+            triage = await files.page_labels(list(pages), out / "brochure", await asyncio.to_thread(files._file_hash, pdf))
         share = 0.0 if triage else await asyncio.to_thread(pictures.image_only_share, pdf)
         kept, note = pictures.brochure_photos(pages, triage, share)
         return {"photo_pages": kept, "photo_note": note}
