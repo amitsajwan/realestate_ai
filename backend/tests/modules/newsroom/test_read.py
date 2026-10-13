@@ -241,6 +241,7 @@ async def test_a_crashing_reader_never_blocks_extract():
 
 def test_default_stages_registers_read_only_when_enabled(monkeypatch):
     from app.modules.newsroom.pipeline import default_stages
+    monkeypatch.setenv("NEWSROOM_RESEARCH", "false")  # research reads every page itself; the short-text reader is its fallback
     monkeypatch.delenv("NEWSROOM_READ_ARTICLES", raising=False)
     assert "read" not in default_stages()
     monkeypatch.setenv("NEWSROOM_READ_ARTICLES", "true")

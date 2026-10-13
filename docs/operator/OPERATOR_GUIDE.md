@@ -1,7 +1,9 @@
 # Avasetu operator guide
 
-**Set up, deploy and run the Avasetu platform: architecture, a fresh install, every setting, the connect scripts, deploys, daily
-operations, a domain switch, security and common fixes.**
+**Set up, release and run the Avasetu platform: architecture, a fresh install, every setting, the connect scripts, the release
+process, daily operations, a domain switch, security and common fixes.**
+
+This is the one document to bring the system up from nothing and to ship each new version. Start with **section 0**.
 
 This guide is for operators: the technical people who host Avasetu. Partners and agents have their own guides and never need anything
 here. It contains **no secrets**. Every secret lives only in the server's private `deploy/gcp/.env`, and every connect script asks for
@@ -15,15 +17,44 @@ Marks: ✅ in use on the pilot server today. ⚠️ not run as written (derived 
 
 ---
 
+## 0. Quick start
+
+### From nothing to live (first install)
+Do these in order; each links to its section. Tick them off.
+
+| # | Step | Where | Done when |
+|---|---|---|---|
+| 1 | Tools on your PC: `gcloud` (logged in), Git, PowerShell; the repo cloned and on branch `main` | 2.0 | `git status` is clean on `main` |
+| 2 | Create the VM, a fixed address, the firewall and a daily disk snapshot | 2.1 | `gcloud compute instances list` shows the VM |
+| 3 | Point the domain (or use the free `sslip.io` name) | 2.2 | the name resolves to the VM's address |
+| 4 | Install Docker on the VM | 2.3 | `sudo docker compose version` prints a version |
+| 5 | Write the private `.env` on the VM (minimum settings) | 2.4 | `.env` exists, mode 600 |
+| 6 | First deploy | 2.5 | `deploy.ps1` ends with "Healthy" |
+| 7 | The first owner account and the owner ids | 2.6 | the owner sees Studio → Admin |
+| 8 | Connect Meta, the AI keys and (later) WhatsApp; add the other keys | 2.7 | `keys.ps1 -Verify` shows OK for every key you set |
+| 9 | Backups and health checks on cron; a restore test | 2.8 | `restore_test.sh` says "restores cleanly" |
+| 10 | Switch on the background loops you want | 2.9 | `python -m app.worker --check` shows them running |
+| 11 | Final checks | 2.10 | every line of the checklist passes |
+
+### Every release after that
+1. The change is in a pull request against `main`, and its checks are green (section 5.1).
+2. Merge it. On your PC: `git checkout main`, `git pull`.
+3. `.\deploy\gcp\deploy.ps1 -DryRun`, then `.\deploy\gcp\deploy.ps1` (section 5.2).
+4. Run the after-release checks (section 5.3). If something is wrong, roll back (section 5.4).
+5. If the release needs a new key or setting (the pull request says so), add it with `keys.ps1` or in `.env` (sections 3 and 4).
+
+---
+
 ## 1. Architecture
 
-One Google Cloud VM runs four Docker containers with Docker Compose (`deploy/gcp/docker-compose.yml`):
+One Google Cloud VM runs five Docker containers with Docker Compose (`deploy/gcp/docker-compose.yml`):
 
 | Container | Image | Role |
 |---|---|---|
 | `caddy` | `caddy:2` | The only public service (ports 80 and 443). Automatic HTTPS for `SITE_HOST`. Sends `/api/*`, `/docs`, `/openapi.json` and `/uploads/*` to the backend and everything else to the frontend (`deploy/gcp/Caddyfile`). |
 | `frontend` | built from `frontend/` | Next.js (App Router, standalone output, `next build --webpack`). Public site (agent pages, listings, chat, `/go`, `/news`, `/for-agents`, `/join`, legal pages) and **Studio** (`/studio`, the agents' and owners' phone app). Server-side calls go to `http://backend:8000` (`SITE_API_URL`). |
-| `backend` | built from `backend/` | FastAPI (Python 3.11, uvicorn) on port 8000. All APIs under `/api/v1`, uploaded and generated media under `/uploads` (Docker volume `uploads`). Runs three background loops. |
+| `backend` | built from `backend/` | FastAPI (Python 3.11, uvicorn) on port 8000. All APIs under `/api/v1`, uploaded and generated media under `/uploads` (Docker volume `uploads`). Serves requests only: the background loops run in `worker`. |
+| `worker` | same image as `backend` | `python -m app.worker`: every background loop (table below), in its own process, so restarting the API never interrupts posting or reels. Same `.env` and the same `uploads` volume. |
 | `mongo` | `mongo:7` | MongoDB, private to the compose network (no published port). Database `propertyai` by default. Volume `mongo_data`. |
 
 Volumes: `mongo_data` (database), `uploads` (photos, cards, reels, the depth model), `caddy_data` and `caddy_config` (certificates).
@@ -38,29 +69,37 @@ flowchart LR
   fe -->|"server-side API calls"| be
   be --> db[("MongoDB")]
   be --> up[("uploads volume")]
-  subgraph loops["Background loops in the backend"]
+  subgraph loops["worker: background loops"]
     eng["Engage: comment replies"]
     cal["Calendar: scheduled posts"]
-    news["Newsroom: news drafts"]
+    news["Newsroom: news and the MahaRERA register"]
+    enr["Project pages and hot projects"]
   end
-  be --- loops
+  loops --> db
   be -->|"Graph API: posts, reels, comments"| meta["Meta: Facebook Page and Instagram"]
   wa["WhatsApp Cloud API"] -->|"signed webhook"| caddy
   be -->|"replies within 24 h"| wa
   be -->|"text and voice AI"| llm["Groq, then OpenRouter fallback"]
   be -->|"reel voiceover"| tts["Google Text-to-Speech"]
+  loops -->|"public records, search results"| ext["MahaRERA, Search Console, Serper (Google results), YouTube"]
   meta -->|"fetches images and videos"| caddy
 ```
 
-### Background loops (started in `backend/app/core/application.py`)
-Each loop is idle unless its switch is on, and each checks the owner's pause switch (Admin → Controls, stored in the `admin_settings`
-collection) at the start of every cycle.
+### Background loops (in the `worker` container, `backend/app/worker.py`)
+Each loop runs under a lease (one copy at a time, even if the API also runs loops with `RUN_BACKGROUND_LOOPS=true`) and writes a
+heartbeat; `python -m app.worker --check` and the health check read them. Each loop is idle unless its switch is on, and the posting
+loops check the owner's pause switch (Admin → Controls, stored in the `admin_settings` collection) at the start of every cycle.
 
 | Loop | Module | Switch | Interval | Pause switch |
 |---|---|---|---|---|
 | Comment assistant: reads comments on the Page's and Instagram's recent posts, answers simple ones, queues questions for a person, ignores spam | `modules/engage` | `ENGAGE_ENABLED` | 60 s | Pause comment replies |
 | Content calendar: publishes **approved** posts, carousels, sample-home showcases and reels when due (at most 1 per channel per pass, 3 attempts, skips anything more than 48 h late) | `modules/calendar` | `CALENDAR_ENABLED` | 300 s | Pause posting |
-| Newsroom: collects property news (publishers, Google News, MahaRERA), drafts and checks posts for owner review, publishes approved items (cap 2 a day), builds a weekly digest on Sunday evening | `modules/newsroom` | `NEWSROOM_ENABLED` | 3 h | Pause news |
+| Newsroom: collects property news (publishers, Google News, MahaRERA), drafts and checks posts for owner review, publishes approved items (cap 2 a day), builds a weekly digest on Sunday evening. Each cycle also takes one gentle step of the **MahaRERA register** (`modules/areastats/refresh.py`): sweeps our areas' pincodes, adds projects first seen by number in Google results (`discover.py`, one lookup per step), refreshes completion dates and homes booked, gives every project its `/projects/<slug>` page | `modules/newsroom` | `NEWSROOM_ENABLED` | 3 h | Pause news |
+| Project pages and **hot projects**: once a day scores every project (new launch, homes booked lately, news, Search Console, Google results, YouTube; `modules/areastats/hot.py`, `websearch.py`), then writes the page text for one project every 30 minutes, hot projects first | `modules/areastats/enrich.py` | `PROJECT_ENRICH_ENABLED` | 1 min poll | none |
+| Listing reels: renders walkthrough reels in the background | `modules/reels/listing_reel.py` | on (needs a request) | continuous | none |
+| Marketing runs: an agent's campaign from the facts sheet to scheduled posts | `modules/propertyfacts/jobs.py` | on (needs a request) | continuous | none |
+| Insights: reads Meta's numbers for every published post at 1 h, 24 h, 72 h and 7 days | `modules/insights/collector.py` | `INSIGHTS_ENABLED` (on) | 15 min | off in dry run |
+| Answer gaps: questions the chat could not answer, grouped for the knowledge base | `modules/knowledge/gaps.py` | on | 1 h | none |
 
 No post, carousel or reel goes to Facebook or Instagram without a person's approval (Studio → Content, Newsroom, or Post to Avasetu on
 a listing), and no post leaves the server at all while `SOCIAL_DRY_RUN` is true. Comment replies are the one automatic action; they
@@ -91,16 +130,30 @@ have their own practice switch (`ENGAGE_DRY_RUN`) and hourly caps.
 | WhatsApp Cloud API | Buyer chats: free replies within 24 h of the buyer's last message, no paid templates | `whatsapp_connect.ps1` |
 | Groq (OpenAI-compatible) | Primary text AI (listing extraction, translations, chat, director) and voice notes (Whisper) | `ai_connect.ps1` |
 | OpenRouter (free models) | Text AI fallback when Groq fails | `ai_connect.ps1` |
-| Google Gemini | Optional extra fallback and optional voice transcription (off on the pilot) | `.env` by hand |
-| Google Cloud Text-to-Speech | Reel voiceover | `GOOGLE_TTS_API_KEY` in `.env` by hand |
+| Google Gemini | Optional extra fallback and optional voice transcription (off on the pilot) | `GEMINI_API_KEY` with `keys.ps1` |
+| Google Cloud Text-to-Speech | Reel voiceover | `GOOGLE_TTS_API_KEY` with `keys.ps1` |
 | Hugging Face | One-time download of the depth model into the uploads volume | automatic on first reel |
+| MahaRERA (public search and project pages) | The project register, project pages, area stats, new-project news | nothing: public, read gently |
+| Google Search Console | Which project pages Google shows (hot projects, enrichment order) | `GSC_SA_KEY_B64` with `keys.ps1` |
+| Serper.dev (Google results) | Top projects per area, who markets each project, project numbers we lack (hot projects) | `SERPER_API_KEY` with `keys.ps1` |
+| YouTube Data API | Videos about hot projects | `YOUTUBE_API_KEY` with `keys.ps1` |
+| OpenStreetMap | What is near a project (project pages) | nothing |
 
 ---
 
 ## 2. Set up from scratch on a fresh GCP VM ⚠️
 
 These steps rebuild what the pilot runs. They were written from the deploy scripts and the pilot's setup, not re-run end to end on a new
-project. You need: the Google Cloud SDK (`gcloud`) on your PC, logged in; Git; this repo with your changes committed.
+project.
+
+### 2.0 Your PC
+- **Google Cloud SDK** (`gcloud`), logged in: `gcloud auth login`. Your account needs Compute Admin on the project.
+- **Git**, and this repository cloned: `git clone https://github.com/amitsajwan/realestate_ai.git`, then `git checkout main`.
+  `main` is the branch that is released; work happens in pull requests against it (section 5). (Until the planned rename is done
+  in GitHub, the released branch is still called `cursor/analyze-and-fix-styling-issues-cacb`; use that name wherever this guide says
+  `main`.)
+- **PowerShell** (Windows PowerShell 5.1 or PowerShell 7). Every script in `deploy/gcp/*.ps1` runs from the repo root.
+- Nothing else: Docker, Node and Python are needed only on the VM (installed in 2.3) or for local development.
 
 ### 2.1 Create the VM, a fixed address and the firewall
 ```
@@ -156,7 +209,7 @@ The first build takes a long time (no Docker cache). `-ContactEmail` sets the ad
    The id is the hex string inside `ObjectId("...")`. His page's `agent_id` is in `agent_public_profiles` (`findOne({slug: "<his slug>"}, {agent_id: 1, slug: 1})`).
 4. Add to `.env`: `CONCIERGE_OWNER_IDS=<user id>` (Admin and Agents tabs), `NEWSROOM_OWNER_IDS=<user id>` (approve news),
    `CALENDAR_OWNER_IDS=<user id>` (approve scheduled posts), `INTEREST_OWNER_AGENT_ID=<agent id>` (receives interest in samples,
-   guides and Page-level posts) and `ENGAGE_OWNER_AGENT_ID=<agent id>`. Then `sudo docker compose up -d backend`.
+   guides and Page-level posts) and `ENGAGE_OWNER_AGENT_ID=<agent id>`. Then `sudo docker compose up -d backend worker`.
 5. The platform's own public page is the profile with slug `avasetu` (`INTEREST_OWNER_SLUG`). The pilot renamed the owner's page with
    `backend/scripts/make_official_page.py`; that script has the pilot owner's old slug written in, so adapt it before using it elsewhere.
 
@@ -164,13 +217,39 @@ The first build takes a long time (no Docker cache). `-ContactEmail` sets the ad
 `CALENDAR_OWNER_IDS` if they approve content. Superusers (`is_superuser` on the user) are always owners; prefer the id lists, which are
 visible and easy to undo.
 
-### 2.7 Connect the services and install the cron jobs
-Run the connect scripts (section 4) for Meta, the AI keys and, when ready, WhatsApp. Then:
+### 2.7 Connect the services
+Run the connect scripts (section 4) for Meta, the AI keys and, when ready, WhatsApp.
+Then add the other service keys (Google voice, Search Console, Serper, YouTube) with `keys.ps1` (section 4) and check them all:
+```
+.\deploy\gcp\keys.ps1            # shows every key as set (last 4 characters) or EMPTY; add or replace one, typed hidden
+.\deploy\gcp\keys.ps1 -Verify    # checks every key that is set against its service, on the VM
+```
+
+### 2.8 Backups and health checks
 ```
 .\deploy\gcp\install_backup_cron.ps1 -Project <PROJECT> -Zone <ZONE> -Instance <VM>
 .\deploy\gcp\install_health_cron.ps1 -Project <PROJECT> -Zone <ZONE> -Instance <VM>
 ```
-On the VM, prove a backup restores: `bash restore_test.sh`. Then switch on the loops you want (section 3) and restart the backend.
+On the VM, prove a backup restores: `bash restore_test.sh` ("restores cleanly" is a pass).
+
+### 2.9 Switch on the background loops
+Add the switches you want to `.env` (section 3; the pilot's values are in "Example" below), then `sudo docker compose up -d backend worker`.
+A safe order: `NEWSROOM_ENABLED=true` (fills the MahaRERA register over about 10 days) and `PROJECT_ENRICH_ENABLED=true` first, both
+of which publish nothing; then `CALENDAR_ENABLED` and `ENGAGE_ENABLED` with their dry-run switches still true; real posting
+(`SOCIAL_DRY_RUN=false`) only after a first test post works (`docs/META_SETUP.md` G).
+
+### 2.10 Final checks
+| Check | How | Pass |
+|---|---|---|
+| Site | open `https://<DOMAIN>/` and `https://<DOMAIN>/projects` on a phone | pages load over https |
+| API | `https://<DOMAIN>/api/v1/health` | says "healthy" |
+| Containers | on the VM: `sudo docker compose ps` | mongo, backend, worker, frontend, caddy all running |
+| Loops | on the VM: `sudo docker compose exec -T backend python -m app.worker --check` | every enabled loop is fresh, exit 0 |
+| Keys | `.\deploy\gcp\keys.ps1 -Verify` | OK for every key you set |
+| Health | on the VM: `bash health_check.sh --verbose` | no FAIL line |
+| Backups | on the VM: `bash restore_test.sh` | "restores cleanly" |
+| Owner | sign in as the owner on `/join` | Studio shows Admin and Agents |
+| Admin → Health | in Studio | every service you connected is green |
 
 ### Example: the current pilot values
 For reference only; use your own values for any other install. Project `trader-502012`, zone `asia-south1-a`, instance `pune-property`,
@@ -178,12 +257,16 @@ app folder `~/app`, public address `https://34-180-39-243.sslip.io` (an sslip.io
 written into the scripts in `deploy/gcp/`, which is why the pilot's operator can run them without parameters. The scripts also carry the
 pilot's Meta App ID and Page ID as defaults (`-AppId`, `-PageId`); pass your own for another Meta app.
 
+The pilot's switches (7 Oct 2026, from `docs/MARKETING.md` §7): `SOCIAL_DRY_RUN=false` (real posts), `CALENDAR_ENABLED=true`,
+`ENGAGE_ENABLED=true` with `ENGAGE_DRY_RUN=false`, `NEWSROOM_ENABLED=true`, `PROJECT_ENRICH_ENABLED=on`; `META_*`,
+`PUBLIC_MEDIA_BASE_URL` and `GOOGLE_TTS_API_KEY` set. Check the live state with `keys.ps1 -List` and Studio → Admin → Health.
+
 ---
 
 ## 3. Settings (environment variables)
 
-All backend settings go in `~/app/deploy/gcp/.env` on the VM; Compose passes the whole file to the backend (`env_file`). After a change:
-`sudo docker compose up -d backend`. Settings marked **build** are baked into the frontend at build time: change them, then redeploy.
+All backend settings go in `~/app/deploy/gcp/.env` on the VM; Compose passes the whole file to the backend and the worker
+(`env_file`). After a change: `sudo docker compose up -d backend worker`. Settings marked **build** are baked into the frontend at build time: change them, then redeploy.
 "Switch" values count as on for `1`, `true`, `yes` or `on`. The three **dry-run** settings are safe by default: only an explicit
 `false` (or `0`, `no`, `off`) turns real sending on.
 
@@ -283,6 +366,12 @@ All backend settings go in `~/app/deploy/gcp/.env` on the VM; Compose passes the
 | `CALENDAR_INTERVAL_SECONDS` | `300` (minimum 30) | Time between passes. |
 | `CALENDAR_STALE_HOURS` | `48` | A post this late is skipped, never burst out after an outage. |
 | `CALENDAR_OWNER_IDS` | empty (superusers only) | User ids allowed to approve and skip scheduled posts. |
+| `CALENDAR_PACE_MINUTES` | `0` | Testing pace: an approved post goes out this many minutes after the channel's previous post instead of on its planned day. `0` = the plan's days. |
+| `CALENDAR_POST_NOW_GAP_MINUTES` | `10` | A "post now" goes out at least this many minutes after the channel's previous post. |
+| `CALENDAR_DAILY_REELS`, `CALENDAR_DAILY_REELS_PER_DAY` | off, `2` (1 to 3) | Plans daily reels on their own. |
+| `CALENDAR_FB_CAROUSEL_AS_REEL` | on | On Facebook a carousel goes out as a reel. |
+| `CALENDAR_REEL_LINK_COMMENT` | on | Adds the link as the first comment under a reel. |
+| `PUBLISH_LEDGER` | on | Records every publish once, so a retry never posts twice. Leave on. |
 
 ### Comment assistant (engage)
 | Variable | Default | What it does |
@@ -293,6 +382,49 @@ All backend settings go in `~/app/deploy/gcp/.env` on the VM; Compose passes the
 | `ENGAGE_OWNER_AGENT_ID` | empty | Who sees comments on Page-level posts that belong to no listing. |
 | `ENGAGE_LANDING_URL` | `PUBLIC_SITE_URL` | Where general "interested" comments are sent. |
 | `ENGAGE_INSTAGRAM_ENABLED` | on when `META_IG_BUSINESS_ID` is set | `false` keeps Instagram replies off while Facebook stays on. |
+| `ENGAGE_PRIVATE_REPLY` | off | Also sends the commenter a private reply (Meta's one private message per comment). |
+
+### Messenger and Instagram direct messages
+Steps: `docs/MESSENGER_SETUP.md`. Same Meta app and Page token as posting.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `MESSENGER_ENABLED` | off | Until on, the webhook answers 200 and does nothing. |
+| `MESSENGER_DRY_RUN` | `true` | Replies are worked out and stored, not sent. |
+| `MESSENGER_VERIFY_TOKEN` | empty | **Secret.** Pasted into Meta's webhook settings. |
+| `MESSENGER_APP_SECRET` | falls back to `WHATSAPP_APP_SECRET` | **Secret.** Every webhook POST is signature-checked. |
+| `MESSENGER_OWNER_AGENT_ID` | falls back to the WhatsApp, interest, engage owner | Receives chats that name no agent. |
+| `MESSENGER_HUMAN_PAUSE_HOURS` | `12` (0 to 168) | After a person answers from the Page inbox, the assistant stays quiet in that chat this long. |
+| `MESSENGER_GRAPH_VERSION` | `v23.0` | Graph API version. |
+
+### Project pages and hot projects
+| Variable | Default | What it does |
+|---|---|---|
+| `PROJECT_ENRICH_ENABLED` | off | Starts the project-page loop: the daily hot-projects score and page text for one project every interval. Publishes nothing to social media. |
+| `PROJECT_ENRICH_EVERY_MINUTES` | `30` (minimum 5) | One project's page text per interval (campaign requests go at once). |
+| `GSC_SA_KEY_B64` | empty | **Secret.** Search Console service-account key file, base64 (set it with `keys.ps1`, which reads the file). Add the account's e-mail in Search Console as a Restricted user. |
+| `GSC_SITE` | `sc-domain:avasetu.in` | The Search Console property. |
+| `SERPER_API_KEY` | empty | **Secret.** Google results through Serper.dev (about 20 searches a day; 2,500 free, then about $50 per 50,000). Off without it. Google's own search API is closed to new customers. |
+| `YOUTUBE_API_KEY` | empty | **Secret.** YouTube Data API key: videos about the hottest projects (20 searches a day of the free 10,000-unit quota). Off without it. |
+
+### Photo quality
+| Variable | Default | What it does |
+|---|---|---|
+| `PHOTO_QUALITY` | on | Scores each uploaded photo and writes an enhanced copy beside it (the original is never changed). `off` skips it. |
+| `AI_VISION_REVIEW` | on | Asks a vision model to review and tag photos (room order for walkthroughs). `off` keeps the rule checks only. |
+| `AI_VISION_BASE_URL`, `AI_VISION_API_KEY`, `AI_VISION_MODEL` | the text AI's URL and key; `qwen/qwen3.8-27b` | Vision provider (**the key is a secret**). |
+| `AI_VISION_FALLBACK_BASE_URL`, `AI_VISION_FALLBACK_API_KEY`, `AI_VISION_FALLBACK_MODEL` | the text AI fallback's | Second vision provider. Used only when a model is set. |
+| `QUALITY_CACHE_DIR` | `<uploads>/quality_reviews` | Where photo reviews are cached. |
+
+### Sign-up and other switches
+| Variable | Default | What it does |
+|---|---|---|
+| `TRIAL_CLAIMS` | on | An agent who sends TRIAL to our WhatsApp number gets his sign-up code at once. |
+| `TRIAL_DAILY_CAP` | `20` | New trials a day (IST); over it, the claim waits as an invite request for the owner. |
+| `INSIGHTS_ENABLED` | on | Reads Meta's numbers for published posts (off in dry run anyway). |
+| `REEL_BRAND_MUSIC` | on | Brand music under reels. |
+| `RUN_BACKGROUND_LOOPS` | `false` for `backend` (Compose) | `true` makes the API run the loops too (rollback if the worker misbehaves; leases keep one copy of each loop). |
+| `SSL_VERIFY`, `DISABLE_SSL_WARNINGS` | `true`, `true` | Outgoing HTTPS certificate checks for the old HTTP client. Leave as they are. |
 
 ### Owners (Admin, Agents, approvals)
 | Variable | Default | What it does |
@@ -316,27 +448,46 @@ OpenAI, LinkedIn, Twitter, `FACEBOOK_*`, `INSTAGRAM_*`) are not used by the pilo
 
 ## 4. The connect scripts (run on your PC)
 
-All four live in `deploy/gcp/` and take `-Project`, `-Zone`, `-Instance` and `-RemoteDir` (the three connect scripts also take `-Iap`
-for IAP tunnelling). The three connect scripts work the same way: secrets are typed into a **hidden** prompt; the script checks them with the provider; it copies the values to the VM in a short-lived
-file, backs up `.env` (`.env.bak-meta`, `.env.bak-ai`, `.env.bak-whatsapp`, mode 600), replaces only its own keys, restarts **only the
-backend** and prints a status line. They never print a secret, and nothing secret stays on your PC.
+All of them live in `deploy/gcp/` and take `-Project`, `-Zone`, `-Instance` and `-RemoteDir` (the connect scripts and `keys.ps1` also take
+`-Iap` for IAP tunnelling). The connect scripts and `keys.ps1` work the same way: secrets are typed into a **hidden** prompt; the script checks them with the provider; it copies the values to the VM in a short-lived
+file, backs up `.env` (`.env.bak-meta`, `.env.bak-ai`, `.env.bak-whatsapp`, `.env.bak-keys`, mode 600), replaces only its own keys, restarts the
+backend and the worker and prints a status line. They never print a secret, and nothing secret stays on your PC.
 
 | Script | Asks for | Writes | Notes |
 |---|---|---|---|
 | `meta_connect.ps1` | A short-lived **User token** from Graph API Explorer and the **App Secret** | `META_PAGE_ID`, `META_PAGE_ACCESS_TOKEN`, `META_IG_BUSINESS_ID` (if linked), `PUBLIC_MEDIA_BASE_URL`; adds `SOCIAL_DRY_RUN=true` only if absent | Exchanges for a long-lived token, reads the Page token, checks it with `debug_token` (validity, expiry, permissions) and warns if `pages_manage_posts` or `pages_read_engagement` is missing. Pass `-MediaBase https://<DOMAIN>`, `-PageId`, `-AppId`. Steps to get the token: `docs/META_SETUP.md` (H1 to H4). |
 | `ai_connect.ps1` | A **Groq** key and an **OpenRouter** key | `AI_LLM_*` (Groq primary, OpenRouter fallback), `AI_LLM_FALLBACK=off`, `AI_STT_*` (Groq Whisper) | Tests each model with a small JSON extraction call and keeps only models that pass; nothing changes on the server if none pass. |
 | `whatsapp_connect.ps1` | The **System User token** and the **App Secret** (plus `-PhoneNumberId`) | `WHATSAPP_ENABLED=true`, phone number id, token, app secret, a new random verify token, graph version, `WHATSAPP_DRY_RUN` (`true`, or `false` with `-Live`); optional `WHATSAPP_OWNER_AGENT_ID`, `NEXT_PUBLIC_WHATSAPP_NUMBER` | Checks the token's permissions (`whatsapp_business_messaging` required) and warns if it expires. `-WabaId` subscribes the app to the WhatsApp Business Account. Prints the webhook Callback URL and the verify token to paste into Meta (pass `-SiteHost <DOMAIN>`). Steps: `docs/WHATSAPP_SETUP.md`. |
+| `keys.ps1` | Any of the plain service keys: `SERPER_API_KEY`, `YOUTUBE_API_KEY`, `GOOGLE_TTS_API_KEY`, `GEMINI_API_KEY`, `GSC_SA_KEY_B64` (it reads the key file) | Only the keys you pick; backup `.env.bak-keys`; restarts the backend **and** worker | Shows every key as set (last 4 characters) or EMPTY, including the ones the other scripts own (changed there). Checks a new key with its service before saving. `-Verify` checks every set key against its service from inside the backend container (`backend/scripts/keys_check.py`; the keys never leave the VM): OK, FAILED with the reason, EMPTY or SKIP. `-List` only shows; `-Set "NAME=value;..."` needs no prompts. To add a new kind of key, add one line to its list. |
 | `invite.ps1` | nothing secret | nothing; runs `scripts/invite.py` in the backend container | `-Phone <mobile> -Label "Name, Area"` prints a 6-digit code and a ready WhatsApp message (re-issuing replaces the code and clears a lockout); `-Revoke` removes access; `-List` shows website invite requests. Partners use Admin → Add agent or Invite instead. |
 
 `openrouter_connect.ps1` is an older script that points the primary text AI at OpenRouter's free models only; `ai_connect.ps1` replaces it.
 
 ---
 
-## 5. Deploying
+## 5. Releasing a new version
 
+### 5.1 Before: the change and its checks
+- Every change goes in through a **pull request against `main`**. `main` is what gets deployed; never deploy a feature branch.
+- GitHub runs two checks on every pull request (and on every push to `main`). Both must be green before merging. `deploy.yml` and
+  `e2e-tests.yml` run only when started by hand (Actions → the workflow → Run workflow): the real deploy is `deploy.ps1`, below.
+
+| Check | Workflow | Runs |
+|---|---|---|
+| `backend` | `.github/workflows/architecture.yml` | the import rules (`lint-imports`) and every backend test (`pytest tests/`) |
+| `frontend` | `.github/workflows/ci.yml` | the frontend unit tests (Jest) and the production build (`npm run build`) |
+
+- Run the same checks on your PC when you change code: `cd backend; python -m pytest tests/ -q` and `PYTHONPATH=. lint-imports`;
+  `cd frontend; npx jest; npm run build`.
+- Read the pull request for **new settings or keys** (for example `SERPER_API_KEY` for hot projects). Add them on the VM before or
+  right after the deploy (sections 3 and 4); a missing optional key only leaves its feature off.
+
+### 5.2 Deploy
 ```
+git checkout main
+git pull
 .\deploy\gcp\deploy.ps1 -DryRun      # prints every step, contacts nothing, still builds the local bundle
-.\deploy\gcp\deploy.ps1              # for real
+.\deploy\gcp\deploy.ps1              # for real; note the "Deploying commit <id>" line
 ```
 ✅ What it does: refuses to run with uncommitted changes to tracked files; bundles **git HEAD** of `deploy/`, `backend/` and `frontend/`
 (tracked files only, so no `.env`, `node_modules` or uploads leave your PC; `frontend/e2e` and `frontend/screenshots` are left out);
@@ -350,7 +501,28 @@ Notes from the pilot:
   ago. If a container is old, run `sudo docker compose up -d --build <service>`.
 - The frontend builds with `next build --webpack` inside its Dockerfile (`npm run build`). `NEXT_PUBLIC_*` values are baked in then.
 - After `sudo docker builder prune` (to free disk), the **first build is slow** (no cache: `npm ci` and `pip install` run again).
-- To change only a backend setting, edit `.env` and run `sudo docker compose up -d backend` (no deploy needed).
+- To change only a backend setting, edit `.env` and run `sudo docker compose up -d backend worker` (no deploy needed).
+
+### 5.3 After: check the release
+| Check | How | Pass |
+|---|---|---|
+| Health | `deploy.ps1` printed "Healthy"; on the VM `bash health_check.sh --verbose` | no FAIL line |
+| Rebuilt | on the VM `sudo docker compose ps` | `backend`, `worker`, `frontend` created minutes ago |
+| Loops | on the VM `sudo docker compose exec -T backend python -m app.worker --check` | exit 0 |
+| Keys | `.\deploy\gcp\keys.ps1 -Verify` (when keys changed) | OK for every key set |
+| The change itself | open the page or feature the pull request changed | it works on a phone |
+| Logs | `sudo docker compose logs --tail 100 backend worker` | no new tracebacks |
+
+### 5.4 Roll back ⚠️
+A deploy ships one commit, so rolling back is deploying the previous good commit:
+```
+git log --oneline -5 main            # find the last good commit (the one before the release)
+git checkout <good commit id>
+.\deploy\gcp\deploy.ps1
+git checkout main                    # back to normal; then fix forward in a new pull request
+```
+Code is rolled back; data is not. A release that changed stored data (a new field, a migration script) may need its own undo: read
+its pull request first. A setting added to `.env` is harmless to keep.
 
 ---
 
@@ -367,8 +539,9 @@ sending it; `--test-alert` sends one test alert).
 | `FAIL site` | `https://<DOMAIN>/` does not answer | `sudo docker compose ps`; Caddy logs; is the VM up? |
 | `FAIL api` | `/api/v1/health` is not "healthy" | `sudo docker compose logs --tail 100 backend`; is mongo up? |
 | `FAIL disk` | Root disk at or above 90% | `sudo docker image prune -a`, check the uploads volume, resize the disk |
-| `FAIL container X` | Service X is stopped, missing or unhealthy | `sudo docker compose up -d X` and read its logs |
+| `FAIL container X` | Service X (mongo, backend, worker, frontend, caddy) is stopped, missing or unhealthy | `sudo docker compose up -d X` and read its logs |
 | `FAIL facebook-token` | Meta rejected the Page token (error 190 or 102) | Re-run `meta_connect.ps1` (section 6.6) |
+| `FAIL loops` | An enabled background loop has not run for twice its interval (`python -m app.worker --check`) | `sudo docker compose logs --tail 80 worker`; `sudo docker compose up -d worker` |
 | `FAIL backup` | No backup, or the newest is older than 36 hours | `tail ~/backup.log`; `bash backup.sh`; `crontab -l` |
 
 Not failures: Meta unreachable for a moment, and no Page token configured. Alerts go out when the set of failures changes, every 6 hours
@@ -399,7 +572,8 @@ A paused loop logs that its cycle was skipped (for posting: "paused by owner, cy
 ### 6.4 Pausing
 Owners and partners pause posting, comment replies and news from **Studio → Admin → Controls**, without server access. The switches
 live in the database (`admin_settings`, document `controls`, with a history of who changed what) and the loops read them every cycle.
-To stop something completely, set its `*_ENABLED` to off (or a dry-run switch back to `true`) and restart the backend.
+To stop something completely, set its `*_ENABLED` to off (or a dry-run switch back to `true`) and run
+`sudo docker compose up -d backend worker`.
 
 ### 6.5 Rotating tokens and keys
 | What | How |
@@ -407,12 +581,13 @@ To stop something completely, set its `*_ENABLED` to off (or a dry-run switch ba
 | Meta Page token | Re-run `meta_connect.ps1` with a fresh User token. |
 | WhatsApp token or app secret | Re-run `whatsapp_connect.ps1` (add `-Live` if replies were live). It makes a new verify token; the existing webhook keeps working. |
 | Groq and OpenRouter keys | Make new keys, re-run `ai_connect.ps1`, then revoke the old keys at the provider. |
-| Google TTS, Gemini keys | Edit `.env` on the VM, restart the backend, revoke the old key. |
-| `JWT_SECRET_KEY` | Edit `.env`, restart the backend. Everyone is signed out and signs in again with their code. |
+| Google TTS, Gemini, Search Console, Serper, YouTube keys | `keys.ps1`, pick the key, paste the new one (it is checked, saved, and the backend and worker restart); then revoke the old key at the provider. |
+| `JWT_SECRET_KEY` | Edit `.env`, `sudo docker compose up -d backend worker`. Everyone is signed out and signs in again with their code. |
 | `MONGO_PASSWORD` ⚠️ | Changing `.env` alone does **not** change the database user. First change it in MongoDB (`db.getSiblingDB("admin").changeUserPassword("app", "<new>")` in mongosh), then update `.env` and run `sudo docker compose up -d`. |
 | Agent invite codes | Admin → Add agent → Make a new code, or `invite.ps1 -Phone ...` again. |
 
-After a rotation, delete the `.env.bak-*` files on the VM once everything works: they still hold the old secrets.
+After a rotation, run `keys.ps1 -Verify`, then delete the `.env.bak-*` files on the VM once everything works: they still hold the old
+secrets.
 
 ### 6.6 Meta token error 190
 Error 190 means Meta no longer accepts the Page token. Causes: the app was removed under Facebook Settings → Business integrations, the
@@ -456,7 +631,7 @@ The site address is one setting, but several places cache or copy it.
   never overwrites the VM's `.env`. Delete `.env.bak-*` files after rotations.
 - **Set `JWT_SECRET_KEY`.** The start-up check does not catch the placeholder value.
 - **Owner gating is closed by default.** Admin, Agents, Content approval and Newsroom approval need a superuser or an id in
-  `CONCIERGE_OWNER_IDS`, `CALENDAR_OWNER_IDS` or `NEWSROOM_OWNER_IDS`. Remove a partner's id when he leaves, and restart the backend.
+  `CONCIERGE_OWNER_IDS`, `CALENDAR_OWNER_IDS` or `NEWSROOM_OWNER_IDS`. Remove a partner's id when he leaves, and restart the backend and worker.
 - **Network.** Only Caddy publishes ports (80, 443). MongoDB, backend and frontend are internal. SSH is open on the pilot: restrict it
   to Google's Identity-Aware Proxy and use `-Iap` on every script. Consider a GCP project used only for Avasetu.
 - **Webhooks.** WhatsApp POSTs are rejected (403) without a valid `X-Hub-Signature-256`. Note that the request log records the URL of
@@ -492,7 +667,7 @@ The site address is one setting, but several places cache or copy it.
 | Health shows AI red | Key revoked or the daily free limit reached. Re-run `ai_connect.ps1`. The app keeps working rule-only meanwhile. |
 | Agent sees "Signup is by invitation" | No invite for that number: `invite.ps1 -Phone ...` or Admin → Add agent. Check `JOIN_MODE=invite`. |
 | Agent locked out | Re-issue his code (re-issuing clears the lockout). |
-| A partner does not see Admin | His user id is not in `CONCIERGE_OWNER_IDS` (or the backend was not restarted after adding it). |
+| A partner does not see Admin | His user id is not in `CONCIERGE_OWNER_IDS` (or the backend was not restarted after adding it: `sudo docker compose up -d backend worker`). |
 | Content or Newsroom approval gives 403 | Add the user id to `CALENDAR_OWNER_IDS` or `NEWSROOM_OWNER_IDS`. |
 | Listing rejected "lists homes in Pune for now" | Region rule: widen `ALLOWED_CITIES` only when the business decides to. |
 | Nothing scheduled goes out | `CALENDAR_ENABLED` off, Posting paused in Admin → Controls, rows only `planned` (they need approval in Studio → Content), or rows more than 48 h late were skipped. |
@@ -500,6 +675,11 @@ The site address is one setting, but several places cache or copy it.
 | Reels render slowly or time out | CPU-bound (about a minute per reel); they pre-render up to 2 h before they are due. A bigger VM helps. |
 | A page change does not show | Pages are cached for about 30 seconds; the first visit after a change can show the old page. Reload after a minute. |
 | Health check never alerts | No `ALERT_WEBHOOK_URL` or `ALERT_EMAIL` set; test with `bash health_check.sh --test-alert`. |
+| A key does not seem to work | `keys.ps1 -Verify` shows each key's state and the service's own reason for a FAILED one. |
+| No hot projects, or no Google / YouTube reasons on them | `PROJECT_ENRICH_ENABLED` off, or `SERPER_API_KEY` / `YOUTUBE_API_KEY` EMPTY or FAILED in `keys.ps1 -Verify`. "Homes booked lately" needs two MahaRERA reads of a project, about a month apart. |
+| What are people searching for, and where do we rank? | On the VM: `sudo docker compose exec -T -e PYTHONPATH=. backend python scripts/demand_report.py` (`--rising`, `--area kharadi`, `--kind project`). Filled daily from Search Console (`GSC_SA_KEY_B64`) and our Google searches (`SERPER_API_KEY`), inside the project-page loop. `--missing` lists project numbers MahaRERA search could not find. |
+| A project is missing from `/projects` | The register is still filling (the newsroom loop sweeps our areas' pincodes over about 10 days, `NEWSROOM_ENABLED`), or the project's pincode is outside our areas. A project whose number appears in Google results is looked up by name and added by itself (`discover.py`, with `SERPER_API_KEY`); one whose registered name differs from every title stays in the `discovered_projects` collection (status `open`, `tried_names`): add it with `areastats.watch` and its MahaRERA id. |
+| A pull request's checks are red | Open the failing check's log on GitHub; run the same command on your PC (section 5.1). Do not merge until both are green. |
 
 Background reading in the repo: `docs/PILOT_RUNBOOK.md`, `docs/META_SETUP.md`, `docs/WHATSAPP_SETUP.md` and the module handoff notes in
 `docs/handoff/` (for example C2 for the content engine, WA1 for WhatsApp, P1 for operations, A2 for the concierge).
@@ -510,7 +690,9 @@ Background reading in the repo: `docs/PILOT_RUNBOOK.md`, `docs/META_SETUP.md`, `
 
 | Path | What it holds |
 |---|---|
-| `deploy/gcp/` | Compose file, Caddyfile, `deploy.ps1`, connect scripts, `invite.ps1`, `backup.sh`, `restore_test.sh`, `health_check.sh` and their cron installers |
+| `deploy/gcp/` | Compose file, Caddyfile, `deploy.ps1`, connect scripts, `keys.ps1`, `invite.ps1`, `backup.sh`, `restore_test.sh`, `health_check.sh` and their cron installers |
+| `.github/workflows/` | The pull-request checks (`architecture.yml`: backend; `ci.yml`: frontend) and the by-hand workflows |
+| `backend/app/worker.py` | The worker process: the background loops, their leases and `--check` |
 | `backend/app/core/` | Settings (`config.py`), brand (`brand.py`), region (`region.py`), app start-up and background loops (`application.py`), auth, middleware |
 | `backend/app/api/v1/router.py` | Every API route prefix |
 | `backend/app/modules/onboarding` | `/join`: invite codes, OTP, site creation, branding |
@@ -527,7 +709,10 @@ Background reading in the repo: `docs/PILOT_RUNBOOK.md`, `docs/META_SETUP.md`, `
 | `backend/app/modules/whatsapp`, `notifications` | WhatsApp webhook and assistant; in-app lead badges |
 | `backend/app/modules/interest`, `tracking`, `report` | Interest links, `/go` hub, leads, matching, weekly summary |
 | `backend/app/modules/waitlist` | Website invite requests (`/request-invite`) |
-| `backend/scripts/` | Server-side admin scripts, run with `sudo docker compose exec -T -e PYTHONPATH=. backend python scripts/<name>.py` (for example `invite.py`, `invite_requests.py`, `calendar_admin.py`, `showcase_admin.py`, `reels_admin.py`, `verify_engage_live.py`) |
+| `backend/app/modules/areastats` | The MahaRERA register sweep, area stats, `/projects/<slug>` pages, page enrichment, hot projects (`hot.py`), Google results (`websearch.py`), Search Console (`searchconsole.py`), missing projects (`discover.py`), search phrases and our rank (`demand.py`) |
+| `backend/app/modules/propertyfacts` | Fact sheets with sources: MahaRERA records, brochures, places nearby; campaigns from them |
+| `backend/app/modules/insights` | Meta's numbers for published posts |
+| `backend/scripts/` | Server-side admin scripts, run with `sudo docker compose exec -T -e PYTHONPATH=. backend python scripts/<name>.py` (for example `invite.py`, `invite_requests.py`, `calendar_admin.py`, `showcase_admin.py`, `reels_admin.py`, `verify_engage_live.py`, `keys_check.py`, `demand_report.py`) |
 | `backend/tests/` | Backend tests (pytest) |
 | `frontend/app/` | Next.js pages: public site, `/studio/*` (Studio tabs: home, listings, interest, newsroom, content, leads, admin, agents) |
 | `frontend/components/app/` | Studio components (Admin, Agents, listing flow, brand editor) |

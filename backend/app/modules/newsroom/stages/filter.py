@@ -2,11 +2,12 @@
 import re
 from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from app.core.areas import AREAS
 
-from ..policy import AREA_KEYWORDS, AREA_PINCODES, BANNED, CORRIDOR_KEYWORDS, MAX_AGE_DAYS, PILLAR_KEYWORDS, PUNE_HINT
+from ..policy import (AREA_KEYWORDS, AREA_PINCODES, BANNED, CITYWIDE_HINT, CITYWIDE_PILLARS, CORRIDOR_KEYWORDS, MAX_AGE_DAYS,
+                      NATIONAL_MONEY, PILLAR_KEYWORDS, PILLAR_PRIORITY, PUNE_HINT)
 from ..types import RawItem, Relevance
 from . import topics
 
@@ -24,6 +25,8 @@ _CORE_NAME_RE: Dict[str, List["re.Pattern[str]"]] = {a.key: [_phrase(al) for al 
 _OTHER_RE = [_phrase(k) for k in topics.OTHER_LOCALITIES]
 _CORRIDOR_RE = [_phrase(k) for k in CORRIDOR_KEYWORDS]
 _HINT_RE = [_phrase(k) for k in PUNE_HINT]
+_CITY_RE = [_phrase(k) for k in CITYWIDE_HINT]
+_MONEY_RE = [_phrase(k) for k in NATIONAL_MONEY]
 _PILLAR_RE: Dict[str, List["re.Pattern[str]"]] = {
     p: [_phrase(k, True) for k in list(ks) + topics.EXTRA_PILLAR_KEYWORDS.get(p, [])] for p, ks in PILLAR_KEYWORDS.items()}
 _PIN = re.compile(r"(?<!\d)(\d{6})(?!\d)")
@@ -77,6 +80,19 @@ def _no(reason: str) -> Relevance:
     return Relevance(keep=False, reason=reason)
 
 
+def _best(scores: Dict[str, int]) -> str:
+    """The pillar with the most evidence; a tie goes to the one that matters more to a buyer (policy.PILLAR_PRIORITY)."""
+    rank = {p: i for i, p in enumerate(PILLAR_PRIORITY)}
+    return min(scores, key=lambda p: (-scores[p], rank.get(p, len(rank))))
+
+
+def _lead_pillar(head: str) -> Optional[str]:
+    """The pillar the headline and first sentence are about, or None."""
+    scores = {p: _hits(pats, head) for p, pats in _PILLAR_RE.items()}
+    scores = {p: s for p, s in scores.items() if s}
+    return _best(scores) if scores else None
+
+
 def assess(item: RawItem, now: datetime) -> Relevance:
     when = item.published_at or item.fetched_at
     if _aware(now) - _aware(when) > timedelta(days=MAX_AGE_DAYS):
@@ -99,9 +115,15 @@ def assess(item: RawItem, now: datetime) -> Relevance:
     by_body = [a for a in dict.fromkeys(body_areas) if a not in areas]
     areas += by_body
     corridor = any(p.search(full) for p in _CORRIDOR_RE) and any(p.search(full) for p in _HINT_RE)
+    citywide = False
     if not areas and not corridor:
-        mentioned = any(p.search(full) for pats in _AREA_RE.values() for p in pats)
-        return _no("off-topic: area only mentioned in passing" if mentioned else "off-topic: no target area or corridor")
+        # rules, money and market news applies to every buyer in Pune: it needs no area, only a Pune or Maharashtra mention (or, for
+        # national money news like the repo rate, the topic itself), and the headline must be about it, not mention it in passing
+        lead = _lead_pillar(head)
+        citywide = lead in CITYWIDE_PILLARS and (any(p.search(full) for p in _CITY_RE) or any(p.search(head) for p in _MONEY_RE))
+        if not citywide:
+            mentioned = any(p.search(full) for pats in _AREA_RE.values() for p in pats)
+            return _no("off-topic: area only mentioned in passing" if mentioned else "off-topic: no target area or corridor")
 
     if _HOROSCOPE.search(full):
         return _no("non-news: horoscope")
@@ -127,7 +149,9 @@ def assess(item: RawItem, now: datetime) -> Relevance:
             scores[pillar] = s
     if not scores:
         return _no("no buyer relevance: no pillar keyword evidence")
-    pillar = max(scores, key=scores.get)
+    pillar = _best(scores)
+    if citywide and pillar not in CITYWIDE_PILLARS:
+        pillar = _lead_pillar(head)  # let in for its rules or market news: that is what it is about
     if by_body and supply and "new_supply" in scores and len(by_body) == len(areas):
         pillar = "new_supply"  # the area was found only because it is a new-project item
     # buyer-relevance score: pillar evidence, plus the area being in the headline
@@ -135,7 +159,8 @@ def assess(item: RawItem, now: datetime) -> Relevance:
     score = scores[pillar] + (2 if in_title else 1 if areas else 0)  # area in the first sentence counts for less than in the headline
     if score < topics.MIN_SCORE:
         return _no(f"no buyer relevance: score {score} below {topics.MIN_SCORE}")
-    why = (("areas: " + ", ".join(areas)) if areas else "corridor topic with Pune hint") + f"; score {score}"
+    where = ("areas: " + ", ".join(areas)) if areas else "corridor topic with Pune hint" if corridor else "city-wide buyer news"
+    why = where + f"; score {score}"
     return Relevance(keep=True, pillar=pillar, areas=areas, reason=why)
 
 

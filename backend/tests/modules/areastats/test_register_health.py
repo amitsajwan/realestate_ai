@@ -36,7 +36,7 @@ async def test_each_part_of_a_step_logs_its_outcome(caplog):
         return None
     await _step(store, caplog, fetch=down)
     lines = {r.getMessage().split("step=")[1].split()[0]: r for r in caplog.records if "pipeline=rera ref=register" in r.getMessage()}
-    assert set(lines) == {"sweep", "relabel", "watch", "details", "pages"}
+    assert set(lines) == {"sweep", "relabel", "discover", "watch", "details", "pages"}
     assert "outcome=fallback" in lines["sweep"].getMessage() and "empty=1" in lines["sweep"].getMessage()   # MahaRERA's empty page
     assert "outcome=fallback" in lines["details"].getMessage() and "failed=3" in lines["details"].getMessage()
     assert lines["details"].levelno == logging.WARNING

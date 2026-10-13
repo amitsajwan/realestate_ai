@@ -46,27 +46,51 @@ NAME_ONLY_PINCODE_PREFIXES = ("411", "412")
 MAHARERA_PAGES = 15
 # the only honest wording for a MahaRERA item: the date we have is "Last Modified", not the registration date
 MAHARERA_PHRASE = "listed or updated on MahaRERA"
-# corridor topics that affect our areas even when no area is named (matched together with a Pune hint)
+# corridor topics that affect our areas even when no area is named (matched together with a Pune hint). "Pune airport" is not one:
+# it is in the news every day for flights, passengers and parking, none of which helps a home buyer, and the phrase carries its own
+# Pune hint, so it used to let almost any airport story in. Airport news now comes in only when it names one of our areas (Lohegaon
+# is the airport) or the Purandar site, and air-travel stories are refused as a topic (stages/topics.DENY_TOPICS).
 CORRIDOR_KEYWORDS = [
     "pune ring road", "nagar road", "ramwadi", "wagholi metro", "kharadi metro", "pune-ahmednagar", "shirur road",
-    "pune airport", "purandar airport", "ring road pune", "kharadi bypass", "hadapsar-kharadi",
+    "purandar airport", "ring road pune", "kharadi bypass", "hadapsar-kharadi",
 ]
 PUNE_HINT = ("pune", "pimpri", "pmc", "pmrda", "maharera")
+# City-wide buyer news: rules, money and market items apply to every buyer in Pune, so they need no area. They pass on a Pune or
+# Maharashtra mention (stamp duty and ready reckoner rates are set by the state), or, for national money news (repo rate, home-loan
+# rates), on the topic alone. Other pillars still need one of our areas or a corridor: a launch in Hinjewadi is not our story.
+CITYWIDE_PILLARS = ("rules_money", "market")
+CITYWIDE_HINT = PUNE_HINT + ("pcmc", "maharashtra")
+NATIONAL_MONEY = ("repo rate", "home loan", "home loans", "home-loan", "rbi", "reserve bank", "emi", "emis", "lending rate")
 
 # pillar -> phrases that suggest it
 PILLAR_KEYWORDS = {
     "infrastructure": ["metro", "flyover", "bridge", "road", "airport", "ring road", "pmrda", "pmc", "corridor", "bus", "brts"],
     "new_supply": ["maharera", "rera registration", "registered project", "new project", "launch", "possession"],
-    "rules_money": ["stamp duty", "registration fee", "rera", "home loan", "repo rate", "interest rate", "gst", "ready reckoner"],
+    "rules_money": ["stamp duty", "registration fee", "rera", "home loan", "repo rate", "interest rate", "gst", "ready reckoner",
+                    # buyer protection: MahaRERA rulings and what happens when a project is late
+                    "refund", "delayed possession", "possession delay", "delay in possession", "delay interest", "compensation",
+                    "maharera order", "maharera directs", "maharera holds", "rera order", "abeyance", "conveyance",
+                    "occupancy certificate", "redevelopment"],
+    # the housing market: published sales, price and supply figures (reported, never predicted: check refuses forecasts)
+    "market": ["housing sales", "home sales", "property sales", "residential sales", "property prices", "house prices", "housing prices",
+               "home prices", "residential prices", "per sq ft", "per square foot", "unsold inventory", "unsold stock", "new launches",
+               "housing supply", "rental yield", "rents", "property registrations", "housing demand", "credai", "anarock", "propequity",
+               "knight frank", "cre matrix", "property market", "housing market", "real estate market"],
     "locality_life": ["school", "hospital", "it park", "office", "water supply", "traffic", "garbage", "mall"],
 }
 
-# pillar -> formats we may draft for it (first is the default)
+# Order of importance to a buyer, most important first (the weekly digest uses it). Rules, money and MahaRERA rulings change what a
+# buyer pays or can claim; infrastructure matters when it is near our areas, and it is the most frequent news, so it is not first.
+PILLAR_PRIORITY = ("rules_money", "new_supply", "market", "infrastructure", "locality_life", "education")
+
+# pillar -> formats we may draft for it (first is the default). An article needs researched article text, not just a headline and a
+# line: stages/draft.py falls back to a post when the research found too little to write one honestly.
 FORMATS_BY_PILLAR = {
-    "infrastructure": ["post", "article"],
-    "new_supply": ["post"],
-    "rules_money": ["post", "article"],
-    "locality_life": ["post"],
+    "infrastructure": ["article", "post"],
+    "new_supply": ["post", "article"],
+    "rules_money": ["article", "post"],
+    "market": ["article", "post"],
+    "locality_life": ["article", "post"],
     "education": ["post", "article"],
     "digest": ["digest"],
 }
@@ -93,6 +117,7 @@ BUYER_LINES = {
     ("rules_money", "cost"): "Worth checking: ask the seller or your lawyer how this changes your total cost before you decide.",
     ("rules_money", "other"): "Worth checking: ask your lawyer how this applies to your purchase before you decide.",
     ("locality_life", ""): "Worth checking on a weekday visit: traffic and water at the times you would use them.",
+    ("market", ""): "Worth checking: compare any quote on carpet area with recent sales in the same building or lane.",
 }  # education items are already a tip and the digest carries its own: neither gets a line
 # pillar -> [(sub-type, words that select it)], first match wins; no match falls back to the pillar's "other" line
 BUYER_SUBTYPES = {

@@ -18,6 +18,7 @@ from .types import Publisher
 log = logging.getLogger(__name__)
 
 BATCH = 20
+RESEARCH_WINDOW = timedelta(days=policy.MAX_AGE_DAYS)  # other reports of a story are looked for among items collected this recently
 MIN_AHEAD = timedelta(minutes=10)  # Facebook's window for scheduled posts: 10 minutes to 30 days ahead
 MAX_AHEAD = timedelta(days=30)
 
@@ -32,7 +33,18 @@ def default_stages() -> Dict[str, Callable]:
     from . import adapters  # cards and hub registration live behind the adapters (the only place that touches creative and interest)
     stages = {"filter": assess, "extract": extract, "draft": draft, "check": check, "same_story": same_story,
               "cards": adapters.card_stage, "after_publish": adapters.after_publish}
-    if load().read_articles:
+    cfg = load()
+    if cfg.research:
+        from .stages.read import RobotsCache, polite_get
+        from .stages.research import research
+        robots, polite = RobotsCache(), {}
+
+        async def research_stage(item, rel, candidates, get):
+            if polite.get("src") is not get:  # one rate limiter per fetcher, shared across items
+                polite.update(src=get, get=polite_get(get))
+            return await research(item, rel, candidates, polite["get"], robots, same_story)
+        stages["research"] = research_stage
+    elif cfg.read_articles:
         from .stages.read import RobotsCache, polite_get, read
         robots, polite = RobotsCache(), {}
 
@@ -44,8 +56,17 @@ def default_stages() -> Dict[str, Callable]:
     return stages
 
 
-async def _call(fn, *args):
-    out = fn(*args)
+async def _call(fn, *args, **kwargs):
+    """Call a stage, sync or async. Keyword arguments are passed only when the stage takes them, so a simpler stage (a test fake, an
+    older stage) keeps working when the pipeline has more to offer, such as the research behind an item."""
+    if kwargs:
+        try:
+            params = inspect.signature(fn).parameters
+            if not any(p.kind == p.VAR_KEYWORD for p in params.values()):
+                kwargs = {k: v for k, v in kwargs.items() if k in params}
+        except (TypeError, ValueError):
+            kwargs = {}
+    out = fn(*args, **kwargs)
     return await out if inspect.isawaitable(out) else out
 
 
@@ -125,9 +146,30 @@ async def _filter(store, stages, now, doc):
         await store.move(doc["_id"], "dropped", rel.reason or "not relevant")
 
 
+async def _research(store, stages, doc, raw):
+    """Research before writing (stages/research.py): the full report, other publishers' reports of the story and our area guide. Stored
+    on the item for the owner to see; the main report's full text also replaces the feed text. A failure only means less to go on."""
+    try:
+        since = store.clock() - RESEARCH_WINDOW
+        found = await _call(stages["research"], raw, codec.relevance(doc), await store.recent_raw(doc["_id"], since), stages["get"])
+    except Exception as e:
+        log.warning("newsroom: research failed for %s: %s", doc.get("_id"), sanitize(e))
+        return raw, None
+    await store.update(doc["_id"], research=codec.to_doc(found))
+    main = next((s for s in found.sources if s.role == "main"), None)
+    if main is not None and main.full and main.text != raw.text:
+        await store.update_raw(doc["_id"], main.text)
+        raw = codec.raw_item({"raw": {**codec.to_doc(raw), "text": main.text}})
+    return raw, found
+
+
 async def _extract(store, stages, llm, doc):
     raw = codec.raw_item(doc)
-    if stages.get("read") and stages.get("get"):  # optional: enrich short items with the article body first
+    found = None
+    maharera = (raw.source or "").strip().lower() == "maharera"  # a register record, not a report: nothing to read or cross-check
+    if stages.get("research") and stages.get("get") and not maharera:
+        raw, found = await _research(store, stages, doc, raw)
+    elif stages.get("read") and stages.get("get"):  # optional: enrich short items with the article body first
         try:
             richer = await _call(stages["read"], raw, stages["get"])
             if richer.text != raw.text:
@@ -135,7 +177,7 @@ async def _extract(store, stages, llm, doc):
                 raw = richer
         except Exception as e:
             log.warning("newsroom: read failed for %s: %s", doc.get("_id"), sanitize(e))
-    facts = await _call(stages["extract"], raw, llm)
+    facts = await _call(stages["extract"], raw, llm, research=found)
     if facts is None or not facts.facts:
         await store.move(doc["_id"], "dropped", "no verifiable facts")
     else:
@@ -145,7 +187,7 @@ async def _extract(store, stages, llm, doc):
 async def _draft(store, stages, llm, doc):
     rel = codec.relevance(doc)
     formats = policy.FORMATS_BY_PILLAR.get(rel.pillar or "", ["post"])
-    d = await _call(stages["draft"], codec.raw_item(doc), codec.facts(doc), rel, formats[0], llm)
+    d = await _call(stages["draft"], codec.raw_item(doc), codec.facts(doc), rel, formats[0], llm, research=codec.research(doc))
     if d is None:
         await store.move(doc["_id"], "dropped", "no draft produced")
     else:
@@ -153,7 +195,7 @@ async def _draft(store, stages, llm, doc):
 
 
 async def _check(store, stages, doc):
-    res = await _call(stages["check"], codec.draft(doc), codec.facts(doc), codec.raw_item(doc))
+    res = await _call(stages["check"], codec.draft(doc), codec.facts(doc), codec.evidence(doc))
     if res.ok:
         await store.move(doc["_id"], "checked", check=codec.to_doc(res))
         await store.move(doc["_id"], "pending_review", "awaiting owner", check=codec.to_doc(res))

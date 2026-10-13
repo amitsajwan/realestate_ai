@@ -98,9 +98,27 @@ class Store:
         return await self.items.count_documents({"status": {"$in": list(DONE)}, "published_at": {"$gte": since}})
 
     async def live_titles(self, exclude_id: str, limit: int = 300) -> list:
-        """Titles of items still in play (not dropped, rejected or failed), for spotting the same story from another publisher."""
-        docs = await self.items.find({"status": {"$nin": ["dropped", "rejected", "failed"]}}).to_list(limit)
+        """Titles of items already accepted and still in play (not new, dropped, rejected or failed), for spotting the same story from
+        another publisher. Items still waiting for the filter do not count: otherwise the first report of a batch is dropped for a
+        later one, and the story is kept from whichever report came last, often a Google News item whose page cannot be read.
+        Now the first report collected wins (publisher feeds are collected before Google News) and research finds the others."""
+        docs = await self.items.find({"status": {"$nin": ["new", "dropped", "rejected", "failed"]}}).to_list(limit)
         return [(d.get("raw") or {}).get("title", "") for d in docs if d["_id"] != exclude_id]
+
+    async def recent_raw(self, exclude_id: str, since: datetime, limit: int = 400) -> List[RawItem]:
+        """Items collected since `since` (any status, so the reports the filter set aside as the same story are included), as RawItems,
+        for the research stage to find other publishers' reports of a story."""
+        docs = await self.items.find({"created_at": {"$gte": since}}).to_list(limit)
+        out = []
+        for d in docs:
+            raw = d.get("raw")
+            if d["_id"] == exclude_id or not isinstance(raw, dict) or not raw.get("title"):
+                continue
+            try:
+                out.append(RawItem(**raw))
+            except TypeError:  # a hand-made item (digest, roundup) is not a report
+                continue
+        return out
 
     async def set_run(self, **fields) -> None:
         """Runner bookkeeping (last_run_at, last_error, ...); a single document."""

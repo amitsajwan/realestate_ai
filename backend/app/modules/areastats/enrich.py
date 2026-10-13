@@ -1,8 +1,9 @@
 """Slow, steady enrichment of our project pages (docs/plan/project-pages.md): one project every EVERY_MINUTES, urgent ones at once.
 
-Each round picks ONE project (`next_project`): an urgent request first (a campaign about to post), then the pages Google already
-shows (Search Console impressions, when that job has stored them), then indexable pages never enriched, then the rest, then the
-oldest enrichment once it is REFRESH_DAYS old. For that project:
+Each round picks ONE project (`next_project`): an urgent request first (a campaign about to post), then hot projects (areastats.hot:
+selling, in the news, searched for; refreshed every HOT_REFRESH_DAYS), then the pages Google already shows (Search Console
+impressions, when that job has stored them), then indexable pages never enriched, then the rest, then the oldest enrichment once it
+is REFRESH_DAYS old. For that project:
 1. facts: the property-facts gatherer (set at startup in app/wiring.py, `configure(gather=...)`): MahaRERA's full record, the
    place and what is nearby, worked-out numbers, the agent's offer; each with its source. No model here.
 2. text: ONE model call writes the page text from those facts only. `check_text` refuses any number not in the facts, sales words
@@ -22,13 +23,14 @@ from app.core.areas import BY_KEY
 from app.modules.newsroom.store import Store
 from app.platform import trace
 
-from . import pages, searchconsole
+from . import hot, pages, searchconsole
 from .service import _day
 
 log = logging.getLogger(__name__)
 
 EVERY_MINUTES = 30
 REFRESH_DAYS = 60
+HOT_REFRESH_DAYS = 14                 # a hot project's page is rewritten from fresh facts this often
 POLL_SECONDS = 60
 REQUESTS = "enrich_requests"          # {_id: regno, at, by}: urgent enrichments asked for by campaigns
 MAX_TEXT = 900                        # characters
@@ -69,15 +71,18 @@ def priority(d: dict, urgent: set, now: datetime) -> Optional[tuple]:
     regno = d.get("regno") or d["_id"]
     if regno in urgent:
         return (0, 0)
-    done = d.get("enriched_at")
-    if isinstance(done, datetime) and now - _aware(done) < timedelta(days=REFRESH_DAYS):
+    done, heat = d.get("enriched_at"), int(d.get("hot_score") or 0)
+    is_hot = heat >= hot.HOT_MIN
+    if isinstance(done, datetime) and now - _aware(done) < timedelta(days=HOT_REFRESH_DAYS if is_hot else REFRESH_DAYS):
         return None
+    if is_hot:
+        return (1, -heat)                                       # people are buying, searching or talking about it now: hottest first
     if isinstance(done, datetime):
-        return (4, _aware(done).timestamp())                   # due for a refresh, oldest first
+        return (5, _aware(done).timestamp())                   # due for a refresh, oldest first
     seen = int(d.get("gsc_impressions") or 0)
     if seen:
-        return (1, -seen)                                       # Google already shows it: most impressions first
-    return (2 if pages.indexable(d) else 3, -(int(d.get("units_total") or 0)))   # bigger projects first
+        return (2, -seen)                                       # Google already shows it: most impressions first
+    return (3 if pages.indexable(d) else 4, -(int(d.get("units_total") or 0)))   # bigger projects first
 
 
 async def next_project(store: Store, now: datetime) -> Optional[dict]:
@@ -247,6 +252,12 @@ async def loop() -> None:
                             log.info("enrich: Search Console %s", seen)
                     except Exception:
                         log.exception("enrich: Search Console read failed")
+                    try:  # which projects are hot today, so they are enriched first
+                        scored = await hot.refresh(Store(get_database()), now)
+                        if scored:
+                            log.info("enrich: hot projects %s", scored)
+                    except Exception:
+                        log.exception("enrich: hot projects scoring failed")
                     out = await step(Store(get_database()), default_llm(), now, last_regular, cfg.every)
                     if out:   # enrich_one logged it (pipeline=enrich)
                         if not out["urgent"]:

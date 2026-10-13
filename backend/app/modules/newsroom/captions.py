@@ -47,7 +47,10 @@ def _assemble(blocks: List[str], tags: List[str], channel: str, limit: int) -> O
 def story(doc: dict, channel: str) -> str:
     p = pr.split_text((doc.get("draft") or {}).get("text", ""))
     name, when = pr.source_name(doc), pr.as_of_label(doc)
-    if name:
+    names = pr.source_names(doc)
+    if len(names) > 1:  # a researched article: credit every report it was written from
+        src = f"Sources: {', '.join(names[:-1])} and {names[-1]}" + (f", as of {when}." if when else ".")
+    elif name:
         src = f"Source: {name}" + (f", as of {when}." if when else ".")
     else:
         src = f"As of {when}." if when else ""
@@ -63,17 +66,17 @@ def story(doc: dict, channel: str) -> str:
     if view:
         # Our own view is what makes a news post original (Instagram stops recommending reposts, credit line or not), so when
         # room runs out the fixed house line goes first, then 'what to check', then part of the summary; 'our view' stays.
-        tries = ([p.summary, view, chk, why, src, q, link], [p.summary, view, chk, src, q, link], [p.summary, view, src, q, link],
-                 [_cut(p.summary, max(room - len(view) - 2, 80)), view, src, q, link])
+        tries = ([p.lead, view, chk, why, src, q, link], [p.lead, view, chk, src, q, link], [p.lead, view, src, q, link],
+                 [_cut(p.lead, max(room - len(view) - 2, 80)), view, src, q, link])
     else:
-        tries = ([p.summary, chk, why, src, q, link], [p.summary, why, src, q, link], [p.summary, src, q, link])
+        tries = ([p.lead, chk, why, src, q, link], [p.lead, why, src, q, link], [p.lead, src, q, link])
     for blocks in tries:
         got = _assemble(blocks, tags, channel, limit)
         if got:
             return got
-    return (_assemble([_cut(p.summary, max(room - len(why) - 2, 80)), why, src, q, link], tags, channel, limit)
-            or _assemble([_cut(p.summary, max(room, 80)), src, q, link], tags, channel, limit)
-            or _assemble([_cut(p.summary, 60), src, q, link], [], channel, limit) or "")
+    return (_assemble([_cut(p.lead, max(room - len(why) - 2, 80)), why, src, q, link], tags, channel, limit)
+            or _assemble([_cut(p.lead, max(room, 80)), src, q, link], tags, channel, limit)
+            or _assemble([_cut(p.lead, 60), src, q, link], [], channel, limit) or "")
 
 
 def digest(doc: dict, channel: str) -> str:
@@ -104,7 +107,7 @@ async def verify(doc: dict, checker: Optional[Callable]) -> Dict[str, List[str]]
     out: Dict[str, List[str]] = {ch: [] for ch in CHANNELS}
     if checker is None or not doc.get("draft"):
         return out
-    d, facts, raw = codec.draft(doc), codec.facts(doc), codec.raw_item(doc)
+    d, facts, raw = codec.draft(doc), codec.facts(doc), codec.evidence(doc)
     for ch, text in build(doc).items():
         res = checker(replace(d, text=text, title=None), facts, raw)
         res = await res if inspect.isawaitable(res) else res

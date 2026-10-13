@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from app.modules.newsroom import policy
 from app.modules.newsroom.config import NewsroomConfig
 from app.modules.newsroom.pipeline import run_once
 from app.modules.newsroom.store import Store
@@ -21,7 +22,8 @@ async def test_happy_path_reaches_pending_review_and_not_beyond():
     d = await s.get("i1")
     assert d["status"] == "pending_review" and c["collected"] == 1 and c["errors"] == 0
     assert [h["status"] for h in d["history"]] == ["new", "relevant", "extracted", "drafted", "checked", "pending_review"]
-    assert d["draft"]["format"] == "post" and d["facts"]["facts"][0]["quote"]
+    # the pipeline asks for the pillar's default format; the draft stage decides whether the research supports an article
+    assert d["draft"]["format"] == policy.FORMATS_BY_PILLAR["infrastructure"][0] and d["facts"]["facts"][0]["quote"]
 
 
 async def test_second_run_is_idempotent():
