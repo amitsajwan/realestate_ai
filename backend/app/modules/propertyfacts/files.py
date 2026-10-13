@@ -408,7 +408,10 @@ async def read_brochure(pdf: Path, out_dir: Path, doc: Optional[Dict[str, Any]] 
         big = await asyncio.to_thread(read_copies, pdf, order[:READ_PAGES], out_dir)
     except Exception:
         big = {}
-    read = await read_pages([big.get(i + 1, p) for i, p in enumerate(pages)], order, texts)
+    if brochure_doc.gemini_claims(doc):   # Gemini's one read of this file, checked against its pages: no free reader again
+        read = {"claims": brochure_doc.gemini_claims(doc), "project_name": brochure_doc.project_name(doc), "language": "en"}
+    else:
+        read = await read_pages([big.get(i + 1, p) for i, p in enumerate(pages)], order, texts)
     claims = clean_claims(read.get("claims") or (brochure_doc.claims(doc) if doc else []))
     pins = printed_pins(text, claims)
     nos = find_all(" ".join([str(read.get("rera_no") or "")] + list(read.get("rera_nos") or []) + [text]))

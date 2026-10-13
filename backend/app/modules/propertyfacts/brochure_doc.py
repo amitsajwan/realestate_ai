@@ -151,6 +151,23 @@ def read(pdf: Path) -> Dict[str, Any]:
 
 
 def offer_kind(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """{"kind": "apartment"|"plot", "quote", "page", "by"} from the brochure's words (rules_kind) and Gemini's one read
+    (brochure_vision): either alone, or both when they agree. None when neither says it, or they disagree (then nothing is
+    decided for the agent: the listing's own type stands)."""
+    rules = rules_kind(doc)
+    seen = (((doc or {}).get("vision") or {}).get("facts") or {}).get("offer") or {}
+    model = seen.get("value") if seen.get("value") in ("apartment", "plot") else None
+    if rules and model and rules["kind"] != model:
+        return None
+    if rules:
+        return {**rules, "by": "rules+gemini" if model else "rules"}
+    if model:
+        return {"kind": model, "quote": str(seen.get("quote") or "")[:200], "page": seen.get("page"), "by": "gemini",
+                "check": seen.get("check")}
+    return None
+
+
+def rules_kind(doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """{"kind": "apartment"|"plot", "quote", "page", "flat_pages", "plot_pages"} when the brochure's words say plainly what
     is on offer (one side on 2+ pages and at least 3 times the other's), else None."""
     flat: Dict[int, str] = {}
@@ -206,9 +223,47 @@ def candidates(doc: Optional[Dict[str, Any]]) -> List[bp.Candidate]:
     return out
 
 
+def _checked(f: Optional[Dict[str, Any]]) -> bool:
+    return bool(f) and f.get("check") in ("text", "numbers")
+
+
+def gemini_claims(doc: Optional[Dict[str, Any]]) -> List[str]:
+    """Plain claims from Gemini's read, only values found in their page's own words (brochure_vision.check): a value only
+    the model saw stays a suggestion for the agent. [] without a read."""
+    v = (doc or {}).get("vision") or {}
+    f = v.get("facts") or {}
+    if v.get("status") != "ok":
+        return []
+    out: List[str] = []
+    kind = ((doc or {}).get("kind") or {}).get("kind")
+    configs = []
+    for c in f.get("configurations") or []:
+        if c.get("check") == "image":
+            continue
+        size = c.get("carpet_sqft")
+        configs.append(str(c["label"]) + (f" ({float(size):,.0f} sq ft carpet)" if size and c.get("check") in ("text", "numbers")
+                                          and str(int(float(size))) in str(c.get("quote", "")).replace(",", "") else ""))
+    configs = list(dict.fromkeys(configs))
+    if configs:
+        out.append("The project offers " + (configs[0] if len(configs) == 1 else ", ".join(configs[:-1]) + " and " + configs[-1])
+                   + (" apartments." if kind == "apartment" else "."))
+    for key, line in (("land_area", "The project is spread over {}."), ("site_address", "The site address is {}.")):
+        if _checked(f.get(key)):
+            out.append(line.format(str(f[key]["value"]).rstrip(".")))
+    names = list(dict.fromkeys(a["name"] for a in f.get("amenities") or []))
+    if names:
+        out.append("Amenities include " + ", ".join(names[:10]) + ".")
+    for c in (f.get("connectivity") or [])[:6]:
+        if _checked(c):
+            out.append(f"{c['place']}: {c['distance']}.")
+    return out
+
+
 def claims(doc: Optional[Dict[str, Any]]) -> List[str]:
-    """Plain claims from the rules' findings, for when no vision model read the brochure (files.read_brochure): what is on
-    offer, its configurations, land, amenities and site address, in the builder's own values."""
+    """Plain claims for when the free vision readers gave none (files.read_brochure): Gemini's checked ones when it read
+    the brochure, else the rules' findings (what is on offer, configurations, land, amenities, site address)."""
+    if gemini_claims(doc):
+        return gemini_claims(doc)
     out: List[str] = []
     found = {c.key: c for c in candidates(doc)}
     kind = ((doc or {}).get("kind") or {}).get("kind")
@@ -229,7 +284,10 @@ def claims(doc: Optional[Dict[str, Any]]) -> List[str]:
 
 
 def project_name(doc: Optional[Dict[str, Any]]) -> Optional[str]:
-    return next((str(c.value) for c in candidates(doc) if c.key == "project_name"), None)
+    """The rules' name (printed as text), else Gemini's (often read off the cover's logo)."""
+    rules = next((str(c.value) for c in candidates(doc) if c.key == "project_name"), None)
+    seen = (((doc or {}).get("vision") or {}).get("facts") or {}).get("project_name") or {}
+    return rules or (str(seen["value"])[:80] if seen.get("value") else None)
 
 
 _PHRASE = re.compile(r"\b([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,}){1,2})\b")
@@ -278,19 +336,34 @@ def cached(pdf: Path, uploads_dir: Any) -> Optional[Dict[str, Any]]:
     return doc if doc and doc.get("version") == VERSION else None
 
 
-def _read_and_keep(pdf: Path, uploads_dir: Any) -> Optional[Dict[str, Any]]:
+def _keep(path: Path, doc: Dict[str, Any]) -> None:
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(doc, ensure_ascii=False), "utf-8")
+    tmp.replace(path)
+
+
+def _complete(pdf: Path, uploads_dir: Any) -> Optional[Dict[str, Any]]:
+    """Read what is missing and keep it: the words (text layer + OCR) unless kept already, then Gemini's one read when it
+    is due (brochure_vision.due). The words are kept first, so a reader waiting for them need not wait for Gemini."""
+    from . import brochure_vision
+
     path, marker = _paths(pdf, uploads_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
     marker.write_text(str(time.time()))
     try:
-        doc = read(pdf)
-        doc["sha256"] = path.stem
-        if not doc.get("error"):
-            tmp = path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(doc, ensure_ascii=False), "utf-8")
-            tmp.replace(path)
-        log.info("brochure doc %s: %s pages, %s by OCR, kind %s, %ss", path.stem[:12], len(doc["pages"]),
-                 sum(p["source"] == "ocr" for p in doc["pages"]), (doc.get("kind") or {}).get("kind"), doc.get("seconds"))
+        doc = cached(pdf, uploads_dir)
+        if doc is None:
+            doc = read(pdf)
+            doc["sha256"] = path.stem
+            log.info("brochure doc %s: %s pages, %s by OCR, kind %s, %ss", path.stem[:12], len(doc["pages"]),
+                     sum(p["source"] == "ocr" for p in doc["pages"]), (doc.get("kind") or {}).get("kind"), doc.get("seconds"))
+            if doc.get("error"):
+                return doc
+            _keep(path, doc)
+        if brochure_vision.due(doc):
+            doc["vision"] = brochure_vision.read(pdf, doc)
+            doc["kind"] = offer_kind(doc)
+            _keep(path, doc)
         return doc
     finally:
         marker.unlink(missing_ok=True)
@@ -310,32 +383,33 @@ def start(pdf: Path, uploads_dir: Any) -> None:
         loop = asyncio.get_running_loop()
     except RuntimeError:
         return
-    task = loop.create_task(get(pdf, uploads_dir, wait=READ_BUDGET_S + 60))
+    task = loop.create_task(get(pdf, uploads_dir, wait=READ_BUDGET_S + 300))
     _tasks.add(task)
     task.add_done_callback(_tasks.discard)
 
 
 async def get(pdf: Path, uploads_dir: Any, wait: float = 120.0) -> Optional[Dict[str, Any]]:
-    """The PDF's document: kept, or read now (or by the process already reading it), waiting at most `wait` seconds.
-    None when it is not ready in time (a read started here goes on and is kept for the next reader). Never raises."""
+    """The PDF's document, waiting at most `wait` seconds for what is still being read (here or by another process): the
+    words, then Gemini's one read. The latest kept version when time runs out (None before the words are kept); a read
+    started here goes on and is kept for the next reader. Never raises."""
+    from . import brochure_vision
+
     try:
-        doc = await asyncio.to_thread(cached, pdf, uploads_dir)
-        if doc:
-            return doc
         deadline = time.monotonic() + wait
+        doc = await asyncio.to_thread(cached, pdf, uploads_dir)
+        if doc and not brochure_vision.due(doc):
+            return doc
         if await asyncio.to_thread(_someone_reading, pdf, uploads_dir):
-            while time.monotonic() < deadline:
+            while time.monotonic() < deadline and await asyncio.to_thread(_someone_reading, pdf, uploads_dir):
                 await asyncio.sleep(3)
-                doc = await asyncio.to_thread(cached, pdf, uploads_dir)
-                if doc or not await asyncio.to_thread(_someone_reading, pdf, uploads_dir):
-                    return doc
-            return None
-        task = asyncio.ensure_future(asyncio.to_thread(_read_and_keep, pdf, uploads_dir))
+            return await asyncio.to_thread(cached, pdf, uploads_dir)
+        task = asyncio.ensure_future(asyncio.to_thread(_complete, pdf, uploads_dir))
         _tasks.add(task)
         task.add_done_callback(_tasks.discard)
-        return await asyncio.wait_for(asyncio.shield(task), max(wait, 0.1))
-    except asyncio.TimeoutError:
-        return None
+        try:
+            return await asyncio.wait_for(asyncio.shield(task), max(deadline - time.monotonic(), 0.1))
+        except asyncio.TimeoutError:
+            return await asyncio.to_thread(cached, pdf, uploads_dir)
     except Exception:
         log.warning("brochure doc: %s could not be read", Path(pdf).name, exc_info=True)
         return None
